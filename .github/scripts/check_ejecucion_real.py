@@ -155,6 +155,33 @@ def reportado_por_modulo(ficheros: list[Path]) -> tuple[dict[str, int], int]:
     return por_clase, total
 
 
+def xfail_reportado(ficheros: list[Path]) -> dict[str, list[str]]:
+    """`classname` -> pruebas que reportaron un fallo TRAGADO por `xfail`.
+
+    JUnit marca la prueba `xfailed` como `<skipped type="pytest.xfail">`: es un
+    fallo REAL que la marca convirtio en verde. Se mira aqui porque este es el
+    unico sitio donde el ORIGEN de la marca da igual —decorador, `pytestmark`,
+    un `conftest.py` con `add_marker`, o un plugin— y es justo lo que hace falta
+    contra la inyeccion desde fuera.
+
+    LIMITE MEDIDO, dicho aqui y no descubierto por el siguiente: una prueba
+    `xpassed` —marcada pero que sigue aprobando— sale en el informe como un
+    `<testcase>` PELADO, indistinguible de un aprobado normal. Asi que esta capa
+    ve el fallo ya TRAGADO, no la marca puesta a la espera. La marca a la espera
+    la cazan el AST (A5, D2) y el control de `conftest` (A6). Otra vez causa y
+    efecto sumandose, porque ninguna de las dos llega sola.
+    """
+    hallazgos: dict[str, list[str]] = {}
+    for fichero in ficheros:
+        raiz = ET.parse(fichero).getroot()
+        for caso in raiz.iter("testcase"):
+            for hijo in caso:
+                if hijo.tag == "skipped" and (hijo.get("type") or "") == "pytest.xfail":
+                    hallazgos.setdefault(caso.get("classname") or "", []).append(
+                        caso.get("name") or "?")
+    return hallazgos
+
+
 def cuenta_de(prefijo: str, por_clase: dict[str, int]) -> int:
     """Las pruebas de un modulo, con o sin clase de por medio."""
     return sum(n for clase, n in por_clase.items()
@@ -214,8 +241,34 @@ def main() -> int:
         print("ABLACION: no se compara modulo a modulo.")
         return 0
 
+    criticos = set(datos.get("criticos") or ())
+    xfails = xfail_reportado(ficheros)
+
     errores: list[str] = []
     reportado_total = 0
+
+    # Ningun modulo CRITICO puede tragarse un fallo con `xfail`, venga la marca
+    # de donde venga. Solo los criticos: medido sobre el arbol real, hay 10
+    # pruebas `xfailed` LEGITIMAS hoy, todas en modulos NO criticos y de otros
+    # carriles. Prohibirlas de plano seria un rojo por codigo ajeno y correcto,
+    # que es la via mas rapida a que un gate acabe desactivado. En criticos hay
+    # CERO, asi que ahi la prohibicion nace sin excepciones.
+    for modulo in sorted(criticos & set(obligatorios)):
+        prefijo = _modulo_a_prefijo(modulo)
+        cazadas = [n for clase, nombres in xfails.items()
+                   if clase == prefijo or clase.startswith(prefijo + ".")
+                   for n in nombres]
+        if cazadas:
+            errores.append(
+                f"FALLO TRAGADO EN UN MODULO CRITICO: `{modulo}` reporto "
+                f"{len(cazadas)} prueba(s) `xfail` que FALLARON de verdad "
+                f"({', '.join(cazadas[:3])}{'...' if len(cazadas) > 3 else ''}). "
+                f"El informe lo dice y el codigo de salida no: una suite critica "
+                f"que sujeta una garantia no puede convertir sus fallos en verde. "
+                f"Da igual de donde salga la marca —decorador, `pytestmark`, un "
+                f"`conftest.py` con `add_marker` o un plugin—: aqui se mira el "
+                f"efecto, no el origen."
+            )
     con_pruebas = {m: n for m, n in obligatorios.items() if n > 0}
     sin_pruebas = len(obligatorios) - len(con_pruebas)
     for modulo, esperadas in sorted(con_pruebas.items()):

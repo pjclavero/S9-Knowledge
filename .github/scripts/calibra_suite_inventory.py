@@ -77,10 +77,14 @@ AUTHZ_NEO4J = REPO / "viewer" / "tests" / "test_neo4j_integration_authz.py"
 # de C: ahora que G tiene bandera propia, borrar un modulo CRITICO con C
 # ablacionado seguiria saliendo rojo por G, y el caso no demostraria nada.
 NO_CRITICO = REPO / "viewer" / "tests" / "test_auth_core.py"
+# El `conftest.py` del visor: alcanza a TODOS los modulos de su directorio hacia
+# abajo, asi que es desde donde se marca una suite sin tocar su fichero.
+CONFTEST_VISOR = REPO / "viewer" / "tests" / "conftest.py"
 TOCABLES = TRES_DEL_RC + (
     NAVEGADOR,
     NO_CRITICO,
     AUTHZ_NEO4J,
+    CONFTEST_VISOR,
     REPO / ".github" / "workflows" / "ci.yml",
     REPO / ".github" / "suite-bajas.txt",
 )
@@ -475,6 +479,65 @@ def m_prosa_con_invocacion_falsa() -> None:
         "PROSA")
 
 
+def _decora_con_xfail_condicional(ruta) -> None:
+    """`xfail` con una condicion CIERTA SIEMPRE e indecidible en AST.
+
+    `pytest.__version__ != ''` es la condicion mas tonta que se puede escribir y
+    basta: no es una constante literal, asi que la exencion que `xfail` heredaba
+    de `skipif` la dejaba pasar entera. `sys.platform == 'linux'` hace lo mismo
+    en CI. Por eso la exencion se quito, no se afino.
+    """
+    lineas = ruta.read_text(encoding="utf-8").splitlines(keepends=True)
+    salida, tocados = [], 0
+    for linea in lineas:
+        if linea.startswith("def test_") or linea.startswith("class Test"):
+            salida.append("@pytest.mark.xfail(pytest.__version__ != '', "
+                          "reason='infra')\n")
+            tocados += 1
+        salida.append(linea)
+    if tocados == 0:
+        raise SystemExit(f"MUTACION IMPOSIBLE: {ruta.name} no tiene tests de "
+                         f"primer nivel")
+    ruta.write_text("".join(salida), encoding="utf-8")
+
+
+def m_xfail_condicional_en_critico() -> None:
+    """X3: `xfail` CONDICIONAL por decorador en una suite CRITICA.
+
+    El superviviente S-A. Con la exencion puesta, el gate daba EXIT=0 y 0
+    errores mientras la suite pasaba de `1 failed` a `1 xfailed, 22 xpassed`.
+    Lo caza A5, que ya no exime por condicion.
+    """
+    _decora_con_xfail_condicional(CHASIS)
+
+
+def m_xfail_condicional_no_critico() -> None:
+    """X4: lo mismo en un modulo NO critico. Ancla y control distintos.
+
+    Aqui A5 no aplica —no es critico— y el que muerde es el trinquete D2,
+    porque `tests_en_pie` ya descuenta TODOS los `xfail`. Es la prueba de que
+    la defensa se devolvio a un control que ya estaba calibrado en vez de
+    escribir uno nuevo.
+    """
+    _decora_con_xfail_condicional(NO_CRITICO)
+
+
+def m_conftest_inyecta_xfail() -> None:
+    """X5: `xfail` inyectado desde `conftest.py`, sin tocar ningun test.
+
+    El superviviente S-C, y el unico que ninguna inspeccion del modulo puede
+    ver: la marca no esta en el fichero. Ancla propia —el `conftest`, no un
+    test— y control propio (A6).
+    """
+    CONFTEST_VISOR.write_text(
+        CONFTEST_VISOR.read_text(encoding="utf-8")
+        + "\n\nimport pytest as _p_cal  # INYECTADO POR LA CALIBRACION\n"
+          "def pytest_collection_modifyitems(config, items):\n"
+          "    for _it in items:\n"
+          "        _it.add_marker(_p_cal.mark.xfail(reason='infra inestable'))\n",
+        encoding="utf-8")
+
+
 def m_descritificar_declarado() -> None:
     """Control POSITIVO: descritificar con la suite VIVA y declarandolo.
 
@@ -776,6 +839,12 @@ CASOS = [
      m_xfail_de_modulo, None, None, ROJO),
     ("X2: `@pytest.mark.xfail(reason=...)` test a test",
      m_xfail_por_decorador, None, None, ROJO),
+    ("X3: `xfail` CONDICIONAL por decorador en una suite CRITICA (S-A)",
+     m_xfail_condicional_en_critico, None, None, ROJO),
+    ("X4: `xfail` CONDICIONAL por decorador en un modulo NO critico (S-B)",
+     m_xfail_condicional_no_critico, None, None, ROJO),
+    ("X5: `xfail` inyectado desde `conftest.py` (S-C)",
+     m_conftest_inyecta_xfail, None, None, ROJO),
 
     # --- G1 por las dos vias que la lista blanca no gobernaba ------------
     ("G1-bis: `tee -a \"$GITHUB_ENV\"` (tuberia, sin `>>`)",
@@ -824,6 +893,23 @@ CASOS = [
      m_g1_tee_a_github_env, None, "H", VERDE),
     ("ABLACION A: `xfail` de modulo con el anti-silenciado quitado",
      m_xfail_de_modulo, None, "A", VERDE),
+    # A5 NO puede ablacionarse con esta mutacion, y merece explicacion en vez de
+    # un caso maquillado: decorar TODA la suite critica tumba `tests_en_pie` de
+    # 45 a 0, asi que con A quitado el trinquete D2 sigue poniendolo rojo.
+    # Medido: se escribio primero como ablacion de A esperando VERDE y salio
+    # ROJO por D2. Dos controles cubriendo la misma mutacion es exactamente lo
+    # que se buscaba —defensa en profundidad—, pero una ABLACION tiene que
+    # AISLAR un control, y esa no aisla nada.
+    #
+    # Lo que si demuestra que A5 sujeta por su cuenta es lo contrario: quitar el
+    # trinquete de recuento y comprobar que A5 SOLO sigue enrojeciendo. Si A5
+    # sobrara, este caso saldria verde.
+    ("AISLA A5: `xfail` condicional en CRITICO con el trinquete de recuento (D) quitado",
+     m_xfail_condicional_en_critico, None, "D", ROJO),
+    ("ABLACION A: `conftest` que inyecta `xfail` con el anti-silenciado quitado",
+     m_conftest_inyecta_xfail, None, "A", VERDE),
+    ("ABLACION D: `xfail` condicional NO critico con el trinquete de recuento quitado",
+     m_xfail_condicional_no_critico, None, "D", VERDE),
     ("ABLACION G: descritificar en silencio con el trinquete de criticos quitado",
      m_s4_descritificar_en_silencio, None, "G", VERDE),
 

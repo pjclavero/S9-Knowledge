@@ -1083,24 +1083,34 @@ def xfail_por_decorador(texto: str) -> list[tuple[str, str]]:
     Asi que se trata como el gate ya trata los `skipif` de modulo, que tambien
     tienen siete casos legitimos:
 
-      * en un modulo CRITICO -> ROJO SIEMPRE. Hoy hay CERO, asi que la
-        prohibicion nace sin excepciones. Es donde vive el ataque: apagar la
-        suite que sujeta la garantia.
-      * en el resto -> TRINQUETE. `tests_en_pie` los descuenta, asi que un
+      * en un modulo CRITICO -> ROJO SIEMPRE, con condicion o sin ella. Hoy
+        hay CERO, asi que la prohibicion nace sin excepciones. Es donde vive el
+        ataque: apagar la suite que sujeta la garantia.
+      * en el resto -> TRINQUETE. `tests_en_pie` los descuenta TODOS, asi que un
         `xfail` NUEVO baja esa medida y el trinquete D2 —ya calibrado— se pone
         rojo. La defensa sale de un control que ya existia, no de uno nuevo sin
         calibrar.
+
+    NINGUNA EXENCION POR CONDICION. `xfail` no es `skipif` y no hereda su regla:
+    `skipif` con condicion DECLARA que no se ejecuta; `xfail` condicional finge
+    ejecucion y se traga el fallo, y su condicion es indecidible en AST
+    (`pytest.__version__ != ""` es cierta siempre).
 
     A nivel de MODULO no hay matiz y por eso no esta aqui: `silenciado()` lo
     trata como INCONDICIONAL y hoy el arbol tiene CERO, asi que ahi la
     prohibicion es total y sin coste.
 
-    HUECO DECLARADO: de los 13 `xfail` medidos, 7 estan en modulos que el
-    inventario cuenta en `en_pie` —esos los sujeta el trinquete D2— y 6 estan
-    en modulos DELEGADOS, que no entran en `en_pie` porque su trinquete es de
-    PRESENCIA. Para esos 6 el trinquete no aplica: los cubre el job que los
-    ejecuta, que ya falla si ve `skipped`. Ninguno es critico. Se dice aqui en
-    vez de dejarlo implicito.
+    LOS DELEGADOS: 7 de los 13 estan en modulos que el inventario cuenta en
+    `en_pie` —esos los sujeta D2— y 6 en modulos DELEGADOS, que no entran en
+    `en_pie` porque su trinquete es de PRESENCIA. La ronda anterior dijo que
+    "los cubre el job que los ejecuta, que ya falla si ve `skipped`" y ESO ERA
+    FALSO: pytest no imprime `skipped` para un `xfail`, imprime `xfailed`, asi
+    que aquel `grep` no lo veia. Comprobado con un `xfail` pelado en
+    `test_browser_navigation.py`: gate EXIT=0, sin `en_pie` que lo descuente,
+    sin A5 (no es critico) y sin que el `grep` lo delatara. Corregido donde
+    tocaba: el job del navegador ahora tambien busca `xfailed`. Ahi vive el
+    contrato del navegador —escribir = 0 POST, Enter = 1 POST—, que es
+    propiedad declarada del RC.
     """
     try:
         arbol = ast.parse(texto)
@@ -1113,10 +1123,102 @@ def xfail_por_decorador(texto: str) -> list[tuple[str, str]]:
         for dec in nodo.decorator_list:
             if _nucleo_marca(dec) != "xfail":
                 continue
-            if _tiene_condicion_real(dec) and not _condicion_constante_verdadera(dec):
+            # SIN EXENCION POR CONDICION, y esto es la correccion del quinto
+            # dictamen. La version anterior eximia el decorador con condicion
+            # posicional no literal, heredando la regla de `skipif`. Un revisor
+            # la atraveso con la condicion mas tonta posible:
+            #
+            #   @pytest.mark.xfail(pytest.__version__ != '', reason='infra')
+            #
+            # cierta SIEMPRE, indecidible en AST, y con ella la suite critica
+            # daba `1 xfailed, 21 xpassed` y EXIT=0 con el gate en 0 errores.
+            # `sys.platform == 'linux'` hace lo mismo en CI.
+            #
+            # La herencia era el fallo: `skipif` con condicion es legitimo
+            # porque DECLARA que no se ejecuta, y ademas su condicion de modulo
+            # esta gobernada por el trinquete A2. `xfail` condicional FINGE
+            # ejecucion, se traga el fallo, y a nivel de decorador no tenia
+            # trinquete ninguno —precisamente porque la exencion impedia el
+            # descuento que alimentaria a D2—.
+            #
+            # Contar TODOS devuelve la defensa a D2, que ya esta calibrado, para
+            # todo el arbol y sin casuistica. Coste hoy: CERO. Medido antes de
+            # tocar nada: los 13 `xfail` del arbol son PELADOS, no hay ni uno
+            # condicional, asi que la base no se mueve y no enrojece nada
+            # legitimo.
+            condicion = ""
+            if isinstance(dec, ast.Call) and dec.args:
+                try:
+                    condicion = f" con condicion `{ast.unparse(dec.args[0])[:60]}`"
+                except Exception:  # pragma: no cover
+                    condicion = " con condicion"
+            hallazgos.append((nodo.name,
+                              f"@pytest.mark.xfail{condicion}: la prueba ya no "
+                              f"puede fallar, y ademas finge ejecucion"))
+    return hallazgos
+
+
+def conftest_inyecta_apagados() -> list[tuple[str, str]]:
+    """(fichero, motivo) de cada `conftest.py` que MARCA pruebas desde fuera.
+
+    EL TERCER SUPERVIVIENTE DEL QUINTO DICTAMEN, y el unico que NINGUNA
+    inspeccion del modulo puede ver: la marca no esta en el fichero de test.
+
+        # conftest.py
+        def pytest_collection_modifyitems(config, items):
+            for it in items:
+                it.add_marker(pytest.mark.xfail(reason="infra inestable"))
+
+    Medido en un sandbox: con esas cuatro lineas, `1 xfailed, 1 xpassed` y
+    EXIT=0 donde antes habia `1 failed` y EXIT=1. El AST del modulo sigue
+    limpio, `tests_en_pie` no baja, D2 no se entera y A5 tampoco.
+
+    Y la capa de ejecucion real solo lo ve A MEDIAS, lo que obliga a tener este
+    control: medido sobre el informe JUnit, una prueba `xpassed` sale como un
+    `<testcase>` PELADO, indistinguible de un aprobado normal; solo cuando la
+    prueba llega a fallar aparece `<skipped type="pytest.xfail">`. O sea: la
+    capa de ejecucion caza el fallo TRAGADO, pero no la marca puesta a la
+    espera. Este control caza la marca antes de que haya ningun defecto.
+
+    Hoy el arbol tiene CERO `conftest.py` con `modifyitems` o `add_marker`
+    (medido), asi que la prohibicion nace sin excepciones. Si alguna vez hace
+    falta marcar desde un `conftest`, que sea una decision visible y discutida,
+    no un renglon que nadie mira.
+    """
+    hallazgos = []
+    vistos = set()
+    for raiz in (REPO, *(REPO / r for r in ("viewer", "data-engine", "deploy",
+                                            "tests", "contracts"))):
+        if not raiz.exists():
+            continue
+        for cf in sorted(raiz.rglob("conftest.py")):
+            if "__pycache__" in cf.parts or ".git" in cf.parts:
                 continue
-            hallazgos.append((nodo.name, "@pytest.mark.xfail: la prueba ya no "
-                                         "puede fallar, y ademas finge ejecucion"))
+            rel = cf.resolve()
+            if rel in vistos:
+                continue
+            vistos.add(rel)
+            try:
+                arbol = ast.parse(cf.read_text(encoding="utf-8", errors="replace"))
+            except SyntaxError:
+                continue
+            for nodo in ast.walk(arbol):
+                if not isinstance(nodo, ast.Call):
+                    continue
+                fn = nodo.func
+                if not isinstance(fn, ast.Attribute):
+                    continue
+                if fn.attr not in ("add_marker", "applymarker"):
+                    continue
+                texto_arg = " ".join(ast.unparse(a) for a in nodo.args) if nodo.args else ""
+                for marca in MARCAS_QUE_APAGAN:
+                    if marca in texto_arg:
+                        hallazgos.append((
+                            cf.relative_to(REPO).as_posix(),
+                            f"`{fn.attr}(...)` con `{marca}`: marca pruebas desde "
+                            f"FUERA del modulo, asi que ninguna inspeccion del "
+                            f"fichero de test puede verlo"))
+                        break
     return hallazgos
 
 
@@ -1721,6 +1823,23 @@ def main() -> int:
                     f"nada con todos los instrumentos en verde. Si la prueba esta "
                     f"rota, arreglala o borrala; no la vuelvas incapaz de fallar."
                 )
+
+    # A6: ningun `conftest.py` puede MARCAR pruebas desde fuera del modulo.
+    # Va fuera del bucle de modulos porque no es una propiedad de un modulo:
+    # es del arbol entero, y un solo `conftest.py` alcanza a todos los de su
+    # directorio hacia abajo.
+    if ABLACION != "A":
+        for fichero, motivo in conftest_inyecta_apagados():
+            errores.append(
+                f"APAGADO INYECTADO DESDE FUERA: `{fichero}` {motivo}. Medido en "
+                f"un sandbox: cuatro lineas de `pytest_collection_modifyitems` con "
+                f"`add_marker(pytest.mark.xfail(...))` convierten `1 failed` "
+                f"(EXIT=1) en `1 xfailed, 1 xpassed` (EXIT=0) sin tocar una coma "
+                f"del fichero de test. Ni el AST del modulo, ni `tests_en_pie`, "
+                f"ni D2, ni A5 pueden verlo, y el informe JUnit solo delata la "
+                f"marca cuando ya se ha tragado un fallo. Si de verdad hace falta "
+                f"marcar desde un `conftest`, que sea una decision visible."
+            )
 
     # --- B: anti-desaparicion ---------------------------------------------
     if ABLACION != "B":

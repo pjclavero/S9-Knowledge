@@ -45,9 +45,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO / '.github' / 'scripts'))
+from check_ejecucion_real import _modulo_a_prefijo  # noqa: E402
 CONTROL = REPO / ".github" / "scripts" / "check_ejecucion_real.py"
 RAIZ = "viewer/tests"
 
@@ -109,6 +112,33 @@ def corre_pytest(tmp: Path, entorno: dict, extra: list[str] | None = None) -> Pa
         cwd=REPO, capture_output=True, text=True, timeout=3600, env=entorno,
     )
     return informe
+
+
+def inyecta_xfail_en_informe(informe: Path, modulo: str) -> None:
+    """Convierte una `<testcase>` de `modulo` en un fallo TRAGADO por `xfail`.
+
+    Se muta el INFORME, no el repositorio, y no es un atajo: la entrada de este
+    control ES un fichero JUnit, asi que darle un JUnit con un `xfail` dentro es
+    ejercerlo por su interfaz real. Ademas evita tener que meterle un defecto a
+    una suite critica de verdad, que es justo lo que este carril prohibe.
+
+    La forma la dicta pytest, medida en un sandbox: una prueba `xfailed` sale
+    como `<skipped type="pytest.xfail">`; una `xpassed` sale como un `<testcase>`
+    PELADO, indistinguible de un aprobado. Por eso esta capa ve el fallo ya
+    tragado y no la marca a la espera, y por eso hace falta ademas A5/A6/D2.
+    """
+    arbol = ET.parse(informe)
+    prefijo = _modulo_a_prefijo(modulo)
+    for caso in arbol.getroot().iter("testcase"):
+        clase = caso.get("classname") or ""
+        if clase == prefijo or clase.startswith(prefijo + "."):
+            hijo = ET.SubElement(caso, "skipped")
+            hijo.set("type", "pytest.xfail")
+            hijo.set("message", "infra inestable")
+            arbol.write(informe, encoding="utf-8", xml_declaration=True)
+            return
+    raise SystemExit(f"MUTACION IMPOSIBLE: `{modulo}` no aparece en el informe, "
+                     f"asi que el caso no demostraria nada")
 
 
 def corre_control(informe: Path, ablacion: bool) -> tuple[int, str]:
@@ -215,6 +245,11 @@ def entrega_e3_sitecustomize(tmp: Path, opcion: str) -> dict:
     return entorno
 
 
+# Centinela: en vez de entregar una variable de entorno, este caso muta el
+# INFORME para meterle un fallo tragado por `xfail`. Va como centinela y no como
+# sexto campo para no reescribir doce tuplas que ya estan calibradas.
+XFAIL_EN_INFORME = "xfail-en-el-informe"
+
 CASOS = [
     # (titulo, entrega, opcion de apagado, ablacion, esperado)
     ("control positivo: corrida legitima completa de viewer/tests",
@@ -243,6 +278,12 @@ CASOS = [
     ("vector NO IMAGINADO: `--deselect` de un modulo entero",
      entrega_g2_container_options, f"--deselect={M_B}", False, ROJO),
 
+    # --- el fallo TRAGADO, que no es una desaparicion ---------------------
+    # `xfail` no quita la prueba del informe: la deja dentro y le cambia el
+    # veredicto. Por eso necesita su propia comprobacion y su propio caso.
+    ("S-C: fallo TRAGADO por `xfail` en un modulo CRITICO (venga de donde venga)",
+     XFAIL_EN_INFORME, M_A, False, ROJO),
+
     # --- ablacion: sin la comparacion contra el inventario, verde otra vez ---
     ("ABLACION: G1 con la comparacion contra el inventario quitada",
      entrega_g1_concatenado, f"--ignore={M_A}", True, VERDE),
@@ -250,6 +291,8 @@ CASOS = [
      entrega_g2_container_options, f"--ignore={M_B}", True, VERDE),
     ("ABLACION: E3 con la comparacion contra el inventario quitada",
      entrega_e3_sitecustomize, f"--ignore={M_F}", True, VERDE),
+    ("ABLACION: fallo TRAGADO con la comparacion contra el inventario quitada",
+     XFAIL_EN_INFORME, M_A, True, VERDE),
 ]
 
 
@@ -269,12 +312,16 @@ def main() -> int:
     filas, fallos = [], 0
     try:
         for titulo, entrega, opcion, ablacion, esperado in CASOS:
-            entorno = entrega(tmp, opcion) if entrega else base()
+            muta_informe = entrega is XFAIL_EN_INFORME
+            entorno = base() if (muta_informe or not entrega) else entrega(tmp, opcion)
             print(f"\n########## {titulo}  (esperado: {esperado})")
-            if entrega:
+            if entrega and not muta_informe:
                 print(f"  entregado: PYTEST_ADDOPTS={entorno.get('PYTEST_ADDOPTS')!r} "
                       f"PYTHONPATH={entorno.get('PYTHONPATH', '')[:60]!r}")
             informe = corre_pytest(tmp, entorno)
+            if muta_informe:
+                inyecta_xfail_en_informe(informe, opcion)
+                print(f"  informe mutado: un `xfail` que FALLO en `{opcion}`")
             rc, salida = corre_control(informe, ablacion)
             obtenido = VERDE if rc == 0 else ROJO
             print("\n".join(salida.splitlines()[-6:]))
