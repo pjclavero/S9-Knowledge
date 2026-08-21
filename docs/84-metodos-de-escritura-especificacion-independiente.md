@@ -290,14 +290,23 @@ el árbol limpio, toma de ahí los endpoints de escritura y muta **cada uno**. S
 mañana aparece uno nuevo, se muta también sin que nadie lo añada aquí.
 
 Corrida completa: **49 casos, veredicto OK, 0 en fallo**, hash del árbol
-idéntico antes y después (`9475b893…7236`), **8 ablaciones cobradas**.
+idéntico antes y después (`0614639d…0568`), **8 ablaciones cobradas**.
 
-> El hash se toma **siempre del objeto de git** (`git show <commit>:<ruta>` /
-> `git archive <commit>`), nunca del árbol de trabajo. Una edición anterior de
-> este documento publicó `32d820e4…36f8`, que era el hash de **otro estado del
-> árbol**: la propiedad que importa —antes == después— se cumplía, pero la cifra
-> no correspondía al commit. El valor de arriba es el del árbol de este commit y
-> sale idéntico en el worktree y en un checkout limpio.
+> **De dónde sale ese número, y por qué importa.** Se verifica siempre contra el
+> **objeto de git** (`git show <commit>:<ruta>` / `git archive <commit>`), nunca
+> contra el árbol de trabajo a secas. Una edición anterior de este documento
+> publicó `32d820e4…36f8`, que era el hash de **otro estado del árbol**: la
+> propiedad que importa —antes == después— se cumplía, pero la cifra no
+> correspondía al commit.
+>
+> `hash_arbol` recorre el **árbol de trabajo**, e incluye ficheros **no
+> versionados e ignorados**. Eso lo hace sensible a subproductos: correr la suite
+> del visor deja `viewer/output/reviews-v3/review.sqlite3` (ignorado por
+> `.gitignore`), y con él presente la corrida publicaba `e7ab139c…0437` con
+> `git status` limpio. No es un fallo de la comprobación —para detectar
+> escrituras es justo lo que debe mirar—, pero sí significa que **la cifra sólo
+> es reproducible sobre un árbol prístino**. La de arriba se tomó así, y coincide
+> byte a byte con `git archive` del commit.
 
 | familia | mutación | n | resultado |
 |---|---|---|---|
