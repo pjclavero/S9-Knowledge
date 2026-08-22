@@ -54,26 +54,36 @@
 # entrada para `test_a` no ampara a `test_a_bis`. Los casos parametrizados
 # llevan su `[parametro]`, uno por linea. `#` inicia comentario.
 #
-# ALCANCE ACTUAL Y SU PRECIO EXACTO
-# ---------------------------------
+# ALCANCE ACTUAL, SU PRECIO EXACTO Y LA DEUDA AGENDADA
+# ----------------------------------------------------
 # Las entradas de abajo se midieron de una corrida real completa. La suite
 # DELEGADA del navegador (`viewer/tests/browser/**`) NO esta aqui porque sus
 # nodeids exactos solo se pueden medir en el job que instala Chromium, y
-# sembrar un registro con nodeids que no he medido seria repetir el error de
-# dar por bueno un control sin su control positivo.
+# sembrar un registro con nodeids que no se han medido seria repetir el error
+# de dar por bueno un control sin su control positivo.
 #
-# EL PRECIO, dicho entero para que nadie lo descubra tarde: para esa suite NO
-# RIGE LA GARANTIA DE LAS DOS DIRECCIONES. Sus ~12 `xfailed` (9 sitios) NO
-# PUEDEN CRECER —eso lo sujeta el trinquete X-T— PERO TAMPOCO CADUCAN: si
-# manana se arregla el defecto y empiezan a XPASS, NADIE LO DIRA, porque las
-# dos direcciones viven en este registro y ahi no hay entradas suyas. Es, con
-# todas las letras, un VERTEDERO DE EXCEPCIONES ETERNAS, acotado a 9 sitios.
+# EL PRECIO, dicho entero: para esa suite NO RIGE LA GARANTIA DE LAS DOS
+# DIRECCIONES. Sus ~12 `xfailed` (9 sitios) NO PUEDEN CRECER —lo sujeta el
+# trinquete X-T— PERO TAMPOCO CADUCAN: si manana se arregla el defecto y
+# empiezan a XPASS, NADIE LO DIRA, porque las dos direcciones viven en este
+# registro y ahi no hay entradas suyas. Es un VERTEDERO DE EXCEPCIONES
+# ETERNAS, acotado a 9 sitios.
 #
-# AGENDADO (no "pendiente y dicho"): sembrar este registro con los nodeids del
-# navegador MEDIDOS desde el job que instala Chromium, y extender ahi la
-# comprobacion de las dos direcciones. Hasta que eso se haga, el hueco de
-# arriba sigue abierto y es un hueco DECLARADO Y TEMPORAL, no una propiedad
-# del diseno.
+# TAREA OBLIGATORIA, AGENDADA:
+#
+#     antes de RC Exercise 2:
+#       browser xfails reales
+#         -> inventariados desde EJECUCION REAL
+#         -> registro revisado
+#         -> nuevo xfail        = ROJO
+#         -> excepcion obsoleta = ROJO
+#
+# NO se inventan identificadores a mano: se siembran DESDE EL JOB REAL DEL
+# NAVEGADOR, donde se observan los nodeids exactos, y despues se hace la misma
+# prueba bidireccional que aqui.
+#
+# CLAUSULA DE REAPERTURA: si al intentar sembrarlo aparece otro defecto
+# estructural, entonces si vuelve a ser bloqueante.
 
 GATE4-01 | data-engine/app/tests/test_knowledge_v3_gate4_negation_e2e.py::test_alcance_global_alcanza_el_umbral | SUSPENSO REAL medido: alcance global 0.875 < 0.95 sobre los casos cubiertos
 GATE4-02 | data-engine/app/tests/test_knowledge_v3_gate4_negation_e2e.py::test_recall_de_autoaprobacion_simple_alcanza_el_umbral | SUSPENSO REAL medido: recall de autoaprobacion simple 0.1 < 0.75
