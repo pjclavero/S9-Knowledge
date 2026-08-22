@@ -293,6 +293,17 @@ jobs:
             echo "ERROR: se saltaron tests de navegador con el navegador disponible"
             exit 1
           fi
+          # AQUI NO VA UN `grep` DE `xfailed`, y conviene saber por que.
+          # Se puso uno y ENROJECIO ESTE JOB en CI: esta suite lleva 6
+          # `xfail(strict=True)` que NO son silenciadores sino un registro de
+          # DEFECTOS CONOCIDOS -la prueba que deberia pasar, escrita ya, para
+          # que el dia que alguien arregle el defecto el XPASS se convierta en
+          # fallo y obligue a quitar la marca-. Un `grep` no distingue ese
+          # patron declarado de un apagado nuevo: solo sabe contar.
+          # Lo que hace falta aqui no es una prohibicion sino un TRINQUETE, y
+          # vive donde se puede comparar contra una base: el censo `xfail` del
+          # inventario (control X-T en `check_suite_inventory.py`), que si
+          # cubre los modulos DELEGADOS y deja crecer cero.
 
   test-combined:
     name: Combined Test Suite (no collection errors)
@@ -321,7 +332,8 @@ jobs:
         run: |
           # Guardia anti-cero (ver `check-ci-config`).
           set +e
-          out="$(python -m pytest --tb=short --no-header -q 2>&1)"
+          mkdir -p artifacts/junit
+          out="$(python -m pytest --tb=short --no-header -q --junitxml=artifacts/junit/combined.xml 2>&1)"
           rc=$?
           set -e
           echo "$out"
@@ -330,6 +342,85 @@ jobs:
             echo "::error::la suite combinada no ejecuto ninguna prueba"
             exit 1
           fi
+
+      # -----------------------------------------------------------------
+      # VERIFICAR EL RESULTADO, NO LA CAUSA
+      # -----------------------------------------------------------------
+      # `N passed` dice que se ejecuto ALGO. El paso anterior lo comprueba y no
+      # basta: un revisor independiente apago suites criticas UNA RONDA TRAS
+      # OTRA con vias nuevas cada vez (`PYTEST_ADDOPTS` por cinco niveles de
+      # `env:`, por `$GITHUB_ENV`, con el nombre concatenado sin `$`, por
+      # `container.options -e`, por un `uses:` a nivel de job, por un
+      # `sitecustomize.py`), y en cada ronda el gate cerraba la via encontrada.
+      # La superficie de CAUSAS es abierta; el RESULTADO no.
+      #
+      # Este paso compara, modulo a modulo, lo que el job EJECUTO DE VERDAD
+      # —el informe `--junitxml`— contra `.github/suite-inventario.json`. Si
+      # `test_parcialidad_declarada.py` no reporta sus pruebas aqui, ROJO, sin
+      # importar por que. Es la misma logica que `test-neo4j-authz` ya usa con
+      # `grep -qi skipped`, generalizada.
+      #
+      # NO sustituye a los nueve SUP de `check_suite_inventory.py`: se SUMA.
+      # Aquella capa mira la causa y avisa antes; esta mira el efecto y no se
+      # puede rodear.
+      #
+      # Vive en ESTE job y no en uno nuevo por lo mismo que el inventario: un
+      # job nuevo cambiaria el recuento de checks requeridos, y eso es decision
+      # del operador. Ademas este es el unico job con TODAS las dependencias
+      # instaladas, que es lo que hace honesta la comparacion: el inventario se
+      # midio en este mismo entorno.
+      - name: Lo ejecutado de verdad tiene que ser lo que el inventario declara
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/check_ejecucion_real.py \
+            --junit artifacts/junit
+
+      # -----------------------------------------------------------------
+      # Inventario de suites como PUERTA (ejercicio RC 1)
+      # -----------------------------------------------------------------
+      # `N passed` comprueba que se ejecuto ALGO, jamas que se ejecuto LO QUE
+      # TENIA QUE EJECUTARSE. Un revisor adversarial lo demostro VIVO: puso
+      # `pytestmark = skip` en `test_parcialidad_declarada.py`, en
+      # `test_identidad_durable.py` y en `test_chassis_mount_contract.py`, uno
+      # por uno, y este job siguio VERDE (1554 / 1565 / 1488 passed). Y sin
+      # PyYAML, 293 -> 215 passed sin que nada avisara.
+      #
+      # Este paso vive AQUI y no en un job propio a proposito: un job nuevo
+      # cambiaria el recuento de checks requeridos (hoy 16 del proyecto) y eso
+      # es decision del operador, no efecto colateral de un carril. Ademas este
+      # es el unico job con TODAS las dependencias instaladas y con
+      # `fetch-depth: 0`, que es lo que el trinquete necesita para leer el
+      # inventario del merge-base.
+      #
+      # La lista de suites obligatorias NO se escribe aqui ni en ningun sitio:
+      # se DERIVA de lo que los jobs invocan, de la coleccion real, de los
+      # arneses de calibracion y del inventario de la base. Ver la cabecera de
+      # `.github/scripts/check_suite_inventory.py`.
+      - name: Ninguna suite critica puede desaparecer ni silenciarse
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/check_suite_inventory.py
+
+      # El inventario es una MEDIDA, no una lista: se regenera. Si el commit no
+      # trae el inventario actualizado, la base del trinquete del PR siguiente
+      # seria la de antes y el trinquete afloja solo.
+      - name: El inventario publicado tiene que estar al dia
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/check_suite_inventory.py --escribir-inventario >/dev/null
+          if ! git diff --quiet -- .github/suite-inventario.json; then
+            echo "::error::.github/suite-inventario.json esta desactualizado."
+            echo "Regeneralo:  python3 .github/scripts/check_suite_inventory.py --escribir-inventario"
+            git --no-pager diff --stat -- .github/suite-inventario.json
+            exit 1
+          fi
+          echo "OK: el inventario publicado coincide con la medida"
 
   review-ingest-contracts:
     name: Contratos review/ingest v1 (JSON Schema)
@@ -347,7 +438,12 @@ jobs:
           # Sin `|| true`: si falta jsonschema el gate falla, no pasa en verde.
           set -euo pipefail
           python -m pip install --upgrade pip
-          pip install "jsonschema>=4.18,<5.0" "pytest>=8.2,<9.0"
+          # `referencing` se IMPORTA con `importorskip` en los tests de
+          # contratos. Hasta ahora llegaba solo como dependencia transitiva de
+          # `jsonschema`: el dia que jsonschema cambie de rango, esas pruebas se
+          # convierten en skips VERDES y nadie se entera. Lo detecto
+          # el preflight de `check_suite_inventory.py` y se declara explicito.
+          pip install "jsonschema>=4.18,<5.0" "referencing>=0.36,<1.0" "pytest>=8.2,<9.0"
           python -c "import jsonschema, referencing; print('jsonschema', jsonschema.__version__)"
 
       - name: Validate contracts (schemas + examples + semantics)
@@ -380,7 +476,12 @@ jobs:
           # Sin `|| true`: si falta jsonschema el gate falla, no pasa en verde.
           set -euo pipefail
           python -m pip install --upgrade pip
-          pip install "jsonschema>=4.18,<5.0" "pytest>=8.2,<9.0"
+          # `referencing` se IMPORTA con `importorskip` en los tests de
+          # contratos. Hasta ahora llegaba solo como dependencia transitiva de
+          # `jsonschema`: el dia que jsonschema cambie de rango, esas pruebas se
+          # convierten en skips VERDES y nadie se entera. Lo detecto
+          # el preflight de `check_suite_inventory.py` y se declara explicito.
+          pip install "jsonschema>=4.18,<5.0" "referencing>=0.36,<1.0" "pytest>=8.2,<9.0"
           python -c "import jsonschema, referencing; print('jsonschema ok')"
 
       - name: Validate V3 contracts (roundtrip + mutacion)
@@ -481,6 +582,51 @@ jobs:
         env:
           S9K_ALLOW_REAL_INGEST: ""
         run: python3 scripts/calibracion/mutaciones_calidad_datos.py
+
+      # Mismo principio, tercer gate: el inventario de suites. Introduce de
+      # VERDAD cada ataque del ejercicio RC —silenciar los tres ficheros,
+      # borrarlos, tumbar el recuento, quitar `jsonschema` y `PyYAML`—, exige
+      # el ROJO, y ADEMAS hace la ablacion de cada control: con el control
+      # quitado el caso tiene que volver a VERDE. Un control que puede
+      # desaparecer sin que ningun resultado empeore no es un control.
+      #
+      # La reversion se verifica por SHA-256 de cada fichero tocado, no por la
+      # ausencia de una cadena.
+      - name: El inventario de suites se pone ROJO ante cada ataque (y ablacion)
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 .github/scripts/calibra_suite_inventory.py
+
+      # Y la calibracion de la capa que mira el RESULTADO. Apaga la suite del
+      # visor por cada vector CONOCIDO —incluidos los tres que un revisor
+      # independiente encontro despues de que el reconocedor los diera por
+      # cerrados: nombre concatenado sin `$` hacia `$GITHUB_ENV` (G1),
+      # `container.options -e` (G2) y `uses:` a nivel de job (G3)— y exige que
+      # el informe `--junitxml` lo delate. Cada caso apaga un MODULO DISTINTO,
+      # asi que ningun rojo es prestado. Con la ablacion puesta, esos mismos
+      # casos vuelven a VERDE.
+      #
+      # No muta ningun fichero del repositorio: los artefactos van a un
+      # directorio temporal. Publica igualmente el SHA-256 antes y despues,
+      # porque "no lo toco" tambien hay que medirlo.
+      - name: La capa de ejecucion real se pone ROJA ante cada vector (y ablacion)
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+        run: python3 .github/scripts/calibra_ejecucion_real.py
+
+      # Y la calibracion del REGISTRO contra la ejecucion real, que desde el
+      # sexto dictamen es la garantia principal frente a `xfail`. Cubre los
+      # ocho casos exigidos mas tres de precision, y publica DOS columnas: que
+      # veredicto da la capa de RESULTADOS aislada y cual la ESTATICA. Los
+      # casos A-D tienen que ponerse rojos por la de resultados, no prestados
+      # por el reconocedor; F y G solo los ve la de resultados; H solo la
+      # estatica. Ademas comprueba que ninguna entrada del registro puede dar
+      # ni quitar criticidad.
+      - name: El registro de `xfail` se calibra contra la ejecucion real
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+        run: python3 .github/scripts/calibra_registro_xfail.py
 
   # Instalado desde .github/ci-fragments/check-env-reproducibility.yml. Si un
   # merge se lleva por delante este bloque, el fragmento es la copia canonica.
@@ -625,6 +771,13 @@ jobs:
   deployment-validation:
     name: Deployment scripts validation
     runs-on: ubuntu-latest
+    # Este job se quedo 18 min colgado en `Install validation tools` (apt-get +
+    # pip) en sus dos ejecuciones, cuando su marca normal es ~57 s. Sin tope,
+    # un cuelgue de infraestructura no se distingue de un job lento: se queda
+    # PENDIENTE, y un check que nunca concluye no bloquea ni aprueba, solo
+    # consume la paciencia de quien mira. Con tope se convierte en ROJO rapido,
+    # que es una senal, y relanzarlo es una decision consciente.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
