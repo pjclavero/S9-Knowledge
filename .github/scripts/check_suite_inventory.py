@@ -1203,8 +1203,70 @@ def xfail_por_decorador(texto: str) -> list[tuple[str, str]]:
     return hallazgos
 
 
-def conftest_inyecta_apagados() -> list[tuple[str, str]]:
-    """(fichero, motivo) de cada `conftest.py` que MARCA pruebas desde fuera.
+def decoradores_no_verificables(texto: str) -> list[tuple[str, str]]:
+    """(test, decorador) que NO resuelve a una marca literal de pytest.
+
+    POLARIDAD INVERTIDA, y por la misma razon que en `$GITHUB_ENV`: enumerar
+    las formas MALAS de esconder un `xfail` no acaba nunca. Ya iban cuatro
+    vueltas —decorador directo, `pytestmark`, alias de modulo,
+    `pytest.param(marks=...)`— y el revisor entro con la quinta:
+
+        def _marca_infra(motivo):
+            return pytest.mark.xfail(reason=motivo)
+
+        @_marca_infra('inestable')
+        def test_...
+
+    Gate EXIT=0. Y detras de esa hay un `dict` de marcas, un alias de alias, un
+    `import` desde otro modulo, un decorador generado... El censo cubria bien
+    las tres vias que enumeraba; el problema era que seguia siendo una
+    enumeracion.
+
+    Asi que en un modulo CRITICO se admite SOLO la forma verificable —un
+    decorador `pytest.mark.<nombre>`, con o sin llamada— y cualquier otra cosa
+    es roja POR LA FORMA, sin intentar adivinar a que resuelve. No hace falta
+    saber si `_marca_infra` devuelve un `xfail`: basta con que este gate no
+    pueda comprobarlo.
+
+    COSTE MEDIDO ANTES DE ESCRIBIRLO, como siempre: en los 20 modulos criticos
+    hay 57 decoradores y los 57 son `pytest.mark.parametrize`. Ni uno solo cae
+    fuera de la forma admitida, asi que la regla nace sin excepciones y sin
+    romper nada.
+
+    SOLO en modulos criticos, a proposito: en el resto del arbol un decorador
+    propio es una herramienta legitima y prohibirla seria un gate gritando ante
+    trabajo normal. Alli la defensa es el trinquete —D2 y X-T—, que no necesita
+    entender el decorador para ver que las pruebas en pie bajan.
+    """
+    try:
+        arbol = ast.parse(texto)
+    except SyntaxError:
+        return []
+    hallazgos = []
+    for nodo in ast.walk(arbol):
+        if not _es_test(nodo):
+            continue
+        for dec in nodo.decorator_list:
+            base = dec.func if isinstance(dec, ast.Call) else dec
+            # Forma admitida: `pytest.mark.<nombre>` (Attribute sobre
+            # Attribute `mark` sobre Name `pytest`).
+            ok = (isinstance(base, ast.Attribute)
+                  and isinstance(base.value, ast.Attribute)
+                  and base.value.attr == "mark"
+                  and isinstance(base.value.value, ast.Name)
+                  and base.value.value.id == "pytest")
+            if ok:
+                continue
+            try:
+                escrito = ast.unparse(dec)
+            except Exception:  # pragma: no cover
+                escrito = "<no representable>"
+            hallazgos.append((nodo.name, escrito[:70]))
+    return hallazgos
+
+
+def marca_inyectada_en_ejecucion() -> list[tuple[str, str]]:
+    """(fichero, motivo) de cada fichero que MARCA pruebas EN EJECUCION.
 
     EL TERCER SUPERVIVIENTE DEL QUINTO DICTAMEN, y el unico que NINGUNA
     inspeccion del modulo puede ver: la marca no esta en el fichero de test.
@@ -1225,10 +1287,18 @@ def conftest_inyecta_apagados() -> list[tuple[str, str]]:
     capa de ejecucion caza el fallo TRAGADO, pero no la marca puesta a la
     espera. Este control caza la marca antes de que haya ningun defecto.
 
-    Hoy el arbol tiene CERO `conftest.py` con `modifyitems` o `add_marker`
-    (medido), asi que la prohibicion nace sin excepciones. Si alguna vez hace
-    falta marcar desde un `conftest`, que sea una decision visible y discutida,
-    no un renglon que nadie mira.
+    ALCANCE: TODO fichero `.py` del arbol vigilado, no solo `conftest.py`. La
+    primera version solo miraba los `conftest` y un revisor entro por el propio
+    modulo de test con un fixture `autouse` que hace
+    `request.node.add_marker(...)`: gate EXIT=0, 0 errores, y el diferencial
+    `1 failed, 21 passed` (EXIT=1) -> `1 xfailed, 21 xpassed` (EXIT=0). El
+    `conftest` nunca fue la propiedad relevante; lo es MARCAR EN EJECUCION, y
+    eso se hace desde cualquier fichero que pytest importe.
+
+    Hoy el arbol tiene CERO ficheros con `add_marker`/`applymarker` de una marca
+    de apagado (medido), asi que la prohibicion nace sin excepciones. Si alguna
+    vez hace falta marcar en ejecucion, que sea una decision visible y
+    discutida, no un renglon que nadie mira.
     """
     hallazgos = []
     vistos = set()
@@ -1236,8 +1306,32 @@ def conftest_inyecta_apagados() -> list[tuple[str, str]]:
                                             "tests", "contracts"))):
         if not raiz.exists():
             continue
-        for cf in sorted(raiz.rglob("conftest.py")):
-            if "__pycache__" in cf.parts or ".git" in cf.parts:
+        # TODO fichero .py del arbol vigilado, no solo `conftest.py`. La version
+        # anterior solo miraba los `conftest`, y un revisor entro por el propio
+        # MODULO con un fixture `autouse`:
+        #
+        #   @pytest.fixture(autouse=True)
+        #   def _estabilidad(request):
+        #       request.node.add_marker(pytest.mark.xfail(reason='infra'))
+        #
+        # Gate EXIT=0, 0 errores, y el diferencial `1 failed, 21 passed`
+        # (EXIT=1) -> `1 xfailed, 21 xpassed` (EXIT=0). El `conftest` nunca fue
+        # la propiedad relevante: lo es MARCAR EN EJECUCION, y eso se puede
+        # hacer desde cualquier fichero que pytest importe.
+        for cf in sorted(raiz.rglob("*.py")):
+            # Las exclusiones se miran SOBRE LA RUTA RELATIVA AL REPO, jamas
+            # sobre `cf.parts` absoluto. Escrito primero con `cf.parts` y
+            # medido despues: en un worktree bajo `.claude/worktrees/...` TODOS
+            # los ficheros llevan `.claude` en su ruta absoluta, asi que la
+            # exclusion se tragaba el repositorio ENTERO y este control no
+            # miraba ni un fichero —salia verde por no mirar—. Lo delato su
+            # propio diferencial: S-D seguia en EXIT=0 con el control ya puesto.
+            try:
+                partes = cf.relative_to(REPO).parts
+            except ValueError:
+                continue
+            if any(parte in ("__pycache__", ".git", ".claude", "node_modules",
+                             ".venv", "venv") for parte in partes):
                 continue
             rel = cf.resolve()
             if rel in vistos:
@@ -1260,9 +1354,10 @@ def conftest_inyecta_apagados() -> list[tuple[str, str]]:
                     if marca in texto_arg:
                         hallazgos.append((
                             cf.relative_to(REPO).as_posix(),
-                            f"`{fn.attr}(...)` con `{marca}`: marca pruebas desde "
-                            f"FUERA del modulo, asi que ninguna inspeccion del "
-                            f"fichero de test puede verlo"))
+                            f"`{fn.attr}(...)` con `{marca}`: marca pruebas EN "
+                            f"EJECUCION, asi que la marca no esta en el codigo "
+                            f"del test y ninguna inspeccion estatica del modulo "
+                            f"la ve"))
                         break
     return hallazgos
 
@@ -1663,9 +1758,60 @@ def _lineas_de_bajas() -> list[str]:
             if l.split("#")[0].strip()]
 
 
+PREFIJOS_DECLARACION = ("descritificar:",)
+
+REGISTRO_XFAIL = REPO / ".github" / "xfail-registro.txt"
+
+
 def bajas_declaradas() -> set[str]:
     """Modulos retirados a proposito. NO sirve para retirar un CRITICO."""
-    return {l for l in _lineas_de_bajas() if not l.startswith("descritificar:")}
+    return {l for l in _lineas_de_bajas()
+            if not l.startswith(PREFIJOS_DECLARACION)}
+
+
+def _nodeids_autorizados() -> set[str]:
+    """Los nodeids EXACTOS que el registro autoriza."""
+    if not REGISTRO_XFAIL.exists():
+        return set()
+    salida = set()
+    for cruda in REGISTRO_XFAIL.read_text(encoding="utf-8").splitlines():
+        if cruda.lstrip().startswith("#") or not cruda.strip():
+            continue
+        campos = [c.strip() for c in cruda.split("|")]
+        if len(campos) == 3 and campos[1]:
+            salida.add(campos[1])
+    return salida
+
+
+def xfail_autorizados_por_modulo() -> dict[str, int]:
+    """modulo -> cuantos `xfail` autoriza `.github/xfail-registro.txt`.
+
+    LA ESCOTILLA DE X-T ES EL REGISTRO, no una sintaxis propia. Se probo con un
+    `defecto-conocido:` en `suite-bajas.txt` y se retiro antes de empujarlo:
+    tener DOS sitios donde declarar la misma excepcion es como se acaba con dos
+    verdades distintas. El registro ya es el fichero escrito a mano, versionado
+    y visible en el diff donde vive la autorizacion; X-T solo lo consulta.
+
+    Ojo con lo que este trinquete mide, que no es lo mismo que mide el registro:
+    X-T cuenta SITIOS de marca en el codigo (decoradores y
+    `pytest.param(..., marks=...)`), y el registro cuenta PRUEBAS EJECUTADAS.
+    Un sitio parametrizado produce varias pruebas. Por eso X-T es defensa en
+    profundidad y no la garantia: la garantia es el registro contra la
+    ejecucion.
+    """
+    if not REGISTRO_XFAIL.exists():
+        return {}
+    conteo: dict[str, int] = {}
+    for cruda in REGISTRO_XFAIL.read_text(encoding="utf-8").splitlines():
+        if cruda.lstrip().startswith("#") or not cruda.strip():
+            continue
+        campos = [c.strip() for c in cruda.split("|")]
+        if len(campos) != 3:
+            continue
+        modulo = campos[1].split("::")[0]
+        if modulo.endswith(".py"):
+            conteo[modulo] = conteo.get(modulo, 0) + 1
+    return conteo
 
 
 def descritificaciones_declaradas() -> set[str]:
@@ -1709,6 +1855,23 @@ def main() -> int:
                     print(f"::error::`{bandera}` aparece en ci.yml. Desarma este "
                           f"gate: el job saldria verde sin trinquete ni control.")
                     return 1
+
+    # El REGISTRO no se genera: si algun paso de CI lo escribiera, la escotilla
+    # dejaria de ser una decision revisable y se convertiria en un sello
+    # automatico —y ademas inferiria la excepcion de la misma ejecucion cuya
+    # integridad este gate protege—. No hay ninguna opcion que lo escriba, y
+    # ademas se comprueba que nadie lo redirija desde `ci.yml`.
+    if CI.exists():
+        texto_ci = CI.read_text(encoding="utf-8")
+        for linea in texto_ci.splitlines():
+            if "xfail-registro.txt" not in linea:
+                continue
+            if any(op in linea for op in (">", ">>", "tee", "sed -i", "cp ", "mv ")):
+                print(f"::error::`ci.yml` ESCRIBE en `xfail-registro.txt`: "
+                      f"`{linea.strip()[:90]}`. El registro es una escotilla "
+                      f"revisable, no un artefacto: si CI lo regenera deja de "
+                      f"declarar nada y pasa a sellar lo que haya.")
+                return 1
 
     if ABLACION:
         print(f"::warning::ABLACION ACTIVA: control {ABLACION} DESACTIVADO. "
@@ -1858,6 +2021,23 @@ def main() -> int:
                     f"con `skip` se sigue recolectando. Si de verdad sobra, borralo."
                 )
 
+        # A7: en un modulo CRITICO, todo decorador tiene que resolver a una
+        # marca literal de pytest. Polaridad invertida, como en `$GITHUB_ENV`.
+        if ABLACION != "A" and rel in criticos:
+            for nombre, escrito in decoradores_no_verificables(cuerpo):
+                errores.append(
+                    f"DECORADOR NO VERIFICABLE en un modulo CRITICO: "
+                    f"`{rel}::{nombre}` lleva `@{escrito}`, que no es un "
+                    f"`pytest.mark.<nombre>` literal. Este gate no puede decidir "
+                    f"a que marca resuelve —puede ser una funcion que devuelve "
+                    f"`pytest.mark.xfail`, un `dict` de marcas, un alias de alias "
+                    f"o un import de otro modulo—, y enumerar esas formas no "
+                    f"acaba nunca: ya se probo cuatro veces. Se admite solo la "
+                    f"forma comprobable. Medido: los 57 decoradores de los 20 "
+                    f"modulos criticos son `pytest.mark.parametrize`, asi que "
+                    f"esto no rompe nada de lo que hay."
+                )
+
         # A5: `@pytest.mark.xfail` en un modulo CRITICO. Prohibido siempre y sin
         # excepciones, porque hoy hay CERO en modulos criticos (medido: 13
         # `xfail` en 5 modulos, ninguno critico). Los NO criticos no se
@@ -1865,6 +2045,19 @@ def main() -> int:
         # sujeta el trinquete D2, porque `tests_en_pie` los descuenta.
         if ABLACION != "A" and rel in criticos:
             for nombre, motivo in xfail_por_decorador(cuerpo):
+                # AUTORIZADO en el registro -> legitimo tambien en una suite
+                # critica. Sin esta exencion el registro no seria una escotilla
+                # ahi, y "prohibido siempre" sin via declarada es como se acaba
+                # desactivando un gate.
+                #
+                # El prefijo `rel::nombre[` es para localizar las INSTANCIAS
+                # parametrizadas de esta funcion, no para ampliar ninguna
+                # autorizacion: la autorizacion sigue siendo EXACTA y la
+                # comprueba la capa de resultados nodeid a nodeid.
+                ancla = f"{rel}::{nombre}"
+                if any(n == ancla or n.startswith(ancla + "[")
+                       for n in _nodeids_autorizados()):
+                    continue
                 errores.append(
                     f"PRUEBA QUE NO PUEDE FALLAR: `{rel}::{nombre}` en un modulo "
                     f"CRITICO ({motivo}). Medido con un defecto inyectado de "
@@ -1881,9 +2074,9 @@ def main() -> int:
     # es del arbol entero, y un solo `conftest.py` alcanza a todos los de su
     # directorio hacia abajo.
     if ABLACION != "A":
-        for fichero, motivo in conftest_inyecta_apagados():
+        for fichero, motivo in marca_inyectada_en_ejecucion():
             errores.append(
-                f"APAGADO INYECTADO DESDE FUERA: `{fichero}` {motivo}. Medido en "
+                f"APAGADO INYECTADO EN EJECUCION: `{fichero}` {motivo}. Medido en "
                 f"un sandbox: cuatro lineas de `pytest_collection_modifyitems` con "
                 f"`add_marker(pytest.mark.xfail(...))` convierten `1 failed` "
                 f"(EXIT=1) en `1 xfailed, 1 xpassed` (EXIT=0) sin tocar una coma "
@@ -2058,18 +2251,41 @@ def main() -> int:
             # Un `grep` no distingue el patron declarado del apagado nuevo:
             # solo sabe contar hasta uno. Un trinquete si, porque compara contra
             # una BASE. Los 6 existentes se quedan; lo que no puede es CRECER.
+            #
+            # UNIDADES: X-T cuenta SITIOS de marca (decoradores y
+            # `pytest.param(..., marks=...)`), no INSTANCIAS ejecutadas. Es la
+            # misma distincion que ya esta escrita para `en_pie` frente a
+            # JUnit, y por eso 9 sitios dan 12 `xfailed` en corrida real: no es
+            # un fallo del censo. Consecuencia asumida y dicha en voz alta:
+            # anadir un caso a un `parametrize` YA marcado aumenta las pruebas
+            # que no pueden fallar sin mover el censo. Cerrarlo pediria contar
+            # instancias, o sea ejecutar; el sitio para eso es la capa de
+            # ejecucion real, no este trinquete estatico.
             xfail_antes = datos_base.get("xfail") or {}
+            declarados = xfail_autorizados_por_modulo()
             for rel in sorted(set(xfail_ahora) | set(xfail_antes)):
                 antes, ahora = xfail_antes.get(rel, 0), xfail_ahora.get(rel, 0)
-                if ahora <= antes:
+                permitido = antes + declarados.get(rel, 0)
+                if ahora <= permitido:
                     continue
                 errores.append(
                     f"MAS PRUEBAS QUE NO PUEDEN FALLAR: `{rel}` tenia {antes} "
-                    f"`xfail` en la base y ahora {ahora}. El trinquete cubre "
-                    f"tambien los modulos DELEGADOS, que no entran en `en_pie`. "
-                    f"Si es un DEFECTO CONOCIDO que documentas con "
-                    f"`xfail(strict=True)`, dilo en el PR y regenera el "
-                    f"inventario; si es una prueba que molesta, arreglala o "
+                    f"`xfail` en la base y ahora {ahora}"
+                    + (f" (con {declarados[rel]} autorizado(s) en el registro, "
+                       f"total permitido {permitido})"
+                       if rel in declarados else "")
+                    + f". El trinquete cubre tambien los modulos DELEGADOS, que "
+                    f"no entran en `en_pie`.\n"
+                    f"    SALIDA DECLARADA: la escotilla es el REGISTRO. Anade "
+                    f"a `.github/xfail-registro.txt` una linea\n"
+                    f"        <id> | {rel}::<test> | <motivo>\n"
+                    f"    y aparecera en el diff del PR, que es donde se "
+                    f"discute. NO regeneres el inventario esperando que sirva, "
+                    f"porque NO sirve: la base de este trinquete se MIDE del "
+                    f"arbol del merge-base, no del fichero publicado. Medido: "
+                    f"con un `xfail` nuevo, sin regenerar da EXIT=1 y "
+                    f"regenerando da EXIT=1 con los mismos errores.\n"
+                    f"    Si en cambio es una prueba que molesta: arreglala o "
                     f"borrala, pero no la vuelvas incapaz de fallar."
                 )
 

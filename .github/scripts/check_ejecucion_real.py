@@ -155,6 +155,84 @@ def reportado_por_modulo(ficheros: list[Path]) -> tuple[dict[str, int], int]:
     return por_clase, total
 
 
+REGISTRO = REPO / ".github" / "xfail-registro.txt"
+
+
+def _nodeid(caso) -> str:
+    """`classname` + `name` de JUnit -> nodeid de pytest, EXACTO.
+
+    `viewer.tests.test_x` + `test_y`            -> `viewer/tests/test_x.py::test_y`
+    `viewer.tests.test_x.TestC` + `test_y`      -> `viewer/tests/test_x.py::TestC::test_y`
+    y los parametrizados conservan su `[param]`, que va en `name`.
+    """
+    clase = caso.get("classname") or ""
+    nombre = caso.get("name") or ""
+    partes = clase.split(".")
+    for i in range(len(partes) - 1, -1, -1):
+        if partes[i].startswith("test_"):
+            ruta = "/".join(partes[:i + 1]) + ".py"
+            return "::".join([ruta, *partes[i + 1:], nombre])
+    return "::".join([clase.replace(".", "/") + ".py", nombre]) if clase else nombre
+
+
+def lee_registro() -> tuple[dict[str, tuple[str, str]], list[str]]:
+    """nodeid -> (id, motivo), y los problemas de forma del propio registro.
+
+    Se lee un fichero ESCRITO A MANO y versionado. No se genera, no se
+    completa solo y no hay ninguna opcion que lo reescriba: ver la cabecera del
+    propio `.github/xfail-registro.txt`.
+    """
+    entradas: dict[str, tuple[str, str]] = {}
+    problemas: list[str] = []
+    if not REGISTRO.exists():
+        return entradas, problemas
+    for numero, cruda in enumerate(REGISTRO.read_text(encoding="utf-8").splitlines(), 1):
+        linea = cruda.split("#")[0].strip() if not cruda.lstrip().startswith("#") else ""
+        if not linea:
+            continue
+        campos = [c.strip() for c in linea.split("|")]
+        if len(campos) != 3 or not all(campos):
+            problemas.append(
+                f"REGISTRO MAL FORMADO (linea {numero}): `{cruda.strip()[:70]}`. "
+                f"El formato es `<id> | <nodeid exacto> | <motivo>`, los tres "
+                f"campos obligatorios. Un motivo vacio no declara nada.")
+            continue
+        ident, nodeid, motivo = campos
+        # La coincidencia es IGUALDAD DE CADENA, nunca `fnmatch`, asi que un
+        # `*` jamas puede ampliar el alcance de una entrada. Esta comprobacion
+        # es de legibilidad: que nadie ESCRIBA algo con pinta de patron y crea
+        # que cubre varias pruebas.
+        #
+        # Y se mira SOLO la parte anterior al `[`, porque dentro del parametro
+        # los caracteres son DATOS del caso. Escrito primero sobre el nodeid
+        # entero y medido despues: dos entradas legitimas del registro inicial
+        # llevan `ops/**` dentro del parametro —el caso de prueba habla
+        # literalmente de globs de rama— y la regla las rechazaba. Un control
+        # que enrojece ante un dato valido es un falso positivo, no rigor.
+        ruta_y_test = nodeid.split("[", 1)[0]
+        if any(c in ruta_y_test for c in "*?") or nodeid.endswith("::"):
+            problemas.append(
+                f"REGISTRO CON PINTA DE PATRON (linea {numero}): `{nodeid}`. La "
+                f"ruta y el nombre de la prueba tienen que ser literales. La "
+                f"coincidencia es exacta —nunca `fnmatch`—, asi que un comodin "
+                f"no ampliaria nada, pero escribirlo hace creer lo contrario a "
+                f"quien lo lea en el diff.")
+            continue
+        if "::" not in nodeid or not nodeid.split("::")[0].endswith(".py"):
+            problemas.append(
+                f"REGISTRO SIN PRUEBA (linea {numero}): `{nodeid}` no nombra una "
+                f"prueba concreta (`<ruta>.py::<test>`). Autorizar un modulo "
+                f"entero no es una excepcion, es un permiso.")
+            continue
+        if nodeid in entradas:
+            problemas.append(
+                f"REGISTRO DUPLICADO (linea {numero}): `{nodeid}` ya estaba "
+                f"declarado como `{entradas[nodeid][0]}`.")
+            continue
+        entradas[nodeid] = (ident, motivo)
+    return entradas, problemas
+
+
 def xfail_reportado(ficheros: list[Path]) -> dict[str, list[str]]:
     """`classname` -> pruebas que reportaron un fallo TRAGADO por `xfail`.
 
@@ -182,6 +260,87 @@ def xfail_reportado(ficheros: list[Path]) -> dict[str, list[str]]:
     return hallazgos
 
 
+def nodeids_del_informe(ficheros: list[Path]) -> tuple[set[str], set[str]]:
+    """(todos los nodeids reportados, los que terminaron como `xfail`)."""
+    todos: set[str] = set()
+    xfail: set[str] = set()
+    for fichero in ficheros:
+        raiz = ET.parse(fichero).getroot()
+        for caso in raiz.iter("testcase"):
+            nid = _nodeid(caso)
+            todos.add(nid)
+            for hijo in caso:
+                if hijo.tag == "skipped" and (hijo.get("type") or "") == "pytest.xfail":
+                    xfail.add(nid)
+    return todos, xfail
+
+
+def comprueba_registro(ficheros: list[Path]) -> list[str]:
+    """LAS DOS DIRECCIONES entre el registro y lo que de verdad se ejecuto.
+
+    Esta es la garantia principal desde el sexto dictamen, y sustituye a
+    intentar reconocer la SINTAXIS con la que se escribio la marca. Fixture,
+    helper, alias, `pytestmark`, decoracion directa, `pytest.param(marks=...)`,
+    `add_marker` desde un `conftest`: todas terminan aqui, porque aqui se
+    observa el RESULTADO EJECUTADO y no la forma que lo produjo.
+
+    Direccion 1: `xfail` que nadie autorizo -> ROJO.
+    Direccion 2: autorizacion cuya prueba ya NO es `xfail` -> ROJO. No es un
+      extra: es el UNICO camino para ver que un defecto se arreglo, porque un
+      XPASS sale en JUnit como un `<testcase>` pelado y no se distingue de un
+      aprobado normal.
+    """
+    entradas, errores = lee_registro()
+    todos, xfail = nodeids_del_informe(ficheros)
+
+    # Los modulos que este informe cubre. Una entrada de un modulo que no
+    # aparece aqui NO se juzga: puede ser una suite delegada que corre en otro
+    # job, y declararla obsoleta por no haberla ejecutado seria mentir.
+    modulos_cubiertos = {n.split("::")[0] for n in todos}
+
+    for nodeid in sorted(xfail):
+        if nodeid in entradas:
+            continue
+        errores.append(
+            f"XFAIL SIN AUTORIZAR: `{nodeid}` termino como `xfail` y no esta en "
+            f"`.github/xfail-registro.txt`. Da igual como se escribio la marca "
+            f"—decorador, `pytestmark`, alias, fixture `autouse`, una funcion "
+            f"que la devuelve o un `conftest` con `add_marker`—: lo que se mira "
+            f"aqui es que la prueba TERMINO sin poder fallar.\n"
+            f"    SALIDA DECLARADA: si es un defecto conocido que quieres "
+            f"documentar, anade a `.github/xfail-registro.txt` la linea\n"
+            f"        <id> | {nodeid} | <motivo>\n"
+            f"    y quedara en el diff del PR, que es donde se discute. Si en "
+            f"cambio es una prueba que molesta: arreglala o borrala."
+        )
+
+    for nodeid, (ident, _motivo) in sorted(entradas.items()):
+        modulo = nodeid.split("::")[0]
+        if modulo not in modulos_cubiertos:
+            continue
+        if nodeid in xfail:
+            continue
+        if nodeid in todos:
+            errores.append(
+                f"AUTORIZACION OBSOLETA: `{ident}` autoriza `{nodeid}` como "
+                f"`xfail`, pero en esta ejecucion la prueba NO termino como "
+                f"`xfail`. O el defecto esta arreglado —y entonces el XPASS no "
+                f"se ve en el informe, que es justo por lo que hace falta esta "
+                f"comprobacion— o se retiro la marca. Quita la entrada del "
+                f"registro: una excepcion que ya no hace falta es una puerta "
+                f"abierta esperando a que alguien la cruce."
+            )
+        else:
+            errores.append(
+                f"AUTORIZACION HUERFANA: `{ident}` autoriza `{nodeid}`, y ese "
+                f"nodeid NO existe en la ejecucion aunque su modulo si se "
+                f"ejecuto. Se habra renombrado o borrado la prueba. Actualiza o "
+                f"retira la entrada: una autorizacion que no apunta a nada no "
+                f"protege nada y estorba a quien la lea."
+            )
+    return errores
+
+
 def cuenta_de(prefijo: str, por_clase: dict[str, int]) -> int:
     """Las pruebas de un modulo, con o sin clase de por medio."""
     return sum(n for clase, n in por_clase.items()
@@ -195,7 +354,24 @@ def main() -> int:
     ap.add_argument("--raiz", action="append", default=None,
                     help="limita la obligacion a estas raices (por defecto, "
                          "todas las del inventario)")
+    ap.add_argument("--solo-registro", action="store_true",
+                    help="comprueba SOLO el registro de `xfail` contra la "
+                         "ejecucion, sin la obligacion de presencia por modulo "
+                         "(SOLO calibracion: en ci.yml esta prohibido)")
     args = ap.parse_args()
+
+    # Autoguardia, igual que en `check_suite_inventory.py`: si esta bandera
+    # apareciera en `ci.yml`, el job comprobaria el registro y se saltaria la
+    # obligacion de presencia, o sea saldria verde sin mirar si una suite
+    # entera desaparecio. No se confia en que nadie la escriba: se COMPRUEBA.
+    ci = REPO / ".github" / "workflows" / "ci.yml"
+    if ci.exists():
+        texto_ci = ci.read_text(encoding="utf-8")
+        if "check_ejecucion_real.py" in texto_ci and "--solo-registro" in texto_ci:
+            print("::error::`--solo-registro` aparece en ci.yml. Desarma la "
+                  "obligacion de presencia: el job saldria verde aunque "
+                  "desapareciera una suite critica entera.")
+            return 1
 
     if ABLACION:
         print("::warning::ABLACION ACTIVA: la comparacion contra el inventario "
@@ -245,6 +421,26 @@ def main() -> int:
     xfails = xfail_reportado(ficheros)
 
     errores: list[str] = []
+
+    # LA GARANTIA PRINCIPAL: el registro contra la ejecucion real, en las dos
+    # direcciones. Va antes que nada porque es la que ya no depende de saber
+    # que sintaxis se uso para producir la marca.
+    if ABLACION:
+        print("ABLACION: tampoco se comprueba el registro de `xfail`.")
+    else:
+        errores += comprueba_registro(ficheros)
+
+    if args.solo_registro:
+        print("::warning::`--solo-registro`: comprobado SOLO el registro. Sirve "
+              "para aislar esta capa en la calibracion y para nada mas.")
+        for e in errores:
+            print(f"::error::{e}")
+        if errores:
+            print(f"\nFALLO: {len(errores)} problema(s) de registro de `xfail`.")
+            return 1
+        print("OK: el registro de `xfail` cuadra con la ejecucion en las dos "
+              "direcciones.")
+        return 0
     reportado_total = 0
 
     # Ningun modulo CRITICO puede tragarse un fallo con `xfail`, venga la marca

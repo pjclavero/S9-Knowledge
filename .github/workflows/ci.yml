@@ -615,6 +615,19 @@ jobs:
           S9K_ALLOW_REAL_INGEST: ""
         run: python3 .github/scripts/calibra_ejecucion_real.py
 
+      # Y la calibracion del REGISTRO contra la ejecucion real, que desde el
+      # sexto dictamen es la garantia principal frente a `xfail`. Cubre los
+      # ocho casos exigidos mas tres de precision, y publica DOS columnas: que
+      # veredicto da la capa de RESULTADOS aislada y cual la ESTATICA. Los
+      # casos A-D tienen que ponerse rojos por la de resultados, no prestados
+      # por el reconocedor; F y G solo los ve la de resultados; H solo la
+      # estatica. Ademas comprueba que ninguna entrada del registro puede dar
+      # ni quitar criticidad.
+      - name: El registro de `xfail` se calibra contra la ejecucion real
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+        run: python3 .github/scripts/calibra_registro_xfail.py
+
   # Instalado desde .github/ci-fragments/check-env-reproducibility.yml. Si un
   # merge se lleva por delante este bloque, el fragmento es la copia canonica.
   check-env-reproducibility:
