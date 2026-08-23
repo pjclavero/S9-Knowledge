@@ -119,6 +119,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import hashlib
 import importlib.util
 import json
 import os
@@ -144,6 +145,8 @@ BAJAS = REPO / ".github" / "suite-bajas.txt"
 INVENTARIO = REPO / ".github" / "suite-inventario.json"
 
 sys.path.insert(0, str(REPO / ".github" / "scripts"))
+
+import registro_xfail  # noqa: E402  (fuente unica del registro de `xfail`)
 
 ABLACION = os.environ.get("S9K_INVENTARIO_ABLACION", "").strip().upper()
 
@@ -1760,58 +1763,32 @@ def _lineas_de_bajas() -> list[str]:
 
 PREFIJOS_DECLARACION = ("descritificar:",)
 
-REGISTRO_XFAIL = REPO / ".github" / "xfail-registro.txt"
-
-
 def bajas_declaradas() -> set[str]:
     """Modulos retirados a proposito. NO sirve para retirar un CRITICO."""
     return {l for l in _lineas_de_bajas()
             if not l.startswith(PREFIJOS_DECLARACION)}
 
 
+# FUENTE UNICA: el registro se lee SIEMPRE por `registro_xfail`, que verifica
+# contra el commit y entrega el contenido de git. Este fichero no vuelve a
+# abrir `xfail-registro.txt` por su cuenta: dos lectores acaban en dos verdades,
+# y eso es exactamente el defecto que se pago cuando X-T respetaba una entrada
+# y D2 la bloqueaba igual.
+def comprueba_integridad_del_registro() -> list[str]:
+    """Delega en la fuente unica. Verificar y consumir es la misma llamada."""
+    return registro_xfail.contenido_verificado()[1]
+
+
 def _nodeids_autorizados() -> set[str]:
-    """Los nodeids EXACTOS que el registro autoriza."""
-    if not REGISTRO_XFAIL.exists():
-        return set()
-    salida = set()
-    for cruda in REGISTRO_XFAIL.read_text(encoding="utf-8").splitlines():
-        if cruda.lstrip().startswith("#") or not cruda.strip():
-            continue
-        campos = [c.strip() for c in cruda.split("|")]
-        if len(campos) == 3 and campos[1]:
-            salida.add(campos[1])
-    return salida
+    return registro_xfail.nodeids_autorizados()[0]
+
+
+def funciones_autorizadas_por_modulo() -> dict[str, int]:
+    return registro_xfail.funciones_por_modulo()
 
 
 def xfail_autorizados_por_modulo() -> dict[str, int]:
-    """modulo -> cuantos `xfail` autoriza `.github/xfail-registro.txt`.
-
-    LA ESCOTILLA DE X-T ES EL REGISTRO, no una sintaxis propia. Se probo con un
-    `defecto-conocido:` en `suite-bajas.txt` y se retiro antes de empujarlo:
-    tener DOS sitios donde declarar la misma excepcion es como se acaba con dos
-    verdades distintas. El registro ya es el fichero escrito a mano, versionado
-    y visible en el diff donde vive la autorizacion; X-T solo lo consulta.
-
-    Ojo con lo que este trinquete mide, que no es lo mismo que mide el registro:
-    X-T cuenta SITIOS de marca en el codigo (decoradores y
-    `pytest.param(..., marks=...)`), y el registro cuenta PRUEBAS EJECUTADAS.
-    Un sitio parametrizado produce varias pruebas. Por eso X-T es defensa en
-    profundidad y no la garantia: la garantia es el registro contra la
-    ejecucion.
-    """
-    if not REGISTRO_XFAIL.exists():
-        return {}
-    conteo: dict[str, int] = {}
-    for cruda in REGISTRO_XFAIL.read_text(encoding="utf-8").splitlines():
-        if cruda.lstrip().startswith("#") or not cruda.strip():
-            continue
-        campos = [c.strip() for c in cruda.split("|")]
-        if len(campos) != 3:
-            continue
-        modulo = campos[1].split("::")[0]
-        if modulo.endswith(".py"):
-            conteo[modulo] = conteo.get(modulo, 0) + 1
-    return conteo
+    return registro_xfail.lineas_por_modulo()
 
 
 def descritificaciones_declaradas() -> set[str]:
@@ -1850,28 +1827,36 @@ def main() -> int:
     if CI.exists():
         texto_ci = CI.read_text(encoding="utf-8")
         if "check_suite_inventory.py" in texto_ci:
-            for bandera in ("--sin-base", "--base-fichero", "S9K_INVENTARIO_ABLACION"):
+            for bandera in ("--sin-base", "--base-fichero",
+                            "S9K_INVENTARIO_ABLACION", "S9K_REGISTRO_MUTADO"):
                 if bandera in texto_ci:
                     print(f"::error::`{bandera}` aparece en ci.yml. Desarma este "
                           f"gate: el job saldria verde sin trinquete ni control.")
                     return 1
 
-    # El REGISTRO no se genera: si algun paso de CI lo escribiera, la escotilla
-    # dejaria de ser una decision revisable y se convertiria en un sello
-    # automatico —y ademas inferiria la excepcion de la misma ejecucion cuya
-    # integridad este gate protege—. No hay ninguna opcion que lo escriba, y
-    # ademas se comprueba que nadie lo redirija desde `ci.yml`.
-    if CI.exists():
-        texto_ci = CI.read_text(encoding="utf-8")
-        for linea in texto_ci.splitlines():
-            if "xfail-registro.txt" not in linea:
-                continue
-            if any(op in linea for op in (">", ">>", "tee", "sed -i", "cp ", "mv ")):
-                print(f"::error::`ci.yml` ESCRIBE en `xfail-registro.txt`: "
-                      f"`{linea.strip()[:90]}`. El registro es una escotilla "
-                      f"revisable, no un artefacto: si CI lo regenera deja de "
-                      f"declarar nada y pasa a sellar lo que haya.")
-                return 1
+    # El REGISTRO no se genera. La primera version de esta guardia ENUMERABA
+    # operadores de escritura en las lineas de `ci.yml` que nombraran el
+    # fichero, y un revisor la atraveso partiendo la referencia en dos lineas:
+    #
+    #     REG=.github/xfail-registro.txt          <- nombra, no escribe
+    #     echo "AUTO-01 | ..." >> "$REG"          <- escribe, no nombra
+    #
+    # EXIT=0. Y un `python3 scripts/lo_que_sea.py` ni siquiera menciona el
+    # fichero. Enumerar formas de escribir es la misma trampa de siempre.
+    #
+    # Se invierte la polaridad y se comprueba la PROPIEDAD: el registro del
+    # arbol de trabajo tiene que ser IDENTICO al que hay en HEAD. Si algo lo
+    # toco durante la ejecucion —un paso de CI, un script, lo que sea— el hash
+    # difiere y es rojo, venga por donde venga. Lo que importa no es como se
+    # escribio: es que una entrada escrita en tiempo de CI NUNCA aparece en el
+    # diff, y entonces la escotilla deliberada y revisable se convierte en un
+    # sello automatico que ademas infiere la excepcion de la misma ejecucion
+    # cuya integridad este gate protege.
+    errores_integridad = comprueba_integridad_del_registro()
+    for e in errores_integridad:
+        print(f"::error::{e}")
+    if errores_integridad:
+        return 1
 
     if ABLACION:
         print(f"::warning::ABLACION ACTIVA: control {ABLACION} DESACTIVADO. "
@@ -2218,15 +2203,35 @@ def main() -> int:
             # D2: trinquete sobre los tests QUE QUEDAN EN PIE, no sobre los
             # recolectados. Un test decorado con `skip` se sigue recolectando,
             # asi que el recuento de coleccion no baja y no delataba nada.
+            # D2 RESPETA LA ESCOTILLA, y esto se arregla aqui porque si no el
+            # registro no serviria de nada: un `xfail(strict=True)` nuevo CON su
+            # entrada correcta dejaba X-T satisfecho y D2 lo bloqueaba igual,
+            # porque `tests_en_pie` descuenta los `xfail` autorizados tambien.
+            # Medido: `TESTS EN PIE A LA BAJA: test_auth_core.py definia 18 y
+            # ahora 17`, un solo error, y de D2. El patron de registro de
+            # defectos conocidos seguia siendo imposible de anadir: era el
+            # mismo hallazgo de la ronda anterior desplazado un control.
+            #
+            # El margen se cuenta por FUNCIONES distintas, no por lineas del
+            # registro: `tests_en_pie` cuenta funciones y una funcion
+            # parametrizada puede tener cuatro entradas. Sumar lineas
+            # sobreacreditaria el margen y aflojaria D2 mas de lo declarado.
+            funciones_autorizadas = funciones_autorizadas_por_modulo()
             en_pie_antes = datos_base.get("en_pie") or {}
             for rel, antes in sorted(en_pie_antes.items()):
                 ahora = en_pie_ahora.get(rel)
-                if ahora is None or ahora >= antes:
+                margen = funciones_autorizadas.get(rel, 0)
+                if ahora is None or ahora >= antes - margen:
                     continue
                 errores.append(
                     f"TESTS EN PIE A LA BAJA: `{rel}` definia {antes} tests sin "
-                    f"apagar y ahora {ahora}. Esta medida no la mueve `parametrize` "
-                    f"ni la maquilla un `skip`: cuenta lo que queda por ejecutar."
+                    f"apagar y ahora {ahora}"
+                    + (f" (con {margen} funcion(es) autorizada(s) en el registro, "
+                       f"minimo permitido {antes - margen})" if margen else "")
+                    + f". Esta medida no la mueve `parametrize` ni la maquilla un "
+                    f"`skip`: cuenta lo que queda por ejecutar. Si es un DEFECTO "
+                    f"CONOCIDO, declaralo en `.github/xfail-registro.txt` y este "
+                    f"trinquete lo respetara, igual que X-T."
                 )
             for rel, antes in sorted(base.items()):
                 ahora = inventario.get(rel)

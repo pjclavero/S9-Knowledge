@@ -110,8 +110,10 @@ calibracion no se usa, y el control lo GRITA en la salida.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -155,7 +157,11 @@ def reportado_por_modulo(ficheros: list[Path]) -> tuple[dict[str, int], int]:
     return por_clase, total
 
 
-REGISTRO = REPO / ".github" / "xfail-registro.txt"
+# FUENTE UNICA: se importa el mismo lector que usa `check_suite_inventory.py`.
+# Ni una linea de parseo propia y ni un `open()` del fichero: la referencia sale
+# de git y la entrega el modulo, en la misma llamada que la verifica.
+sys.path.insert(0, str(REPO / ".github" / "scripts"))
+import registro_xfail  # noqa: E402
 
 
 def _nodeid(caso) -> str:
@@ -173,64 +179,6 @@ def _nodeid(caso) -> str:
             ruta = "/".join(partes[:i + 1]) + ".py"
             return "::".join([ruta, *partes[i + 1:], nombre])
     return "::".join([clase.replace(".", "/") + ".py", nombre]) if clase else nombre
-
-
-def lee_registro() -> tuple[dict[str, tuple[str, str]], list[str]]:
-    """nodeid -> (id, motivo), y los problemas de forma del propio registro.
-
-    Se lee un fichero ESCRITO A MANO y versionado. No se genera, no se
-    completa solo y no hay ninguna opcion que lo reescriba: ver la cabecera del
-    propio `.github/xfail-registro.txt`.
-    """
-    entradas: dict[str, tuple[str, str]] = {}
-    problemas: list[str] = []
-    if not REGISTRO.exists():
-        return entradas, problemas
-    for numero, cruda in enumerate(REGISTRO.read_text(encoding="utf-8").splitlines(), 1):
-        linea = cruda.split("#")[0].strip() if not cruda.lstrip().startswith("#") else ""
-        if not linea:
-            continue
-        campos = [c.strip() for c in linea.split("|")]
-        if len(campos) != 3 or not all(campos):
-            problemas.append(
-                f"REGISTRO MAL FORMADO (linea {numero}): `{cruda.strip()[:70]}`. "
-                f"El formato es `<id> | <nodeid exacto> | <motivo>`, los tres "
-                f"campos obligatorios. Un motivo vacio no declara nada.")
-            continue
-        ident, nodeid, motivo = campos
-        # La coincidencia es IGUALDAD DE CADENA, nunca `fnmatch`, asi que un
-        # `*` jamas puede ampliar el alcance de una entrada. Esta comprobacion
-        # es de legibilidad: que nadie ESCRIBA algo con pinta de patron y crea
-        # que cubre varias pruebas.
-        #
-        # Y se mira SOLO la parte anterior al `[`, porque dentro del parametro
-        # los caracteres son DATOS del caso. Escrito primero sobre el nodeid
-        # entero y medido despues: dos entradas legitimas del registro inicial
-        # llevan `ops/**` dentro del parametro —el caso de prueba habla
-        # literalmente de globs de rama— y la regla las rechazaba. Un control
-        # que enrojece ante un dato valido es un falso positivo, no rigor.
-        ruta_y_test = nodeid.split("[", 1)[0]
-        if any(c in ruta_y_test for c in "*?") or nodeid.endswith("::"):
-            problemas.append(
-                f"REGISTRO CON PINTA DE PATRON (linea {numero}): `{nodeid}`. La "
-                f"ruta y el nombre de la prueba tienen que ser literales. La "
-                f"coincidencia es exacta —nunca `fnmatch`—, asi que un comodin "
-                f"no ampliaria nada, pero escribirlo hace creer lo contrario a "
-                f"quien lo lea en el diff.")
-            continue
-        if "::" not in nodeid or not nodeid.split("::")[0].endswith(".py"):
-            problemas.append(
-                f"REGISTRO SIN PRUEBA (linea {numero}): `{nodeid}` no nombra una "
-                f"prueba concreta (`<ruta>.py::<test>`). Autorizar un modulo "
-                f"entero no es una excepcion, es un permiso.")
-            continue
-        if nodeid in entradas:
-            problemas.append(
-                f"REGISTRO DUPLICADO (linea {numero}): `{nodeid}` ya estaba "
-                f"declarado como `{entradas[nodeid][0]}`.")
-            continue
-        entradas[nodeid] = (ident, motivo)
-    return entradas, problemas
 
 
 def xfail_reportado(ficheros: list[Path]) -> dict[str, list[str]]:
@@ -290,7 +238,12 @@ def comprueba_registro(ficheros: list[Path]) -> list[str]:
       XPASS sale en JUnit como un `<testcase>` pelado y no se distingue de un
       aprobado normal.
     """
-    entradas, errores = lee_registro()
+    # Verificar y consumir, en la MISMA llamada y contra git. Si el registro
+    # no es el del commit, `entradas` viene vacio y con el error: sus entradas
+    # no valen nada y seguir comparando con ellas seria darles credito.
+    entradas, errores = registro_xfail.entradas()
+    if errores:
+        return errores
     todos, xfail = nodeids_del_informe(ficheros)
 
     # Los modulos que este informe cubre. Una entrada de un modulo que no
@@ -371,6 +324,11 @@ def main() -> int:
             print("::error::`--solo-registro` aparece en ci.yml. Desarma la "
                   "obligacion de presencia: el job saldria verde aunque "
                   "desapareciera una suite critica entera.")
+            return 1
+        if "S9K_REGISTRO_MUTADO" in texto_ci:
+            print("::error::`S9K_REGISTRO_MUTADO` aparece en ci.yml. Desarma la "
+                  "integridad del registro: CI podria escribir autorizaciones "
+                  "que no pasan por ningun diff.")
             return 1
 
     if ABLACION:
