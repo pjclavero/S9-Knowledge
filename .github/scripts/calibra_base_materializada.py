@@ -92,7 +92,36 @@ def corre_gate(extra: list[str], entorno: dict | None = None) -> tuple[int, str]
     return p.returncode, p.stdout + p.stderr
 
 
+def precondicion() -> list[str]:
+    """Este arnes EXIGE el mismo checkout que el job donde el gate corre.
+
+    Si no hay historia suficiente para derivar el merge-base con `origin/main`,
+    los casos saldrian rojos por una razon que no es la que calibran y la tabla
+    confundiria a quien la lea. Medido: colocado en un job con el checkout por
+    defecto, dio `SIN TRINQUETE: no hay merge-base con origin/main` y dos
+    desviaciones que parecian del producto y eran del sitio donde se le puso.
+    Mejor una PRECONDICION explicita que una tabla enganosa.
+    """
+    problemas = []
+    p = subprocess.run(["git", "rev-parse", "--verify", "origin/main^{commit}"],
+                       cwd=REPO, capture_output=True, text=True)
+    if p.returncode != 0:
+        problemas.append(
+            "PRECONDICION: no existe `origin/main` en este checkout, asi que no "
+            "hay merge-base que materializar. Este arnes ejercita LA RUTA REAL "
+            "de la base y necesita el mismo checkout que el job donde el gate "
+            "corre de verdad: `fetch-depth: 0`. Sin eso no mide el producto, "
+            "mide el sitio donde se le ha puesto.")
+    return problemas
+
+
 def main() -> int:
+    fallos_previos = precondicion()
+    for e in fallos_previos:
+        print(f"::error::{e}")
+    if fallos_previos:
+        return 1
+
     hashes = {f: sha(f) for f in VIGILADOS if f.exists()}
     print("SHA-256 ANTES (este arnes NO deberia tocar ninguno):")
     for f, h in hashes.items():

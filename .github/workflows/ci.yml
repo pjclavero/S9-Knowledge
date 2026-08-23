@@ -550,7 +550,19 @@ jobs:
     name: Calibracion de gates (cada violacion tiene que ponerse ROJA)
     runs-on: ubuntu-latest
     steps:
+      # `fetch-depth: 0` NO es decorativo: `calibra_base_materializada.py`
+      # ejercita la ruta REAL de la base —derivar el merge-base con
+      # `origin/main` y materializarlo—, y con el checkout por defecto ese
+      # merge-base NO EXISTE. Medido: el arnes salio rojo en CI con
+      # `SIN TRINQUETE: no hay merge-base con origin/main` mientras en local
+      # pasaba, porque aqui se estaba probando el instrumento en condiciones en
+      # las que el producto no corre. Es el mismo fallo que este arnes existe
+      # para cazar, cometido al colocarlo. El job donde el gate corre de verdad
+      # (`test-combined`) usa `fetch-depth: 0`, asi que este tiene que usarlo.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
