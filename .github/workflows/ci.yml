@@ -628,6 +628,18 @@ jobs:
           S9K_ALLOW_REAL_INGEST: ""
         run: python3 .github/scripts/calibra_registro_xfail.py
 
+      # Y la ruta que CI ejecuta DE VERDAD para la base: materializar el
+      # merge-base y medirlo. Ningun otro arnes la ejercitaba —todos miden con
+      # `--base-fichero`— y por ahi entro una regresion que dejaba el gate
+      # certificando en verde con SIETE trinquetes sin ejecutar. Este arnes
+      # exige que la base salga MATERIALIZADA, que romper la materializacion
+      # sea ROJO (no un aviso enterrado en un EXIT=0) y que `--sin-base` siga
+      # siendo la unica forma legitima de quedarse sin ella.
+      - name: La base se materializa de verdad (la ruta que corre en CI)
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+        run: python3 .github/scripts/calibra_base_materializada.py
+
   # Instalado desde .github/ci-fragments/check-env-reproducibility.yml. Si un
   # merge se lleva por delante este bloque, el fragmento es la copia canonica.
   check-env-reproducibility:

@@ -161,6 +161,7 @@ def reportado_por_modulo(ficheros: list[Path]) -> tuple[dict[str, int], int]:
 # Ni una linea de parseo propia y ni un `open()` del fichero: la referencia sale
 # de git y la entrega el modulo, en la misma llamada que la verifica.
 sys.path.insert(0, str(REPO / ".github" / "scripts"))
+import normaliza_shell  # noqa: E402
 import registro_xfail  # noqa: E402
 
 
@@ -320,15 +321,15 @@ def main() -> int:
     ci = REPO / ".github" / "workflows" / "ci.yml"
     if ci.exists():
         texto_ci = ci.read_text(encoding="utf-8")
-        if "check_ejecucion_real.py" in texto_ci and "--solo-registro" in texto_ci:
-            print("::error::`--solo-registro` aparece en ci.yml. Desarma la "
-                  "obligacion de presencia: el job saldria verde aunque "
-                  "desapareciera una suite critica entera.")
-            return 1
-        if "S9K_REGISTRO_MUTADO" in texto_ci:
-            print("::error::`S9K_REGISTRO_MUTADO` aparece en ci.yml. Desarma la "
-                  "integridad del registro: CI podria escribir autorizaciones "
-                  "que no pasan por ningun diff.")
+        # MISMO reconocedor que el otro gate, importado, no reescrito. La
+        # busqueda literal se atraveso con `S9K_REGISTRO_MU""TADO=1`: para bash
+        # es la misma variable y para un `in` es otra cadena.
+        for nombre, linea in normaliza_shell.desarmes_en_ci(texto_ci):
+            print(f"::error::`{nombre}` aparece en ci.yml (linea: "
+                  f"`{linea.strip()[:80]}`). Desarma un control: el job saldria "
+                  f"verde sin comprobar lo que dice comprobar. No es una "
+                  f"busqueda literal: se normaliza cada linea como lo hace el "
+                  f"shell antes de buscar.")
             return 1
 
     if ABLACION:

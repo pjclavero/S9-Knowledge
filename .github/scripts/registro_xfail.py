@@ -85,6 +85,25 @@ def _mutado() -> bool:
     return os.environ.get("S9K_REGISTRO_MUTADO", "").strip() == "1"
 
 
+def _midiendo_base() -> bool:
+    """El gate se esta midiendo a si mismo sobre el ARBOL DE UNA BASE.
+
+    Ahi la integridad del registro NO ES APLICABLE, y no es una excepcion de
+    conveniencia: cuando se mide una base, el registro NO ES EL SUJETO. El
+    sujeto es el arbol de trabajo, y su registro se verifica en la ejecucion
+    padre, que es la que certifica. La base es un artefacto historico que se
+    extrae con `git archive | tar` a un temporal que NO ES UN REPOSITORIO GIT,
+    asi que ahi dentro no existe ni puede existir un commit de referencia.
+
+    Esto costo una REGRESION real: al meter la integridad sin esta distincion,
+    el hijo que mide la base moria con `no se pudo resolver el commit de
+    referencia`, no escribia inventario, y el padre seguia adelante sin base
+    —o sea con C, C-bis, D, D2, A2, G y X-T SIN EJECUTAR— y salia EXIT=0. Un
+    verde que no incluia siete trinquetes.
+    """
+    return os.environ.get("S9K_MIDIENDO_BASE", "").strip() == "1"
+
+
 def _git(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(["git", *args], cwd=REPO, capture_output=True,
                           text=True, timeout=180)
@@ -109,6 +128,12 @@ def contenido_verificado() -> tuple[str | None, list[str]]:
     Devuelve SIEMPRE el contenido que viene de git. El fichero del arbol se lee
     unicamente como SUJETO de la comparacion y su contenido no sale de aqui.
     """
+    if _midiendo_base():
+        # No se compara nada: se entrega el registro que traiga el arbol de la
+        # base (o vacio si no lo trae). Las comprobaciones que dependen del
+        # registro son de error, no de medida, asi que el inventario que
+        # produce esta pasada no depende de esto.
+        return (FICHERO.read_text(encoding="utf-8") if FICHERO.exists() else ""), []
     if _mutado():
         # La calibracion muta el registro a proposito. Se entrega lo que hay en
         # disco porque es justo lo que el caso quiere ejercitar, y se GRITA.

@@ -464,11 +464,22 @@ RE_COMILLAS = re.compile(r"[\"']")
 # normalizaciones y basta que UNA revele un nombre prohibido.
 RE_SUSTITUCION = re.compile(r"\$\([^)]*\)|\$\{\w+\}|\$\w+|%[sd]")
 
+
 # Un nombre de variable CONSTRUIDO con expansiones, en cualquier asignacion del
 # `run:`: `${A}${B}=v`, `$X=v`. Sin espacio antes del `=`, que es lo que
 # distingue una asignacion de shell de una comparacion `[ "$x" = "y" ]`.
 RE_ASIGNA_NOMBRE_CONSTRUIDO = re.compile(
     r"(?:^|[\s;&|(])((?:\$\{?\w+\}?|[A-Za-z_][A-Za-z0-9_]*){2,})=")
+
+
+# La normalizacion y los nombres de desarme viven en `normaliza_shell`, que
+# importan los DOS gates: una sola implementacion, por la misma razon que el
+# registro tiene un solo lector.
+from normaliza_shell import (  # noqa: E402
+    VARIABLES_DE_DESARME,
+    desarmes_en_ci,
+    variantes_normalizadas,
+)
 
 
 def _env_de(nodo) -> dict:
@@ -569,12 +580,7 @@ def _revisa_run(cuerpo: str, donde: str) -> list[str]:
         # `PYTEST_ADD""OPTS`; quitar ademas `%s`, `$(...)`, `${VAR}` y `$VAR`
         # rejunta `PYTEST_ADD%sOPTS`, `PYTEST_ADD$(echo)OPTS` y compania. Basta
         # que UNA normalizacion revele un nombre prohibido.
-        vistas = [linea]
-        sin_comillas = RE_COMILLAS.sub("", linea)
-        sin_sustituciones = RE_SUSTITUCION.sub("", sin_comillas)
-        for variante in (sin_comillas, sin_sustituciones):
-            if variante not in vistas:
-                vistas.append(variante)
+        vistas = variantes_normalizadas(linea)
         nombres = {m.group(1) for v in vistas for m in RE_ASIGNA_ENTORNO.finditer(v)}
         for m in RE_ASIGNA_ENTORNO.finditer(linea):
             nombre = m.group(1)
@@ -592,6 +598,19 @@ def _revisa_run(cuerpo: str, donde: str) -> list[str]:
                 resto = linea[m.end():].split()
                 if resto:
                     errores.extend(_politica_de_pythonpath(resto[0], donde))
+        # Los nombres de DESARME, con la misma normalizacion. Aqui se cazan
+        # aunque nadie los asigne con `=` (por ejemplo un `unset` no importa,
+        # pero un `export X=1` partido en comillas si).
+        for variante in vistas:
+            for desarme in VARIABLES_DE_DESARME:
+                if desarme in variante and desarme not in linea:
+                    errores.append(
+                        f"BANDERA DE DESARME OCULTA en {donde}: "
+                        f"`{linea.strip()[:90]}`. Normalizando lo que el shell "
+                        f"colapsa aparece `{desarme}`, que APAGA controles "
+                        f"enteros de este gate. Partir el nombre en comillas no "
+                        f"lo convierte en otra variable.")
+
         # Nombres que solo aparecen al quitar las comillas: es G1.
         for nombre in sorted(nombres - {m.group(1) for m in RE_ASIGNA_ENTORNO.finditer(linea)}):
             if nombre in VARIABLES_QUE_FILTRAN:
@@ -1728,16 +1747,31 @@ def inventario_materializando(base: str) -> tuple[dict | None, str]:
             # La base es anterior al gate: se le presta ESTE, que es lo unico
             # honesto que se puede hacer. Se mide el arbol de la base con el
             # instrumento de hoy.
+            #
+            # SE PRESTA EL DIRECTORIO ENTERO, no una lista de ficheros. Antes se
+            # copiaban `check_suite_inventory.py` y `check_ci_config.py` por
+            # NOMBRE, y el dia que el gate empezo a importar `registro_xfail`
+            # el hijo murio con `ModuleNotFoundError`, no escribio inventario, y
+            # el padre certifico sin los siete trinquetes de la base. Otra
+            # enumeracion que hay que mantener a mano ES el agujero: copiar el
+            # directorio cierra por construccion tambien lo que se anada manana.
             gate.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(Path(__file__).resolve(), gate)
-            propio = REPO / ".github" / "scripts" / "check_ci_config.py"
-            destino = tmp / ".github" / "scripts" / "check_ci_config.py"
-            if propio.is_file() and not destino.is_file():
-                shutil.copy2(propio, destino)
+            origen_scripts = REPO / ".github" / "scripts"
+            for fichero in sorted(origen_scripts.glob("*.py")):
+                destino = gate.parent / fichero.name
+                if not destino.is_file():
+                    shutil.copy2(fichero, destino)
         entorno = dict(os.environ)
         entorno["PYTHONDONTWRITEBYTECODE"] = "1"
         entorno.pop("S9K_INVENTARIO_ABLACION", None)
+        entorno.pop("S9K_REGISTRO_MUTADO", None)
         entorno.setdefault("S9K_ALLOW_REAL_INGEST", "")
+        # El hijo MIDE UNA BASE: ahi el registro no es el sujeto y su
+        # integridad no es aplicable. Sin esto el hijo moria en el temporal
+        # —que no es un repositorio git, asi que no hay commit de referencia—,
+        # no escribia inventario, y el padre certificaba SIN los siete
+        # trinquetes que dependen de la base.
+        entorno["S9K_MIDIENDO_BASE"] = "1"
         r = subprocess.run(
             [sys.executable, str(gate), "--escribir-inventario", "--sin-base"],
             cwd=tmp, capture_output=True, text=True, env=entorno, timeout=1800)
@@ -1826,13 +1860,14 @@ def main() -> int:
     # No se confia en que nadie las escriba: se COMPRUEBA.
     if CI.exists():
         texto_ci = CI.read_text(encoding="utf-8")
-        if "check_suite_inventory.py" in texto_ci:
-            for bandera in ("--sin-base", "--base-fichero",
-                            "S9K_INVENTARIO_ABLACION", "S9K_REGISTRO_MUTADO"):
-                if bandera in texto_ci:
-                    print(f"::error::`{bandera}` aparece en ci.yml. Desarma este "
-                          f"gate: el job saldria verde sin trinquete ni control.")
-                    return 1
+        for nombre, linea in desarmes_en_ci(texto_ci):
+            print(f"::error::`{nombre}` aparece en ci.yml (linea: "
+                  f"`{linea.strip()[:80]}`). Desarma este gate: el job saldria "
+                  f"verde sin trinquete ni control. La comprobacion NO es una "
+                  f"busqueda literal —eso se atraveso con "
+                  f"`S9K_REGISTRO_MU\"\"TADO=1`—: se normaliza cada linea como "
+                  f"lo hace el shell antes de buscar.")
+            return 1
 
     # El REGISTRO no se genera. La primera version de esta guardia ENUMERABA
     # operadores de escritura en las lineas de `ci.yml` que nombraran el
@@ -2341,11 +2376,29 @@ def main() -> int:
         "ninguna dependencia ausente convirtiendo pruebas en skips verdes",
     ]
     if base is None:
-        print("::warning::SIN TRINQUETE: no hay base de comparacion "
-              f"({nota}). NO se han comprobado el anti-borrado (C/C-bis), el "
-              f"trinquete de recuento (D), el de tests en pie (D2), el de "
-              f"criticos (G) ni el de silenciados (A2). Este verde NO los "
-              f"incluye.")
+        # UN AVISO NO PUEDE SER LA RESPUESTA A QUE EL INSTRUMENTO FALLE.
+        # Quedarse sin base solo es aceptable cuando alguien lo PIDIO
+        # (`--sin-base`, que en `ci.yml` esta prohibido y se comprueba). Si la
+        # base no esta porque la materializacion se rompio, eso es un fallo del
+        # instrumento y el gate NO puede salir verde: estaria certificando con
+        # C, C-bis, D, D2, A2, G y X-T sin ejecutar. Medido: eso es exactamente
+        # lo que pasaba, y el aviso quedaba enterrado en un EXIT=0.
+        if args.sin_base:
+            print("::warning::SIN TRINQUETE: no hay base de comparacion "
+                  f"({nota}). NO se han comprobado el anti-borrado (C/C-bis), "
+                  f"el trinquete de recuento (D), el de tests en pie (D2), el "
+                  f"de criticos (G), el de silenciados (A2) ni el censo de "
+                  f"`xfail` (X-T). Este verde NO los incluye.")
+        else:
+            print(f"::error::INSTRUMENTO ROTO, NO BASE AUSENTE: {nota}. Sin "
+                  f"base quedan SIN EJECUTAR el anti-borrado (C/C-bis), el "
+                  f"trinquete de recuento (D), el de tests en pie (D2), el de "
+                  f"criticos (G), el de silenciados (A2) y el censo de `xfail` "
+                  f"(X-T) —siete controles, incluidos los que cazan "
+                  f"supervivientes de rondas anteriores—. Un verde sin ellos no "
+                  f"es un verde, asi que esto es ROJO. Si de verdad quieres "
+                  f"medir sin base, pide `--sin-base` a proposito.")
+            return 1
     else:
         aplicados += [
             f"trinquete de presencia, de recuento, de tests en pie, de criticos "
