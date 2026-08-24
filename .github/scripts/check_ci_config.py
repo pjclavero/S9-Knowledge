@@ -861,6 +861,15 @@ def _nombres_ligados(ambito) -> set:
             ligados.add(nodo.name)
         elif isinstance(nodo, ast.Global):
             ligados |= set(nodo.names)
+        elif isinstance(nodo, (ast.MatchAs, ast.MatchStar)) and nodo.name:
+            # `case Punto() as p:` y `case [x, *resto]:` LIGAN nombres. Sin
+            # esto, el dia que alguien escriba un `match` en un gate, CI se
+            # pondria rojo sin que hubiera ningun defecto. Hoy ningun script
+            # usa `match`, asi que el falso positivo estaba LATENTE: se cierra
+            # antes de que muerda, no despues.
+            ligados.add(nodo.name)
+        elif isinstance(nodo, ast.MatchMapping) and nodo.rest:
+            ligados.add(nodo.rest)
     return ligados
 
 
@@ -905,9 +914,22 @@ def comprueba_nombres_definidos(rutas) -> list:
 
     for ruta in rutas:
         try:
-            arbol = ast.parse(ruta.read_text(encoding="utf-8", errors="replace"))
+            fuente = ruta.read_text(encoding="utf-8", errors="replace")
+            arbol = ast.parse(fuente)
         except SyntaxError as e:
             problemas.append(f"{ruta.name}: no parsea ({e.msg})")
+            continue
+        # `from x import *` trae nombres que este analisis NO puede enumerar
+        # sin importar el modulo. Analizar el fichero igual produciria falsos
+        # positivos, y callarlos en silencio seria peor: se DICE que ese fichero
+        # queda fuera y por que. Hoy ninguno lo usa.
+        if any(isinstance(n, ast.ImportFrom)
+               and any(a.name == "*" for a in n.names)
+               for n in ast.walk(arbol)):
+            problemas.append(
+                f"{ruta.name}: usa `from ... import *`, asi que este analisis no "
+                f"puede saber que nombres quedan definidos y NO lo comprueba. Si "
+                f"hace falta la comprobacion aqui, escribe los imports uno a uno.")
             continue
         recorre(arbol, base, ruta)
     return problemas

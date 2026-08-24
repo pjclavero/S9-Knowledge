@@ -44,6 +44,9 @@ import sys
 import tempfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import arnes_comun  # noqa: E402
+
 REPO = Path(__file__).resolve().parents[2]
 GATE = REPO / ".github" / "scripts" / "check_suite_inventory.py"
 VIGILADOS = (
@@ -230,29 +233,62 @@ def main() -> int:
                   "OK" if ok1b else "**DESVIACION**"))
 
     # --- 2. materializacion ROTA -> ROJO, no verde con aviso --------------
+    #
+    # EN UN CLON con la base SIN inventario, no en el repo ambiente. Medido en
+    # un clon post-fusion: sobre el repo ambiente, cuando la base YA publica
+    # inventario se toma la via rapida, `git archive` no llega a usarse y
+    # `INSTRUMENTO ROTO` no aparece nunca. O sea que este caso solo era correcto
+    # mientras la base no publicara inventario: exactamente la trampa que ya se
+    # arreglo para los casos 1 y 1b, dejada a medias aqui. Al integrar los
+    # carriles habria puesto «Calibracion de gates» ROJO en `main`.
     print("\n########## 2. materializacion ROTA (`git archive` falla)")
     tmp = git_que_falla_en_archive()
     temporales.append(tmp)
     entorno = os.environ.copy()
     entorno["PATH"] = f"{tmp}{os.pathsep}{entorno.get('PATH', '')}"
-    rc2, salida2 = corre_gate([], entorno)
-    instrumento = "INSTRUMENTO ROTO" in salida2
+    if base_sin is None:
+        rc2, instrumento = -1, False
+        print("  (sin base sin inventario: no ejercitable)")
+    else:
+        clon3 = clon_con_main_en(base_sin)
+        temporales.append(clon3.parent)
+        p2 = subprocess.run(
+            [sys.executable, ".github/scripts/check_suite_inventory.py"],
+            cwd=clon3, capture_output=True, text=True, timeout=3600, env=entorno)
+        rc2 = p2.returncode
+        instrumento = "INSTRUMENTO ROTO" in (p2.stdout + p2.stderr)
     ok2 = (rc2 == 1) and instrumento
     print(f"  EXIT={rc2}  dice INSTRUMENTO ROTO={instrumento}")
     fallos += 0 if ok2 else 1
-    filas.append(("2 materializacion rota", "ROJO (no verde con aviso)",
+    filas.append(("2 materializacion rota (en clon con base sin inventario)",
+                  "ROJO (no verde con aviso)",
                   f"EXIT={rc2}, INSTRUMENTO ROTO={instrumento}",
                   "OK" if ok2 else "**DESVIACION**"))
 
     # --- 3. `--sin-base` PEDIDO -> verde con aviso ------------------------
-    print("\n########## 3. `--sin-base` pedido a proposito")
-    rc3, salida3 = corre_gate(["--sin-base"])
+    #
+    # "Pedido a proposito" ya no puede ser desde la LINEA DE COMANDOS: esa
+    # invocacion no certifica nada y por eso es ROJO desde que el desarme se
+    # cerro por propiedad. La forma legitima es la que usan los arneses: llamar
+    # a `main()` dentro del propio proceso. Se comprueban las DOS caras.
+    print("\n########## 3. `--sin-base` pedido a proposito (en proceso)")
+    rc3, salida3 = arnes_comun.ejecuta_gate(
+        "check_suite_inventory", ["--sin-base"], ablacion="", timeout=2400)
     aviso = "SIN TRINQUETE" in salida3
     ok3 = (rc3 == 0) and aviso
     print(f"  EXIT={rc3}  avisa={aviso}")
     fallos += 0 if ok3 else 1
-    filas.append(("3 `--sin-base` explicito", "VERDE con aviso",
+    filas.append(("3 `--sin-base` en proceso (arnes)", "VERDE con aviso",
                   f"EXIT={rc3}, avisa={aviso}", "OK" if ok3 else "**DESVIACION**"))
+
+    print("\n########## 3b. `--sin-base` desde la LINEA DE COMANDOS")
+    rc3b, _ = corre_gate(["--sin-base"])
+    ok3b = rc3b == 1
+    print(f"  EXIT={rc3b}")
+    fallos += 0 if ok3b else 1
+    filas.append(("3b `--sin-base` desde linea de comandos",
+                  "ROJO (no certifica nada)", f"EXIT={rc3b}",
+                  "OK" if ok3b else "**DESVIACION**"))
 
     # --- 4. el instrumento prestado esta COMPLETO -------------------------
     print("\n########## 4. la medida de la base devuelve inventario")
