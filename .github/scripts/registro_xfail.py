@@ -81,27 +81,31 @@ FICHERO = REPO / RUTA
 # por integridad en vez de por el control que cada uno calibra, o sea rojos
 # prestados. Como las demas banderas de desarme del carril, esta PROHIBIDA en
 # `ci.yml` y los gates lo comprueban.
+# NINGUNA DE ESTAS DOS SALE DEL ENTORNO. Son variables de MODULO, y solo puede
+# tocarlas quien IMPORTA este fichero en su propio proceso.
+#
+# Antes eran `S9K_REGISTRO_MUTADO` y `S9K_MIDIENDO_BASE`, y la concesion se
+# defendia comprobando la ASCENDENCIA del proceso. Un revisor la falsifico con
+# `exec -a`: `argv` es texto que el proceso elige, asi que el nombre que ve el
+# arbol de procesos no prueba que ese script se haya ejecutado. Y por debajo hay
+# algo peor: todo lo que puede hacer un arnes lo puede hacer un paso de
+# `ci.yml`, asi que NINGUN apreton de manos es una frontera. Se quita la
+# entrada: lo que no existe no se falsifica.
+#
+# MUTADO   -> lo pone `calibra_registro_xfail.py` para poder mutar el registro.
+# MIDIENDO -> lo pone el propio gate cuando MIDE (`--escribir-inventario`), no
+#             cuando certifica. Al medir el arbol de una base, el registro no es
+#             el sujeto y su integridad no aplica.
+MUTADO = False
+MIDIENDO = False
+
+
 def _mutado() -> bool:
-    return os.environ.get("S9K_REGISTRO_MUTADO", "").strip() == "1"
+    return MUTADO
 
 
 def _midiendo_base() -> bool:
-    """El gate se esta midiendo a si mismo sobre el ARBOL DE UNA BASE.
-
-    Ahi la integridad del registro NO ES APLICABLE, y no es una excepcion de
-    conveniencia: cuando se mide una base, el registro NO ES EL SUJETO. El
-    sujeto es el arbol de trabajo, y su registro se verifica en la ejecucion
-    padre, que es la que certifica. La base es un artefacto historico que se
-    extrae con `git archive | tar` a un temporal que NO ES UN REPOSITORIO GIT,
-    asi que ahi dentro no existe ni puede existir un commit de referencia.
-
-    Esto costo una REGRESION real: al meter la integridad sin esta distincion,
-    el hijo que mide la base moria con `no se pudo resolver el commit de
-    referencia`, no escribia inventario, y el padre seguia adelante sin base
-    —o sea con C, C-bis, D, D2, A2, G y X-T SIN EJECUTAR— y salia EXIT=0. Un
-    verde que no incluia siete trinquetes.
-    """
-    return os.environ.get("S9K_MIDIENDO_BASE", "").strip() == "1"
+    return MIDIENDO
 
 
 def _git(*args: str) -> subprocess.CompletedProcess:
@@ -137,9 +141,9 @@ def contenido_verificado() -> tuple[str | None, list[str]]:
     if _mutado():
         # La calibracion muta el registro a proposito. Se entrega lo que hay en
         # disco porque es justo lo que el caso quiere ejercitar, y se GRITA.
-        print("::warning::S9K_REGISTRO_MUTADO: integridad del registro NO "
-              "comprobada y se usa el fichero del arbol. Solo es legitimo "
-              "dentro de la calibracion.")
+        print("::warning::REGISTRO MUTADO por un arnes: integridad NO "
+              "comprobada y se usa el fichero del arbol. Esta variable solo se "
+              "puede poner IMPORTANDO este modulo, nunca desde el entorno.")
         return (FICHERO.read_text(encoding="utf-8") if FICHERO.exists() else ""), []
 
     sha, origen = commit_de_referencia()

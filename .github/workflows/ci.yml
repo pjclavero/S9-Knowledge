@@ -652,6 +652,17 @@ jobs:
           S9K_ALLOW_REAL_INGEST: ""
         run: python3 .github/scripts/calibra_base_materializada.py
 
+      # Y la propiedad que sustituye a cuatro rondas de reconocedores: el
+      # binario que CERTIFICA no tiene entrada de desarme. Comprueba por AST que
+      # ningun gate lee esas variables, que con las cuatro puestas y la
+      # ascendencia FABRICADA (`exec -a`) el gate certifica igual, que las
+      # banderas de medicion desde la linea de comandos son ROJO, y -control
+      # positivo- que los arneses SIGUEN pudiendo ablacionar.
+      - name: El binario que certifica no se puede desarmar
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+        run: python3 .github/scripts/calibra_desarme.py
+
   # Instalado desde .github/ci-fragments/check-env-reproducibility.yml. Si un
   # merge se lleva por delante este bloque, el fragmento es la copia canonica.
   check-env-reproducibility:

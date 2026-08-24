@@ -102,7 +102,7 @@ reportadas —unidades iguales a las de JUnit—, no bajar un umbral.
 
 ABLACION
 ========
-`S9K_EJECUCION_ABLACION=1` desactiva la comparacion contra el inventario y deja
+La ablacion (variable de modulo, no entorno) desactiva la comparacion y deja
 solo la guardia anti-cero. Existe para que la calibracion demuestre que quitar
 esta capa devuelve a VERDE los casos que con ella salen ROJOS. Fuera de la
 calibracion no se usa, y el control lo GRITA en la salida.
@@ -121,7 +121,11 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 INVENTARIO = REPO / ".github" / "suite-inventario.json"
 
-ABLACION = os.environ.get("S9K_EJECUCION_ABLACION", "").strip() == "1"
+# NO sale del entorno: variable de modulo, solo la toca quien IMPORTA este
+# fichero. La concesion anterior se defendia por ASCENDENCIA del proceso y un
+# revisor la falsifico con `exec -a`, porque `argv` es texto que el proceso
+# elige. Lo que no existe no se falsifica.
+ABLACION = False
 
 
 def _modulo_a_prefijo(ruta: str) -> str:
@@ -301,7 +305,7 @@ def cuenta_de(prefijo: str, por_clase: dict[str, int]) -> int:
                if clase == prefijo or clase.startswith(prefijo + "."))
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--junit", action="append", required=True,
                     help="fichero o directorio con informes JUnit de pytest")
@@ -312,32 +316,16 @@ def main() -> int:
                     help="comprueba SOLO el registro de `xfail` contra la "
                          "ejecucion, sin la obligacion de presencia por modulo "
                          "(SOLO calibracion: en ci.yml esta prohibido)")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
-    # Autoguardia, igual que en `check_suite_inventory.py`: si esta bandera
-    # apareciera en `ci.yml`, el job comprobaria el registro y se saltaria la
-    # obligacion de presencia, o sea saldria verde sin mirar si una suite
-    # entera desaparecio. No se confia en que nadie la escriba: se COMPRUEBA.
-    ci = REPO / ".github" / "workflows" / "ci.yml"
-    if ci.exists():
-        texto_ci = ci.read_text(encoding="utf-8")
-        # MISMO reconocedor que el otro gate, importado, no reescrito. La
-        # busqueda literal se atraveso con `S9K_REGISTRO_MU""TADO=1`: para bash
-        # es la misma variable y para un `in` es otra cadena.
-        for nombre, linea in normaliza_shell.desarmes_en_ci(texto_ci):
-            print(f"::error::`{nombre}` aparece en ci.yml (linea: "
-                  f"`{linea.strip()[:80]}`). Desarma un control: el job saldria "
-                  f"verde sin comprobar lo que dice comprobar. No es una "
-                  f"busqueda literal: se normaliza cada linea como lo hace el "
-                  f"shell antes de buscar.")
-            return 1
-
-    # Misma comprobacion de PROPIEDAD que el otro gate: el desarme se autoriza
-    # por la ASCENDENCIA del proceso, no por el texto de `ci.yml`.
-    fallos_desarme = normaliza_shell.exige_desarme_autorizado(REPO, os.environ)
-    for e in fallos_desarme:
-        print(f"::error::{e}")
-    if fallos_desarme:
+    # `--solo-registro` aisla una capa: util para calibrar, invalido para
+    # certificar. No se busca en `ci.yml` —eso se atraveso dos veces— sino que
+    # se comprueba la PROPIEDAD sobre la invocacion que se esta ejecutando.
+    if invocado_desde_linea_de_comandos and args.solo_registro:
+        print("::error::`--solo-registro` en una invocacion de linea de "
+              "comandos. Desarma la obligacion de presencia: el job saldria "
+              "verde aunque desapareciera una suite critica entera. Los arneses "
+              "que aislan esta capa llaman a `main()` dentro de su proceso.")
         return 1
 
     if ABLACION:
@@ -463,5 +451,8 @@ def main() -> int:
     return 0
 
 
+invocado_desde_linea_de_comandos = False
+
 if __name__ == "__main__":
+    invocado_desde_linea_de_comandos = True
     sys.exit(main())

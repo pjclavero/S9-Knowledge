@@ -58,6 +58,9 @@ import sys
 import tempfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import arnes_comun  # noqa: E402
+
 REPO = Path(__file__).resolve().parents[2]
 CONTROL = REPO / ".github" / "scripts" / "check_ejecucion_real.py"
 GATE = REPO / ".github" / "scripts" / "check_suite_inventory.py"
@@ -105,52 +108,36 @@ def corre_pytest(destino: Path, tmp: Path) -> Path:
 
 
 def _entorno(mutado: bool, ablacion: str = "") -> dict:
-    """`S9K_REGISTRO_MUTADO` solo cuando el caso muta el registro A PROPOSITO.
+    """Ya NO mete banderas de desarme en el entorno.
 
-    Sin esta bandera todos los casos que tocan el registro saldrian rojos por
-    INTEGRIDAD en vez de por el control que cada uno calibra: rojos prestados.
-    Y con ella puesta siempre, el caso que calibra la propia integridad no
-    podria existir. Por eso va por caso, no global.
+    Se conserva la firma porque los casos la usan, pero lo unico que devuelve es
+    un entorno limpio: el desarme viaja como PARAMETRO a `arnes_comun`, porque
+    los gates dejaron de leerlo del entorno. La concesion anterior se defendia
+    por ASCENDENCIA del proceso y se falsifico con `exec -a`.
     """
     entorno = dict(os.environ)
-    if mutado:
-        entorno["S9K_REGISTRO_MUTADO"] = "1"
-    else:
-        entorno.pop("S9K_REGISTRO_MUTADO", None)
-    entorno.pop("S9K_INVENTARIO_ABLACION", None)
-    entorno.pop("S9K_EJECUCION_ABLACION", None)
-    if ablacion == "ESTATICA":
-        # Se desarma el reconocedor estatico entero (control A: A5, A6, A7).
-        entorno["S9K_INVENTARIO_ABLACION"] = "A"
-    elif ablacion == "RESULTADOS":
-        entorno["S9K_EJECUCION_ABLACION"] = "1"
+    for sobrante in ("S9K_INVENTARIO_ABLACION", "S9K_EJECUCION_ABLACION",
+                     "S9K_REGISTRO_MUTADO", "S9K_MIDIENDO_BASE"):
+        entorno.pop(sobrante, None)
     return entorno
 
 
 def capa_de_resultados(informe: Path, mutado: bool,
                        ablacion: str = "") -> tuple[int, str]:
     """El control de resultados AISLADO: sin gate estatico de por medio."""
-    p = subprocess.run(
-        [sys.executable, str(CONTROL), "--junit", str(informe), "--solo-registro"],
-        cwd=REPO, capture_output=True, text=True, timeout=600,
-        env=_entorno(mutado, ablacion),
-    )
-    return p.returncode, p.stdout + p.stderr
+    return arnes_comun.ejecuta_gate(
+        "check_ejecucion_real",
+        ["--junit", str(informe), "--solo-registro"],
+        ablacion=(ablacion == "RESULTADOS"),
+        registro_mutado=mutado, entorno=_entorno(mutado), timeout=600)
 
 
 def capa_estatica(mutado: bool, ablacion: str = "") -> tuple[int, str]:
-    p = subprocess.run(
-        [sys.executable, str(GATE), "--base-fichero", str(INVENTARIO)],
-        cwd=REPO, capture_output=True, text=True, timeout=2400,
-        env=_entorno(mutado, ablacion),
-    )
-    return p.returncode, p.stdout + p.stderr
+    return arnes_comun.ejecuta_gate(
+        "check_suite_inventory", ["--base-fichero", str(INVENTARIO)],
+        ablacion=("A" if ablacion == "ESTATICA" else ""),
+        registro_mutado=mutado, entorno=_entorno(mutado), timeout=2400)
 
-
-# --------------------------------------------------------------------------
-# Mutaciones. Cada una escribe la suite y/o el registro; nunca las dos cosas
-# por la misma razon, para que el rojo de cada caso sea suyo.
-# --------------------------------------------------------------------------
 
 def _añade(texto: str) -> None:
     SUITE.write_text(SUITE.read_text(encoding="utf-8") + texto, encoding="utf-8")

@@ -54,6 +54,9 @@ import sys
 import tempfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import arnes_comun  # noqa: E402
+
 REPO = Path(__file__).resolve().parents[2]
 GATE = REPO / ".github" / "scripts" / "check_suite_inventory.py"
 BASE = REPO / ".github" / "suite-inventario.json"
@@ -153,14 +156,20 @@ def _entorno_sin(paquete: str) -> tuple[dict, str]:
     return entorno, str(tmp)
 
 
-def ejecuta_gate(entorno: dict | None = None) -> tuple[int, str]:
+def ejecuta_gate(entorno: dict | None = None,
+                 ablacion: str = "") -> tuple[int, str]:
+    """El gate, con la ablacion puesta IMPORTANDOLO en un proceso nuevo.
+
+    Ya no se exporta `S9K_INVENTARIO_ABLACION` ni ninguna otra variable: los
+    gates dejaron de leer el desarme del entorno cuando se demostro que la
+    concesion por ASCENDENCIA era falsificable con `exec -a`. Ver
+    `arnes_comun.py`.
+    """
     ent = dict(entorno or os.environ)
     ent["PYTHONDONTWRITEBYTECODE"] = "1"
-    p = subprocess.run(
-        [sys.executable, str(GATE), "--base-fichero", str(BASE)],
-        cwd=REPO, capture_output=True, text=True, timeout=2400, env=ent,
-    )
-    return p.returncode, p.stdout + p.stderr
+    return arnes_comun.ejecuta_gate(
+        "check_suite_inventory", ["--base-fichero", str(BASE)],
+        ablacion=ablacion, entorno=ent, timeout=2400)
 
 
 # --------------------------------------------------------------------------
@@ -975,16 +984,15 @@ def main() -> int:
                 f.write_bytes(datos)
             limpia_creados()
             entorno = dict(os.environ)
-            entorno.pop("S9K_INVENTARIO_ABLACION", None)
             if bloqueado:
                 entorno, tmp = _entorno_sin(bloqueado)
                 temporales.append(tmp)
-            if ablacion:
-                entorno["S9K_INVENTARIO_ABLACION"] = ablacion
             print(f"\n########## {titulo}  (esperado: {esperado})")
             if mutacion is not None:
                 mutacion()
-            rc, salida = ejecuta_gate(entorno)
+            # La ablacion va como PARAMETRO, no por entorno: el gate ya no lee
+            # ninguna variable de desarme.
+            rc, salida = ejecuta_gate(entorno, ablacion=ablacion or "")
             obtenido = VERDE if rc == 0 else ROJO
             print("\n".join(salida.splitlines()[-25:]))
             print(f"RC={rc}  ->  {obtenido}")

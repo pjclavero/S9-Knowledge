@@ -379,6 +379,11 @@ def m_desinvoca_calibra_registro() -> None:
     _desinvoca("calibra_registro_xfail.py")
 
 
+def m_desinvoca_calibra_desarme() -> None:
+    """El arnes de la propiedad del desarme deja de ejecutarse."""
+    _desinvoca("calibra_desarme.py")
+
+
 def m_desinvoca_calibra_base() -> None:
     """El arnes de la base, que es el mas reciente.
 
@@ -528,6 +533,7 @@ CASOS = [
     ("des-invocar `calibra_ejecucion_real.py`", m_desinvoca_calibra_ejecucion, ROJO),
     ("des-invocar `calibra_registro_xfail.py`", m_desinvoca_calibra_registro, ROJO),
     ("des-invocar `calibra_base_materializada.py`", m_desinvoca_calibra_base, ROJO),
+    ("des-invocar `calibra_desarme.py`", m_desinvoca_calibra_desarme, ROJO),
     ("borrar una definicion de nivel superior que una funcion usa",
      m_borra_definicion_de_nivel_superior, ROJO),
     ("`paths-ignore` bajo `push`", m_paths_ignore_push, ROJO),

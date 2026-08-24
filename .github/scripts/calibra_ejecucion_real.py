@@ -48,6 +48,9 @@ import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import arnes_comun  # noqa: E402
+
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / '.github' / 'scripts'))
 from check_ejecucion_real import _modulo_a_prefijo  # noqa: E402
@@ -142,15 +145,16 @@ def inyecta_xfail_en_informe(informe: Path, modulo: str) -> None:
 
 
 def corre_control(informe: Path, ablacion: bool) -> tuple[int, str]:
-    entorno = dict(os.environ)
-    entorno.pop("S9K_EJECUCION_ABLACION", None)
-    if ablacion:
-        entorno["S9K_EJECUCION_ABLACION"] = "1"
-    p = subprocess.run(
-        [sys.executable, str(CONTROL), "--junit", str(informe), "--raiz", RAIZ],
-        cwd=REPO, capture_output=True, text=True, timeout=600, env=entorno,
-    )
-    return p.returncode, p.stdout + p.stderr
+    """El control, con la ablacion puesta IMPORTANDOLO en un proceso nuevo.
+
+    Ya no se exporta `S9K_EJECUCION_ABLACION`: el control dejo de leer el
+    desarme del entorno cuando se demostro que la concesion por ASCENDENCIA era
+    falsificable con `exec -a`. Ver `arnes_comun.py`.
+    """
+    return arnes_comun.ejecuta_gate(
+        "check_ejecucion_real",
+        ["--junit", str(informe), "--raiz", RAIZ],
+        ablacion=bool(ablacion), timeout=600)
 
 
 # --------------------------------------------------------------------------

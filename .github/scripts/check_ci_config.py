@@ -233,6 +233,7 @@ GATES_EXIGIDOS = {
         ".github/scripts/calibra_ejecucion_real.py",
         ".github/scripts/calibra_registro_xfail.py",
         ".github/scripts/calibra_base_materializada.py",
+        ".github/scripts/calibra_desarme.py",
     ),
 }
 

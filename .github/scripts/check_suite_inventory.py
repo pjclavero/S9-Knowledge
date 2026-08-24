@@ -106,8 +106,10 @@ QUE COMPRUEBA
 
 ABLACION
 ========
-`S9K_INVENTARIO_ABLACION=A|B|C|D|E|F|G|H` desactiva UN control (H son los
-filtros por VARIABLE DE ENTORNO, SUP-1..SUP-9). Existe para que
+La ablacion desactiva UN control (`A`..`H`; H son los filtros por VARIABLE DE
+ENTORNO, SUP-1..SUP-9) y NO se puede pedir desde el entorno ni desde la linea de
+comandos: es una variable de MODULO que solo toca quien IMPORTA este fichero.
+Los arneses llaman a `main()` en su propio proceso; `ci.yml` no puede. Existe para que
 `calibra_suite_inventory.py` demuestre que quitar cada control hace que una
 mutacion que estaba ROJA vuelva a VERDE. Un control que puede desaparecer sin
 que ningun resultado cambie no es un control. Fuera de la calibracion no se
@@ -148,7 +150,33 @@ sys.path.insert(0, str(REPO / ".github" / "scripts"))
 
 import registro_xfail  # noqa: E402  (fuente unica del registro de `xfail`)
 
-ABLACION = os.environ.get("S9K_INVENTARIO_ABLACION", "").strip().upper()
+# ABLACION: NO SALE DEL ENTORNO. Nunca mas.
+#
+# Antes se leia de `S9K_INVENTARIO_ABLACION`, y la concesion se protegia
+# comprobando que un `calibra_*.py` real fuera ANTECESOR del proceso. Un revisor
+# la falsifico en una linea:
+#
+#     bash -c 'exec -a ".github/scripts/calibra_registro_xfail.py" \
+#              /usr/bin/python3 /tmp/impostor.py'      -> EXIT=0
+#
+# `argv` es TEXTO QUE EL PROCESO ELIGE: el nombre que ve el arbol de procesos no
+# prueba que ese fichero se haya ejecutado. Es la quinta vez en este carril que
+# identificar "quien parece ser" pierde frente a comprobar "que es verdad".
+#
+# Y hay algo mas de fondo: TODO lo que puede hacer un arnes lo puede hacer un
+# paso de `ci.yml`. Un secreto efimero, un fichero con permisos, un descriptor
+# heredado... cualquier apreton de manos que el arnes sepa dar, tambien lo da
+# quien escribe el workflow. Asi que no hay concesion que asegurar: se quita LA
+# ENTRADA.
+#
+# El binario que CERTIFICA no tiene forma de ser desarmado. La ablacion existe
+# solo como variable de modulo, que unicamente puede tocar quien IMPORTA este
+# fichero en su propio proceso —los arneses—, y eso no se hereda ni se exporta
+# ni se falsifica desde `ci.yml`. Ademas, invocar el gate por `python3 -c` para
+# tocarla no sirve de nada: `GATES_EXIGIDOS` exige la invocacion literal de este
+# script, asi que la linea que CI ejecuta de verdad sigue siendo esta, sin
+# desarme posible.
+ABLACION = ""
 
 # Igual que en `check_ci_config.py`: invocar pytest no es instalarlo.
 RE_INVOCA_PYTEST = re.compile(r"(python[0-9.]*\s+-m\s+pytest|(?<![\w./\"'-])pytest\s)")
@@ -1764,15 +1792,14 @@ def inventario_materializando(base: str) -> tuple[dict | None, str]:
                     shutil.copy2(fichero, destino)
         entorno = dict(os.environ)
         entorno["PYTHONDONTWRITEBYTECODE"] = "1"
-        entorno.pop("S9K_INVENTARIO_ABLACION", None)
-        entorno.pop("S9K_REGISTRO_MUTADO", None)
         entorno.setdefault("S9K_ALLOW_REAL_INGEST", "")
-        # El hijo MIDE UNA BASE: ahi el registro no es el sujeto y su
-        # integridad no es aplicable. Sin esto el hijo moria en el temporal
-        # —que no es un repositorio git, asi que no hay commit de referencia—,
-        # no escribia inventario, y el padre certificaba SIN los siete
+        # Al hijo NO se le pasa ninguna bandera de desarme por entorno: ya no
+        # existe esa entrada. Lo que le dice que esta MIDIENDO y no
+        # certificando es `--escribir-inventario`, que el propio hijo traduce a
+        # `registro_xfail.MIDIENDO`. Asi el temporal —que no es un repositorio
+        # git y por tanto no tiene commit de referencia— no muere en la
+        # integridad del registro, y el padre no se queda sin los siete
         # trinquetes que dependen de la base.
-        entorno["S9K_MIDIENDO_BASE"] = "1"
         r = subprocess.run(
             [sys.executable, str(gate), "--escribir-inventario", "--sin-base"],
             cwd=tmp, capture_output=True, text=True, env=entorno, timeout=1800)
@@ -1843,7 +1870,7 @@ def descritificaciones_declaradas() -> set[str]:
 
 # --------------------------------------------------------------------------
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Inventario de suites como PUERTA")
     ap.add_argument("--escribir-inventario", action="store_true",
                     help="regenera .github/suite-inventario.json (la base del trinquete)")
@@ -1852,23 +1879,31 @@ def main() -> int:
     ap.add_argument("--base-fichero", metavar="JSON",
                     help="usa ESE inventario como base en vez del merge-base "
                          "(SOLO calibracion: en ci.yml esta prohibido)")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
-    # Autoguardia. Las tres banderas de desarme de este gate existen para la
-    # calibracion y para el uso local. Si alguna aparece en `ci.yml`, el gate
-    # de CI estaria midiendo con el instrumento desarmado y saldria verde sin
-    # comprobar nada: exactamente la familia de fallo que este fichero cierra.
-    # No se confia en que nadie las escriba: se COMPRUEBA.
-    if CI.exists():
-        texto_ci = CI.read_text(encoding="utf-8")
-        for nombre, linea in desarmes_en_ci(texto_ci):
-            print(f"::error::`{nombre}` aparece en ci.yml (linea: "
-                  f"`{linea.strip()[:80]}`). Desarma este gate: el job saldria "
-                  f"verde sin trinquete ni control. La comprobacion NO es una "
-                  f"busqueda literal —eso se atraveso con "
-                  f"`S9K_REGISTRO_MU\"\"TADO=1`—: se normaliza cada linea como "
-                  f"lo hace el shell antes de buscar.")
-            return 1
+    # LA LINEA QUE CERTIFICA NO PUEDE LLEVAR BANDERAS DE MEDICION.
+    #
+    # `--sin-base` y `--base-fichero` no desarman controles pero cambian CONTRA
+    # QUE se compara, y una invocacion asi no certifica nada aunque salga 0.
+    # Antes se intentaba impedir que aparecieran en `ci.yml` leyendo el fichero,
+    # y eso se atraveso dos veces (nombre partido en comillas, nombre repartido
+    # entre lineas). Se deja de leer `ci.yml` para esto: aqui se comprueba la
+    # PROPIEDAD sobre la invocacion REAL que se esta ejecutando.
+    #
+    # `--escribir-inventario` es la excepcion porque es MEDIR, no certificar: es
+    # el modo en que el propio gate mide el arbol de una base, y ese modo ya
+    # anuncia que no aplica trinquetes.
+    if invocado_desde_linea_de_comandos and not args.escribir_inventario:
+        for bandera, puesta in (("--sin-base", args.sin_base),
+                                ("--base-fichero", bool(args.base_fichero))):
+            if puesta:
+                print(f"::error::`{bandera}` en una invocacion que pretende "
+                      f"CERTIFICAR. Esa bandera cambia contra que se compara, "
+                      f"asi que el verde que produjera no incluiria el "
+                      f"trinquete. Si estas midiendo, usa "
+                      f"`--escribir-inventario`; si estas calibrando, el arnes "
+                      f"llama a `main()` dentro de su propio proceso.")
+                return 1
 
     # El REGISTRO no se genera. La primera version de esta guardia ENUMERABA
     # operadores de escritura en las lineas de `ci.yml` que nombraran el
@@ -1880,28 +1915,16 @@ def main() -> int:
     # EXIT=0. Y un `python3 scripts/lo_que_sea.py` ni siquiera menciona el
     # fichero. Enumerar formas de escribir es la misma trampa de siempre.
     #
-    # Se invierte la polaridad y se comprueba la PROPIEDAD: el registro del
-    # arbol de trabajo tiene que ser IDENTICO al que hay en HEAD. Si algo lo
-    # toco durante la ejecucion —un paso de CI, un script, lo que sea— el hash
-    # difiere y es rojo, venga por donde venga. Lo que importa no es como se
-    # escribio: es que una entrada escrita en tiempo de CI NUNCA aparece en el
-    # diff, y entonces la escotilla deliberada y revisable se convierte en un
-    # sello automatico que ademas infiere la excepcion de la misma ejecucion
-    # cuya integridad este gate protege.
+    # Se comprueba la PROPIEDAD: el registro que se USA tiene que ser IDENTICO
+    # al del commit que se certifica. Al MEDIR una base no aplica, porque ahi el
+    # registro no es el sujeto: el sujeto es el arbol de trabajo, y su registro
+    # lo verifica la ejecucion que certifica.
+    if args.escribir_inventario:
+        registro_xfail.MIDIENDO = True
     errores_integridad = comprueba_integridad_del_registro()
     for e in errores_integridad:
         print(f"::error::{e}")
     if errores_integridad:
-        return 1
-
-    # DESARME: la comprobacion que MANDA. No mira `ci.yml` —eso se atraveso
-    # repartiendo el nombre entre varias lineas— sino el ENTORNO del proceso y
-    # QUIEN lo puso. Va antes que nada: si el gate esta desarmado sin permiso,
-    # no tiene sentido que siga midiendo.
-    fallos_desarme = normaliza_shell.exige_desarme_autorizado(REPO, os.environ)
-    for e in fallos_desarme:
-        print(f"::error::{e}")
-    if fallos_desarme:
         return 1
 
     if ABLACION:
@@ -2419,5 +2442,8 @@ def main() -> int:
     return 0
 
 
+invocado_desde_linea_de_comandos = False
+
 if __name__ == "__main__":
+    invocado_desde_linea_de_comandos = True
     sys.exit(main())
