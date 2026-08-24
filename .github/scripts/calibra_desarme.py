@@ -109,6 +109,60 @@ def con_ascendencia_fabricada(programa: str) -> tuple[int, str]:
         guion.unlink(missing_ok=True)
 
 
+def user_site() -> Path:
+    p = subprocess.run([sys.executable, "-m", "site", "--user-site"],
+                       capture_output=True, text=True, timeout=120)
+    return Path(p.stdout.strip())
+
+
+def con_usercustomize_envenenado(script: Path,
+                                 extra: list[str] | None = None) -> tuple[int, str, bool]:
+    """Monta un `usercustomize.py` FUERA del repo y ejecuta el gate.
+
+    `site` lo importa AL ARRANCAR EL INTERPRETE, antes que el codigo del gate,
+    asi que cuando este hace `import registro_xfail` recibe el mismo objeto de
+    `sys.modules` ya envenenado, con la linea de invocacion intacta. Medido
+    antes del arreglo: EXIT=0 y 0 errores con un defecto real tragado.
+
+    Se restaura SIEMPRE lo que hubiera antes; si no se puede montar, el caso lo
+    dice en vez de darse por bueno.
+    """
+    destino = user_site()
+    fichero = destino / "usercustomize.py"
+    previo = fichero.read_bytes() if fichero.exists() else None
+    try:
+        destino.mkdir(parents=True, exist_ok=True)
+        fichero.write_text(
+            "import sys\n"
+            f"sys.path.insert(0, {str(SCRIPTS)!r})\n"
+            "try:\n"
+            "    import registro_xfail\n"
+            "    registro_xfail.MUTADO = True\n"
+            "    registro_xfail.MIDIENDO = True\n"
+            "except Exception:\n"
+            "    pass\n", encoding="utf-8")
+    except OSError as e:
+        return -1, f"MUTACION IMPOSIBLE: no se pudo escribir {fichero} ({e})", False
+    try:
+        # Se comprueba que el veneno LLEGA de verdad: si no, el caso no
+        # demostraria nada y decirlo verde seria mentir.
+        sonda = subprocess.run(
+            [sys.executable, "-c",
+             "import registro_xfail as r; print(r.MUTADO)"],
+            cwd=REPO, capture_output=True, text=True, timeout=120)
+        llega = sonda.stdout.strip() == "True"
+        p = subprocess.run([sys.executable, str(script), *(extra or [])],
+                           cwd=REPO, capture_output=True, text=True, timeout=3600)
+        return p.returncode, p.stdout + p.stderr, llega
+    finally:
+        if previo is None:
+            fichero.unlink(missing_ok=True)
+        else:
+            fichero.write_bytes(previo)
+        for basura in destino.glob("__pycache__"):
+            subprocess.run(["rm", "-rf", str(basura)], timeout=60)
+
+
 def desde_linea_de_comandos(script: Path, extra: list[str]) -> tuple[int, str]:
     p = subprocess.run([sys.executable, str(script), *extra], cwd=REPO,
                        capture_output=True, text=True, timeout=3600)
@@ -173,6 +227,22 @@ def main() -> int:
         rc, salida = desde_linea_de_comandos(script, extra)
         print(f"    EXIT={rc}")
         anota(f"{bandera} desde linea de comandos", "ROJO", f"EXIT={rc}", rc == 1)
+
+    # --- 5b/5c. arranque automatico FUERA del repositorio -----------------
+    # `check_ejecucion_real.py` exige `--junit`: sin el, argparse devuelve 2 y
+    # el caso mediria el parser, no el control. Se le pasa un informe real.
+    for etiqueta, script, extra_arg in (
+            ("gate estatico", GATE, []),
+            ("capa de resultados", CONTROL, ["--junit", str(INVENTARIO)])):
+        print(f"\n########## `usercustomize` fuera del repo, {etiqueta}")
+        rc_uc, salida_uc, llega = con_usercustomize_envenenado(script, extra_arg)
+        alterado = "ESTADO ALTERADO ANTES DE ARRANCAR" in salida_uc
+        print(f"    veneno llega al modulo={llega}  EXIT={rc_uc}  "
+              f"lo dice={alterado}")
+        anota(f"5 `usercustomize` fuera del repo ({etiqueta})",
+              "ROJO por estado alterado",
+              f"veneno={llega}, EXIT={rc_uc}, lo dice={alterado}",
+              llega and rc_uc == 1 and alterado)
 
     # --- 6. CONTROL POSITIVO: el arnes SI puede ablacionar ----------------
     print("\n########## 6. control positivo: el arnes SI puede ablacionar")

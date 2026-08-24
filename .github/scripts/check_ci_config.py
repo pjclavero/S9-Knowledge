@@ -1061,6 +1061,18 @@ def comprueba_skips_criticos(datos: dict, nombre: str) -> list[str]:
 # --------------------------------------------------------------------------
 
 def main() -> int:
+    # Arrancar como salio de fabrica: si un `usercustomize.py` del *user site*
+    # -fuera del repositorio- altero el proceso antes de que este gate
+    # empezara, lo que diga despues no significa nada. Misma propiedad que en
+    # los otros dos gates.
+    sys.path.insert(0, str(REPO / ".github" / "scripts"))
+    import estado_de_fabrica  # noqa: E402
+    alterado = estado_de_fabrica.comprueba()
+    for e in alterado:
+        print(f"::error::{e}")
+    if alterado:
+        return 1
+
     errores = []
     parseados = {}
     for ruta in WORKFLOWS_VIGILADOS:

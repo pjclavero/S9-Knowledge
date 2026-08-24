@@ -148,6 +148,7 @@ INVENTARIO = REPO / ".github" / "suite-inventario.json"
 
 sys.path.insert(0, str(REPO / ".github" / "scripts"))
 
+import estado_de_fabrica  # noqa: E402
 import registro_xfail  # noqa: E402  (fuente unica del registro de `xfail`)
 
 # ABLACION: NO SALE DEL ENTORNO. Nunca mas.
@@ -1880,6 +1881,20 @@ def main(argv: list[str] | None = None) -> int:
                     help="usa ESE inventario como base en vez del merge-base "
                          "(SOLO calibracion: en ci.yml esta prohibido)")
     args = ap.parse_args(argv)
+
+    # ARRANCAR COMO SALIO DE FABRICA. Lo primero de todo: si el proceso ya
+    # venia alterado —un `usercustomize.py` del *user site*, fuera del
+    # repositorio, que Python importa solo al arrancar— nada de lo que venga
+    # despues significa lo que dice. Solo se comprueba en la invocacion de
+    # LINEA DE COMANDOS, que es la que certifica; los arneses llaman a `main()`
+    # en su proceso y levantan perillas a proposito.
+    if invocado_desde_linea_de_comandos:
+        alterado = estado_de_fabrica.comprueba(
+            extra=(("check_suite_inventory.ABLACION", ABLACION, ""),))
+        for e in alterado:
+            print(f"::error::{e}")
+        if alterado:
+            return 1
 
     # LA LINEA QUE CERTIFICA NO PUEDE LLEVAR BANDERAS DE MEDICION.
     #

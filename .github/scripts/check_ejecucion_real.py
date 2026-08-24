@@ -165,6 +165,7 @@ def reportado_por_modulo(ficheros: list[Path]) -> tuple[dict[str, int], int]:
 # Ni una linea de parseo propia y ni un `open()` del fichero: la referencia sale
 # de git y la entrega el modulo, en la misma llamada que la verifica.
 sys.path.insert(0, str(REPO / ".github" / "scripts"))
+import estado_de_fabrica  # noqa: E402
 import normaliza_shell  # noqa: E402
 import registro_xfail  # noqa: E402
 
@@ -317,6 +318,15 @@ def main(argv: list[str] | None = None) -> int:
                          "ejecucion, sin la obligacion de presencia por modulo "
                          "(SOLO calibracion: en ci.yml esta prohibido)")
     args = ap.parse_args(argv)
+
+    # Misma propiedad que en el otro gate: arrancar como salio de fabrica.
+    if invocado_desde_linea_de_comandos:
+        alterado = estado_de_fabrica.comprueba(
+            extra=(("check_ejecucion_real.ABLACION", ABLACION, False),))
+        for e in alterado:
+            print(f"::error::{e}")
+        if alterado:
+            return 1
 
     # `--solo-registro` aisla una capa: util para calibrar, invalido para
     # certificar. No se busca en `ci.yml` —eso se atraveso dos veces— sino que
