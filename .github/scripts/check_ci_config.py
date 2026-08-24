@@ -949,7 +949,13 @@ def comprueba_gates_exigidos(datos: dict, nombre: str) -> list[str]:
         for _, cuerpo in pasos_run(job):
             lineas += cuerpo.splitlines()
     invocadas = [l for l in lineas
-                 if re.match(r"\s*(sudo\s+)?python[0-9.]*\s+\S*\.py\b", l)]
+                 # Se admiten BANDERAS DEL INTERPRETE entre `python3` y el
+                 # script (`-s`, `-E`, `-I`...). Hoy `ci.yml` no las usa -se
+                 # midio que `-s` pone el gate rojo por `falta PyYAML`, que vive
+                 # en el *user site*- pero si algun dia se endurece el
+                 # lanzamiento, esta comprobacion tiene que seguir reconociendo
+                 # su propia invocacion en vez de declararla ausente.
+                 if re.match(r"\s*(sudo\s+)?python[0-9.]*(\s+-[A-Za-z]+)*\s+\S*\.py\b", l)]
     texto = "\n".join(invocadas)
     return [
         f"{nombre}: ningun paso invoca `{gate}`. El fichero puede seguir en el "

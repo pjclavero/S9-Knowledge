@@ -115,42 +115,59 @@ def user_site() -> Path:
     return Path(p.stdout.strip())
 
 
-def con_usercustomize_envenenado(script: Path,
-                                 extra: list[str] | None = None) -> tuple[int, str, bool]:
-    """Monta un `usercustomize.py` FUERA del repo y ejecuta el gate.
+VENENO = (
+    "import sys\n"
+    "sys.path.insert(0, {scripts!r})\n"
+    "try:\n"
+    "    import registro_xfail\n"
+    "    registro_xfail.MUTADO = True\n"
+    "    registro_xfail.MIDIENDO = True\n"
+    "except Exception:\n"
+    "    pass\n"
+)
 
-    `site` lo importa AL ARRANCAR EL INTERPRETE, antes que el codigo del gate,
-    asi que cuando este hace `import registro_xfail` recibe el mismo objeto de
-    `sys.modules` ya envenenado, con la linea de invocacion intacta. Medido
-    antes del arreglo: EXIT=0 y 0 errores con un defecto real tragado.
+VENENO_OTRA_PROPIEDAD = (
+    "import sys\n"
+    "sys.path.insert(0, {scripts!r})\n"
+    "try:\n"
+    "    import check_suite_inventory\n"
+    "    check_suite_inventory.ABLACION = 'A'\n"
+    "except Exception:\n"
+    "    pass\n"
+)
 
-    Se restaura SIEMPRE lo que hubiera antes; si no se puede montar, el caso lo
-    dice en vez de darse por bueno.
+
+def con_arranque_contaminado(script: Path, destino: Path, nombre: str,
+                             plantilla: str = VENENO,
+                             extra: list[str] | None = None
+                             ) -> tuple[int, str, bool]:
+    """Monta un arranque automatico de Python y ejecuta el gate.
+
+    `destino` es el directorio (el *user site*, fuera del repo, o el propio
+    repo) y `nombre` el fichero (`usercustomize.py` o `sitecustomize.py`).
+    Python los importa AL ARRANCAR EL INTERPRETE, antes que el codigo del gate.
+
+    Devuelve tambien si el veneno LLEGO de verdad: si no llegara, el caso no
+    demostraria nada y darlo por bueno seria mentir. Es la leccion de los dos
+    falsos hallazgos que hubo que descartar en esta ronda —uno ocultaba PyYAML
+    y ponia el gate rojo por otra causa—: un rojo por accidente NO es una
+    deteccion.
     """
-    destino = user_site()
-    fichero = destino / "usercustomize.py"
+    fichero = destino / nombre
     previo = fichero.read_bytes() if fichero.exists() else None
     try:
         destino.mkdir(parents=True, exist_ok=True)
-        fichero.write_text(
-            "import sys\n"
-            f"sys.path.insert(0, {str(SCRIPTS)!r})\n"
-            "try:\n"
-            "    import registro_xfail\n"
-            "    registro_xfail.MUTADO = True\n"
-            "    registro_xfail.MIDIENDO = True\n"
-            "except Exception:\n"
-            "    pass\n", encoding="utf-8")
+        fichero.write_text(plantilla.format(scripts=str(SCRIPTS)),
+                           encoding="utf-8")
     except OSError as e:
         return -1, f"MUTACION IMPOSIBLE: no se pudo escribir {fichero} ({e})", False
     try:
-        # Se comprueba que el veneno LLEGA de verdad: si no, el caso no
-        # demostraria nada y decirlo verde seria mentir.
         sonda = subprocess.run(
             [sys.executable, "-c",
-             "import registro_xfail as r; print(r.MUTADO)"],
-            cwd=REPO, capture_output=True, text=True, timeout=120)
-        llega = sonda.stdout.strip() == "True"
+             "import registro_xfail as r, check_suite_inventory as c; "
+             "print(r.MUTADO or c.ABLACION != '')"],
+            cwd=REPO, capture_output=True, text=True, timeout=300)
+        llega = sonda.stdout.strip() in ("True", "A")
         p = subprocess.run([sys.executable, str(script), *(extra or [])],
                            cwd=REPO, capture_output=True, text=True, timeout=3600)
         return p.returncode, p.stdout + p.stderr, llega
@@ -159,8 +176,29 @@ def con_usercustomize_envenenado(script: Path,
             fichero.unlink(missing_ok=True)
         else:
             fichero.write_bytes(previo)
-        for basura in destino.glob("__pycache__"):
-            subprocess.run(["rm", "-rf", str(basura)], timeout=60)
+        subprocess.run(["rm", "-rf", str(destino / "__pycache__")], timeout=60)
+
+
+ASERCION = ("    alterado = estado_de_fabrica.comprueba()\n"
+            "    for e in alterado:\n"
+            '        print(f"::error::{e}")\n'
+            "    if alterado:\n"
+            "        return 1\n")
+
+
+def sin_la_asercion(script: Path):
+    """Retira LA ASERCION de estado inicial del gate. Devuelve los bytes previos.
+
+    No hay bandera de ablacion en el producto: seria una perilla mas que
+    defender, y ya se vio adonde lleva. La ablacion se hace quitando el codigo,
+    y el que llama restaura los BYTES EXACTOS y lo verifica por SHA-256.
+    """
+    previo = script.read_bytes()
+    texto = previo.decode("utf-8")
+    if ASERCION not in texto:
+        raise SystemExit("MUTACION IMPOSIBLE: no esta la asercion que ablacionar")
+    script.write_text(texto.replace(ASERCION, "", 1), encoding="utf-8")
+    return previo
 
 
 def desde_linea_de_comandos(script: Path, extra: list[str]) -> tuple[int, str]:
@@ -228,21 +266,65 @@ def main() -> int:
         print(f"    EXIT={rc}")
         anota(f"{bandera} desde linea de comandos", "ROJO", f"EXIT={rc}", rc == 1)
 
-    # --- 5b/5c. arranque automatico FUERA del repositorio -----------------
-    # `check_ejecucion_real.py` exige `--junit`: sin el, argparse devuelve 2 y
-    # el caso mediria el parser, no el control. Se le pasa un informe real.
-    for etiqueta, script, extra_arg in (
-            ("gate estatico", GATE, []),
-            ("capa de resultados", CONTROL, ["--junit", str(INVENTARIO)])):
-        print(f"\n########## `usercustomize` fuera del repo, {etiqueta}")
-        rc_uc, salida_uc, llega = con_usercustomize_envenenado(script, extra_arg)
-        alterado = "ESTADO ALTERADO ANTES DE ARRANCAR" in salida_uc
-        print(f"    veneno llega al modulo={llega}  EXIT={rc_uc}  "
-              f"lo dice={alterado}")
-        anota(f"5 `usercustomize` fuera del repo ({etiqueta})",
-              "ROJO por estado alterado",
-              f"veneno={llega}, EXIT={rc_uc}, lo dice={alterado}",
-              llega and rc_uc == 1 and alterado)
+    # --- 5. LA MATRIZ DEL ESTADO INICIAL ----------------------------------
+    # Cada negativo afirma EL MOTIVO, no un `EXIT != 0`: un rojo por accidente
+    # -una dependencia rota, un `sys.path` cambiado, un `ImportError`- NO es una
+    # deteccion. Por eso cada caso comprueba ademas que el veneno LLEGO.
+    MOTIVO = "ESTADO INICIAL CONTAMINADO"
+    fuera = user_site()
+
+    escenarios = (
+        ("usercustomize EXTERNO contamina el registro", VENENO, GATE, []),
+        ("usercustomize EXTERNO, capa de resultados", VENENO, CONTROL,
+         ["--junit", str(INVENTARIO)]),
+        ("usercustomize EXTERNO contamina OTRA propiedad de fabrica",
+         VENENO_OTRA_PROPIEDAD, GATE, []),
+    )
+    for etiqueta, plantilla, script, extra_arg in escenarios:
+        print(f"\n########## estado inicial: {etiqueta}")
+        rc_uc, salida_uc, llega = con_arranque_contaminado(
+            script, fuera, "usercustomize.py", plantilla, extra_arg)
+        por_el_motivo = MOTIVO in salida_uc
+        print(f"    veneno llega={llega}  EXIT={rc_uc}  por el motivo={por_el_motivo}")
+        anota(f"5 {etiqueta}", f"ROJO por `{MOTIVO}`",
+              f"veneno={llega}, EXIT={rc_uc}, motivo={por_el_motivo}",
+              llega and rc_uc == 1 and por_el_motivo)
+
+    # --- 5s. `sitecustomize`: por que NO se ejercita aqui ------------------
+    # Medido en esta maquina: la distribucion ya trae
+    # `/usr/lib/python3.13/sitecustomize.py`, que PRECEDE a cualquier otro en
+    # `sys.path`, asi que un `sitecustomize` propio -en el *user site* o en el
+    # directorio del script- NUNCA llega a ejecutarse y el caso no probaria
+    # nada. Se dice en vez de fabricar un verde: la CLASE queda cubierta por
+    # `usercustomize` (mismo mecanismo, y la comprobacion no mira el nombre del
+    # fichero) y, dentro del repositorio, por SUP-9.
+    print("\n########## 5s. `sitecustomize` propio: no ejercitable aqui")
+    sistema = subprocess.run(
+        [sys.executable, "-c", "import sitecustomize; print(sitecustomize.__file__)"],
+        capture_output=True, text=True, timeout=120).stdout.strip()
+    tapado = bool(sistema) and not sistema.startswith(str(REPO))
+    print(f"    sitecustomize del sistema: {sistema or '(ninguno)'}")
+    anota("5s `sitecustomize` propio queda tapado por el del sistema",
+          "declarado, no fabricado", f"del sistema: {sistema or 'ninguno'}", tapado)
+
+    # --- 5z. ABLACION: sin la asercion, el ataque externo VUELVE A PASAR ---
+    print("\n########## ABLACION: se retira la asercion de estado inicial")
+    sha_antes = sha(GATE)
+    previo = None
+    try:
+        previo = sin_la_asercion(GATE)
+        rc_ab, salida_ab, llega_ab = con_arranque_contaminado(
+            GATE, fuera, "usercustomize.py")
+        vuelve = llega_ab and rc_ab == 0 and MOTIVO not in salida_ab
+        print(f"    veneno llega={llega_ab}  EXIT={rc_ab}  (0 = el ataque pasa)")
+    finally:
+        if previo is not None:
+            GATE.write_bytes(previo)
+    restaurado = sha(GATE) == sha_antes
+    print(f"    gate restaurado con el MISMO SHA-256: {restaurado}")
+    anota("5z ABLACION de la asercion -> el ataque externo vuelve a pasar",
+          "VERDE (pasa) y gate restaurado", f"pasa={vuelve}, restaurado={restaurado}",
+          vuelve and restaurado)
 
     # --- 6. CONTROL POSITIVO: el arnes SI puede ablacionar ----------------
     print("\n########## 6. control positivo: el arnes SI puede ablacionar")

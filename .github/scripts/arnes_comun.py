@@ -56,14 +56,19 @@ def ejecuta_gate(modulo: str, argv: list[str], *, ablacion=None,
     `ablacion` es lo que el gate espera en su variable de modulo: una cadena
     (`"A"`..`"H"`) para el inventario, un booleano para la capa de resultados.
     """
+    # LAS PERILLAS SE PASAN COMO PARAMETRO, no se tocan como globales.
+    #
+    # Tocarlas antes de llamar a `main()` las volveria indistinguibles de una
+    # contaminacion externa -y con razon: el gate no puede saber quien las
+    # movio-. Pasandolas como argumento, `main()` las aplica DESPUES de haber
+    # comprobado que el estado inicial era el de fabrica, y la comprobacion no
+    # depende de ningun orden ni de ninguna bandera de invocacion.
     programa = "\n".join([
         "import importlib, sys",
         f"sys.path.insert(0, {str(SCRIPTS)!r})",
-        "import registro_xfail",
-        f"registro_xfail.MUTADO = {bool(registro_mutado)!r}",
         f"m = importlib.import_module({modulo!r})",
-        f"m.ABLACION = {ablacion!r}",
-        f"sys.exit(m.main({argv!r}))",
+        f"sys.exit(m.main({argv!r}, ablacion={ablacion!r}, "
+        f"registro_mutado={bool(registro_mutado)!r}))",
     ])
     p = subprocess.run([sys.executable, "-c", programa],
                        cwd=str(cwd or REPO), capture_output=True, text=True,

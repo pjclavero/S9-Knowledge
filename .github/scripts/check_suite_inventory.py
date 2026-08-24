@@ -1871,7 +1871,8 @@ def descritificaciones_declaradas() -> set[str]:
 
 # --------------------------------------------------------------------------
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, ablacion: str | None = None,
+         registro_mutado: bool = False) -> int:
     ap = argparse.ArgumentParser(description="Inventario de suites como PUERTA")
     ap.add_argument("--escribir-inventario", action="store_true",
                     help="regenera .github/suite-inventario.json (la base del trinquete)")
@@ -1882,19 +1883,29 @@ def main(argv: list[str] | None = None) -> int:
                          "(SOLO calibracion: en ci.yml esta prohibido)")
     args = ap.parse_args(argv)
 
-    # ARRANCAR COMO SALIO DE FABRICA. Lo primero de todo: si el proceso ya
-    # venia alterado —un `usercustomize.py` del *user site*, fuera del
-    # repositorio, que Python importa solo al arrancar— nada de lo que venga
-    # despues significa lo que dice. Solo se comprueba en la invocacion de
-    # LINEA DE COMANDOS, que es la que certifica; los arneses llaman a `main()`
-    # en su proceso y levantan perillas a proposito.
-    if invocado_desde_linea_de_comandos:
-        alterado = estado_de_fabrica.comprueba(
-            extra=(("check_suite_inventory.ABLACION", ABLACION, ""),))
-        for e in alterado:
-            print(f"::error::{e}")
-        if alterado:
-            return 1
+    # ESTADO INICIAL LIMPIO. Lo primero de todo: si el proceso ya venia
+    # alterado, nada de lo que venga despues significa lo que dice. Corre
+    # SIEMPRE, no solo desde la linea de comandos: aquella condicion podia
+    # desaparecer en un refactor sin que nadie lo notara. Lo que distingue al
+    # arnes no es una bandera, es que levanta sus perillas DESPUES de que la
+    # instantanea este tomada.
+
+    alterado = estado_de_fabrica.comprueba()
+    for e in alterado:
+        print(f"::error::{e}")
+    if alterado:
+        return 1
+
+    # Y SOLO DESPUES se aplica lo que pida quien llama. Las perillas NO son la
+    # via por la que se pide la ablacion -eso las volveria indistinguibles de
+    # una contaminacion-: se piden como PARAMETRO y se aplican aqui, ya pasada
+    # la comprobacion. Asi, en el instante en que se mira, un valor distinto
+    # del de fabrica solo puede venir de fuera.
+    global ABLACION
+    if ablacion is not None:
+        ABLACION = ablacion
+    if registro_mutado:
+        registro_xfail.MUTADO = True
 
     # LA LINEA QUE CERTIFICA NO PUEDE LLEVAR BANDERAS DE MEDICION.
     #

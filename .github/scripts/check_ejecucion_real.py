@@ -306,7 +306,8 @@ def cuenta_de(prefijo: str, por_clase: dict[str, int]) -> int:
                if clase == prefijo or clase.startswith(prefijo + "."))
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, ablacion: bool | None = None,
+         registro_mutado: bool = False) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--junit", action="append", required=True,
                     help="fichero o directorio con informes JUnit de pytest")
@@ -319,14 +320,20 @@ def main(argv: list[str] | None = None) -> int:
                          "(SOLO calibracion: en ci.yml esta prohibido)")
     args = ap.parse_args(argv)
 
-    # Misma propiedad que en el otro gate: arrancar como salio de fabrica.
-    if invocado_desde_linea_de_comandos:
-        alterado = estado_de_fabrica.comprueba(
-            extra=(("check_ejecucion_real.ABLACION", ABLACION, False),))
-        for e in alterado:
-            print(f"::error::{e}")
-        if alterado:
-            return 1
+    # Misma propiedad que en el otro gate, y tambien sin depender de como
+    # se invoque: el estado inicial se observa, no se presume.
+    alterado = estado_de_fabrica.comprueba()
+    for e in alterado:
+        print(f"::error::{e}")
+    if alterado:
+        return 1
+
+    # Igual que en el otro gate: lo que pida quien llama se aplica DESPUES.
+    global ABLACION
+    if ablacion is not None:
+        ABLACION = ablacion
+    if registro_mutado:
+        registro_xfail.MUTADO = True
 
     # `--solo-registro` aisla una capa: util para calibrar, invalido para
     # certificar. No se busca en `ci.yml` —eso se atraveso dos veces— sino que

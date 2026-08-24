@@ -396,6 +396,19 @@ jobs:
       # se DERIVA de lo que los jobs invocan, de la coleccion real, de los
       # arneses de calibracion y del inventario de la base. Ver la cabecera de
       # `.github/scripts/check_suite_inventory.py`.
+      # SOBRE LA BARRERA SECUNDARIA (`-s -E`), QUE NO SE EMBARCA Y POR QUE.
+      # Endurecer el lanzamiento del interprete -sin *user site*, sin
+      # `PYTHONPATH`- cerraria el vector mas comodo del arranque automatico.
+      # Se probo y se MIDIO: con `-s`, este gate sale ROJO con `falta PyYAML`,
+      # porque PyYAML vive precisamente en el *user site*. O sea que la barrera
+      # pondria el job rojo POR OTRA CAUSA, que es justo el falso hallazgo que
+      # esta ronda ya descarto dos veces. Un rojo por accidente no es una
+      # deteccion, asi que no se embarca.
+      #
+      # No se pierde la garantia: la barrera era SECUNDARIA. La principal es la
+      # comprobacion interna de ESTADO INICIAL en `estado_de_fabrica.py`, que
+      # corre pase lo que pase con la forma de invocar -por eso se quito la
+      # condicion de "invocado desde la linea de comandos"-.
       - name: Ninguna suite critica puede desaparecer ni silenciarse
         env:
           S9K_ALLOW_REAL_INGEST: ""
