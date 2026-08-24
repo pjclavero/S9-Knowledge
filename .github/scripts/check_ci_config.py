@@ -212,10 +212,27 @@ JOBS_EXIGIDOS = {
 #
 # Los dos de aqui abajo son la respuesta al ejercicio RC 1, donde silenciar un
 # fichero de test entero dejaba CI en verde. Si desaparecen, vuelve el agujero.
+# Un gate que puede dejar de INVOCARSE sin ponerse rojo no es un gate. La lista
+# protegia DOS scripts y para entonces habia SEIS: los otros cuatro se podian
+# sustituir por un `echo` de una linea y este fichero seguia en EXIT=0. Entre
+# ellos `check_ejecucion_real.py`, que es la GARANTIA PRINCIPAL frente a
+# `xfail`, y el arnes de la base recien anadido —o sea que lo que acababa de
+# escribirse podia dejar de correr sin que nada enrojeciera—. Comprobado en
+# cadena: con la capa de resultados des-invocada, `check_suite_inventory.py`
+# seguia saliendo EXIT=0 con su mensaje de siempre.
+#
+# La lista se mantiene A MANO y eso es una deuda conocida; lo que la hace
+# soportable es que cada entrada tiene su caso de calibracion, asi que si
+# alguien anade un gate y no lo mete aqui, el caso que falta se nota al
+# escribirlo, no seis meses despues.
 GATES_EXIGIDOS = {
     "ci.yml": (
         ".github/scripts/check_suite_inventory.py",
         ".github/scripts/calibra_suite_inventory.py",
+        ".github/scripts/check_ejecucion_real.py",
+        ".github/scripts/calibra_ejecucion_real.py",
+        ".github/scripts/calibra_registro_xfail.py",
+        ".github/scripts/calibra_base_materializada.py",
     ),
 }
 
@@ -783,6 +800,118 @@ def comprueba_jobs_exigidos(datos: dict, nombre: str) -> list[str]:
     ]
 
 
+
+
+def _ambitos_anidados(nodo):
+    """Los sub-ambitos directos: defs anidados, lambdas y clases."""
+    import ast
+    return (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
+
+
+def _nodos_propios(ambito):
+    """Nodos que pertenecen a ESTE ambito, sin entrar en los anidados.
+
+    Sin esto, los parametros de una funcion anidada se atribuian a la de fuera
+    y salian como "no definidos". Lo detecte con el propio control: sus 20
+    primeros hallazgos eran TODOS falsos positivos de esta clase, ninguno un
+    defecto del repositorio. Un control que grita sobre codigo correcto es tan
+    inutil como uno que calla: se arregla el control, no se silencia el aviso.
+    """
+    import ast
+    cuerpo = list(getattr(ambito, "body", []))
+    if not isinstance(cuerpo, list):
+        cuerpo = [cuerpo]
+    pila = list(cuerpo)
+    while pila:
+        nodo = pila.pop()
+        yield nodo
+        # Se YIELDA el ambito anidado (para que quien recorre sepa que existe y
+        # baje a el con su propio contexto) pero NO se desciende dentro. La
+        # version anterior filtraba al empujar y no al sacar, asi que los
+        # cuerpos de las funciones de primer nivel se recorrian como si fueran
+        # el modulo: 156 falsos positivos. Lo delato el propio control.
+        if isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef,
+                             ast.Lambda, ast.ClassDef)):
+            continue
+        for hijo in ast.iter_child_nodes(nodo):
+            pila.append(hijo)
+
+
+def _nombres_ligados(ambito) -> set:
+    """Nombres que este ambito LIGA (sin contar los de ambitos anidados)."""
+    import ast
+    ligados = set()
+    args = getattr(ambito, "args", None)
+    if args is not None:
+        for grupo in (args.posonlyargs, args.args, args.kwonlyargs):
+            ligados |= {x.arg for x in grupo}
+        for extra in (args.vararg, args.kwarg):
+            if extra:
+                ligados.add(extra.arg)
+    for nodo in _nodos_propios(ambito):
+        if isinstance(nodo, ast.Name) and isinstance(nodo.ctx, (ast.Store, ast.Del)):
+            ligados.add(nodo.id)
+        elif isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            ligados.add(nodo.name)
+        elif isinstance(nodo, (ast.Import, ast.ImportFrom)):
+            for alias in nodo.names:
+                ligados.add((alias.asname or alias.name).split(".")[0])
+        elif isinstance(nodo, ast.ExceptHandler) and nodo.name:
+            ligados.add(nodo.name)
+        elif isinstance(nodo, ast.Global):
+            ligados |= set(nodo.names)
+    return ligados
+
+
+def comprueba_nombres_definidos(rutas) -> list:
+    """Nombres usados que NO existen en ningun ambito visible.
+
+    EXISTE POR UN DEFECTO PROPIO. Un empalme por ancla borro
+    `RE_ASIGNA_NOMBRE_CONSTRUIDO` de `check_suite_inventory.py`: el fichero
+    seguia COMPILANDO -`ast.parse` no protesta por un nombre inexistente- y el
+    fallo solo aparecia al EJECUTAR la rama que lo usa. Un gate cuyo codigo se
+    rompe en silencio es un gate que puede dejar de mirar sin avisar, que es la
+    familia entera de este carril.
+
+    Ademas cierra una afirmacion que llegue a escribir sin que existiera como
+    codigo: dije que habia una "comprobacion estructural de definiciones contra
+    el commit anterior" y era una comprobacion manual de una vez. O se
+    implementa o se retira; esto es implementarla, con su caso de calibracion.
+
+    Es ESTATICA y modesta: no reemplaza a los arneses, caza la clase concreta
+    de fallo que se pago.
+    """
+    import ast
+    import builtins
+    problemas = []
+    base = set(dir(builtins)) | {"__file__", "__name__", "__doc__", "__spec__"}
+
+    def recorre(ambito, visibles, ruta):
+        propios = visibles | _nombres_ligados(ambito)
+        for nodo in _nodos_propios(ambito):
+            if isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                 ast.Lambda, ast.ClassDef)):
+                recorre(nodo, propios, ruta)
+                continue
+            if isinstance(nodo, ast.Name) and isinstance(nodo.ctx, ast.Load):
+                if nodo.id not in propios:
+                    donde = getattr(ambito, "name", "<modulo>")
+                    problemas.append(
+                        f"{ruta.name}:{nodo.lineno}: `{nodo.id}` se usa en "
+                        f"`{donde}` y NO esta definido en ningun ambito. El "
+                        f"fichero compila igual, asi que esto solo saldria al "
+                        f"ejecutar esa rama, o no saldria.")
+
+    for ruta in rutas:
+        try:
+            arbol = ast.parse(ruta.read_text(encoding="utf-8", errors="replace"))
+        except SyntaxError as e:
+            problemas.append(f"{ruta.name}: no parsea ({e.msg})")
+            continue
+        recorre(arbol, base, ruta)
+    return problemas
+
+
 def comprueba_gates_exigidos(datos: dict, nombre: str) -> list[str]:
     """Un gate que puede dejar de INVOCARSE sin ponerse rojo no es un gate."""
     exigidos = GATES_EXIGIDOS.get(nombre, ())
@@ -928,6 +1057,11 @@ def main() -> int:
         errores += comprueba_if_negado(datos, ruta.name)
         errores += comprueba_jobs_exigidos(datos, ruta.name)
         errores += comprueba_gates_exigidos(datos, ruta.name)
+
+    # Los gates tienen que estar SANOS, no solo invocados: un nombre que no
+    # existe no rompe el import, solo la rama que lo usa.
+    guardados = sorted((REPO / ".github" / "scripts").glob("*.py"))
+    errores += comprueba_nombres_definidos(guardados)
 
     if CI.name in parseados:
         errores += comprueba_skips_criticos(parseados[CI.name], CI.name)

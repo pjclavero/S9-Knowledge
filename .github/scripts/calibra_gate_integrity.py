@@ -50,7 +50,10 @@ SUPPLY = REPO / ".github" / "workflows" / "supply-chain.yml"
 E2E_CONFTEST = REPO / "tests" / "e2e" / "conftest.py"
 
 # Ficheros que cualquier mutacion puede tocar; se salvan y restauran enteros.
-TOCABLES = (CI, SUPPLY, E2E_CONFTEST)
+# `check_suite_inventory.py` entra en la lista porque un caso nuevo le borra
+# una definicion de nivel superior para calibrar el control de nombres.
+GATE_INVENTARIO = REPO / ".github" / "scripts" / "check_suite_inventory.py"
+TOCABLES = (CI, SUPPLY, E2E_CONFTEST, GATE_INVENTARIO)
 
 VERDE, ROJO = "VERDE", "ROJO"
 
@@ -341,6 +344,76 @@ def m_borra_gate_exigido() -> None:
     )
 
 
+def _desinvoca(fragmento: str) -> None:
+    """Sustituye la INVOCACION de un script por un `echo` de una linea.
+
+    El fichero sigue en el arbol y el job sigue existiendo: lo unico que
+    desaparece es que se EJECUTE. Es el ataque que `GATES_EXIGIDOS` cierra, y
+    hasta esta ronda solo estaba calibrado para dos de los seis scripts.
+    """
+    texto = CI.read_text(encoding="utf-8")
+    lineas = [l for l in texto.splitlines(keepends=True) if fragmento in l]
+    if not lineas:
+        raise SystemExit(f"MUTACION IMPOSIBLE: `{fragmento}` no se invoca en ci.yml")
+    for linea in lineas:
+        sangria = linea[:len(linea) - len(linea.lstrip())]
+        texto = texto.replace(linea, f"{sangria}echo 'des-invocado por la calibracion'\n", 1)
+    CI.write_text(texto, encoding="utf-8")
+
+
+def m_desinvoca_ejecucion_real() -> None:
+    """LA GARANTIA PRINCIPAL frente a `xfail` deja de ejecutarse.
+
+    Es el caso mas grave de la familia: con la capa de resultados des-invocada,
+    `check_suite_inventory.py` sigue saliendo EXIT=0 con su mensaje de siempre,
+    asi que nada en CI delata que el registro ya no se compara con nada.
+    """
+    _desinvoca("check_ejecucion_real.py")
+
+
+def m_desinvoca_calibra_ejecucion() -> None:
+    _desinvoca("calibra_ejecucion_real.py")
+
+
+def m_desinvoca_calibra_registro() -> None:
+    _desinvoca("calibra_registro_xfail.py")
+
+
+def m_desinvoca_calibra_base() -> None:
+    """El arnes de la base, que es el mas reciente.
+
+    Se calibra por la misma razon por la que existe: lo que se acaba de anadir
+    es justo lo que nadie vigila todavia.
+    """
+    _desinvoca("calibra_base_materializada.py")
+
+
+def m_borra_definicion_de_nivel_superior() -> None:
+    """Se borra una constante de modulo que una funcion USA.
+
+    Es EXACTAMENTE el defecto que cometi: un empalme por ancla dejo
+    `RE_ASIGNA_NOMBRE_CONSTRUIDO` fuera del fichero. Python compilaba, `ast.parse`
+    no protestaba, y el fallo solo salia al ejecutar la rama que la usa. Sin
+    este caso, el control de nombres seria una afirmacion sin prueba.
+    """
+    texto = GATE_INVENTARIO.read_text(encoding="utf-8")
+    ancla = "RE_ASIGNA_NOMBRE_CONSTRUIDO = re.compile("
+    if ancla not in texto:
+        raise SystemExit("MUTACION IMPOSIBLE: no esta la definicion que se borra")
+    lineas = texto.splitlines(keepends=True)
+    salida, saltando = [], False
+    for linea in lineas:
+        if linea.startswith(ancla):
+            saltando = True
+            continue
+        if saltando:
+            # La definicion ocupa dos lineas: la llamada y su continuacion.
+            saltando = False
+            continue
+        salida.append(linea)
+    GATE_INVENTARIO.write_text("".join(salida), encoding="utf-8")
+
+
 def m_borra_job_exigido() -> None:
     """Un gate desaparece en una resolucion de conflicto y nada se pone rojo."""
     _sustituye(CI, "  check-env-reproducibility:\n", "  check-env-reproducibility-desactivado:\n")
@@ -447,6 +520,16 @@ CASOS = [
     # `|| true`: ...». Si el gate mirase el texto en vez del codigo, este
     # caso saldria ROJO y la calibracion lo cazaria aqui mismo.
     ("estado correcto", None, VERDE),
+    # UN CASO POR SCRIPT EXIGIDO. Sin esto, `GATES_EXIGIDOS` protegia dos de
+    # seis y los otros cuatro se podian sustituir por un `echo` sin que nada
+    # enrojeciera.
+    ("des-invocar `check_ejecucion_real.py` (garantia PRINCIPAL)",
+     m_desinvoca_ejecucion_real, ROJO),
+    ("des-invocar `calibra_ejecucion_real.py`", m_desinvoca_calibra_ejecucion, ROJO),
+    ("des-invocar `calibra_registro_xfail.py`", m_desinvoca_calibra_registro, ROJO),
+    ("des-invocar `calibra_base_materializada.py`", m_desinvoca_calibra_base, ROJO),
+    ("borrar una definicion de nivel superior que una funcion usa",
+     m_borra_definicion_de_nivel_superior, ROJO),
     ("`paths-ignore` bajo `push`", m_paths_ignore_push, ROJO),
     ("`paths-ignore` bajo `pull_request`", m_paths_ignore_pr, ROJO),
     ('`"paths-ignore"` entrecomillado', m_paths_ignore_entrecomillado, ROJO),

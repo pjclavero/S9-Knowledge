@@ -83,6 +83,39 @@ def git_que_falla_en_archive() -> Path:
     return tmp
 
 
+def clon_con_main_en(sha: str) -> Path:
+    """Un clon local del repo con `origin/main` apuntando a `sha`.
+
+    Asi se ejercitan LAS DOS vias de `inventario_base()` sin depender de en cual
+    caiga el repositorio hoy:
+
+      * `origin/main` en un commit SIN inventario -> via de MATERIALIZACION
+      * `origin/main` en un commit CON inventario -> via RAPIDA (`git show`)
+
+    Hace falta porque el arnes se auto-invalidaba al fusionar: solo era correcto
+    MIENTRAS la base no publicara `suite-inventario.json`. En cuanto esto entre
+    en `main`, la via rapida seria la real, la nota dejaria de decir
+    `MATERIALIZADA` y el job saldria ROJO en `main` el primer dia. Falso rojo,
+    y ademas la via que quedaria en produccion se quedaba sin arnes.
+    """
+    tmp = Path(tempfile.mkdtemp(prefix="clon-base-"))
+    destino = tmp / "repo"
+    subprocess.run(["git", "clone", "--quiet", "--no-hardlinks", str(REPO),
+                    str(destino)], check=True, capture_output=True, timeout=900)
+    subprocess.run(["git", "update-ref", "refs/remotes/origin/main", sha],
+                   cwd=destino, check=True, capture_output=True, timeout=120)
+    return destino
+
+
+def corre_gate_en(raiz: Path, extra: list[str]) -> tuple[int, str]:
+    p = subprocess.run(
+        [sys.executable, ".github/scripts/check_suite_inventory.py", *extra],
+        cwd=raiz, capture_output=True, text=True, timeout=3600,
+        env=os.environ.copy(),
+    )
+    return p.returncode, p.stdout + p.stderr
+
+
 def corre_gate(extra: list[str], entorno: dict | None = None) -> tuple[int, str]:
     p = subprocess.run(
         [sys.executable, str(GATE), *extra],
@@ -103,6 +136,14 @@ def precondicion() -> list[str]:
     Mejor una PRECONDICION explicita que una tabla enganosa.
     """
     problemas = []
+    sucio = subprocess.run(["git", "status", "--porcelain"], cwd=REPO,
+                           capture_output=True, text=True).stdout.strip()
+    if sucio:
+        problemas.append(
+            "PRECONDICION: el arbol tiene cambios sin commitear. Este arnes "
+            "monta clones aislados para ejercitar las DOS vias de la base, y un "
+            "clon solo ve lo COMMITEADO: mediria codigo distinto del que hay "
+            "delante. Commitea antes de calibrar.")
     p = subprocess.run(["git", "rev-parse", "--verify", "origin/main^{commit}"],
                        cwd=REPO, capture_output=True, text=True)
     if p.returncode != 0:
@@ -130,17 +171,58 @@ def main() -> int:
     filas, fallos = [], 0
     temporales = []
 
-    # --- 1. la ruta REAL, sobre arbol limpio ------------------------------
-    print("\n########## 1. materializacion REAL (como corre en CI)")
-    rc, salida = corre_gate([])
-    materializada = "MATERIALIZADA" in salida
-    sin_trinquete = "SIN TRINQUETE" in salida
-    ok = (rc == 0) and materializada and not sin_trinquete
-    print(f"  EXIT={rc}  MATERIALIZADA={materializada}  SIN TRINQUETE={sin_trinquete}")
+    # --- 1. via de MATERIALIZACION (base SIN inventario publicado) --------
+    print("\n########## 1. via de MATERIALIZACION (base sin inventario)")
+    # `aaf9695` (main de partida) no publica inventario; si algun dia lo
+    # publicara, se busca hacia atras el primer commit que no lo tenga.
+    base_sin = None
+    p = subprocess.run(["git", "rev-list", "-n", "60", "origin/main"], cwd=REPO,
+                       capture_output=True, text=True)
+    for sha in p.stdout.split():
+        q = subprocess.run(["git", "cat-file", "-e",
+                            f"{sha}:.github/suite-inventario.json"],
+                           cwd=REPO, capture_output=True)
+        if q.returncode != 0:
+            base_sin = sha
+            break
+    if base_sin is None:
+        print("  (no hay ningun commit reciente SIN inventario: via no ejercitable)")
+        ok = False
+        detalle = "no ejercitable"
+        rc = -1
+    else:
+        clon = clon_con_main_en(base_sin)
+        temporales.append(clon.parent)
+        rc, salida = corre_gate_en(clon, [])
+        materializada = "MATERIALIZADA" in salida
+        sin_trinquete = "SIN TRINQUETE" in salida
+        ok = (rc == 0) and materializada and not sin_trinquete
+        detalle = f"EXIT={rc}, MATERIALIZADA={materializada}"
+        print(f"  base sin inventario: {base_sin[:8]}")
+        print(f"  EXIT={rc}  MATERIALIZADA={materializada}  SIN TRINQUETE={sin_trinquete}")
     fallos += 0 if ok else 1
-    filas.append(("1 ruta REAL sobre arbol limpio", "VERDE con base medida",
-                  f"EXIT={rc}, MATERIALIZADA={materializada}",
+    filas.append(("1 via de MATERIALIZACION (base sin inventario)",
+                  "VERDE y nota MATERIALIZADA", detalle,
                   "OK" if ok else "**DESVIACION**"))
+
+    # --- 1b. via RAPIDA (base CON inventario publicado) -------------------
+    # ESTA es la via que quedara en produccion en cuanto el carril se fusione,
+    # y hasta ahora no la ejercitaba nadie.
+    print("\n########## 1b. via RAPIDA (base con inventario publicado)")
+    sha_head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO,
+                              capture_output=True, text=True).stdout.strip()
+    clon2 = clon_con_main_en(sha_head)
+    temporales.append(clon2.parent)
+    rc1b, salida1b = corre_gate_en(clon2, [])
+    rapida = f"base {sha_head[:8]}" in salida1b
+    sin_trinquete1b = "SIN TRINQUETE" in salida1b
+    ok1b = (rc1b == 0) and rapida and not sin_trinquete1b
+    print(f"  EXIT={rc1b}  via rapida={rapida}  SIN TRINQUETE={sin_trinquete1b}")
+    fallos += 0 if ok1b else 1
+    filas.append(("1b via RAPIDA (base con inventario) = la de post-fusion",
+                  "VERDE con trinquete aplicado",
+                  f"EXIT={rc1b}, via rapida={rapida}",
+                  "OK" if ok1b else "**DESVIACION**"))
 
     # --- 2. materializacion ROTA -> ROJO, no verde con aviso --------------
     print("\n########## 2. materializacion ROTA (`git archive` falla)")

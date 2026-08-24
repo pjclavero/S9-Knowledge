@@ -475,6 +475,7 @@ RE_ASIGNA_NOMBRE_CONSTRUIDO = re.compile(
 # La normalizacion y los nombres de desarme viven en `normaliza_shell`, que
 # importan los DOS gates: una sola implementacion, por la misma razon que el
 # registro tiene un solo lector.
+import normaliza_shell  # noqa: E402
 from normaliza_shell import (  # noqa: E402
     VARIABLES_DE_DESARME,
     desarmes_en_ci,
@@ -1891,6 +1892,16 @@ def main() -> int:
     for e in errores_integridad:
         print(f"::error::{e}")
     if errores_integridad:
+        return 1
+
+    # DESARME: la comprobacion que MANDA. No mira `ci.yml` —eso se atraveso
+    # repartiendo el nombre entre varias lineas— sino el ENTORNO del proceso y
+    # QUIEN lo puso. Va antes que nada: si el gate esta desarmado sin permiso,
+    # no tiene sentido que siga midiendo.
+    fallos_desarme = normaliza_shell.exige_desarme_autorizado(REPO, os.environ)
+    for e in fallos_desarme:
+        print(f"::error::{e}")
+    if fallos_desarme:
         return 1
 
     if ABLACION:

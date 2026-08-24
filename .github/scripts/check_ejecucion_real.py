@@ -332,6 +332,14 @@ def main() -> int:
                   f"shell antes de buscar.")
             return 1
 
+    # Misma comprobacion de PROPIEDAD que el otro gate: el desarme se autoriza
+    # por la ASCENDENCIA del proceso, no por el texto de `ci.yml`.
+    fallos_desarme = normaliza_shell.exige_desarme_autorizado(REPO, os.environ)
+    for e in fallos_desarme:
+        print(f"::error::{e}")
+    if fallos_desarme:
+        return 1
+
     if ABLACION:
         print("::warning::ABLACION ACTIVA: la comparacion contra el inventario "
               "esta DESACTIVADA. Solo queda la guardia anti-cero. Esto no puede "
