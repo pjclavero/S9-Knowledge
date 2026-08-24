@@ -178,12 +178,17 @@ def main() -> int:
     base_sin = None
     p = subprocess.run(["git", "rev-list", "-n", "60", "origin/main"], cwd=REPO,
                        capture_output=True, text=True)
-    for sha in p.stdout.split():
+    # OJO con el nombre: `sha` es la funcion de hash de este modulo. Usarla como
+    # variable de bucle la convertia en local de `main()` y reventaba la primera
+    # linea con `UnboundLocalError`. Lo caza la EJECUCION, no el AST: el nombre
+    # existe a nivel de modulo, asi que el control de nombres definidos no tiene
+    # nada que objetar. Otro recordatorio de que los arneses hay que correrlos.
+    for candidato in p.stdout.split():
         q = subprocess.run(["git", "cat-file", "-e",
-                            f"{sha}:.github/suite-inventario.json"],
+                            f"{candidato}:.github/suite-inventario.json"],
                            cwd=REPO, capture_output=True)
         if q.returncode != 0:
-            base_sin = sha
+            base_sin = candidato
             break
     if base_sin is None:
         print("  (no hay ningun commit reciente SIN inventario: via no ejercitable)")
