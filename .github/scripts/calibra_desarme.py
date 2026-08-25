@@ -201,6 +201,68 @@ def sin_la_asercion(script: Path):
     return previo
 
 
+REGISTRO_PY = SCRIPTS / "registro_xfail.py"
+
+MUTACION_INTERNA = "\n# INYECTADO POR LA CALIBRACION\nMUTADO = True\n"
+
+
+def con_mutacion_desde_dentro(script: Path, extra=None, aislado=False):
+    """La MISMA contaminacion, pero escrita DENTRO del repositorio.
+
+    No hace falta ningun arranque automatico: se altera el propio
+    `registro_xfail.py`, que es codigo del repo que el gate importa siempre. El
+    estado protegido queda igual de sucio, asi que el gate tiene que abortar por
+    el MISMO motivo. Sirve ademas para demostrar que endurecer la invocacion
+    (`-s`) NO cubre esta via: el fichero no vive en el *user site*.
+
+    Restaura los BYTES exactos y el que llama lo verifica por SHA-256.
+    """
+    previo = REGISTRO_PY.read_bytes()
+    try:
+        REGISTRO_PY.write_bytes(previo + MUTACION_INTERNA.encode("utf-8"))
+        sonda = subprocess.run(
+            [sys.executable] + (["-s"] if aislado else []) +
+            ["-c", "import sys; sys.path.insert(0, %r); "
+                   "import registro_xfail as r; print(r.MUTADO)" % str(SCRIPTS)],
+            cwd=REPO, capture_output=True, text=True, timeout=300)
+        llega = sonda.stdout.strip() == "True"
+        p = subprocess.run([sys.executable, str(script), *(extra or [])],
+                           cwd=REPO, capture_output=True, text=True, timeout=3600)
+        return p.returncode, p.stdout + p.stderr, llega
+    finally:
+        REGISTRO_PY.write_bytes(previo)
+        subprocess.run(["rm", "-rf", str(SCRIPTS / "__pycache__")], timeout=60)
+
+
+def arranque_externo_se_ejecuta(aislado: bool) -> bool:
+    """¿Corre el arranque automatico del *user site*? Sonda minima.
+
+    Se mide con un fichero testigo, sin meter al gate de por medio: asi la
+    respuesta no depende de si el gate tiene sus dependencias, que es donde se
+    fabricaron dos falsos hallazgos en esta ronda.
+    """
+    destino = user_site()
+    fichero = destino / "usercustomize.py"
+    testigo = Path("/tmp/s9k-testigo-arranque")
+    previo = fichero.read_bytes() if fichero.exists() else None
+    testigo.unlink(missing_ok=True)
+    try:
+        destino.mkdir(parents=True, exist_ok=True)
+        fichero.write_text(
+            "from pathlib import Path\n"
+            f"Path({str(testigo)!r}).write_text('si')\n", encoding="utf-8")
+        subprocess.run([sys.executable] + (["-s"] if aislado else []) +
+                       ["-c", "pass"], capture_output=True, timeout=300)
+        return testigo.exists()
+    finally:
+        if previo is None:
+            fichero.unlink(missing_ok=True)
+        else:
+            fichero.write_bytes(previo)
+        subprocess.run(["rm", "-rf", str(destino / "__pycache__")], timeout=60)
+        testigo.unlink(missing_ok=True)
+
+
 def desde_linea_de_comandos(script: Path, extra: list[str]) -> tuple[int, str]:
     p = subprocess.run([sys.executable, str(script), *extra], cwd=REPO,
                        capture_output=True, text=True, timeout=3600)
@@ -273,6 +335,15 @@ def main() -> int:
     MOTIVO = "ESTADO INICIAL CONTAMINADO"
     fuera = user_site()
 
+    # --- 0. PROCESO LIMPIO -> PASS ----------------------------------------
+    # Sin esta fila, una comprobacion que dijera ROJO siempre pareceria
+    # perfecta. Es el control positivo de toda la matriz.
+    print("\n########## 0. proceso limpio")
+    rc0, salida0 = desde_linea_de_comandos(GATE, [])
+    limpio_ok = rc0 == 0 and MOTIVO not in salida0
+    print(f"    EXIT={rc0}  sin contaminacion declarada={MOTIVO not in salida0}")
+    anota("0 proceso limpio", "PASS", f"EXIT={rc0}", limpio_ok)
+
     escenarios = (
         ("usercustomize EXTERNO contamina el registro", VENENO, GATE, []),
         ("usercustomize EXTERNO, capa de resultados", VENENO, CONTROL,
@@ -290,22 +361,47 @@ def main() -> int:
               f"veneno={llega}, EXIT={rc_uc}, motivo={por_el_motivo}",
               llega and rc_uc == 1 and por_el_motivo)
 
-    # --- 5s. `sitecustomize`: por que NO se ejercita aqui ------------------
-    # Medido en esta maquina: la distribucion ya trae
-    # `/usr/lib/python3.13/sitecustomize.py`, que PRECEDE a cualquier otro en
-    # `sys.path`, asi que un `sitecustomize` propio -en el *user site* o en el
-    # directorio del script- NUNCA llega a ejecutarse y el caso no probaria
-    # nada. Se dice en vez de fabricar un verde: la CLASE queda cubierta por
-    # `usercustomize` (mismo mecanismo, y la comprobacion no mira el nombre del
-    # fichero) y, dentro del repositorio, por SUP-9.
-    print("\n########## 5s. `sitecustomize` propio: no ejercitable aqui")
-    sistema = subprocess.run(
-        [sys.executable, "-c", "import sitecustomize; print(sitecustomize.__file__)"],
-        capture_output=True, text=True, timeout=120).stdout.strip()
-    tapado = bool(sistema) and not sistema.startswith(str(REPO))
-    print(f"    sitecustomize del sistema: {sistema or '(ninguno)'}")
-    anota("5s `sitecustomize` propio queda tapado por el del sistema",
-          "declarado, no fabricado", f"del sistema: {sistema or 'ninguno'}", tapado)
+    # --- 5s. `sitecustomize` EXTERNO: se INTENTA, y se mide si llega -------
+    # No se declara de antemano que no es ejercitable: se prueba. Si la
+    # distribucion trae su propio `sitecustomize` -medido aqui:
+    # `/usr/lib/python3.13/sitecustomize.py`- este PRECEDE en `sys.path` y el
+    # nuestro nunca corre; en un runner sin el, si corre. El caso se adapta a lo
+    # que MIDE en vez de a lo que yo suponga de la maquina.
+    print("\n########## 5s. `sitecustomize` EXTERNO")
+    rc_sc, salida_sc, llega_sc = con_arranque_contaminado(
+        GATE, fuera, "sitecustomize.py", VENENO)
+    if llega_sc:
+        por_motivo_sc = MOTIVO in salida_sc
+        print(f"    veneno llega=True  EXIT={rc_sc}  motivo={por_motivo_sc}")
+        anota("5s `sitecustomize` EXTERNO", f"ROJO por `{MOTIVO}`",
+              f"veneno=True, EXIT={rc_sc}, motivo={por_motivo_sc}",
+              rc_sc == 1 and por_motivo_sc)
+    else:
+        sistema = subprocess.run(
+            [sys.executable, "-c",
+             "import sitecustomize; print(sitecustomize.__file__)"],
+            capture_output=True, text=True, timeout=120).stdout.strip()
+        print(f"    el veneno NO llega; sitecustomize del sistema: {sistema}")
+        # No es un PASS del control: es una via NO EJERCITABLE en esta maquina.
+        # Se exige que la razon sea DEMOSTRABLE (existe uno del sistema), no una
+        # suposicion. La clase la cubre `usercustomize`, que si se ejercita.
+        anota("5s `sitecustomize` EXTERNO (no ejercitable aqui)",
+              "razon demostrada, no supuesta",
+              f"tapado por {sistema or '(nada)'}",
+              bool(sistema) and not sistema.startswith(str(REPO)))
+
+    # --- 5d. la MISMA contaminacion, DESDE DENTRO del repositorio ---------
+    print("\n########## 5d. mutacion equivalente DESDE DENTRO del repo")
+    sha_reg_antes = sha(REGISTRO_PY)
+    rc_d, salida_d, llega_d = con_mutacion_desde_dentro(GATE)
+    por_motivo_d = MOTIVO in salida_d
+    restaurado_d = sha(REGISTRO_PY) == sha_reg_antes
+    print(f"    veneno llega={llega_d}  EXIT={rc_d}  motivo={por_motivo_d}  "
+          f"restaurado={restaurado_d}")
+    anota("5d mutacion DESDE DENTRO del repo", f"ROJO por `{MOTIVO}`",
+          f"veneno={llega_d}, EXIT={rc_d}, motivo={por_motivo_d}, "
+          f"restaurado={restaurado_d}",
+          llega_d and rc_d == 1 and por_motivo_d and restaurado_d)
 
     # --- 5z. ABLACION: sin la asercion, el ataque externo VUELVE A PASAR ---
     print("\n########## ABLACION: se retira la asercion de estado inicial")
@@ -325,6 +421,48 @@ def main() -> int:
     anota("5z ABLACION de la asercion -> el ataque externo vuelve a pasar",
           "VERDE (pasa) y gate restaurado", f"pasa={vuelve}, restaurado={restaurado}",
           vuelve and restaurado)
+
+    # Y RESTAURADA, el mismo ataque tiene que volver a fallar POR EL MOTIVO.
+    # Sin esta fila, la ablacion demostraria que algo cambia, pero no que lo
+    # que vuelve es la comprobacion correcta.
+    print("\n########## 5r. restaurada la asercion, el ataque vuelve a fallar")
+    rc_r, salida_r, llega_r = con_arranque_contaminado(
+        GATE, fuera, "usercustomize.py")
+    por_motivo_r = MOTIVO in salida_r
+    print(f"    veneno llega={llega_r}  EXIT={rc_r}  motivo={por_motivo_r}")
+    anota("5r restaurada la asercion -> vuelve a FALLAR por el motivo",
+          f"ROJO por `{MOTIVO}`",
+          f"veneno={llega_r}, EXIT={rc_r}, motivo={por_motivo_r}",
+          llega_r and rc_r == 1 and por_motivo_r)
+
+    # --- 5h. INVOCACION ENDURECIDA: defensa adicional, NO sustituta --------
+    # Dos medidas, y las dos con sonda minima para que la respuesta no dependa
+    # de si el gate tiene sus dependencias -que es donde se fabricaron dos
+    # falsos hallazgos en esta ronda-:
+    #   (i)  con `-s` el arranque automatico del *user site* NO se ejecuta:
+    #        la barrera secundaria es EFECTIVA para esa via.
+    #   (ii) con `-s` la contaminacion DESDE DENTRO del repositorio SIGUE
+    #        llegando: la barrera NO cubre esa via, asi que la comprobacion
+    #        interna sigue siendo NECESARIA. Es la jerarquia exigida: quitar un
+    #        flag de la linea de ejecucion no puede destruir la garantia.
+    print("\n########## 5h. invocacion endurecida (`-s`)")
+    corre_normal = arranque_externo_se_ejecuta(aislado=False)
+    corre_aislado = arranque_externo_se_ejecuta(aislado=True)
+    print(f"    arranque del *user site* corre: normal={corre_normal}, "
+          f"con -s={corre_aislado}")
+    anota("5h(i) `-s` impide el arranque automatico externo",
+          "corre sin -s, NO corre con -s",
+          f"normal={corre_normal}, aislado={corre_aislado}",
+          corre_normal and not corre_aislado)
+
+    sha_reg2 = sha(REGISTRO_PY)
+    _, _, llega_aislado = con_mutacion_desde_dentro(GATE, aislado=True)
+    restaurado2 = sha(REGISTRO_PY) == sha_reg2
+    print(f"    con -s, la contaminacion DESDE DENTRO llega={llega_aislado}")
+    anota("5h(ii) `-s` NO cubre la contaminacion desde dentro",
+          "el veneno llega igual -> la interna es necesaria",
+          f"llega={llega_aislado}, restaurado={restaurado2}",
+          llega_aislado and restaurado2)
 
     # --- 6. CONTROL POSITIVO: el arnes SI puede ablacionar ----------------
     print("\n########## 6. control positivo: el arnes SI puede ablacionar")
