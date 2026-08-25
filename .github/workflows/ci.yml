@@ -372,7 +372,8 @@ jobs:
       - name: Lo ejecutado de verdad tiene que ser lo que el inventario declara
         run: |
           set -euo pipefail
-          python3 .github/scripts/check_ejecucion_real.py \
+          python3 -I .github/scripts/bootstrap_certificacion.py \
+            .github/scripts/check_ejecucion_real.py \
             --junit artifacts/junit
 
       # -----------------------------------------------------------------
@@ -396,7 +397,25 @@ jobs:
       # se DERIVA de lo que los jobs invocan, de la coleccion real, de los
       # arneses de calibracion y del inventario de la base. Ver la cabecera de
       # `.github/scripts/check_suite_inventory.py`.
-      # SOBRE LA BARRERA SECUNDARIA (`-s -E`), QUE NO SE EMBARCA Y POR QUE.
+      # LA CERTIFICACION VA POR EL BOOTSTRAP, Y `-I` ES PARTE DE LA
+      # ARQUITECTURA, no un extra.
+      #
+      # Un proceso potencialmente contaminado no puede certificarse a si mismo
+      # comparando atributos de ese mismo proceso: eso se intento tres veces
+      # -perillas, `__file__`, bytecode- y cada vuelta aparecio el mecanismo
+      # siguiente. Ahora la raiz de confianza esta FUERA del proceso
+      # contaminable: `python3 -I` arranca un interprete sin *user site*, sin
+      # `PYTHONPATH` heredado y sin el directorio del script en `sys.path` -o
+      # sea, sin arranques automaticos-, y el bootstrap identifica el sujeto
+      # Git, verifica la fuente critica contra el, comprueba que ningun modulo
+      # critico venia precargado y carga el codigo desde la ruta exacta.
+      #
+      # PyYAML vive en el *user site* en algunas maquinas y `-I` lo deja fuera:
+      # el bootstrap devuelve ESA RUTA a `sys.path` despues del arranque. Tener
+      # la dependencia disponible no es ejecutar los ganchos de arranque que
+      # viven en ese directorio.
+      #
+      # NOTA HISTORICA (`-s -E`), que aqui se documento al reves una vez:
       # Endurecer el lanzamiento del interprete -sin *user site*, sin
       # `PYTHONPATH`- cerraria el vector mas comodo del arranque automatico.
       # Se probo y se MIDIO: con `-s`, este gate sale ROJO con `falta PyYAML`,
@@ -415,7 +434,8 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: |
           set -euo pipefail
-          python3 .github/scripts/check_suite_inventory.py
+          python3 -I .github/scripts/bootstrap_certificacion.py \
+            .github/scripts/check_suite_inventory.py
 
       # El inventario es una MEDIDA, no una lista: se regenera. Si el commit no
       # trae el inventario actualizado, la base del trinquete del PR siguiente

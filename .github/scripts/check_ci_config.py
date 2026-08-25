@@ -947,7 +947,22 @@ def comprueba_gates_exigidos(datos: dict, nombre: str) -> list[str]:
     lineas = []
     for job in (datos.get("jobs") or {}).values():
         for _, cuerpo in pasos_run(job):
-            lineas += cuerpo.splitlines()
+            # Se UNEN las continuaciones (`\` al final): una invocacion puede
+            # ocupar varias lineas, y desde que la certificacion va por
+            # `bootstrap_certificacion.py` el nombre del gate vive justo en la
+            # continuacion. Mirando linea a linea, este control declaraba
+            # ausente una invocacion que si estaba -medido: EXIT=1 diciendo que
+            # `check_ejecucion_real.py` no se invocaba-.
+            acumulada = ""
+            for linea in cuerpo.splitlines():
+                acumulada += linea
+                if linea.rstrip().endswith("\\"):
+                    acumulada = acumulada.rstrip()[:-1]
+                    continue
+                lineas.append(acumulada)
+                acumulada = ""
+            if acumulada:
+                lineas.append(acumulada)
     invocadas = [l for l in lineas
                  # Se admiten BANDERAS DEL INTERPRETE entre `python3` y el
                  # script (`-s`, `-E`, `-I`...). Hoy `ci.yml` no las usa -se
