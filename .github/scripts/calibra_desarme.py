@@ -263,6 +263,79 @@ def arranque_externo_se_ejecuta(aislado: bool) -> bool:
         testigo.unlink(missing_ok=True)
 
 
+BOOTSTRAP = SCRIPTS / "bootstrap_certificacion.py"
+CENTINELA = Path("/tmp/s9k-centinela-payload")
+
+# Cada payload deja CENTINELA si LLEGA A EJECUTARSE. Es lo que permite
+# distinguir "bloqueado por la frontera de ejecucion" -resultado correcto- de
+# "ejecutado y no detectado" -falso verde-.
+PAYLOAD_BANDERA = '''
+from pathlib import Path
+Path({centinela!r}).write_text("ejecutado")
+import sys
+sys.path.insert(0, {scripts!r})
+try:
+    import registro_xfail
+    registro_xfail.MUTADO = True
+except Exception:
+    pass
+'''
+
+PAYLOAD_FUNCION = '''
+from pathlib import Path
+Path({centinela!r}).write_text("ejecutado")
+import builtins, sys
+sys.path.insert(0, {scripts!r})
+_real = builtins.__import__
+def _mio(nombre, *a, **k):
+    mod = _real(nombre, *a, **k)
+    if nombre == "registro_xfail":
+        def _sin_integridad():
+            return (mod.FICHERO.read_text(encoding="utf-8")
+                    if mod.FICHERO.exists() else ""), []
+        mod.contenido_verificado = _sin_integridad
+    return mod
+builtins.__import__ = _mio
+'''
+
+
+def corre_bootstrap(gate: Path, extra=None, aislado=True):
+    orden = [sys.executable] + (["-I"] if aislado else [])
+    orden += [str(BOOTSTRAP), str(gate), *(extra or [])]
+    p = subprocess.run(orden, cwd=REPO, capture_output=True, text=True,
+                       timeout=3600)
+    return p.returncode, p.stdout + p.stderr
+
+
+def con_payload(nombre_fichero: str, plantilla: str, gate: Path,
+                extra=None, aislado: bool = True):
+    """Monta el payload en el *user site*, corre el bootstrap y mira el centinela.
+
+    Devuelve (rc, salida, ejecutado). `ejecutado` es la prueba de si el payload
+    llego a correr: si NO corrio, un PASS es el resultado CORRECTO -la
+    contaminacion quedo excluida por la frontera de ejecucion- y hay que
+    demostrarlo, no suponerlo.
+    """
+    destino = user_site()
+    fichero = destino / nombre_fichero
+    previo = fichero.read_bytes() if fichero.exists() else None
+    CENTINELA.unlink(missing_ok=True)
+    try:
+        destino.mkdir(parents=True, exist_ok=True)
+        fichero.write_text(
+            plantilla.format(centinela=str(CENTINELA), scripts=str(SCRIPTS)),
+            encoding="utf-8")
+        rc, salida = corre_bootstrap(gate, extra, aislado)
+        return rc, salida, CENTINELA.exists()
+    finally:
+        if previo is None:
+            fichero.unlink(missing_ok=True)
+        else:
+            fichero.write_bytes(previo)
+        subprocess.run(["rm", "-rf", str(destino / "__pycache__")], timeout=60)
+        CENTINELA.unlink(missing_ok=True)
+
+
 def desde_linea_de_comandos(script: Path, extra: list[str]) -> tuple[int, str]:
     p = subprocess.run([sys.executable, str(script), *extra], cwd=REPO,
                        capture_output=True, text=True, timeout=3600)
@@ -463,6 +536,150 @@ def main() -> int:
           "el veneno llega igual -> la interna es necesaria",
           f"llega={llega_aislado}, restaurado={restaurado2}",
           llega_aislado and restaurado2)
+
+    # ======================================================================
+    # LA MATRIZ DE LA RAIZ DE CONFIANZA (A-H)
+    # ======================================================================
+    # La pregunta que decide todo esto: ¿hemos dejado de certificar atributos
+    # enumerados de un proceso potencialmente contaminado y pasado a certificar
+    # una ejecucion cuya raiz de confianza esta FUERA de ese proceso?
+    #
+    # En cada fila se exige EL MOTIVO, o el CENTINELA que demuestre que el
+    # payload no llego a ejecutarse. Lo que NO vale: "payload ejecutado +
+    # funcion critica modificada -> PASS", ni un FAIL por `ImportError`
+    # accidental.
+    INTEGRIDAD = "INTEGRIDAD DEL SUJETO"
+    PRECARGA = "MODULO CRITICO YA CARGADO"
+
+    def juzga_contaminacion(etiqueta, rc, salida, ejecutado, motivos):
+        """Bloqueado antes de ejecutarse, o FAIL con motivo especifico."""
+        if not ejecutado:
+            ok = rc == 0
+            print(f"    payload NO EJECUTADO (centinela ausente); EXIT={rc}")
+            anota(etiqueta, "bloqueado por la frontera de ejecucion",
+                  f"centinela=ausente, EXIT={rc}", ok)
+            return
+        por_motivo = any(m in salida for m in motivos)
+        print(f"    payload EJECUTADO; EXIT={rc}; motivo={por_motivo}")
+        anota(etiqueta, "FAIL con motivo especifico",
+              f"centinela=presente, EXIT={rc}, motivo={por_motivo}",
+              rc == 1 and por_motivo)
+
+    # --- A. interprete limpio -> PASS -------------------------------------
+    print("\n########## A. interprete limpio")
+    rcA, salidaA = corre_bootstrap(GATE)
+    okA = rcA == 0 and "aislado=True" in salidaA
+    print(f"    EXIT={rcA}")
+    anota("A interprete limpio", "PASS y aislado",
+          f"EXIT={rcA}, aislado={'aislado=True' in salidaA}", okA)
+
+    # --- B. `sitecustomize` que cambia una BANDERA ------------------------
+    print("\n########## B. `sitecustomize` cambia una bandera")
+    rcB, salidaB, ejeB = con_payload("sitecustomize.py", PAYLOAD_BANDERA, GATE)
+    juzga_contaminacion("B `sitecustomize` cambia bandera", rcB, salidaB, ejeB,
+                        (MOTIVO, INTEGRIDAD, PRECARGA))
+
+    # --- C. `usercustomize` equivalente -----------------------------------
+    print("\n########## C. `usercustomize` cambia una bandera")
+    rcC, salidaC, ejeC = con_payload("usercustomize.py", PAYLOAD_BANDERA, GATE)
+    juzga_contaminacion("C `usercustomize` cambia bandera", rcC, salidaC, ejeC,
+                        (MOTIVO, INTEGRIDAD, PRECARGA))
+
+    # --- D. MONKEYPATCH de funcion critica (el ataque del revisor) --------
+    print("\n########## D. `usercustomize` MONKEYPATCHEA una funcion critica")
+    rcD, salidaD, ejeD = con_payload("usercustomize.py", PAYLOAD_FUNCION, GATE)
+    juzga_contaminacion("D monkeypatch de funcion critica", rcD, salidaD, ejeD,
+                        (MOTIVO, INTEGRIDAD, PRECARGA))
+
+    # --- E. modulo critico PRECARGADO/manipulado --------------------------
+    # Se llama al bootstrap DESDE un proceso que ya importo y manipulo el
+    # modulo critico. No hay `usercustomize` de por medio: la contaminacion es
+    # anterior por construccion.
+    print("\n########## E. modulo critico PRECARGADO y manipulado")
+    programa = "\n".join([
+        "import sys",
+        f"sys.path.insert(0, {str(SCRIPTS)!r})",
+        "import registro_xfail",
+        "registro_xfail.MUTADO = True",
+        f"sys.argv = ['bootstrap', {str(GATE)!r}]",
+        f"exec(open({str(BOOTSTRAP)!r}).read())",
+    ])
+    pE = subprocess.run([sys.executable, "-c", programa], cwd=REPO,
+                        capture_output=True, text=True, timeout=3600)
+    salidaE = pE.stdout + pE.stderr
+    por_motivoE = PRECARGA in salidaE
+    print(f"    EXIT={pE.returncode}  motivo={por_motivoE}")
+    anota("E modulo critico precargado", f"FAIL por `{PRECARGA}`",
+          f"EXIT={pE.returncode}, motivo={por_motivoE}",
+          pE.returncode == 1 and por_motivoE)
+
+    # --- F. modificar de verdad el fichero critico del SUJETO -------------
+    print("\n########## F. el fichero critico en disco != sujeto Git")
+    sha_F = sha(REGISTRO_PY)
+    previo_F = REGISTRO_PY.read_bytes()
+    try:
+        REGISTRO_PY.write_bytes(previo_F + b"\n# ALTERADO POR LA CALIBRACION\n")
+        rcF, salidaF = corre_bootstrap(GATE)
+    finally:
+        REGISTRO_PY.write_bytes(previo_F)
+    por_motivoF = INTEGRIDAD in salidaF
+    restauradoF = sha(REGISTRO_PY) == sha_F
+    print(f"    EXIT={rcF}  motivo={por_motivoF}  restaurado={restauradoF}")
+    anota("F fichero critico != sujeto Git", f"FAIL por `{INTEGRIDAD}`",
+          f"EXIT={rcF}, motivo={por_motivoF}, restaurado={restauradoF}",
+          rcF == 1 and por_motivoF and restauradoF)
+
+    # --- G. retirar el AISLAMIENTO, manteniendo el bootstrap --------------
+    # Sin `-I` el arranque automatico SI corre. Lo que se exige es que las
+    # barreras internas sigan sujetando lo que alcance al codigo critico: o el
+    # payload no llega a tocarlo -y hay que demostrarlo- o hay FAIL con motivo.
+    print("\n########## G. sin aislamiento (`-I` retirado), bootstrap intacto")
+    rcG, salidaG, ejeG = con_payload("usercustomize.py", PAYLOAD_FUNCION, GATE,
+                                     aislado=False)
+    aviso = "AISLAMIENTO RETIRADO" in salidaG
+    print(f"    payload ejecutado={ejeG}  EXIT={rcG}  avisa={aviso}")
+    if ejeG and rcG == 0:
+        # PASS solo es aceptable si se DEMUESTRA que el codigo critico en uso
+        # sigue siendo el del repositorio.
+        limpio = "ESTADO INICIAL CONTAMINADO" not in salidaG
+        anota("G sin aislamiento, el payload no alcanza el codigo critico",
+              "PASS solo con el aviso y sin contaminacion del codigo critico",
+              f"ejecutado=True, EXIT=0, avisa={aviso}, codigo limpio={limpio}",
+              aviso and limpio)
+    else:
+        por_motivoG = any(m in salidaG for m in (MOTIVO, INTEGRIDAD, PRECARGA))
+        anota("G sin aislamiento", "FAIL con motivo especifico",
+              f"ejecutado={ejeG}, EXIT={rcG}, motivo={por_motivoG}",
+              rcG == 1 and por_motivoG)
+
+    # --- H. ablacion de la comprobacion de INTEGRIDAD ---------------------
+    # Se retira `verifica_fuente` del bootstrap y se repite el vector F, que SI
+    # llega. Si el ataque pasa, esa barrera estaba sujetando de verdad.
+    print("\n########## H. ABLACION: sin la comprobacion de integridad")
+    sha_boot = sha(BOOTSTRAP)
+    previo_boot = BOOTSTRAP.read_bytes()
+    llamada = "    problemas = sin_precarga() + verifica_fuente(sha)"
+    try:
+        texto = previo_boot.decode("utf-8")
+        if llamada not in texto:
+            raise SystemExit("MUTACION IMPOSIBLE: no esta la llamada a verificar")
+        BOOTSTRAP.write_text(
+            texto.replace(llamada, "    problemas = sin_precarga()", 1),
+            encoding="utf-8")
+        previo_F2 = REGISTRO_PY.read_bytes()
+        try:
+            REGISTRO_PY.write_bytes(previo_F2 + b"\n# ALTERADO POR LA CALIBRACION\n")
+            rcH, salidaH = corre_bootstrap(GATE)
+        finally:
+            REGISTRO_PY.write_bytes(previo_F2)
+    finally:
+        BOOTSTRAP.write_bytes(previo_boot)
+    restauradoH = sha(BOOTSTRAP) == sha_boot and sha(REGISTRO_PY) == sha_F
+    pasa = rcH == 0 and INTEGRIDAD not in salidaH
+    print(f"    EXIT={rcH}  (0 = el ataque pasa)  restaurado={restauradoH}")
+    anota("H ablacion de la integridad -> el ataque F vuelve a pasar",
+          "PASS (pasa) y todo restaurado", f"pasa={pasa}, restaurado={restauradoH}",
+          pasa and restauradoH)
 
     # --- 6. CONTROL POSITIVO: el arnes SI puede ablacionar ----------------
     print("\n########## 6. control positivo: el arnes SI puede ablacionar")

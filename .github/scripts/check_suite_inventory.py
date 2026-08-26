@@ -1801,8 +1801,22 @@ def inventario_materializando(base: str) -> tuple[dict | None, str]:
         # git y por tanto no tiene commit de referencia— no muere en la
         # integridad del registro, y el padre no se queda sin los siete
         # trinquetes que dependen de la base.
+        # EL HIJO TAMBIEN VA AISLADO. Si no, el aislamiento del padre no vale
+        # de nada: un `usercustomize` no alcanza al padre pero SI a este hijo,
+        # que muere y deja al padre sin base -medido: `INSTRUMENTO ROTO`, o sea
+        # ROJO POR ACCIDENTE y no por el motivo-. `-I` no ve el *user site*,
+        # asi que se le devuelve esa ruta a `sys.path` desde dentro, igual que
+        # hace el bootstrap: tener la dependencia no es ejecutar sus ganchos.
+        # `runpy.run_path` lo ejecuta como `__main__` para que su
+        # `sys.exit(main())` siga funcionando.
+        programa = "\n".join([
+            "import runpy, site, sys",
+            "sys.path.append(site.getusersitepackages())",
+            f"sys.argv = [{str(gate)!r}, '--escribir-inventario', '--sin-base']",
+            f"runpy.run_path({str(gate)!r}, run_name='__main__')",
+        ])
         r = subprocess.run(
-            [sys.executable, str(gate), "--escribir-inventario", "--sin-base"],
+            [sys.executable, "-I", "-c", programa],
             cwd=tmp, capture_output=True, text=True, env=entorno, timeout=1800)
         destino = tmp / ".github" / "suite-inventario.json"
         if not destino.is_file():
