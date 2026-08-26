@@ -596,13 +596,17 @@ def main() -> int:
     # modulo critico. No hay `usercustomize` de por medio: la contaminacion es
     # anterior por construccion.
     print("\n########## E. modulo critico PRECARGADO y manipulado")
+    # `runpy.run_path(..., run_name='__main__')`, NO `exec(open(...).read())`:
+    # eso ultimo deja el bootstrap sin `__file__` y revienta con `NameError`
+    # antes de comprobar nada. Seria un rojo PRESTADO -medido, y me paso-, y un
+    # rojo prestado no demuestra la garantia.
     programa = "\n".join([
-        "import sys",
+        "import runpy, sys",
         f"sys.path.insert(0, {str(SCRIPTS)!r})",
         "import registro_xfail",
         "registro_xfail.MUTADO = True",
-        f"sys.argv = ['bootstrap', {str(GATE)!r}]",
-        f"exec(open({str(BOOTSTRAP)!r}).read())",
+        f"sys.argv = [{str(BOOTSTRAP)!r}, {str(GATE)!r}]",
+        f"runpy.run_path({str(BOOTSTRAP)!r}, run_name='__main__')",
     ])
     pE = subprocess.run([sys.executable, "-c", programa], cwd=REPO,
                         capture_output=True, text=True, timeout=3600)
