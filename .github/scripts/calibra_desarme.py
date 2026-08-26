@@ -269,9 +269,17 @@ CENTINELA = Path("/tmp/s9k-centinela-payload")
 # Cada payload deja CENTINELA si LLEGA A EJECUTARSE. Es lo que permite
 # distinguir "bloqueado por la frontera de ejecucion" -resultado correcto- de
 # "ejecutado y no detectado" -falso verde-.
+# El centinela APUNTA EL `argv` de cada proceso que ejecuta el payload, no un
+# simple "si/no". La primera version escribia "ejecutado" a secas y me llevo a
+# una conclusion falsa: el fichero aparecia porque el payload corria en los
+# SUBPROCESOS DE MEDICION que lanza el gate (la coleccion de pytest), no en la
+# ruta de certificacion. "Algun interprete lo ejecuto" y "alcanzo lo que
+# certifica" no son la misma afirmacion.
 PAYLOAD_BANDERA = '''
 from pathlib import Path
-Path({centinela!r}).write_text("ejecutado")
+import sys
+with open({centinela!r}, "a") as _f:
+    _f.write(repr(sys.argv) + chr(10))
 import sys
 sys.path.insert(0, {scripts!r})
 try:
@@ -283,7 +291,9 @@ except Exception:
 
 PAYLOAD_FUNCION = '''
 from pathlib import Path
-Path({centinela!r}).write_text("ejecutado")
+import sys
+with open({centinela!r}, "a") as _f:
+    _f.write(repr(sys.argv) + chr(10))
 import builtins, sys
 sys.path.insert(0, {scripts!r})
 _real = builtins.__import__
@@ -326,7 +336,9 @@ def con_payload(nombre_fichero: str, plantilla: str, gate: Path,
             plantilla.format(centinela=str(CENTINELA), scripts=str(SCRIPTS)),
             encoding="utf-8")
         rc, salida = corre_bootstrap(gate, extra, aislado)
-        return rc, salida, CENTINELA.exists()
+        huellas = (CENTINELA.read_text(encoding="utf-8").splitlines()
+                   if CENTINELA.exists() else [])
+        return rc, salida, huellas
     finally:
         if previo is None:
             fichero.unlink(missing_ok=True)
@@ -551,19 +563,40 @@ def main() -> int:
     INTEGRIDAD = "INTEGRIDAD DEL SUJETO"
     PRECARGA = "MODULO CRITICO YA CARGADO"
 
-    def juzga_contaminacion(etiqueta, rc, salida, ejecutado, motivos):
-        """Bloqueado antes de ejecutarse, o FAIL con motivo especifico."""
-        if not ejecutado:
-            ok = rc == 0
-            print(f"    payload NO EJECUTADO (centinela ausente); EXIT={rc}")
+    # Procesos que SI son la ruta de certificacion. Si el payload no aparece en
+    # ninguno de ellos, no alcanzo lo que se certifica.
+    CERTIFICAN = ("bootstrap_certificacion.py", "check_suite_inventory.py",
+                  "check_ejecucion_real.py")
+
+    def juzga_contaminacion(etiqueta, rc, salida, huellas, motivos):
+        """Tres desenlaces, y cada uno con su evidencia:
+
+        1. el payload NO se ejecuto en ningun sitio -> bloqueado por la
+           frontera; PASS es correcto.
+        2. se ejecuto, pero NO en la ruta de certificacion -sino en algun
+           subproceso de medicion- -> PASS es correcto, y se DEMUESTRA con el
+           `argv` de los procesos que si lo ejecutaron.
+        3. se ejecuto EN la ruta de certificacion -> se exige FAIL con motivo.
+        """
+        alcanza = [h for h in huellas if any(c in h for c in CERTIFICAN)]
+        if not huellas:
+            print(f"    payload NO EJECUTADO (centinela vacio); EXIT={rc}")
             anota(etiqueta, "bloqueado por la frontera de ejecucion",
-                  f"centinela=ausente, EXIT={rc}", ok)
-            return
-        por_motivo = any(m in salida for m in motivos)
-        print(f"    payload EJECUTADO; EXIT={rc}; motivo={por_motivo}")
-        anota(etiqueta, "FAIL con motivo especifico",
-              f"centinela=presente, EXIT={rc}, motivo={por_motivo}",
-              rc == 1 and por_motivo)
+                  f"centinela=vacio, EXIT={rc}", rc == 0)
+        elif not alcanza:
+            print(f"    payload ejecutado en {len(huellas)} proceso(s), NINGUNO "
+                  f"de la ruta de certificacion; EXIT={rc}")
+            print(f"      ejemplo: {huellas[0][:90]}")
+            anota(etiqueta, "no alcanza la ruta de certificacion",
+                  f"procesos ajenos={len(huellas)}, certificantes=0, EXIT={rc}",
+                  rc == 0)
+        else:
+            por_motivo = any(m in salida for m in motivos)
+            print(f"    payload ALCANZA la certificacion; EXIT={rc}; "
+                  f"motivo={por_motivo}")
+            anota(etiqueta, "FAIL con motivo especifico",
+                  f"alcanza={len(alcanza)}, EXIT={rc}, motivo={por_motivo}",
+                  rc == 1 and por_motivo)
 
     # --- A. interprete limpio -> PASS -------------------------------------
     print("\n########## A. interprete limpio")
@@ -575,20 +608,20 @@ def main() -> int:
 
     # --- B. `sitecustomize` que cambia una BANDERA ------------------------
     print("\n########## B. `sitecustomize` cambia una bandera")
-    rcB, salidaB, ejeB = con_payload("sitecustomize.py", PAYLOAD_BANDERA, GATE)
-    juzga_contaminacion("B `sitecustomize` cambia bandera", rcB, salidaB, ejeB,
+    rcB, salidaB, huellasB = con_payload("sitecustomize.py", PAYLOAD_BANDERA, GATE)
+    juzga_contaminacion("B `sitecustomize` cambia bandera", rcB, salidaB, huellasB,
                         (MOTIVO, INTEGRIDAD, PRECARGA))
 
     # --- C. `usercustomize` equivalente -----------------------------------
     print("\n########## C. `usercustomize` cambia una bandera")
-    rcC, salidaC, ejeC = con_payload("usercustomize.py", PAYLOAD_BANDERA, GATE)
-    juzga_contaminacion("C `usercustomize` cambia bandera", rcC, salidaC, ejeC,
+    rcC, salidaC, huellasC = con_payload("usercustomize.py", PAYLOAD_BANDERA, GATE)
+    juzga_contaminacion("C `usercustomize` cambia bandera", rcC, salidaC, huellasC,
                         (MOTIVO, INTEGRIDAD, PRECARGA))
 
     # --- D. MONKEYPATCH de funcion critica (el ataque del revisor) --------
     print("\n########## D. `usercustomize` MONKEYPATCHEA una funcion critica")
-    rcD, salidaD, ejeD = con_payload("usercustomize.py", PAYLOAD_FUNCION, GATE)
-    juzga_contaminacion("D monkeypatch de funcion critica", rcD, salidaD, ejeD,
+    rcD, salidaD, huellasD = con_payload("usercustomize.py", PAYLOAD_FUNCION, GATE)
+    juzga_contaminacion("D monkeypatch de funcion critica", rcD, salidaD, huellasD,
                         (MOTIVO, INTEGRIDAD, PRECARGA))
 
     # --- E. modulo critico PRECARGADO/manipulado --------------------------
@@ -638,10 +671,14 @@ def main() -> int:
     # barreras internas sigan sujetando lo que alcance al codigo critico: o el
     # payload no llega a tocarlo -y hay que demostrarlo- o hay FAIL con motivo.
     print("\n########## G. sin aislamiento (`-I` retirado), bootstrap intacto")
-    rcG, salidaG, ejeG = con_payload("usercustomize.py", PAYLOAD_FUNCION, GATE,
-                                     aislado=False)
+    rcG, salidaG, huellasG = con_payload("usercustomize.py", PAYLOAD_FUNCION,
+                                         GATE, aislado=False)
+    ejeG = bool(huellasG)
+    alcanzaG = [h for h in huellasG if any(c in h for c in CERTIFICAN)]
     aviso = "AISLAMIENTO RETIRADO" in salidaG
-    print(f"    payload ejecutado={ejeG}  EXIT={rcG}  avisa={aviso}")
+    print(f"    payload ejecutado en {len(huellasG)} proceso(s), "
+          f"{len(alcanzaG)} de la ruta de certificacion; EXIT={rcG}; "
+          f"avisa={aviso}")
     if ejeG and rcG == 0:
         # PASS solo es aceptable si se DEMUESTRA que el codigo critico en uso
         # sigue siendo el del repositorio.
