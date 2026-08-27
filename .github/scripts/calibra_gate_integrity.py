@@ -326,24 +326,6 @@ def m_neutraliza_con_dospuntos() -> None:
     )
 
 
-def m_borra_gate_exigido() -> None:
-    """Se deja de invocar el gate de inventario de suites.
-
-    El job sigue existiendo, el fichero sigue en el arbol, y el gate no se
-    ejecuta nunca. `JOBS_EXIGIDOS` no ve esto: protege jobs, no pasos.
-    """
-    _sustituye(
-        CI,
-        "          python3 .github/scripts/check_suite_inventory.py --escribir-inventario >/dev/null\n",
-        "          echo 'el gate ya no se invoca'\n",
-    )
-    _sustituye(
-        CI,
-        "          python3 .github/scripts/check_suite_inventory.py\n",
-        "          echo 'el gate ya no se invoca'\n",
-    )
-
-
 def _desinvoca(fragmento: str) -> None:
     """Sustituye la INVOCACION de un script por un `echo` de una linea.
 
@@ -359,6 +341,21 @@ def _desinvoca(fragmento: str) -> None:
         sangria = linea[:len(linea) - len(linea.lstrip())]
         texto = texto.replace(linea, f"{sangria}echo 'des-invocado por la calibracion'\n", 1)
     CI.write_text(texto, encoding="utf-8")
+
+
+def m_borra_gate_exigido() -> None:
+    """Se deja de invocar el gate de inventario de suites.
+
+    El job sigue existiendo, el fichero sigue en el arbol, y el gate no se
+    ejecuta nunca. `JOBS_EXIGIDOS` no ve esto: protege jobs, no pasos.
+    """
+    # El ANCLA se deriva, no se escribe a mano: la certificacion paso a ir por
+    # `bootstrap_certificacion.py` y el nombre del gate quedo en una linea de
+    # continuacion, asi que el ancla literal dejo de existir y este caso murio
+    # con `MUTACION IMPOSIBLE`. Bien hecho por el arnes -se nego en vez de
+    # pasar- pero hay que arreglarlo donde toca: se des-invoca por FRAGMENTO,
+    # que es lo que `_desinvoca` ya hace para los otros cinco gates.
+    _desinvoca("check_suite_inventory.py")
 
 
 def m_desinvoca_ejecucion_real() -> None:
