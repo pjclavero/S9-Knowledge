@@ -963,14 +963,21 @@ def comprueba_gates_exigidos(datos: dict, nombre: str) -> list[str]:
                 acumulada = ""
             if acumulada:
                 lineas.append(acumulada)
+    # La invocacion puede NO empezar la linea: desde que la raiz de confianza se
+    # ejecuta desde el objeto Git, la linea real es
+    # `git show "$SUJETO:...bootstrap..." | python3 -I - <gate>.py`. Con
+    # `re.match` -anclado al principio- este control declaraba ausente una
+    # invocacion que si estaba; medido: EXIT=1 diciendo que
+    # `check_ejecucion_real.py` no se invocaba, sobre un `ci.yml` correcto.
+    #
+    # Se pasa a `re.search`, pero se siguen descartando los COMENTARIOS: nombrar
+    # un gate en un comentario no lo ejecuta, y esa distincion es justo la que
+    # hace util a esta comprobacion. Se admiten ademas banderas del interprete
+    # (`-I`, `-s`, `-E`) y el `-` de "programa por stdin".
     invocadas = [l for l in lineas
-                 # Se admiten BANDERAS DEL INTERPRETE entre `python3` y el
-                 # script (`-s`, `-E`, `-I`...). Hoy `ci.yml` no las usa -se
-                 # midio que `-s` pone el gate rojo por `falta PyYAML`, que vive
-                 # en el *user site*- pero si algun dia se endurece el
-                 # lanzamiento, esta comprobacion tiene que seguir reconociendo
-                 # su propia invocacion en vez de declararla ausente.
-                 if re.match(r"\s*(sudo\s+)?python[0-9.]*(\s+-[A-Za-z]+)*\s+\S*\.py\b", l)]
+                 if not l.strip().startswith("#")
+                 and re.search(r"(?:sudo\s+)?python[0-9.]*(?:\s+-[A-Za-z]*)*"
+                               r"\s+\S*\.py\b", l)]
     texto = "\n".join(invocadas)
     return [
         f"{nombre}: ningun paso invoca `{gate}`. El fichero puede seguir en el "

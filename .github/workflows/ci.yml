@@ -372,9 +372,10 @@ jobs:
       - name: Lo ejecutado de verdad tiene que ser lo que el inventario declara
         run: |
           set -euo pipefail
-          python3 -I .github/scripts/bootstrap_certificacion.py \
-            .github/scripts/check_ejecucion_real.py \
-            --junit artifacts/junit
+          SUJETO="${GITHUB_SHA:-$(git rev-parse HEAD)}"
+          git show "$SUJETO:.github/scripts/bootstrap_certificacion.py" \
+            | python3 -I - .github/scripts/check_ejecucion_real.py \
+                --junit artifacts/junit
 
       # -----------------------------------------------------------------
       # Inventario de suites como PUERTA (ejercicio RC 1)
@@ -397,8 +398,21 @@ jobs:
       # se DERIVA de lo que los jobs invocan, de la coleccion real, de los
       # arneses de calibracion y del inventario de la base. Ver la cabecera de
       # `.github/scripts/check_suite_inventory.py`.
-      # LA CERTIFICACION VA POR EL BOOTSTRAP, Y `-I` ES PARTE DE LA
-      # ARQUITECTURA, no un extra.
+      # LA RAIZ DE CONFIANZA SE EJECUTA DESDE EL OBJETO GIT, NO DESDE EL ARBOL.
+      #
+      # El bootstrap verificaba la fuente critica -incluido el mismo- pero, si
+      # su codigo salia del arbol, esa comprobacion corria DENTRO del bootstrap
+      # ya modificado: circular. Medido, combinando un reemplazo en el
+      # bootstrap sin commitear con un parcheo de `contenido_verificado`:
+      # EXIT=0, 0 errores, defecto real tragado y `HOT-01` nunca commiteado.
+      # Ninguna barrera sola bastaba; la combinacion pasaba porque el unico
+      # fichero que nadie verificaba era el verificador.
+      #
+      # `git show "$SUJETO:<ruta>" | python3 -I -` saca la raiz del arbol
+      # mutable: lo que se ejecuta es el objeto del commit que se certifica.
+      # `set -o pipefail` (arriba) hace que un `git show` fallido no se trague.
+      #
+      # Y `-I` sigue siendo parte de la arquitectura, no un extra:
       #
       # Un proceso potencialmente contaminado no puede certificarse a si mismo
       # comparando atributos de ese mismo proceso: eso se intento tres veces
@@ -434,8 +448,9 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: |
           set -euo pipefail
-          python3 -I .github/scripts/bootstrap_certificacion.py \
-            .github/scripts/check_suite_inventory.py
+          SUJETO="${GITHUB_SHA:-$(git rev-parse HEAD)}"
+          git show "$SUJETO:.github/scripts/bootstrap_certificacion.py" \
+            | python3 -I - .github/scripts/check_suite_inventory.py
 
       # El inventario es una MEDIDA, no una lista: se regenera. Si el commit no
       # trae el inventario actualizado, la base del trinquete del PR siguiente

@@ -27,7 +27,9 @@ pieza tiene su fila en `calibra_desarme.py`.
 LA ARQUITECTURA
 ===============
     CI / lanzador
-        -> interprete NUEVO y AISLADO (`python3 -I`): sin *user site*, sin
+        -> `git show <sujeto>:<este fichero>` -EL CODIGO DE LA RAIZ SALE DEL
+           OBJETO GIT, NO DEL ARBOL DE TRABAJO-
+        -> interprete NUEVO y AISLADO (`python3 -I -`): sin *user site*, sin
            `PYTHONPATH` heredado, sin el directorio del script en `sys.path`,
            y por tanto sin arranques automaticos de Python
         -> este bootstrap, solo stdlib:
@@ -36,6 +38,19 @@ LA ARQUITECTURA
              3. comprueba que los modulos criticos AUN NO estan cargados
              4. carga el codigo critico desde la RUTA EXACTA
         -> el gate real
+
+LA RAIZ NO SE AUTOVERIFICA, Y ESO ERA UNA REGRESION CLASICA
+==========================================================
+`verifica_fuente()` lista este fichero entre los que comprueba, pero si el
+codigo que corre es el del ARBOL, esa comprobacion se ejecuta dentro del propio
+bootstrap ya modificado: circular. Medido, combinando un reemplazo aqui sin
+commitear con un parcheo de `contenido_verificado` -sin tocar ninguna perilla-:
+EXIT=0, 0 errores, con un defecto real tragado y `HOT-01` nunca commiteado.
+
+Se cierra sacando la raiz del arbol mutable: `ci.yml` ejecuta el codigo que sale
+de `git show <sujeto>:<ruta>`. La verificacion del fichero EN DISCO se conserva
+-detecta que disco y sujeto difieren- pero ya no es de quien depende la
+honestidad de la raiz.
 
 El aislamiento ya no es "defensa secundaria opcional": es parte de la
 arquitectura. Pero el bootstrap tiene que seguir detectando contaminacion
@@ -60,7 +75,26 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[2]
+def _raiz_del_repo() -> Path:
+    """La raiz, tambien cuando este codigo llega POR STDIN y no hay `__file__`.
+
+    La certificacion se invoca como
+    `git show <sujeto>:...bootstrap... | python3 -I - <gate>`, y en esa forma no
+    existe `__file__`. Es el mismo tropiezo que ya me costo una fila de
+    calibracion -`exec(open(...))` sin `__file__` reventaba con `NameError`,
+    un rojo prestado-, asi que aqui se resuelve de entrada.
+    """
+    propio = globals().get("__file__")
+    if propio:
+        return Path(propio).resolve().parents[2]
+    p = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                       capture_output=True, text=True, timeout=120)
+    if p.returncode != 0:
+        raise SystemExit("::error::no se pudo determinar la raiz del repositorio")
+    return Path(p.stdout.strip()).resolve()
+
+
+REPO = _raiz_del_repo()
 SCRIPTS = REPO / ".github" / "scripts"
 
 # Codigo del proyecto del que depende la certificacion. Se verifica contra el
