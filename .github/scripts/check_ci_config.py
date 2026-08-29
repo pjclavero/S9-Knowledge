@@ -974,10 +974,20 @@ def comprueba_gates_exigidos(datos: dict, nombre: str) -> list[str]:
     # un gate en un comentario no lo ejecuta, y esa distincion es justo la que
     # hace util a esta comprobacion. Se admiten ademas banderas del interprete
     # (`-I`, `-s`, `-E`) y el `-` de "programa por stdin".
+    # Se cuenta una linea como EJECUTORA si invoca a python y no es un
+    # comentario. Enumerar la forma de los argumentos entre `python3` y el
+    # script se rompio dos veces seguidas -primero con `-I`, luego con
+    # `--sujeto "$SUJETO"`- y cada rotura declaraba ausente una invocacion que
+    # SI estaba. La propiedad relevante no es "que aspecto tienen los
+    # argumentos" sino "esta linea ejecuta python y nombra el gate".
+    #
+    # Los COMENTARIOS se siguen descartando: nombrar un gate en un comentario no
+    # lo ejecuta, y esa distincion es justo la que hace util a esta
+    # comprobacion -su propia calibracion la cazo una vez dandose por satisfecha
+    # con un `echo`-.
     invocadas = [l for l in lineas
                  if not l.strip().startswith("#")
-                 and re.search(r"(?:sudo\s+)?python[0-9.]*(?:\s+-[A-Za-z]*)*"
-                               r"\s+\S*\.py\b", l)]
+                 and re.search(r"(?<![\w.-])python[0-9.]*\s", l)]
     texto = "\n".join(invocadas)
     return [
         f"{nombre}: ningun paso invoca `{gate}`. El fichero puede seguir en el "

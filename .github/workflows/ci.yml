@@ -374,7 +374,8 @@ jobs:
           set -euo pipefail
           SUJETO="${GITHUB_SHA:-$(git rev-parse HEAD)}"
           git show "$SUJETO:.github/scripts/bootstrap_certificacion.py" \
-            | python3 -I - .github/scripts/check_ejecucion_real.py \
+            | python3 -I - --sujeto "$SUJETO" \
+                .github/scripts/check_ejecucion_real.py \
                 --junit artifacts/junit
 
       # -----------------------------------------------------------------
@@ -450,7 +451,8 @@ jobs:
           set -euo pipefail
           SUJETO="${GITHUB_SHA:-$(git rev-parse HEAD)}"
           git show "$SUJETO:.github/scripts/bootstrap_certificacion.py" \
-            | python3 -I - .github/scripts/check_suite_inventory.py
+            | python3 -I - --sujeto "$SUJETO" \
+                .github/scripts/check_suite_inventory.py
 
       # El inventario es una MEDIDA, no una lista: se regenera. Si el commit no
       # trae el inventario actualizado, la base del trinquete del PR siguiente

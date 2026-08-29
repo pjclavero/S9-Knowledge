@@ -309,6 +309,33 @@ builtins.__import__ = _mio
 '''
 
 
+SUITE_CRITICA = REPO / "viewer" / "tests" / "test_parcialidad_declarada.py"
+REGISTRO_TXT = REPO / ".github" / "xfail-registro.txt"
+
+
+def corre_certificacion_desde_git(gate: Path, extra=None):
+    """La cadena EXACTA que corre en CI, con el SHA SUJETO explicito.
+
+        SHA sujeto -> objeto Git <SHA>:<bootstrap> -> bootstrap limpio ->
+        verificacion del codigo critico -> gate
+
+    El codigo de la raiz sale de `git show`, no del fichero del working tree, y
+    el sujeto se PASA para que el codigo que se ejecuta y el commit contra el
+    que se verifica sean el mismo.
+    """
+    sujeto = subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO,
+                            capture_output=True, text=True, timeout=120).stdout.strip()
+    fuente = subprocess.run(
+        ["git", "show", f"{sujeto}:.github/scripts/bootstrap_certificacion.py"],
+        cwd=REPO, capture_output=True, text=True, timeout=300)
+    if fuente.returncode != 0:
+        return -1, f"MUTACION IMPOSIBLE: `git show` fallo ({fuente.stderr[:100]})"
+    p = subprocess.run(
+        [sys.executable, "-I", "-", "--sujeto", sujeto, str(gate), *(extra or [])],
+        cwd=REPO, input=fuente.stdout, capture_output=True, text=True, timeout=3600)
+    return p.returncode, p.stdout + p.stderr
+
+
 def corre_bootstrap(gate: Path, extra=None, aislado=True):
     orden = [sys.executable] + (["-I"] if aislado else [])
     orden += [str(BOOTSTRAP), str(gate), *(extra or [])]
@@ -721,6 +748,89 @@ def main() -> int:
     anota("H ablacion de la integridad -> el ataque F vuelve a pasar",
           "PASS (pasa) y todo restaurado", f"pasa={pasa}, restaurado={restauradoH}",
           pasa and restauradoH)
+
+    # --- I. PRUEBA POSITIVA: el bootstrap NO sale del disco ----------------
+    # La mas simple y la mas convincente: se mete un MARCADOR INOCUO en el
+    # bootstrap del working tree y se comprueba que ese marcador NO se ejecuta.
+    # Si no aparece, el bootstrap que corre no es el del disco. Punto.
+    print("\n########## I. marcador inocuo en el bootstrap del working tree")
+    MARCA = Path("/tmp/s9k-marca-bootstrap-disco")
+    MARCA.unlink(missing_ok=True)
+    sha_boot_I = sha(BOOTSTRAP)
+    previo_I = BOOTSTRAP.read_bytes()
+    try:
+        BOOTSTRAP.write_bytes(
+            previo_I + (
+                "\n# MARCADOR INOCUO DE LA CALIBRACION\n"
+                "from pathlib import Path as _P\n"
+                f"_P({str(MARCA)!r}).write_text('el bootstrap del disco SI corrio')\n"
+            ).encode("utf-8"))
+        rcI, salidaI = corre_certificacion_desde_git(GATE)
+    finally:
+        BOOTSTRAP.write_bytes(previo_I)
+    marcador_corrio = MARCA.exists()
+    MARCA.unlink(missing_ok=True)
+    restauradoI = sha(BOOTSTRAP) == sha_boot_I
+    print(f"    marcador ejecutado={marcador_corrio}  EXIT={rcI}  "
+          f"restaurado={restauradoI}")
+    anota("I el marcador del bootstrap en disco NO se ejecuta",
+          "marcador ausente (el bootstrap sale del objeto Git)",
+          f"marcador={marcador_corrio}, EXIT={rcI}, restaurado={restauradoI}",
+          (not marcador_corrio) and restauradoI)
+
+    # --- J. EL ATAQUE COMBINADO ------------------------------------------
+    # No basta con probar cada mitad por separado: precisamente la COMBINACION
+    # -bootstrap del working tree alterado para no verificar nada, MAS una
+    # funcion critica sustituida- es la que demostro el hueco. Aqui se exige que
+    # el ataque no sobreviva, y ademas se registra POR QUE no sobrevive.
+    print("\n########## J. ATAQUE COMBINADO: bootstrap alterado + funcion parcheada")
+    sha_boot_J = sha(BOOTSTRAP)
+    sha_reg_J = sha(REGISTRO_PY)
+    sha_suite_J = sha(SUITE_CRITICA)
+    sha_registro_J = sha(REGISTRO_TXT)
+    previo_boot = BOOTSTRAP.read_bytes()
+    previo_reg = REGISTRO_PY.read_bytes()
+    previo_suite = SUITE_CRITICA.read_bytes()
+    previo_registro = REGISTRO_TXT.read_bytes()
+    try:
+        # (1) el bootstrap del disco deja de verificar nada
+        texto_boot = previo_boot.decode("utf-8")
+        llamada = "    problemas = sin_precarga() + verifica_fuente(sha)"
+        if llamada not in texto_boot:
+            raise SystemExit("MUTACION IMPOSIBLE (J): no esta la llamada a verificar")
+        BOOTSTRAP.write_text(texto_boot.replace(llamada, "    problemas = []", 1),
+                             encoding="utf-8")
+        # (2) la FUNCION critica se sustituye por una que no comprueba nada
+        texto_reg = previo_reg.decode("utf-8")
+        BOOTSTRAP_MARCA = "\n\ndef contenido_verificado():\n    return (FICHERO.read_text(encoding='utf-8') if FICHERO.exists() else ''), []\n"
+        REGISTRO_PY.write_text(texto_reg + BOOTSTRAP_MARCA, encoding="utf-8")
+        # (3) defecto real tragado y autorizacion escrita en caliente
+        SUITE_CRITICA.write_text(
+            previo_suite.decode("utf-8")
+            + "\n\n@pytest.mark.xfail(strict=True, reason='infra')\n"
+              "def test_tragado_combinado():\n    assert 1 == 2\n",
+            encoding="utf-8")
+        REGISTRO_TXT.write_text(
+            previo_registro.decode("utf-8")
+            + f"HOT-01 | {SUITE_CRITICA.relative_to(REPO).as_posix()}"
+              f"::test_tragado_combinado | escrito en caliente\n",
+            encoding="utf-8")
+        rcJ, salidaJ = corre_certificacion_desde_git(GATE)
+    finally:
+        BOOTSTRAP.write_bytes(previo_boot)
+        REGISTRO_PY.write_bytes(previo_reg)
+        SUITE_CRITICA.write_bytes(previo_suite)
+        REGISTRO_TXT.write_bytes(previo_registro)
+        subprocess.run(["rm", "-rf", str(SCRIPTS / "__pycache__")], timeout=60)
+    motivoJ = [m for m in (INTEGRIDAD, PRECARGA, MOTIVO) if m in salidaJ]
+    restauradoJ = (sha(BOOTSTRAP) == sha_boot_J and sha(REGISTRO_PY) == sha_reg_J
+                   and sha(SUITE_CRITICA) == sha_suite_J
+                   and sha(REGISTRO_TXT) == sha_registro_J)
+    print(f"    EXIT={rcJ}  motivos={motivoJ}  restaurado={restauradoJ}")
+    anota("J ataque COMBINADO (bootstrap alterado + funcion parcheada)",
+          "ROJO con motivo, y todo restaurado",
+          f"EXIT={rcJ}, motivos={motivoJ or 'ninguno'}, restaurado={restauradoJ}",
+          rcJ == 1 and bool(motivoJ) and restauradoJ)
 
     # --- 6. CONTROL POSITIVO: el arnes SI puede ablacionar ----------------
     print("\n########## 6. control positivo: el arnes SI puede ablacionar")

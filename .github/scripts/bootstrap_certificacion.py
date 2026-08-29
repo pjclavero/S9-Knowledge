@@ -194,6 +194,21 @@ def main(argv: list[str] | None = None) -> int:
     if not argv:
         print("::error::uso: bootstrap_certificacion.py <ruta-del-gate> [args]")
         return 2
+    # EL SHA SUJETO SE PASA, NO SE RE-DEDUCE. La cadena tiene que ser exacta:
+    #     SHA sujeto -> objeto Git <SHA>:<bootstrap> -> bootstrap limpio ->
+    #     verificacion del codigo critico -> gate
+    # Si el bootstrap volviera a resolver el sujeto por su cuenta, el codigo que
+    # se ejecuta y el sujeto contra el que se verifica podrian no ser el mismo
+    # commit, y toda la cadena dejaria de ser una cadena.
+    sujeto_pasado = None
+    if argv and argv[0] == "--sujeto":
+        if len(argv) < 2:
+            print("::error::`--sujeto` sin valor")
+            return 2
+        sujeto_pasado, argv = argv[1], argv[2:]
+    if not argv:
+        print("::error::uso: bootstrap_certificacion.py [--sujeto SHA] <gate> [args]")
+        return 2
     ruta_gate, resto = argv[0], argv[1:]
     nombre_gate = Path(ruta_gate).stem
 
@@ -216,7 +231,19 @@ def main(argv: list[str] | None = None) -> int:
                   f"asi que el verde que produjera no incluiria la garantia.")
             return 1
 
-    sha, origen = sujeto()
+    if sujeto_pasado:
+        p = _git("rev-parse", "--verify", f"{sujeto_pasado}^{{commit}}")
+        if p.returncode != 0:
+            print(f"::error::{MOTIVO_INTEGRIDAD}: el sujeto `{sujeto_pasado}` "
+                  f"no es un commit de este repositorio.")
+            return 1
+        sha, origen = p.stdout.strip(), "--sujeto (el mismo del que salio este codigo)"
+    else:
+        sha, origen = sujeto()
+        if sha is not None:
+            print("::warning::sin `--sujeto`: el bootstrap resuelve el commit por "
+                  "su cuenta, asi que el codigo que corre y el sujeto contra el "
+                  "que se verifica podrian no ser el mismo. En `ci.yml` se pasa.")
     if sha is None:
         print(f"::error::{MOTIVO_INTEGRIDAD}: no se pudo identificar el sujeto "
               f"({origen}). Sin sujeto no hay nada contra lo que verificar la "
