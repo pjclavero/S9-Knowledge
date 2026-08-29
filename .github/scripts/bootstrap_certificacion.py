@@ -84,8 +84,14 @@ def _raiz_del_repo() -> Path:
     calibracion -`exec(open(...))` sin `__file__` reventaba con `NameError`,
     un rojo prestado-, asi que aqui se resuelve de entrada.
     """
+    # OJO: con `python3 -I -`, `__file__` NO esta ausente: vale `'<stdin>'`.
+    # Darlo por bueno hacia que la raiz se resolviera a un directorio
+    # cualquiera; medido: el bootstrap decia `sujeto 730a749f5749` -el HEAD de
+    # OTRO checkout- y luego `falta .github/scripts/normaliza_shell.py en
+    # disco`. Un rojo por accidente, no por el motivo. Solo vale si apunta a un
+    # fichero `.py` que EXISTE.
     propio = globals().get("__file__")
-    if propio:
+    if propio and propio.endswith(".py") and Path(propio).exists():
         return Path(propio).resolve().parents[2]
     p = subprocess.run(["git", "rev-parse", "--show-toplevel"],
                        capture_output=True, text=True, timeout=120)
