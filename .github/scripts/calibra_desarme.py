@@ -313,6 +313,12 @@ SUITE_CRITICA = REPO / "viewer" / "tests" / "test_parcialidad_declarada.py"
 REGISTRO_TXT = REPO / ".github" / "xfail-registro.txt"
 
 
+def sujeto_actual() -> str:
+    return subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO,
+                          capture_output=True, text=True,
+                          timeout=120).stdout.strip()
+
+
 def corre_certificacion_desde_git(gate: Path, extra=None):
     """La cadena EXACTA que corre en CI, con el SHA SUJETO explicito.
 
@@ -773,7 +779,7 @@ def main() -> int:
     restauradoI = sha(BOOTSTRAP) == sha_boot_I
     print(f"    marcador ejecutado={marcador_corrio}  EXIT={rcI}  "
           f"restaurado={restauradoI}")
-    anota("I el marcador del bootstrap en disco NO se ejecuta",
+    anota("M4 marcador en el bootstrap del working tree: NO se ejecuta",
           "marcador ausente (el bootstrap sale del objeto Git)",
           f"marcador={marcador_corrio}, EXIT={rcI}, restaurado={restauradoI}",
           (not marcador_corrio) and restauradoI)
@@ -827,10 +833,101 @@ def main() -> int:
                    and sha(SUITE_CRITICA) == sha_suite_J
                    and sha(REGISTRO_TXT) == sha_registro_J)
     print(f"    EXIT={rcJ}  motivos={motivoJ}  restaurado={restauradoJ}")
-    anota("J ataque COMBINADO (bootstrap alterado + funcion parcheada)",
+    anota("M5 ataque COMBINADO (bootstrap del disco + funcion parcheada)",
           "ROJO con motivo, y todo restaurado",
           f"EXIT={rcJ}, motivos={motivoJ or 'ninguno'}, restaurado={restauradoJ}",
           rcJ == 1 and bool(motivoJ) and restauradoJ)
+
+    # --- K. EL PASO DE CI NO PUEDE SALIR VERDE SIN CERTIFICAR -------------
+    # La tuberia que introduje en el delta anterior traia un modo de fallo
+    # SILENCIOSO: si `git show` falla, `python3 -I -` recibe stdin vacio, no
+    # ejecuta nada y sale 0. La proteccion era `set -o pipefail`, declarada en
+    # prosa y que ningun gate comprobaba ni ninguna fila calibraba.
+    #
+    # Aqui se mide la propiedad que de verdad importa -"si la raiz no se puede
+    # materializar, el paso enrojece"- sobre las DOS formas, y con un defecto
+    # REAL presente, para que un verde signifique de verdad que la
+    # certificacion no llego a correr.
+    print("\n########## K. el paso de CI con la raiz irrecuperable")
+    sha_suite_K = sha(SUITE_CRITICA)
+    previo_suite_K = SUITE_CRITICA.read_bytes()
+    gate_rel = GATE.relative_to(REPO).as_posix()
+
+    def paso(forma: str, objeto: str) -> tuple[int, str]:
+        if forma == "embarcada":
+            # La MISMA forma que `ci.yml`, incluidos `umask 077` y el
+            # `trap`: si el arnes midiera otra construccion, mediria otra cosa.
+            cuerpo = ('set -eu\n'
+                      'umask 077\n'
+                      'RAIZ="$(mktemp)"\n'
+                      'trap \'rm -f "$RAIZ"\' EXIT\n'
+                      f'git show "{objeto}" > "$RAIZ"\n'
+                      f'python3 -I "$RAIZ" --sujeto "$SUJETO" {gate_rel}\n')
+        else:
+            # La tuberia RETIRADA, con la proteccion quitada: es la edicion
+            # accidental (normalizar `set -euo pipefail` a `set -eu`).
+            cuerpo = ('set -eu\n'
+                      f'git show "{objeto}" '
+                      f'| python3 -I - --sujeto "$SUJETO" {gate_rel}\n')
+        p = subprocess.run(["bash", "-c", cuerpo], cwd=REPO,
+                           capture_output=True, text=True, timeout=3600,
+                           env={**os.environ, "SUJETO": sujeto_actual()})
+        return p.returncode, p.stdout + p.stderr
+
+    try:
+        SUITE_CRITICA.write_text(
+            previo_suite_K.decode("utf-8")
+            + "\n\n@pytest.mark.xfail(strict=True, reason='infra')\n"
+              "def test_tragado_paso_ci():\n    assert 1 == 2\n",
+            encoding="utf-8")
+        sujeto = sujeto_actual()
+        objeto_ok = f"{sujeto}:.github/scripts/bootstrap_certificacion.py"
+        objeto_roto = f"{sujeto}:.github/scripts/NO_EXISTE.py"
+        rcK1, salK1 = paso("embarcada", objeto_roto)
+        rcK2, salK2 = paso("tuberia", objeto_roto)
+        rcK3, salK3 = paso("embarcada", objeto_ok)
+    finally:
+        SUITE_CRITICA.write_bytes(previo_suite_K)
+        subprocess.run(["rm", "-rf", str(SCRIPTS / "__pycache__")], timeout=60)
+    restauradoK = sha(SUITE_CRITICA) == sha_suite_K
+
+    # M1: no basta con que enrojezca; hay que demostrar que PYTHON NO LLEGO A
+    # EJECUTARSE. Si hubiera corrido, el bootstrap habria impreso su linea
+    # `bootstrap: sujeto ...`.
+    python_corrio_M1 = "bootstrap: sujeto" in salK1
+    print(f"    M1 EMBARCADA + `git show` roto -> EXIT={rcK1}  "
+          f"python ejecutado={python_corrio_M1}")
+    anota("M1 `git show` falla -> ROJO ANTES de Python",
+          "ROJO y Python sin ejecutar",
+          f"EXIT={rcK1}, python={python_corrio_M1}",
+          rcK1 != 0 and not python_corrio_M1)
+
+    # M2 ES LA FILA CLAVE. Reintroduce la TUBERIA y hace fallar el primer
+    # comando: tiene que REPRODUCIR el falso verde antiguo. Sin ella, el
+    # arreglo seria una reescritura sin prueba de que la causa desaparecio;
+    # con ella queda demostrado que lo eliminado es el MECANISMO CONCRETO que
+    # producia el PASS falso, no una cuestion de sintaxis.
+    silenciosa = rcK2 == 0 and "bootstrap: sujeto" not in salK2
+    print(f"    M2 TUBERIA reintroducida + primer comando roto -> EXIT={rcK2}"
+          f"{'  (FALSO VERDE reproducido)' if silenciosa else ''}")
+    anota("M2 reintroducir la TUBERIA reproduce el falso verde",
+          "EXIT=0 sin certificar (la causa era esa)",
+          f"EXIT={rcK2}, python sin ejecutar={'bootstrap: sujeto' not in salK2}",
+          silenciosa)
+
+    # M3: se vuelve a la forma embarcada con EL MISMO fallo. Es el cierre A/B:
+    # mismo error, distinto desenlace, y la unica variable es la tuberia.
+    print(f"    M3 vuelta a EMBARCADA con el MISMO fallo -> EXIT={rcK1}")
+    anota("M3 restaurado el fichero intermedio, el mismo fallo es ROJO",
+          "ROJO (cierre A/B contra M2)", f"EXIT={rcK1} frente a M2 EXIT={rcK2}",
+          rcK1 != 0 and rcK2 == 0)
+
+    caza = rcK3 == 1
+    print(f"    NORMAL: EMBARCADA + raiz correcta -> EXIT={rcK3} "
+          f"(1 = certifica y caza el defecto real inyectado)")
+    anota("NORMAL objeto Git -> temporal -> Python, y CERTIFICA",
+          "ROJO por el defecto real inyectado",
+          f"EXIT={rcK3}, suite restaurada={restauradoK}", caza and restauradoK)
 
     # --- 6. CONTROL POSITIVO: el arnes SI puede ablacionar ----------------
     print("\n########## 6. control positivo: el arnes SI puede ablacionar")

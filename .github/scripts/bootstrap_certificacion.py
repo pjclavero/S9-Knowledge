@@ -76,36 +76,13 @@ import sys
 from pathlib import Path
 
 def _raiz_del_repo() -> Path:
-    """La raiz, tambien cuando este codigo llega POR STDIN y no hay `__file__`.
+    """La raiz, preguntandole a git desde el directorio de trabajo.
 
-    La certificacion se invoca como
-    `git show <sujeto>:...bootstrap... | python3 -I - <gate>`, y en esa forma no
-    existe `__file__`. Es el mismo tropiezo que ya me costo una fila de
-    calibracion -`exec(open(...))` sin `__file__` reventaba con `NameError`,
-    un rojo prestado-, asi que aqui se resuelve de entrada.
+    NO se deduce de `__file__`, y eso es deliberado: este codigo se ejecuta
+    desde un fichero TEMPORAL fuera del repositorio, asi que su ruta no dice
+    nada de donde esta la raiz. Intentar deducirla del sitio del fichero fue lo
+    que me llevo a resolver otro checkout entero.
     """
-    # `__file__` SOLO vale si esta DONDE ESTE FICHERO VIVE EN EL REPOSITORIO,
-    # es decir en `<raiz>/.github/scripts/`. Cualquier otra cosa se descarta y
-    # se pregunta a git. Dos formas de ejecucion lo exigen, y las dos me
-    # mordieron:
-    #   * `python3 -I -`  -> `__file__` NO esta ausente: vale `'<stdin>'`.
-    #     Darlo por bueno resolvia la raiz a un directorio cualquiera; medido:
-    #     `sujeto 730a749f5749` -el HEAD de OTRO checkout- y luego `falta
-    #     normaliza_shell.py en disco`. Rojo por accidente y midiendo otro
-    #     repositorio.
-    #   * `python3 -I <temporal>` -> `__file__` es la ruta del temporal, que ni
-    #     acaba en `.py` ni esta en el repo. Comprobar solo el sufijo habria
-    #     bastado hoy, pero por un pelo: un temporal llamado `algo.py` habria
-    #     colado y `parents[2]` de `/tmp/algo.py` no es ninguna raiz.
-    # Comprobar el SITIO en vez del sufijo cubre las dos y no depende de como
-    # se llame el fichero.
-    propio = globals().get("__file__")
-    if propio:
-        candidato = Path(propio)
-        if (candidato.exists()
-                and candidato.parent.name == "scripts"
-                and candidato.parent.parent.name == ".github"):
-            return candidato.resolve().parents[2]
     p = subprocess.run(["git", "rev-parse", "--show-toplevel"],
                        capture_output=True, text=True, timeout=120)
     if p.returncode != 0:
@@ -172,6 +149,45 @@ def verifica_fuente(sha: str) -> list[str]:
                 f"{en_git[:16]}...). La certificacion ejercitaria codigo que no "
                 f"es el que se certifica.")
     return problemas
+
+
+def soy_el_objeto_git(sha: str) -> list[str]:
+    """Los BYTES QUE ESTOY EJECUTANDO vienen del objeto Git del SHA sujeto.
+
+    ESTA es la propiedad que importa, y hubo que reformularla. La version
+    anterior comprobaba que `__file__` estuviera en `<raiz>/.github/scripts/`,
+    o sea VALIDABA LA MECANICA VIEJA -"el fichero vive donde vivia antes"-. Con
+    la raiz materializada en un temporal eso habria rechazado el caso legitimo
+    y habria sido otro rojo accidental, que es justo el error que este carril
+    lleva quince rondas persiguiendo.
+
+    Lo que se afirma ahora no menciona rutas ni permisos: los bytes en
+    ejecucion coinciden con `git show <sujeto>:<ruta del bootstrap>`. Da igual
+    si vienen de un temporal en `/tmp`, del fichero del repositorio o de
+    cualquier otro sitio: lo que se comprueba es su PROCEDENCIA.
+
+    FALLA CERRADO: si no se puede leer el propio fuente -por ejemplo si el
+    codigo llegara por una tuberia y no hubiera fichero que leer- no se puede
+    afirmar la procedencia, y entonces es ROJO.
+    """
+    propio = globals().get("__file__")
+    if not propio or not Path(propio).exists():
+        return [f"{MOTIVO_INTEGRIDAD}: no hay fichero del que leer los bytes en "
+                f"ejecucion (`__file__`={propio!r}), asi que no se puede afirmar "
+                f"que vengan del objeto Git del sujeto. Se falla cerrado."]
+    en_ejecucion = Path(propio).read_bytes()
+    p = _git("show", f"{sha}:.github/scripts/bootstrap_certificacion.py")
+    if p.returncode != 0:
+        return [f"{MOTIVO_INTEGRIDAD}: el sujeto {sha[:12]} no contiene el "
+                f"bootstrap, asi que no hay con que comparar los bytes en "
+                f"ejecucion."]
+    del_objeto = p.stdout.encode("utf-8")
+    if hashlib.sha256(en_ejecucion).hexdigest() != hashlib.sha256(del_objeto).hexdigest():
+        return [f"{MOTIVO_INTEGRIDAD}: los bytes que se estan ejecutando NO son "
+                f"los del objeto Git del sujeto {sha[:12]}. La raiz de confianza "
+                f"tiene que salir del commit que se certifica, no del arbol de "
+                f"trabajo ni de ninguna copia intermedia alterada."]
+    return []
 
 
 def sin_precarga() -> list[str]:
@@ -264,7 +280,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     print(f"bootstrap: sujeto {sha[:12]} ({origen}); aislado={aislado}")
 
-    problemas = sin_precarga() + verifica_fuente(sha)
+    problemas = soy_el_objeto_git(sha) + sin_precarga() + verifica_fuente(sha)
     for e in problemas:
         print(f"::error::{e}")
     if problemas:
