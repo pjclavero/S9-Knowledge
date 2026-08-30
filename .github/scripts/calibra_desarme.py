@@ -39,6 +39,9 @@ from __future__ import annotations
 import ast
 import hashlib
 import os
+import re
+import shutil
+import tempfile
 import subprocess
 import sys
 from pathlib import Path
@@ -311,6 +314,37 @@ builtins.__import__ = _mio
 
 SUITE_CRITICA = REPO / "viewer" / "tests" / "test_parcialidad_declarada.py"
 REGISTRO_TXT = REPO / ".github" / "xfail-registro.txt"
+
+
+# `[ \t]`, NO `\s`: `\s` incluye el salto de linea y se comia el final de
+# la linea, pegando la siguiente. Medido: la ablacion producia
+# `problemas = ... + sin_precarga()     for e in problemas:`.
+def _re_termino(nombre: str):
+    return re.compile(r"[ \t]*\+?[ \t]*" + nombre + r"\(sha\)[ \t]*\+?")
+
+
+def neutraliza_verificacion(texto: str, terminos=("verifica_fuente",)) -> str:
+    """Quita el termino `verifica_fuente(sha)` de la linea que lo compone.
+
+    Se DERIVA con una expresion en vez de anclarse a la linea literal: la
+    anterior se rompio en cuanto la llamada gano otro termino
+    (`soy_el_objeto_git(sha) + ...`) y el caso murio con `MUTACION IMPOSIBLE`.
+    El arnes hizo bien en negarse -mejor eso que pasar- pero un ancla que se
+    rompe cada vez que se toca la linea no es un ancla.
+    """
+    lineas = texto.splitlines(keepends=True)
+    for i, linea in enumerate(lineas):
+        if "problemas =" in linea and "verifica_fuente(sha)" in linea:
+            nueva = linea
+            for nombre in terminos:
+                nueva = _re_termino(nombre).sub(" ", nueva)
+            nueva = nueva.replace("=  ", "= ").replace("  +", " +")
+            if nueva.split("=", 1)[1].strip() in ("", "+"):
+                nueva = linea.split("problemas =")[0] + "problemas = []\n"
+            lineas[i] = nueva
+            return "".join(lineas)
+    raise SystemExit("MUTACION IMPOSIBLE: no se encuentra la composicion de "
+                     "`problemas` con `verifica_fuente(sha)`")
 
 
 def sujeto_actual() -> str:
@@ -726,32 +760,42 @@ def main() -> int:
               f"ejecutado={ejeG}, EXIT={rcG}, motivo={por_motivoG}",
               rcG == 1 and por_motivoG)
 
-    # --- H. ablacion de la comprobacion de INTEGRIDAD ---------------------
-    # Se retira `verifica_fuente` del bootstrap y se repite el vector F, que SI
-    # llega. Si el ataque pasa, esa barrera estaba sujetando de verdad.
-    print("\n########## H. ABLACION: sin la comprobacion de integridad")
-    sha_boot = sha(BOOTSTRAP)
-    previo_boot = BOOTSTRAP.read_bytes()
-    llamada = "    problemas = sin_precarga() + verifica_fuente(sha)"
+    # --- H. ABLACION: sin las comprobaciones, el vector F vuelve a pasar --
+    #
+    # OJO AL CAMBIO DE PREMISA. Esta fila ablacionaba el bootstrap DEL DISCO, y
+    # eso ya no demuestra nada: desde que la raiz se ejecuta desde el objeto
+    # Git, tocar el fichero del arbol es INERTE -que es exactamente lo que mide
+    # M4-. Medido al reejecutar: `pasa=False`, o sea el ataque seguia muriendo.
+    # No era un defecto: era el arreglo funcionando.
+    #
+    # Para que la ablacion siga significando algo hay que quitar las
+    # comprobaciones DE LOS BYTES QUE SE EJECUTAN: se parte del objeto Git, se
+    # les quita `soy_el_objeto_git` y `verifica_fuente`, y se ejecuta eso. Si
+    # entonces el vector F pasa, esas dos barreras estaban sujetando de verdad.
+    print("\n########## H. ABLACION de las comprobaciones en los bytes que corren")
+    sha_reg_H = sha(REGISTRO_PY)
+    previo_H = REGISTRO_PY.read_bytes()
+    sujeto = sujeto_actual()
+    fuente = subprocess.run(
+        ["git", "show", f"{sujeto}:.github/scripts/bootstrap_certificacion.py"],
+        cwd=REPO, capture_output=True, text=True, timeout=300).stdout
+    ablado = neutraliza_verificacion(fuente, ("soy_el_objeto_git", "verifica_fuente"))
+    tmp_h = Path(tempfile.mkdtemp(prefix="raiz-ablada-")) / "raiz.py"
+    tmp_h.write_text(ablado, encoding="utf-8")
     try:
-        texto = previo_boot.decode("utf-8")
-        if llamada not in texto:
-            raise SystemExit("MUTACION IMPOSIBLE: no esta la llamada a verificar")
-        BOOTSTRAP.write_text(
-            texto.replace(llamada, "    problemas = sin_precarga()", 1),
-            encoding="utf-8")
-        previo_F2 = REGISTRO_PY.read_bytes()
-        try:
-            REGISTRO_PY.write_bytes(previo_F2 + b"\n# ALTERADO POR LA CALIBRACION\n")
-            rcH, salidaH = corre_bootstrap(GATE)
-        finally:
-            REGISTRO_PY.write_bytes(previo_F2)
+        REGISTRO_PY.write_bytes(previo_H + b"\n# ALTERADO POR LA CALIBRACION\n")
+        pH = subprocess.run(
+            [sys.executable, "-I", str(tmp_h), "--sujeto", sujeto, str(GATE)],
+            cwd=REPO, capture_output=True, text=True, timeout=3600)
+        rcH, salidaH = pH.returncode, pH.stdout + pH.stderr
     finally:
-        BOOTSTRAP.write_bytes(previo_boot)
-    restauradoH = sha(BOOTSTRAP) == sha_boot and sha(REGISTRO_PY) == sha_F
+        REGISTRO_PY.write_bytes(previo_H)
+        shutil.rmtree(tmp_h.parent, ignore_errors=True)
+        subprocess.run(["rm", "-rf", str(SCRIPTS / "__pycache__")], timeout=60)
+    restauradoH = sha(REGISTRO_PY) == sha_reg_H
     pasa = rcH == 0 and INTEGRIDAD not in salidaH
     print(f"    EXIT={rcH}  (0 = el ataque pasa)  restaurado={restauradoH}")
-    anota("H ablacion de la integridad -> el ataque F vuelve a pasar",
+    anota("H ablacion en los BYTES QUE CORREN -> el vector F vuelve a pasar",
           "PASS (pasa) y todo restaurado", f"pasa={pasa}, restaurado={restauradoH}",
           pasa and restauradoH)
 
@@ -800,12 +844,9 @@ def main() -> int:
     previo_registro = REGISTRO_TXT.read_bytes()
     try:
         # (1) el bootstrap del disco deja de verificar nada
-        texto_boot = previo_boot.decode("utf-8")
-        llamada = "    problemas = sin_precarga() + verifica_fuente(sha)"
-        if llamada not in texto_boot:
-            raise SystemExit("MUTACION IMPOSIBLE (J): no esta la llamada a verificar")
-        BOOTSTRAP.write_text(texto_boot.replace(llamada, "    problemas = []", 1),
-                             encoding="utf-8")
+        BOOTSTRAP.write_text(
+            neutraliza_verificacion(previo_boot.decode("utf-8")),
+            encoding="utf-8")
         # (2) la FUNCION critica se sustituye por una que no comprueba nada
         texto_reg = previo_reg.decode("utf-8")
         BOOTSTRAP_MARCA = "\n\ndef contenido_verificado():\n    return (FICHERO.read_text(encoding='utf-8') if FICHERO.exists() else ''), []\n"
