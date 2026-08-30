@@ -84,15 +84,28 @@ def _raiz_del_repo() -> Path:
     calibracion -`exec(open(...))` sin `__file__` reventaba con `NameError`,
     un rojo prestado-, asi que aqui se resuelve de entrada.
     """
-    # OJO: con `python3 -I -`, `__file__` NO esta ausente: vale `'<stdin>'`.
-    # Darlo por bueno hacia que la raiz se resolviera a un directorio
-    # cualquiera; medido: el bootstrap decia `sujeto 730a749f5749` -el HEAD de
-    # OTRO checkout- y luego `falta .github/scripts/normaliza_shell.py en
-    # disco`. Un rojo por accidente, no por el motivo. Solo vale si apunta a un
-    # fichero `.py` que EXISTE.
+    # `__file__` SOLO vale si esta DONDE ESTE FICHERO VIVE EN EL REPOSITORIO,
+    # es decir en `<raiz>/.github/scripts/`. Cualquier otra cosa se descarta y
+    # se pregunta a git. Dos formas de ejecucion lo exigen, y las dos me
+    # mordieron:
+    #   * `python3 -I -`  -> `__file__` NO esta ausente: vale `'<stdin>'`.
+    #     Darlo por bueno resolvia la raiz a un directorio cualquiera; medido:
+    #     `sujeto 730a749f5749` -el HEAD de OTRO checkout- y luego `falta
+    #     normaliza_shell.py en disco`. Rojo por accidente y midiendo otro
+    #     repositorio.
+    #   * `python3 -I <temporal>` -> `__file__` es la ruta del temporal, que ni
+    #     acaba en `.py` ni esta en el repo. Comprobar solo el sufijo habria
+    #     bastado hoy, pero por un pelo: un temporal llamado `algo.py` habria
+    #     colado y `parents[2]` de `/tmp/algo.py` no es ninguna raiz.
+    # Comprobar el SITIO en vez del sufijo cubre las dos y no depende de como
+    # se llame el fichero.
     propio = globals().get("__file__")
-    if propio and propio.endswith(".py") and Path(propio).exists():
-        return Path(propio).resolve().parents[2]
+    if propio:
+        candidato = Path(propio)
+        if (candidato.exists()
+                and candidato.parent.name == "scripts"
+                and candidato.parent.parent.name == ".github"):
+            return candidato.resolve().parents[2]
     p = subprocess.run(["git", "rev-parse", "--show-toplevel"],
                        capture_output=True, text=True, timeout=120)
     if p.returncode != 0:

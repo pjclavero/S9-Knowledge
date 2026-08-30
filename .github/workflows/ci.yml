@@ -373,10 +373,12 @@ jobs:
         run: |
           set -euo pipefail
           SUJETO="${GITHUB_SHA:-$(git rev-parse HEAD)}"
-          git show "$SUJETO:.github/scripts/bootstrap_certificacion.py" \
-            | python3 -I - --sujeto "$SUJETO" \
-                .github/scripts/check_ejecucion_real.py \
-                --junit artifacts/junit
+          RAIZ="$(mktemp)"
+          git show "$SUJETO:.github/scripts/bootstrap_certificacion.py" > "$RAIZ"
+          python3 -I "$RAIZ" --sujeto "$SUJETO" \
+            .github/scripts/check_ejecucion_real.py \
+            --junit artifacts/junit
+          rm -f "$RAIZ"
 
       # -----------------------------------------------------------------
       # Inventario de suites como PUERTA (ejercicio RC 1)
@@ -409,9 +411,22 @@ jobs:
       # Ninguna barrera sola bastaba; la combinacion pasaba porque el unico
       # fichero que nadie verificaba era el verificador.
       #
-      # `git show "$SUJETO:<ruta>" | python3 -I -` saca la raiz del arbol
-      # mutable: lo que se ejecuta es el objeto del commit que se certifica.
-      # `set -o pipefail` (arriba) hace que un `git show` fallido no se trague.
+      # `git show "$SUJETO:<ruta>"` saca la raiz del arbol mutable: lo que se
+      # ejecuta es el objeto del commit que se certifica.
+      #
+      # SIN TUBERIA, Y ESO NO ES ESTETICA. La primera version canalizaba
+      # `git show ... | python3 -I -`, y eso introducia un modo de fallo
+      # SILENCIOSO que antes no existia: si `git show` falla, `python3 -I -`
+      # recibe stdin VACIO, no ejecuta nada y sale 0. La proteccion era
+      # `set -o pipefail`, declarada en prosa y que NINGUN gate comprobaba y
+      # NINGUNA fila calibraba: garantia declarada sin control negativo, que es
+      # justo el criterio de bloqueo de este carril. Medido: el mismo paso con
+      # `set -eu` y la ruta mal daba EXIT=0 con salida vacia, o sea la
+      # certificacion no corria y nada enrojecia.
+      #
+      # Se quita la ENTRADA en vez de blindarla: el objeto se materializa en un
+      # fichero y se ejecuta ese fichero. Si `git show` falla, `set -e` enrojece
+      # el paso, sin depender de ninguna opcion de shell que nadie vigile.
       #
       # Y `-I` sigue siendo parte de la arquitectura, no un extra:
       #
@@ -450,9 +465,11 @@ jobs:
         run: |
           set -euo pipefail
           SUJETO="${GITHUB_SHA:-$(git rev-parse HEAD)}"
-          git show "$SUJETO:.github/scripts/bootstrap_certificacion.py" \
-            | python3 -I - --sujeto "$SUJETO" \
-                .github/scripts/check_suite_inventory.py
+          RAIZ="$(mktemp)"
+          git show "$SUJETO:.github/scripts/bootstrap_certificacion.py" > "$RAIZ"
+          python3 -I "$RAIZ" --sujeto "$SUJETO" \
+            .github/scripts/check_suite_inventory.py
+          rm -f "$RAIZ"
 
       # El inventario es una MEDIDA, no una lista: se regenera. Si el commit no
       # trae el inventario actualizado, la base del trinquete del PR siguiente
