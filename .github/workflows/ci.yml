@@ -385,8 +385,15 @@ jobs:
           # comprobacion de procedencia se queda fuera. Git calcula el id del
           # blob de lo que hay EN DISCO y tiene que coincidir con el del arbol
           # del sujeto; si no, ROJO ANTES de Python y con motivo propio.
-          if [ "$(git hash-object "$RAIZ")" != "$(git rev-parse "$SUJETO:$RUTA_RAIZ")" ]; then
-            echo "::error::RAIZ NO MATERIALIZADA: lo escrito en \"$RAIZ\" no es el objeto Git de $RUTA_RAIZ en $SUJETO; la raiz de confianza no se ejecuta."
+          # Los dos ids se calculan ANTES y la condicion compara solo valores:
+          # `check_ci_config` marca -con razon- cualquier `if` cuya condicion
+          # nombre la ruta de un gate, porque no puede distinguir "lo ejecuta"
+          # de "lo nombra". Aqui no se relaja ese control: se saca la ruta de
+          # la condicion.
+          ESPERADO="$(git rev-parse "$SUJETO:$RUTA_RAIZ")"
+          OBTENIDO="$(git hash-object "$RAIZ")"
+          if [ "$OBTENIDO" != "$ESPERADO" ]; then
+            echo "::error::RAIZ NO MATERIALIZADA: lo escrito en la raiz es el blob $OBTENIDO y el objeto Git de $RUTA_RAIZ en $SUJETO es $ESPERADO; la raiz de confianza NO se ejecuta."
             exit 1
           fi
           python3 -I "$RAIZ" --sujeto "$SUJETO" \
@@ -490,8 +497,15 @@ jobs:
           # comprobacion de procedencia se queda fuera. Git calcula el id del
           # blob de lo que hay EN DISCO y tiene que coincidir con el del arbol
           # del sujeto; si no, ROJO ANTES de Python y con motivo propio.
-          if [ "$(git hash-object "$RAIZ")" != "$(git rev-parse "$SUJETO:$RUTA_RAIZ")" ]; then
-            echo "::error::RAIZ NO MATERIALIZADA: lo escrito en \"$RAIZ\" no es el objeto Git de $RUTA_RAIZ en $SUJETO; la raiz de confianza no se ejecuta."
+          # Los dos ids se calculan ANTES y la condicion compara solo valores:
+          # `check_ci_config` marca -con razon- cualquier `if` cuya condicion
+          # nombre la ruta de un gate, porque no puede distinguir "lo ejecuta"
+          # de "lo nombra". Aqui no se relaja ese control: se saca la ruta de
+          # la condicion.
+          ESPERADO="$(git rev-parse "$SUJETO:$RUTA_RAIZ")"
+          OBTENIDO="$(git hash-object "$RAIZ")"
+          if [ "$OBTENIDO" != "$ESPERADO" ]; then
+            echo "::error::RAIZ NO MATERIALIZADA: lo escrito en la raiz es el blob $OBTENIDO y el objeto Git de $RUTA_RAIZ en $SUJETO es $ESPERADO; la raiz de confianza NO se ejecuta."
             exit 1
           fi
           python3 -I "$RAIZ" --sujeto "$SUJETO" \

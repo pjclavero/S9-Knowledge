@@ -353,6 +353,78 @@ def sujeto_actual() -> str:
                           timeout=120).stdout.strip()
 
 
+RUTA_BOOTSTRAP = ".github/scripts/bootstrap_certificacion.py"
+MOTIVO_MATERIALIZACION = "RAIZ NO MATERIALIZADA"
+
+
+def cuerpo_embarcado(objeto: str, gate_rel: str, trunca: int | None = None,
+                     verifica: bool = True) -> str:
+    """La MISMA construccion que `ci.yml`, generada en UN solo sitio.
+
+    Se genera aqui y se COMPARA contra `ci.yml` (fila M0): si el arnes midiera
+    una construccion distinta de la que corre en CI, todas las filas M1-M7
+    hablarian de otra cosa. `trunca` deja la raiz materializada en N bytes
+    -0 = vacia- y `verifica` ABLACIONA la comprobacion de materializacion.
+    """
+    sabotaje = f'truncate -s {trunca} "$RAIZ"\n' if trunca is not None else ""
+    control = (f'ESPERADO="$(git rev-parse "{objeto}")"\n'
+               'OBTENIDO="$(git hash-object "$RAIZ")"\n'
+               'if [ "$OBTENIDO" != "$ESPERADO" ]; then\n'
+               f'  echo "::error::{MOTIVO_MATERIALIZACION}: $OBTENIDO no es $ESPERADO"\n'
+               '  exit 1\n'
+               'fi\n') if verifica else ""
+    return ('set -eu\n'
+            'umask 077\n'
+            'RAIZ="$(mktemp)"\n'
+            'trap \'rm -f "$RAIZ"\' EXIT\n'
+            f'git show "{objeto}" > "$RAIZ"\n'
+            + sabotaje + control +
+            f'python3 -I "$RAIZ" --sujeto "$SUJETO" {gate_rel}\n')
+
+
+def _canon(cuerpo: str, objeto: str) -> list[str]:
+    """Forma comparable: sin comentarios, sin los valores que solo son datos."""
+    unidas, acc = [], ""
+    for linea in cuerpo.splitlines():
+        acc += linea.split("#", 1)[0].strip() if not acc else " " + linea.strip()
+        if acc.endswith("\\"):
+            acc = acc[:-1].strip()
+            continue
+        unidas.append(acc)
+        acc = ""
+    if acc:
+        unidas.append(acc)
+    fuera = []
+    for l in unidas:
+        l = " ".join(l.split())
+        if not l or l.startswith("#"):
+            continue
+        if l.startswith("SUJETO=") or l.startswith("RUTA_RAIZ="):
+            continue
+        l = l.replace("set -euo pipefail", "set -eu")
+        l = l.replace('"$SUJETO:$RUTA_RAIZ"', '"OBJ"').replace(f'"{objeto}"', '"OBJ"')
+        if l.startswith("echo") and MOTIVO_MATERIALIZACION in l:
+            l = f"echo {MOTIVO_MATERIALIZACION}"
+        if l.startswith("python3 -I"):
+            l = 'python3 -I "$RAIZ" --sujeto "$SUJETO" GATE'
+        fuera.append(l)
+    return fuera
+
+
+def pasos_de_certificacion_de_ci() -> list[tuple[str, str]]:
+    """Los pasos de `ci.yml` que materializan la raiz. Falla cerrado."""
+    import yaml  # dependencia ya exigida por `check_ci_config`
+    datos = yaml.safe_load((REPO / ".github" / "workflows" / "ci.yml")
+                           .read_text(encoding="utf-8"))
+    fuera = []
+    for job in (datos.get("jobs") or {}).values():
+        for paso in job.get("steps", []) or []:
+            cuerpo = paso.get("run") or ""
+            if 'RAIZ="$(mktemp)"' in cuerpo:
+                fuera.append((paso.get("name", "?"), cuerpo))
+    return fuera
+
+
 def corre_certificacion_desde_git(gate: Path, extra=None):
     """La cadena EXACTA que corre en CI, con el SHA SUJETO explicito.
 
@@ -897,29 +969,7 @@ def main() -> int:
     def paso(forma: str, objeto: str, trunca: int | None = None,
              verifica: bool = True) -> tuple[int, str]:
         if forma == "embarcada":
-            # La MISMA forma que `ci.yml`, incluidos `umask 077`, el `trap` y
-            # la comprobacion de materializacion: si el arnes midiera otra
-            # construccion, mediria otra cosa.
-            #
-            # `trunca` deja la raiz materializada en N bytes -0 = vacia-, que
-            # es el desenlace de una materializacion incompleta, y `verifica`
-            # permite ABLACIONAR la comprobacion para ver el falso verde que
-            # esa comprobacion esta sujetando.
-            sabotaje = (f'truncate -s {trunca} "$RAIZ"\n'
-                        if trunca is not None else '')
-            control = ('if [ "$(git hash-object "$RAIZ")" '
-                       f'!= "$(git rev-parse "{objeto}")" ]; then\n'
-                       '  echo "::error::RAIZ NO MATERIALIZADA: lo escrito no '
-                       'es el objeto Git"\n'
-                       '  exit 1\n'
-                       'fi\n') if verifica else ''
-            cuerpo = ('set -eu\n'
-                      'umask 077\n'
-                      'RAIZ="$(mktemp)"\n'
-                      'trap \'rm -f "$RAIZ"\' EXIT\n'
-                      f'git show "{objeto}" > "$RAIZ"\n'
-                      + sabotaje + control +
-                      f'python3 -I "$RAIZ" --sujeto "$SUJETO" {gate_rel}\n')
+            cuerpo = cuerpo_embarcado(objeto, gate_rel, trunca, verifica)
         else:
             # La tuberia RETIRADA, con la proteccion quitada: es la edicion
             # accidental (normalizar `set -euo pipefail` a `set -eu`).
@@ -994,7 +1044,37 @@ def main() -> int:
           "ROJO por el defecto real inyectado",
           f"EXIT={rcK3}, suite restaurada={restauradoK}", caza and restauradoK)
 
-    MOTIVO_MAT = "RAIZ NO MATERIALIZADA"
+    MOTIVO_MAT = MOTIVO_MATERIALIZACION
+
+    # --- M0: el arnes mide LA MISMA construccion que corre en CI ----------
+    # Sin esta fila, M1-M7 podrian estar hablando de un shell inventado aqui
+    # mientras `ci.yml` corre otro. Se compara la forma canonica -sin
+    # comentarios y sin los valores que solo son datos- del cuerpo GENERADO
+    # contra la de CADA paso de `ci.yml` que materializa la raiz. Y se calibra:
+    # con la comprobacion ablacionada la comparacion TIENE que diferir; si no,
+    # no estaria mirando nada.
+    obj_canon = f"{sujeto}:{RUTA_BOOTSTRAP}"
+    try:
+        pasos_ci = pasos_de_certificacion_de_ci()
+    except Exception as e:  # falla cerrado: sin poder leer `ci.yml`, es ROJO
+        pasos_ci, fallo_m0 = [], repr(e)
+    else:
+        fallo_m0 = "" if pasos_ci else "ningun paso de ci.yml materializa la raiz"
+    mio = _canon(cuerpo_embarcado(obj_canon, gate_rel), obj_canon)
+    ablado_m0 = _canon(cuerpo_embarcado(obj_canon, gate_rel, verifica=False),
+                       obj_canon)
+    iguales = [n for n, c in pasos_ci if _canon(c, obj_canon) == mio]
+    distintos = [n for n, c in pasos_ci if _canon(c, obj_canon) != mio]
+    detecta = all(_canon(c, obj_canon) != ablado_m0 for n, c in pasos_ci)
+    print(f"\n    M0 pasos de ci.yml que materializan la raiz: {len(pasos_ci)}; "
+          f"identicos al arnes: {len(iguales)}; distintos: {distintos or 'ninguno'}; "
+          f"la comparacion detecta la ablacion={detecta}")
+    anota("M0 el arnes mide la MISMA construccion que `ci.yml`",
+          "todos los pasos identicos, y la comparacion capaz de enrojecer",
+          f"pasos={len(pasos_ci)}, identicos={len(iguales)}, "
+          f"distintos={distintos or 'ninguno'}, detecta ablacion={detecta}"
+          + (f", fallo={fallo_m0}" if fallo_m0 else ""),
+          bool(pasos_ci) and not distintos and detecta and not fallo_m0)
 
     # M6 y M7 cierran la variante N+1 del MISMO bypass: "Python sale 0 sin
     # certificar". La unidad de control cambia -ya no basta con que `git show`
