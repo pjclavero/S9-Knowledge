@@ -894,15 +894,31 @@ def main() -> int:
     previo_suite_K = SUITE_CRITICA.read_bytes()
     gate_rel = GATE.relative_to(REPO).as_posix()
 
-    def paso(forma: str, objeto: str) -> tuple[int, str]:
+    def paso(forma: str, objeto: str, trunca: int | None = None,
+             verifica: bool = True) -> tuple[int, str]:
         if forma == "embarcada":
-            # La MISMA forma que `ci.yml`, incluidos `umask 077` y el
-            # `trap`: si el arnes midiera otra construccion, mediria otra cosa.
+            # La MISMA forma que `ci.yml`, incluidos `umask 077`, el `trap` y
+            # la comprobacion de materializacion: si el arnes midiera otra
+            # construccion, mediria otra cosa.
+            #
+            # `trunca` deja la raiz materializada en N bytes -0 = vacia-, que
+            # es el desenlace de una materializacion incompleta, y `verifica`
+            # permite ABLACIONAR la comprobacion para ver el falso verde que
+            # esa comprobacion esta sujetando.
+            sabotaje = (f'truncate -s {trunca} "$RAIZ"\n'
+                        if trunca is not None else '')
+            control = ('if [ "$(git hash-object "$RAIZ")" '
+                       f'!= "$(git rev-parse "{objeto}")" ]; then\n'
+                       '  echo "::error::RAIZ NO MATERIALIZADA: lo escrito no '
+                       'es el objeto Git"\n'
+                       '  exit 1\n'
+                       'fi\n') if verifica else ''
             cuerpo = ('set -eu\n'
                       'umask 077\n'
                       'RAIZ="$(mktemp)"\n'
                       'trap \'rm -f "$RAIZ"\' EXIT\n'
                       f'git show "{objeto}" > "$RAIZ"\n'
+                      + sabotaje + control +
                       f'python3 -I "$RAIZ" --sujeto "$SUJETO" {gate_rel}\n')
         else:
             # La tuberia RETIRADA, con la proteccion quitada: es la edicion
@@ -927,6 +943,14 @@ def main() -> int:
         rcK1, salK1 = paso("embarcada", objeto_roto)
         rcK2, salK2 = paso("tuberia", objeto_roto)
         rcK3, salK3 = paso("embarcada", objeto_ok)
+        # M6/M7: la raiz se materializa VACIA o TRUNCADA. Sin control, la
+        # vacia sale EXIT=0 -Python no ejecuta nada- y la truncada muere por
+        # `SyntaxError`, un rojo prestado: en los dos casos `soy_el_objeto_git`
+        # NO llega a correr y la procedencia se queda sin comprobar.
+        rcK6, salK6 = paso("embarcada", objeto_ok, trunca=0)
+        rcK7, salK7 = paso("embarcada", objeto_ok, trunca=4000)
+        # ABLACION de la comprobacion nueva: sin ella, vuelve el falso verde.
+        rcK8, salK8 = paso("embarcada", objeto_ok, trunca=0, verifica=False)
     finally:
         SUITE_CRITICA.write_bytes(previo_suite_K)
         subprocess.run(["rm", "-rf", str(SCRIPTS / "__pycache__")], timeout=60)
@@ -969,6 +993,43 @@ def main() -> int:
     anota("NORMAL objeto Git -> temporal -> Python, y CERTIFICA",
           "ROJO por el defecto real inyectado",
           f"EXIT={rcK3}, suite restaurada={restauradoK}", caza and restauradoK)
+
+    MOTIVO_MAT = "RAIZ NO MATERIALIZADA"
+
+    # M6 y M7 cierran la variante N+1 del MISMO bypass: "Python sale 0 sin
+    # certificar". La unidad de control cambia -ya no basta con que `git show`
+    # devuelva 0: lo que se ejecuta tiene que SER el objeto, y quien lo dice es
+    # `git hash-object` sobre el fichero en disco- en vez de anadir un caso
+    # mas. El rojo se exige POR EL MOTIVO: `RAIZ NO MATERIALIZADA` y Python sin
+    # ejecutar; un `SyntaxError` no contaria.
+    for etiqueta, rc, salida, fila in (
+        ("VACIA", rcK6, salK6,
+         "M6 raiz materializada VACIA -> ROJO ANTES de Python"),
+        ("TRUNCADA", rcK7, salK7,
+         "M7 raiz materializada TRUNCADA -> ROJO ANTES de Python"),
+    ):
+        por_motivo = MOTIVO_MAT in salida
+        corrio = "bootstrap: sujeto" in salida
+        sintaxis = "SyntaxError" in salida
+        print(f"    {fila.split()[0]} raiz {etiqueta} -> EXIT={rc}  "
+              f"motivo={por_motivo}  python ejecutado={corrio}  "
+              f"SyntaxError={sintaxis}")
+        anota(fila, f"ROJO por `{MOTIVO_MAT}`, sin Python y sin rojo prestado",
+              f"EXIT={rc}, motivo={por_motivo}, python={corrio}, "
+              f"SyntaxError={sintaxis}",
+              rc == 1 and por_motivo and not corrio and not sintaxis)
+
+    # ABLACION de M6: quitada la comprobacion, la raiz vacia vuelve a salir en
+    # verde sin certificar. Sin esta fila, la comprobacion nueva seria otra
+    # garantia declarada sin control negativo -justo lo que bloqueo el delta
+    # anterior-.
+    falso_verde = rcK8 == 0 and "bootstrap: sujeto" not in salK8
+    print(f"    M6b ABLACION de la comprobacion + raiz VACIA -> EXIT={rcK8}"
+          f"{'  (FALSO VERDE reproducido)' if falso_verde else ''}")
+    anota("M6b ablacion de la materializacion -> vuelve el falso verde",
+          "EXIT=0 sin certificar (la comprobacion sujetaba de verdad)",
+          f"EXIT={rcK8}, python sin ejecutar={'bootstrap: sujeto' not in salK8}",
+          falso_verde)
 
     # --- 6. CONTROL POSITIVO: el arnes SI puede ablacionar ----------------
     print("\n########## 6. control positivo: el arnes SI puede ablacionar")

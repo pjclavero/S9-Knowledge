@@ -376,7 +376,19 @@ jobs:
           umask 077
           RAIZ="$(mktemp)"
           trap 'rm -f "$RAIZ"' EXIT
-          git show "$SUJETO:.github/scripts/bootstrap_certificacion.py" > "$RAIZ"
+          RUTA_RAIZ=".github/scripts/bootstrap_certificacion.py"
+          git show "$SUJETO:$RUTA_RAIZ" > "$RAIZ"
+          # La copia materializada tiene que SER el objeto, byte a byte. Si
+          # sale vacia, Python no ejecuta nada y sale 0 -medido: EXIT=0-, y si
+          # sale truncada muere por `SyntaxError`, un rojo prestado: en ambos
+          # casos `soy_el_objeto_git` NO llega a correr, o sea la unica
+          # comprobacion de procedencia se queda fuera. Git calcula el id del
+          # blob de lo que hay EN DISCO y tiene que coincidir con el del arbol
+          # del sujeto; si no, ROJO ANTES de Python y con motivo propio.
+          if [ "$(git hash-object "$RAIZ")" != "$(git rev-parse "$SUJETO:$RUTA_RAIZ")" ]; then
+            echo "::error::RAIZ NO MATERIALIZADA: lo escrito en \"$RAIZ\" no es el objeto Git de $RUTA_RAIZ en $SUJETO; la raiz de confianza no se ejecuta."
+            exit 1
+          fi
           python3 -I "$RAIZ" --sujeto "$SUJETO" \
             .github/scripts/check_ejecucion_real.py \
             --junit artifacts/junit
@@ -469,7 +481,19 @@ jobs:
           umask 077
           RAIZ="$(mktemp)"
           trap 'rm -f "$RAIZ"' EXIT
-          git show "$SUJETO:.github/scripts/bootstrap_certificacion.py" > "$RAIZ"
+          RUTA_RAIZ=".github/scripts/bootstrap_certificacion.py"
+          git show "$SUJETO:$RUTA_RAIZ" > "$RAIZ"
+          # La copia materializada tiene que SER el objeto, byte a byte. Si
+          # sale vacia, Python no ejecuta nada y sale 0 -medido: EXIT=0-, y si
+          # sale truncada muere por `SyntaxError`, un rojo prestado: en ambos
+          # casos `soy_el_objeto_git` NO llega a correr, o sea la unica
+          # comprobacion de procedencia se queda fuera. Git calcula el id del
+          # blob de lo que hay EN DISCO y tiene que coincidir con el del arbol
+          # del sujeto; si no, ROJO ANTES de Python y con motivo propio.
+          if [ "$(git hash-object "$RAIZ")" != "$(git rev-parse "$SUJETO:$RUTA_RAIZ")" ]; then
+            echo "::error::RAIZ NO MATERIALIZADA: lo escrito en \"$RAIZ\" no es el objeto Git de $RUTA_RAIZ en $SUJETO; la raiz de confianza no se ejecuta."
+            exit 1
+          fi
           python3 -I "$RAIZ" --sujeto "$SUJETO" \
             .github/scripts/check_suite_inventory.py
 
