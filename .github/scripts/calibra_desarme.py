@@ -357,6 +357,122 @@ RUTA_BOOTSTRAP = ".github/scripts/bootstrap_certificacion.py"
 MOTIVO_MATERIALIZACION = "RAIZ NO MATERIALIZADA"
 
 
+def _config_local_sha() -> str:
+    """Huella de la configuracion LOCAL del repositorio real."""
+    p = subprocess.run(["git", "config", "--local", "--list"], cwd=REPO,
+                       capture_output=True, text=True, timeout=120)
+    return hashlib.sha256(p.stdout.encode("utf-8")).hexdigest()
+
+
+def calibra_filtros_hostiles(gate_rel: str) -> list[tuple]:
+    """Los filtros `clean` de Git pueden MENTIR sobre el hash de un fichero.
+
+    `git hash-object` SIN `--no-filters` no devuelve el hash de los bytes del
+    fichero: devuelve el del resultado de pasarlos por el filtro `clean` que
+    diga la configuracion (`core.attributesFile` + `filter.<x>.clean`). O sea
+    la comparacion de materializacion se podia satisfacer con un fichero VACIO,
+    y entonces `python3 -I` volveria a no ejecutar nada saliendo en verde: el
+    mismo falso verde otra vez, ahora a traves del instrumento de medida.
+
+    Todo esto se monta en un REPOSITORIO DE PRUEBA AISLADO en un temporal: en
+    el repositorio real no se toca `core.attributesFile` ni ningun filtro, y se
+    comprueba por huella de `git config --local --list` que sigue igual.
+    """
+    antes = _config_local_sha()
+    base = Path(tempfile.mkdtemp(prefix="raiz-filtros-"))
+    filas = []
+    try:
+        repo = base / "repo"
+        (repo / ".github" / "scripts").mkdir(parents=True)
+        contenido = subprocess.run(
+            ["git", "show", f"{sujeto_actual()}:{RUTA_BOOTSTRAP}"], cwd=REPO,
+            capture_output=True, text=True, timeout=300).stdout
+        (repo / RUTA_BOOTSTRAP).write_text(contenido, encoding="utf-8")
+        for cmd in (["init", "-q", "."], ["config", "user.email", "calibracion@local"],
+                    ["config", "user.name", "calibracion"],
+                    ["add", RUTA_BOOTSTRAP], ["commit", "-qm", "raiz"]):
+            subprocess.run(["git"] + cmd, cwd=repo, capture_output=True,
+                           text=True, timeout=300, check=True)
+        sujeto = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo,
+                                capture_output=True, text=True,
+                                timeout=120).stdout.strip()
+        objeto = f"{sujeto}:{RUTA_BOOTSTRAP}"
+
+        legitima = base / "legitima.py"
+        legitima.write_text(contenido, encoding="utf-8")
+        vacia = base / "vacia.py"
+        vacia.write_bytes(b"")
+
+        def envenena():
+            attrs = base / "attrs"
+            attrs.write_text("* filter=veneno\n", encoding="utf-8")
+            subprocess.run(["git", "config", "core.attributesFile", str(attrs)],
+                           cwd=repo, check=True, timeout=120)
+            subprocess.run(["git", "config", "filter.veneno.clean",
+                            f"cat {legitima}"], cwd=repo, check=True, timeout=120)
+
+        def compara(raiz: Path, no_filters: bool) -> tuple[int, str]:
+            cuerpo = (f'set -eu\nRAIZ="{raiz}"\n'
+                      + control_materializacion(objeto, no_filters))
+            p = subprocess.run(["bash", "-c", cuerpo], cwd=repo,
+                               capture_output=True, text=True, timeout=300)
+            return p.returncode, p.stdout + p.stderr
+
+        rc1, _ = compara(legitima, True)
+        filas.append(("N1 configuracion normal (sin filtros) -> PASS",
+                      "PASS: los bytes correctos coinciden",
+                      f"EXIT={rc1}", rc1 == 0))
+
+        envenena()
+        rc2, _ = compara(vacia, False)
+        filas.append(("N2 filtro Git hostil + `hash-object` SIN `--no-filters`",
+                      "FALSO PASS reproducido (un fichero VACIO coincide)",
+                      f"EXIT={rc2} con la raiz VACIA", rc2 == 0))
+
+        rc3, sal3 = compara(vacia, True)
+        motivo3 = MOTIVO_MATERIALIZACION in sal3
+        filas.append(("N3 el MISMO ataque + `--no-filters`",
+                      f"ROJO por `{MOTIVO_MATERIALIZACION}`",
+                      f"EXIT={rc3}, motivo={motivo3}", rc3 == 1 and motivo3))
+
+        rc4, _ = compara(legitima, True)
+        filas.append(("N4 caso legitimo + `--no-filters` (con el filtro puesto)",
+                      "PASS: la bandera no rompe el caso bueno",
+                      f"EXIT={rc4}", rc4 == 0))
+    finally:
+        shutil.rmtree(base, ignore_errors=True)
+    despues = _config_local_sha()
+    hostil = subprocess.run(["git", "config", "--get", "core.attributesFile"],
+                            cwd=REPO, capture_output=True, text=True,
+                            timeout=120).stdout.strip()
+    filas.append(("N restauracion: el repositorio REAL sin tocar",
+                  "misma huella de `git config --local --list`, sin "
+                  "`core.attributesFile`",
+                  f"huella igual={antes == despues}, "
+                  f"core.attributesFile={hostil or 'ausente'}",
+                  antes == despues and not hostil))
+    return filas
+
+
+def control_materializacion(objeto: str, no_filters: bool = True) -> str:
+    """La comparacion de identidad Git, generada en UN solo sitio.
+
+    `--no-filters` es la parte que hace que la comparacion signifique algo: sin
+    ella `git hash-object` aplica el filtro `clean` que diga la configuracion,
+    y entonces el hash no describe los BYTES del fichero sino la salida de un
+    programa que el atacante elige. `no_filters=False` existe solo para que la
+    fila N2 pueda REPRODUCIR el bypass y demostrar que la bandera es lo que lo
+    mata.
+    """
+    bandera = " --no-filters" if no_filters else ""
+    return (f'ESPERADO="$(git rev-parse "{objeto}")"\n'
+            f'OBTENIDO="$(git hash-object{bandera} "$RAIZ")"\n'
+            'if [ "$OBTENIDO" != "$ESPERADO" ]; then\n'
+            f'  echo "::error::{MOTIVO_MATERIALIZACION}: $OBTENIDO no es $ESPERADO"\n'
+            '  exit 1\n'
+            'fi\n')
+
+
 def cuerpo_embarcado(objeto: str, gate_rel: str, trunca: int | None = None,
                      verifica: bool = True) -> str:
     """La MISMA construccion que `ci.yml`, generada en UN solo sitio.
@@ -367,12 +483,7 @@ def cuerpo_embarcado(objeto: str, gate_rel: str, trunca: int | None = None,
     -0 = vacia- y `verifica` ABLACIONA la comprobacion de materializacion.
     """
     sabotaje = f'truncate -s {trunca} "$RAIZ"\n' if trunca is not None else ""
-    control = (f'ESPERADO="$(git rev-parse "{objeto}")"\n'
-               'OBTENIDO="$(git hash-object "$RAIZ")"\n'
-               'if [ "$OBTENIDO" != "$ESPERADO" ]; then\n'
-               f'  echo "::error::{MOTIVO_MATERIALIZACION}: $OBTENIDO no es $ESPERADO"\n'
-               '  exit 1\n'
-               'fi\n') if verifica else ""
+    control = control_materializacion(objeto) if verifica else ""
     return ('set -eu\n'
             'umask 077\n'
             'RAIZ="$(mktemp)"\n'
@@ -1110,6 +1221,15 @@ def main() -> int:
           "EXIT=0 sin certificar (la comprobacion sujetaba de verdad)",
           f"EXIT={rcK8}, python sin ejecutar={'bootstrap: sujeto' not in salK8}",
           falso_verde)
+
+    # --- N. los filtros `clean` de Git mienten sobre el hash --------------
+    # N2 es a esta correccion lo que M2 a la anterior: demuestra que el bypass
+    # EXISTIA y que la bandera es lo que lo mata, no una reescritura por si
+    # acaso. Montado en repositorio de prueba AISLADO.
+    print("\n########## N. `git hash-object` bajo filtros Git hostiles")
+    for fila, esperado, obtenido, ok in calibra_filtros_hostiles(gate_rel):
+        print(f"    {fila} -> {obtenido}")
+        anota(fila, esperado, obtenido, ok)
 
     # --- 6. CONTROL POSITIVO: el arnes SI puede ablacionar ----------------
     print("\n########## 6. control positivo: el arnes SI puede ablacionar")

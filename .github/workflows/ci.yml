@@ -390,8 +390,17 @@ jobs:
           # nombre la ruta de un gate, porque no puede distinguir "lo ejecuta"
           # de "lo nombra". Aqui no se relaja ese control: se saca la ruta de
           # la condicion.
+          # `--no-filters` NO es cosmetica: sin la bandera, `git hash-object`
+          # aplica los filtros `clean` configurados, asi que un
+          # `core.attributesFile` + `filter.<x>.clean` hostiles hacen que el
+          # hash NO sea el de los bytes del fichero sino el de lo que el filtro
+          # decida. Reproducido en repo aislado: un fichero VACIO devolvia el
+          # blob esperado y la comparacion daba PASS. Con la bandera, el vacio
+          # deja de coincidir y el caso legitimo sigue coincidiendo.
+          # Identidad Git contra identidad Git: `rev-parse` frente a
+          # `hash-object`, valido con objetos SHA-1 o SHA-256.
           ESPERADO="$(git rev-parse "$SUJETO:$RUTA_RAIZ")"
-          OBTENIDO="$(git hash-object "$RAIZ")"
+          OBTENIDO="$(git hash-object --no-filters "$RAIZ")"
           if [ "$OBTENIDO" != "$ESPERADO" ]; then
             echo "::error::RAIZ NO MATERIALIZADA: lo escrito en la raiz es el blob $OBTENIDO y el objeto Git de $RUTA_RAIZ en $SUJETO es $ESPERADO; la raiz de confianza NO se ejecuta."
             exit 1
@@ -502,8 +511,17 @@ jobs:
           # nombre la ruta de un gate, porque no puede distinguir "lo ejecuta"
           # de "lo nombra". Aqui no se relaja ese control: se saca la ruta de
           # la condicion.
+          # `--no-filters` NO es cosmetica: sin la bandera, `git hash-object`
+          # aplica los filtros `clean` configurados, asi que un
+          # `core.attributesFile` + `filter.<x>.clean` hostiles hacen que el
+          # hash NO sea el de los bytes del fichero sino el de lo que el filtro
+          # decida. Reproducido en repo aislado: un fichero VACIO devolvia el
+          # blob esperado y la comparacion daba PASS. Con la bandera, el vacio
+          # deja de coincidir y el caso legitimo sigue coincidiendo.
+          # Identidad Git contra identidad Git: `rev-parse` frente a
+          # `hash-object`, valido con objetos SHA-1 o SHA-256.
           ESPERADO="$(git rev-parse "$SUJETO:$RUTA_RAIZ")"
-          OBTENIDO="$(git hash-object "$RAIZ")"
+          OBTENIDO="$(git hash-object --no-filters "$RAIZ")"
           if [ "$OBTENIDO" != "$ESPERADO" ]; then
             echo "::error::RAIZ NO MATERIALIZADA: lo escrito en la raiz es el blob $OBTENIDO y el objeto Git de $RUTA_RAIZ en $SUJETO es $ESPERADO; la raiz de confianza NO se ejecuta."
             exit 1
