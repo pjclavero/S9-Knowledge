@@ -30,10 +30,69 @@ jobs:
           python -m pip install --upgrade pip
           pip install pip-audit
 
+      # ── EXCEPCION DE SEGURIDAD, ESTRECHA Y TEMPORAL ────────────────────────
+      # Advisory:  GHSA-8mgp-746c-j5xp  (= CVE-2026-81726 = PYSEC-2026-3740)
+      # Titulo:    NLTK: Model-artifact APIs bypass pathsec and touch files
+      #            outside allowed roots.  Severidad alta.
+      # Alta:      2026-09-02.  Excepcion abierta: 2026-09-02.
+      #
+      # NO es "riesgo aceptable". Es NO APLICABILIDAD DEMOSTRADA, y cada linea
+      # de abajo se midio sobre este arbol, no se afirmo:
+      #
+      #   ADVISORY PRESENTE
+      #     `pip-audit` la reporta sobre el `nltk 3.10.3` que fija el lock.
+      # + SIN FIX DISPONIBLE
+      #     Rango OSV: {introduced: 0} .. {last_affected: 3.10.3}. Es
+      #     `last_affected`, NO `fixed`: no hay version corregida publicada, y
+      #     3.10.3 es la ultima que existe en PyPI. Subir no es una opcion.
+      # + COMPONENTE INSTALADO INDIRECTAMENTE
+      #     `nltk` NO esta en `requirements.in`; entra como transitiva de
+      #     `llama-index-core` (`pip show nltk` -> Required-by: llama-index-core).
+      # + CERO USO DEL COMPONENTE EN PRODUCTO
+      #     `grep -rn --include=*.py -i nltk .`        -> 0 coincidencias.
+      #     `grep -rn --include=*.py -E 'llama_index'` -> 0 coincidencias.
+      #     Ni el paquete vulnerable ni el que lo arrastra se importan jamas.
+      # + APIs AFECTADAS INALCANZABLES
+      #     Las APIs implicadas son de persistencia/carga de modelos:
+      #     `TransitionParser.train/parse`, `AveragedPerceptron.save/load`,
+      #     `PerceptronTagger.save_to_json`, `save_maxent_params`. Un grep de
+      #     esos nombres sobre TODO el repo da 0 apariciones. La explotacion
+      #     exige justo esos flujos de lectura/escritura de artefactos de
+      #     modelo con rutas controladas por el llamador, y aqui no existe
+      #     ningun camino que los ejerza.
+      # = EXCEPCION TEMPORAL Y ESPECIFICA
+      #
+      # ALCANCE: se ignora EXACTAMENTE UN id. Cualquier OTRA advisory de `nltk`
+      # —o de cualquier otro paquete— sigue poniendo este gate ROJO. Esto no es
+      # un `ignore nltk` generico. Verificado con un CONTROL NEGATIVO: al
+      # sustituir el id por otro, `pip-audit` vuelve a rojo.
+      #
+      # CADUCIDAD (automatica; si se cumple cualquiera, la excepcion DEJA de
+      # estar justificada y vuelve a decision humana):
+      #   1. Se publica una version de `nltk` que corrija el advisory.
+      #   2. El producto empieza a importar `nltk` (o `llama_index`).
+      #   3. Algun camino empieza a usar las APIs de modelo citadas.
+      # La condicion 1 la fuerza la guardia de version de abajo; las 2 y 3 se
+      # comprueban con los greps citados.
+      #
+      # ATADURA A LA VERSION: la excepcion vale SOLO para `nltk==3.10.3`. Eso
+      # no se deja implicito: la guardia siguiente lo COMPRUEBA y pone el paso
+      # en rojo si el lock pasa a fijar otra version, de modo que un bump
+      # futuro obligue a reevaluar en vez de heredar el permiso en silencio.
       - name: Audit data-engine (requirements.lock)
         run: |
           set -euo pipefail
-          pip-audit -r data-engine/requirements.lock
+          # Guardia de la excepcion: atada a `nltk==3.10.3` EXACTAMENTE.
+          # Si `nltk` desaparece del lock (limpieza de `llama-index`), no queda
+          # nada que excepcionar y la guardia no estorba; lo que NO puede pasar
+          # es que la version cambie y el `--ignore-vuln` sobreviva callado.
+          if grep -qE '^nltk==' data-engine/requirements.lock \
+             && ! grep -qxF 'nltk==3.10.3' data-engine/requirements.lock; then
+            echo "::error::La excepcion GHSA-8mgp-746c-j5xp esta atada a nltk==3.10.3 y el lock fija otra version. Reevalua la excepcion (comprueba si ya hay version corregida) antes de seguir."
+            exit 1
+          fi
+          pip-audit -r data-engine/requirements.lock \
+            --ignore-vuln GHSA-8mgp-746c-j5xp
 
       - name: Audit viewer (requirements.txt)
         run: |
