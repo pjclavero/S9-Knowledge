@@ -67,13 +67,33 @@ jobs:
       # un `ignore nltk` generico. Verificado con un CONTROL NEGATIVO: al
       # sustituir el id por otro, `pip-audit` vuelve a rojo.
       #
-      # CADUCIDAD (automatica; si se cumple cualquiera, la excepcion DEJA de
-      # estar justificada y vuelve a decision humana):
+      # CADUCIDAD. Tres condiciones invalidan esta excepcion:
       #   1. Se publica una version de `nltk` que corrija el advisory.
       #   2. El producto empieza a importar `nltk` (o `llama_index`).
       #   3. Algun camino empieza a usar las APIs de modelo citadas.
-      # La condicion 1 la fuerza la guardia de version de abajo; las 2 y 3 se
-      # comprueban con los greps citados.
+      # NINGUNA de las tres la detecta un check, y conviene decirlo exacto
+      # porque lo contrario es un falso sentido de seguridad:
+      #   - La guardia de abajo ATA LA VERSION: si el pin cambia, la excepcion
+      #     deja de aplicar. Eso si es automatico, y esta calibrado 5/5. Pero
+      #     salta cuando cambia el pin, que es la CONSECUENCIA de remediar, NO
+      #     la deteccion de que exista un arreglo: si manana se publica una
+      #     version corregida y nadie recompila el lock, el rango de 3.10.3
+      #     sigue casando, el ignore sigue tapandolo y este gate sigue VERDE
+      #     indefinidamente.
+      #   - Las condiciones 2 y 3 no las comprueba ningun gate. Los greps
+      #     citados arriba son una medicion puntual hecha al abrir la
+      #     excepcion, no una barrera que vuelva a correr sola.
+      # La deteccion real es HUMANA: vigilar la advisory hasta que publique
+      # version corregida. El `schedule` semanal de este workflow NO lo
+      # sustituye: detecta advisories NUEVAS, no la aparicion de un fix para
+      # una ya excepcionada.
+      #
+      # LIMITE CONOCIDO DE LOS META-GATES: `check_ci_config` y
+      # `calibra_gate_integrity` son CIEGOS a esta guardia. Anadir un segundo
+      # `--ignore-vuln`, o borrar la guardia entera, los deja en VERDE: solo
+      # detectan apagados por patron generico (tipo `|| true`). No es una
+      # regresion —antes no habia guardia que proteger— pero significa que su
+      # `30/30` NO es prueba de que esta guardia sea solida.
       #
       # ATADURA A LA VERSION: la excepcion vale SOLO para `nltk==3.10.3`. Eso
       # no se deja implicito: la guardia siguiente lo COMPRUEBA y pone el paso
