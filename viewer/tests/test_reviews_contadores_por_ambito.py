@@ -164,12 +164,13 @@ def test_contador_cuenta_solo_lo_visible(entorno):
     assert _contadores_html(r.text) == {"approved": 10, "pending": 10, "rejected": 10}
 
 
-def test_contador_del_listado_excluye_items_infiltrados(entorno):
-    """Una fuente VISIBLE cuyos ficheros llevan ítems de otra partida: la cifra
-    del listado cuenta los propios, no el total del fichero.
+def test_fuente_con_items_infiltrados_no_se_sirve(entorno):
+    """Una fuente con ítems que declaran OTRA partida no se sirve en absoluto.
 
-    Sin esto, filtrar la fuente y luego contar el fichero entero seguiría
-    publicando el volumen ajeno: es exactamente el orden prohibido.
+    Entre varias declaraciones manda la MAS restrictiva: un documento no puede
+    ampliar el ambito que otro acota. No se lista, no publica cifras, y su
+    detalle responde 404. Es mas estricto que enseñarla con los contadores
+    recortados, y es lo que corresponde a material cuya atribucion es ambigua.
     """
     db, ws_dir = entorno
     d = _fuente(ws_dir, "a-mixta", P_A, approved=2, pending=2, rejected=1)
@@ -181,12 +182,14 @@ def test_contador_del_listado_excluye_items_infiltrados(entorno):
     payload = json.loads((d / "approved_payload.json").read_text())
     payload["approved"] += [{"id": "intruso-a%d" % i, "partida_id": P_B} for i in range(60)]
     (d / "approved_payload.json").write_text(json.dumps(payload), encoding="utf-8")
+    _fuente(ws_dir, "a-limpia", P_A, approved=1, pending=1, rejected=1)
 
     c = _cliente(db, _usuario(db, "revisor_a"), P_A)
     r = c.get("/reviews?workspace=%s" % WS)
     assert r.status_code == 200, r.text
-    assert _fuentes_listadas(r.text) == {"a-mixta"}
-    assert _contadores_html(r.text) == {"approved": 2, "pending": 2, "rejected": 1}
+    assert _fuentes_listadas(r.text) == {"a-limpia"}
+    assert _contadores_html(r.text) == {"approved": 1, "pending": 1, "rejected": 1}
+    assert c.get("/reviews/a-mixta?workspace=%s" % WS).status_code == 404
 
 
 # ---------------------------------------------------------------------------
@@ -275,9 +278,9 @@ def test_ambito_invalido_es_fail_closed(entorno):
 # ---------------------------------------------------------------------------
 # P5 — el detalle tampoco publica cifras de otra partida
 # ---------------------------------------------------------------------------
-def test_detalle_no_publica_items_de_otra_partida(entorno):
-    """Una fuente de la partida activa con ítems infiltrados de otra partida:
-    los contadores y la vista previa del detalle sólo cuentan los propios."""
+def test_detalle_de_fuente_mezclada_no_entrega_nada(entorno):
+    """El detalle de una fuente con ítems de otra partida responde 404 y no
+    filtra ni una cifra ni una vista previa del material infiltrado."""
     db, ws_dir = entorno
     d = _fuente(ws_dir, "mixta", P_A, approved=2, pending=2, rejected=0)
     # Se infiltran ítems de otra partida en los mismos ficheros.
@@ -290,9 +293,8 @@ def test_detalle_no_publica_items_de_otra_partida(entorno):
 
     c = _cliente(db, _usuario(db, "revisor_a"), P_A)
     r = c.get("/reviews/mixta?workspace=%s" % WS)
-    assert r.status_code == 200, r.text
-    assert "intruso" not in r.text, "la vista previa filtró contenido de otra partida"
-    assert _contadores_html(r.text) == {"approved": 2, "pending": 2, "rejected": 0}
+    assert r.status_code == 404, r.text
+    assert "intruso" not in r.text
 
 
 def test_quality_report_no_publica_cifras_de_una_fuente_mezclada(entorno):
@@ -317,13 +319,13 @@ def test_quality_report_no_publica_cifras_de_una_fuente_mezclada(entorno):
     assert r_ok.status_code == 200, r_ok.text
     assert "137" in r_ok.text and "Informe de calidad" in r_ok.text
 
+    # La fuente mezclada no se sirve, asi que su informe --calculado tambien
+    # sobre material ajeno-- no llega a publicarse por ninguna via.
     r_mix = c.get("/reviews/a-mezclada?workspace=%s" % WS)
-    assert r_mix.status_code == 200, r_mix.text
-    assert "Informe de calidad" not in r_mix.text, (
-        "se publicó un informe calculado también sobre material de otra partida"
-    )
+    assert r_mix.status_code == 404, r_mix.text
     for cifra in ("137", "0.91", "intruso"):
         assert cifra not in r_mix.text
+    assert "a-mezclada" not in c.get("/reviews?workspace=%s" % WS).text
 
 
 # ---------------------------------------------------------------------------
