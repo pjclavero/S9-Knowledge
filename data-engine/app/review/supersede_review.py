@@ -36,6 +36,9 @@ Flags opcionales:
 """
 from __future__ import annotations
 
+from coded_errors import coded
+from review.codes import SupersedeCodes
+
 import argparse
 import hashlib
 import json
@@ -82,9 +85,9 @@ def _contains_dangerous_unicode(value: str) -> bool:
 
 def _validate_string_field(label: str, value: Any) -> None:
     if not isinstance(value, str) or not value.strip():
-        raise ValueError(f"Campo '{label}' es obligatorio y no puede estar vacío.")
+        raise coded(ValueError(f"Campo '{label}' es obligatorio y no puede estar vacío."), SupersedeCodes.FIELD_REQUIRED)
     if _contains_dangerous_unicode(value):
-        raise ValueError(f"Campo '{label}' contiene Unicode peligroso (Trojan Source / caracteres de control).")
+        raise coded(ValueError(f"Campo '{label}' contiene Unicode peligroso (Trojan Source / caracteres de control)."), SupersedeCodes.FIELD_DANGEROUS_UNICODE)
 
 
 def _resolve_path_safe(raw: str, allow_symlink: bool = False) -> Path:
@@ -92,11 +95,11 @@ def _resolve_path_safe(raw: str, allow_symlink: bool = False) -> Path:
     raw_path = Path(raw)
     # Protección extra: el string no debe contener secuencias de traversal
     if ".." in raw_path.parts:
-        raise ValueError(f"Path traversal detectado en la ruta: {raw!r}")
+        raise coded(ValueError(f"Path traversal detectado en la ruta: {raw!r}"), SupersedeCodes.PATH_TRAVERSAL)
     # El symlink debe comprobarse sobre la ruta SIN resolver: .resolve() sigue
     # los symlinks y haría que is_symlink() nunca detectase nada.
     if not allow_symlink and raw_path.is_symlink():
-        raise ValueError(f"Ruta apunta a un symlink: {raw!r}. Rechazado por seguridad.")
+        raise coded(ValueError(f"Ruta apunta a un symlink: {raw!r}. Rechazado por seguridad."), SupersedeCodes.PATH_SYMLINK)
     return raw_path.resolve()
 
 
@@ -278,17 +281,17 @@ def run(
 
     # 3. Verificar que el original existe y no es el mismo archivo que la salida
     if not inp.exists():
-        raise SystemExit(f"ABORTADO: archivo original no encontrado: {inp}")
+        raise coded(SystemExit(f"ABORTADO: archivo original no encontrado: {inp}"), SupersedeCodes.INPUT_NOT_FOUND)
     if inp.resolve() == outp.resolve():
-        raise SystemExit("ABORTADO: --in y --out apuntan al mismo archivo. No se puede sobrescribir el original.")
+        raise coded(SystemExit("ABORTADO: --in y --out apuntan al mismo archivo. No se puede sobrescribir el original."), SupersedeCodes.IN_OUT_SAME_FILE)
 
     # 4. Verificar SHA-256 del original
     real_sha = _sha256(inp)
     if real_sha != supersedes_sha256:
-        raise SystemExit(
+        raise coded(SystemExit(
             "ABORTADO: el SHA-256 del original (%s) no coincide con --supersedes (%s). "
             "El original fue modificado o el hash es incorrecto." % (real_sha, supersedes_sha256)
-        )
+        ), SupersedeCodes.CHECKSUM_MISMATCH)
 
     # 5. Verificar idempotencia o detectar conflicto si ya existe salida
     if outp.exists() and not outp.is_symlink():
@@ -306,20 +309,20 @@ def run(
                 "idempotent": True,
             }
         else:
-            raise SystemExit(
+            raise coded(SystemExit(
                 "ABORTADO: --out ya existe con supersedes_sha256 diferente (%s). "
                 "Una segunda supersesión conflictiva no está permitida." % existing_supersedes
-            )
+            ), SupersedeCodes.ALREADY_SUPERSEDED)
 
     # 6. Parsear y validar esquema del original
     try:
         original = json.loads(inp.read_text(encoding="utf-8"))
     except json.JSONDecodeError as e:
-        raise SystemExit(f"ABORTADO: JSON inválido en el original: {e}")
+        raise coded(SystemExit(f"ABORTADO: JSON inválido en el original: {e}"), SupersedeCodes.INVALID_JSON)
 
     errors = validate_schema(original)
     if errors:
-        raise SystemExit("ABORTADO: esquema inválido en el original:\n  " + "\n  ".join(errors))
+        raise coded(SystemExit("ABORTADO: esquema inválido en el original:\n  " + "\n  ".join(errors)), SupersedeCodes.SCHEMA_INVALID_INPUT)
 
     # 7. Calcular created_at en UTC
     created_at = datetime.now(timezone.utc).isoformat()
@@ -330,7 +333,7 @@ def run(
     # 9. Validar esquema del resultado
     errors_out = validate_schema(v2)
     if errors_out:
-        raise SystemExit("ABORTADO: esquema inválido en el resultado generado:\n  " + "\n  ".join(errors_out))
+        raise coded(SystemExit("ABORTADO: esquema inválido en el resultado generado:\n  " + "\n  ".join(errors_out)), SupersedeCodes.SCHEMA_INVALID_OUTPUT)
 
     # 10. Calcular SHA-256 del resultado (antes de escribir, sobre el JSON serializado)
     text_v2 = json.dumps(v2, ensure_ascii=False, indent=2)
@@ -339,10 +342,10 @@ def run(
     # 11. Verificar que el original no fue tocado (invariante post-transformación)
     real_sha_post = _sha256(inp)
     if real_sha_post != supersedes_sha256:
-        raise SystemExit(
+        raise coded(SystemExit(
             "ABORTADO: el archivo original fue modificado DURANTE la ejecución. "
             "Abortando para preservar integridad."
-        )
+        ), SupersedeCodes.SOURCE_MODIFIED_DURING)
 
     # 12. Construir informe
     report = {
@@ -370,15 +373,15 @@ def run(
     written_sha = write_atomic(outp, v2)
     # Verificar que el sha coincide (escritura correcta)
     if written_sha != _sha256_str(text_v2):
-        raise SystemExit("ABORTADO: SHA-256 post-escritura no coincide. Archivo posiblemente corrupto.")
+        raise coded(SystemExit("ABORTADO: SHA-256 post-escritura no coincide. Archivo posiblemente corrupto."), SupersedeCodes.WRITTEN_SHA_MISMATCH)
 
     # 14. Verificar invariante del original después de escribir
     real_sha_final = _sha256(inp)
     if real_sha_final != supersedes_sha256:
-        raise SystemExit(
+        raise coded(SystemExit(
             "ABORTADO: el archivo original fue modificado DESPUÉS de la escritura. "
             "Investigar posible condición de carrera."
-        )
+        ), SupersedeCodes.SOURCE_MODIFIED_AFTER)
 
     report["new_sha256"] = written_sha
     return report

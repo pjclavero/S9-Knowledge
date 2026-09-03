@@ -19,6 +19,9 @@ from __future__ import annotations
 import json
 import os
 import pytest
+
+from tests.exception_codes import raises_code
+from review.codes import WriterCodes
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -156,7 +159,7 @@ def test_use_existing_fails_zero_matches(tmp_path):
     try:
         ctx, _ = _patch_neo4j({})  # Akodo Toturi -> 0 coincidencias
         with ctx:
-            with pytest.raises(RuntimeError, match="USE_EXISTING sin nodo|preflight no seguro"):
+            with raises_code(RuntimeError, WriterCodes.PREFLIGHT_UNSAFE):
                 ingest(p, dry_run=False, neo4j_password="x")
     finally:
         del os.environ["S9K_ALLOW_REAL_INGEST"]
@@ -175,7 +178,7 @@ def test_use_existing_fails_multiple_matches(tmp_path):
     try:
         ctx, _ = _patch_neo4j({"Akodo Toturi": 2})  # 2 coincidencias -> ambiguo
         with ctx:
-            with pytest.raises(RuntimeError, match="ambiguo|preflight no seguro"):
+            with raises_code(RuntimeError, WriterCodes.PREFLIGHT_UNSAFE):
                 ingest(p, dry_run=False, neo4j_password="x")
     finally:
         del os.environ["S9K_ALLOW_REAL_INGEST"]
@@ -281,7 +284,7 @@ def test_rejected_candidates_blocked_by_provenance(tmp_path):
     prev = os.environ.get("S9K_REVIEW_POLICY")
     os.environ["S9K_REVIEW_POLICY"] = "full_human_review"
     try:
-        with pytest.raises(ValueError, match="PROVENANCE RECHAZADA|review_status"):
+        with raises_code(ValueError, WriterCodes.PROVENANCE_REJECTED):
             ingest(p, dry_run=True)
     finally:
         if prev is None:
@@ -318,7 +321,7 @@ def test_no_authorization_no_write(tmp_path):
     os.environ.pop("S9K_ALLOW_REAL_INGEST", None)
 
     with patch("review.ingest_approved.GraphDatabase") as mock_gdb:
-        with pytest.raises(RuntimeError, match="S9K_ALLOW_REAL_INGEST"):
+        with raises_code(RuntimeError, WriterCodes.REAL_INGEST_NOT_AUTHORIZED):
             ingest(p, dry_run=False)
         mock_gdb.driver.assert_not_called()
 
@@ -333,7 +336,7 @@ def test_env_guard_false_also_blocked(tmp_path):
     os.environ["S9K_ALLOW_REAL_INGEST"] = "false"
     try:
         with patch("review.ingest_approved.GraphDatabase") as mock_gdb:
-            with pytest.raises(RuntimeError, match="S9K_ALLOW_REAL_INGEST"):
+            with raises_code(RuntimeError, WriterCodes.REAL_INGEST_NOT_AUTHORIZED):
                 ingest(p, dry_run=False)
             mock_gdb.driver.assert_not_called()
     finally:
