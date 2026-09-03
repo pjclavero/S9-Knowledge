@@ -8,6 +8,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.routers import v3_review as router_module
+from exception_codes import raises_code
+from app.services import v3_review as v3r
 from app.services.v3_review import (
     HistoryIntegrityError,
     ReviewError,
@@ -138,7 +140,7 @@ def test_request_id_cannot_be_replayed_for_another_workspace(review_files):
         human_decision="APPROVE",
         request_id="one-use-token",
     )
-    with pytest.raises(ReviewError, match="request_id reutilizado"):
+    with raises_code(ReviewError, v3r.REQUEST_ID_REUSED):
         service.record(
             proposal_id="foreign",
             workspace="beta",
@@ -187,7 +189,7 @@ def test_tampered_append_only_history_is_detected(review_files):
     record = json.loads(decisions.read_text(encoding="utf-8"))
     record["rationale"] = "texto alterado"
     decisions.write_text(json.dumps(record) + "\n", encoding="utf-8")
-    with pytest.raises(HistoryIntegrityError, match="hash inválido"):
+    with raises_code(HistoryIntegrityError, v3r.HISTORY_HASH_INVALID):
         read_history(decisions)
 
 
@@ -343,7 +345,7 @@ def test_post_reload_does_not_duplicate_decision(monkeypatch, review_files, lect
 def test_stale_review_is_audited_without_changing_valid_history(review_files):
     proposals_dir, decisions = review_files
     service = ReviewService(proposals_dir, decisions)
-    with pytest.raises(StaleReviewError, match="STALE_REVIEW"):
+    with raises_code(StaleReviewError, v3r.STALE_REVIEW):
         service.record(
             proposal_id="p1", workspace="alpha", reviewer="mara",
             human_decision="APPROVE", request_id="stale-1",

@@ -60,12 +60,40 @@ COMPONENT = "auth_db"
 _POPULATED_MARKERS = ("users", "sessions", "audit_events", "partida_access")
 
 
+#: Códigos ESTABLES de negativa a arrancar. La garantía «REFUSE TO START» se
+#: comprueba por TIPO + CÓDIGO: el texto del mensaje es para el operador y
+#: puede reescribirse sin que eso cambie ninguna conducta.
+SCHEMA_DB_UNREADABLE = "SCHEMA_DB_UNREADABLE"
+SCHEMA_NOT_SQLITE = "SCHEMA_NOT_SQLITE"
+SCHEMA_VERSION_TABLE_MISSING = "SCHEMA_VERSION_TABLE_MISSING"
+SCHEMA_VERSION_TABLE_UNREADABLE = "SCHEMA_VERSION_TABLE_UNREADABLE"
+SCHEMA_VERSION_TABLE_EMPTY = "SCHEMA_VERSION_TABLE_EMPTY"
+SCHEMA_VERSION_NOT_NUMERIC = "SCHEMA_VERSION_NOT_NUMERIC"
+SCHEMA_ABOVE_MAX_SUPPORTED = "SCHEMA_ABOVE_MAX_SUPPORTED"
+SCHEMA_BELOW_MIN_SUPPORTED = "SCHEMA_BELOW_MIN_SUPPORTED"
+
+
 class SchemaCompatibilityError(RuntimeError):
-    """La base está fuera del rango soportado: el proceso no debe arrancar."""
+    """La base está fuera del rango soportado: el proceso no debe arrancar.
+
+    Lleva ``code`` estable y, cuando se conoce, ``schema_version``: la prueba
+    que sostiene la garantía comprueba eso, no la redacción.
+    """
+
+    code = "SCHEMA_INCOMPATIBLE"
+
+    def __init__(self, message: str, code: str | None = None,
+                 schema_version: Optional[int] = None):
+        super().__init__(message)
+        if code is not None:
+            self.code = code
+        self.schema_version = schema_version
 
 
 class SchemaVersionUnknown(SchemaCompatibilityError):
     """No se pudo determinar la versión: se trata como incompatible."""
+
+    code = "SCHEMA_VERSION_UNKNOWN"
 
 
 def _tables(conn: sqlite3.Connection) -> set:
@@ -94,7 +122,7 @@ def read_schema_version(db_path: Path) -> Optional[int]:
         raise SchemaVersionUnknown(
             f"{COMPONENT}: no se pudo abrir '{path}' para leer su versión de "
             f"esquema ({exc}). Se rehúsa arrancar: una base ilegible no es "
-            f"una base compatible."
+            f"una base compatible.", SCHEMA_DB_UNREADABLE
         ) from exc
 
     try:
@@ -103,7 +131,7 @@ def read_schema_version(db_path: Path) -> Optional[int]:
         except sqlite3.DatabaseError as exc:
             raise SchemaVersionUnknown(
                 f"{COMPONENT}: '{path}' existe pero no es una base SQLite "
-                f"legible ({exc}). Se rehúsa arrancar."
+                f"legible ({exc}). Se rehúsa arrancar.", SCHEMA_NOT_SQLITE
             ) from exc
 
         if not tables:
@@ -116,7 +144,7 @@ def read_schema_version(db_path: Path) -> Optional[int]:
                 f"({', '.join(sorted(tables))}) pero no tiene tabla "
                 f"'schema_version'. No se puede saber qué controles rigen "
                 f"esos datos. Se rehúsa arrancar: la ausencia de versión no "
-                f"es permiso para asumir compatibilidad."
+                f"es permiso para asumir compatibilidad.", SCHEMA_VERSION_TABLE_MISSING
             )
 
         try:
@@ -124,7 +152,8 @@ def read_schema_version(db_path: Path) -> Optional[int]:
         except sqlite3.DatabaseError as exc:
             raise SchemaVersionUnknown(
                 f"{COMPONENT}: '{path}' tiene una tabla 'schema_version' que "
-                f"no se puede consultar ({exc}). Se rehúsa arrancar."
+                f"no se puede consultar ({exc}). Se rehúsa arrancar.",
+                SCHEMA_VERSION_TABLE_UNREADABLE
             ) from exc
 
         if row is None or row[0] is None:
@@ -134,7 +163,7 @@ def read_schema_version(db_path: Path) -> Optional[int]:
                 f"(tablas presentes: {', '.join(sorted(tables))}"
                 + (f"; con datos de auth: {', '.join(populated)}" if populated else "")
                 + "). Una versión sin registrar es desconocida, no es la 0. "
-                "Se rehúsa arrancar."
+                "Se rehúsa arrancar.", SCHEMA_VERSION_TABLE_EMPTY
             )
 
         try:
@@ -142,7 +171,7 @@ def read_schema_version(db_path: Path) -> Optional[int]:
         except (TypeError, ValueError) as exc:
             raise SchemaVersionUnknown(
                 f"{COMPONENT}: versión de esquema no numérica en '{path}': "
-                f"{row[0]!r}. Se rehúsa arrancar."
+                f"{row[0]!r}. Se rehúsa arrancar.", SCHEMA_VERSION_NOT_NUMERIC
             ) from exc
     finally:
         conn.close()
@@ -169,14 +198,16 @@ def assert_compatible(db_path: Path) -> Optional[int]:
             f"Para volver atrás: (1) parar el servicio, (2) desplegar el "
             f"código N-1, (3) RESTAURAR la copia v{MAX_SUPPORTED_SCHEMA} de la "
             f"base ANTES de abrir escrituras, (4) arrancar. "
-            f"Ver docs/65-preparacion-de-release.md."
+            f"Ver docs/65-preparacion-de-release.md.",
+            SCHEMA_ABOVE_MAX_SUPPORTED, schema_version=version
         )
 
     if version < MIN_SUPPORTED_SCHEMA:
         raise SchemaCompatibilityError(
             f"{COMPONENT}: la base '{db_path}' tiene esquema v{version}, "
             f"inferior al mínimo soportado (v{MIN_SUPPORTED_SCHEMA}). Esta "
-            f"build no tiene ruta de migración desde ahí. SE REHÚSA ARRANCAR."
+            f"build no tiene ruta de migración desde ahí. SE REHÚSA ARRANCAR.",
+            SCHEMA_BELOW_MIN_SUPPORTED, schema_version=version
         )
 
     return version

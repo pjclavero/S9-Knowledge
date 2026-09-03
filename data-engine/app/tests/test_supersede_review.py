@@ -39,6 +39,9 @@ from pathlib import Path
 
 import pytest
 
+from tests.exception_codes import raises_code
+from review.codes import SupersedeCodes
+
 # Añadir el directorio app al path
 _APP = Path(__file__).resolve().parents[1]
 if str(_APP) not in sys.path:
@@ -93,7 +96,7 @@ def test_01_hash_original_correcto(tmp_path):
 # ---------------------------------------------------------------------------
 def test_02_hash_original_incorrecto(tmp_path):
     out = tmp_path / "v2.json"
-    with pytest.raises(SystemExit, match="SHA-256"):
+    with raises_code(SystemExit, SupersedeCodes.CHECKSUM_MISMATCH):
         run(
             inp_path=str(_FIXTURE),
             supersedes_sha256="0" * 64,
@@ -224,7 +227,7 @@ def test_07_duplicado_consolidado(tmp_path):
 # ---------------------------------------------------------------------------
 def test_08_reviewed_by_obligatorio(tmp_path):
     out = tmp_path / "v2.json"
-    with pytest.raises((SystemExit, ValueError), match="reviewed_by"):
+    with raises_code((SystemExit, ValueError), SupersedeCodes.FIELD_REQUIRED):
         run(
             inp_path=str(_FIXTURE),
             supersedes_sha256=_FIXTURE_SHA,
@@ -239,7 +242,7 @@ def test_08_reviewed_by_obligatorio(tmp_path):
 # ---------------------------------------------------------------------------
 def test_09_correction_reason_obligatorio(tmp_path):
     out = tmp_path / "v2.json"
-    with pytest.raises((SystemExit, ValueError), match="correction_reason"):
+    with raises_code((SystemExit, ValueError), SupersedeCodes.FIELD_REQUIRED):
         run(
             inp_path=str(_FIXTURE),
             supersedes_sha256=_FIXTURE_SHA,
@@ -310,7 +313,7 @@ def test_12_conflicto_segunda_supersesion(tmp_path):
     alt_sha = _sha256(alt_fixture)
 
     # Debe rechazar porque --out ya existe con diferente supersedes_sha256
-    with pytest.raises(SystemExit, match="segunda supersesión|conflictiva|ya existe"):
+    with raises_code(SystemExit, SupersedeCodes.ALREADY_SUPERSEDED):
         run(
             inp_path=str(alt_fixture),
             supersedes_sha256=alt_sha,
@@ -328,7 +331,7 @@ def test_13_json_invalido(tmp_path):
     bad.write_text("{ invalid json }", encoding="utf-8")
     bad_sha = _sha256(bad)
     out = tmp_path / "v2.json"
-    with pytest.raises(SystemExit, match="JSON"):
+    with raises_code(SystemExit, SupersedeCodes.INVALID_JSON):
         run(
             inp_path=str(bad),
             supersedes_sha256=bad_sha,
@@ -346,7 +349,7 @@ def test_14_esquema_invalido(tmp_path):
     bad.write_text(json.dumps({"source_id": "x", "workspace": "y"}), encoding="utf-8")
     bad_sha = _sha256(bad)
     out = tmp_path / "v2.json"
-    with pytest.raises(SystemExit, match="esquema"):
+    with raises_code(SystemExit, SupersedeCodes.SCHEMA_INVALID_INPUT):
         run(
             inp_path=str(bad),
             supersedes_sha256=bad_sha,
@@ -379,7 +382,7 @@ def test_16_unicode_peligroso(tmp_path):
     out = tmp_path / "v2.json"
     # U+202E RIGHT-TO-LEFT OVERRIDE (Trojan Source)
     malicious_reviewed_by = "admin\u202e"
-    with pytest.raises((SystemExit, ValueError), match="Unicode peligroso|reviewed_by"):
+    with raises_code((SystemExit, ValueError), SupersedeCodes.FIELD_DANGEROUS_UNICODE):
         run(
             inp_path=str(_FIXTURE),
             supersedes_sha256=_FIXTURE_SHA,
@@ -395,7 +398,7 @@ def test_16b_null_byte_detectado(tmp_path):
     nul = chr(0)  # nunca un byte NUL literal en el código fuente
     assert sr._contains_dangerous_unicode("admin" + nul)
     out = tmp_path / "v2.json"
-    with pytest.raises((SystemExit, ValueError), match="Unicode peligroso|reviewed_by"):
+    with raises_code((SystemExit, ValueError), SupersedeCodes.FIELD_DANGEROUS_UNICODE):
         run(
             inp_path=str(_FIXTURE),
             supersedes_sha256=_FIXTURE_SHA,
@@ -410,7 +413,7 @@ def test_16b_null_byte_detectado(tmp_path):
 # ---------------------------------------------------------------------------
 def test_17_path_traversal(tmp_path):
     out = tmp_path / "v2.json"
-    with pytest.raises((SystemExit, ValueError), match="[Tt]raversal|'..'"):
+    with raises_code((SystemExit, ValueError), SupersedeCodes.PATH_TRAVERSAL):
         _resolve_path_safe("../../../etc/passwd")
 
 
@@ -423,7 +426,7 @@ def test_18_symlink_rechazado(tmp_path):
     symlink = tmp_path / "sym.json"
     symlink.symlink_to(real_file)
 
-    with pytest.raises((SystemExit, ValueError), match="symlink"):
+    with raises_code((SystemExit, ValueError), SupersedeCodes.PATH_SYMLINK):
         _resolve_path_safe(str(symlink), allow_symlink=False)
 
 
