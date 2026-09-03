@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Mapping, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -30,6 +30,7 @@ from app.auth.models import User
 from app.auth.security import enforce_auth_security
 from app.auth import db as auth_db
 from app.authz.dependencies import get_filtered_provider, get_visibility_scope
+from app.authz.scope import VisibilityScope
 from app.chassis import FEATURE_SLOTS, ChassisContractError, install_nav_globals
 from app.config import get_settings
 from app.deps import get_default_workspace, get_provider
@@ -390,11 +391,80 @@ def _count_items(data) -> int:
     return 0
 
 
-def _source_counters(source_dir: Path) -> dict:
-    approved = _count_items(_read_json_safe(source_dir / "approved_payload.json"))
-    pending = _count_items(_read_json_safe(source_dir / "review_queue.json"))
-    rejected = _count_items(_read_json_safe(source_dir / "rejected.json"))
-    return {"approved": approved, "pending": pending, "rejected": rejected}
+def _ambito_de_fuente(source_dir: Path) -> dict:
+    """Declaración de ámbito de una fuente en disco (la que escribe el pipeline).
+
+    Se lee del primer documento que la declare: `pipeline_state.json` la lleva
+    en la raíz y `approved_payload.json` bajo `metadata`; ambas rutas están en
+    `VisibilityScope._PARTIDA_PATHS`, así que la decisión la sigue tomando la
+    política y no un `if` local.
+    """
+    for nombre in ("pipeline_state.json", "approved_payload.json"):
+        doc = _read_json_safe(source_dir / nombre)
+        if isinstance(doc, dict):
+            return doc
+    return {}
+
+
+def _items_en_ambito(datos, scope: VisibilityScope, clave: str | None = None):
+    """Los ítems VISIBLES de un fichero de revisión, o ``None`` si no se pueden
+    atribuir uno a uno.
+
+    ``None`` es AUSENCIA HONESTA, no cero: cuando el documento no es una lista
+    de registros (un blob, una lista de escalares), no hay forma de decidir qué
+    parte de él cae en el ámbito del lector, y la salida legítima es no
+    publicar la cifra. Ponerla a cero mentiría; publicar el total global
+    filtraría el volumen de material ajeno, que es justo el dato a proteger.
+    """
+    registros = datos
+    if isinstance(datos, dict) and clave is not None:
+        registros = datos.get(clave)
+    if not isinstance(registros, list):
+        return None
+    if not all(isinstance(r, Mapping) for r in registros):
+        return None
+    return [r for r in registros if scope.allows(r)]
+
+
+def _fuente_integra_en_ambito(source_dir: Path, scope: VisibilityScope) -> bool:
+    """¿TODO el material de esta fuente cae dentro del ámbito del lector?
+
+    El `quality_report` lo calcula el pipeline sobre la fuente entera y no trae
+    atribución por ítem, así que sus cifras (`total`, `score`, `issues`...) no
+    se pueden filtrar: o el material es homogéneo en ámbito y son honestas, o
+    hablan también de lo ajeno y no se publican. Ausencia, no aproximación.
+    """
+    for nombre, clave in (("approved_payload.json", "approved"),
+                          ("review_queue.json", None),
+                          ("rejected.json", None)):
+        datos = _read_json_safe(source_dir / nombre)
+        if datos is None:
+            continue
+        crudos = datos.get(clave) if (isinstance(datos, dict) and clave) else datos
+        visibles = _items_en_ambito(datos, scope, clave)
+        if visibles is None or not isinstance(crudos, list) or len(visibles) != len(crudos):
+            return False
+    return True
+
+
+def _source_counters(source_dir: Path, scope: VisibilityScope) -> dict:
+    """Contadores del ámbito: FILTRAR y DESPUÉS contar, nunca al revés.
+
+    Un contador es un dato. Calcularlo sobre todo el directorio y filtrar luego
+    lo que se enseña publica igualmente el volumen de material de otra partida,
+    y con él su existencia. Aquí se filtra ítem a ítem contra `scope` antes de
+    que exista ninguna cifra; un contador que no se puede calcular con
+    seguridad vale ``None`` (la pantalla lo omite).
+    """
+    aprobados = _items_en_ambito(
+        _read_json_safe(source_dir / "approved_payload.json"), scope, "approved")
+    pendientes = _items_en_ambito(_read_json_safe(source_dir / "review_queue.json"), scope)
+    rechazados = _items_en_ambito(_read_json_safe(source_dir / "rejected.json"), scope)
+    return {
+        "approved": None if aprobados is None else len(aprobados),
+        "pending": None if pendientes is None else len(pendientes),
+        "rejected": None if rechazados is None else len(rechazados),
+    }
 
 
 def _extract_package_meta(source_dir: Path) -> dict:
@@ -456,20 +526,35 @@ def _extract_quality_report(source_dir: Path) -> dict:
     return qr
 
 
-def _list_sources(workspace: str) -> list[dict]:
+def _list_sources(workspace: str, scope: VisibilityScope) -> list[dict]:
+    """Fuentes VISIBLES en el ámbito, con sus contadores del ámbito.
+
+    Recorría el directorio del workspace y publicaba los contadores de cada
+    subdirectorio sin pasar por `VisibilityScope`: la guarda de la ruta es de
+    ROL, no de ámbito, así que dentro de un workspace autorizado las cifras
+    agregaban material de otras partidas y permitían inferir su existencia y su
+    volumen. El panel moderno (`routers/reviews_console.py`) ya pasaba el
+    ámbito al servicio; éste es el mismo patrón.
+    """
     reviews_dir = _reviews_dir(workspace)
     if not reviews_dir.exists():
         return []
+    ambito = scope.partida_only()
     sources = []
     for source_dir in sorted(reviews_dir.iterdir()):
-        if source_dir.is_dir():
-            counters = _source_counters(source_dir)
-            pkg_meta = _extract_package_meta(source_dir)
-            sources.append({
-                "source_id": source_dir.name,
-                **counters,
-                "origin": pkg_meta.get("origin"),
-            })
+        if not source_dir.is_dir():
+            continue
+        # AUTORIZAR primero: una fuente fuera del ámbito no se lista ni se
+        # cuenta, igual que no se entrega por ID.
+        if not ambito.allows(_ambito_de_fuente(source_dir)):
+            continue
+        counters = _source_counters(source_dir, ambito)
+        pkg_meta = _extract_package_meta(source_dir)
+        sources.append({
+            "source_id": source_dir.name,
+            **counters,
+            "origin": pkg_meta.get("origin"),
+        })
     return sources
 
 
@@ -606,7 +691,7 @@ def reviews_view(request: Request, workspace: str | None = None):
     if guard is not None and not isinstance(guard, User):
         return guard
     ws = _reviews_workspace(request, workspace)
-    sources = _list_sources(ws)
+    sources = _list_sources(ws, get_visibility_scope(request))
     return templates.TemplateResponse(
         request,
         "reviews.html",
@@ -627,13 +712,27 @@ def reviews_detail_view(request: Request, source_id: str, workspace: str | None 
     if not source_dir.exists():
         raise HTTPException(status_code=404, detail=f"Fuente no encontrada: {source_id}")
 
-    counters = _source_counters(source_dir)
+    # Fuera de ámbito -> 404, indistinguible de inexistente (mismo contrato que
+    # `reviews_console.source_detail` y que `PolicyFilteredProvider.entity`: no
+    # se confirma la existencia de material de otra partida).
+    ambito = get_visibility_scope(request).partida_only()
+    if not ambito.allows(_ambito_de_fuente(source_dir)):
+        raise HTTPException(status_code=404, detail=f"Fuente no encontrada: {source_id}")
+
+    counters = _source_counters(source_dir, ambito)
 
     # Metadatos del paquete
     pkg_meta = _extract_package_meta(source_dir)
 
     # Quality report
-    quality_report = _extract_quality_report(source_dir)
+    # Quality report: sus cifras y su resumen cubren la fuente ENTERA y no
+    # traen atribución por ítem. Si la fuente mezcla material de otra partida,
+    # no hay forma de calcularlos con seguridad y se omite la sección.
+    quality_report = (
+        _extract_quality_report(source_dir)
+        if _fuente_integra_en_ambito(source_dir, ambito)
+        else {"json_exists": False, "md_exists": False, "summary": None}
+    )
 
     # Pipeline files state
     # La ruta absoluta en disco es detalle operativo: un revisor necesita saber
@@ -649,27 +748,25 @@ def reviews_detail_view(request: Request, source_id: str, workspace: str | None 
         for fname in PIPELINE_FILE_NAMES
     ]
 
-    # Review queue (pending items)
+    # Review queue (pending items) -- sólo los ítems del ámbito: la tabla
+    # publica su longitud ("Cola de revisión (N ítems)"), que es otro contador.
     rq_data = _read_json_safe(source_dir / "review_queue.json")
-    review_queue: list[dict] = []
-    if isinstance(rq_data, list):
-        review_queue = rq_data
-    elif isinstance(rq_data, dict):
-        # Accept {items: [...]} or flat dict
-        review_queue = rq_data.get("items", list(rq_data.values()))
+    if isinstance(rq_data, dict) and "items" in rq_data:
+        rq_data = rq_data.get("items")
+    review_queue: list[dict] = _items_en_ambito(rq_data, ambito) or []
 
-    # Approved payload preview
+    # Approved payload preview: se previsualiza sobre lo YA filtrado, no sobre
+    # el fichero entero (una vista previa de material ajeno es peor que su
+    # contador).
     approved_path = source_dir / "approved_payload.json"
     approved_exists = approved_path.exists()
-    approved_data = _read_json_safe(approved_path) if approved_exists else None
-    approved_count = _count_items(approved_data)
-    if isinstance(approved_data, list):
-        preview_data = approved_data[:3]
-    elif isinstance(approved_data, dict):
-        preview_data = dict(list(approved_data.items())[:3])
-    else:
-        preview_data = {}
-    approved_preview = json.dumps(preview_data, ensure_ascii=False, indent=2) if approved_data else ""
+    approved_visibles = _items_en_ambito(
+        _read_json_safe(approved_path), ambito, "approved") if approved_exists else None
+    approved_count = None if approved_visibles is None else len(approved_visibles)
+    preview_data = (approved_visibles or [])[:3]
+    approved_preview = (
+        json.dumps(preview_data, ensure_ascii=False, indent=2) if preview_data else ""
+    )
 
     return templates.TemplateResponse(
         request,

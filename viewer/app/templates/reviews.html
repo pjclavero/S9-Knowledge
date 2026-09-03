@@ -13,10 +13,13 @@
       {% if src.origin %}
       <span class="origin-badge origin-{{ src.origin }}" title="Origen del paquete">{{ src.origin }}</span>
       {% endif %}
+      {# Un contador `none` es una cifra que NO se pudo calcular dentro del
+         ámbito del lector: se publica la ausencia (—), nunca un 0 (mentira) ni
+         el total del directorio (fuga del volumen ajeno). #}
       <div class="reviews-counters">
-        <span class="counter-badge approved" title="Autoaprobados">&#10003; {{ src.approved }}</span>
-        <span class="counter-badge pending" title="Pendientes de revisión">&#9203; {{ src.pending }}</span>
-        <span class="counter-badge rejected" title="Rechazados">&#10007; {{ src.rejected }}</span>
+        <span class="counter-badge approved" title="Autoaprobados">&#10003; {% if src.approved is none %}&#8212;{% else %}{{ src.approved }}{% endif %}</span>
+        <span class="counter-badge pending" title="Pendientes de revisión">&#9203; {% if src.pending is none %}&#8212;{% else %}{{ src.pending }}{% endif %}</span>
+        <span class="counter-badge rejected" title="Rechazados">&#10007; {% if src.rejected is none %}&#8212;{% else %}{{ src.rejected }}{% endif %}</span>
       </div>
     </li>
     {% endfor %}

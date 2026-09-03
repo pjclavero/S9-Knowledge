@@ -87,8 +87,13 @@ def test_reviews_no_entrega_rutas_absolutas_a_un_reviewer(tmp_path, monkeypatch)
     fake_root = tmp_path / "repo"
     (fake_root / "output" / "reviews" / "leyenda" / "mi_fuente").mkdir(parents=True)
     monkeypatch.setattr(main_module, "REPO_ROOT", fake_root)
+    # `can_view_lore` explicito: desde que /reviews filtra por AMBITO, una
+    # fuente sin partida es material de capa juego y pide esa llave. Un revisor
+    # de verdad la tiene (`build_viewer_context`); este contexto fabricado a
+    # mano se quedaba sin ella y el revisor recibia 404 en su propia fuente.
     revisor = VisibilityScope(ViewerContext(
-        role="reviewer", allowed_workspaces=frozenset({"leyenda"})
+        role="reviewer", allowed_workspaces=frozenset({"leyenda"}),
+        can_view_lore=True,
     ))
     monkeypatch.setattr(main_module, "get_visibility_scope", lambda _r: revisor)
 

@@ -1,21 +1,29 @@
-"""Tests del panel /reviews del visor."""
+"""Tests del panel /reviews del visor.
+
+Piden con un LECTOR LEGITIMO (`cliente_lector`), no de forma anonima: desde que
+/reviews filtra por AMBITO --y no solo por rol-- el material de revision pide
+la misma llave que el resto del visor, y un visitante sin principal no recibe
+nada (LORE-ANONIMO-DENEGADO). Estas pruebas miden la FORMA de la pantalla, asi
+que necesitan un lector con derecho; el aislamiento por partida se mide en
+`test_reviews_contadores_por_ambito.py`.
+"""
 import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
 
-def test_reviews_returns_200_with_no_reviews():
+def test_reviews_returns_200_with_no_reviews(cliente_lector):
     """El panel /reviews responde 200 aunque no haya ninguna fuente."""
     from app.main import app
 
-    client = TestClient(app)
+    client = cliente_lector(app)
     response = client.get("/reviews")
     assert response.status_code == 200
     assert "Revisiones pendientes" in response.text
 
 
-def test_reviews_returns_200_with_empty_workspace(tmp_path, monkeypatch):
+def test_reviews_returns_200_with_empty_workspace(tmp_path, monkeypatch, cliente_lector):
     """Con un workspace vacío, /reviews sigue respondiendo 200 (lista vacía)."""
     from app.main import app, _reviews_dir
 
@@ -25,13 +33,13 @@ def test_reviews_returns_200_with_empty_workspace(tmp_path, monkeypatch):
     (fake_root / "output" / "reviews" / "leyenda").mkdir(parents=True)
     monkeypatch.setattr(main_module, "REPO_ROOT", fake_root)
 
-    client = TestClient(app)
+    client = cliente_lector(app)
     response = client.get("/reviews?workspace=leyenda")
     assert response.status_code == 200
     assert "No hay fuentes" in response.text
 
 
-def test_reviews_lists_sources(tmp_path, monkeypatch):
+def test_reviews_lists_sources(tmp_path, monkeypatch, cliente_lector):
     """Con un workspace que contiene fuentes, /reviews las lista correctamente."""
     import app.main as main_module
 
@@ -45,13 +53,13 @@ def test_reviews_lists_sources(tmp_path, monkeypatch):
     monkeypatch.setattr(main_module, "REPO_ROOT", fake_root)
 
     from app.main import app
-    client = TestClient(app)
+    client = cliente_lector(app)
     response = client.get("/reviews?workspace=leyenda")
     assert response.status_code == 200
     assert "fuente_01" in response.text
 
 
-def test_reviews_detail_404_for_missing_source(tmp_path, monkeypatch):
+def test_reviews_detail_404_for_missing_source(tmp_path, monkeypatch, cliente_lector):
     """El detalle de una fuente inexistente devuelve 404."""
     import app.main as main_module
 
@@ -60,12 +68,12 @@ def test_reviews_detail_404_for_missing_source(tmp_path, monkeypatch):
     monkeypatch.setattr(main_module, "REPO_ROOT", fake_root)
 
     from app.main import app
-    client = TestClient(app)
+    client = cliente_lector(app)
     response = client.get("/reviews/fuente_inexistente?workspace=leyenda")
     assert response.status_code == 404
 
 
-def test_reviews_detail_200_for_existing_source(tmp_path, monkeypatch):
+def test_reviews_detail_200_for_existing_source(tmp_path, monkeypatch, cliente_lector):
     """El detalle de una fuente existente devuelve 200 con la información correcta."""
     import app.main as main_module
 
@@ -81,7 +89,7 @@ def test_reviews_detail_200_for_existing_source(tmp_path, monkeypatch):
     monkeypatch.setattr(main_module, "REPO_ROOT", fake_root)
 
     from app.main import app
-    client = TestClient(app)
+    client = cliente_lector(app)
     response = client.get("/reviews/mi_fuente?workspace=leyenda")
     assert response.status_code == 200
     text = response.text
@@ -97,7 +105,7 @@ def test_reviews_detail_200_for_existing_source(tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def test_reviews_list_shows_origin_badge_when_present(tmp_path, monkeypatch):
+def test_reviews_list_shows_origin_badge_when_present(tmp_path, monkeypatch, cliente_lector):
     """La lista /reviews muestra el badge de origen cuando pipeline_state lo incluye."""
     import app.main as main_module
 
@@ -115,14 +123,14 @@ def test_reviews_list_shows_origin_badge_when_present(tmp_path, monkeypatch):
     monkeypatch.setattr(main_module, "REPO_ROOT", fake_root)
 
     from app.main import app
-    client = TestClient(app)
+    client = cliente_lector(app)
     response = client.get("/reviews?workspace=leyenda")
     assert response.status_code == 200
     assert "external" in response.text
     assert "origin-external" in response.text
 
 
-def test_reviews_list_no_origin_badge_when_absent(tmp_path, monkeypatch):
+def test_reviews_list_no_origin_badge_when_absent(tmp_path, monkeypatch, cliente_lector):
     """La lista /reviews funciona sin campo origin (no rompe)."""
     import app.main as main_module
 
@@ -136,7 +144,7 @@ def test_reviews_list_no_origin_badge_when_absent(tmp_path, monkeypatch):
     monkeypatch.setattr(main_module, "REPO_ROOT", fake_root)
 
     from app.main import app
-    client = TestClient(app)
+    client = cliente_lector(app)
     response = client.get("/reviews?workspace=leyenda")
     assert response.status_code == 200
     assert "fuente_local" in response.text
@@ -144,7 +152,7 @@ def test_reviews_list_no_origin_badge_when_absent(tmp_path, monkeypatch):
     assert "origin-badge" not in response.text
 
 
-def test_reviews_detail_shows_pkg_meta_fields(tmp_path, monkeypatch):
+def test_reviews_detail_shows_pkg_meta_fields(tmp_path, monkeypatch, cliente_lector):
     """El detalle muestra producer, model y confidence externa cuando existen."""
     import app.main as main_module
 
@@ -170,7 +178,7 @@ def test_reviews_detail_shows_pkg_meta_fields(tmp_path, monkeypatch):
     monkeypatch.setattr(main_module, "REPO_ROOT", fake_root)
 
     from app.main import app
-    client = TestClient(app)
+    client = cliente_lector(app)
     response = client.get("/reviews/fuente_meta?workspace=leyenda")
     assert response.status_code == 200
     text = response.text
@@ -180,7 +188,7 @@ def test_reviews_detail_shows_pkg_meta_fields(tmp_path, monkeypatch):
     assert "0.72" in text
 
 
-def test_reviews_detail_decision_reason_shown(tmp_path, monkeypatch):
+def test_reviews_detail_decision_reason_shown(tmp_path, monkeypatch, cliente_lector):
     """La cola de revisión muestra decision_reason cuando existe en el ítem."""
     import app.main as main_module
 
@@ -202,7 +210,7 @@ def test_reviews_detail_decision_reason_shown(tmp_path, monkeypatch):
     monkeypatch.setattr(main_module, "REPO_ROOT", fake_root)
 
     from app.main import app
-    client = TestClient(app)
+    client = cliente_lector(app)
     response = client.get("/reviews/fuente_reason?workspace=leyenda")
     assert response.status_code == 200
     text = response.text
@@ -211,7 +219,7 @@ def test_reviews_detail_decision_reason_shown(tmp_path, monkeypatch):
     assert "confidence media" in text
 
 
-def test_reviews_detail_quality_report_json(tmp_path, monkeypatch):
+def test_reviews_detail_quality_report_json(tmp_path, monkeypatch, cliente_lector):
     """El detalle muestra el quality_report.json cuando existe."""
     import app.main as main_module
 
@@ -229,7 +237,7 @@ def test_reviews_detail_quality_report_json(tmp_path, monkeypatch):
     monkeypatch.setattr(main_module, "REPO_ROOT", fake_root)
 
     from app.main import app
-    client = TestClient(app)
+    client = cliente_lector(app)
     response = client.get("/reviews/fuente_qr?workspace=leyenda")
     assert response.status_code == 200
     text = response.text
@@ -238,7 +246,7 @@ def test_reviews_detail_quality_report_json(tmp_path, monkeypatch):
     assert "93" in text
 
 
-def test_reviews_detail_quality_report_md_only(tmp_path, monkeypatch):
+def test_reviews_detail_quality_report_md_only(tmp_path, monkeypatch, cliente_lector):
     """El detalle muestra el quality_report.md si no hay .json."""
     import app.main as main_module
 
@@ -255,14 +263,14 @@ def test_reviews_detail_quality_report_md_only(tmp_path, monkeypatch):
     monkeypatch.setattr(main_module, "REPO_ROOT", fake_root)
 
     from app.main import app
-    client = TestClient(app)
+    client = cliente_lector(app)
     response = client.get("/reviews/fuente_qrmd?workspace=leyenda")
     assert response.status_code == 200
     text = response.text
     assert "quality_report.md" in text
 
 
-def test_reviews_detail_no_quality_report_no_section(tmp_path, monkeypatch):
+def test_reviews_detail_no_quality_report_no_section(tmp_path, monkeypatch, cliente_lector):
     """Sin quality_report, la sección de informe de calidad no aparece."""
     import app.main as main_module
 
@@ -276,13 +284,13 @@ def test_reviews_detail_no_quality_report_no_section(tmp_path, monkeypatch):
     monkeypatch.setattr(main_module, "REPO_ROOT", fake_root)
 
     from app.main import app
-    client = TestClient(app)
+    client = cliente_lector(app)
     response = client.get("/reviews/fuente_noqr?workspace=leyenda")
     assert response.status_code == 200
     assert "Informe de calidad" not in response.text
 
 
-def test_reviews_detail_pipeline_state_without_quality_report(tmp_path, monkeypatch):
+def test_reviews_detail_pipeline_state_without_quality_report(tmp_path, monkeypatch, cliente_lector):
     """pipeline_state.json sin quality_report no rompe la vista de detalle."""
     import app.main as main_module
 
@@ -299,7 +307,7 @@ def test_reviews_detail_pipeline_state_without_quality_report(tmp_path, monkeypa
     monkeypatch.setattr(main_module, "REPO_ROOT", fake_root)
 
     from app.main import app
-    client = TestClient(app)
+    client = cliente_lector(app)
     response = client.get("/reviews/fuente_noqr2?workspace=leyenda")
     assert response.status_code == 200
     assert "Informe de calidad" not in response.text
