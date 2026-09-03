@@ -45,7 +45,7 @@ mypy_extensions==1.1.0
 neo4j==5.28.4
 nest-asyncio==1.6.0
 networkx==3.6.1
-nltk==3.10.0
+nltk==3.10.3
 numpy==2.5.1
 ollama==0.6.2
 packaging==26.2
@@ -56,7 +56,7 @@ propcache==0.5.2
 pydantic==2.13.4
 pydantic_core==2.46.4
 Pygments==2.20.0
-pypdf==6.15.0
+pypdf==6.16.1
 pytest==9.1.1
 pytest-asyncio==1.4.0
 python-dotenv==1.2.2

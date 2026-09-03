@@ -231,8 +231,18 @@ jobs:
           # MU4 hace lo mismo con la de aserciones. MU3/MU4 son ablaciones de
           # CAPACIDAD: la version anterior de MU3 estrechaba la clave, que es
           # anclar la FORMA, no demostrar que la barrera defiende algo.)
-          if [ "$ejercidas" -lt 16 ]; then
-            echo "::error::solo se ejercieron $ejercidas mutaciones (con Neo4j tienen que ser 16): arnes mudo"
+          # Carril 4 de V3.1: el suelo sube de 16 a 22. +3 de PARCIALIDAD POR
+          # VALOR sobre `viewer/app/graph_view.py` (MV1 es el superviviente
+          # medido: `"limit": 999999` dejaba 1576 pruebas en verde) y +2 de
+          # CONTRATO DE PANELES sobre la proyeccion (`aliases` y `updated_at`,
+          # los dos campos que las plantillas consumen y que ninguna ablacion
+          # tocaba), y +1 de DERIVACION (MD1: una plantilla empieza a consumir
+          # un campo sin ablacion; es la guarda central del carril, y sin esta
+          # mutacion seria un control declarado y no medido).
+          # Las cuatro offline (MV1-MV3, MD1) se ejercen tambien fuera de este
+          # job; las dos de contrato (MC1/MC2) solo aqui.
+          if [ "$ejercidas" -lt 22 ]; then
+            echo "::error::solo se ejercieron $ejercidas mutaciones (con Neo4j tienen que ser 22): arnes mudo"
             exit 1
           fi
           if [ "$enrojecidas" -ne "$ejercidas" ]; then

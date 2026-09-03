@@ -66,8 +66,11 @@ def test_orden_incorrecto_codigo_n_menos_1_sobre_base_v3_no_arranca(tmp_path, mo
 
     with pytest.raises(schema_compat.SchemaCompatibilityError) as exc:
         auth_db.ensure_migrated(db)
-    assert "v3" in str(exc.value)
-    assert "SE REHÚSA ARRANCAR" in str(exc.value)
+    # Tipo + CÓDIGO + versión leída: la garantía es la conducta (se rehúsa
+    # arrancar sobre una base por encima del máximo soportado), no la
+    # redacción del aviso al operador.
+    assert exc.value.code == schema_compat.SCHEMA_ABOVE_MAX_SUPPORTED
+    assert exc.value.schema_version == 3
 
 
 def test_orden_correcto_restaurar_v2_antes_de_arrancar(tmp_path, monkeypatch):
