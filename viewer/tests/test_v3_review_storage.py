@@ -14,6 +14,8 @@ from app.services.v3_review import (
     load_proposals,
 )
 from app.services.v3_review_store import SQLiteReviewStore
+from app.services import v3_review as v3r
+from exception_codes import raises_code
 
 
 def _proposal(
@@ -148,7 +150,7 @@ def test_corrupt_package_fails_closed(tmp_path):
     proposals = tmp_path / "proposals"
     proposals.mkdir()
     (proposals / "bad.json").write_text("{", encoding="utf-8")
-    with pytest.raises(ReviewError, match="corrupto"):
+    with raises_code(ReviewError, v3r.PACKAGE_CORRUPT):
         load_proposals(proposals)
 
 
