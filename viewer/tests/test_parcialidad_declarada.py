@@ -75,10 +75,24 @@ CLAVES_DE_VISTA = {
 }
 
 
-def _exige_declaracion_de_parcialidad(payload: dict, *, truncada: bool) -> None:
+def _exige_declaracion_de_parcialidad(payload: dict, *, truncada: bool,
+                                      limite: int) -> None:
     """El control calibrado. Rojo si falta `view`, si le faltan claves, si
     miente sobre el truncado o si los contadores no cuadran con los datos
-    entregados."""
+    entregados.
+
+    `limite` NO es opcional (carril 4 de V3.1). La versión anterior comprobaba
+    que la clave `limit` ESTUVIERA, jamás su valor, y el cliente tampoco lo
+    consume: medido sobre `main=aaf9695`, mutar `viewer/app/graph_view.py` para
+    publicar `"limit": 999999` dejaba la suite entera en verde (1576 passed).
+    Un metadato cuyo valor nadie comprueba no declara nada: es una clave.
+
+    Se exige como argumento OBLIGATORIO a propósito. Un valor por defecto
+    (`limite: int | None = None`, «si no me lo dices no lo compruebo») dejaría
+    que una llamada futura recuperase el superviviente sin escribir nada
+    sospechoso: la comprobación se apagaría por omisión, que es exactamente
+    cómo se apagan los controles en este repo.
+    """
     view = payload.get("view")
     assert isinstance(view, dict), (
         "la respuesta de /api/graph NO declara si la vista es completa o "
@@ -87,6 +101,20 @@ def _exige_declaracion_de_parcialidad(payload: dict, *, truncada: bool) -> None:
     )
     faltan = CLAVES_DE_VISTA - set(view)
     assert not faltan, f"al bloque `view` le faltan claves: {sorted(faltan)}"
+    # EL VALOR, no la clave. `limit` dice bajo qué tope se ha construido esta
+    # vista; si publica otro número, el aviso describe una vista que nadie
+    # pidió y las cifras de al lado dejan de ser comprobables contra nada.
+    assert view["limit"] == limite, (
+        f"`view.limit` publica {view['limit']!r} y la vista se construyó con "
+        f"tope {limite!r}. La clave está y MIENTE: es el superviviente medido "
+        f"sobre main=aaf9695."
+    )
+    # Y el valor tiene que ser un entero de verdad: `\"300\"` == 300 es falso en
+    # Python pero un `limit` que viaja como cadena rompe al cliente sin que la
+    # igualdad de arriba lo distinga de un número equivocado.
+    assert isinstance(view["limit"], int) and not isinstance(view["limit"], bool), (
+        f"`view.limit` no es un entero: {view['limit']!r}"
+    )
     assert view["truncated"] is truncada, (
         f"`truncated` dice {view['truncated']!r} y la vista {'SÍ' if truncada else 'NO'} "
         f"está recortada ({view['nodes_shown']}/{view['nodes_total']} nodos, "
@@ -104,6 +132,78 @@ def _exige_declaracion_de_parcialidad(payload: dict, *, truncada: bool) -> None:
     else:
         assert view["nodes_shown"] == view["nodes_total"]
         assert view["edges_shown"] == view["edges_total"]
+
+
+# ---------------------------------------------------------------------------
+# Los SEIS valores, uno a uno, contra cifras calculadas FUERA del metadato
+# ---------------------------------------------------------------------------
+#: Mensaje con el que se queja cada clave. Es el ANCLA de la calibración de más
+#: abajo: cada falseo tiene que producir SU queja y no la del vecino, o el rojo
+#: sería prestado y una clave podría quedarse sin vigilancia sin que se note.
+_QUEJA = {
+    "limit": "`view.limit`",
+    "truncated": "`truncated`",
+    "nodes_shown": "`nodes_shown`",
+    "nodes_total": "`nodes_total`",
+    "edges_shown": "`edges_shown`",
+    "edges_total": "`edges_total`",
+}
+
+
+def _exige_contadores_por_valor(
+    view: dict, *, limite: int, nodos_autorizados: int, relaciones_autorizadas: int,
+    nodos_entregados: int, relaciones_entregadas: int,
+) -> None:
+    """Las SEIS cifras comprobadas por VALOR contra números de fuera del bloque.
+
+    QUÉ APORTA ESTO, MEDIDO Y NO SUPUESTO
+    -------------------------------------
+    **Atribución, no cobertura.** La primera redacción de este carril daba a
+    entender que los totales estaban sin comprobar, y eso era una garantía
+    cobrada más ancha de lo que la medida sostiene. Mutando
+    `viewer/app/graph_view.py` una a una contra el fichero de pruebas de
+    `main=aaf9695` (reversión verificada por SHA-256):
+
+        limit       -> 999999        aaf9695: 22 passed  <- ÚNICO SUPERVIVIENTE
+        nodes_total -> recorte       aaf9695:  4 failed
+        edges_total -> recorte       aaf9695:  5 failed
+        edges_shown -> todas         aaf9695:  8 failed
+        nodes_shown -> todos         aaf9695:  9 failed
+        truncated   -> sólo nodos    aaf9695:  2 failed
+
+    Los cinco contadores YA enrojecían — no dentro de
+    `_exige_declaracion_de_parcialidad`, sino repartidos por los casos
+    saturados. Lo que faltaba, y es lo que añade esta función, es que el rojo
+    **diga de quién es**: cada aserción nombra su clave (`_QUEJA`) y la
+    calibración exige que falsear `nodes_total` produzca la queja de
+    `nodes_total`, no la de su vecina. Sin eso, una clave puede quedarse sin
+    vigilancia propia viviendo del rojo prestado de otra y nadie lo nota.
+
+    El único superviviente genuino era `limit`.
+
+    Las cifras se traen calculadas por otro camino (el proveedor filtrado
+    pedido SIN TOPE): derivarlas del `view` que se quiere comprobar sería una
+    tautología.
+    """
+    assert view["limit"] == limite, (
+        f"{_QUEJA['limit']} publica {view['limit']!r}, tope real {limite!r}")
+    assert view["nodes_shown"] == nodos_entregados, (
+        f"{_QUEJA['nodes_shown']} publica {view['nodes_shown']!r}, entregados "
+        f"{nodos_entregados!r}")
+    assert view["edges_shown"] == relaciones_entregadas, (
+        f"{_QUEJA['edges_shown']} publica {view['edges_shown']!r}, entregadas "
+        f"{relaciones_entregadas!r}")
+    assert view["nodes_total"] == nodos_autorizados, (
+        f"{_QUEJA['nodes_total']} publica {view['nodes_total']!r}, autorizados "
+        f"{nodos_autorizados!r}")
+    assert view["edges_total"] == relaciones_autorizadas, (
+        f"{_QUEJA['edges_total']} publica {view['edges_total']!r}, autorizadas "
+        f"{relaciones_autorizadas!r}")
+    esperado = (nodos_entregados < nodos_autorizados
+                or relaciones_entregadas < relaciones_autorizadas)
+    assert view["truncated"] is esperado, (
+        f"{_QUEJA['truncated']} publica {view['truncated']!r} y las cifras "
+        f"reales dicen {esperado!r}")
 
 
 def _respuesta(path: Path, *, limit: int = LIMIT, ctx: ViewerContext | None = None) -> dict:
@@ -125,7 +225,7 @@ def test_caso_pequeno_completo(tmp_path):
 
     assert len(payload["nodes"]) == 50
     assert len(payload["edges"]) == n_edges
-    _exige_declaracion_de_parcialidad(payload, truncada=False)
+    _exige_declaracion_de_parcialidad(payload, truncada=False, limite=LIMIT)
 
 
 @pytest.mark.parametrize("n_nodes", [500, 1000, 2000])
@@ -133,7 +233,7 @@ def test_casos_saturados_declaran_truncado(tmp_path, n_nodes):
     path, n_edges = _fixture(tmp_path, n_nodes)
     payload = _respuesta(path, limit=LIMIT)
 
-    _exige_declaracion_de_parcialidad(payload, truncada=True)
+    _exige_declaracion_de_parcialidad(payload, truncada=True, limite=LIMIT)
     view = payload["view"]
     # Los totales son los del conjunto VISIBLE completo, no los del recorte.
     assert view["nodes_total"] == n_nodes
@@ -149,7 +249,7 @@ def test_peor_caso_conocido_uniforme_2000(tmp_path):
     payload = _respuesta(path, limit=LIMIT)
     view = payload["view"]
 
-    _exige_declaracion_de_parcialidad(payload, truncada=True)
+    _exige_declaracion_de_parcialidad(payload, truncada=True, limite=LIMIT)
     assert view["edges_shown"] / view["edges_total"] < 0.06, (
         "esto ya no es el peor caso caracterizado; revisar docs/72"
     )
@@ -163,7 +263,7 @@ def test_el_caso_alineado_tambien_se_declara(tmp_path):
     path, n_edges = _fixture(tmp_path, 2000, alineado=True)
     payload = _respuesta(path, limit=LIMIT)
 
-    _exige_declaracion_de_parcialidad(payload, truncada=True)
+    _exige_declaracion_de_parcialidad(payload, truncada=True, limite=LIMIT)
     assert payload["view"]["edges_shown"] / n_edges > 0.05, "¿ya no es el caso alineado?"
 
 
@@ -387,7 +487,7 @@ def test_los_totales_se_cuentan_despues_de_filtrar(tmp_path):
     payload = _respuesta(path, limit=LIMIT, ctx=_sin_referencia())
 
     _exige_totales_autorizados(payload["view"], nodos=10, relaciones=9)
-    _exige_declaracion_de_parcialidad(payload, truncada=False)
+    _exige_declaracion_de_parcialidad(payload, truncada=False, limite=LIMIT)
 
 
 def test_calibracion_contar_ANTES_de_filtrar_pone_el_gate_ROJO(tmp_path):
@@ -425,13 +525,13 @@ def test_api_graph_http_declara_la_vista(lector_por_dependencia):
     lector_por_dependencia(app)
     r = client.get("/api/graph", params={"workspace": "leyenda", "limit": 2000})
     assert r.status_code == 200
-    _exige_declaracion_de_parcialidad(r.json(), truncada=False)
+    _exige_declaracion_de_parcialidad(r.json(), truncada=False, limite=2000)
 
     r2 = client.get("/api/graph", params={"workspace": "leyenda", "limit": 1})
     assert r2.status_code == 200
     payload = r2.json()
     assert len(payload["nodes"]) == 1
-    _exige_declaracion_de_parcialidad(payload, truncada=True)
+    _exige_declaracion_de_parcialidad(payload, truncada=True, limite=1)
 
 
 # ---------------------------------------------------------------------------
@@ -442,11 +542,11 @@ def test_calibracion_sin_bloque_view_el_gate_se_pone_rojo(tmp_path):
     existía antes de este carril)."""
     path, _ = _fixture(tmp_path, 2000)
     payload = _respuesta(path)
-    _exige_declaracion_de_parcialidad(payload, truncada=True)  # verde antes
+    _exige_declaracion_de_parcialidad(payload, truncada=True, limite=LIMIT)  # verde antes
 
     payload.pop("view")
     with pytest.raises(AssertionError, match="NO declara si la vista"):
-        _exige_declaracion_de_parcialidad(payload, truncada=True)
+        _exige_declaracion_de_parcialidad(payload, truncada=True, limite=LIMIT)
 
 
 def test_calibracion_un_view_mutilado_el_gate_se_pone_rojo(tmp_path):
@@ -457,7 +557,7 @@ def test_calibracion_un_view_mutilado_el_gate_se_pone_rojo(tmp_path):
         payload = _respuesta(path)
         payload["view"].pop(clave)
         with pytest.raises(AssertionError):
-            _exige_declaracion_de_parcialidad(payload, truncada=True)
+            _exige_declaracion_de_parcialidad(payload, truncada=True, limite=LIMIT)
 
 
 def test_calibracion_un_view_que_miente_el_gate_se_pone_rojo(tmp_path):
@@ -467,13 +567,13 @@ def test_calibracion_un_view_que_miente_el_gate_se_pone_rojo(tmp_path):
     payload = _respuesta(path)
     payload["view"]["truncated"] = False
     with pytest.raises(AssertionError, match="truncated"):
-        _exige_declaracion_de_parcialidad(payload, truncada=True)
+        _exige_declaracion_de_parcialidad(payload, truncada=True, limite=LIMIT)
 
     payload = _respuesta(path)
     payload["view"]["nodes_total"] = payload["view"]["nodes_shown"]
     payload["view"]["edges_total"] = payload["view"]["edges_shown"]
     with pytest.raises(AssertionError, match="no falta nada"):
-        _exige_declaracion_de_parcialidad(payload, truncada=True)
+        _exige_declaracion_de_parcialidad(payload, truncada=True, limite=LIMIT)
 
 
 # ---------------------------------------------------------------------------
@@ -554,3 +654,158 @@ def test_el_cliente_no_calcula_cifras_propias():
         ("toFixed", "da una cifra derivada, no la que dijo el servidor"),
     ):
         assert operador not in codigo, "el aviso " + queja
+
+
+# ===========================================================================
+# CARRIL 4 de V3.1: PARCIALIDAD POR VALOR
+#
+# EL SUPERVIVIENTE, y sólo él: mutando `viewer/app/graph_view.py`
+# (`"limit": limit` -> `"limit": 999999`) la suite entera seguía VERDE
+# (1576 passed sobre `main=aaf9695`). Causa: `CLAVES_DE_VISTA` comprobaba la
+# PRESENCIA de la clave y jamás su valor, y el cliente tampoco la consume. Una
+# clave presente con el valor equivocado no es una declaración: es un adorno
+# con nombre de declaración.
+#
+# Los otros cinco contadores NO eran supervivientes: falsear cualquiera de
+# ellos ya ponía roja la suite de `aaf9695` (la tabla está medida en el
+# docstring de `_exige_contadores_por_valor`). Lo que esta sección les añade no
+# es cobertura sino ATRIBUCIÓN: que cada rojo nombre su clave, para que ninguna
+# viva del rojo prestado de otra.
+# ===========================================================================
+
+def _cifras_reales(path: Path, *, limit: int, ctx: ViewerContext | None = None):
+    """Las cinco cifras calculadas SIN mirar el bloque `view`.
+
+    Se obtienen del proveedor filtrado pedido SIN TOPE (el conjunto autorizado
+    completo) y del recorte hecho aparte. Si se derivaran del propio `view` que
+    se quiere comprobar, la comparación sería una tautología.
+    """
+    prov = PolicyFilteredProvider(MockGraphProvider(path), ctx or _viewer())
+    todos_n, todas_e = prov.graph("leyenda", limit=SIN_TOPE)
+    mostrados, relaciones, _ = vista_truncada(todos_n, todas_e, limit)
+    return dict(
+        limite=limit,
+        nodos_autorizados=len(todos_n), relaciones_autorizadas=len(todas_e),
+        nodos_entregados=len(mostrados), relaciones_entregadas=len(relaciones),
+    )
+
+
+@pytest.mark.parametrize("n_nodes,limit", [(50, 300), (500, 300), (2000, 300),
+                                           (2000, 1), (2000, 2000)])
+def test_las_seis_cifras_del_bloque_view_son_las_de_verdad(tmp_path, n_nodes, limit):
+    """Regla 3 llevada al servidor: no basta con que el cliente no invente
+    cifras; las que manda el servidor tienen que ser las que son.
+
+    Los cinco casos incluyen `limit=1` (el recorte máximo) y `limit=2000` (sin
+    recorte): así el valor de `limit` publicado no puede acertar por coincidir
+    con el número de nodos ni con una constante del módulo.
+    """
+    path, _ = _fixture(tmp_path, n_nodes)
+    payload = _respuesta(path, limit=limit)
+    _exige_contadores_por_valor(payload["view"], **_cifras_reales(path, limit=limit))
+
+
+def test_el_limite_publicado_es_el_PEDIDO_por_HTTP(tmp_path, lector_por_dependencia):
+    """`view.limit` recorre la ruta real: parámetro de consulta -> router ->
+    respuesta. Un valor fijo (el superviviente) acertaría a lo sumo en uno de
+    los tres, así que se piden tres distintos y NINGUNO es el de por defecto.
+    """
+    lector_por_dependencia(app)
+    path, _ = _fixture(tmp_path, 2000)
+    app.dependency_overrides[get_filtered_provider] = lambda: PolicyFilteredProvider(
+        MockGraphProvider(path), _viewer()
+    )
+    try:
+        for pedido in (7, 123, 999):
+            r = client.get("/api/graph",
+                           params={"workspace": "leyenda", "limit": pedido})
+            assert r.status_code == 200
+            view = r.json()["view"]
+            assert view["limit"] == pedido, (
+                f"se pidió limit={pedido} y la vista declara {view['limit']!r}: "
+                f"el metadato no describe ESTA vista")
+            assert view["nodes_shown"] == pedido, (
+                "y las cifras de al lado tampoco: el recorte no es el pedido")
+    finally:
+        app.dependency_overrides.pop(get_filtered_provider, None)
+
+
+#: Falseo de CADA cifra CONSERVANDO SU CLAVE. No se borra nada: el bloque sigue
+#: teniendo las seis claves, con los tipos correctos, y miente. Es la forma del
+#: defecto que sobrevivía.
+def _falsear(view: dict, clave: str) -> dict:
+    falso = dict(view)
+    if clave == "truncated":
+        falso[clave] = not view[clave]
+    else:
+        # +1 no vale para todo: en `nodes_shown` produciría un número que ya no
+        # cuadra con lo entregado y lo cazaría cualquier control. Se usa un
+        # valor GRANDE y plausible, que es lo que escribiría alguien que
+        # "arregla" el metadato: el 999999 del superviviente medido.
+        falso[clave] = 999999
+    assert set(falso) == set(view), "el falseo tiene que CONSERVAR las claves"
+    assert falso[clave] != view[clave], f"el falseo de `{clave}` no muerde"
+    return falso
+
+
+@pytest.mark.parametrize("clave", sorted(CLAVES_DE_VISTA))
+def test_calibracion_falsear_una_cifra_CONSERVANDO_la_clave_pone_ROJO(tmp_path, clave):
+    """MUTACIÓN 9 (la que faltaba, una por clave): el bloque `view` conserva
+    las seis claves y una de ellas MIENTE.
+
+    Se exige además que el rojo sea SUYO: el mensaje tiene que nombrar la clave
+    falseada. Sin esa comprobación, `nodes_total` podría estar cubierto sólo
+    por el rojo prestado de `truncated` y nadie lo sabría.
+    """
+    path, _ = _fixture(tmp_path, 2000)
+    cifras = _cifras_reales(path, limit=LIMIT)
+    view = _respuesta(path, limit=LIMIT)["view"]
+    _exige_contadores_por_valor(view, **cifras)  # verde antes
+
+    with pytest.raises(AssertionError) as e:
+        _exige_contadores_por_valor(_falsear(view, clave), **cifras)
+    assert _QUEJA[clave] in str(e.value), (
+        f"falsear `{clave}` puso rojo, pero la queja es de otra clave "
+        f"({str(e.value)[:120]}): el rojo es PRESTADO y `{clave}` sigue sin control")
+
+
+def test_calibracion_el_limite_mentiroso_pone_ROJO_en_el_control_general(tmp_path):
+    """El superviviente exacto, en el control que lo dejaba pasar.
+
+    `_exige_declaracion_de_parcialidad` es la función por la que pasan TODOS
+    los casos de este fichero. Con `view["limit"] = 999999` —la mutación
+    literal que se midió sobre `main=aaf9695`— tiene que ponerse roja.
+    """
+    path, _ = _fixture(tmp_path, 2000)
+    payload = _respuesta(path, limit=LIMIT)
+    _exige_declaracion_de_parcialidad(payload, truncada=True, limite=LIMIT)  # verde
+
+    payload["view"]["limit"] = 999999
+    with pytest.raises(AssertionError, match="view.limit"):
+        _exige_declaracion_de_parcialidad(payload, truncada=True, limite=LIMIT)
+
+    # Y un `limit` con el valor correcto pero del tipo equivocado tampoco pasa:
+    # `"300" == 300` es falso en Python, pero sin la comprobación de tipo un
+    # `limit` en cadena viajaría al cliente y la igualdad de arriba no diría
+    # POR QUÉ.
+    payload = _respuesta(path, limit=LIMIT)
+    payload["view"]["limit"] = str(LIMIT)
+    with pytest.raises(AssertionError, match="view.limit"):
+        _exige_declaracion_de_parcialidad(payload, truncada=True, limite=LIMIT)
+
+
+def test_el_control_del_limite_NO_es_opcional():
+    """Ablación del propio control: que no se pueda apagar por omisión.
+
+    Si `limite` tuviera valor por defecto, bastaría con dejar de pasarlo para
+    volver al estado de `aaf9695` sin que nada se pusiera rojo. Se afirma sobre
+    la FIRMA REAL (`inspect`), no sobre el texto del fichero.
+    """
+    import inspect
+
+    firma = inspect.signature(_exige_declaracion_de_parcialidad)
+    p = firma.parameters["limite"]
+    assert p.default is inspect.Parameter.empty, (
+        "`limite` tiene valor por defecto: la comprobación del VALOR de `limit` "
+        "se apagaría con sólo omitir el argumento")
+    assert p.kind is inspect.Parameter.KEYWORD_ONLY

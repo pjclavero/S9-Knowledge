@@ -129,9 +129,20 @@ def _respaldo_de_relacion() -> str:
 SEMILLA: tuple[dict, ...] = (
     # --- el nodo que se ablaciona. Completo a proposito: es el unico sobre el
     #     que se mide, y necesita tener TODO para poder perderlo.
+    #     Los campos de ANCLA (carril 4 de V3.1) llevan valores unicos y
+    #     reconocibles a proposito: ver `ANCLAS_DE_LA_FICHA` mas abajo. Un
+    #     fixture cuyo valor coincide con el respaldo de la plantilla no puede
+    #     distinguir «llego el dato» de «se aplico el degradado» -- el falso
+    #     negativo que ya se pago con `relation_label_es`.
     dict(entity_id="abl", canonical_name="Nodo de ablacion", entity_type="PERSONAJE",
          description=TEXTO_DESCRIPCION, confidence=0.91, review_status="reviewed",
          source_document=FUENTE_ABL, source_kind="pdf",
+         aliases=["Alias unico de ablacion"], source_pages=[4242],
+         created_at="2019-01-01T00:00:00Z-creado-abl",
+         updated_at="2020-02-02T00:00:00Z-actualizado-abl",
+         extractor_version="extractor-9.9.9-abl",
+         prompt_version="prompt-8.8.8-abl",
+         source_hash="hash-de-ablacion-7777",
          workspace=WS, scope="juego", visibility="player"),
     # --- testigo: NUNCA se toca. Si una ablacion lo moviera, la ablacion no
     #     estaria midiendo lo que dice medir.
@@ -1818,3 +1829,187 @@ def test_EXCEPCION_el_id_de_arista_en_api_graph_SI_es_el_element_id(
     # Ningun NODO, en cambio, admite excepcion.
     for n in datos["nodes"]:
         assert n["id"] not in fisicos, f"un nodo viaja como elementId: {n['id']}"
+
+
+# ===========================================================================
+# 2-bis. ABLACION DE LOS CAMPOS QUE SOLO SE VEN EN LA FICHA `/entity/{id}`
+#
+# La LISTA de campos a ablacionar no se escribe: se DERIVA de lo que las
+# plantillas consumen de verdad. Esa derivacion y sus guardas viven en
+# `tests/test_contrato_paneles_derivacion.py`, que es AST puro y por tanto NO
+# puede vivir aqui: este modulo lleva `pytestmark = skipif(sin Neo4j)` y las
+# guardas saldrian SKIPPED en local -- la pieza central del carril, muda fuera
+# del job de Neo4j.
+#
+# Aqui se queda lo que SI necesita una base real: las ablaciones.
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# Ablacion en la FICHA `/entity/{id}` (`entity.html`)
+#
+# Los ocho campos de aqui NO se ven en el panel G ni en el F: viven en la ficha
+# de solo lectura. `aliases` y `updated_at` son los dos supervivientes medidos;
+# los otros seis entraron con ellos porque la derivacion los senala y ninguno
+# tenia ablacion.
+#
+# `ancla` es el texto EXACTO que el valor produce en el HTML. Ninguno coincide
+# con el respaldo de la plantilla (`'-'` para alias y paginas, la desaparicion
+# de la clave para el bloque tecnico), que es la condicion que hace observable
+# la ablacion.
+# ---------------------------------------------------------------------------
+#: (campo, ancla en el HTML, degradado declarado)
+ABLACIONES_FICHA = (
+    ("aliases", "Alias unico de ablacion", "el campo Alias cae al guion"),
+    ("source_pages", "4242", "el campo Paginas cae al guion"),
+    ("description", TEXTO_DESCRIPCION, "el parrafo de descripcion desaparece"),
+    ("created_at", "2019-01-01T00:00:00Z-creado-abl", "sale del bloque tecnico"),
+    ("updated_at", "2020-02-02T00:00:00Z-actualizado-abl", "sale del bloque tecnico"),
+    ("extractor_version", "extractor-9.9.9-abl", "sale del bloque tecnico"),
+    ("prompt_version", "prompt-8.8.8-abl", "sale del bloque tecnico"),
+    ("source_hash", "hash-de-ablacion-7777", "sale del bloque tecnico"),
+)
+
+#: Valor sembrado de cada campo de la ficha, para poder RESTAURARLO. Sale de
+#: la propia semilla, no de una segunda copia escrita a mano: si la semilla
+#: cambiara, la restauracion la sigue.
+_ABL = next(n for n in SEMILLA if n["entity_id"] == "abl")
+VALOR_SEMBRADO = {campo: _ABL[campo] for campo, _, _ in ABLACIONES_FICHA}
+
+
+def _ficha(app_real, entorno, elid: str, nombre_usuario: str) -> str:
+    """La ficha `/entity/{id}` renderizada, que es donde se pintan estos ocho."""
+    c = cliente(app_real, usuario(entorno, nombre_usuario, ROL["G"]))
+    r = c.get(f"/entity/{elid}")
+    assert r.status_code == 200, (
+        f"la ficha /entity/{elid} respondio {r.status_code}: sin observacion no "
+        f"hay ablacion que medir (esta suite no puede pasar por no mirar)")
+    return r.text
+
+
+def test_la_ficha_de_solo_lectura_es_una_superficie_OBSERVABLE(app_real, proveedor,
+                                                               entorno, elemento):
+    """SUELO de la seccion. Antes de ablacionar nada: las ocho anclas estan, y
+    cada una aparece UNA SOLA VEZ.
+
+    La unicidad no es cosmetica: si dos campos compartieran ancla, el rojo de
+    uno seria el rojo del otro y uno de los dos estaria sin cubrir sin que se
+    notara. Es la misma regla que el arnes de mutaciones impone a sus anclas.
+    """
+    html = _ficha(app_real, entorno, elemento["abl"], "ficha_suelo")
+    anclas = [ancla for _, ancla, _ in ABLACIONES_FICHA]
+    assert len(set(anclas)) == len(anclas), "hay anclas repetidas en ABLACIONES_FICHA"
+    for campo, ancla, _ in ABLACIONES_FICHA:
+        assert html.count(ancla) == 1, (
+            f"el ancla de `{campo}` aparece {html.count(ancla)} veces en la ficha; "
+            f"tiene que aparecer exactamente 1 para que su rojo sea suyo")
+
+
+@pytest.mark.parametrize("campo,ancla,degradado", ABLACIONES_FICHA,
+                         ids=[c for c, _, _ in ABLACIONES_FICHA])
+def test_quitar_un_campo_que_la_FICHA_consume_pone_algo_ROJO(
+    driver, app_real, proveedor, entorno, elemento, campo, ancla, degradado
+):
+    """CALIBRACION, una por campo, sobre `entity.html`.
+
+    Se exige (a) que el ancla del campo DESAPAREZCA, (b) que la ficha siga
+    respondiendo (el degradado es una ausencia declarada, no un 500) y (c) que
+    las anclas de los OTROS SIETE sigan intactas: sin eso, un cambio global
+    --la ficha en blanco, un error, otra plantilla-- se cobraria como rojo de
+    este campo. Es la comprobacion de que ningun rojo es PRESTADO.
+    """
+    elid = elemento["abl"]
+    antes = _ficha(app_real, entorno, elid, f"fic_{campo}_antes")
+    assert ancla in antes, f"el caso `{campo}` parte sin su ancla: no mide nada"
+
+    try:
+        _quitar(driver, "abl", campo)
+        despues = _ficha(app_real, entorno, elid, f"fic_{campo}_despues")
+    finally:
+        _poner(driver, "abl", campo, VALOR_SEMBRADO[campo])
+
+    assert ancla not in despues, (
+        f"ROJO NO PRODUCIDO: quitar `{campo}` de Neo4j no borra su valor de la "
+        f"ficha. El contrato para ese campo seria DECORATIVO. Degradado "
+        f"declarado: {degradado}")
+    # (b) la ficha sigue viva y sigue siendo la del mismo objeto.
+    assert "Nodo de ablacion" in despues, (
+        f"quitar `{campo}` no degrado la ficha: la tumbo entera")
+    # (c) ninguna otra ancla se movio -> el rojo es de este campo y de nadie mas.
+    for otro, ancla_otro, _ in ABLACIONES_FICHA:
+        if otro == campo:
+            continue
+        assert ancla_otro in despues, (
+            f"quitar `{campo}` tambien borro el ancla de `{otro}`: el rojo de "
+            f"`{otro}` podria estar PRESTADO de este")
+
+    restaurada = _ficha(app_real, entorno, elid, f"fic_{campo}_restaurada")
+    assert ancla in restaurada, f"la restauracion de `{campo}` no volvio a dejar el dato"
+
+
+def test_ablacion_de_display_name_devuelve_el_nombre_canonico(driver, app_real,
+                                                              proveedor, entorno,
+                                                              elemento):
+    """`display_name` gana a `canonical_name` en `serialize_node`. Aqui se mide
+    ese orden, que es la razon por la que este campo no cabe en las tablas: hay
+    que PONERLO primero (la semilla no lo trae, justo para que la ablacion de
+    `canonical_name` sea observable) y quitarlo despues.
+
+    DEGRADADO DECLARADO: no es «no disponible». Es el nombre canonico. Se exige
+    ese valor exacto, no un cambio cualquiera.
+    """
+    elid = elemento["abl"]
+    mostrado = "Nombre mostrado de ablacion"
+    try:
+        _poner(driver, "abl", "display_name", mostrado)
+        con = _ficha(app_real, entorno, elid, "dn_con")
+        assert mostrado in con, (
+            "`display_name` no llega a la pantalla: el orden de respaldo de "
+            "`serialize_node` no se esta ejerciendo y la ablacion no mediria nada")
+        _quitar(driver, "abl", "display_name")
+        sin = _ficha(app_real, entorno, elid, "dn_sin")
+    finally:
+        _quitar(driver, "abl", "display_name")
+
+    assert mostrado not in sin, "quitar `display_name` no cambio el nombre pintado"
+    assert "Nodo de ablacion" in sin, (
+        "quitar `display_name` no cayo al `canonical_name`: la ficha se quedo "
+        "sin nombre, que es un degradado DISTINTO del declarado")
+
+
+def test_ablacion_de_entity_id_retira_la_entidad_de_los_paneles(driver, app_real,
+                                                                proveedor, entorno,
+                                                                elemento):
+    """`entity_id` es la identidad durable: sin ella la entidad no es
+    direccionable y las consultas la excluyen (`_CON_IDENTIDAD_DURABLE`).
+
+    No cabe en la tabla porque `_quitar`/`_poner` buscan el nodo POR
+    `entity_id`: al quitarlo se pierde el asa. Aqui se busca y se restaura por
+    `canonical_name`, que en la semilla es unico.
+
+    DEGRADADO DECLARADO: fila ausente en el panel G y ficha inaccesible. Fallo
+    CERRADO: nada de servir el nodo con un identificador fisico prestado.
+    """
+    elid = elemento["abl"]
+    obs = _obs_g(app_real, entorno, elid, "eid_antes")
+    fila_antes, _ = obs()
+    assert fila_antes != "(FILA AUSENTE)", "el caso parte de una observacion vacia"
+
+    try:
+        with driver.session() as s:
+            s.run("MATCH (n:Entity {canonical_name:'Nodo de ablacion'}) REMOVE n.entity_id")
+        fila_despues, _ = _obs_g(app_real, entorno, elid, "eid_despues")()
+        c = cliente(app_real, usuario(entorno, "eid_ficha", ROL["G"]))
+        r = c.get(f"/entity/{elid}")
+    finally:
+        with driver.session() as s:
+            s.run("MATCH (n:Entity {canonical_name:'Nodo de ablacion'}) "
+                  "SET n.entity_id = 'abl'")
+
+    assert fila_despues == "(FILA AUSENTE)", (
+        f"un nodo SIN identidad durable sigue listado en el panel G: {fila_despues[:200]}")
+    assert r.status_code == 404, (
+        f"la ficha de un nodo sin `entity_id` respondio {r.status_code}: tenia que "
+        f"ser indistinguible de inexistente")
+
+    fila_restaurada, _ = _obs_g(app_real, entorno, elid, "eid_restaurada")()
+    assert fila_restaurada == fila_antes, "la restauracion no dejo el panel igual"
