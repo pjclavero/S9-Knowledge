@@ -402,14 +402,38 @@ _DOCS_DE_AMBITO = ("approved_payload.json", "pipeline_state.json",
 
 
 def _docs_de_ambito(source_dir: Path) -> list[Mapping]:
-    """Todos los documentos de la fuente que pueden llevar una declaración."""
+    """TODOS los registros de la fuente que pueden llevar una declaración.
+
+    Recorre la estructura COMPLETA de cada documento, a profundidad arbitraria,
+    y devuelve cada Mapping que encuentra por el camino. La unidad de control es
+    "recorrer toda la estructura", no "los sitios donde hemos mirado hasta
+    ahora": enumerar claves conocidas es perder, porque las formas reales anidan
+    por todas partes --`KnowledgePackage` (`review/export_import.py`) escribe
+    `entities`, `relations`, `aliases`, `events`, `other`, `evidence`,
+    `review_queue`, un `approved_payload` entero y un `workspace_metadata`
+    con el `pipeline_state` dentro, todo en el mismo documento--.
+
+    Esto se aprendió rompiéndolo: una versión anterior descendía a las listas de
+    NIVEL SUPERIOR pero no a la lista anidada `approved` de
+    `approved_payload.json`, y una fuente propia con ítems aprobados de otra
+    partida atravesaba la barrera con sus contadores intactos.
+
+    El recorrido es iterativo a propósito: un documento hondo no puede tumbar el
+    visor por límite de recursión.
+    """
     docs: list[Mapping] = []
     for nombre in _DOCS_DE_AMBITO:
-        doc = _read_json_safe(source_dir / nombre)
-        if isinstance(doc, Mapping):
-            docs.append(doc)
-        elif isinstance(doc, list):
-            docs.extend(d for d in doc if isinstance(d, Mapping))
+        raiz = _read_json_safe(source_dir / nombre)
+        if raiz is None:
+            continue
+        pila: list = [raiz]
+        while pila:
+            nodo = pila.pop()
+            if isinstance(nodo, Mapping):
+                docs.append(nodo)
+                pila.extend(nodo.values())
+            elif isinstance(nodo, list):
+                pila.extend(nodo)
     return docs
 
 
