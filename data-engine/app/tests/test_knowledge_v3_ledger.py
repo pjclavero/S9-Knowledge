@@ -16,6 +16,9 @@ import json
 
 import pytest
 
+from tests.exception_codes import raises_code
+from knowledge_v3.ledger.codes import LedgerCodes
+
 pytest.importorskip("jsonschema")
 
 from knowledge_v3.contracts import (  # noqa: E402
@@ -169,7 +172,7 @@ def test_view_documents_are_copies(seeded: TemporalLedger):
 
 def test_store_rejects_out_of_order_seq(seeded: TemporalLedger):
     entry = seeded.entries()[0]
-    with pytest.raises(ValueError, match="fuera de orden"):
+    with raises_code(ValueError, LedgerCodes.STORE_SEQ_OUT_OF_ORDER):
         seeded.store.append(entry)
 
 
@@ -233,14 +236,14 @@ def test_assert_rejects_state_active_with_valid_to(ledger: TemporalLedger):
 
 
 def test_assert_rejects_duplicate_assertion_id(seeded: TemporalLedger):
-    with pytest.raises(LedgerError, match="ya existe"):
+    with raises_code(LedgerError, LedgerCodes.ASSERTION_ALREADY_EXISTS):
         seeded.assert_fact(make_assertion(recorded_at="2026-03-01T09:00:00Z"))
 
 
 def test_assert_rejects_duplicate_logical_identity(seeded: TemporalLedger):
     twin = make_assertion("assertion:0009", recorded_at="2026-03-01T09:00:00Z")
     assert logical_identity(twin) == logical_identity(make_assertion())
-    with pytest.raises(LedgerError, match="misma identidad logica"):
+    with raises_code(LedgerError, LedgerCodes.DUPLICATE_LOGICAL_IDENTITY):
         seeded.assert_fact(twin)
 
 
@@ -260,7 +263,7 @@ def test_assert_rejects_backwards_transaction_time(seeded: TemporalLedger):
     late = make_assertion(
         "assertion:0002", subject="entity:ren", recorded_at="2025-12-01T09:00:00Z"
     )
-    with pytest.raises(LedgerError, match="no retrocede"):
+    with raises_code(LedgerError, LedgerCodes.MONOTONIC_VIOLATION):
         seeded.assert_fact(late)
 
 
@@ -291,7 +294,7 @@ def test_confirm_creates_a_new_revision_without_touching_the_previous(seeded: Te
 
 
 def test_confirm_requires_genuinely_new_evidence(seeded: TemporalLedger):
-    with pytest.raises(LedgerError, match="sin evidencia nueva"):
+    with raises_code(LedgerError, LedgerCodes.CONFIRM_WITHOUT_NEW_EVIDENCE):
         seeded.confirm(
             "assertion:0001",
             recorded_at="2026-02-01T09:00:00Z",
@@ -300,7 +303,7 @@ def test_confirm_requires_genuinely_new_evidence(seeded: TemporalLedger):
 
 
 def test_confirm_cannot_lower_confidence(seeded: TemporalLedger):
-    with pytest.raises(LedgerError, match="no puede bajar la confianza"):
+    with raises_code(LedgerError, LedgerCodes.CONFIRM_LOWERS_CONFIDENCE):
         seeded.confirm(
             "assertion:0001",
             recorded_at="2026-02-01T09:00:00Z",
@@ -311,7 +314,7 @@ def test_confirm_cannot_lower_confidence(seeded: TemporalLedger):
 
 def test_confirm_blocked_on_planned_state(ledger: TemporalLedger):
     ledger.assert_fact(make_assertion(state="PLANNED"))
-    with pytest.raises(LedgerError, match="PLANNED"):
+    with raises_code(LedgerError, LedgerCodes.CONFIRM_ON_PLANNED):
         ledger.confirm(
             "assertion:0001",
             recorded_at="2026-02-01T09:00:00Z",
@@ -320,7 +323,7 @@ def test_confirm_blocked_on_planned_state(ledger: TemporalLedger):
 
 
 def test_confirm_of_unknown_assertion(ledger: TemporalLedger):
-    with pytest.raises(LedgerError, match="desconocida"):
+    with raises_code(LedgerError, LedgerCodes.UNKNOWN_ASSERTION):
         ledger.confirm(
             "assertion:nope",
             recorded_at="2026-02-01T09:00:00Z",
@@ -371,7 +374,7 @@ def test_supersede_is_atomic_in_transaction_time(seeded: TemporalLedger):
 def test_supersede_needs_an_explicit_valid_to_when_successor_has_no_valid_from(
     seeded: TemporalLedger,
 ):
-    with pytest.raises(LedgerError, match="sin `valid_to`"):
+    with raises_code(LedgerError, LedgerCodes.VALIDITY_MISSING_VALID_TO):
         seeded.supersede("assertion:0001", _successor(valid_from=None, event_time=None))
 
 
@@ -388,12 +391,12 @@ def test_supersede_refuses_to_move_an_already_closed_validity(ledger: TemporalLe
     ledger.assert_fact(
         make_assertion(state="ENDED", valid_to="1045-01-01T00:00:00Z")
     )
-    with pytest.raises(LedgerError, match="reescribir el pasado"):
+    with raises_code(LedgerError, LedgerCodes.VALIDITY_ALREADY_CLOSED):
         ledger.supersede("assertion:0001", _successor())
 
 
 def test_supersede_rejects_reusing_the_same_assertion_id(seeded: TemporalLedger):
-    with pytest.raises(LedgerError, match="no puede reutilizar"):
+    with raises_code(LedgerError, LedgerCodes.SUPERSEDE_REUSES_ID):
         seeded.supersede(
             "assertion:0001",
             _successor(assertion_id="assertion:0001"),
@@ -401,7 +404,7 @@ def test_supersede_rejects_reusing_the_same_assertion_id(seeded: TemporalLedger)
 
 
 def test_supersede_rejects_a_successor_that_starts_earlier(seeded: TemporalLedger):
-    with pytest.raises(LedgerError, match="eso no es una supersesion"):
+    with raises_code(LedgerError, LedgerCodes.SUPERSEDE_NOT_FORWARD):
         seeded.supersede(
             "assertion:0001",
             _successor(valid_from="1030-01-01T00:00:00Z", event_time=None),
@@ -479,7 +482,7 @@ def test_a_contradiction_can_be_resolved_by_confirming_one_side(two_facts: Tempo
 
 
 def test_contradiction_with_itself_is_rejected(seeded: TemporalLedger):
-    with pytest.raises(LedgerError, match="a si misma"):
+    with raises_code(LedgerError, LedgerCodes.SELF_CONTRADICTION):
         seeded.contradict(
             "assertion:0001", "assertion:0001", recorded_at="2026-02-01T09:00:00Z"
         )
@@ -500,7 +503,7 @@ def test_retract_keeps_the_history_and_drops_it_from_live(seeded: TemporalLedger
 
 
 def test_retract_requires_a_canonical_reason(seeded: TemporalLedger):
-    with pytest.raises(LedgerError, match="no es canonico"):
+    with raises_code(LedgerError, LedgerCodes.REASON_CODE_INVALID):
         seeded.retract(
             "assertion:0001", recorded_at="2026-02-01T09:00:00Z",
             reason_code="PORQUE_SI",
@@ -696,7 +699,7 @@ def test_fractional_seconds_do_not_break_the_order(ledger: TemporalLedger):
 
 
 def test_as_of_must_be_a_valid_instant(seeded: TemporalLedger):
-    with pytest.raises(LedgerError, match="ISO-8601"):
+    with raises_code(LedgerError, LedgerCodes.AS_OF_INVALID):
         seeded.view("ayer")
 
 

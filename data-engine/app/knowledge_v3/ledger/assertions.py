@@ -32,6 +32,9 @@ sale de aqui se valida contra el, y un fallo del contrato se propaga tal cual.
 """
 from __future__ import annotations
 
+from coded_errors import coded
+from knowledge_v3.ledger.codes import LedgerCodes
+
 from copy import deepcopy
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -89,7 +92,7 @@ def _as_dict(assertion: "FactAssertion | dict") -> dict:
         return assertion.to_dict()
     if isinstance(assertion, dict):
         return deepcopy(assertion)
-    raise LedgerError(f"se esperaba FactAssertion o dict, no {type(assertion).__name__}")
+    raise coded(LedgerError(f"se esperaba FactAssertion o dict, no {type(assertion).__name__}"), LedgerCodes.BAD_ASSERTION_TYPE)
 
 
 class TemporalLedger:
@@ -153,7 +156,7 @@ class TemporalLedger:
     def _require_current(self, assertion_id: str) -> dict:
         doc = self.current(assertion_id)
         if doc is None:
-            raise LedgerError(f"afirmacion desconocida en el ledger: {assertion_id}")
+            raise coded(LedgerError(f"afirmacion desconocida en el ledger: {assertion_id}"), LedgerCodes.UNKNOWN_ASSERTION)
         return doc
 
     # ------------------------------------------------------------------
@@ -168,7 +171,7 @@ class TemporalLedger:
         if as_of is None:
             return LedgerView(self._cache, as_of=None)
         if not is_iso_utc(as_of):
-            raise LedgerError(f"as_of no es un instante ISO-8601 UTC: {as_of!r}")
+            raise coded(LedgerError(f"as_of no es un instante ISO-8601 UTC: {as_of!r}"), LedgerCodes.AS_OF_INVALID)
         limit = time_key(as_of)
         return LedgerView(
             [e for e in self._cache if time_key(e.recorded_at) <= limit], as_of=as_of
@@ -226,48 +229,48 @@ class TemporalLedger:
         last_status: Dict[str, str] = {}
         for i, e in enumerate(entries):
             if e.seq != i:
-                raise LedgerIntegrityError(
+                raise coded(LedgerIntegrityError(
                     f"entrada {i}: seq={e.seq}; la cadena tiene huecos o esta desordenada"
-                )
+                ), LedgerCodes.CHAIN_SEQ_GAP)
             if e.workspace != self.workspace:
-                raise LedgerWorkspaceError(
+                raise coded(LedgerWorkspaceError(
                     f"entrada {e.entry_id}: workspace {e.workspace!r} en un ledger de "
                     f"{self.workspace!r}"
-                )
+                ), LedgerCodes.WORKSPACE_LEAK)
             if e.prev_hash != prev_hash:
-                raise LedgerIntegrityError(
+                raise coded(LedgerIntegrityError(
                     f"entrada {e.entry_id}: prev_hash {e.prev_hash[:12]}... no enlaza con "
                     f"{prev_hash[:12]}...; la cadena de custodia esta rota"
-                )
+                ), LedgerCodes.CHAIN_PREV_HASH_BROKEN)
             recomputed = e.computed_hash()
             if recomputed != e.entry_hash:
-                raise LedgerIntegrityError(
+                raise coded(LedgerIntegrityError(
                     f"entrada {e.entry_id}: entry_hash no corresponde a su contenido "
                     f"(esperado {recomputed[:12]}..., encontrado {e.entry_hash[:12]}...); "
                     "la entrada fue alterada despues de escribirse"
-                )
+                ), LedgerCodes.ENTRY_HASH_MISMATCH)
             k = time_key(e.recorded_at)
             if prev_time is not None and k < prev_time:
-                raise LedgerIntegrityError(
+                raise coded(LedgerIntegrityError(
                     f"entrada {e.entry_id}: recorded_at {e.recorded_at} retrocede en el "
                     "tiempo de transaccion; un ledger append-only no viaja al pasado"
-                )
+                ), LedgerCodes.RECORDED_AT_REGRESSION)
             expected_rev = revisions.get(e.assertion_id, 0) + 1
             if e.revision != expected_rev:
-                raise LedgerIntegrityError(
+                raise coded(LedgerIntegrityError(
                     f"entrada {e.entry_id}: revision {e.revision} de {e.assertion_id}, "
                     f"esperada {expected_rev}"
-                )
+                ), LedgerCodes.REVISION_MISMATCH)
             if e.assertion.get("assertion_id") != e.assertion_id:
-                raise LedgerIntegrityError(
+                raise coded(LedgerIntegrityError(
                     f"entrada {e.entry_id}: assertion_id de la entrada y del documento "
                     "no coinciden"
-                )
+                ), LedgerCodes.ASSERTION_ID_MISMATCH)
             if e.assertion.get("recorded_at") != e.recorded_at:
-                raise LedgerIntegrityError(
+                raise coded(LedgerIntegrityError(
                     f"entrada {e.entry_id}: recorded_at de la entrada y del documento "
                     "no coinciden; habria dos tiempos de transaccion para un mismo hecho"
-                )
+                ), LedgerCodes.RECORDED_AT_DOC_MISMATCH)
             try:
                 check_transition(
                     last_status.get(e.assertion_id),
@@ -275,10 +278,10 @@ class TemporalLedger:
                     assertion_id=e.assertion_id,
                 )
             except LedgerTransitionError as exc:
-                raise LedgerIntegrityError(
+                raise coded(LedgerIntegrityError(
                     f"entrada {e.entry_id}: el ledger contiene una historia imposible "
                     f"({exc}); los hashes cuadran, el ciclo de vida no"
-                ) from exc
+                ), LedgerCodes.IMPOSSIBLE_HISTORY) from exc
             if validate_documents:
                 FactAssertion.from_dict(e.assertion)
             revisions[e.assertion_id] = e.revision
@@ -297,22 +300,22 @@ class TemporalLedger:
 
     def _check_workspace(self, doc: dict) -> None:
         if doc.get("workspace") != self.workspace:
-            raise LedgerWorkspaceError(
+            raise coded(LedgerWorkspaceError(
                 f"la afirmacion pertenece al workspace {doc.get('workspace')!r} y este "
                 f"ledger es de {self.workspace!r}: ningun documento cruza bovedas"
-            )
+            ), LedgerCodes.WORKSPACE_LEAK)
 
     def _check_monotonic(self, recorded_at: str) -> None:
         if not is_iso_utc(recorded_at):
-            raise LedgerError(f"recorded_at invalido: {recorded_at!r}")
+            raise coded(LedgerError(f"recorded_at invalido: {recorded_at!r}"), LedgerCodes.RECORDED_AT_INVALID)
         last = self._last()
         if last is not None and time_key(recorded_at) < time_key(last.recorded_at):
-            raise LedgerError(
+            raise coded(LedgerError(
                 f"recorded_at {recorded_at} anterior al de la ultima entrada "
                 f"({last.recorded_at}): el tiempo de transaccion no retrocede. "
                 "Un hecho conocido tarde con validez pasada se expresa con "
                 "`valid_from`/`event_time`, nunca retrasando `recorded_at`."
-            )
+            ), LedgerCodes.MONOTONIC_VIOLATION)
 
     def _append(
         self,
@@ -368,37 +371,37 @@ class TemporalLedger:
         doc = _as_dict(assertion)
         when = recorded_at or doc.get("recorded_at")
         if not is_iso_utc(when):
-            raise LedgerError(f"recorded_at invalido o ausente: {when!r}")
+            raise coded(LedgerError(f"recorded_at invalido o ausente: {when!r}"), LedgerCodes.RECORDED_AT_INVALID)
         doc["recorded_at"] = when
         self._check_monotonic(when)
 
         if self.current(doc.get("assertion_id", "")) is not None:
-            raise LedgerError(
+            raise coded(LedgerError(
                 f"{doc['assertion_id']} ya existe en el ledger; para cambiarla usa "
                 "confirm/supersede/contradict/retract, no un ASSERT nuevo"
-            )
+            ), LedgerCodes.ASSERTION_ALREADY_EXISTS)
         check_transition(
             None, doc.get("status"), operation=LedgerOperation.ASSERT,
             assertion_id=str(doc.get("assertion_id")),
         )
         if AssertionStatus(doc["status"]) not in CREATION_STATUSES:
-            raise LedgerError(
+            raise coded(LedgerError(
                 f"una afirmacion no puede nacer {doc['status']}; solo "
                 f"{sorted(s.value for s in CREATION_STATUSES)}"
-            )
+            ), LedgerCodes.BIRTH_STATUS_INVALID)
         if doc.get("superseded_by") is not None:
-            raise LedgerError("una afirmacion nueva no puede nacer ya superada")
+            raise coded(LedgerError("una afirmacion nueva no puede nacer ya superada"), LedgerCodes.BORN_SUPERSEDED)
 
         if not allow_duplicate_identity:
             identity = logical_identity(doc)
             for rec in self.view().live():
                 if logical_identity(rec.stored_document) == identity:
-                    raise LedgerError(
+                    raise coded(LedgerError(
                         f"ya existe una afirmacion viva con la misma identidad logica "
                         f"({rec.assertion_id}); repetir un hecho es CONFIRMARLO, no "
                         "registrarlo dos veces (usa `confirm`, o "
                         "`allow_duplicate_identity=True` si de verdad son dos registros)"
-                    )
+                    ), LedgerCodes.DUPLICATE_LOGICAL_IDENTITY)
         return self._append(
             operation=LedgerOperation.ASSERT,
             doc=doc,
@@ -432,22 +435,22 @@ class TemporalLedger:
             operation=LedgerOperation.CONFIRM, assertion_id=assertion_id,
         )
         if previous["state"] == "PLANNED":
-            raise LedgerError(
+            raise coded(LedgerError(
                 f"{assertion_id} tiene state=PLANNED: el contrato prohibe CONFIRMED "
                 "sobre un hecho planificado (aun no ha ocurrido)"
-            )
+            ), LedgerCodes.CONFIRM_ON_PLANNED)
         new_frag = sorted(set(evidence_fragment_ids) - set(previous["evidence_fragment_ids"]))
         if not new_frag:
-            raise LedgerError(
+            raise coded(LedgerError(
                 f"confirmacion de {assertion_id} sin evidencia nueva: los fragmentos "
                 "aportados ya sostenian la afirmacion"
-            )
+            ), LedgerCodes.CONFIRM_WITHOUT_NEW_EVIDENCE)
         conf = previous["confidence"] if confidence is None else float(confidence)
         if conf < previous["confidence"]:
-            raise LedgerError(
+            raise coded(LedgerError(
                 f"una confirmacion no puede bajar la confianza de {assertion_id} "
                 f"({previous['confidence']} -> {conf})"
-            )
+            ), LedgerCodes.CONFIRM_LOWERS_CONFIDENCE)
         changes = {
             "status": AssertionStatus.CONFIRMED.value,
             "confidence": conf,
@@ -499,19 +502,19 @@ class TemporalLedger:
         new_doc = _as_dict(new_assertion)
         when = recorded_at or new_doc.get("recorded_at")
         if not is_iso_utc(when):
-            raise LedgerError(f"recorded_at invalido o ausente: {when!r}")
+            raise coded(LedgerError(f"recorded_at invalido o ausente: {when!r}"), LedgerCodes.RECORDED_AT_INVALID)
         self._check_monotonic(when)
 
         if new_doc.get("assertion_id") == assertion_id:
-            raise LedgerError(
+            raise coded(LedgerError(
                 "la version nueva no puede reutilizar el `assertion_id` de la anterior: "
                 "la supersesion enlaza DOS registros, no reescribe uno"
-            )
+            ), LedgerCodes.SUPERSEDE_REUSES_ID)
         if self.current(new_doc.get("assertion_id", "")) is not None:
-            raise LedgerError(
+            raise coded(LedgerError(
                 f"{new_doc['assertion_id']} ya existe en el ledger; una supersesion crea "
                 "un registro nuevo"
-            )
+            ), LedgerCodes.SUPERSEDE_TARGET_EXISTS)
         check_transition(
             previous["status"], AssertionStatus.SUPERSEDED,
             operation=LedgerOperation.SUPERSEDE, assertion_id=assertion_id,
@@ -528,10 +531,10 @@ class TemporalLedger:
         self._check_workspace(new_doc)
 
         if not before_or_equal(previous.get("valid_from"), new_doc.get("valid_from")):
-            raise LedgerError(
+            raise coded(LedgerError(
                 f"la version nueva empieza ({new_doc.get('valid_from')}) antes que la "
                 f"anterior ({previous.get('valid_from')}): eso no es una supersesion"
-            )
+            ), LedgerCodes.SUPERSEDE_NOT_FORWARD)
         # Cierre calculado ANTES de escribir nada: si la vigencia no se puede
         # cerrar, no debe quedar en el ledger una version nueva huerfana.
         closing_changes = close_validity(
@@ -583,7 +586,7 @@ class TemporalLedger:
         check_reason(LedgerOperation.CONTRADICT, reason_code)
         self._check_monotonic(recorded_at)
         if assertion_id == other_assertion_id:
-            raise LedgerError("una afirmacion no puede contradecirse a si misma")
+            raise coded(LedgerError("una afirmacion no puede contradecirse a si misma"), LedgerCodes.SELF_CONTRADICTION)
         first = self._require_current(assertion_id)
         second = self._require_current(other_assertion_id)
         for doc in (first, second):

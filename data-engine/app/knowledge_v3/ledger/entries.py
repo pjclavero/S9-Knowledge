@@ -16,6 +16,9 @@ calculado una sola vez al crearla, con `canonical_json` (bytes estables).
 """
 from __future__ import annotations
 
+from coded_errors import coded
+from knowledge_v3.ledger.codes import LedgerCodes
+
 import hashlib
 from copy import deepcopy
 from dataclasses import dataclass
@@ -107,10 +110,10 @@ class LedgerEntry:
         }
         unknown = set(data) - known
         if unknown:
-            raise ValueError(f"campos desconocidos en la entrada: {sorted(unknown)}")
+            raise coded(ValueError(f"campos desconocidos en la entrada: {sorted(unknown)}"), LedgerCodes.ENTRY_UNKNOWN_FIELDS)
         missing = known - set(data)
         if missing:
-            raise ValueError(f"faltan campos en la entrada: {sorted(missing)}")
+            raise coded(ValueError(f"faltan campos en la entrada: {sorted(missing)}"), LedgerCodes.ENTRY_MISSING_FIELDS)
         return cls(
             seq=int(data["seq"]),
             entry_id=str(data["entry_id"]),
