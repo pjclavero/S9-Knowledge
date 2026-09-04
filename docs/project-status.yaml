@@ -18,6 +18,55 @@
 # scripts/check_docs_consistency.py los contrasta contra `origin/main` y falla
 # si divergen. Editarlos a mano y equivocarse pone el gate en rojo.
 #
+# ============================================================================
+# QUE SIGNIFICAN EXACTAMENTE `main_commit` Y `latest_ci` (LEER ANTES DE TOCAR)
+# ============================================================================
+#
+#   main_commit  = ultimo commit YA VERIFICADO desde el que se genero esta
+#                  fotografia
+#   latest_ci    = resultado de CI DE main_commit
+#
+#   NO son  = el SHA ni el CI del commit que contiene este fichero.
+#
+# POR QUE NO PUEDEN SERLO. No es una convencion ni una comodidad: es
+# IMPOSIBLE POR CONSTRUCCION. El hash de un commit de git se calcula sobre su
+# contenido, y este fichero forma parte de ese contenido. Escribir aqui el SHA
+# del commit que va a contener este fichero exigiria conocer el hash antes de
+# calcularlo: una autorreferencia que git no admite. Lo mismo, y con mas
+# motivo, para `latest_ci`: el resultado de CI de un commit no existe hasta
+# despues de crearlo y ejecutarlo.
+#
+# CONSECUENCIA, y hay que decirla entera: **el desfase de al menos un commit
+# es ESTRUCTURAL**. Cualquier refresco de este fichero describe, como maximo,
+# a su commit PADRE. Actualizar el campo «un commit mas» no cierra la brecha:
+# solo desplaza la contradiccion al commit siguiente. Por eso este fichero
+# **NO volvera a actualizarse para nombrarse a si mismo**, y un desfase de uno
+# o pocos commits NO es un defecto que haya que perseguir.
+#
+# QUE SI ES UN DEFECTO, y sigue siendo rojo: que `main_commit` no exista, que
+# no sea ANCESTRO de `origin/main` (es decir, que describa una rama que no es
+# `main`), que `latest_merged_pr` no aparezca en la historia de `main`, o que
+# `latest_ci` contradiga la CI real de `main_commit` cuando hay oraculo con el
+# que contrastarla (`S9K_CI_ORACLE`, ver scripts/check_docs_consistency.py).
+# La propiedad verdadera es ANCESTRIA + VERIFICACION, nunca autorreferencia.
+#
+# QUIEN ATA UNA RELEASE A UN SHA EXACTO. Este fichero **no** es el documento
+# que congela `BASE RC V3.1` ni ninguna otra release: eso lo hace el **acta
+# externa del RC**, que se escribe DESPUES del commit y por tanto si puede
+# nombrarlo sin contradiccion. Este fichero es una FOTOGRAFIA DE ESTADO con su
+# fecha y su commit de medida; el acta del RC es el documento de congelacion.
+# Si alguien, dentro de un ano, busca aqui «el SHA de la RC», esta en el sitio
+# equivocado: el dato vive en el acta, y aqui solo vive «desde donde se
+# midio».
+#
+# NO SE HAN RENOMBRADO a `verified_commit` / `verified_ci` a proposito: los
+# nombres actuales tienen consumidores en scripts/check_docs_consistency.py,
+# en deploy/tests/test_docs_consistency.py (decenas de llamadas) y en el
+# historico del CHANGELOG, y un renombrado con un solo consumidor colgando es
+# peor que ninguno. Se corrige la SEMANTICA, que era lo que estaba mal, no la
+# etiqueta.
+# ============================================================================
+#
 # CONVENCIÓN DE PROCEDENCIA. Cada dato de `production` declara cómo se sabe:
 #   VERIFIED             — leído directamente en el destino, con fecha.
 #   PENDING_VERIFICATION — conocido en el pasado y NO releído desde entonces.
@@ -51,21 +100,30 @@ development:
   # de `nltk`, parcialidad por valor, CSRF, excepciones por tipo/código,
   # anti-desaparición de suites y métodos de escritura). El #197 es el último
   # pese a llevar el número más bajo de los tres finales.
-  main_commit: "4fea1f2075933a244ce1acea31289d393e5ad81e"
-  latest_merged_pr: 197  # por fecha de fusión: el #197 entró DESPUÉS que el #199 y el #200
-  # CI en 37accba: ROJO, medido con `gh run view 31736789573`, no supuesto.
   #
-  # UNA sola contradicción, y esta vez el gate acierta de pleno: el bloque
-  # declaraba `latest_merged_pr: #168`, que YA NO APARECE entre los PR
-  # fusionados en `origin/main`. Eso no es el reloj —el desfase de commits es
-  # aviso desde el #173, y en efecto no aparece por ningún lado—, es una
-  # AFIRMACIÓN FALSA sobre el repositorio, que es justo lo que este gate existe
-  # para cazar. Se arregla refrescando el dato, no tocando el gate.
+  # REMEDIDO el 2026-09-05 contra `origin/main`, no contra el worktree, y leyendo
+  # la semántica de arriba: esto es EL COMMIT YA VERIFICADO desde el que se toma
+  # la fotografía, no el commit que contiene este fichero.
+  #   `git rev-parse origin/main`  -> 84f9cc7596381e1e56ff5a2fc059104b3c5aa063
+  #   `gh pr list --state merged` ordenado por `mergedAt` -> #204 (22:40:32Z)
   #
-  # Se declara rojo porque lo está: poner "green" aquí sería la mentira
-  # coherente que el punto 0 existe para matar. Este commit es el que lo
-  # devuelve a verde, y no al revés.
-  latest_ci: "red"
+  # Y el aviso de esta línea se cumple una vez más, con el ejemplo más claro
+  # hasta ahora: el **#205** se fusionó a las 05:09:05Z del 2026-09-04 y el
+  # **#204** a las 22:40:32Z del MISMO día. El último por FECHA es el #204
+  # pese a llevar el número MENOR. Ordenar por número habría escrito #205.
+  main_commit: "84f9cc7596381e1e56ff5a2fc059104b3c5aa063"
+  latest_merged_pr: 204  # por fecha de fusión: el #204 entró DESPUÉS que el #205
+  # CI DE `main_commit` (84f9cc7), no de este commit — ver la explicación de
+  # semántica en la cabecera de este fichero.
+  #
+  # MEDIDO el 2026-09-05, contando EJECUCIONES y no identidades únicas:
+  #   gh api repos/pjclavero/S9-Knowledge/commits/84f9cc7.../check-runs
+  # En `main` sólo corre el evento `push`, así que 17 identidades = 17
+  # ejecuciones (en un PR serían 34, porque corren `push` y `pull_request`).
+  # Resultado: 17/17 SUCCESS, 0 pendientes. Se escribe "green" porque se ha
+  # medido, no porque convenga: la entrada anterior decía "red" y también
+  # estaba medida.
+  latest_ci: "green"
 
   # Cuántos jobs CORREN frente a cuántos BLOQUEAN un merge. La diferencia se
   # escribe a propósito: un job que corre pero no se exige no impide fusionar
