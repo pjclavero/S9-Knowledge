@@ -231,8 +231,18 @@ jobs:
           # MU4 hace lo mismo con la de aserciones. MU3/MU4 son ablaciones de
           # CAPACIDAD: la version anterior de MU3 estrechaba la clave, que es
           # anclar la FORMA, no demostrar que la barrera defiende algo.)
-          if [ "$ejercidas" -lt 16 ]; then
-            echo "::error::solo se ejercieron $ejercidas mutaciones (con Neo4j tienen que ser 16): arnes mudo"
+          # Carril 4 de V3.1: el suelo sube de 16 a 22. +3 de PARCIALIDAD POR
+          # VALOR sobre `viewer/app/graph_view.py` (MV1 es el superviviente
+          # medido: `"limit": 999999` dejaba 1576 pruebas en verde) y +2 de
+          # CONTRATO DE PANELES sobre la proyeccion (`aliases` y `updated_at`,
+          # los dos campos que las plantillas consumen y que ninguna ablacion
+          # tocaba), y +1 de DERIVACION (MD1: una plantilla empieza a consumir
+          # un campo sin ablacion; es la guarda central del carril, y sin esta
+          # mutacion seria un control declarado y no medido).
+          # Las cuatro offline (MV1-MV3, MD1) se ejercen tambien fuera de este
+          # job; las dos de contrato (MC1/MC2) solo aqui.
+          if [ "$ejercidas" -lt 22 ]; then
+            echo "::error::solo se ejercieron $ejercidas mutaciones (con Neo4j tienen que ser 22): arnes mudo"
             exit 1
           fi
           if [ "$enrojecidas" -ne "$ejercidas" ]; then
@@ -293,6 +303,17 @@ jobs:
             echo "ERROR: se saltaron tests de navegador con el navegador disponible"
             exit 1
           fi
+          # AQUI NO VA UN `grep` DE `xfailed`, y conviene saber por que.
+          # Se puso uno y ENROJECIO ESTE JOB en CI: esta suite lleva 6
+          # `xfail(strict=True)` que NO son silenciadores sino un registro de
+          # DEFECTOS CONOCIDOS -la prueba que deberia pasar, escrita ya, para
+          # que el dia que alguien arregle el defecto el XPASS se convierta en
+          # fallo y obligue a quitar la marca-. Un `grep` no distingue ese
+          # patron declarado de un apagado nuevo: solo sabe contar.
+          # Lo que hace falta aqui no es una prohibicion sino un TRINQUETE, y
+          # vive donde se puede comparar contra una base: el censo `xfail` del
+          # inventario (control X-T en `check_suite_inventory.py`), que si
+          # cubre los modulos DELEGADOS y deja crecer cero.
 
   test-combined:
     name: Combined Test Suite (no collection errors)
@@ -321,7 +342,8 @@ jobs:
         run: |
           # Guardia anti-cero (ver `check-ci-config`).
           set +e
-          out="$(python -m pytest --tb=short --no-header -q 2>&1)"
+          mkdir -p artifacts/junit
+          out="$(python -m pytest --tb=short --no-header -q --junitxml=artifacts/junit/combined.xml 2>&1)"
           rc=$?
           set -e
           echo "$out"
@@ -330,6 +352,210 @@ jobs:
             echo "::error::la suite combinada no ejecuto ninguna prueba"
             exit 1
           fi
+
+      # -----------------------------------------------------------------
+      # VERIFICAR EL RESULTADO, NO LA CAUSA
+      # -----------------------------------------------------------------
+      # `N passed` dice que se ejecuto ALGO. El paso anterior lo comprueba y no
+      # basta: un revisor independiente apago suites criticas UNA RONDA TRAS
+      # OTRA con vias nuevas cada vez (`PYTEST_ADDOPTS` por cinco niveles de
+      # `env:`, por `$GITHUB_ENV`, con el nombre concatenado sin `$`, por
+      # `container.options -e`, por un `uses:` a nivel de job, por un
+      # `sitecustomize.py`), y en cada ronda el gate cerraba la via encontrada.
+      # La superficie de CAUSAS es abierta; el RESULTADO no.
+      #
+      # Este paso compara, modulo a modulo, lo que el job EJECUTO DE VERDAD
+      # —el informe `--junitxml`— contra `.github/suite-inventario.json`. Si
+      # `test_parcialidad_declarada.py` no reporta sus pruebas aqui, ROJO, sin
+      # importar por que. Es la misma logica que `test-neo4j-authz` ya usa con
+      # `grep -qi skipped`, generalizada.
+      #
+      # NO sustituye a los nueve SUP de `check_suite_inventory.py`: se SUMA.
+      # Aquella capa mira la causa y avisa antes; esta mira el efecto y no se
+      # puede rodear.
+      #
+      # Vive en ESTE job y no en uno nuevo por lo mismo que el inventario: un
+      # job nuevo cambiaria el recuento de checks requeridos, y eso es decision
+      # del operador. Ademas este es el unico job con TODAS las dependencias
+      # instaladas, que es lo que hace honesta la comparacion: el inventario se
+      # midio en este mismo entorno.
+      - name: Lo ejecutado de verdad tiene que ser lo que el inventario declara
+        run: |
+          set -euo pipefail
+          SUJETO="${GITHUB_SHA:-$(git rev-parse HEAD)}"
+          umask 077
+          RAIZ="$(mktemp)"
+          trap 'rm -f "$RAIZ"' EXIT
+          RUTA_RAIZ=".github/scripts/bootstrap_certificacion.py"
+          git show "$SUJETO:$RUTA_RAIZ" > "$RAIZ"
+          # La copia materializada tiene que SER el objeto, byte a byte. Si
+          # sale vacia, Python no ejecuta nada y sale 0 -medido: EXIT=0-, y si
+          # sale truncada muere por `SyntaxError`, un rojo prestado: en ambos
+          # casos `soy_el_objeto_git` NO llega a correr, o sea la unica
+          # comprobacion de procedencia se queda fuera. Git calcula el id del
+          # blob de lo que hay EN DISCO y tiene que coincidir con el del arbol
+          # del sujeto; si no, ROJO ANTES de Python y con motivo propio.
+          # Los dos ids se calculan ANTES y la condicion compara solo valores:
+          # `check_ci_config` marca -con razon- cualquier `if` cuya condicion
+          # nombre la ruta de un gate, porque no puede distinguir "lo ejecuta"
+          # de "lo nombra". Aqui no se relaja ese control: se saca la ruta de
+          # la condicion.
+          # `--no-filters` NO es cosmetica: sin la bandera, `git hash-object`
+          # aplica los filtros `clean` configurados, asi que un
+          # `core.attributesFile` + `filter.<x>.clean` hostiles hacen que el
+          # hash NO sea el de los bytes del fichero sino el de lo que el filtro
+          # decida. Reproducido en repo aislado: un fichero VACIO devolvia el
+          # blob esperado y la comparacion daba PASS. Con la bandera, el vacio
+          # deja de coincidir y el caso legitimo sigue coincidiendo.
+          # Identidad Git contra identidad Git: `rev-parse` frente a
+          # `hash-object`, valido con objetos SHA-1 o SHA-256.
+          ESPERADO="$(git rev-parse "$SUJETO:$RUTA_RAIZ")"
+          OBTENIDO="$(git hash-object --no-filters "$RAIZ")"
+          if [ "$OBTENIDO" != "$ESPERADO" ]; then
+            echo "::error::RAIZ NO MATERIALIZADA: lo escrito en la raiz es el blob $OBTENIDO y el objeto Git de $RUTA_RAIZ en $SUJETO es $ESPERADO; la raiz de confianza NO se ejecuta."
+            exit 1
+          fi
+          python3 -I "$RAIZ" --sujeto "$SUJETO" \
+            .github/scripts/check_ejecucion_real.py \
+            --junit artifacts/junit
+
+      # -----------------------------------------------------------------
+      # Inventario de suites como PUERTA (ejercicio RC 1)
+      # -----------------------------------------------------------------
+      # `N passed` comprueba que se ejecuto ALGO, jamas que se ejecuto LO QUE
+      # TENIA QUE EJECUTARSE. Un revisor adversarial lo demostro VIVO: puso
+      # `pytestmark = skip` en `test_parcialidad_declarada.py`, en
+      # `test_identidad_durable.py` y en `test_chassis_mount_contract.py`, uno
+      # por uno, y este job siguio VERDE (1554 / 1565 / 1488 passed). Y sin
+      # PyYAML, 293 -> 215 passed sin que nada avisara.
+      #
+      # Este paso vive AQUI y no en un job propio a proposito: un job nuevo
+      # cambiaria el recuento de checks requeridos (hoy 16 del proyecto) y eso
+      # es decision del operador, no efecto colateral de un carril. Ademas este
+      # es el unico job con TODAS las dependencias instaladas y con
+      # `fetch-depth: 0`, que es lo que el trinquete necesita para leer el
+      # inventario del merge-base.
+      #
+      # La lista de suites obligatorias NO se escribe aqui ni en ningun sitio:
+      # se DERIVA de lo que los jobs invocan, de la coleccion real, de los
+      # arneses de calibracion y del inventario de la base. Ver la cabecera de
+      # `.github/scripts/check_suite_inventory.py`.
+      # LA RAIZ DE CONFIANZA SE EJECUTA DESDE EL OBJETO GIT, NO DESDE EL ARBOL.
+      #
+      # El bootstrap verificaba la fuente critica -incluido el mismo- pero, si
+      # su codigo salia del arbol, esa comprobacion corria DENTRO del bootstrap
+      # ya modificado: circular. Medido, combinando un reemplazo en el
+      # bootstrap sin commitear con un parcheo de `contenido_verificado`:
+      # EXIT=0, 0 errores, defecto real tragado y `HOT-01` nunca commiteado.
+      # Ninguna barrera sola bastaba; la combinacion pasaba porque el unico
+      # fichero que nadie verificaba era el verificador.
+      #
+      # `git show "$SUJETO:<ruta>"` saca la raiz del arbol mutable: lo que se
+      # ejecuta es el objeto del commit que se certifica.
+      #
+      # SIN TUBERIA, Y ESO NO ES ESTETICA. La primera version canalizaba
+      # `git show ... | python3 -I -`, y eso introducia un modo de fallo
+      # SILENCIOSO que antes no existia: si `git show` falla, `python3 -I -`
+      # recibe stdin VACIO, no ejecuta nada y sale 0. La proteccion era
+      # `set -o pipefail`, declarada en prosa y que NINGUN gate comprobaba y
+      # NINGUNA fila calibraba: garantia declarada sin control negativo, que es
+      # justo el criterio de bloqueo de este carril. Medido: el mismo paso con
+      # `set -eu` y la ruta mal daba EXIT=0 con salida vacia, o sea la
+      # certificacion no corria y nada enrojecia.
+      #
+      # Se quita la ENTRADA en vez de blindarla: el objeto se materializa en un
+      # fichero y se ejecuta ese fichero. Si `git show` falla, `set -e` enrojece
+      # el paso, sin depender de ninguna opcion de shell que nadie vigile.
+      #
+      # Y `-I` sigue siendo parte de la arquitectura, no un extra:
+      #
+      # Un proceso potencialmente contaminado no puede certificarse a si mismo
+      # comparando atributos de ese mismo proceso: eso se intento tres veces
+      # -perillas, `__file__`, bytecode- y cada vuelta aparecio el mecanismo
+      # siguiente. Ahora la raiz de confianza esta FUERA del proceso
+      # contaminable: `python3 -I` arranca un interprete sin *user site*, sin
+      # `PYTHONPATH` heredado y sin el directorio del script en `sys.path` -o
+      # sea, sin arranques automaticos-, y el bootstrap identifica el sujeto
+      # Git, verifica la fuente critica contra el, comprueba que ningun modulo
+      # critico venia precargado y carga el codigo desde la ruta exacta.
+      #
+      # PyYAML vive en el *user site* en algunas maquinas y `-I` lo deja fuera:
+      # el bootstrap devuelve ESA RUTA a `sys.path` despues del arranque. Tener
+      # la dependencia disponible no es ejecutar los ganchos de arranque que
+      # viven en ese directorio.
+      #
+      # NOTA HISTORICA (`-s -E`), que aqui se documento al reves una vez:
+      # Endurecer el lanzamiento del interprete -sin *user site*, sin
+      # `PYTHONPATH`- cerraria el vector mas comodo del arranque automatico.
+      # Se probo y se MIDIO: con `-s`, este gate sale ROJO con `falta PyYAML`,
+      # porque PyYAML vive precisamente en el *user site*. O sea que la barrera
+      # pondria el job rojo POR OTRA CAUSA, que es justo el falso hallazgo que
+      # esta ronda ya descarto dos veces. Un rojo por accidente no es una
+      # deteccion, asi que no se embarca.
+      #
+      # No se pierde la garantia: la barrera era SECUNDARIA. La principal es la
+      # comprobacion interna de ESTADO INICIAL en `estado_de_fabrica.py`, que
+      # corre pase lo que pase con la forma de invocar -por eso se quito la
+      # condicion de "invocado desde la linea de comandos"-.
+      - name: Ninguna suite critica puede desaparecer ni silenciarse
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          SUJETO="${GITHUB_SHA:-$(git rev-parse HEAD)}"
+          umask 077
+          RAIZ="$(mktemp)"
+          trap 'rm -f "$RAIZ"' EXIT
+          RUTA_RAIZ=".github/scripts/bootstrap_certificacion.py"
+          git show "$SUJETO:$RUTA_RAIZ" > "$RAIZ"
+          # La copia materializada tiene que SER el objeto, byte a byte. Si
+          # sale vacia, Python no ejecuta nada y sale 0 -medido: EXIT=0-, y si
+          # sale truncada muere por `SyntaxError`, un rojo prestado: en ambos
+          # casos `soy_el_objeto_git` NO llega a correr, o sea la unica
+          # comprobacion de procedencia se queda fuera. Git calcula el id del
+          # blob de lo que hay EN DISCO y tiene que coincidir con el del arbol
+          # del sujeto; si no, ROJO ANTES de Python y con motivo propio.
+          # Los dos ids se calculan ANTES y la condicion compara solo valores:
+          # `check_ci_config` marca -con razon- cualquier `if` cuya condicion
+          # nombre la ruta de un gate, porque no puede distinguir "lo ejecuta"
+          # de "lo nombra". Aqui no se relaja ese control: se saca la ruta de
+          # la condicion.
+          # `--no-filters` NO es cosmetica: sin la bandera, `git hash-object`
+          # aplica los filtros `clean` configurados, asi que un
+          # `core.attributesFile` + `filter.<x>.clean` hostiles hacen que el
+          # hash NO sea el de los bytes del fichero sino el de lo que el filtro
+          # decida. Reproducido en repo aislado: un fichero VACIO devolvia el
+          # blob esperado y la comparacion daba PASS. Con la bandera, el vacio
+          # deja de coincidir y el caso legitimo sigue coincidiendo.
+          # Identidad Git contra identidad Git: `rev-parse` frente a
+          # `hash-object`, valido con objetos SHA-1 o SHA-256.
+          ESPERADO="$(git rev-parse "$SUJETO:$RUTA_RAIZ")"
+          OBTENIDO="$(git hash-object --no-filters "$RAIZ")"
+          if [ "$OBTENIDO" != "$ESPERADO" ]; then
+            echo "::error::RAIZ NO MATERIALIZADA: lo escrito en la raiz es el blob $OBTENIDO y el objeto Git de $RUTA_RAIZ en $SUJETO es $ESPERADO; la raiz de confianza NO se ejecuta."
+            exit 1
+          fi
+          python3 -I "$RAIZ" --sujeto "$SUJETO" \
+            .github/scripts/check_suite_inventory.py
+
+      # El inventario es una MEDIDA, no una lista: se regenera. Si el commit no
+      # trae el inventario actualizado, la base del trinquete del PR siguiente
+      # seria la de antes y el trinquete afloja solo.
+      - name: El inventario publicado tiene que estar al dia
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/check_suite_inventory.py --escribir-inventario >/dev/null
+          if ! git diff --quiet -- .github/suite-inventario.json; then
+            echo "::error::.github/suite-inventario.json esta desactualizado."
+            echo "Regeneralo:  python3 .github/scripts/check_suite_inventory.py --escribir-inventario"
+            git --no-pager diff --stat -- .github/suite-inventario.json
+            exit 1
+          fi
+          echo "OK: el inventario publicado coincide con la medida"
 
   review-ingest-contracts:
     name: Contratos review/ingest v1 (JSON Schema)
@@ -347,7 +573,12 @@ jobs:
           # Sin `|| true`: si falta jsonschema el gate falla, no pasa en verde.
           set -euo pipefail
           python -m pip install --upgrade pip
-          pip install "jsonschema>=4.18,<5.0" "pytest>=8.2,<9.0"
+          # `referencing` se IMPORTA con `importorskip` en los tests de
+          # contratos. Hasta ahora llegaba solo como dependencia transitiva de
+          # `jsonschema`: el dia que jsonschema cambie de rango, esas pruebas se
+          # convierten en skips VERDES y nadie se entera. Lo detecto
+          # el preflight de `check_suite_inventory.py` y se declara explicito.
+          pip install "jsonschema>=4.18,<5.0" "referencing>=0.36,<1.0" "pytest>=8.2,<9.0"
           python -c "import jsonschema, referencing; print('jsonschema', jsonschema.__version__)"
 
       - name: Validate contracts (schemas + examples + semantics)
@@ -380,7 +611,12 @@ jobs:
           # Sin `|| true`: si falta jsonschema el gate falla, no pasa en verde.
           set -euo pipefail
           python -m pip install --upgrade pip
-          pip install "jsonschema>=4.18,<5.0" "pytest>=8.2,<9.0"
+          # `referencing` se IMPORTA con `importorskip` en los tests de
+          # contratos. Hasta ahora llegaba solo como dependencia transitiva de
+          # `jsonschema`: el dia que jsonschema cambie de rango, esas pruebas se
+          # convierten en skips VERDES y nadie se entera. Lo detecto
+          # el preflight de `check_suite_inventory.py` y se declara explicito.
+          pip install "jsonschema>=4.18,<5.0" "referencing>=0.36,<1.0" "pytest>=8.2,<9.0"
           python -c "import jsonschema, referencing; print('jsonschema ok')"
 
       - name: Validate V3 contracts (roundtrip + mutacion)
@@ -449,7 +685,19 @@ jobs:
     name: Calibracion de gates (cada violacion tiene que ponerse ROJA)
     runs-on: ubuntu-latest
     steps:
+      # `fetch-depth: 0` NO es decorativo: `calibra_base_materializada.py`
+      # ejercita la ruta REAL de la base —derivar el merge-base con
+      # `origin/main` y materializarlo—, y con el checkout por defecto ese
+      # merge-base NO EXISTE. Medido: el arnes salio rojo en CI con
+      # `SIN TRINQUETE: no hay merge-base con origin/main` mientras en local
+      # pasaba, porque aqui se estaba probando el instrumento en condiciones en
+      # las que el producto no corre. Es el mismo fallo que este arnes existe
+      # para cazar, cometido al colocarlo. El job donde el gate corre de verdad
+      # (`test-combined`) usa `fetch-depth: 0`, asi que este tiene que usarlo.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
@@ -481,6 +729,74 @@ jobs:
         env:
           S9K_ALLOW_REAL_INGEST: ""
         run: python3 scripts/calibracion/mutaciones_calidad_datos.py
+
+      # Mismo principio, tercer gate: el inventario de suites. Introduce de
+      # VERDAD cada ataque del ejercicio RC —silenciar los tres ficheros,
+      # borrarlos, tumbar el recuento, quitar `jsonschema` y `PyYAML`—, exige
+      # el ROJO, y ADEMAS hace la ablacion de cada control: con el control
+      # quitado el caso tiene que volver a VERDE. Un control que puede
+      # desaparecer sin que ningun resultado empeore no es un control.
+      #
+      # La reversion se verifica por SHA-256 de cada fichero tocado, no por la
+      # ausencia de una cadena.
+      - name: El inventario de suites se pone ROJO ante cada ataque (y ablacion)
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 .github/scripts/calibra_suite_inventory.py
+
+      # Y la calibracion de la capa que mira el RESULTADO. Apaga la suite del
+      # visor por cada vector CONOCIDO —incluidos los tres que un revisor
+      # independiente encontro despues de que el reconocedor los diera por
+      # cerrados: nombre concatenado sin `$` hacia `$GITHUB_ENV` (G1),
+      # `container.options -e` (G2) y `uses:` a nivel de job (G3)— y exige que
+      # el informe `--junitxml` lo delate. Cada caso apaga un MODULO DISTINTO,
+      # asi que ningun rojo es prestado. Con la ablacion puesta, esos mismos
+      # casos vuelven a VERDE.
+      #
+      # No muta ningun fichero del repositorio: los artefactos van a un
+      # directorio temporal. Publica igualmente el SHA-256 antes y despues,
+      # porque "no lo toco" tambien hay que medirlo.
+      - name: La capa de ejecucion real se pone ROJA ante cada vector (y ablacion)
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+        run: python3 .github/scripts/calibra_ejecucion_real.py
+
+      # Y la calibracion del REGISTRO contra la ejecucion real, que desde el
+      # sexto dictamen es la garantia principal frente a `xfail`. Cubre los
+      # ocho casos exigidos mas tres de precision, y publica DOS columnas: que
+      # veredicto da la capa de RESULTADOS aislada y cual la ESTATICA. Los
+      # casos A-D tienen que ponerse rojos por la de resultados, no prestados
+      # por el reconocedor; F y G solo los ve la de resultados; H solo la
+      # estatica. Ademas comprueba que ninguna entrada del registro puede dar
+      # ni quitar criticidad.
+      - name: El registro de `xfail` se calibra contra la ejecucion real
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+        run: python3 .github/scripts/calibra_registro_xfail.py
+
+      # Y la ruta que CI ejecuta DE VERDAD para la base: materializar el
+      # merge-base y medirlo. Ningun otro arnes la ejercitaba —todos miden con
+      # `--base-fichero`— y por ahi entro una regresion que dejaba el gate
+      # certificando en verde con SIETE trinquetes sin ejecutar. Este arnes
+      # exige que la base salga MATERIALIZADA, que romper la materializacion
+      # sea ROJO (no un aviso enterrado en un EXIT=0) y que `--sin-base` siga
+      # siendo la unica forma legitima de quedarse sin ella.
+      - name: La base se materializa de verdad (la ruta que corre en CI)
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+        run: python3 .github/scripts/calibra_base_materializada.py
+
+      # Y la propiedad que sustituye a cuatro rondas de reconocedores: el
+      # binario que CERTIFICA no tiene entrada de desarme. Comprueba por AST que
+      # ningun gate lee esas variables, que con las cuatro puestas y la
+      # ascendencia FABRICADA (`exec -a`) el gate certifica igual, que las
+      # banderas de medicion desde la linea de comandos son ROJO, y -control
+      # positivo- que los arneses SIGUEN pudiendo ablacionar.
+      - name: El binario que certifica no se puede desarmar
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+        run: python3 .github/scripts/calibra_desarme.py
 
   # Instalado desde .github/ci-fragments/check-env-reproducibility.yml. Si un
   # merge se lleva por delante este bloque, el fragmento es la copia canonica.
@@ -625,6 +941,13 @@ jobs:
   deployment-validation:
     name: Deployment scripts validation
     runs-on: ubuntu-latest
+    # Este job se quedo 18 min colgado en `Install validation tools` (apt-get +
+    # pip) en sus dos ejecuciones, cuando su marca normal es ~57 s. Sin tope,
+    # un cuelgue de infraestructura no se distingue de un job lento: se queda
+    # PENDIENTE, y un check que nunca concluye no bloquea ni aprueba, solo
+    # consume la paciencia de quien mira. Con tope se convierte en ROJO rapido,
+    # que es una senal, y relanzarlo es una decision consciente.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
@@ -821,4 +1144,75 @@ jobs:
         with:
           name: route-map-gate
           path: artifacts/route-map/ci-*
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------
+  # Metodos de los endpoints de ESCRITURA (docs/84)
+  # ---------------------------------------------------------------------------
+  # Por que existe un job aparte y no un paso mas del censo: el censo comparaba
+  # el metodo montado con el decorador que pretendia vigilar, asi que un cambio
+  # `POST -> GET` en una ruta de escritura era invisible POR CONSTRUCCION.
+  # Medido sobre `aaf9695`: cambiar el metodo de `POST /admin/users/{id}/unlock`
+  # y anadirle un alias `GET` no puso rojo a ningun instrumento del repositorio.
+  #
+  # La referencia de este job NO sale del decorador: sale de la firma y el
+  # cuerpo del manejador, de los formularios/fetch que la propia app sirve, y de
+  # peticiones HTTP contra `app.main.app`. No hay lista de endpoints en ninguna
+  # parte: un endpoint de escritura nuevo queda cubierto solo, y uno que no se
+  # pueda clasificar pone el job ROJO.
+  metodos-de-escritura:
+    name: Metodos de escritura (especificacion independiente del montaje)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: 'viewer/requirements.txt'
+
+      - name: Install viewer dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -r viewer/requirements.txt
+
+      # Este paso salio ROJO entre el 18 y el 19 de agosto por DOS
+      # `lectura-que-escribe` reales: los dos GET de salud escribian un fichero
+      # dentro de la propia peticion. El operador rechazo eximirlos ("el defecto
+      # esta en las rutas, no en la puerta") y se arreglaron las rutas
+      # (health_admin.py: GET de lectura pura + POST /admin/health/snapshot).
+      # Desde entonces la base sale VERDE. El job sigue SIN ser exigido:
+      # promoverlo al nº 17 es decision del operador.
+      - name: Especificacion ejecutable de escritura
+        env:
+          PYTHONPATH: scripts
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/route-map
+          python3 scripts/route_map/write_spec.py --repo . \
+            --out artifacts/route-map/ci-write_spec.json
+
+      - name: Control negativo (metodo cambiado y alias GET, endpoint a endpoint)
+        if: always()   # la calibracion se publica aunque la espec salga roja
+        env:
+          PYTHONPATH: scripts
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          # Sin control negativo, "verde" no significa nada: aqui cada endpoint
+          # de escritura se muta uno a uno y tiene que ponerse ROJO por el
+          # motivo correcto, con las ablaciones cobradas.
+          python3 scripts/route_map/calibrate_write_spec.py \
+            --out artifacts/route-map/ci-calibracion-write_spec.json
+
+      - name: Publicar artefactos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: metodos-de-escritura
+          path: artifacts/route-map/ci-*write_spec*.json
           if-no-files-found: warn

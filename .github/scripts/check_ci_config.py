@@ -205,6 +205,38 @@ JOBS_EXIGIDOS = {
     ),
 }
 
+# Gates cuya INVOCACION tiene que seguir existiendo en `ci.yml`. `JOBS_EXIGIDOS`
+# protege el job; esto protege el PASO. Son cosas distintas y la diferencia ya
+# ha mordido: un job puede sobrevivir a una fusion con uno de sus pasos menos, y
+# entonces el gate esta en el arbol, en verde, sin ejecutarse nunca.
+#
+# Los dos de aqui abajo son la respuesta al ejercicio RC 1, donde silenciar un
+# fichero de test entero dejaba CI en verde. Si desaparecen, vuelve el agujero.
+# Un gate que puede dejar de INVOCARSE sin ponerse rojo no es un gate. La lista
+# protegia DOS scripts y para entonces habia SEIS: los otros cuatro se podian
+# sustituir por un `echo` de una linea y este fichero seguia en EXIT=0. Entre
+# ellos `check_ejecucion_real.py`, que es la GARANTIA PRINCIPAL frente a
+# `xfail`, y el arnes de la base recien anadido —o sea que lo que acababa de
+# escribirse podia dejar de correr sin que nada enrojeciera—. Comprobado en
+# cadena: con la capa de resultados des-invocada, `check_suite_inventory.py`
+# seguia saliendo EXIT=0 con su mensaje de siempre.
+#
+# La lista se mantiene A MANO y eso es una deuda conocida; lo que la hace
+# soportable es que cada entrada tiene su caso de calibracion, asi que si
+# alguien anade un gate y no lo mete aqui, el caso que falta se nota al
+# escribirlo, no seis meses despues.
+GATES_EXIGIDOS = {
+    "ci.yml": (
+        ".github/scripts/check_suite_inventory.py",
+        ".github/scripts/calibra_suite_inventory.py",
+        ".github/scripts/check_ejecucion_real.py",
+        ".github/scripts/calibra_ejecucion_real.py",
+        ".github/scripts/calibra_registro_xfail.py",
+        ".github/scripts/calibra_base_materializada.py",
+        ".github/scripts/calibra_desarme.py",
+    ),
+}
+
 # Ramas efimeras de maquina: no se les EXIGE CI. Con la politica universal
 # `**` de todas formas la tienen, y esto solo evita que su ausencia se pueda
 # alegar como excusa; la exencion sigue siendo EXPLICITA y esta a la vista.
@@ -769,6 +801,203 @@ def comprueba_jobs_exigidos(datos: dict, nombre: str) -> list[str]:
     ]
 
 
+
+
+def _ambitos_anidados(nodo):
+    """Los sub-ambitos directos: defs anidados, lambdas y clases."""
+    import ast
+    return (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
+
+
+def _nodos_propios(ambito):
+    """Nodos que pertenecen a ESTE ambito, sin entrar en los anidados.
+
+    Sin esto, los parametros de una funcion anidada se atribuian a la de fuera
+    y salian como "no definidos". Lo detecte con el propio control: sus 20
+    primeros hallazgos eran TODOS falsos positivos de esta clase, ninguno un
+    defecto del repositorio. Un control que grita sobre codigo correcto es tan
+    inutil como uno que calla: se arregla el control, no se silencia el aviso.
+    """
+    import ast
+    cuerpo = list(getattr(ambito, "body", []))
+    if not isinstance(cuerpo, list):
+        cuerpo = [cuerpo]
+    pila = list(cuerpo)
+    while pila:
+        nodo = pila.pop()
+        yield nodo
+        # Se YIELDA el ambito anidado (para que quien recorre sepa que existe y
+        # baje a el con su propio contexto) pero NO se desciende dentro. La
+        # version anterior filtraba al empujar y no al sacar, asi que los
+        # cuerpos de las funciones de primer nivel se recorrian como si fueran
+        # el modulo: 156 falsos positivos. Lo delato el propio control.
+        if isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef,
+                             ast.Lambda, ast.ClassDef)):
+            continue
+        for hijo in ast.iter_child_nodes(nodo):
+            pila.append(hijo)
+
+
+def _nombres_ligados(ambito) -> set:
+    """Nombres que este ambito LIGA (sin contar los de ambitos anidados)."""
+    import ast
+    ligados = set()
+    args = getattr(ambito, "args", None)
+    if args is not None:
+        for grupo in (args.posonlyargs, args.args, args.kwonlyargs):
+            ligados |= {x.arg for x in grupo}
+        for extra in (args.vararg, args.kwarg):
+            if extra:
+                ligados.add(extra.arg)
+    for nodo in _nodos_propios(ambito):
+        if isinstance(nodo, ast.Name) and isinstance(nodo.ctx, (ast.Store, ast.Del)):
+            ligados.add(nodo.id)
+        elif isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            ligados.add(nodo.name)
+        elif isinstance(nodo, (ast.Import, ast.ImportFrom)):
+            for alias in nodo.names:
+                ligados.add((alias.asname or alias.name).split(".")[0])
+        elif isinstance(nodo, ast.ExceptHandler) and nodo.name:
+            ligados.add(nodo.name)
+        elif isinstance(nodo, ast.Global):
+            ligados |= set(nodo.names)
+        elif isinstance(nodo, (ast.MatchAs, ast.MatchStar)) and nodo.name:
+            # `case Punto() as p:` y `case [x, *resto]:` LIGAN nombres. Sin
+            # esto, el dia que alguien escriba un `match` en un gate, CI se
+            # pondria rojo sin que hubiera ningun defecto. Hoy ningun script
+            # usa `match`, asi que el falso positivo estaba LATENTE: se cierra
+            # antes de que muerda, no despues.
+            ligados.add(nodo.name)
+        elif isinstance(nodo, ast.MatchMapping) and nodo.rest:
+            ligados.add(nodo.rest)
+    return ligados
+
+
+def comprueba_nombres_definidos(rutas) -> list:
+    """Nombres usados que NO existen en ningun ambito visible.
+
+    EXISTE POR UN DEFECTO PROPIO. Un empalme por ancla borro
+    `RE_ASIGNA_NOMBRE_CONSTRUIDO` de `check_suite_inventory.py`: el fichero
+    seguia COMPILANDO -`ast.parse` no protesta por un nombre inexistente- y el
+    fallo solo aparecia al EJECUTAR la rama que lo usa. Un gate cuyo codigo se
+    rompe en silencio es un gate que puede dejar de mirar sin avisar, que es la
+    familia entera de este carril.
+
+    Ademas cierra una afirmacion que llegue a escribir sin que existiera como
+    codigo: dije que habia una "comprobacion estructural de definiciones contra
+    el commit anterior" y era una comprobacion manual de una vez. O se
+    implementa o se retira; esto es implementarla, con su caso de calibracion.
+
+    Es ESTATICA y modesta: no reemplaza a los arneses, caza la clase concreta
+    de fallo que se pago.
+    """
+    import ast
+    import builtins
+    problemas = []
+    base = set(dir(builtins)) | {"__file__", "__name__", "__doc__", "__spec__"}
+
+    def recorre(ambito, visibles, ruta):
+        propios = visibles | _nombres_ligados(ambito)
+        for nodo in _nodos_propios(ambito):
+            if isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                 ast.Lambda, ast.ClassDef)):
+                recorre(nodo, propios, ruta)
+                continue
+            if isinstance(nodo, ast.Name) and isinstance(nodo.ctx, ast.Load):
+                if nodo.id not in propios:
+                    donde = getattr(ambito, "name", "<modulo>")
+                    problemas.append(
+                        f"{ruta.name}:{nodo.lineno}: `{nodo.id}` se usa en "
+                        f"`{donde}` y NO esta definido en ningun ambito. El "
+                        f"fichero compila igual, asi que esto solo saldria al "
+                        f"ejecutar esa rama, o no saldria.")
+
+    for ruta in rutas:
+        try:
+            fuente = ruta.read_text(encoding="utf-8", errors="replace")
+            arbol = ast.parse(fuente)
+        except SyntaxError as e:
+            problemas.append(f"{ruta.name}: no parsea ({e.msg})")
+            continue
+        # `from x import *` trae nombres que este analisis NO puede enumerar
+        # sin importar el modulo. Analizar el fichero igual produciria falsos
+        # positivos, y callarlos en silencio seria peor: se DICE que ese fichero
+        # queda fuera y por que. Hoy ninguno lo usa.
+        if any(isinstance(n, ast.ImportFrom)
+               and any(a.name == "*" for a in n.names)
+               for n in ast.walk(arbol)):
+            problemas.append(
+                f"{ruta.name}: usa `from ... import *`, asi que este analisis no "
+                f"puede saber que nombres quedan definidos y NO lo comprueba. Si "
+                f"hace falta la comprobacion aqui, escribe los imports uno a uno.")
+            continue
+        recorre(arbol, base, ruta)
+    return problemas
+
+
+def comprueba_gates_exigidos(datos: dict, nombre: str) -> list[str]:
+    """Un gate que puede dejar de INVOCARSE sin ponerse rojo no es un gate."""
+    exigidos = GATES_EXIGIDOS.get(nombre, ())
+    if not exigidos:
+        return []
+    # Solo cuentan las lineas que EJECUTAN el gate. Nombrarlo en un comentario
+    # o dentro de un `echo` no lo ejecuta, y la primera version de esta
+    # comprobacion se daba por satisfecha con eso: su propia calibracion la
+    # cazo saliendo VERDE con las dos invocaciones sustituidas por `echo`.
+    lineas = []
+    for job in (datos.get("jobs") or {}).values():
+        for _, cuerpo in pasos_run(job):
+            # Se UNEN las continuaciones (`\` al final): una invocacion puede
+            # ocupar varias lineas, y desde que la certificacion va por
+            # `bootstrap_certificacion.py` el nombre del gate vive justo en la
+            # continuacion. Mirando linea a linea, este control declaraba
+            # ausente una invocacion que si estaba -medido: EXIT=1 diciendo que
+            # `check_ejecucion_real.py` no se invocaba-.
+            acumulada = ""
+            for linea in cuerpo.splitlines():
+                acumulada += linea
+                if linea.rstrip().endswith("\\"):
+                    acumulada = acumulada.rstrip()[:-1]
+                    continue
+                lineas.append(acumulada)
+                acumulada = ""
+            if acumulada:
+                lineas.append(acumulada)
+    # La invocacion puede NO empezar la linea: desde que la raiz de confianza se
+    # ejecuta desde el objeto Git, la linea real es
+    # `git show "$SUJETO:...bootstrap..." | python3 -I - <gate>.py`. Con
+    # `re.match` -anclado al principio- este control declaraba ausente una
+    # invocacion que si estaba; medido: EXIT=1 diciendo que
+    # `check_ejecucion_real.py` no se invocaba, sobre un `ci.yml` correcto.
+    #
+    # Se pasa a `re.search`, pero se siguen descartando los COMENTARIOS: nombrar
+    # un gate en un comentario no lo ejecuta, y esa distincion es justo la que
+    # hace util a esta comprobacion. Se admiten ademas banderas del interprete
+    # (`-I`, `-s`, `-E`) y el `-` de "programa por stdin".
+    # Se cuenta una linea como EJECUTORA si invoca a python y no es un
+    # comentario. Enumerar la forma de los argumentos entre `python3` y el
+    # script se rompio dos veces seguidas -primero con `-I`, luego con
+    # `--sujeto "$SUJETO"`- y cada rotura declaraba ausente una invocacion que
+    # SI estaba. La propiedad relevante no es "que aspecto tienen los
+    # argumentos" sino "esta linea ejecuta python y nombra el gate".
+    #
+    # Los COMENTARIOS se siguen descartando: nombrar un gate en un comentario no
+    # lo ejecuta, y esa distincion es justo la que hace util a esta
+    # comprobacion -su propia calibracion la cazo una vez dandose por satisfecha
+    # con un `echo`-.
+    invocadas = [l for l in lineas
+                 if not l.strip().startswith("#")
+                 and re.search(r"(?<![\w.-])python[0-9.]*\s", l)]
+    texto = "\n".join(invocadas)
+    return [
+        f"{nombre}: ningun paso invoca `{gate}`. El fichero puede seguir en el "
+        f"arbol y no ejecutarse NUNCA: el gate estaria en verde sin comprobar "
+        f"nada, que es justo el fallo que ese gate existe para cerrar."
+        for gate in exigidos
+        if gate not in texto
+    ]
+
+
 def ficheros_con_skip_critico() -> dict[str, list[str]]:
     """Tests que se auto-omiten si falta una herramienta -> herramientas."""
     hallazgos: dict[str, list[str]] = {}
@@ -870,6 +1099,18 @@ def comprueba_skips_criticos(datos: dict, nombre: str) -> list[str]:
 # --------------------------------------------------------------------------
 
 def main() -> int:
+    # Arrancar como salio de fabrica: si un `usercustomize.py` del *user site*
+    # -fuera del repositorio- altero el proceso antes de que este gate
+    # empezara, lo que diga despues no significa nada. Misma propiedad que en
+    # los otros dos gates.
+    sys.path.insert(0, str(REPO / ".github" / "scripts"))
+    import estado_de_fabrica  # noqa: E402
+    alterado = estado_de_fabrica.comprueba()
+    for e in alterado:
+        print(f"::error::{e}")
+    if alterado:
+        return 1
+
     errores = []
     parseados = {}
     for ruta in WORKFLOWS_VIGILADOS:
@@ -888,6 +1129,12 @@ def main() -> int:
         errores += comprueba_neutralizacion(datos, ruta.name)
         errores += comprueba_if_negado(datos, ruta.name)
         errores += comprueba_jobs_exigidos(datos, ruta.name)
+        errores += comprueba_gates_exigidos(datos, ruta.name)
+
+    # Los gates tienen que estar SANOS, no solo invocados: un nombre que no
+    # existe no rompe el import, solo la rama que lo usa.
+    guardados = sorted((REPO / ".github" / "scripts").glob("*.py"))
+    errores += comprueba_nombres_definidos(guardados)
 
     if CI.name in parseados:
         errores += comprueba_skips_criticos(parseados[CI.name], CI.name)

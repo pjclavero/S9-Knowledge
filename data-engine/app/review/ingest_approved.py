@@ -44,6 +44,9 @@ DRY-RUN conectado: SOLO lectura. Ninguna consulta puede contener
 CREATE / MERGE / SET / REMOVE / DELETE. Ver _assert_readonly_query().
 """
 from __future__ import annotations
+
+from coded_errors import coded
+from review.codes import PreflightFindings, WriterCodes
 import hashlib
 import json
 import logging
@@ -90,10 +93,10 @@ def _assert_readonly_query(cypher: str) -> None:
     upper = cypher.upper()
     for kw in _WRITE_KEYWORDS:
         if kw in upper:
-            raise AssertionError(
+            raise coded(AssertionError(
                 "DRY-RUN VIOLATION: consulta con operación de escritura detectada: "
                 "%r en %r" % (kw, cypher[:120])
-            )
+            ), WriterCodes.DRY_RUN_VIOLATION)
 
 
 def _item_label(item):
@@ -282,7 +285,7 @@ def _build_create_entity(item):
     Usa EXCLUSIVAMENTE valores explícitos del item (ningún default inventado)."""
     etype = item.get("entity_type")
     if etype not in _ALLOWED_LABELS:
-        raise ValueError("entity_type no permitido para escritura: %r" % etype)
+        raise coded(ValueError("entity_type no permitido para escritura: %r" % etype), WriterCodes.LABEL_NOT_ALLOWED)
     props = {
         "canonical_name": item.get("name", ""),
         "source_id": item["source_id"],
@@ -332,7 +335,11 @@ def _neo4j_preflight(session, entities_new, entities_use_existing, dry_run: bool
 
     En dry-run: TODAS las consultas pasan por _assert_readonly_query (B3)."""
     rep = {"would_create": 0, "would_verify_existing": 0, "conflict_existing": 0,
-           "ambiguous_existing": 0, "would_update": 0, "would_overwrite": 0, "errors": []}
+           "ambiguous_existing": 0, "would_update": 0, "would_overwrite": 0, "errors": [],
+           # `error_codes` es la superficie estable: `errors` es prosa para el
+           # operador y puede reescribirse sin cambiar lo que el preflight
+           # DETECTO. Un test que quiera afirmar conducta mira `error_codes`.
+           "error_codes": []}
     for e in entities_new:
         c = _count_by_name(session, e.get("name", ""), dry_run=dry_run)
         if c == 0:
@@ -340,17 +347,21 @@ def _neo4j_preflight(session, entities_new, entities_use_existing, dry_run: bool
         elif c == 1:
             rep["conflict_existing"] += 1
             rep["errors"].append("CONFLICT_EXISTING_NODE: '%s' ya existe pero se clasificó como nuevo" % e.get("name"))
+            rep["error_codes"].append(PreflightFindings.CONFLICT_EXISTING_NODE)
         else:
             rep["ambiguous_existing"] += 1
             rep["errors"].append("AMBIGUOUS_EXISTING_NODES: '%s' (%d coincidencias)" % (e.get("name"), c))
+            rep["error_codes"].append(PreflightFindings.AMBIGUOUS_EXISTING_NODES)
     for e in entities_use_existing:
         c = _count_by_name(session, e.get("name", ""), dry_run=dry_run)
         if c == 1:
             rep["would_verify_existing"] += 1
         elif c == 0:
             rep["errors"].append("USE_EXISTING sin nodo: '%s'" % e.get("name"))
+            rep["error_codes"].append(PreflightFindings.USE_EXISTING_NOT_FOUND)
         else:
             rep["errors"].append("USE_EXISTING ambiguo: '%s' (%d)" % (e.get("name"), c))
+            rep["error_codes"].append(PreflightFindings.USE_EXISTING_AMBIGUOUS)
     return rep
 
 
@@ -365,13 +376,13 @@ def _tx_create_all(tx, entities_new, entities_use_existing, ingest_batch_id: str
         c = tx.run("MATCH (n {canonical_name: $name}) RETURN count(n) AS c",
                    {"name": e.get("name", "")}).single()["c"]
         if c != 0:
-            raise RuntimeError("CONFLICT_EXISTING_NODE '%s': transacción completa abortada (rollback)" % e.get("name"))
+            raise coded(RuntimeError("CONFLICT_EXISTING_NODE '%s': transacción completa abortada (rollback)" % e.get("name")), WriterCodes.CONFLICT_EXISTING_NODE)
     # USE_EXISTING: solo verifica, nunca muta
     for e in entities_use_existing:
         c = tx.run("MATCH (n {canonical_name: $name}) RETURN count(n) AS c",
                    {"name": e.get("name", "")}).single()["c"]
         if c != 1:
-            raise RuntimeError("USE_EXISTING '%s' cnt=%d: abortado" % (e.get("name"), c))
+            raise coded(RuntimeError("USE_EXISTING '%s' cnt=%d: abortado" % (e.get("name"), c)), WriterCodes.USE_EXISTING_AMBIGUOUS)
     created = 0
     ingested_at = datetime.now(timezone.utc).isoformat()
     for e in entities_new:
@@ -415,10 +426,10 @@ def _build_merge_relation_query(item):
     rel_type = item.get("relation_type", "RELATED_TO")
     source_kind = item.get("source_kind")
     if not source_kind:
-        raise ValueError("_build_merge_relation_query: source_kind ausente (sin defaults)")
+        raise coded(ValueError("_build_merge_relation_query: source_kind ausente (sin defaults)"), WriterCodes.RELATION_SOURCE_KIND_MISSING)
     review_status = item.get("review_status")
     if not review_status:
-        raise ValueError("_build_merge_relation_query: review_status ausente (sin defaults)")
+        raise coded(ValueError("_build_merge_relation_query: review_status ausente (sin defaults)"), WriterCodes.RELATION_REVIEW_STATUS_MISSING)
     # Misma frontera que en `_build_create_entity`: una relación no puede
     # entrar al grafo con un vocabulario distinto del de un nodo. Antes esta
     # rama escribía el valor crudo, así que la propiedad `review_status` de una
@@ -560,14 +571,14 @@ def ingest(
     if not dry_run:
         allow_real = os.environ.get("S9K_ALLOW_REAL_INGEST", "").strip().lower()
         if allow_real != "true":
-            raise RuntimeError(_ENV_GUARD_ABORT_MSG)
+            raise coded(RuntimeError(_ENV_GUARD_ABORT_MSG), WriterCodes.REAL_INGEST_NOT_AUTHORIZED)
 
     approved_payload_path = Path(approved_payload_path)
     if not approved_payload_path.exists():
-        raise FileNotFoundError(
+        raise coded(FileNotFoundError(
             "approved_payload.json no encontrado: %s. "
             "Ejecuta primero: data_review.py run --dry-run" % approved_payload_path
-        )
+        ), WriterCodes.REPORT_NOT_FOUND)
 
     payload_sha256 = _compute_payload_sha256(approved_payload_path)
 
@@ -587,24 +598,24 @@ def ingest(
             return {"already_applied": True, "source_id": source_id,
                     "review_report_sha256": payload_sha256}
         if idempotency_status == "CONFLICTING_REVIEW_REPORT":
-            raise ValueError(
+            raise coded(ValueError(
                 "CONFLICTING_REVIEW_REPORT: source_id='%s' ya tiene un registro "
                 "exitoso con review_report_sha256 diferente. "
                 "No se puede ejecutar automáticamente." % source_id
-            )
+            ), WriterCodes.CONFLICTING_REVIEW_REPORT)
 
     pkg_errors = _validate_package(payload)
     if pkg_errors:
         msg = "PAQUETE RECHAZADO. Errores:\n" + "\n".join("  - %s" % e for e in pkg_errors)
-        raise ValueError(msg)
+        raise coded(ValueError(msg), WriterCodes.PACKAGE_REJECTED)
 
     if _review_policy_name() == "full_human_review":
         prov_errors = _validate_review_provenance(payload)
         if prov_errors:
-            raise ValueError(
+            raise coded(ValueError(
                 "PROVENANCE RECHAZADA bajo full_human_review (SIN escritura en Neo4j):\n"
                 + "\n".join("  - %s" % e for e in prov_errors[:15])
-            )
+            ), WriterCodes.PROVENANCE_REJECTED)
 
     approved = payload.get("approved", [])
     deferred = [a for a in approved if _is_deferred(a)]
@@ -620,18 +631,18 @@ def ingest(
 
     # Relaciones: flag explícito (B8). Por defecto excluidas.
     if relations and not allow_relationships:
-        raise ValueError(
+        raise coded(ValueError(
             "PAQUETE RECHAZADO: la primera ingesta controlada no admite relaciones (%d presentes). "
             "Usa allow_relationships=True para habilitarlas (no autorizado en fase actual)."
-            % len(relations))
+            % len(relations)), WriterCodes.RELATIONS_NOT_ALLOWED)
 
     # Procedencia EXPLÍCITA obligatoria para entidades nuevas (§6, sin defaults),
     # solo bajo la política de ingesta controlada full_human_review.
     if _review_policy_name() == "full_human_review":
         wp_errors = _validate_write_provenance(payload)
         if wp_errors:
-            raise ValueError("PAQUETE RECHAZADO (procedencia incompleta):\n"
-                             + "\n".join("  - %s" % e for e in wp_errors[:15]))
+            raise coded(ValueError("PAQUETE RECHAZADO (procedencia incompleta):\n"
+                             + "\n".join("  - %s" % e for e in wp_errors[:15])), WriterCodes.WRITE_PROVENANCE_INCOMPLETE)
 
     # Genera ingest_batch_id único para este lote (B9/B10)
     ingest_batch_id = str(uuid.uuid4())
@@ -651,7 +662,7 @@ def ingest(
                     "entities": len(entities_new), "use_existing": len(entities_use_existing),
                     "would_write": len(entities_new),
                     "errors": ["neo4j_unavailable: dry-run no pudo verificar el grafo"]}
-        raise RuntimeError("Neo4j no disponible para escritura real. Abortado sin escritura.")
+        raise coded(RuntimeError("Neo4j no disponible para escritura real. Abortado sin escritura."), WriterCodes.NEO4J_UNAVAILABLE)
 
     driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
     try:
@@ -702,7 +713,7 @@ def ingest(
 
         # --- ESCRITURA REAL: transacción atómica, create-only (§4/§9) ---
         if not safe:
-            raise RuntimeError("ABORTADO: preflight no seguro: %s" % rep["errors"][:5])
+            raise coded(RuntimeError("ABORTADO: preflight no seguro: %s" % rep["errors"][:5]), WriterCodes.PREFLIGHT_UNSAFE)
         try:
             with driver.session() as session:
                 created = session.execute_write(
@@ -772,7 +783,7 @@ def build_rollback_cypher(ingest_batch_id: str) -> str:
     no la ejecuta nunca.
     """
     if not ingest_batch_id or not ingest_batch_id.strip():
-        raise ValueError("build_rollback_cypher: ingest_batch_id vacío")
+        raise coded(ValueError("build_rollback_cypher: ingest_batch_id vacío"), WriterCodes.ROLLBACK_BATCH_ID_EMPTY)
     return (
         "MATCH (n {ingest_batch_id: $batch_id}) "
         "DETACH DELETE n"
@@ -815,7 +826,7 @@ def run(workspace, source_id, repo_root, dry_run=True):
     if not dry_run:
         allow_real = os.environ.get("S9K_ALLOW_REAL_INGEST", "").strip().lower()
         if allow_real != "true":
-            raise RuntimeError(_ENV_GUARD_ABORT_MSG)
+            raise coded(RuntimeError(_ENV_GUARD_ABORT_MSG), WriterCodes.REAL_INGEST_NOT_AUTHORIZED)
 
     approved_payload_path = (
         Path(repo_root) / "output" / "reviews" / workspace / source_id / "approved_payload.json"

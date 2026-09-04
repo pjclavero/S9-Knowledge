@@ -40,6 +40,8 @@ pytest.importorskip("jsonschema")
 
 from app.routers import v3_review as router_module  # noqa: E402
 from app.services.v3_glossary_candidates import GlossaryCandidateStore  # noqa: E402
+from app.services import v3_review as v3r  # noqa: E402
+from exception_codes import raises_code  # noqa: E402
 from app.services.v3_review import (  # noqa: E402
     HistoryIntegrityError,
     ReviewError,
@@ -438,7 +440,7 @@ def test_21_editar_registra_la_correccion(client_factory, service, workdir):
 
 def test_22_decision_desconocida_se_rechaza(service):
     item = first_item(service)
-    with pytest.raises(ReviewError, match="human_decision inválida"):
+    with raises_code(ReviewError, v3r.INVALID_HUMAN_DECISION):
         service.record(proposal_id=item["proposal_id"], workspace=WORKSPACE,
                        reviewer="mara", human_decision="MAYBE", request_id="bad-1",
                        expected_proposal_hash=item["proposal_hash"])
@@ -457,7 +459,7 @@ def test_23_falta_el_hash_esperado_es_400(client_factory, service, workdir):
 
 
 def test_24_propuesta_inexistente_en_el_workspace(service):
-    with pytest.raises(ReviewError, match="propuesta inexistente"):
+    with raises_code(ReviewError, v3r.PROPOSAL_NOT_FOUND):
         service.record(proposal_id="review:no-existe", workspace=WORKSPACE,
                        reviewer="mara", human_decision="APPROVE", request_id="ghost-1",
                        expected_proposal_hash="0" * 64)
@@ -558,7 +560,7 @@ def test_30_reescribir_una_entrada_rompe_la_cadena(service, workdir):
     record = json.loads(decisions.read_text(encoding="utf-8").splitlines()[0])
     record["human_decision"] = "REJECT"
     decisions.write_text(json.dumps(record, ensure_ascii=False) + "\n", encoding="utf-8")
-    with pytest.raises(HistoryIntegrityError, match="hash inválido"):
+    with raises_code(HistoryIntegrityError, v3r.HISTORY_HASH_INVALID):
         read_history(decisions)
 
 
@@ -572,7 +574,7 @@ def test_31_borrar_una_entrada_rompe_la_cadena(service, workdir):
                        expected_proposal_hash=item["proposal_hash"])
     lines = decisions.read_text(encoding="utf-8").splitlines()
     decisions.write_text(lines[1] + "\n", encoding="utf-8")
-    with pytest.raises(HistoryIntegrityError, match="cadena rota"):
+    with raises_code(HistoryIntegrityError, v3r.HISTORY_CHAIN_BROKEN):
         read_history(decisions)
 
 
@@ -581,7 +583,7 @@ def test_32_request_id_no_se_reutiliza_para_otra_decision(service):
     service.record(proposal_id=items[0]["proposal_id"], workspace=WORKSPACE,
                    reviewer="mara", human_decision="APPROVE", request_id="reuse-1",
                    expected_proposal_hash=items[0]["proposal_hash"])
-    with pytest.raises(ReviewError, match="request_id reutilizado"):
+    with raises_code(ReviewError, v3r.REQUEST_ID_REUSED):
         service.record(proposal_id=items[1]["proposal_id"], workspace=WORKSPACE,
                        reviewer="mara", human_decision="APPROVE", request_id="reuse-1",
                        expected_proposal_hash=items[1]["proposal_hash"])
@@ -594,7 +596,7 @@ def test_32_request_id_no_se_reutiliza_para_otra_decision(service):
 def test_33_hash_que_el_revisor_nunca_vio_es_stale(service, workdir):
     _proposals, decisions = workdir
     item = first_item(service)
-    with pytest.raises(StaleReviewError, match="STALE_REVIEW"):
+    with raises_code(StaleReviewError, v3r.STALE_REVIEW):
         service.record(proposal_id=item["proposal_id"], workspace=WORKSPACE,
                        reviewer="mara", human_decision="APPROVE",
                        request_id="stale-1", expected_proposal_hash="0" * 64)
@@ -610,7 +612,7 @@ def test_34_hash_de_otra_propuesta_real_es_stale(service, workdir):
     _proposals, decisions = workdir
     items = service.queue(WORKSPACE).items
     assert len(items) >= 2
-    with pytest.raises(StaleReviewError, match="STALE_REVIEW"):
+    with raises_code(StaleReviewError, v3r.STALE_REVIEW):
         service.record(proposal_id=items[0]["proposal_id"], workspace=WORKSPACE,
                        reviewer="mara", human_decision="APPROVE",
                        request_id="stale-2",

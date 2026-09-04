@@ -1,0 +1,97 @@
+# REGISTRO DE `xfail` AUTORIZADOS
+# ==============================
+#
+# Este fichero es la UNICA fuente de autorizacion para que una prueba termine
+# como `xfail`. No es una lista de lo que hay: es la lista de lo que se ha
+# DECIDIDO permitir, y por eso se escribe a mano y se revisa en el diff del PR.
+#
+# POR QUE EXISTE, Y POR QUE NO SE GENERA SOLO
+# -------------------------------------------
+# Durante cinco rondas este carril intento demostrar COMO se habia escrito un
+# `xfail`: decorador directo, `pytestmark`, alias de modulo,
+# `pytest.param(marks=...)`, un `conftest` con `add_marker`, un fixture
+# `autouse` en el propio modulo, una funcion auxiliar que devuelve la marca...
+# Cada ronda cerro las formas encontradas y en la siguiente aparecio una nueva.
+# La sintaxis de Python para producir una marca es una superficie ABIERTA.
+#
+# Asi que cambia la UNIDAD DE CONTROL: ya no se demuestra como se escribio la
+# marca, sino QUE PRUEBAS TERMINARON siendo `xfail` en la ejecucion real, y
+# contra que excepcion explicitamente autorizada. Da igual la sintaxis: todas
+# desembocan en el mismo sitio observable, el informe de pytest.
+#
+# Y por eso este fichero NO SE REGENERA. No hay `--escribir-registro` ni ningun
+# paso de CI que lo reescriba, a proposito: un registro que se auto-alimenta de
+# la ejecucion deja de ser una escotilla y se convierte en un sello automatico,
+# y ademas inferiria la excepcion de la misma ejecucion cuya integridad el gate
+# intenta proteger. Una excepcion legitima tiene que estar DECLARADA como
+# excepcion.
+#
+# QUE NO PUEDE HACER ESTE FICHERO
+# --------------------------------
+# Autoriza excepciones y NADA MAS. No declara criticidad ni la retira: eso se
+# DERIVA de fuentes ejecutables (`pytest.mark.critico` y los arneses de
+# calibracion), y mezclarlo aqui volveria a juntar las dos cosas que costo
+# separar. Una entrada de este registro no convierte un modulo en critico ni lo
+# saca de criticos.
+#
+# LAS DOS DIRECCIONES
+# -------------------
+#   * una prueba que termina `xfail` y NO esta aqui        -> ROJO
+#   * una entrada de aqui cuya prueba YA NO es `xfail`     -> ROJO
+#
+# La segunda no es un adorno: es el UNICO camino para detectar que un defecto se
+# arreglo. Un `xfail(strict=True)` que empieza a pasar produce XPASS, y en JUnit
+# un `xpassed` sale como un `<testcase>` PELADO, indistinguible de un aprobado
+# normal (medido: 21 pelados frente a 1 con `<skipped type="pytest.xfail">`).
+# Mirando solo el informe no hay forma de verlo. Con el registro diciendo "aqui
+# DEBERIA haber un xfail" y comprobando que no lo hay, si.
+#
+# FORMATO
+# -------
+#   <id-estable> | <nodeid EXACTO> | <motivo>
+#
+# El nodeid es EXACTO y sin comodines: la coincidencia es literal, asi que una
+# entrada para `test_a` no ampara a `test_a_bis`. Los casos parametrizados
+# llevan su `[parametro]`, uno por linea. `#` inicia comentario.
+#
+# ALCANCE ACTUAL, SU PRECIO EXACTO Y LA DEUDA AGENDADA
+# ----------------------------------------------------
+# Las entradas de abajo se midieron de una corrida real completa. La suite
+# DELEGADA del navegador (`viewer/tests/browser/**`) NO esta aqui porque sus
+# nodeids exactos solo se pueden medir en el job que instala Chromium, y
+# sembrar un registro con nodeids que no se han medido seria repetir el error
+# de dar por bueno un control sin su control positivo.
+#
+# EL PRECIO, dicho entero: para esa suite NO RIGE LA GARANTIA DE LAS DOS
+# DIRECCIONES. Sus ~12 `xfailed` (9 sitios) NO PUEDEN CRECER —lo sujeta el
+# trinquete X-T— PERO TAMPOCO CADUCAN: si manana se arregla el defecto y
+# empiezan a XPASS, NADIE LO DIRA, porque las dos direcciones viven en este
+# registro y ahi no hay entradas suyas. Es un VERTEDERO DE EXCEPCIONES
+# ETERNAS, acotado a 9 sitios.
+#
+# TAREA OBLIGATORIA, AGENDADA:
+#
+#     antes de RC Exercise 2:
+#       browser xfails reales
+#         -> inventariados desde EJECUCION REAL
+#         -> registro revisado
+#         -> nuevo xfail        = ROJO
+#         -> excepcion obsoleta = ROJO
+#
+# NO se inventan identificadores a mano: se siembran DESDE EL JOB REAL DEL
+# NAVEGADOR, donde se observan los nodeids exactos, y despues se hace la misma
+# prueba bidireccional que aqui.
+#
+# CLAUSULA DE REAPERTURA: si al intentar sembrarlo aparece otro defecto
+# estructural, entonces si vuelve a ser bloqueante.
+
+GATE4-01 | data-engine/app/tests/test_knowledge_v3_gate4_negation_e2e.py::test_alcance_global_alcanza_el_umbral | SUSPENSO REAL medido: alcance global 0.875 < 0.95 sobre los casos cubiertos
+GATE4-02 | data-engine/app/tests/test_knowledge_v3_gate4_negation_e2e.py::test_recall_de_autoaprobacion_simple_alcanza_el_umbral | SUSPENSO REAL medido: recall de autoaprobacion simple 0.1 < 0.75
+GATE4-03 | data-engine/app/tests/test_knowledge_v3_gate4_negation_e2e.py::test_un_episodio_sin_las_claves_opcionales_deberia_cargar | DEFECTO REAL de contrato: SourceEpisode.from_dict exige claves que deberian ser opcionales
+M0-01 | data-engine/app/tests/test_m0_partida_id_adversarial.py::test_m3_pendiente_decision_hash_deberia_distinguir_partida_id | AGUJERO CONOCIDO (docs/v3/49-multipartida-diseno.md, M0): DECISION_HASH_FIELDS no cubre partida_id
+DOCS-C1B | deploy/tests/test_docs_consistency.py::test_c1b_estrechez_declarada_del_patron | RX_MAIN_SHA no cubre esta redaccion (estrechez declarada)
+DOCS-C20 | deploy/tests/test_docs_consistency.py::test_c20_latest_ci_mentiroso_no_lo_detecta_nadie | latest_ci no tiene oraculo offline (limitacion declarada)
+DOCS-C4E-01 | deploy/tests/test_docs_consistency.py::test_c4e_estrechez_declarada_de_r5[CI arranca al abrir el PR, nunca en el push a la rama.] | RX_NO_CI no cubre esta redaccion (estrechez declarada, no enumerable)
+DOCS-C4E-02 | deploy/tests/test_docs_consistency.py::test_c4e_estrechez_declarada_de_r5[El push a `ops/**` es invisible para CI.] | RX_NO_CI no cubre esta redaccion (estrechez declarada, no enumerable)
+DOCS-C4E-03 | deploy/tests/test_docs_consistency.py::test_c4e_estrechez_declarada_de_r5[El workflow ignora las ramas `ops/**`.] | RX_NO_CI no cubre esta redaccion (estrechez declarada, no enumerable)
+DOCS-C4E-04 | deploy/tests/test_docs_consistency.py::test_c4e_estrechez_declarada_de_r5[Hay una lista blanca de prefijos de rama para CI.] | RX_NO_CI no cubre esta redaccion (estrechez declarada, no enumerable)

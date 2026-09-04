@@ -40,8 +40,19 @@ development:
   # #170, #174, #175, #176, #177 y #178 — el bloque de transición
   # post-hardening (P0 `admin_full`, saturación del grafo, parcialidad del
   # visor, inventario) y el carril C (Review Console).
-  main_commit: "37accbaca201d29195e06ec9b225ec9ca79bc67b"
-  latest_merged_pr: 178  # por fecha de fusión: el #171 entró DESPUÉS que el #173
+  #
+  # REMEDIDO el 2026-09-04 contra `origin/main`, no contra el worktree:
+  #   `git rev-parse origin/main`  -> 4fea1f2075933a244ce1acea31289d393e5ad81e
+  #   `gh pr list --state merged` ordenado por `mergedAt` -> #197 (03:26:50Z)
+  #
+  # Y una vez más el aviso de esta línea se cumple: el último por FECHA no es
+  # el de número mayor. Entraron, en este orden real de fusión: #203, #196,
+  # #198, #200, #199 y #197 — la cadena de hardening V3.1 (excepción acotada
+  # de `nltk`, parcialidad por valor, CSRF, excepciones por tipo/código,
+  # anti-desaparición de suites y métodos de escritura). El #197 es el último
+  # pese a llevar el número más bajo de los tres finales.
+  main_commit: "4fea1f2075933a244ce1acea31289d393e5ad81e"
+  latest_merged_pr: 197  # por fecha de fusión: el #197 entró DESPUÉS que el #199 y el #200
   # CI en 37accba: ROJO, medido con `gh run view 31736789573`, no supuesto.
   #
   # UNA sola contradicción, y esta vez el gate acierta de pleno: el bloque
@@ -74,31 +85,53 @@ development:
   # como puerta», docs/82). Medido con `yaml.safe_load`, no con un grep:
   # `ci.yml` 15 + `supply-chain.yml` 1 = **16**. El job nuevo es
   # `route-map-gate` / «Censo de rutas (configuracion canonica en codigo)».
-  ci_jobs_running: 16
+  # ACTUALIZADO por el carril «métodos de escritura» (docs/84): entra el job
+  # `metodos-de-escritura`, que CORRE pero todavía NO bloquea. 16 + 1 = **17**,
+  # y la aritmética es **17 − 1 = 16** (ver la corrección de `ci_checks_required`
+  # justo debajo: la versión anterior decía «17 − 2 = 15» sobre una premisa
+  # caducada, y este PR la rederivó sin comprobarla contra la API).
+  ci_jobs_running: 17
   #
-  # CAMBIO REAL, medido con `gh api .../branches/main/protection` el
-  # 2026-08-13: la protección de `main` devuelve **15** contextos, y el cruce
-  # con los `name:` de los workflows no deja NINGÚN job fuera ni NINGÚN
-  # contexto exigido sin job. Antes eran 11.
-  ci_checks_required: 15
-  # 15 corren − 15 exigidos = 0. **Ya no hay ningún job que corra sin bloquear**,
-  # incluidos los dos que existen precisamente para detectar gates que no pueden
-  # ponerse rojos. Con esto RK-20b (los tres jobs que corrían sin ser puerta)
-  # queda CERRADO: era decisión del operador y la tomó.
+  # CORREGIDO el 2026-08-19 contra la FUENTE, no contra esta misma terna:
+  # `gh api repos/pjclavero/S9-Knowledge/branches/main/protection
+  #  --jq '.required_status_checks.contexts[]'` devuelve **16** contextos, no 15.
+  # El decimosexto es «Censo de rutas (configuracion canonica en codigo)», que
+  # se promovió a exigido y este fichero no se refrescó: lo declaraba NO exigido
+  # mientras BLOQUEABA merges.
   #
-  # Se deja la lista VACÍA y no se borra la clave: el validador comprueba
-  # `ci_jobs_running − len(lista) == ci_checks_required`, así que la lista
-  # sigue siendo la que hace cuadrar la aritmética, y si mañana vuelve a haber
-  # un job no exigido tiene que anotarse aquí o la cuenta se pone roja.
+  # POR QUÉ NO SALTÓ NADA, que es lo grave: `check_docs_consistency.py` sólo
+  # comprueba `ci_jobs_running − len(ci_running_but_not_required) ==
+  # ci_checks_required` y **nunca consulta la protección de rama**. Dos entradas
+  # equivocadas se cancelaban en una terna internamente consistente: una cifra
+  # comparada CONSIGO MISMA, que es exactamente el defecto que persigue el
+  # carril de docs/84 —el censo comparaba el decorador consigo mismo— aparecido
+  # aquí, en el fichero de estado. Se corrigen las dos entradas; **cruzar el
+  # gate contra `.../protection` en vez de contra sí mismo queda como DEUDA
+  # declarada**, y es otro carril: mientras no se haga, esta terna sigue siendo
+  # verificable sólo a mano.
+  # PROMOVIDO el 2026-09-04, al fusionarse el carril 2 de V3.1 (#197): el rojo a
+  # propósito de `metodos-de-escritura` quedó cerrado y el job pasó a EXIGIDO.
+  # Leído de la FUENTE, no de esta terna, antes y después del cambio:
+  #   `gh api .../branches/main/protection/required_status_checks`
+  #      antes  -> 16 contextos
+  #      después -> 17 contextos
+  # Verificado por DIFERENCIA DE CONJUNTOS, no por el recuento: perdidos = 0,
+  # añadidos = {"Metodos de escritura (especificacion independiente del
+  # montaje)"}. El `PATCH` de ese endpoint es REEMPLAZO TOTAL: contar 17 no
+  # demuestra que no se haya caído otro por el camino, y ya ocurrió una vez.
+  ci_checks_required: 17
   #
-  # Y hoy vuelve a haberlo, exactamente por ese motivo: `route-map-gate` CORRE
-  # desde este commit pero **todavía no bloquea**. Añadirlo a la protección de
-  # rama —sería el check exigido nº 16— es del operador, no del carril; hasta
-  # que lo haga, la aritmética es 16 − 1 = 15 y esta lista es lo que la sostiene.
-  # El nombre que va aquí es el `name:` del job, que es lo que compara
-  # `check_docs_consistency.py`.
-  ci_running_but_not_required:
-    - "Censo de rutas (configuracion canonica en codigo)"
+  # El validador comprueba `ci_jobs_running − len(lista) == ci_checks_required`,
+  # así que la lista es lo que sostiene la aritmética: ahora 17 − 0 = 17. Si
+  # mañana aparece otro job que corre sin bloquear, tiene que anotarse aquí o la
+  # cuenta se pone roja. El nombre que va aquí es el `name:` del job, que es lo
+  # que compara `check_docs_consistency.py`.
+  #
+  # La lista queda VACÍA: todo job que corre, bloquea. Sigue viva la DEUDA
+  # declarada arriba —este gate compara la terna consigo misma y NO consulta
+  # `.../protection`—, así que la coincidencia de esta línea con la realidad
+  # sigue siendo verificable sólo a mano.
+  ci_running_but_not_required: []
 
   # UMBRAL DE AVISO del desfase. NO es un umbral de error (rediseñado el
   # 2026-08-13): a partir de aquí el gate ANUNCIA cuántos commits han entrado

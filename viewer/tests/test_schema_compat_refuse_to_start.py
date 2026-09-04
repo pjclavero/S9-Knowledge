@@ -72,6 +72,15 @@ def test_schema_mas_nuevo_que_el_codigo_rehusa_arrancar(tmp_path):
     with pytest.raises(schema_compat.SchemaCompatibilityError) as exc:
         schema_compat.assert_compatible(db)
 
+    # CONDUCTA: se comprueba por tipo + código estable, no por redacción.
+    assert exc.value.code == schema_compat.SCHEMA_ABOVE_MAX_SUPPORTED
+    assert exc.value.schema_version == schema_compat.MAX_SUPPORTED_SCHEMA + 1
+
+    # REDACCIÓN, y aquí a propósito: además de rehusar, este error es el
+    # runbook que lee un operador a las 3 de la mañana. Las tres frases
+    # siguientes SON la garantía (mensaje accionable), no un sucedáneo de la
+    # conducta; por eso conviven con la comprobación de código de arriba y
+    # están declaradas como comprobación de texto DELIBERADA.
     msg = str(exc.value)
     assert "SE REHÚSA ARRANCAR" in msg
     assert "N-1" in msg, "el error debe decir QUÉ situación es, no sólo que falla"
@@ -110,7 +119,7 @@ def test_base_poblada_sin_tabla_de_version_rehusa(tmp_path):
     db = _stamp(tmp_path / "auth.db", None, with_version_table=False)
     with pytest.raises(schema_compat.SchemaVersionUnknown) as exc:
         schema_compat.assert_compatible(db)
-    assert "no es permiso" in str(exc.value)
+    assert exc.value.code == schema_compat.SCHEMA_VERSION_TABLE_MISSING
 
 
 def test_tabla_de_version_vacia_rehusa(tmp_path):

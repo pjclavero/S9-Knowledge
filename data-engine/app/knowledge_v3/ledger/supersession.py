@@ -17,6 +17,9 @@ alguien anade un estado.
 """
 from __future__ import annotations
 
+from coded_errors import coded
+from knowledge_v3.ledger.codes import LedgerCodes
+
 from copy import deepcopy
 from typing import Any, Dict, FrozenSet, Optional
 
@@ -122,7 +125,7 @@ def _as_status(value: "AssertionStatus | str") -> AssertionStatus:
     try:
         return AssertionStatus(value)
     except ValueError as exc:
-        raise LedgerTransitionError(f"status desconocido: {value!r}") from exc
+        raise coded(LedgerTransitionError(f"status desconocido: {value!r}"), LedgerCodes.UNKNOWN_STATUS) from exc
 
 
 def check_transition(
@@ -137,25 +140,25 @@ def check_transition(
     tgt = _as_status(target)
     allowed = STATUS_TRANSITIONS.get(cur)
     if allowed is None:
-        raise LedgerTransitionError(f"estado de origen no contemplado: {cur}")
+        raise coded(LedgerTransitionError(f"estado de origen no contemplado: {cur}"), LedgerCodes.UNKNOWN_SOURCE_STATUS)
     if tgt not in allowed:
         origen = "creacion" if cur is None else cur.value
-        raise LedgerTransitionError(
+        raise coded(LedgerTransitionError(
             f"transicion ilegal {origen} -> {tgt.value}"
             + (f" en {assertion_id}" if assertion_id else "")
             + (f" (operacion {operation.value})" if operation else "")
             + f"; legales desde {origen}: {sorted(s.value for s in allowed) or 'ninguna (estado terminal)'}"
-        )
+        ), LedgerCodes.ILLEGAL_TRANSITION)
 
 
 def check_reason(operation: LedgerOperation, reason_code: str) -> None:
     """Valida el motivo contra el catalogo cerrado de la operacion."""
     allowed = CANONICAL_REASONS[operation]
     if reason_code not in allowed:
-        raise LedgerError(
+        raise coded(LedgerError(
             f"reason_code {reason_code!r} no es canonico para {operation.value}; "
             f"admitidos: {sorted(allowed)}"
-        )
+        ), LedgerCodes.REASON_CODE_INVALID)
 
 
 def is_live(status: "AssertionStatus | str") -> bool:
@@ -235,24 +238,24 @@ def close_validity(
     existing = previous.get("valid_to")
     if existing is not None:
         if valid_to is not None and not same_instant(existing, valid_to):
-            raise LedgerError(
+            raise coded(LedgerError(
                 f"la vigencia de {previous['assertion_id']} ya estaba cerrada en "
                 f"{existing}; moverla a {valid_to} seria reescribir el pasado"
-            )
+            ), LedgerCodes.VALIDITY_ALREADY_CLOSED)
         closing = existing
     else:
         if valid_to is None:
-            raise LedgerError(
+            raise coded(LedgerError(
                 f"supersesion de {previous['assertion_id']} sin `valid_to`: no se "
                 "puede cerrar una vigencia sin decir cuando termina (ni se puede "
                 "deducir de una afirmacion nueva sin `valid_from`)"
-            )
+            ), LedgerCodes.VALIDITY_MISSING_VALID_TO)
         closing = valid_to
     if not before_or_equal(previous.get("valid_from"), closing):
-        raise LedgerError(
+        raise coded(LedgerError(
             f"valid_to {closing} anterior a valid_from {previous.get('valid_from')} "
             f"en {previous['assertion_id']}"
-        )
+        ), LedgerCodes.VALIDITY_INVERTED)
     state = previous.get("state")
     return {
         "status": S.SUPERSEDED.value,
@@ -273,7 +276,7 @@ def chain_from(entries_by_id: Dict[str, dict], assertion_id: str) -> list[str]:
     current: Optional[str] = assertion_id
     while current is not None:
         if current in seen:
-            raise LedgerError(f"cadena de supersesion ciclica en {current}")
+            raise coded(LedgerError(f"cadena de supersesion ciclica en {current}"), LedgerCodes.SUPERSESSION_CYCLE)
         seen.add(current)
         chain.append(current)
         doc = entries_by_id.get(current)
