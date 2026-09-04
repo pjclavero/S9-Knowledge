@@ -638,7 +638,23 @@ def main() -> int:
         f"                   cwd={str(REPO)!r})\n"
         "s = p.stdout + p.stderr\n"
         "print('RC=%d' % p.returncode)\n"
-        "print('TRINQUETES=%s' % ('SI' if 'MATERIALIZADA y medida en el sitio' in s else 'NO'))\n"
+        # EL TRINQUETE SE OBSERVA POR SU EFECTO, NO POR LA FRASE DE UNA DE LAS
+        # DOS RUTAS QUE LO CONSIGUEN. Antes se buscaba literalmente
+        # 'MATERIALIZADA y medida en el sitio', que solo imprime
+        # `inventario_materializando()`: la rama de reserva que corre cuando la
+        # base NO publica `.github/suite-inventario.json`. En cuanto el carril 1
+        # se fusiono, el merge-base SI lo publica, `inventario_base()` toma la
+        # ruta directa (`=== F5: base <sha>`) y el arnes leia NO donde el
+        # trinquete estaba MAS aplicado, no menos. Arnes caducado, como S4.
+        # Lo que hay que observar es que el trinquete SE APLICO, y eso lo dice
+        # el propio gate: cuando no hay base, sin `--sin-base`, imprime
+        # `INSTRUMENTO ROTO` y sale 1. Asi que el observable es la conjuncion de
+        # certificar (EXIT=0), afirmar los trinquetes contra la base, y no haber
+        # declarado NINGUN `SIN TRINQUETE`. Es indiferente a cual de las dos
+        # rutas materializo la base, que es justo lo que lo hace no caducar.
+        "aplicado = 'satisfecho contra la base ' in s\n"
+        "print('TRINQUETES=%s' % ('SI' if (p.returncode == 0 and aplicado\n"
+        "                                  and 'SIN TRINQUETE' not in s) else 'NO'))\n"
         "print('ABLACION=%s' % ('SI' if 'ABLACION ACTIVA' in s else 'NO'))\n"
         "print('INTEGRIDAD_SALTADA=%s' % ('SI' if 'integridad NO' in s else 'NO'))\n"
     )
