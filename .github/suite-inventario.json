@@ -231,7 +231,7 @@
     "data-engine/app/tests/test_workspace_aliases.py": 6,
     "deploy/tests/test_backup_retencion_propuesta.py": 9,
     "deploy/tests/test_create_workspace.py": 3,
-    "deploy/tests/test_docs_consistency.py": 49,
+    "deploy/tests/test_docs_consistency.py": 53,
     "deploy/tests/test_manifest_schema_truth.py": 14,
     "deploy/tests/test_release_checksum.py": 33,
     "deploy/tests/test_release_identity.py": 26,
@@ -337,7 +337,7 @@
   "xfail": {
     "data-engine/app/tests/test_knowledge_v3_gate4_negation_e2e.py": 3,
     "data-engine/app/tests/test_m0_partida_id_adversarial.py": 1,
-    "deploy/tests/test_docs_consistency.py": 3,
+    "deploy/tests/test_docs_consistency.py": 2,
     "viewer/tests/browser/test_browser_accessibility.py": 7,
     "viewer/tests/browser/test_browser_navigation.py": 2
   },
@@ -350,7 +350,7 @@
     "viewer/tests/browser/test_login_browser.py",
     "viewer/tests/test_graph_ux_v2.py"
   ],
-  "total": 8117,
+  "total": 8120,
   "modulos": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 526,
     "contracts/review-ingest/v1/tests/test_contracts_v1.py": 38,
@@ -523,7 +523,7 @@
     "data-engine/app/tests/test_workspace_aliases.py": 6,
     "deploy/tests/test_backup_retencion_propuesta.py": 9,
     "deploy/tests/test_create_workspace.py": 3,
-    "deploy/tests/test_docs_consistency.py": 80,
+    "deploy/tests/test_docs_consistency.py": 83,
     "deploy/tests/test_manifest_schema_truth.py": 14,
     "deploy/tests/test_release_checksum.py": 33,
     "deploy/tests/test_release_identity.py": 29,
