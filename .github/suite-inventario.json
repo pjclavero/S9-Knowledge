@@ -318,6 +318,9 @@
     "viewer/tests/test_review_ids_workspace_separador.py": 11,
     "viewer/tests/test_reviews.py": 13,
     "viewer/tests/test_reviews_console.py": 15,
+    "viewer/tests/test_reviews_contadores_por_ambito.py": 8,
+    "viewer/tests/test_reviews_contaminacion_anidada.py": 3,
+    "viewer/tests/test_reviews_forma_real_pipeline_state.py": 5,
     "viewer/tests/test_rollback_v3_a_v2.py": 4,
     "viewer/tests/test_saturacion_grafo_caracterizacion.py": 4,
     "viewer/tests/test_schema_compat_refuse_to_start.py": 16,
@@ -347,7 +350,7 @@
     "viewer/tests/browser/test_login_browser.py",
     "viewer/tests/test_graph_ux_v2.py"
   ],
-  "total": 8096,
+  "total": 8117,
   "modulos": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 526,
     "contracts/review-ingest/v1/tests/test_contracts_v1.py": 38,
@@ -607,6 +610,9 @@
     "viewer/tests/test_review_ids_workspace_separador.py": 13,
     "viewer/tests/test_reviews.py": 13,
     "viewer/tests/test_reviews_console.py": 20,
+    "viewer/tests/test_reviews_contadores_por_ambito.py": 8,
+    "viewer/tests/test_reviews_contaminacion_anidada.py": 8,
+    "viewer/tests/test_reviews_forma_real_pipeline_state.py": 5,
     "viewer/tests/test_rollback_v3_a_v2.py": 4,
     "viewer/tests/test_saturacion_grafo_caracterizacion.py": 6,
     "viewer/tests/test_schema_compat_refuse_to_start.py": 16,
