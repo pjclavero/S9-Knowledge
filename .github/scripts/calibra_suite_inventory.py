@@ -83,11 +83,19 @@ NO_CRITICO = REPO / "viewer" / "tests" / "test_auth_core.py"
 # El `conftest.py` del visor: alcanza a TODOS los modulos de su directorio hacia
 # abajo, asi que es desde donde se marca una suite sin tocar su fichero.
 CONFTEST_VISOR = REPO / "viewer" / "tests" / "conftest.py"
+# La criticidad NO viene de una sola fuente: `criticos_por_calibrador()` la
+# deriva por AST de las constantes de modulo de cada calibrador, y
+# `criticos_por_marcador()` del `pytestmark`. Medido sobre HEAD: de los 21
+# criticos, 20 lo son SOLO por calibrador y `test_parcialidad_declarada.py` lo
+# es por AMBAS vias desde que #196 anadio `SUITE_PARCIALIDAD` a este fichero.
+# Por eso una mutacion que solo borre el `pytestmark` ya no retira nada.
+CALIBRADOR_IDENTIDAD = REPO / "artifacts" / "identidad-durable" / "calibrar.py"
 TOCABLES = TRES_DEL_RC + (
     NAVEGADOR,
     NO_CRITICO,
     AUTHZ_NEO4J,
     CONFTEST_VISOR,
+    CALIBRADOR_IDENTIDAD,
     REPO / ".github" / "workflows" / "ci.yml",
     REPO / ".github" / "suite-bajas.txt",
 )
@@ -346,7 +354,60 @@ def m_s3_k_en_ci() -> None:
     CI.write_text(nuevo_texto, encoding="utf-8")
 
 
-def _quita_marcador_critico() -> None:
+def _es_critico(rel: str) -> bool:
+    """¿El gate considera CRITICO a `rel` con el arbol tal y como esta AHORA?
+
+    Se mide llamando a las dos derivaciones del propio gate —la del calibrador y
+    la del marcador—, no reimplementandolas aqui: si manana aparece una tercera
+    via, esta medida la ve y la unidad de control sigue siendo la misma.
+
+    Va en un proceso aparte a proposito. El arnes no puede quedarse el gate
+    importado: su estado de modulo (`ABLACION`, el registro de `xfail`) es
+    justo lo que los casos manipulan.
+    """
+    codigo = (
+        "import importlib.util, json, sys\n"
+        f"spec = importlib.util.spec_from_file_location('g', {str(GATE)!r})\n"
+        "g = importlib.util.module_from_spec(spec)\n"
+        "spec.loader.exec_module(g)\n"
+        f"rel = {rel!r}\n"
+        "criticos = set(g.criticos_por_calibrador()) | set(g.criticos_por_marcador({rel}))\n"
+        "print(json.dumps(rel in criticos))\n"
+    )
+    proc = subprocess.run([sys.executable, "-c", codigo], cwd=REPO,
+                          capture_output=True, text=True, timeout=300)
+    if proc.returncode != 0:
+        raise SystemExit(
+            f"MEDIDA IMPOSIBLE: no se pudo derivar la criticidad de `{rel}`:\n"
+            f"{proc.stderr[-2000:]}")
+    return json.loads(proc.stdout.strip())
+
+
+def _retira_criticidad_en_silencio() -> None:
+    """Retira DE VERDAD la criticidad de la suite, por TODAS sus vias, sin declararla.
+
+    LA UNIDAD DE CONTROL ES LA PROPIEDAD, NO LA CIFRA. La version anterior de
+    esto borraba `pytestmark = pytest.mark.critico` y el titulo del caso decia
+    «criticos 20 -> 19». Al integrar `main` eso dejo de morder, y NO porque el
+    trinquete G se hubiera debilitado: #196 (`e93c7b5`) anadio
+    `SUITE_PARCIALIDAD = "viewer/tests/test_parcialidad_declarada.py"` a
+    `artifacts/identidad-durable/calibrar.py`, con lo que la suite paso a ser
+    critica TAMBIEN por calibrador. Quitarle el marcador ya no la sacaba del
+    conjunto de criticos, asi que el caso no violaba la propiedad que dice
+    vigilar y el verde del gate era CORRECTO. Un caso de calibracion atado a una
+    cifra literal caduca; atado a la propiedad, no.
+
+    Por eso esto no supone el efecto: lo MIDE antes y despues, y se niega a
+    seguir si la mutacion no ha retirado la criticidad de verdad. Si un dia
+    aparece otra via de derivacion, este caso se pondra a gritar «MUTACION
+    IMPOSIBLE» en vez de pasar en verde fingiendo que sujeta algo.
+    """
+    rel = PARCIALIDAD.resolve().relative_to(REPO).as_posix()
+    if not _es_critico(rel):
+        raise SystemExit(
+            f"MUTACION IMPOSIBLE (S4): `{rel}` NO es critico antes de mutar, "
+            f"asi que no hay criticidad que retirar y el caso no mide nada.")
+
     texto = PARCIALIDAD.read_text(encoding="utf-8")
     ancla = "pytestmark = pytest.mark.critico"
     if ancla not in texto:
@@ -355,15 +416,36 @@ def _quita_marcador_critico() -> None:
         texto.replace(ancla, "# marcador retirado por la calibracion"),
         encoding="utf-8")
 
+    # Y la otra via: la constante de modulo del calibrador. Se retira por su
+    # NOMBRE, no por la ruta, para que renombrar el fichero de test no deje esto
+    # silenciosamente sin efecto.
+    cal = CALIBRADOR_IDENTIDAD.read_text(encoding="utf-8")
+    ancla_cal = f'SUITE_PARCIALIDAD = "{rel}"'
+    if ancla_cal not in cal:
+        raise SystemExit(
+            f"MUTACION IMPOSIBLE (S4): no esta `{ancla_cal}` en "
+            f"{CALIBRADOR_IDENTIDAD.relative_to(REPO)}")
+    CALIBRADOR_IDENTIDAD.write_text(
+        cal.replace(ancla_cal,
+                    "SUITE_PARCIALIDAD_RETIRADA_POR_LA_CALIBRACION = None"),
+        encoding="utf-8")
+
+    if _es_critico(rel):
+        raise SystemExit(
+            f"MUTACION IMPOSIBLE (S4): tras retirar el marcador Y la constante "
+            f"del calibrador, `{rel}` SIGUE siendo critico. Hay una tercera via "
+            f"de derivacion que esta mutacion no cubre: el caso no violaria la "
+            f"propiedad y su veredicto no significaria nada.")
+
 
 def m_s4_descritificar_en_silencio() -> None:
-    """S4: borrar el marcador: los criticos bajan de 20 a 19 sin que nada avise."""
-    _quita_marcador_critico()
+    """S4: el conjunto de CRITICOS encoge sin que nadie lo declare, y nada avisa."""
+    _retira_criticidad_en_silencio()
 
 
 def m_s5_baja_de_critica_borrando() -> None:
     """S5a: quitar criticidad + declarar baja + borrar el fichero, en UN commit."""
-    _quita_marcador_critico()
+    _retira_criticidad_en_silencio()
     BAJAS.write_text(
         BAJAS.read_text(encoding="utf-8")
         + "\nviewer/tests/test_parcialidad_declarada.py\n", encoding="utf-8")
@@ -372,7 +454,7 @@ def m_s5_baja_de_critica_borrando() -> None:
 
 def m_s5_baja_de_critica_vaciando() -> None:
     """S5b: la misma jugada vaciando el fichero en vez de borrarlo."""
-    _quita_marcador_critico()
+    _retira_criticidad_en_silencio()
     BAJAS.write_text(
         BAJAS.read_text(encoding="utf-8")
         + "\nviewer/tests/test_parcialidad_declarada.py\n", encoding="utf-8")
@@ -583,10 +665,28 @@ def m_descritificar_declarado() -> None:
     de los dos commits que exige retirar una suite critica. Si esto saliera
     rojo, el gate no dejaria ningun camino y acabaria desactivado.
     """
-    _quita_marcador_critico()
+    _retira_criticidad_en_silencio()
     BAJAS.write_text(
         BAJAS.read_text(encoding="utf-8")
         + "\ndescritificar: viewer/tests/test_parcialidad_declarada.py\n",
+        encoding="utf-8")
+
+
+def m_descritificar_declarando_OTRA_suite() -> None:
+    """FALSIFICACION del control positivo: la declaracion no vale por existir.
+
+    Un control positivo que no puede ponerse rojo no es un control: solo dice
+    que el gate no explota. Este caso hace EXACTAMENTE la misma retirada de
+    criticidad que el positivo y cambia UNA sola cosa, la suite que la
+    declaracion nombra. Si el gate diera verde igual, la conclusion seria que el
+    verde del positivo lo produce la mera PRESENCIA de una linea en
+    `suite-bajas.txt` y no su CONTENIDO, y entonces bastaria con declarar
+    cualquier cosa para retirar cualquier critico. Tiene que salir ROJO.
+    """
+    _retira_criticidad_en_silencio()
+    BAJAS.write_text(
+        BAJAS.read_text(encoding="utf-8")
+        + "\ndescritificar: viewer/tests/test_identidad_durable.py\n",
         encoding="utf-8")
 
 
@@ -823,7 +923,7 @@ CASOS = [
      m_s2_ignore_en_ci, None, None, ROJO),
     ("S3: `-k` que descarta la suite critica en ci.yml",
      m_s3_k_en_ci, None, None, ROJO),
-    ("S4: borrar `pytest.mark.critico` (criticos 20 -> 19 en silencio)",
+    ("S4: retirar la criticidad por TODAS sus vias, en silencio (el conjunto de criticos ENCOGE)",
      m_s4_descritificar_en_silencio, None, None, ROJO),
     ("S5a: descritificar + baja + BORRAR la suite critica en un commit",
      m_s5_baja_de_critica_borrando, None, None, ROJO),
@@ -833,6 +933,8 @@ CASOS = [
      m_condicion_reescrita, None, None, ROJO),
     ("control positivo: descritificar DECLARANDOLO y con la suite viva",
      m_descritificar_declarado, None, None, VERDE),
+    ("falsificacion del positivo: descritificar declarando OTRA suite",
+     m_descritificar_declarando_OTRA_suite, None, None, ROJO),
 
     # --- filtros POR ENTORNO: UN CASO POR SUPERFICIE REAL ----------------
     # El tercer dictamen NO CONFORME no fue por la LISTA de variables, que era
