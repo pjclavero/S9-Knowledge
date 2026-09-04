@@ -1145,3 +1145,74 @@ jobs:
           name: route-map-gate
           path: artifacts/route-map/ci-*
           if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------
+  # Metodos de los endpoints de ESCRITURA (docs/84)
+  # ---------------------------------------------------------------------------
+  # Por que existe un job aparte y no un paso mas del censo: el censo comparaba
+  # el metodo montado con el decorador que pretendia vigilar, asi que un cambio
+  # `POST -> GET` en una ruta de escritura era invisible POR CONSTRUCCION.
+  # Medido sobre `aaf9695`: cambiar el metodo de `POST /admin/users/{id}/unlock`
+  # y anadirle un alias `GET` no puso rojo a ningun instrumento del repositorio.
+  #
+  # La referencia de este job NO sale del decorador: sale de la firma y el
+  # cuerpo del manejador, de los formularios/fetch que la propia app sirve, y de
+  # peticiones HTTP contra `app.main.app`. No hay lista de endpoints en ninguna
+  # parte: un endpoint de escritura nuevo queda cubierto solo, y uno que no se
+  # pueda clasificar pone el job ROJO.
+  metodos-de-escritura:
+    name: Metodos de escritura (especificacion independiente del montaje)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: 'viewer/requirements.txt'
+
+      - name: Install viewer dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -r viewer/requirements.txt
+
+      # Este paso salio ROJO entre el 18 y el 19 de agosto por DOS
+      # `lectura-que-escribe` reales: los dos GET de salud escribian un fichero
+      # dentro de la propia peticion. El operador rechazo eximirlos ("el defecto
+      # esta en las rutas, no en la puerta") y se arreglaron las rutas
+      # (health_admin.py: GET de lectura pura + POST /admin/health/snapshot).
+      # Desde entonces la base sale VERDE. El job sigue SIN ser exigido:
+      # promoverlo al nº 17 es decision del operador.
+      - name: Especificacion ejecutable de escritura
+        env:
+          PYTHONPATH: scripts
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/route-map
+          python3 scripts/route_map/write_spec.py --repo . \
+            --out artifacts/route-map/ci-write_spec.json
+
+      - name: Control negativo (metodo cambiado y alias GET, endpoint a endpoint)
+        if: always()   # la calibracion se publica aunque la espec salga roja
+        env:
+          PYTHONPATH: scripts
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          # Sin control negativo, "verde" no significa nada: aqui cada endpoint
+          # de escritura se muta uno a uno y tiene que ponerse ROJO por el
+          # motivo correcto, con las ablaciones cobradas.
+          python3 scripts/route_map/calibrate_write_spec.py \
+            --out artifacts/route-map/ci-calibracion-write_spec.json
+
+      - name: Publicar artefactos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: metodos-de-escritura
+          path: artifacts/route-map/ci-*write_spec*.json
+          if-no-files-found: warn

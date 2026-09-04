@@ -74,31 +74,44 @@ development:
   # como puerta», docs/82). Medido con `yaml.safe_load`, no con un grep:
   # `ci.yml` 15 + `supply-chain.yml` 1 = **16**. El job nuevo es
   # `route-map-gate` / «Censo de rutas (configuracion canonica en codigo)».
-  ci_jobs_running: 16
+  # ACTUALIZADO por el carril «métodos de escritura» (docs/84): entra el job
+  # `metodos-de-escritura`, que CORRE pero todavía NO bloquea. 16 + 1 = **17**,
+  # y la aritmética es **17 − 1 = 16** (ver la corrección de `ci_checks_required`
+  # justo debajo: la versión anterior decía «17 − 2 = 15» sobre una premisa
+  # caducada, y este PR la rederivó sin comprobarla contra la API).
+  ci_jobs_running: 17
   #
-  # CAMBIO REAL, medido con `gh api .../branches/main/protection` el
-  # 2026-08-13: la protección de `main` devuelve **15** contextos, y el cruce
-  # con los `name:` de los workflows no deja NINGÚN job fuera ni NINGÚN
-  # contexto exigido sin job. Antes eran 11.
-  ci_checks_required: 15
-  # 15 corren − 15 exigidos = 0. **Ya no hay ningún job que corra sin bloquear**,
-  # incluidos los dos que existen precisamente para detectar gates que no pueden
-  # ponerse rojos. Con esto RK-20b (los tres jobs que corrían sin ser puerta)
-  # queda CERRADO: era decisión del operador y la tomó.
+  # CORREGIDO el 2026-08-19 contra la FUENTE, no contra esta misma terna:
+  # `gh api repos/pjclavero/S9-Knowledge/branches/main/protection
+  #  --jq '.required_status_checks.contexts[]'` devuelve **16** contextos, no 15.
+  # El decimosexto es «Censo de rutas (configuracion canonica en codigo)», que
+  # se promovió a exigido y este fichero no se refrescó: lo declaraba NO exigido
+  # mientras BLOQUEABA merges.
   #
-  # Se deja la lista VACÍA y no se borra la clave: el validador comprueba
-  # `ci_jobs_running − len(lista) == ci_checks_required`, así que la lista
-  # sigue siendo la que hace cuadrar la aritmética, y si mañana vuelve a haber
-  # un job no exigido tiene que anotarse aquí o la cuenta se pone roja.
+  # POR QUÉ NO SALTÓ NADA, que es lo grave: `check_docs_consistency.py` sólo
+  # comprueba `ci_jobs_running − len(ci_running_but_not_required) ==
+  # ci_checks_required` y **nunca consulta la protección de rama**. Dos entradas
+  # equivocadas se cancelaban en una terna internamente consistente: una cifra
+  # comparada CONSIGO MISMA, que es exactamente el defecto que persigue el
+  # carril de docs/84 —el censo comparaba el decorador consigo mismo— aparecido
+  # aquí, en el fichero de estado. Se corrigen las dos entradas; **cruzar el
+  # gate contra `.../protection` en vez de contra sí mismo queda como DEUDA
+  # declarada**, y es otro carril: mientras no se haga, esta terna sigue siendo
+  # verificable sólo a mano.
+  ci_checks_required: 16
   #
-  # Y hoy vuelve a haberlo, exactamente por ese motivo: `route-map-gate` CORRE
-  # desde este commit pero **todavía no bloquea**. Añadirlo a la protección de
-  # rama —sería el check exigido nº 16— es del operador, no del carril; hasta
-  # que lo haga, la aritmética es 16 − 1 = 15 y esta lista es lo que la sostiene.
-  # El nombre que va aquí es el `name:` del job, que es lo que compara
-  # `check_docs_consistency.py`.
+  # El validador comprueba `ci_jobs_running − len(lista) == ci_checks_required`,
+  # así que la lista es lo que sostiene la aritmética: 17 − 1 = 16. Si mañana
+  # aparece otro job que corre sin bloquear, tiene que anotarse aquí o la cuenta
+  # se pone roja. El nombre que va aquí es el `name:` del job, que es lo que
+  # compara `check_docs_consistency.py`.
+  #
+  # Queda UNO solo: `metodos-de-escritura` CORRE y **no bloquea**, y además nace
+  # ROJO a propósito (dos `lectura-que-escribe` reales del producto, docs/84).
+  # Promoverlo a exigido —sería el nº 17— es del operador y va en el mismo commit
+  # que cierre ese rojo; hasta entonces esta línea es lo que lo declara.
   ci_running_but_not_required:
-    - "Censo de rutas (configuracion canonica en codigo)"
+    - "Metodos de escritura (especificacion independiente del montaje)"
 
   # UMBRAL DE AVISO del desfase. NO es un umbral de error (rediseñado el
   # 2026-08-13): a partir de aquí el gate ANUNCIA cuántos commits han entrado
