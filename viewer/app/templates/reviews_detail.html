@@ -10,14 +10,16 @@
   <div class="card">
     <h2 style="margin-top:0">Resumen</h2>
     <div class="reviews-counters" style="font-size:14px; gap:12px;">
+      {# Ausencia honesta: si la cifra no se pudo calcular dentro del ámbito, se
+         omite (—). Ni 0 ni el total del fichero. #}
       <span class="counter-badge approved" style="font-size:14px; padding:4px 14px;">
-        &#10003; {{ counters.approved }} autoaprobados
+        &#10003; {% if counters.approved is none %}&#8212;{% else %}{{ counters.approved }}{% endif %} autoaprobados
       </span>
       <span class="counter-badge pending" style="font-size:14px; padding:4px 14px;">
-        &#9203; {{ counters.pending }} pendientes
+        &#9203; {% if counters.pending is none %}&#8212;{% else %}{{ counters.pending }}{% endif %} pendientes
       </span>
       <span class="counter-badge rejected" style="font-size:14px; padding:4px 14px;">
-        &#10007; {{ counters.rejected }} rechazados
+        &#10007; {% if counters.rejected is none %}&#8212;{% else %}{{ counters.rejected }}{% endif %} rechazados
       </span>
     </div>
 
@@ -151,8 +153,12 @@
   {% if approved_exists %}
   <div class="card">
     <h2 style="margin-top:0">Payload aprobado</h2>
-    <p>El fichero <code>approved_payload.json</code> existe con
-       <strong>{{ approved_count }}</strong> entrada(s) aprobada(s).</p>
+    <p>El fichero <code>approved_payload.json</code> existe
+       {% if approved_count is none %}
+       (no se puede detallar su contenido en este &aacute;mbito).
+       {% else %}
+       con <strong>{{ approved_count }}</strong> entrada(s) aprobada(s) visible(s).
+       {% endif %}</p>
     <details>
       <summary>Vista previa (primeras entradas)</summary>
       <pre>{{ approved_preview }}</pre>
