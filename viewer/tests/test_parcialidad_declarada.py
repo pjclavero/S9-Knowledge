@@ -59,6 +59,22 @@ from app.providers.mock_provider import MockGraphProvider
 from app.serializers import serialize_graph
 from test_saturacion_grafo_caracterizacion import LIMIT, _fixture, _viewer
 
+# Esta suite es CRITICA para `.github/scripts/check_suite_inventory.py`: si se
+# silencia o desaparece, CI se pone ROJO.
+#
+# El marcador esta puesto A MANO, y merece la explicacion. La deteccion de
+# suites criticas de ese gate se DERIVA de los arneses de calibracion que usan
+# una suite como instrumento (`artifacts/identidad-durable/calibrar.py`,
+# `scripts/calibrar_panel_*.py`, `scripts/calibracion/mutaciones_*.py`), y asi
+# salen 18 modulos solos, sin lista. Esta suite no la usa todavia ningun arnes
+# de esos —su calibracion es interna, los `test_calibracion_*` de aqui abajo—,
+# asi que la derivacion no la alcanza. El ejercicio RC 1 la silencio y CI
+# siguio verde con 1554 passed; no puede quedar fuera esperando a que algun dia
+# aparezca un calibrador que la nombre.
+#
+# `critico` esta registrado en `pytest.ini` y no altera la ejecucion.
+pytestmark = pytest.mark.critico
+
 VIEWER_ROOT = Path(__file__).resolve().parents[1]
 GRAPH_HTML = VIEWER_ROOT / "app" / "templates" / "graph.html"
 GRAPH_JS = VIEWER_ROOT / "app" / "static" / "js" / "graph.js"

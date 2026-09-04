@@ -1,0 +1,42 @@
+# Bajas DELIBERADAS de modulos de test.
+#
+# Esto NO es una lista de suites protegidas —esa se DERIVA, ver la cabecera de
+# `.github/scripts/check_suite_inventory.py`—. Es lo contrario: la lista de
+# EXCEPCIONES al trinquete C, es decir, los modulos que estaban en el
+# inventario de la base y que se retiran a proposito (fusion de dos suites,
+# renombrado, funcionalidad eliminada).
+#
+# Existe por una razon concreta: sin ella, cualquier renombrado legitimo pondria
+# el gate rojo, y un gate que se pone rojo por trabajo normal acaba
+# desactivado. Con ella, la baja tiene que ESCRIBIRSE, y entonces aparece en el
+# diff del PR, que es exactamente donde un revisor puede preguntar por que.
+#
+# Un modulo CRITICO (declarado por un arnes de calibracion o por
+# `pytest.mark.critico`) NO se puede dar de baja aqui: el gate lo rechaza. Para
+# retirarlo hay que quitarle antes lo que lo declara critico, y eso tambien se
+# ve en el diff.
+#
+# Formato: una ruta relativa al repositorio por linea. `#` inicia comentario.
+# Vacio a proposito.
+
+# ---------------------------------------------------------------------------
+# SEGUNDA SECCION: descritificaciones (`descritificar: <ruta>`)
+# ---------------------------------------------------------------------------
+# Retirar la CRITICIDAD de una suite y RETIRAR la suite son dos actos, y estan
+# separados por una razon medida: mientras fueron uno solo, se podia retirar
+# una suite critica en UN COMMIT —quitar el marcador, escribir la baja y borrar
+# el fichero—, porque la criticidad se recalcula desde HEAD y en HEAD ya no
+# quedaba marcador. La afirmacion "un critico no se puede dar de baja" era
+# FALSA, y la delataba la propia tabla de calibracion: el caso de borrado
+# reportaba «BORRADO DE SUITE», no «CRITICA».
+#
+# Ahora:
+#   - El conjunto de criticos solo puede CRECER.
+#   - Para descritificar hay que escribir aqui `descritificar: <ruta>` Y dejar
+#     la suite VIVA y recolectada. Descritificar y perder la suite en el mismo
+#     commit es ROJO.
+#   - Retirarla de verdad exige un SEGUNDO commit, con la descritificacion ya
+#     mergeada: entonces la base ya no la tiene por critica y basta una baja
+#     normal de la primera seccion.
+#
+# Vacio a proposito.
