@@ -13,6 +13,16 @@ Este script comprueba:
   0. Que `development.main_commit` y `development.latest_merged_pr` coincidan
      con el repositorio REAL (`origin/main`, o `main` si no hay remoto).
 
+     QUE SIGNIFICA `main_commit`, porque se leyo mal durante meses:
+     `main_commit` es el ULTIMO COMMIT YA VERIFICADO desde el que se genero la
+     fotografia del bloque `development`, y `latest_ci` es el resultado de CI
+     DE ESE COMMIT. NO son el SHA ni el CI del commit que contiene el fichero:
+     eso es IMPOSIBLE por construccion —un fichero versionado no puede
+     contener de forma estable el hash del commit que lo contiene, porque el
+     hash depende del contenido—, asi que este punto 0 comprueba ANCESTRIA
+     (`main_commit` esta en la historia de `main`), nunca autorreferencia. El
+     desfase de al menos un commit es estructural y esta declarado.
+
      Por que existe el punto 0: el punto 3 (abajo) solo mide coherencia
      INTERNA. En la calibracion del 2026-08-11 se sustituyo `main_commit` por
      `1111111…` y `latest_merged_pr` por `#4242`, se propago la mentira a los
@@ -255,6 +265,10 @@ HISTORY_TRUNCATED = False
 # pagina no lo lee nadie; en la ultima linea, si.
 MAIN_COMMIT_LAG = 0
 PR_LAG = 0
+# Se pone a True cuando hay `latest_ci` declarado pero NO hay oraculo con el
+# que contrastarlo. Igual que las dos banderas de arriba: no es rojo, pero no
+# puede ser un verde mudo. Lo lee `main()` para calificar el titular.
+CI_UNVERIFIED = False
 # "Carril A: Graph UX V2 (#158)" (squash) o "Merge pull request #157 from …"
 RX_PR_SQUASH = re.compile(r"\(#(\d+)\)\s*$")
 RX_PR_MERGE = re.compile(r"^Merge pull request #(\d+)\b")
@@ -542,14 +556,15 @@ def check_git_authority(development: dict) -> list[str]:
 # YAML declara no exigidos). Eso mata la cifra inventada, no la mentira
 # deliberada y coherente sobre los ajustes de GitHub. Queda por escrito.
 #
-# Limitacion declarada (2): `development.latest_ci` NO LO VALIDA NADIE. Es el
-# unico campo del bloque que solo vive en el YAML; declararlo "green" sobre un
-# commit con la CI en rojo pasa en verde. El oraculo esta fuera —el estado de
-# CI de un commit vive en GitHub, y este script corre sin red ni credenciales—
-# y no se finge cobertura con una comprobacion de vocabulario que no podria
-# fallar en el caso que importa. Declarado con `xfail(strict=True)` en la fila
-# test_c20_latest_ci_mentiroso_no_lo_detecta_nadie, que gritara por XPASS el
-# dia que alguien conecte ese oraculo.
+# `development.latest_ci` SI se valida, pero solo cuando hay ORACULO. El estado
+# de CI de un commit vive en GitHub, no en el repositorio, y este script corre
+# por defecto sin red ni credenciales. En vez de fingir cobertura con una
+# comprobacion de vocabulario que no podria fallar en el caso que importa, se
+# hace lo unico honesto: se acepta un oraculo EXTERNO y explicito
+# (`S9K_CI_ORACLE`, ver `check_ci_verified`), se enrojece si contradice a
+# `latest_ci`, y si no lo hay se DICE en el titular que la CI no se ha
+# verificado. Un verde mudo sobre un campo no comprobado es justo la fuga que
+# este script existe para no tener.
 
 WORKFLOWS = Path(".github") / "workflows"
 
@@ -737,6 +752,86 @@ def check_workflows_do_not_skip_git(workflows: dict[str, dict]) -> list[str]:
     return findings
 
 
+CI_ORACLE_ENV = "S9K_CI_ORACLE"
+
+
+def _load_ci_oracle() -> dict[str, str] | None:
+    """Oraculo EXTERNO del estado de CI por commit, o None si no lo hay.
+
+    Formato: fichero JSON `{"<sha de 40 hex>": "green"|"red"|"success"|...}`.
+    Se normaliza a green/red, para poder alimentarlo directamente con lo que
+    devuelve `gh api .../commits/<sha>/check-runs` sin traducir a mano.
+
+    POR QUE ES EXTERNO Y OPCIONAL: el estado de CI de un commit vive en
+    GitHub, no en el repositorio. Este script corre por defecto sin red ni
+    credenciales, y meterle una llamada de red obligatoria lo volveria
+    inestable por motivos ajenos a la coherencia documental. Asi que el
+    oraculo se INYECTA, y su ausencia se DECLARA en el titular en vez de
+    fingir un verde.
+    """
+    ruta = os.environ.get(CI_ORACLE_ENV)
+    if not ruta:
+        return None
+    try:
+        import json
+        crudo = json.loads(Path(ruta).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(crudo, dict):
+        return {}
+    out: dict[str, str] = {}
+    for sha, val in crudo.items():
+        v = str(val).strip().lower()
+        out[str(sha).strip().lower()] = "green" if v in {"green", "success", "ok"} else "red"
+    return out
+
+
+def check_ci_verified(development: dict) -> list[str]:
+    """`latest_ci` es el CI DE `main_commit`, y aqui se contrasta con el oraculo.
+
+    Lo que se comprueba es la propiedad REAL, no la autorreferencia: no se
+    exige que `latest_ci` describa al commit que contiene este YAML —eso es
+    imposible—, sino que describa a `development.main_commit`, que es el
+    commit ya verificado sobre el que se tomo la fotografia.
+
+    Sin oraculo no se inventa un verde: se marca `CI_UNVERIFIED` y el titular
+    lo dice. Con oraculo, una discrepancia es ROJA, y un `main_commit` que el
+    oraculo no conoce tambien lo es (fail-closed: «no se ha podido comprobar»
+    se dice en rojo, misma doctrina que la historia truncada).
+    """
+    global CI_UNVERIFIED
+    CI_UNVERIFIED = False
+    declarado = str(development.get("latest_ci", "")).strip().lower()
+    if not declarado:
+        return []
+
+    oraculo = _load_ci_oracle()
+    if oraculo is None:
+        CI_UNVERIFIED = True
+        print(f"AVISO: development.latest_ci ({declarado}) NO se ha contrastado: "
+              f"no hay oraculo de CI ({CI_ORACLE_ENV} sin definir).")
+        return []
+
+    sha = str(development.get("main_commit", "")).strip().lower()
+    if not sha:
+        return ["docs/project-status.yaml: development.latest_ci esta declarado "
+                "pero no hay `main_commit` al que atribuirlo"]
+    real = oraculo.get(sha)
+    if real is None:
+        return [
+            f"docs/project-status.yaml: development.latest_ci ({declarado}) NO SE "
+            f"HA PODIDO COMPROBAR: el oraculo de CI no conoce el commit "
+            f"{sha[:12]} declarado en development.main_commit"
+        ]
+    if real != ("green" if declarado in {"green", "success", "ok"} else "red"):
+        return [
+            f"docs/project-status.yaml: development.latest_ci dice «{declarado}» "
+            f"para development.main_commit {sha[:12]}, pero la CI real de ese "
+            f"commit es «{real}»"
+        ]
+    return []
+
+
 def check_canonical(production: dict) -> list[str]:
     findings: list[str] = []
     canonical = REPO / "docs" / "archivados" / "02-current-state.md"
@@ -769,6 +864,7 @@ def main() -> int:
         findings += scan_doc(REPO / rel)
     findings += check_canonical(production)
     findings += check_git_authority(development)
+    findings += check_ci_verified(development)
     findings += check_development(development)
     findings += check_ci_claims(workflows)
     findings += check_ci_job_counts(development, workflows)
@@ -799,6 +895,11 @@ def main() -> int:
         print(f"DOCUMENTACION COHERENTE (DESFASADA: {'; '.join(partes)}): "
               "sin contradicciones; las cifras se midieron sobre "
               "`development.main_commit` y refrescarlo es mantenimiento.")
+    elif CI_UNVERIFIED:
+        # `latest_ci` describe la CI de `main_commit`, y sin oraculo NO se ha
+        # contrastado. Se dice en la ultima linea, que es donde se lee.
+        print("DOCUMENTACION COHERENTE (CI NO VERIFICADA): sin contradicciones; "
+              f"`latest_ci` no se ha contrastado por falta de oraculo ({CI_ORACLE_ENV}).")
     elif HISTORY_TRUNCATED:
         # La misma regla, por la otra puerta: el punto 0 ha corrido sobre una
         # historia truncada, asi que parte de lo que dice el YAML NO se ha

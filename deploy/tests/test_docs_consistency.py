@@ -18,6 +18,7 @@ deterministas en cualquier máquina y en CI.
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 from pathlib import Path
 
@@ -164,6 +165,7 @@ class Sandbox:
             out += self.mod.scan_doc(self.root / rel)
         out += self.mod.check_canonical(data.get("production", {}))
         out += self.mod.check_git_authority(dev)
+        out += self.mod.check_ci_verified(dev)
         out += self.mod.check_development(dev)
         out += self.mod.check_ci_claims(wf)
         out += self.mod.check_ci_job_counts(dev, wf)
@@ -889,28 +891,65 @@ def test_c19b_el_titular_dice_que_la_historia_estaba_truncada(
     assert "COHERENTE (HISTORIA TRUNCADA)" in out, out
 
 
-# C20 — LIMITACIÓN DECLARADA: `latest_ci` no lo valida NADIE.
+# C20 — `latest_ci` SÍ se valida, y contra la propiedad REAL.
 #
-# Es el único campo del bloque `development` que solo vive en el YAML: ningún
-# punto del script lo mira. Declarar `latest_ci: "green"` sobre un commit cuya
-# CI está en rojo pasa en verde, y es exactamente la clase de mentira que el
-# punto 0 existe para matar en `main_commit`.
+# Hasta este carril era el único campo del bloque `development` que no miraba
+# nadie: declarar `latest_ci: "green"` sobre un commit con la CI en rojo pasaba
+# en verde, y se dejó escrito como limitación con `xfail(strict=True)`. El
+# oráculo sigue estando FUERA (el estado de CI de un commit vive en GitHub),
+# así que no se finge cobertura ni se mete una llamada de red obligatoria: se
+# INYECTA por `S9K_CI_ORACLE`, y su ausencia se declara en el titular.
 #
-# No se cubre porque el ORÁCULO ESTÁ FUERA: el estado de CI de un commit vive
-# en GitHub, y el gate corre sin red ni credenciales. Es la misma limitación
-# que `ci_checks_required` ya tiene declarada. Lo que NO se hace es añadir una
-# comprobación de vocabulario («green|red») para aparentar cobertura: no podría
-# fallar en el caso que importa —una cifra que no puede fallar no comprueba
-# nada—, y dejaría el hueco tapado en vez de dicho.
-#
-# `strict=True`: el día que alguien conecte un oráculo, esta fila se pondrá
-# roja por XPASS y habrá que moverla arriba.
-@pytest.mark.xfail(reason="latest_ci no tiene oraculo offline (limitacion declarada)", strict=True)
-def test_c20_latest_ci_mentiroso_no_lo_detecta_nadie(sandbox: Sandbox):
-    data = sandbox.status()
-    data["development"]["latest_ci"] = "green"  # sobre un commit cuya CI está roja
-    sandbox.set_status(data)
-    assert sandbox.findings() != []
+# Y lo que se comprueba es la semántica verdadera: `latest_ci` es la CI de
+# `development.main_commit` —el commit YA VERIFICADO desde el que se tomó la
+# fotografía—, NO la del commit que contiene el YAML, que es imposible por
+# construcción. Estas cuatro filas fijan las dos direcciones.
+
+
+def _oraculo(tmp_path: Path, mapa: dict, monkeypatch, mod) -> None:
+    ruta = tmp_path / "ci-oraculo.json"
+    ruta.write_text(json.dumps(mapa), encoding="utf-8")
+    monkeypatch.setenv(mod.CI_ORACLE_ENV, str(ruta))
+
+
+# C20a — CONTROL POSITIVO: con oráculo, `latest_ci` mentiroso es ROJO.
+def test_c20a_latest_ci_mentiroso_es_rojo(sandbox: Sandbox, tmp_path: Path, monkeypatch):
+    _oraculo(tmp_path, {sandbox.head: "red"}, monkeypatch, sandbox.mod)
+    sandbox.patch_dev(latest_ci="green")  # sobre un commit cuya CI está roja
+    findings = sandbox.findings()
+    assert any("latest_ci" in f and "green" in f and "red" in f for f in findings), findings
+
+
+# C20b — …y con el oráculo diciendo lo mismo que el YAML, VERDE. Sin esta fila
+# la anterior no demuestra nada: un gate que siempre enrojece tampoco mide.
+def test_c20b_latest_ci_veraz_queda_verde(sandbox: Sandbox, tmp_path: Path, monkeypatch):
+    _oraculo(tmp_path, {sandbox.head: "success"}, monkeypatch, sandbox.mod)
+    sandbox.patch_dev(latest_ci="green")
+    assert sandbox.findings() == [], sandbox.findings()
+
+
+# C20c — FAIL-CLOSED: si el oráculo no conoce `main_commit`, el valor
+# declarado NO se ha podido comprobar, y eso se dice en ROJO (misma doctrina
+# que C19a con la historia truncada), no se asume.
+def test_c20c_oraculo_que_no_conoce_el_commit_es_rojo(
+    sandbox: Sandbox, tmp_path: Path, monkeypatch,
+):
+    _oraculo(tmp_path, {"0" * 40: "green"}, monkeypatch, sandbox.mod)
+    sandbox.patch_dev(latest_ci="green")
+    findings = sandbox.findings()
+    assert any("latest_ci" in f and "NO SE HA PODIDO COMPROBAR" in f for f in findings), findings
+
+
+# C20d — sin oráculo el rc puede ser 0, pero EL TITULAR tiene que decir que la
+# CI no se ha verificado. Un «COHERENTE» a secas sobre un campo no comprobado
+# es la fuga que este script ya cerró dos veces por otras puertas.
+def test_c20d_sin_oraculo_el_titular_lo_declara(sandbox: Sandbox, monkeypatch, capsys):
+    monkeypatch.delenv(sandbox.mod.CI_ORACLE_ENV, raising=False)
+    sandbox.patch_dev(latest_ci="green")
+    assert sandbox.run() == 0
+    out = capsys.readouterr().out
+    assert "COHERENTE (CI NO VERIFICADA)" in out, out
+    assert "COHERENTE: sin contradicciones" not in out, out
 
 
 # --- C21: envejecer NO es mentir, pero mentir sigue siendo rojo -----------

@@ -4,6 +4,48 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-09-05 — `main_commit` NO es autorreferencial: se corrige la UNIDAD DE CONTROL, no la instancia
+
+- **El defecto era de LECTURA, no de valor.** `docs/project-status.yaml` venia
+  interpretandose como si `main_commit` y `latest_ci` fueran «el SHA de `main`
+  y su CI». Eso es **imposible por construccion**: el hash de un commit se
+  calcula sobre su contenido, y este fichero forma parte de ese contenido, asi
+  que cualquier refresco describe como maximo a su commit **padre**. Refrescar
+  el campo «un commit mas» no cierra la brecha: **desplaza la contradiccion**.
+- **Semantica declarada por escrito en el propio fichero**, con su porque y
+  para leerse sin conocimiento oral: `main_commit` = ultimo commit **YA
+  VERIFICADO** desde el que se genero la fotografia; `latest_ci` = resultado de
+  CI **de `main_commit`**. Quien ata `BASE RC V3.1` a un SHA exacto es el
+  **acta externa del RC**, escrita DESPUES del commit, no este fichero.
+- **No se renombra a `verified_commit`/`verified_ci`.** Medido antes de
+  decidir: 48 apariciones de `main_commit` en codigo Python (gate + decenas de
+  llamadas en `deploy/tests/test_docs_consistency.py`) mas el historico de este
+  CHANGELOG y `docs/74`. Un renombrado con un solo consumidor colgando es peor
+  que ninguno; lo que estaba mal era la semantica, no la etiqueta.
+- **Valores REMEDIDOS**, no recordados: `main_commit` -> `84f9cc7`,
+  `latest_merged_pr` -> **#204** por **fecha de fusion** (el **#205** se
+  fusiono a las 05:09:05Z y el #204 a las 22:40:32Z del mismo dia: el ultimo es
+  el de numero **menor**), `latest_ci` -> `green` sobre **17/17 SUCCESS**
+  contados por **ejecucion** en el evento `push` de `main`.
+- **`ci_checks_required: 17` reverificado contra la FUENTE y por DIFERENCIA DE
+  CONJUNTOS**, no por el recuento: perdidos = 0, anadidos = 0 frente a
+  `.../branches/main/protection/required_status_checks`. Ese `PATCH` es
+  reemplazo total y contar 17 no demuestra que no se haya caido otro.
+- **El gate comprueba ahora la propiedad REAL.** `check_ci_verified` contrasta
+  `latest_ci` contra la CI **de `main_commit`** usando un oraculo EXTERNO e
+  inyectado (`S9K_CI_ORACLE`); sin oraculo no finge un verde: lo dice en el
+  titular, **`DOCUMENTACION COHERENTE (CI NO VERIFICADA)`**. La ancestria ya se
+  exigia y se mantiene; la autorreferencia **no se exige en ningun punto**.
+- **Se cierra la limitacion declarada C20.** Aquella fila vivia como
+  `xfail(strict=True)` («`latest_ci` no lo valida nadie») y se retira del
+  registro de `xfail`. La sustituyen cuatro filas calibradas: mentira con
+  oraculo -> ROJO, verdad con oraculo -> VERDE, commit desconocido para el
+  oraculo -> ROJO fail-closed, y sin oraculo -> titular que lo declara.
+- **Control negativo ejecutado, no afirmado:** con SHA falso y con `latest_ci`
+  falso el gate se pone rojo por el motivo correcto (contradiccion listada,
+  rc=1), y revertido se verifico **por hash** que el arbol quedaba igual.
+
+
 ### 2026-08-13 (c) — Refresco remedido sobre `37accba`, y esta vez el gate acerto de pleno
 
 - **Contradiccion REAL, no el reloj.** `main` estaba rojo con **una sola**
