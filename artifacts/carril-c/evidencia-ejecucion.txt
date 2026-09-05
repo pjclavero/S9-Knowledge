@@ -1,0 +1,61 @@
+== Neo4j efimero en bolt://127.0.0.1:48941 (contenedor s9k-carril-c-10629ba7227e)
+
+== 1. Fuente -> plan por la cadena V3 completa (desde bytes)
+   texto fuente : 'Ilaria Vandreth lidera la Casa del Ciervo.'
+   workspace    : bench-dev
+   plan_id      : plan:17e7de05f126b802d24a20ed98cb1cd7
+   aprobado     : True
+   operaciones  : ['CREATE_ASSERTION', 'PROJECT_RELATION']
+   resultado    : APPLIED []
+
+--- 2. El grafo DESPUES: nodos escritos por el plan de la fuente
+    cypher> MATCH (n) WHERE n.written_by_plan_hash IS NOT NULL RETURN labels(n) AS labels, n.entity_id AS entity_id, n.assertion_id AS assertion_id, n.workspace AS workspace, n.source_asset_id AS source_asset_id, n.evidence_fragment_ids AS evidencia ORDER BY labels
+    {"assertion_id": "assertion:5fa750c571eaf24433c62f84cb7b2ccc", "entity_id": null, "evidencia": ["ef-5ef75f36fe9c1bc0e87dd8d659a73bd3"], "labels": ["V3Assertion"], "source_asset_id": "sa-faa7b7735efa6b7d11a01565441a6e02", "workspace": "bench-dev"}
+
+--- 3. Relaciones consultables
+    cypher> MATCH (a)-[r]->(b) RETURN type(r) AS tipo, a.entity_id AS desde, b.entity_id AS hasta, r.workspace AS workspace ORDER BY tipo, desde, hasta
+    {"desde": "entity:leyenda:ilaria", "hasta": "entity:leyenda:casa-ciervo", "tipo": "LEADS", "workspace": "bench-dev"}
+
+== 3b. Identidad que el writer devuelve para lo escrito
+   created_ids : ['assertion:5fa750c571eaf24433c62f84cb7b2ccc', '5:0843ab40-7349-4e7b-8eb8-3b71979e562a:0']
+
+--- 3c. elementId de las relaciones del grafo
+    cypher> MATCH ()-[r]->() RETURN type(r) AS tipo, elementId(r) AS element_id
+    {"element_id": "5:0843ab40-7349-4e7b-8eb8-3b71979e562a:0", "tipo": "LEADS"}
+
+== 4. Idempotencia -- 1a aplicacion: APPLIED []
+
+--- 4a. Recuento tras la PRIMERA aplicacion
+    cypher> CALL () { MATCH (n) RETURN count(n) AS nodos } CALL () { MATCH ()-[r]->() RETURN count(r) AS relaciones } CALL () { MATCH (a:V3Assertion) RETURN count(a) AS aserciones } RETURN nodos, relaciones, aserciones
+    {"aserciones": 1, "nodos": 4, "relaciones": 0}
+
+   2a aplicacion del MISMO plan: APPLIED []
+
+--- 4b. Recuento tras la SEGUNDA aplicacion
+    cypher> CALL () { MATCH (n) RETURN count(n) AS nodos } CALL () { MATCH ()-[r]->() RETURN count(r) AS relaciones } CALL () { MATCH (a:V3Assertion) RETURN count(a) AS aserciones } RETURN nodos, relaciones, aserciones
+    {"aserciones": 1, "nodos": 4, "relaciones": 0}
+
+--- 4c. Marcas de operacion aplicada (una por idempotency_key)
+    cypher> MATCH (op:V3AppliedOperation) RETURN op.workspace AS workspace, op.idempotency_key AS idempotency_key, count(*) AS veces ORDER BY idempotency_key
+    {"idempotency_key": "idem:sha256:5bdd728874c61bf2503bfa0a9a3492def8afb027fe8bb82d04e732d1938a3ab6", "veces": 1, "workspace": "writer-real"}
+
+   grafo byte-identico tras la segunda aplicacion: True
+
+--- 5. Identidad de producto vs elementId de Neo4j
+    cypher> MATCH (n:V3Entity) RETURN n.workspace AS workspace, n.entity_id AS entity_id, elementId(n) AS element_id ORDER BY entity_id
+    {"element_id": "4:0843ab40-7349-4e7b-8eb8-3b71979e562a:6", "entity_id": "entity:destino", "workspace": "writer-real"}
+    {"element_id": "4:0843ab40-7349-4e7b-8eb8-3b71979e562a:5", "entity_id": "entity:origen", "workspace": "writer-real"}
+
+--- 5b. Restricciones que sostienen la identidad durable
+    cypher> SHOW CONSTRAINTS YIELD name, labelsOrTypes, properties RETURN name, labelsOrTypes, properties ORDER BY name
+    {"labelsOrTypes": ["Entity"], "name": "entity_identidad_durable_unique", "properties": ["workspace", "entity_id"]}
+    {"labelsOrTypes": ["V3AppliedOperation"], "name": "v3_applied_operation_unique", "properties": ["workspace", "idempotency_key"]}
+    {"labelsOrTypes": ["V3Assertion"], "name": "v3_assertion_identidad_durable_unique", "properties": ["workspace", "assertion_id"]}
+    {"labelsOrTypes": ["V3Entity"], "name": "v3_entity_identidad_durable_unique", "properties": ["workspace", "entity_id"]}
+
+--- 6. Mismo entity_id en dos workspaces = dos identidades
+    cypher> MATCH (n:V3Entity {entity_id:'entity:origen'}) RETURN n.workspace AS workspace, n.state_hash AS state_hash ORDER BY workspace
+    {"state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "workspace": "writer-real"}
+    {"state_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "workspace": "writer-real-otro"}
+
+== VEREDICTO: plan aplicado, grafo consultable, idempotencia observada
