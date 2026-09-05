@@ -27,6 +27,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Iterable
 
+from . import cypher as cypher_mod
 from .executor import AppliedOperation
 from .view import SignedView
 
@@ -95,18 +96,42 @@ def build_rollback(
                 )
             )
         elif op.kind == "RELATIONSHIP":
+            # `target_id` es el SUJETO (identidad de producto), no el
+            # `elementId`. El `elementId` contiene el UUID de la base y se
+            # regenera al restaurar un dump: una instruccion que dependiese de
+            # el dejaria de ser ejecutable justo cuando hace falta. Va aparte,
+            # como dato informativo del momento de la escritura, con un nombre
+            # que dice lo que es.
             doc.instructions.append(
                 RollbackInstruction(
                     operation_id=op.operation_id,
                     action="DELETE_RELATIONSHIP",
-                    target_id=op.created_id,
+                    target_id=op.subject_id or op.target_id,
                     detail={
-                        "subject": op.target_id,
+                        "subject": op.subject_id or op.target_id,
+                        "predicate": op.predicate,
+                        "object": op.object_id,
                         "workspace": view.workspace,
+                        "partida_id": op.partida_id,
                         "idempotency_key": op.idempotency_key,
+                        "element_id_at_write": op.created_id,
                     },
                 )
             )
+            faltan = [
+                nombre
+                for nombre, valor in (
+                    ("subject", op.subject_id or op.target_id),
+                    ("predicate", op.predicate),
+                    ("object", op.object_id),
+                )
+                if not valor
+            ]
+            if faltan:
+                doc.unrecoverable.append(
+                    f"{op.operation_id}: la relacion no quedo identificada por "
+                    f"dominio (faltan {faltan})"
+                )
         elif op.kind == "PROPERTIES":
             doc.instructions.append(
                 RollbackInstruction(
@@ -131,4 +156,87 @@ def build_rollback(
     return doc
 
 
-__all__ = ["RollbackInstruction", "RollbackDocument", "build_rollback"]
+# --- Reconstruccion: de instruccion a consulta ------------------------------
+@dataclass
+class RollbackQuery:
+    """Consulta de reversion. NO pasa por `cypher.Query` a proposito.
+
+    `cypher.Query` prohibe `DELETE` porque el writer no borra. Deshacer SI
+    borra, y por eso vive en otro tipo: quien ejecute esto esta ejercitando el
+    camino de recuperacion, no el de escritura, y tiene que verse en el codigo.
+    """
+
+    cypher: str
+    params: dict[str, Any] = field(default_factory=dict)
+
+
+class RollbackNotReconstructible(ValueError):
+    """La instruccion no trae identidad de dominio suficiente para ejecutarse."""
+
+
+def _require(detail: dict[str, Any], campo: str, instruccion: RollbackInstruction) -> Any:
+    valor = detail.get(campo)
+    if not valor:
+        raise RollbackNotReconstructible(
+            f"{instruccion.operation_id}: falta {campo!r} en el detalle; la "
+            "instruccion no se puede localizar por identidad durable"
+        )
+    return valor
+
+
+def rollback_query(instruction: RollbackInstruction) -> RollbackQuery:
+    """Traduce una instruccion a Cypher usando SOLO identidad durable.
+
+    Ni una sola de estas consultas menciona `elementId`. Se localiza por
+    `(workspace, entity_id)` mas predicado, objeto y `idempotency_key` de la
+    operacion que la escribio — todo ello propiedades del grafo, que sobreviven
+    a un restore. `element_id_at_write`, si viaja en el detalle, se ignora.
+
+    El `idempotency_key` es lo que impide borrar de mas: acota el borrado a la
+    arista que ESTE plan escribio, aunque existan otras entre los mismos
+    extremos y con el mismo predicado.
+    """
+    detail = dict(instruction.detail)
+    if instruction.action == "DELETE_RELATIONSHIP":
+        subject = _require(detail, "subject", instruction)
+        obj = _require(detail, "object", instruction)
+        predicate = cypher_mod.safe_token(
+            _require(detail, "predicate", instruction), "predicate"
+        )
+        workspace = _require(detail, "workspace", instruction)
+        key = _require(detail, "idempotency_key", instruction)
+        return RollbackQuery(
+            f"MATCH (a:{cypher_mod.LABEL_ENTITY} {{entity_id: $subject, workspace: $ws}})"
+            f"-[r:{predicate} {{workspace: $ws, idempotency_key: $key}}]->"
+            f"(b:{cypher_mod.LABEL_ENTITY} {{entity_id: $object, workspace: $ws}}) "
+            "DELETE r RETURN count(*) AS borradas",
+            {"subject": subject, "object": obj, "ws": workspace, "key": key},
+        )
+    if instruction.action == "DELETE_NODE":
+        node_id = detail.get("created_id") or instruction.target_id
+        if not node_id:
+            raise RollbackNotReconstructible(
+                f"{instruction.operation_id}: sin identificador durable del nodo"
+            )
+        workspace = _require(detail, "workspace", instruction)
+        key = _require(detail, "idempotency_key", instruction)
+        return RollbackQuery(
+            "MATCH (n {workspace: $ws, idempotency_key: $key}) "
+            "WHERE n.entity_id = $id OR n.assertion_id = $id "
+            "DETACH DELETE n RETURN count(*) AS borrados",
+            {"id": node_id, "ws": workspace, "key": key},
+        )
+    raise RollbackNotReconstructible(
+        f"{instruction.operation_id}: {instruction.action} no se traduce a "
+        "consulta (RESTORE_PROPERTIES lo decide el operador con el estado previo)"
+    )
+
+
+__all__ = [
+    "RollbackInstruction",
+    "RollbackDocument",
+    "build_rollback",
+    "RollbackQuery",
+    "RollbackNotReconstructible",
+    "rollback_query",
+]

@@ -44,6 +44,14 @@ from knowledge_v3.writer.writer import (  # noqa: E402
     OUTCOME_SIMULATED,
 )
 from knowledge_v3.writer import cypher  # noqa: E402
+from knowledge_v3.writer.executor import AppliedOperation  # noqa: E402
+from knowledge_v3.writer.rollback import build_rollback  # noqa: E402
+from knowledge_v3.writer.view import SignedView  # noqa: E402
+
+
+def _vista_minima():
+    """Vista firmada del plan de utillaje: lo minimo que el rollback consulta."""
+    return SignedView.of(seal_plan(make_plan()))
 
 WORKSPACE = "leyenda"
 SNAPSHOT = "snapshot:neo4j:2026-07-27T10:29:00Z"
@@ -1877,11 +1885,200 @@ def test_el_paquete_del_writer_no_importa_neo4j_ni_lleva_credenciales():
             assert prohibido not in texto, f"{fichero.name} contiene {prohibido!r}"
 
 
-def test_la_cli_no_abre_ninguna_conexion_por_defecto():
-    from knowledge_v3.writer.cli import no_driver
+def test_la_cli_no_abre_ninguna_conexion_por_defecto(tmp_path, capsys):
+    """El dry-run sigue siendo el modo seguro: ni resuelve conexion ni la abre.
 
-    with pytest.raises(NotImplementedError):
-        no_driver()
+    Antes esto se comprobaba con una fabrica que lanzaba `NotImplementedError`,
+    o sea: se comprobaba que NO habia ruta de operador. Ahora la ruta existe, y
+    lo que hay que sostener es que el dry-run no la usa.
+    """
+    from knowledge_v3.writer import cli
+
+    # Expiracion lejana: la CLI usa el reloj real, y un plan caducado se
+    # rechazaria por admision antes de llegar a lo que aqui se mide.
+    plan = make_plan(expires_at="2099-01-01T00:00:00Z")
+    ruta = tmp_path / "plan.json"
+    ruta.write_text(json.dumps(plan), encoding="utf-8")
+
+    abiertas = []
+
+    def espia():  # pragma: no cover - si se llama, la prueba ya fallo
+        abiertas.append(1)
+        raise AssertionError("el dry-run abrio una conexion")
+
+    rc = cli.main(
+        [
+            str(ruta),
+            "--workspace",
+            WORKSPACE,
+            "--snapshot",
+            SNAPSHOT,
+            "--audit-log",
+            str(tmp_path / "audit.jsonl"),
+            "--applied-keys",
+            str(tmp_path / "keys.jsonl"),
+        ],
+        driver_factory=espia,
+        env={},
+    )
+    salida = json.loads(capsys.readouterr().out)
+    assert abiertas == []
+    assert salida["outcome"] == OUTCOME_SIMULATED
+    assert rc in (0, 2)
+
+
+def test_el_apply_sin_conexion_declarada_falla_cerrado_y_sin_secreto(tmp_path, capsys):
+    """No hay degradacion silenciosa a dry-run: sin URI/usuario/fichero, rc=1."""
+    from knowledge_v3.writer import cli
+
+    # Expiracion lejana: la CLI usa el reloj real, y un plan caducado se
+    # rechazaria por admision antes de llegar a lo que aqui se mide.
+    plan = make_plan(expires_at="2099-01-01T00:00:00Z")
+    ruta = tmp_path / "plan.json"
+    ruta.write_text(json.dumps(plan), encoding="utf-8")
+
+    rc = cli.main(
+        [
+            str(ruta),
+            "--workspace",
+            WORKSPACE,
+            "--snapshot",
+            SNAPSHOT,
+            "--operator",
+            "pjc",
+            "--expect-plan-hash",
+            plan["plan_hash"]["value"],
+            "--apply",
+            "--audit-log",
+            str(tmp_path / "audit.jsonl"),
+            "--applied-keys",
+            str(tmp_path / "keys.jsonl"),
+        ],
+        env={},
+    )
+    salida = json.loads(capsys.readouterr().out)
+    assert rc == 1
+    assert salida["ok"] is False
+    # Codigo, no redaccion: el mensaje puede reescribirse sin romper a nadie.
+    assert salida["code"] == codes.CLI_DRIVER_CONFIG_MISSING
+    assert salida["error"]
+
+
+def test_la_fabrica_de_driver_no_acepta_la_contrasena_por_argv():
+    """Ninguna opcion de la CLI recibe el secreto: solo el CAMINO de un fichero."""
+    from knowledge_v3.writer import cli
+
+    opciones = {
+        opcion
+        for accion in cli.build_parser()._actions
+        for opcion in accion.option_strings
+    }
+    assert "--neo4j-password-file" in opciones
+    assert "--neo4j-password" not in opciones
+
+
+def test_un_fichero_de_contrasena_legible_por_otros_se_rechaza(tmp_path):
+    from knowledge_v3.driver_neo4j import DriverConfigError, read_secret
+
+    fichero = tmp_path / "pass"
+    fichero.write_text("s3cr3t\n", encoding="utf-8")
+    fichero.chmod(0o644)
+    with pytest.raises(DriverConfigError) as exc:
+        read_secret(str(fichero))
+    assert "s3cr3t" not in str(exc.value)
+
+    fichero.chmod(0o600)
+    assert read_secret(str(fichero)) == "s3cr3t"
+
+
+def test_la_fabrica_solo_conecta_cuando_se_la_invoca(tmp_path):
+    """Construirla no gasta credenciales: el secreto se lee al invocarla."""
+    from knowledge_v3.driver_neo4j import build_driver_factory, resolve_config
+
+    fichero = tmp_path / "pass"
+    fichero.write_text("s3cr3t", encoding="utf-8")
+    fichero.chmod(0o600)
+    llamadas = []
+
+    def conectar(uri, auth=None):
+        llamadas.append((uri, auth))
+        return "DRIVER"
+
+    config = resolve_config(
+        uri="neo4j-uri-de-prueba",
+        user="neo4j",
+        password_file=str(fichero),
+        env={},
+    )
+    assert "s3cr3t" not in repr(config)
+    fabrica = build_driver_factory(config, connect=conectar)
+    assert llamadas == []
+    assert fabrica() == "DRIVER"
+    assert llamadas == [("neo4j-uri-de-prueba", ("neo4j", "s3cr3t"))]
+
+
+# --- Identidad durable en el rollback --------------------------------------
+def test_el_rollback_de_relacion_no_depende_del_element_id():
+    """Regresion: `DELETE_RELATIONSHIP` se localizaba por `elementId`.
+
+    El `elementId` lleva el UUID de la base y se regenera al restaurar un dump,
+    asi que un documento guardado dejaba de ser ejecutable — y sin predicado ni
+    objeto en el detalle, tampoco reconstruible.
+    """
+    from knowledge_v3.writer.rollback import (
+        RollbackInstruction,
+        rollback_query,
+    )
+
+    op = AppliedOperation(
+        operation_id="op:0001",
+        operation_type="LINK_EXISTING",
+        idempotency_key="idem:sha256:" + "0" * 64,
+        kind="RELATIONSHIP",
+        created_id="5:3b999953-e45d-4a29-9250-1938f00f801c:0",
+        target_id="entity:origen",
+        subject_id="entity:origen",
+        predicate="MEMBER_OF",
+        object_id="entity:destino",
+    )
+    doc = build_rollback(_vista_minima(), [op])
+    instr = doc.instructions[0]
+    assert instr.action == "DELETE_RELATIONSHIP"
+    assert instr.target_id == "entity:origen"
+    assert instr.detail["predicate"] == "MEMBER_OF"
+    assert instr.detail["object"] == "entity:destino"
+    assert instr.detail["element_id_at_write"] == op.created_id
+
+    query = rollback_query(instr)
+    assert "elementId" not in query.cypher
+    assert op.created_id not in json.dumps(query.params)
+    assert query.params == {
+        "subject": "entity:origen",
+        "object": "entity:destino",
+        "ws": WORKSPACE,
+        "key": op.idempotency_key,
+    }
+    assert "idempotency_key" in query.cypher  # acota: no borra vecinos
+
+
+def test_una_relacion_sin_identidad_de_dominio_se_declara_irrecuperable():
+    op = AppliedOperation(
+        operation_id="op:0002",
+        operation_type="LINK_EXISTING",
+        idempotency_key="idem:sha256:" + "1" * 64,
+        kind="RELATIONSHIP",
+        created_id="5:uuid:0",
+        target_id="entity:origen",
+        subject_id="entity:origen",
+        predicate=None,
+        object_id=None,
+    )
+    doc = build_rollback(_vista_minima(), [op])
+    assert doc.unrecoverable
+    from knowledge_v3.writer.rollback import RollbackNotReconstructible, rollback_query
+
+    with pytest.raises(RollbackNotReconstructible):
+        rollback_query(doc.instructions[0])
 
 
 def test_un_writer_sin_workspace_no_existe():

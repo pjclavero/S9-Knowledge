@@ -192,13 +192,22 @@ LOCAL_DIVERGENCE_PENDING_REVIEW = "LOCAL_DIVERGENCE_PENDING_REVIEW"
 
 REVIEW_MARK_CODES = (LOCAL_DIVERGENCE_PENDING_REVIEW,)
 
-ALL_CODES = ADMISSION_CODES + GATE_CODES + AUDIT_CODES + EXECUTION_CODES
+# --- Ruta de operador ------------------------------------------------------
+#: El APPLY se pidio sin declarar como llegar al servidor (URI, usuario o el
+#: CAMINO del fichero con la contrasena). Falla CERRADO: no se degrada a
+#: dry-run, que seria decirle "ok" a quien pidio escribir.
+CLI_DRIVER_CONFIG_MISSING = "CLI_DRIVER_CONFIG_MISSING"
+
+CLI_CODES = (CLI_DRIVER_CONFIG_MISSING,)
+
+ALL_CODES = ADMISSION_CODES + GATE_CODES + AUDIT_CODES + EXECUTION_CODES + CLI_CODES
 
 __all__ = [
     "ADMISSION_CODES",
     "GATE_CODES",
     "AUDIT_CODES",
     "EXECUTION_CODES",
+    "CLI_CODES",
     "REVIEW_MARK_CODES",
     "ALL_CODES",
 ] + [c for c in ALL_CODES] + [c for c in REVIEW_MARK_CODES]

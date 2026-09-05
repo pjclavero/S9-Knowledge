@@ -218,6 +218,36 @@ subsistema tiene prohibido hacer sin plan. Lo que sale es un documento que un
 operador lee, aprueba y aplica, o que el motor local convierte en un plan inverso
 y vuelve a sellar.
 
+### 4.1. Identidad durable: el rollback tiene que sobrevivir a un restore
+
+Un documento de rollback se **guarda para aplicarse después**, y ese "después"
+suele incluir haber restaurado la base. El `elementId` de Neo4j **contiene el
+UUID de la base de datos**: al restaurar un volcado se regenera. Una instrucción
+que dependiese de él dejaría de ser ejecutable justo en el momento en que hace
+falta.
+
+Por eso ninguna instrucción se localiza por `elementId`:
+
+| Acción | Cómo se localiza el objetivo |
+|---|---|
+| `DELETE_NODE` | `(workspace, entity_id \| assertion_id)` + `idempotency_key`. |
+| `DELETE_RELATIONSHIP` | `(workspace, sujeto, predicado, objeto)` + `idempotency_key` de la operación que la escribió. |
+| `RESTORE_PROPERTIES` | `(workspace, target_id)` + el estado previo leído. |
+
+El `elementId` que devolvió la escritura sigue viajando en el detalle, pero con
+el nombre que le corresponde — `element_id_at_write` — y **como dato
+informativo**: `rollback_query()` lo ignora. El `idempotency_key` es lo que
+impide **borrar de más**: acota el borrado a la arista que escribió *ese* plan,
+aunque existan otras entre los mismos extremos y con el mismo predicado.
+
+`rollback_query(instruccion)` traduce una instrucción a Cypher ejecutable. Es
+deliberadamente un tipo distinto de `cypher.Query` (que prohíbe `DELETE`, porque
+el writer no borra): quien la ejecuta está ejercitando el camino de
+recuperación, y eso tiene que verse en el código. Si a una instrucción le falta
+identidad de dominio, la función levanta `RollbackNotReconstructible` en vez de
+producir una consulta que borraría cualquier cosa, y el documento ya lo declara
+en `unrecoverable`.
+
 **Límite dicho sin adornos:** el rollback de un cierre de vigencia solo puede
 restaurar `version` y `state_hash`, que es lo que el writer leyó antes de
 escribir. Las propiedades previas que no leyó no las puede devolver, y el
@@ -238,7 +268,8 @@ python -m knowledge_v3.writer.cli /ruta/plan.json \
     --applied-keys /var/lib/s9k/writer_applied_keys.jsonl
 ```
 
-Sin `--apply` no se abre driver alguno. La salida es un JSON con `outcome`
+Sin `--apply` no se resuelve configuración de conexión ninguna: ni URI, ni
+usuario, ni secreto. El dry-run sigue siendo el modo seguro. La salida es un JSON con `outcome`
 (`SIMULATED` o `REJECTED`), los códigos de rechazo y el recuento de operaciones
 que se aplicarían y de las que ya serían no-op.
 
@@ -255,8 +286,27 @@ python -m knowledge_v3.writer.cli /ruta/plan.json \
     --max-operations 50 \
     --audit-log /var/lib/s9k/writer_audit.jsonl \
     --applied-keys /var/lib/s9k/writer_applied_keys.jsonl \
-    --apply
+    --rollback-out /var/lib/s9k/rollback-$(date +%s).json \
+    --apply \
+    --neo4j-uri "$S9K_NEO4J_URI" \
+    --neo4j-user neo4j \
+    --neo4j-password-file /etc/s9k/neo4j.pass
 ```
+
+**La contraseña no se pasa nunca por `argv`**: se declara el *camino* de un
+fichero `0600` (o `-` para leerla de la entrada estándar). Si ese fichero es
+legible por el grupo o por otros, la CLI se niega a leerlo. URI, usuario y
+camino admiten también `S9K_NEO4J_URI`, `S9K_NEO4J_USER` y
+`S9K_NEO4J_PASSWORD_FILE`. Si falta cualquiera de los tres con `--apply`, la
+CLI falla **cerrado** con `CLI_DRIVER_CONFIG_MISSING` y código de salida `1`:
+no se degrada a dry-run silencioso.
+
+La fábrica vive en `knowledge_v3/driver_neo4j.py`, **fuera** del paquete del
+writer, que conserva su higiene comprobada. Se invoca **después del gate**: un
+intento bloqueado no llega a leer el secreto ni a abrir sesión.
+
+`--rollback-out` guarda el documento de rollback del APPLY. Es lo que hay que
+conservar para poder deshacer (§4.1).
 
 El `plan_hash` se teclea a mano. Si el plan cambió desde que se revisó, no
 coincide y no se escribe.
@@ -329,21 +379,24 @@ Quien ya tenga un driver abierto puede seguir pasándolo por `driver=`.
 
 ## 6. Qué queda para el despliegue
 
-Este bloque **no escribe en ningún Neo4j real y no puede hacerlo**: no hay un
-solo `import` del paquete de Neo4j, ni URI, ni credencial, ni conexión por
-defecto en todo el paquete. Hay un test que lo comprueba leyendo los ficheros.
+El **paquete** `knowledge_v3.writer` sigue sin poder conectarse por su cuenta:
+no hay un solo `import` del paquete de Neo4j, ni URI, ni credencial, ni conexión
+por defecto en ninguno de sus módulos, y hay un test que lo comprueba leyendo
+los ficheros. Lo que sí existe ya es la **ruta de operador** (§5.2): la fábrica
+vive en `knowledge_v3/driver_neo4j.py`, fuera del paquete, y sólo se invoca
+cuando el operador pide `--apply` y el gate lo autoriza.
 
 Lo que falta, y a quién le toca:
 
 | Pendiente | Detalle |
 |---|---|
-| **Conexión real** | Una fábrica de driver que lea URI y credenciales del entorno del despliegue (nunca del repositorio) y se pase a `cli.main(driver_factory=...)` o a `GraphWriter(driver_factory=...)`. Hoy la fábrica por defecto lanza `NotImplementedError` con el motivo. Se invoca **después del gate**: un intento bloqueado no llega a pedir credenciales ni a abrir sesión. |
+| ~~**Conexión real**~~ | **Hecho.** `knowledge_v3/driver_neo4j.py` + `--neo4j-uri/--neo4j-user/--neo4j-password-file` (§5.2). Sigue invocándose después del gate. |
 | **Unidad systemd** | Un servicio o timer que garantice **un único proceso escritor por workspace** (R3). El writer comprueba el workspace, pero no toma un bloqueo entre procesos: dos writers simultáneos sobre el mismo workspace entrelazarían el ledger. Un `.service` con `RemainAfterExit=no` más un fichero de bloqueo (`flock`) es lo mínimo. |
 | **Rutas persistentes** | `--audit-log` y `--applied-keys` deben vivir en un volumen persistente y respaldado. Perder el fichero de claves aplicadas **rompe la idempotencia**: un replay volvería a escribir. |
 | **Índices y restricciones** | Restricciones de unicidad sobre `(:V3Entity {entity_id, workspace})` y `(:V3Assertion {assertion_id, workspace})`. El writer ya comprueba la ausencia antes de crear, pero una restricción del motor es la garantía real frente a concurrencia. |
 | **Propiedad `state_hash`** | El writer la lee para la concurrencia optimista y la escribe cuando el plan la trae. Quién la calcula y la mantiene al día en el grafo es una decisión de integración que este bloque no toma. |
 | **Rotación del log** | El JSONL de auditoría crece sin límite. Rotar sin romper el carácter *append-only* (rotar por fichero, nunca truncar el vivo). |
-| **Ejecución del rollback** | Hoy se emite un documento. Convertirlo en un plan inverso sellado por el motor local es trabajo de integración, no del writer. |
+| **Ejecución del rollback** | El documento ya es **reconstruible y ejecutable** sin `elementId`, y `rollback_query()` lo traduce a Cypher (§4.1); lo que sigue sin existir es un mando que lo aplique solo. Ejecutarlo es una decisión de operador, y convertirlo en un plan inverso sellado por el motor local sigue siendo trabajo de integración. |
 
 ---
 
@@ -417,15 +470,26 @@ aflojan. Se dice en vez de fingir que las 32 son igual de alcanzables.
 | `EXEC_LOCAL_OVERRIDE_REASON_INVALID` | M4: `local_override_of` presente sin el `reason_code` canónico `LOCAL_DIVERGENCE` (R1 del ledger). | directo |
 | `EXEC_LOCAL_OVERRIDE_ALREADY_DECLARED` | M4 (rework): la misma partida ya tiene una divergencia local declarada sobre ese mismo hecho de capa juego. Unicidad estricta `(workspace, partida_id, local_override_of)`: el segundo intento es un conflicto, no una fusión ni una cadena — mismo criterio CREATE-only que `EXEC_TARGET_ALREADY_EXISTS`. | directo |
 
+### 7.5. Ruta de operador (`CLI_*`)
+
+| Código | Motivo | Alcance |
+|---|---|---|
+| `CLI_DRIVER_CONFIG_MISSING` | Se pidió `--apply` sin declarar cómo llegar al servidor (URI, usuario o camino del fichero con la contraseña). Falla cerrado, con código de salida `1`, sin escribir y sin degradarse a dry-run. | directo |
+
 ---
 
 ## 8. Pruebas
 
-Dos suites, **129 tests**, con el driver de Neo4j **mockeado** en todos los
-casos. Aquí no se abre una conexión, no se lee una credencial y no se escribe en
-ningún grafo real.
+Dos suites de unidad, **172 tests**, con el driver de Neo4j **mockeado** en
+todos los casos: ahí no se abre una conexión, no se lee una credencial y no se
+escribe en ningún grafo real. Aparte, y saltada por defecto,
+**`test_knowledge_v3_writer_neo4j_real.py` (23)** levanta su propio Neo4j
+efímero en Docker (`S9K_WRITER_NEO4J_REAL=1`); entre ellas, la que aplica un
+plan, resiembra el grafo en OTRA base efímera —donde los `elementId` son
+necesariamente distintos, porque llevan el UUID de la base— y comprueba que el
+documento de rollback guardado sigue borrando la relación correcta y sólo esa.
 
-**`test_knowledge_v3_writer.py` (96)** — admisión (cada condición en positivo y
+**`test_knowledge_v3_writer.py` (139)** — admisión (cada condición en positivo y
 negativo, incluidas las defensivas mediante `monkeypatch`), las nueve
 condiciones del gate, dry-run, ejecución, idempotencia, transaccionalidad,
 rollback, auditoría e higiene. Incluye la tanda que salió de la revisión

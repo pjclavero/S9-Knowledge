@@ -1,0 +1,175 @@
+== BASE A: Neo4j efimero en bolt://127.0.0.1:41781 (contenedor s9k-t2e2-base-a-5f405f237956)
+
+== 1. Plan en fichero: plan.json
+   plan_hash    : 4ade00f4c3970b0c489823b7ec052b69d002ae2ab97e18173ef4494a03e61ba4
+   operaciones  : ['LINK_EXISTING']
+   fichero de contrasena: modo 600
+
+== 2. Las garantias del gate, una a una (ninguna se relajo)
+
+$ /usr/bin/python3 -m knowledge_v3.writer.cli /tmp/s9k-tanda2-eq2-i7_rwzb6/plan.json --workspace writer-real --snapshot snapshot:neo4j:real:2026-07-27T10:29:00Z --audit-log /tmp/s9k-tanda2-eq2-i7_rwzb6/audit.jsonl --applied-keys /tmp/s9k-tanda2-eq2-i7_rwzb6/keys.jsonl
+{
+  "applied_operations": 1,
+  "created_ids": [],
+  "mode": "DRY_RUN",
+  "noop_operations": 0,
+  "outcome": "SIMULATED",
+  "rejections": [],
+  "review_marks": [],
+  "rollback": null
+}
+rc=0  (dry-run: modo seguro por defecto)
+
+$ /usr/bin/python3 -m knowledge_v3.writer.cli /tmp/s9k-tanda2-eq2-i7_rwzb6/plan.json --workspace writer-real --snapshot snapshot:neo4j:real:2026-07-27T10:29:00Z --audit-log /tmp/s9k-tanda2-eq2-i7_rwzb6/audit.jsonl --applied-keys /tmp/s9k-tanda2-eq2-i7_rwzb6/keys.jsonl --operator pjc --expect-plan-hash 4ade00f4c3970b0c489823b7ec052b69d002ae2ab97e18173ef4494a03e61ba4 --apply --neo4j-uri bolt://127.0.0.1:41781 --neo4j-user neo4j --neo4j-password-file /tmp/s9k-tanda2-eq2-i7_rwzb6/neo4j.pass --rollback-out /tmp/s9k-tanda2-eq2-i7_rwzb6/rollback.json
+{
+  "applied_operations": 0,
+  "created_ids": [],
+  "mode": "APPLY",
+  "noop_operations": 0,
+  "outcome": "BLOCKED",
+  "rejections": [
+    {
+      "code": "GATE_ENV_NOT_ALLOWED",
+      "detail": {
+        "value": null
+      },
+      "message": "S9K_ALLOW_REAL_INGEST no vale '1'"
+    }
+  ],
+  "review_marks": [],
+  "rollback": null
+}
+rc=1  (GATE_ENV_NOT_ALLOWED)
+
+$ /usr/bin/python3 -m knowledge_v3.writer.cli /tmp/s9k-tanda2-eq2-i7_rwzb6/plan.json --workspace writer-real --snapshot snapshot:neo4j:real:2026-07-27T10:29:00Z --audit-log /tmp/s9k-tanda2-eq2-i7_rwzb6/audit.jsonl --applied-keys /tmp/s9k-tanda2-eq2-i7_rwzb6/keys.jsonl --operator pjc --expect-plan-hash 4ade00f4c3970b0c489823b7ec052b69d002ae2ab97e18173ef4494a03e61ba4 --apply --neo4j-uri bolt://127.0.0.1:41781 --neo4j-user neo4j --neo4j-password-file /tmp/s9k-tanda2-eq2-i7_rwzb6/neo4j.pass --rollback-out /tmp/s9k-tanda2-eq2-i7_rwzb6/rollback.json
+{
+  "applied_operations": 0,
+  "created_ids": [],
+  "mode": "APPLY",
+  "noop_operations": 0,
+  "outcome": "BLOCKED",
+  "rejections": [
+    {
+      "code": "GATE_WORKSPACE_NOT_DECLARED",
+      "detail": {},
+      "message": "S9K_WRITER_WORKSPACE ausente: el workspace no se declaro dos veces"
+    }
+  ],
+  "review_marks": [],
+  "rollback": null
+}
+rc=1  (GATE_WORKSPACE_NOT_DECLARED)
+
+$ /usr/bin/python3 -m knowledge_v3.writer.cli /tmp/s9k-tanda2-eq2-i7_rwzb6/plan.json --workspace writer-real --snapshot snapshot:neo4j:real:2026-07-27T10:29:00Z --audit-log /tmp/s9k-tanda2-eq2-i7_rwzb6/audit.jsonl --applied-keys /tmp/s9k-tanda2-eq2-i7_rwzb6/keys.jsonl --operator pjc --expect-plan-hash eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee --apply --neo4j-uri bolt://127.0.0.1:41781 --neo4j-user neo4j --neo4j-password-file /tmp/s9k-tanda2-eq2-i7_rwzb6/neo4j.pass --rollback-out /tmp/s9k-tanda2-eq2-i7_rwzb6/rollback.json
+{
+  "applied_operations": 0,
+  "created_ids": [],
+  "mode": "APPLY",
+  "noop_operations": 0,
+  "outcome": "BLOCKED",
+  "rejections": [
+    {
+      "code": "GATE_PLAN_HASH_NOT_CONFIRMED",
+      "detail": {
+        "actual": "4ade00f4c3970b0c489823b7ec052b69d002ae2ab97e18173ef4494a03e61ba4",
+        "confirmed": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      },
+      "message": "el plan_hash confirmado no es el del plan"
+    }
+  ],
+  "review_marks": [],
+  "rollback": null
+}
+rc=1  (GATE_PLAN_HASH_NOT_CONFIRMED)
+
+   grafo tras los intentos bloqueados: {'nodes': 2, 'relationships': 0}
+
+== 3. APPLY real por la ruta de operador
+
+$ /usr/bin/python3 -m knowledge_v3.writer.cli /tmp/s9k-tanda2-eq2-i7_rwzb6/plan.json --workspace writer-real --snapshot snapshot:neo4j:real:2026-07-27T10:29:00Z --audit-log /tmp/s9k-tanda2-eq2-i7_rwzb6/audit.jsonl --applied-keys /tmp/s9k-tanda2-eq2-i7_rwzb6/keys.jsonl --operator pjc --expect-plan-hash 4ade00f4c3970b0c489823b7ec052b69d002ae2ab97e18173ef4494a03e61ba4 --apply --neo4j-uri bolt://127.0.0.1:41781 --neo4j-user neo4j --neo4j-password-file /tmp/s9k-tanda2-eq2-i7_rwzb6/neo4j.pass --rollback-out /tmp/s9k-tanda2-eq2-i7_rwzb6/rollback.json
+{
+  "applied_operations": 1,
+  "created_ids": [
+    "5:70b21f17-f9fc-4b99-b24c-e0efc8ec02ef:0"
+  ],
+  "mode": "APPLY",
+  "noop_operations": 0,
+  "outcome": "APPLIED",
+  "rejections": [],
+  "review_marks": [],
+  "rollback": {
+    "instructions": [
+      {
+        "action": "DELETE_RELATIONSHIP",
+        "detail": {
+          "element_id_at_write": "5:70b21f17-f9fc-4b99-b24c-e0efc8ec02ef:0",
+          "idempotency_key": "idem:sha256:3a9cc3126e1b74aaeeb680d7320e0c94fd30db79d5ba2361a5929c98727b2b24",
+          "object": "entity:destino",
+          "partida_id": null,
+          "predicate": "MEMBER_OF",
+          "subject": "entity:origen",
+          "workspace": "writer-real"
+        },
+        "operation_id": "op:0001",
+        "target_id": "entity:origen"
+      }
+    ],
+    "plan_hash": "4ade00f4c3970b0c489823b7ec052b69d002ae2ab97e18173ef4494a03e61ba4",
+    "snapshot_id": "snapshot:neo4j:real:2026-07-27T10:29:00Z",
+    "unrecoverable": [],
+    "workspace": "writer-real"
+  }
+}
+rc=0  (APPLY)
+
+--- 3a. La relacion escrita, con su elementId en la BASE A
+    cypher> MATCH (a)-[r]->(b) RETURN type(r) AS tipo, a.entity_id AS desde, b.entity_id AS hasta, r.idempotency_key AS idem, elementId(r) AS element_id
+    {"desde": "entity:origen", "element_id": "5:70b21f17-f9fc-4b99-b24c-e0efc8ec02ef:0", "hasta": "entity:destino", "idem": "idem:sha256:3a9cc3126e1b74aaeeb680d7320e0c94fd30db79d5ba2361a5929c98727b2b24", "tipo": "MEMBER_OF"}
+
+== 3b. Documento de rollback guardado (--rollback-out)
+{
+  "instructions": [
+    {
+      "action": "DELETE_RELATIONSHIP",
+      "detail": {
+        "element_id_at_write": "5:70b21f17-f9fc-4b99-b24c-e0efc8ec02ef:0",
+        "idempotency_key": "idem:sha256:3a9cc3126e1b74aaeeb680d7320e0c94fd30db79d5ba2361a5929c98727b2b24",
+        "object": "entity:destino",
+        "partida_id": null,
+        "predicate": "MEMBER_OF",
+        "subject": "entity:origen",
+        "workspace": "writer-real"
+      },
+      "operation_id": "op:0001",
+      "target_id": "entity:origen"
+    }
+  ],
+  "plan_hash": "4ade00f4c3970b0c489823b7ec052b69d002ae2ab97e18173ef4494a03e61ba4",
+  "snapshot_id": "snapshot:neo4j:real:2026-07-27T10:29:00Z",
+  "unrecoverable": [],
+  "workspace": "writer-real"
+}
+
+== 4. BASE B (bolt://127.0.0.1:49067): el volcado resembrado, elementId NUEVOS
+
+--- 4a. Relaciones en la BASE B
+    cypher> MATCH (a)-[r]->(b) RETURN type(r) AS tipo, a.entity_id AS desde, b.entity_id AS hasta, r.idempotency_key AS idem, elementId(r) AS element_id ORDER BY r.idempotency_key
+    {"desde": "entity:origen", "element_id": "5:d3309d6d-7961-46e9-9834-5fcb6bf52d4a:0", "hasta": "entity:destino", "idem": "idem:sha256:3a9cc3126e1b74aaeeb680d7320e0c94fd30db79d5ba2361a5929c98727b2b24", "tipo": "MEMBER_OF"}
+    {"desde": "entity:origen", "element_id": "5:d3309d6d-7961-46e9-9834-5fcb6bf52d4a:1", "hasta": "entity:destino", "idem": "idem:sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "tipo": "MEMBER_OF"}
+
+   elementId en A : 5:70b21f17-f9fc-4b99-b24c-e0efc8ec02ef:0
+   elementId en B : ['5:d3309d6d-7961-46e9-9834-5fcb6bf52d4a:0', '5:d3309d6d-7961-46e9-9834-5fcb6bf52d4a:1']
+   relaciones con el elementId VIEJO en B: 0  <- ahi apuntaba el rollback anterior
+
+== 5. Rollback reconstruido desde el documento GUARDADO
+   cypher> MATCH (a:V3Entity {entity_id: $subject, workspace: $ws})-[r:MEMBER_OF {workspace: $ws, idempotency_key: $key}]->(b:V3Entity {entity_id: $object, workspace: $ws}) DELETE r RETURN count(*) AS borradas
+   params> {"key": "idem:sha256:3a9cc3126e1b74aaeeb680d7320e0c94fd30db79d5ba2361a5929c98727b2b24", "object": "entity:destino", "subject": "entity:origen", "ws": "writer-real"}
+   resultado> [{'borradas': 1}]
+
+--- 5a. Que queda en la BASE B tras el rollback
+    cypher> MATCH (a)-[r]->(b) RETURN type(r) AS tipo, a.entity_id AS desde, b.entity_id AS hasta, r.idempotency_key AS idem, r.nota AS nota
+    {"desde": "entity:origen", "hasta": "entity:destino", "idem": "idem:sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "nota": "vecina", "tipo": "MEMBER_OF"}
+
+   entidades intactas tras el rollback: 2
+
+== VEREDICTO: ruta de operador viva y rollback ejecutable tras cambiar los elementId, sin borrar de mas
