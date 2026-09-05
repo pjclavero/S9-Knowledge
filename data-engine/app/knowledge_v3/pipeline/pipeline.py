@@ -33,6 +33,7 @@ un driver y se pida `apply` explicitamente.
 """
 from __future__ import annotations
 
+import json
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -64,6 +65,8 @@ from ..multimodal.registry import default_registry
 from ..reconcile import ProposalReconciler
 from ..resolution.resolver import EntityResolver, ResolutionRequest
 from ..writer.gate import OperatorRequest
+from ..writer import writer as writer_mod
+from ..writer.provenance import persist_provenance
 from ..writer.writer import GraphWriter
 from . import bridge
 from .config import GoldInjection, PipelineConfig
@@ -88,6 +91,9 @@ class SourceRun:
     assertions: list[FactAssertion] = field(default_factory=list)
     ledger_entries: list[Any] = field(default_factory=list)
     write_result: Optional[Any] = None
+    #: Lo que el volcado de PROCEDENCIA escribio de verdad (docs/v3/54).
+    #: `None` = no se intento (dry-run, sin driver o plan no aplicado).
+    provenance_result: Optional[Any] = None
     #: Diagnosticos del extractor + notas de coordinacion del orquestador.
     diagnostics: list[dict] = field(default_factory=list)
     normalization_report: dict = field(default_factory=dict)
@@ -505,6 +511,54 @@ class KnowledgePipeline:
             env=dict(cfg.writer_env),
         )
         run.write_result = writer.write(run.plan.to_dict(), request)
+        self.write_provenance(run)
+
+    def write_provenance(self, run: SourceRun) -> None:
+        """Etapa 7b. La PROCEDENCIA al grafo, para que la fuente sea navegable.
+
+        Solo tras un APPLY real: en dry-run no hay driver y no se escribe
+        nada. Va en su PROPIA transaccion, despues de la del plan y nunca
+        dentro: la transaccion del writer es todo-o-nada sobre el
+        conocimiento y meterle una escritura que el plan no declara
+        convertiria un fallo de procedencia en un plan revertido.
+
+        Por eso mismo un fallo aqui se ANOTA y no propaga: el conocimiento ya
+        esta escrito y una excepcion tardia no lo desharia; lo unico que
+        conseguiria es ocultar que el plan si se aplico. El diagnostico deja
+        constancia de que ese conocimiento quedo SIN procedencia navegable.
+        """
+        cfg = self.config
+        result = run.write_result
+        if cfg.writer_driver is None or result is None or not getattr(result, "ok", False):
+            return
+        if result.mode != writer_mod.MODE_APPLY:
+            return
+        assertion_ids = [
+            op["assertion_id"]
+            for op in (run.plan.mutation_operations if run.plan else [])
+            if op.get("assertion_id")
+        ]
+        try:
+            run.provenance_result = persist_provenance(
+                cfg.writer_driver,
+                workspace=cfg.workspace,
+                partida_id=(run.plan.partida_id if run.plan else None),
+                source_asset=run.asset.to_dict() if run.asset else None,
+                episodes=[e.to_dict() for e in run.episodes],
+                fragments=[f.to_dict() for f in run.fragments],
+                assertion_ids=assertion_ids,
+            )
+            run.note(
+                "provenance",
+                "PROVENANCE_PERSISTED",
+                json.dumps(run.provenance_result.to_dict(), sort_keys=True),
+            )
+        except Exception as exc:  # noqa: BLE001 - se anota, no se traga en silencio
+            run.note(
+                "provenance",
+                "PROVENANCE_FAILED",
+                f"{type(exc).__name__}: {exc}",
+            )
 
     # -- corrida -------------------------------------------------------------
     def run_source(

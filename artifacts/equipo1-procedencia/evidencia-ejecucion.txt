@@ -1,0 +1,71 @@
+== Neo4j efimero en bolt://127.0.0.1:56457 (contenedor s9k-equipo1-b9568152c658)
+
+--- 0. Control: recuento ANTES de ingerir nada
+    cypher> CALL () { MATCH (n:V3Source) RETURN count(n) AS fuentes } CALL () { MATCH (n:V3Episode) RETURN count(n) AS episodios } CALL () { MATCH (n:V3Evidence) RETURN count(n) AS evidencias } CALL () { MATCH (n:V3Assertion) RETURN count(n) AS aserciones } CALL () { MATCH ()-[r:HAS_EPISODE]->() RETURN count(r) AS r_has_episode } CALL () { MATCH ()-[r:HAS_FRAGMENT]->() RETURN count(r) AS r_has_fragment } CALL () { MATCH ()-[r:SUPPORTED_BY]->() RETURN count(r) AS r_supported_by } CALL () { MATCH ()-[r:HAS_SUBJECT]->() RETURN count(r) AS r_has_subject } CALL () { MATCH ()-[r:HAS_OBJECT]->() RETURN count(r) AS r_has_object } RETURN fuentes, episodios, evidencias, aserciones, r_has_episode, r_has_fragment, r_supported_by, r_has_subject, r_has_object
+    {"aserciones": 0, "episodios": 0, "evidencias": 0, "fuentes": 0, "r_has_episode": 0, "r_has_fragment": 0, "r_has_object": 0, "r_has_subject": 0, "r_supported_by": 0}
+
+== 1. Cadena V3 completa desde bytes, apply=True
+   texto fuente : 'Ilaria Vandreth lidera la Casa del Ciervo.'
+   workspace    : bench-dev
+   episodios    : 1  fragmentos: 1
+   write        : APPLIED []
+   procedencia  : {"nodes_created": {"V3Episode": 1, "V3Evidence": 1, "V3Source": 1}, "nodes_reused": {}, "omitted_fields": {"V3Episode": ["metadata", "provider_trace", "quality"], "V3Evidence": ["provider_trace"], "V3Source": ["processing_policy", "provider_trace"]}, "relations_created": {"HAS_EPISODE": 1, "HAS_FRAGMENT": 1, "HAS_OBJECT": 1, "HAS_SUBJECT": 1, "SUPPORTED_BY": 1}, "relations_reused": {}}
+
+--- 1b. Nodos de procedencia escritos
+    cypher> MATCH (n) WHERE any(l IN labels(n) WHERE l IN ['V3Source','V3Episode','V3Evidence']) RETURN labels(n) AS labels, n.source_asset_id AS source_asset_id, n.episode_id AS episode_id, n.fragment_id AS fragment_id, n.workspace AS workspace, n.provenance_contract AS contrato, n.visibility AS visibility ORDER BY labels
+    {"contrato": "source-episode/v3-internal-v1", "episode_id": "ep-df69ae2f78c2a3c66016be965e259e43", "fragment_id": null, "labels": ["V3Episode"], "source_asset_id": "sa-faa7b7735efa6b7d11a01565441a6e02", "visibility": null, "workspace": "bench-dev"}
+    {"contrato": "evidence-fragment/v3-internal-v1", "episode_id": "ep-df69ae2f78c2a3c66016be965e259e43", "fragment_id": "ef-5ef75f36fe9c1bc0e87dd8d659a73bd3", "labels": ["V3Evidence"], "source_asset_id": "sa-faa7b7735efa6b7d11a01565441a6e02", "visibility": null, "workspace": "bench-dev"}
+    {"contrato": "source-asset/v3-internal-v1", "episode_id": null, "fragment_id": null, "labels": ["V3Source"], "source_asset_id": "sa-faa7b7735efa6b7d11a01565441a6e02", "visibility": null, "workspace": "bench-dev"}
+
+--- 2. Aserciones escritas por el plan
+    cypher> MATCH (a:V3Assertion {workspace:$ws}) RETURN a.assertion_id AS assertion_id, a.predicate AS predicate, a.evidence_fragment_ids AS evidencia ORDER BY a.assertion_id
+    {"assertion_id": "assertion:5fa750c571eaf24433c62f84cb7b2ccc", "evidencia": ["ef-5ef75f36fe9c1bc0e87dd8d659a73bd3"], "predicate": "LEADS"}
+
+--- 2b. RECORRIDO COMPLETO desde assertion:5fa750c571eaf24433c62f84cb7b2ccc
+    cypher> MATCH (a:V3Assertion {assertion_id: $id, workspace: $ws})-[:SUPPORTED_BY]->(ev:V3Evidence)<-[:HAS_FRAGMENT]-(ep:V3Episode)<-[:HAS_EPISODE]-(src:V3Source) RETURN a.assertion_id AS assertion_id, a.predicate AS predicate, ev.fragment_id AS fragment_id, ev.literal_text AS literal, ep.episode_id AS episode_id, ep.sequence AS episode_sequence, src.source_asset_id AS source_asset_id, src.original_name AS source_name ORDER BY ev.fragment_id
+    {"assertion_id": "assertion:5fa750c571eaf24433c62f84cb7b2ccc", "episode_id": "ep-df69ae2f78c2a3c66016be965e259e43", "episode_sequence": 0, "fragment_id": "ef-5ef75f36fe9c1bc0e87dd8d659a73bd3", "literal": "Ilaria Vandreth lidera la Casa del Ciervo.", "predicate": "LEADS", "source_asset_id": "sa-faa7b7735efa6b7d11a01565441a6e02", "source_name": "equipo1-fuente.md"}
+
+   filas de recorrido (no vacio): 1
+
+--- 3. Recorrido INVERSO: que conocimiento sostiene esta fuente
+    cypher> MATCH (src:V3Source {workspace:$ws})-[:HAS_EPISODE]->(ep:V3Episode)-[:HAS_FRAGMENT]->(ev:V3Evidence)<-[:SUPPORTED_BY]-(a:V3Assertion)-[:HAS_SUBJECT]->(e:V3Entity) RETURN src.original_name AS fuente, ep.episode_id AS episodio, left(ev.literal_text, 80) AS literal, a.assertion_id AS assertion_id, e.entity_id AS sujeto ORDER BY a.assertion_id
+    {"assertion_id": "assertion:5fa750c571eaf24433c62f84cb7b2ccc", "episodio": "ep-df69ae2f78c2a3c66016be965e259e43", "fuente": "equipo1-fuente.md", "literal": "Ilaria Vandreth lidera la Casa del Ciervo.", "sujeto": "entity:leyenda:ilaria"}
+
+== 3b. Segunda fuente DISTINTA: 'Ilaria Vandreth es miembro de la Casa del Ciervo.' -> APPLIED []
+
+--- 3c. Cada asercion y LA fuente que la sostiene
+    cypher> MATCH (a:V3Assertion {workspace:$ws})-[:SUPPORTED_BY]->(ev:V3Evidence)<-[:HAS_FRAGMENT]-(:V3Episode)<-[:HAS_EPISODE]-(src:V3Source) RETURN a.assertion_id AS assertion_id, a.predicate AS predicate, ev.literal_text AS literal, src.original_name AS fuente ORDER BY a.assertion_id
+    {"assertion_id": "assertion:0dd17e4c6fd8585cdbd6cba4aef0a2ee", "fuente": "equipo1-fuente-2.md", "literal": "Ilaria Vandreth es miembro de la Casa del Ciervo.", "predicate": "MEMBER_OF"}
+    {"assertion_id": "assertion:5fa750c571eaf24433c62f84cb7b2ccc", "fuente": "equipo1-fuente.md", "literal": "Ilaria Vandreth lidera la Casa del Ciervo.", "predicate": "LEADS"}
+   cada asercion -> exactamente una fuente, y son dos distintas: {'assertion:0dd17e4c6fd8585cdbd6cba4aef0a2ee': ['equipo1-fuente-2.md'], 'assertion:5fa750c571eaf24433c62f84cb7b2ccc': ['equipo1-fuente.md']}
+
+--- 4a. Recuento tras las DOS ingestas
+    cypher> CALL () { MATCH (n:V3Source) RETURN count(n) AS fuentes } CALL () { MATCH (n:V3Episode) RETURN count(n) AS episodios } CALL () { MATCH (n:V3Evidence) RETURN count(n) AS evidencias } CALL () { MATCH (n:V3Assertion) RETURN count(n) AS aserciones } CALL () { MATCH ()-[r:HAS_EPISODE]->() RETURN count(r) AS r_has_episode } CALL () { MATCH ()-[r:HAS_FRAGMENT]->() RETURN count(r) AS r_has_fragment } CALL () { MATCH ()-[r:SUPPORTED_BY]->() RETURN count(r) AS r_supported_by } CALL () { MATCH ()-[r:HAS_SUBJECT]->() RETURN count(r) AS r_has_subject } CALL () { MATCH ()-[r:HAS_OBJECT]->() RETURN count(r) AS r_has_object } RETURN fuentes, episodios, evidencias, aserciones, r_has_episode, r_has_fragment, r_supported_by, r_has_subject, r_has_object
+    {"aserciones": 2, "episodios": 2, "evidencias": 2, "fuentes": 2, "r_has_episode": 2, "r_has_fragment": 2, "r_has_object": 2, "r_has_subject": 2, "r_supported_by": 2}
+
+== 4. SEGUNDA ingesta del mismo texto: APPLIED []
+   procedencia  : {"nodes_created": {}, "nodes_reused": {"V3Episode": 1, "V3Evidence": 1, "V3Source": 1}, "omitted_fields": {}, "relations_created": {}, "relations_reused": {"HAS_EPISODE": 1, "HAS_FRAGMENT": 1, "HAS_OBJECT": 1, "HAS_SUBJECT": 1, "SUPPORTED_BY": 1}}
+
+--- 4b. Recuento tras REPETIR la primera ingesta
+    cypher> CALL () { MATCH (n:V3Source) RETURN count(n) AS fuentes } CALL () { MATCH (n:V3Episode) RETURN count(n) AS episodios } CALL () { MATCH (n:V3Evidence) RETURN count(n) AS evidencias } CALL () { MATCH (n:V3Assertion) RETURN count(n) AS aserciones } CALL () { MATCH ()-[r:HAS_EPISODE]->() RETURN count(r) AS r_has_episode } CALL () { MATCH ()-[r:HAS_FRAGMENT]->() RETURN count(r) AS r_has_fragment } CALL () { MATCH ()-[r:SUPPORTED_BY]->() RETURN count(r) AS r_supported_by } CALL () { MATCH ()-[r:HAS_SUBJECT]->() RETURN count(r) AS r_has_subject } CALL () { MATCH ()-[r:HAS_OBJECT]->() RETURN count(r) AS r_has_object } RETURN fuentes, episodios, evidencias, aserciones, r_has_episode, r_has_fragment, r_supported_by, r_has_subject, r_has_object
+    {"aserciones": 2, "episodios": 2, "evidencias": 2, "fuentes": 2, "r_has_episode": 2, "r_has_fragment": 2, "r_has_object": 2, "r_has_subject": 2, "r_supported_by": 2}
+
+   recuentos identicos     : True
+   huella grafo identica   : True
+
+--- 5. Identidad de producto vs elementId
+    cypher> MATCH (n:V3Evidence) RETURN n.workspace AS workspace, n.fragment_id AS fragment_id, elementId(n) AS element_id ORDER BY fragment_id LIMIT 5
+    {"element_id": "4:71ef9236-9d80-49c2-be12-540c9227af58:7", "fragment_id": "ef-5ef75f36fe9c1bc0e87dd8d659a73bd3", "workspace": "bench-dev"}
+    {"element_id": "4:71ef9236-9d80-49c2-be12-540c9227af58:13", "fragment_id": "ef-605a081fa89b553de0d682be8b1fdfe1", "workspace": "bench-dev"}
+
+--- 5b. Restricciones de unicidad de la procedencia
+    cypher> SHOW CONSTRAINTS YIELD name, labelsOrTypes, properties WHERE any(l IN labelsOrTypes WHERE l IN ['V3Source','V3Episode','V3Evidence']) RETURN name, labelsOrTypes, properties ORDER BY name
+    {"labelsOrTypes": ["V3Episode"], "name": "v3_v3episode_identidad_durable_unique", "properties": ["workspace", "episode_id"]}
+    {"labelsOrTypes": ["V3Evidence"], "name": "v3_v3evidence_identidad_durable_unique", "properties": ["workspace", "fragment_id"]}
+    {"labelsOrTypes": ["V3Source"], "name": "v3_v3source_identidad_durable_unique", "properties": ["workspace", "source_asset_id"]}
+
+--- 6. Superficie de lectura del visor sobre la procedencia
+    cypher> CALL () { MATCH (n:Entity) WHERE any(l IN labels(n) WHERE l IN ['V3Source','V3Episode','V3Evidence']) RETURN count(n) AS nodos_visor } CALL () { MATCH (:Entity)-[r]->(:Entity) WHERE type(r) IN ['HAS_EPISODE','HAS_FRAGMENT','SUPPORTED_BY','HAS_SUBJECT','HAS_OBJECT'] RETURN count(r) AS aristas_visor } RETURN nodos_visor, aristas_visor
+    {"aristas_visor": 0, "nodos_visor": 0}
+
+== VEREDICTO: procedencia PERSISTIDA, recorrido NAVEGABLE en ambos sentidos, idempotente y fuera de la superficie de lectura del visor

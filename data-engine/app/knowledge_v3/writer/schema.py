@@ -8,9 +8,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from . import provenance as _provenance
 from .cypher import LABEL_APPLIED_OPERATION, LABEL_ASSERTION, LABEL_ENTITY
 
-SCHEMA_VERSION = "writer-v3-2"
+SCHEMA_VERSION = "writer-v3-3"
 APPLIED_OPERATION_CONSTRAINT = "v3_applied_operation_unique"
 APPLIED_OPERATION_CONSTRAINT_CYPHER = (
     f"CREATE CONSTRAINT {APPLIED_OPERATION_CONSTRAINT} IF NOT EXISTS "
@@ -119,6 +120,26 @@ V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT_CYPHER = (
     "REQUIRE (n.workspace, n.assertion_id) IS UNIQUE"
 )
 
+# --- PROCEDENCIA NAVEGABLE (docs/v3/54) ------------------------------------
+#: La MISMA regla, aplicada a la cadena de procedencia: la identidad de una
+#: fuente, un episodio o un fragmento es `(workspace, <id del contrato>)`, y
+#: el `elementId` de Neo4j no es identidad de nada. Sin estas restricciones,
+#: repetir un volcado tras una restauracion podria dejar dos nodos con el
+#: mismo `fragment_id` y el recorrido devolveria la evidencia por duplicado.
+#: El campo de identidad sale de `provenance.IDENTITY_FIELD`, no de una copia
+#: a mano: una sola fuente normativa.
+PROVENANCE_IDENTITY_CONSTRAINTS: tuple[tuple[str, str, str, str], ...] = tuple(
+    (
+        label,
+        label,
+        _provenance.IDENTITY_FIELD[label],
+        f"CREATE CONSTRAINT v3_{label.lower()}_identidad_durable_unique IF NOT EXISTS "
+        f"FOR (n:{label}) "
+        f"REQUIRE (n.workspace, n.{_provenance.IDENTITY_FIELD[label]}) IS UNIQUE",
+    )
+    for label in _provenance.PROVENANCE_LABELS
+)
+
 #: Las tres, en el orden en que se aplican. Tenerlas en UNA lista es lo que
 #: permite que el arnes de calibracion y la suite las recorran sin copiar la
 #: definicion: una sola fuente normativa, no dos que puedan divergir.
@@ -129,6 +150,13 @@ DURABLE_IDENTITY_CONSTRAINTS: tuple[tuple[str, str, str, str], ...] = (
     (LABEL_ASSERTION, LABEL_ASSERTION, "assertion_id",
      V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT_CYPHER),
 )
+#: DELIBERADAMENTE FUERA de la tupla de arriba. `viewer/tests/
+#: test_neo4j_integration_authz.py::con_constraints` APLICA
+#: `DURABLE_IDENTITY_CONSTRAINTS` entera y luego RETIRA solo las tres por
+#: nombre; anadir aqui las de procedencia las dejaria puestas al salir --
+#: exactamente el "una barrera que se queda puesta" que esa fixture existe
+#: para evitar. Las aplica `bootstrap_writer_schema`, que es quien administra
+#: la base de verdad.
 
 
 def bootstrap_writer_schema(driver: Any) -> None:
@@ -139,11 +167,14 @@ def bootstrap_writer_schema(driver: Any) -> None:
         session.run(ASSERTION_PARTIDA_INDEX_CYPHER).consume()
         for _, _, _, ddl in DURABLE_IDENTITY_CONSTRAINTS:
             session.run(ddl).consume()
+        for _, _, _, ddl in PROVENANCE_IDENTITY_CONSTRAINTS:
+            session.run(ddl).consume()
 
 
 __all__ = [
     "APPLIED_OPERATION_CONSTRAINT",
     "DURABLE_IDENTITY_CONSTRAINTS",
+    "PROVENANCE_IDENTITY_CONSTRAINTS",
     "ENTITY_DURABLE_IDENTITY_CONSTRAINT",
     "ENTITY_DURABLE_IDENTITY_CONSTRAINT_CYPHER",
     "V3_ENTITY_DURABLE_IDENTITY_CONSTRAINT",
