@@ -46,9 +46,21 @@ class SourceEpisode(V3Document):
     time_end: Optional[float]
     previous_episode_id: Optional[str]
     next_episode_id: Optional[str]
-    speaker: Optional[dict]
-    turn: Optional[int]
-    table: Optional[dict]
     quality: dict
     content_hash: dict
+    # `speaker`, `turn` y `table` NO estan en `required` del JSON Schema
+    # congelado (source-episode-v3.schema.json): son opcionales de verdad y
+    # solo tienen sentido en modalidades con diarizacion o en TABLE. Hasta
+    # ahora se declaraban SIN valor por defecto, asi que `_optional_names()`
+    # no los veia y `from_dict` los exigia: un episodio de texto plano valido
+    # segun el contrato publicado era rechazado por el modelo Python. El
+    # defecto estaba registrado como GATE4-03.
+    #
+    # Llevan default=None pero NO entran en `OMIT_IF_NONE`: el schema los
+    # declara nullable (`anyOf` con `"type": "null"`), asi que seguir
+    # emitiendo la clave con `null` es valido y deja `to_dict()` byte a byte
+    # igual que antes. Esto solo relaja la LECTURA, no cambia la escritura.
+    speaker: Optional[dict] = None
+    turn: Optional[int] = None
+    table: Optional[dict] = None
     metadata: Optional[dict[str, Any]] = None

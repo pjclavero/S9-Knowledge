@@ -1,0 +1,64 @@
+{
+  "contract_id": "game-profile/v3-internal-v1",
+  "contract_version": "1.0.0",
+  "workspace": "ws-cofradia",
+  "source_asset_id": "profile:ws-cofradia",
+  "source_hash": {
+    "algorithm": "sha256",
+    "value": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "provider_trace": [
+    {
+      "step": "profile.load",
+      "provider": "local",
+      "name": "s9k.knowledge_v3",
+      "version": "3.0.0",
+      "model": null,
+      "produced": ["predicates", "entity_types"]
+    }
+  ],
+  "produced_by_step": "profile.load",
+  "profile_id": "generic",
+  "profile_version": "1.0.0",
+  "core_ontology_version": "core-1.4.0",
+  "entity_types": ["Character", "Location", "Faction", "Object", "Event", "Concept"],
+  "predicates": [
+    {"predicate": "MEMBER_OF", "domain": ["Character"], "range": ["Faction"], "inverse_of": "HAS_MEMBER", "symmetric": false, "transitive": false, "functional": false},
+    {"predicate": "HAS_MEMBER", "domain": ["Faction"], "range": ["Character"], "inverse_of": "MEMBER_OF", "symmetric": false, "transitive": false, "functional": false},
+    {"predicate": "LEADS", "domain": ["Character"], "range": ["Faction", "Location"], "inverse_of": "LED_BY", "symmetric": false, "transitive": false, "functional": false},
+    {"predicate": "LED_BY", "domain": ["Faction", "Location"], "range": ["Character"], "inverse_of": "LEADS", "symmetric": false, "transitive": false, "functional": false},
+    {"predicate": "LIVES_IN", "domain": ["Character"], "range": ["Location"], "inverse_of": null, "symmetric": false, "transitive": false, "functional": false},
+    {"predicate": "LOCATED_IN", "domain": ["Character", "Object", "Location", "Event", "Faction"], "range": ["Location"], "inverse_of": null, "symmetric": false, "transitive": true, "functional": false},
+    {"predicate": "ALLY_OF", "domain": ["Character", "Faction"], "range": ["Character", "Faction"], "inverse_of": null, "symmetric": true, "transitive": false, "functional": false},
+    {"predicate": "ENEMY_OF", "domain": ["Character", "Faction"], "range": ["Character", "Faction"], "inverse_of": null, "symmetric": true, "transitive": false, "functional": false},
+    {"predicate": "OWNS", "domain": ["Character", "Faction"], "range": ["Object", "Location"], "inverse_of": "OWNED_BY", "symmetric": false, "transitive": false, "functional": false},
+    {"predicate": "OWNED_BY", "domain": ["Object", "Location"], "range": ["Character", "Faction"], "inverse_of": "OWNS", "symmetric": false, "transitive": false, "functional": false}
+  ],
+  "aliases": [
+    {"canonical": "Sela Marrec", "variants": ["Sela Marrec", "Sela"]},
+    {"canonical": "Bren Halloway", "variants": ["Bren Halloway", "Halloway"]},
+    {"canonical": "Cofradia de Ambar", "variants": ["Cofradia de Ambar", "la Cofradia"]},
+    {"canonical": "Casa del Ciervo", "variants": ["Casa del Ciervo", "la Casa"]},
+    {"canonical": "Consejo de Umbra", "variants": ["Consejo de Umbra", "el Consejo"]},
+    {"canonical": "Vado Alto", "variants": ["Vado Alto"]}
+  ],
+  "titles": ["magistrado", "senescal", "maestra de faros"],
+  "factions": ["Cofradia de Ambar", "Casa del Ciervo", "Consejo de Umbra"],
+  "calendars": [
+    {"calendar_id": "calendar:ciervo", "epoch_label": "Era del Ciervo", "units": ["ciclo", "luna"]}
+  ],
+  "identity_rules": [
+    {"rule_id": "rule:titulo-no-funde", "kind": "NEVER_MERGE_IF", "reason_code": "TITLE_ONLY_MATCH", "description": "Compartir cargo no basta para fundir dos personajes."}
+  ],
+  "ambiguous_terms": ["la Cofradia", "la Casa", "el Consejo"],
+  "source_priorities": [
+    {"source_kind": "MARKDOWN", "priority": 80},
+    {"source_kind": "TEXT", "priority": 75},
+    {"source_kind": "TABLE", "priority": 70},
+    {"source_kind": "AUDIO", "priority": 50},
+    {"source_kind": "IMAGE", "priority": 30}
+  ],
+  "evaluation_examples": [
+    {"example_id": "example:0001", "text": "Sela Marrec no pertenece al Consejo de Umbra.", "expected": "NEGATED MEMBER_OF(Sela Marrec, Consejo de Umbra)"}
+  ]
+}

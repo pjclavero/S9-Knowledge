@@ -260,16 +260,11 @@ def test_recall_de_autoaprobacion_simple_alcanza_el_umbral(report):
     assert report["metrics_by_family"]["SIMPLE"]["auto_approval_recall"] >= 0.75
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "DEFECTO REAL de contrato, reproducido sin ningun corpus: `SourceEpisode."
-        "from_dict` exige que esten PRESENTES las claves opcionales speaker/turn/table. "
-        "Un documento valido que sencillamente no las trae es rechazado con "
-        "V3ContractError. Consecuencia medida en la puerta 4: la entrada por episodios "
-        "es inusable para las fuentes cuyo JSON omite esas claves. No se corrige aqui."
-    ),
-)
+# GATE4-03 CORREGIDO: `speaker`, `turn` y `table` no estan en `required` del
+# JSON Schema congelado, pero el dataclass los declaraba sin default y
+# `from_dict` los exigia. Ahora llevan default=None. El `xfail(strict=True)`
+# se retira junto con su entrada de `.github/xfail-registro.txt`: dejarla
+# pondria el gate en rojo por la segunda direccion (entrada sin xfail).
 def test_un_episodio_sin_las_claves_opcionales_deberia_cargar():
     from knowledge_v3.contracts.episode import SourceEpisode
 

@@ -298,6 +298,18 @@ def test_19_contratos_congelados_mantienen_su_hash():
     # `fact-assertion-v3.schema.json`, mas un chequeo semantico de
     # autoreferencia en `validator.py`. Nuevo checkpoint:
     # `v3-contracts-frozen-1.0.0-m4`.
+    #
+    # GATE4-03 (carril A, docs/v3/53-ingesta-real-vertical-slice.md SS2): la
+    # correccion del defecto real de `SourceEpisode.from_dict` toca
+    # `contracts/episode.py`, que este gate congela BYTE A BYTE. El cambio es
+    # ADITIVO y no altera la serializacion (`speaker`/`turn`/`table` ganan
+    # `default=None` pero NO entran en `OMIT_IF_NONE`, porque el schema los
+    # declara nullable), asi que `to_dict()` sigue emitiendolos con `null`.
+    # Aun asi el digest cambia, y CAMBIAR ESTA CONSTANTE NO ES DECISION DEL
+    # CARRIL: el checkpoint lo avanza quien integra, creando el tag nuevo sobre
+    # el arbol ya revisado —igual que se hizo en M0, M2, M3 y M4— y poniendolo
+    # aqui. Hasta entonces esta prueba queda ROJA A PROPOSITO: es el aviso, no
+    # un descuido.
     frozen_ref = "v3-contracts-frozen-1.0.0-m4"
     roots = [
         _REPO_ROOT / "contracts/knowledge-v3/v1",
