@@ -1140,7 +1140,7 @@ jobs:
 
       - name: Publicar artefactos del censo
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: route-map-gate
           path: artifacts/route-map/ci-*
@@ -1211,7 +1211,7 @@ jobs:
 
       - name: Publicar artefactos
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: metodos-de-escritura
           path: artifacts/route-map/ci-*write_spec*.json
