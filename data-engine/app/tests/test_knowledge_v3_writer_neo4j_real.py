@@ -880,8 +880,15 @@ def test_m3_create_entity_de_capa_juego_no_escribe_la_propiedad_partida_id(graph
 def test_m3_create_entity_de_partida_estampa_partida_id_real(graph: GraphProbe):
     """Gemelo en positivo del anterior: una partida SI deja la propiedad,
     con el valor exacto declarado por `scope.partida_id`."""
+    # T2 (posterior a M3): en ambito de partida, `known_from_session` es
+    # OBLIGATORIO por operacion y su ausencia aborta fail-closed con
+    # EXEC_REVELACION_NO_DECLARADA. Esta prueba se escribio antes de T2 y,
+    # por ser opt-in, nadie volvio a ejecutarla: llevaba roja desde entonces.
+    # Se declara la sesion de revelacion, que es lo que el contrato exige.
+    operacion = create_entity("op:m3-partida", "entity:m3-partida", "De partida")
+    operacion["payload"]["known_from_session"] = 0
     plan = make_plan(
-        [create_entity("op:m3-partida", "entity:m3-partida", "De partida")],
+        [operacion],
         partida_id="partida:brumal-01",
         scope={"layer": "PARTIDA", "game_id": WORKSPACE, "partida_id": "partida:brumal-01"},
     )

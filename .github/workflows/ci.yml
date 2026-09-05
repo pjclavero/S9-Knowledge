@@ -69,6 +69,49 @@ jobs:
             exit 1
           fi
 
+      - name: Writer y E2E V3 contra Neo4j REAL (dejan de ser opt-in)
+        env:
+          # Las 33 pruebas de estos dos ficheros son las UNICAS que ejercen la
+          # pieza que ESCRIBE en el grafo contra una base de verdad. Estaban
+          # tras `S9K_WRITER_NEO4J_REAL`, es decir, fuera de CI: en el paso
+          # anterior salen `skipped` y el job sale verde. Con esa cobertura
+          # apagada, `test_m3_create_entity_de_partida_estampa_partida_id_real`
+          # llevaba ROJA desde T2 sin que nadie lo viera.
+          #
+          # Va como PASO de este job, no como job nuevo: no se anade ningun
+          # check requerido, y la base efimera la levanta y destruye la propia
+          # fixture con `docker run --rm` (docker existe en ubuntu-latest), asi
+          # que tampoco hace falta un bloque `services` paralelo.
+          S9K_WRITER_NEO4J_REAL: "1"
+        run: |
+          # CUATRO ESTADOS, y ninguno puede quedar verde por silencio:
+          #   Neo4j no arranco    -> la fixture hace `skip`  -> grep skipped -> ROJO
+          #   tests no ejecutados -> no hay "N passed"        -> ROJO
+          #   writer fallo        -> rc != 0                  -> ROJO
+          #   writer funciono     -> VERDE
+          # `set +e` y rc aparte: con `bash -e` el paso moriria en la
+          # asignacion y nunca se imprimiria QUE test fallo.
+          set +e
+          out="$(python -m pytest \
+                   data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py \
+                   data-engine/app/tests/test_knowledge_v3_e2e_neo4j_real.py \
+                   -v --tb=short --no-header 2>&1)"
+          rc=$?
+          set -e
+          echo "$out"
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::el writer V3 ha FALLADO contra Neo4j real"
+            exit 1
+          fi
+          if grep -qi "skipped" <<<"$out"; then
+            echo "::error::las pruebas del writer real se OMITIERON; no hubo Neo4j efimero"
+            exit 1
+          fi
+          if ! grep -qE '[0-9]+ passed' <<<"$out"; then
+            echo "::error::las pruebas del writer real no llegaron a ejecutarse"
+            exit 1
+          fi
+
   test-viewer:
     name: Viewer Tests
     runs-on: ubuntu-latest
