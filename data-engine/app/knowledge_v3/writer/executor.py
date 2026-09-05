@@ -63,8 +63,19 @@ class AppliedOperation:
     operation_type: str
     idempotency_key: str
     kind: str  # NODE | RELATIONSHIP | PROPERTIES
+    #: Lo que devolvio la escritura. Para nodos y aserciones es el identificador
+    #: DURABLE (`entity_id`/`assertion_id`); para una relacion es el `elementId`
+    #: de Neo4j, que NO es identidad durable: se regenera al restaurar un dump.
+    #: Por eso el rollback de relaciones no lo usa (ver `predicate`/`object_id`).
     created_id: Optional[str] = None
     target_id: Optional[str] = None
+    #: Identidad de dominio de una relacion escrita: sujeto (`target_id`),
+    #: predicado y objeto, mas el ambito. Con esto la relacion se vuelve a
+    #: localizar en cualquier base restaurada.
+    subject_id: Optional[str] = None
+    predicate: Optional[str] = None
+    object_id: Optional[str] = None
+    partida_id: Optional[str] = None
     previous_state: Optional[dict[str, Any]] = None
     changed_props: dict[str, Any] = field(default_factory=dict)
     #: M4 (rework): marcas de revision de ESTA operacion. No son rechazos: la
@@ -81,6 +92,10 @@ class AppliedOperation:
             "kind": self.kind,
             "created_id": self.created_id,
             "target_id": self.target_id,
+            "subject_id": self.subject_id,
+            "predicate": self.predicate,
+            "object_id": self.object_id,
+            "partida_id": self.partida_id,
             "previous_state": self.previous_state,
             "changed_props": dict(self.changed_props),
             "review_marks": [dict(m) for m in self.review_marks],
@@ -543,6 +558,10 @@ def execute_operation(
             kind="RELATIONSHIP",
             created_id=_field(record, "id"),
             target_id=target,
+            subject_id=subject,
+            predicate=predicate,
+            object_id=obj,
+            partida_id=partida_id,
             previous_state=previous,
         )
 

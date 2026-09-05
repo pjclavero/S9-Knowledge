@@ -18,6 +18,7 @@ import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
@@ -77,10 +78,17 @@ def _run(cmd: list[str], *, check: bool = True) -> subprocess.CompletedProcess:
         raise RuntimeError(f"ejecutable no disponible: {cmd[0]}") from exc
 
 
-@pytest.fixture(scope="session")
-def neo4j_driver():
+@contextmanager
+def neo4j_efimero(prefijo: str = "s9k-v3-writer-test"):
+    """Levanta y destruye un Neo4j propio. UN solo mecanismo de arranque.
+
+    Lo usan la fixture de sesion y cualquier prueba que necesite una SEGUNDA
+    base -- por ejemplo la que comprueba que un documento de rollback sigue
+    siendo ejecutable cuando los `elementId` ya no son los mismos, porque el
+    `elementId` lleva dentro el UUID de la base.
+    """
     image = os.environ.get("S9K_WRITER_NEO4J_IMAGE", "neo4j:5.26-community")
-    name = "s9k-v3-writer-test-" + uuid.uuid4().hex[:12]
+    name = prefijo + "-" + uuid.uuid4().hex[:12]
     port = _free_port()
     password = "s9k-writer-real-" + uuid.uuid4().hex[:12]
 
@@ -114,7 +122,7 @@ def neo4j_driver():
 
     uri = f"bolt://127.0.0.1:{port}"
     driver = neo4j.GraphDatabase.driver(uri, auth=("neo4j", password))
-    deadline = time.monotonic() + 120
+    deadline = time.monotonic() + 180
     try:
         while True:
             try:
@@ -129,6 +137,12 @@ def neo4j_driver():
     finally:
         driver.close()
         _run(["docker", "rm", "-f", name], check=False)
+
+
+@pytest.fixture(scope="session")
+def neo4j_driver():
+    with neo4j_efimero() as driver:
+        yield driver
 
 
 @dataclass
@@ -892,3 +906,91 @@ def test_m3_create_entity_de_partida_estampa_partida_id_real(graph: GraphProbe):
     props = graph.node("V3Entity", "entity_id", "entity:m3-partida")
     assert props is not None
     assert props["partida_id"] == "partida:brumal-01"
+
+
+# ==========================================================================
+# Rollback con identidad durable (TANDA 2 / EQUIPO 2)
+# ==========================================================================
+def test_el_rollback_de_relacion_sobrevive_al_cambio_de_element_id(graph: GraphProbe):
+    """El `elementId` se regenera al restaurar; la instruccion tiene que aguantar.
+
+    Se aplica un plan en la base de sesion, se vuelca el grafo por sus
+    PROPIEDADES (nunca por `elementId`) y se resiembra en OTRA base efimera:
+    el `elementId` lleva el UUID de la base, asi que ahi es donde de verdad
+    cambia -- dentro de la misma base los identificadores se reutilizan y la
+    comparacion no mediria nada. El documento de rollback guardado antes tiene
+    que seguir localizando la relacion correcta y no tocar a su vecina.
+    """
+    from knowledge_v3.writer.rollback import RollbackInstruction, rollback_query
+
+    graph.seed_entity("entity:origen", version=1, state_hash=HASH_A["value"])
+    graph.seed_entity("entity:destino", version=1, state_hash=HASH_B["value"])
+    plan = make_plan([link_existing("op:0001", "entity:origen", "entity:destino")])
+
+    result = writer(graph.driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_APPLIED, result.codes
+    doc = result.rollback.to_dict()
+    instruccion = next(
+        i for i in doc["instructions"] if i["action"] == "DELETE_RELATIONSHIP"
+    )
+
+    # Vecina: mismos extremos y mismo predicado, otra operacion. Es la que el
+    # rollback NO puede tocar.
+    vecina = "idem:sha256:" + "f" * 64
+    graph.run(
+        "MATCH (a:V3Entity {entity_id:'entity:origen', workspace:$ws}) "
+        "MATCH (b:V3Entity {entity_id:'entity:destino', workspace:$ws}) "
+        "CREATE (a)-[:MEMBER_OF {workspace:$ws, idempotency_key:$k}]->(b)",
+        {"ws": WORKSPACE, "k": vecina},
+    )
+    viejos = {f["eid"] for f in graph.run("MATCH ()-[r]->() RETURN elementId(r) AS eid")}
+    assert len(viejos) == 2, "el conjunto medido no puede estar vacio"
+    assert instruccion["detail"]["element_id_at_write"] in viejos
+
+    nodos = graph.run("MATCH (n) RETURN labels(n) AS labels, properties(n) AS props")
+    rels = graph.run(
+        "MATCH (a)-[r]->(b) RETURN type(r) AS tipo, properties(r) AS props, "
+        "a.entity_id AS desde, b.entity_id AS hasta"
+    )
+
+    with neo4j_efimero("s9k-v3-writer-restore") as otro:
+        destino = GraphProbe(otro)
+        destino.clean()
+        for nodo in nodos:
+            destino.run(
+                "CREATE (n:%s) SET n = $props" % ":".join(nodo["labels"]),
+                {"props": nodo["props"]},
+            )
+        for rel in rels:
+            destino.run(
+                "MATCH (a {entity_id: $desde}) MATCH (b {entity_id: $hasta}) "
+                "CREATE (a)-[r:%s]->(b) SET r = $props" % rel["tipo"],
+                {"desde": rel["desde"], "hasta": rel["hasta"], "props": rel["props"]},
+            )
+        nuevos = {
+            f["eid"] for f in destino.run("MATCH ()-[r]->() RETURN elementId(r) AS eid")
+        }
+        assert len(nuevos) == 2 and not (nuevos & viejos), \
+            "los elementId no cambiaron: la prueba no mediria nada"
+        assert destino.run(
+            "MATCH ()-[r]->() WHERE elementId(r) = $eid RETURN count(*) AS c",
+            {"eid": instruccion["detail"]["element_id_at_write"]},
+        )[0]["c"] == 0
+
+        query = rollback_query(
+            RollbackInstruction(
+                operation_id=instruccion["operation_id"],
+                action=instruccion["action"],
+                target_id=instruccion["target_id"],
+                detail=instruccion["detail"],
+            )
+        )
+        assert "elementId" not in query.cypher
+        borradas = destino.run(query.cypher, query.params)
+        assert borradas and borradas[0]["borradas"] == 1
+
+        quedan = destino.run(
+            "MATCH ()-[r]->() RETURN r.idempotency_key AS idem ORDER BY idem"
+        )
+        assert [f["idem"] for f in quedan] == [vecina], "borro de mas o de menos"
+        assert destino.run("MATCH (n:V3Entity) RETURN count(n) AS c")[0]["c"] == 2

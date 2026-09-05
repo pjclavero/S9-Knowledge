@@ -49,7 +49,14 @@ from .gate import (
 from .gate import evaluate as evaluate_gate
 from .idempotency import AppliedKeyStore, InMemoryAppliedKeys, JsonlAppliedKeys
 from .reads import VisibleAssertion, list_visible_assertions
-from .rollback import RollbackDocument, RollbackInstruction, build_rollback
+from .rollback import (
+    RollbackDocument,
+    RollbackInstruction,
+    RollbackNotReconstructible,
+    RollbackQuery,
+    build_rollback,
+    rollback_query,
+)
 from .schema import (
     APPLIED_OPERATION_CONSTRAINT,
     APPLIED_OPERATION_CONSTRAINT_CYPHER,
@@ -125,6 +132,9 @@ __all__ = [
     # rollback
     "RollbackDocument",
     "RollbackInstruction",
+    "RollbackQuery",
+    "RollbackNotReconstructible",
+    "rollback_query",
     "build_rollback",
     # errores
     "Rejection",
