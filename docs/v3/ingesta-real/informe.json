@@ -1,0 +1,3922 @@
+{
+  "abstentions": [
+    {
+      "abstained": true,
+      "alternatives": [],
+      "claim_id": "claim:extract.deterministic:a74e1f4095d12c46",
+      "confidence": 0.0,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [],
+      "episode_id": "ep-e561281a791bcf14a75fb4fbf2ad8856",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "UNKNOWN",
+      "evidence_fragment_ids": [
+        "ef-d6fdfb05879f7b13c8b910d49c15cdd4"
+      ],
+      "metadata": {
+        "abstention_reasons": [
+          "COORDINATED_OBJECT"
+        ],
+        "rule_predicate": "MEMBER_OF"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:extract.deterministic:3ce43b3607ff715b"
+      ],
+      "predicate_candidates": [],
+      "produced_by_step": "extract.deterministic",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.extraction.deterministic",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates",
+            "direction_candidates"
+          ],
+          "provider": "local",
+          "step": "extract.deterministic",
+          "version": "3.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "es miembro de",
+      "review_required": true,
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "subject_mentions": [
+        "mention:extract.deterministic:2fd8d6debbdbeb0d"
+      ],
+      "temporal_expressions": [],
+      "workspace": "ws-cofradia"
+    },
+    {
+      "abstained": true,
+      "alternatives": [],
+      "claim_id": "claim:extract.deterministic:88d2610a027d8b41",
+      "confidence": 0.0,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [],
+      "episode_id": "ep-e561281a791bcf14a75fb4fbf2ad8856",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "UNKNOWN",
+      "evidence_fragment_ids": [
+        "ef-d6fdfb05879f7b13c8b910d49c15cdd4"
+      ],
+      "metadata": {
+        "abstention_reasons": [
+          "COORDINATED_SUBJECT",
+          "MULTIPLE_SUBJECT_CANDIDATES",
+          "TYPE_INCOMPATIBLE_WITH_PROFILE"
+        ],
+        "rule_predicate": "LIVES_IN"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:extract.deterministic:7085d008f11b69fe"
+      ],
+      "predicate_candidates": [],
+      "produced_by_step": "extract.deterministic",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.extraction.deterministic",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates",
+            "direction_candidates"
+          ],
+          "provider": "local",
+          "step": "extract.deterministic",
+          "version": "3.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "vive en",
+      "review_required": true,
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "subject_mentions": [
+        "mention:extract.deterministic:3ce43b3607ff715b"
+      ],
+      "temporal_expressions": [],
+      "workspace": "ws-cofradia"
+    }
+  ],
+  "assertions": [
+    {
+      "assertion_id": "assertion:b4b9a50837526e362e53dc9bced236a1",
+      "collection_id": "collection:ws-cofradia",
+      "confidence": 0.7,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "UNDIRECTED",
+      "engine_version": "3.0.0-engine.1",
+      "episode_ids": [
+        "ep-35a91c10f843f2c81f6065c1cea9d71d"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "ef-dcac9508aeb6d063682cc7b47009735a"
+      ],
+      "game_profile": "generic",
+      "negated": false,
+      "object_entity_id": "entity:casa-ciervo",
+      "ontology_version": "core-1.4.0",
+      "predicate": "ALLY_OF",
+      "produced_by_step": "engine.decide",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.extraction.deterministic",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates",
+            "direction_candidates"
+          ],
+          "provider": "local",
+          "step": "extract.deterministic",
+          "version": "3.0.0"
+        },
+        {
+          "model": null,
+          "name": "s9k.engine.local",
+          "produced": [
+            "predicate",
+            "direction",
+            "state",
+            "status"
+          ],
+          "provider": "local",
+          "step": "engine.decide",
+          "version": "3.0.0-engine.1"
+        }
+      ],
+      "recorded_at": "2026-09-05T10:00:00Z",
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "state": "UNKNOWN",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:cofradia-ambar",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "ws-cofradia"
+    }
+  ],
+  "asset": {
+    "asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+    "byte_size": 349,
+    "collection_id": "collection:ws-cofradia",
+    "content_hash": {
+      "algorithm": "sha256",
+      "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+    },
+    "contract_id": "source-asset/v3-internal-v1",
+    "contract_version": "1.0.0",
+    "copyright_class": "UNKNOWN",
+    "created_at": "2026-09-05T10:00:00Z",
+    "game_profile": "generic",
+    "ingested_at": "2026-09-05T10:00:00Z",
+    "language_hint": null,
+    "mime_type": "text/markdown",
+    "original_location": "file:///home/ia02/S9-Knowledge/.claude/worktrees/agent-af9a655cf842e27f8/examples/ingesta-v3/nota-cofradia-de-ambar.md",
+    "original_name": "nota-cofradia-de-ambar.md",
+    "privacy_class": "INTERNAL",
+    "processing_policy": {
+      "allow_external_providers": false,
+      "allow_media_persistence": false,
+      "retention_days": null
+    },
+    "produced_by_step": "ingest",
+    "provider_trace": [
+      {
+        "model": null,
+        "name": "knowledge_v3.multimodal.normalizer",
+        "produced": [
+          "content_hash",
+          "byte_size",
+          "mime_type",
+          "source_kind"
+        ],
+        "provider": "local",
+        "step": "ingest",
+        "version": "1.0.0"
+      }
+    ],
+    "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+    "source_hash": {
+      "algorithm": "sha256",
+      "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+    },
+    "source_kind": "MARKDOWN",
+    "workspace": "ws-cofradia"
+  },
+  "candidates": {
+    "create_entity": [
+      {
+        "action": "CREATE_NEW",
+        "assigned_entity_id": "entity:new:b6dd95be9b1c6580",
+        "candidate_entity_ids": [],
+        "confidence": 0.9,
+        "entity_type": "Character",
+        "mention_ids": [
+          "mention:extract.deterministic:b6fbc9c0ac27d2ad"
+        ],
+        "reason_codes": [
+          "NO_CANDIDATE",
+          "DERIVED_ID"
+        ],
+        "resolution_id": "resolution:43e5617ed53c9380",
+        "selected_entity_id": null
+      }
+    ],
+    "link_existing": [
+      {
+        "action": "LINK_EXISTING",
+        "assigned_entity_id": null,
+        "candidate_entity_ids": [
+          "entity:sela-marrec"
+        ],
+        "confidence": 1.0,
+        "entity_type": "Character",
+        "mention_ids": [
+          "mention:extract.deterministic:188635668a576b55"
+        ],
+        "reason_codes": [
+          "STRONG_MATCH",
+          "EXACT_NAME",
+          "SURFACE_SIMILARITY",
+          "TYPE_COMPATIBLE"
+        ],
+        "resolution_id": "resolution:a8e045a6b3434913",
+        "selected_entity_id": "entity:sela-marrec"
+      },
+      {
+        "action": "LINK_EXISTING",
+        "assigned_entity_id": null,
+        "candidate_entity_ids": [
+          "entity:sela-marrec"
+        ],
+        "confidence": 1.0,
+        "entity_type": "Character",
+        "mention_ids": [
+          "mention:extract.deterministic:2fd8d6debbdbeb0d"
+        ],
+        "reason_codes": [
+          "STRONG_MATCH",
+          "EXACT_NAME",
+          "HISTORY_SESSION",
+          "SURFACE_SIMILARITY",
+          "TYPE_COMPATIBLE"
+        ],
+        "resolution_id": "resolution:9bae8dcc4552d198",
+        "selected_entity_id": "entity:sela-marrec"
+      },
+      {
+        "action": "LINK_EXISTING",
+        "assigned_entity_id": null,
+        "candidate_entity_ids": [
+          "entity:consejo-umbra"
+        ],
+        "confidence": 1.0,
+        "entity_type": "Faction",
+        "mention_ids": [
+          "mention:extract.deterministic:370f74bcf742491c"
+        ],
+        "reason_codes": [
+          "STRONG_MATCH",
+          "EXACT_NAME",
+          "SURFACE_SIMILARITY",
+          "TYPE_COMPATIBLE"
+        ],
+        "resolution_id": "resolution:72334b1c8f2c04a3",
+        "selected_entity_id": "entity:consejo-umbra"
+      },
+      {
+        "action": "LINK_EXISTING",
+        "assigned_entity_id": null,
+        "candidate_entity_ids": [
+          "entity:cofradia-ambar"
+        ],
+        "confidence": 1.0,
+        "entity_type": "Faction",
+        "mention_ids": [
+          "mention:extract.deterministic:3ce43b3607ff715b"
+        ],
+        "reason_codes": [
+          "STRONG_MATCH",
+          "EXACT_NAME",
+          "SURFACE_SIMILARITY",
+          "TYPE_COMPATIBLE"
+        ],
+        "resolution_id": "resolution:73bef16ed5135f39",
+        "selected_entity_id": "entity:cofradia-ambar"
+      },
+      {
+        "action": "LINK_EXISTING",
+        "assigned_entity_id": null,
+        "candidate_entity_ids": [
+          "entity:cofradia-ambar"
+        ],
+        "confidence": 1.0,
+        "entity_type": "Faction",
+        "mention_ids": [
+          "mention:extract.deterministic:452c2289a148da59"
+        ],
+        "reason_codes": [
+          "STRONG_MATCH",
+          "EXACT_NAME",
+          "HISTORY_SESSION",
+          "SURFACE_SIMILARITY",
+          "TYPE_COMPATIBLE"
+        ],
+        "resolution_id": "resolution:bc28abf80c2d2903",
+        "selected_entity_id": "entity:cofradia-ambar"
+      },
+      {
+        "action": "LINK_EXISTING",
+        "assigned_entity_id": null,
+        "candidate_entity_ids": [
+          "entity:cofradia-ambar"
+        ],
+        "confidence": 1.0,
+        "entity_type": "Faction",
+        "mention_ids": [
+          "mention:extract.deterministic:46fff6878efeb241"
+        ],
+        "reason_codes": [
+          "STRONG_MATCH",
+          "EXACT_NAME",
+          "HISTORY_SESSION",
+          "SURFACE_SIMILARITY",
+          "TYPE_COMPATIBLE"
+        ],
+        "resolution_id": "resolution:54f91ca603de7acb",
+        "selected_entity_id": "entity:cofradia-ambar"
+      },
+      {
+        "action": "LINK_EXISTING",
+        "assigned_entity_id": null,
+        "candidate_entity_ids": [
+          "entity:vado-alto"
+        ],
+        "confidence": 1.0,
+        "entity_type": "Location",
+        "mention_ids": [
+          "mention:extract.deterministic:7085d008f11b69fe"
+        ],
+        "reason_codes": [
+          "STRONG_MATCH",
+          "EXACT_NAME",
+          "SURFACE_SIMILARITY",
+          "TYPE_COMPATIBLE"
+        ],
+        "resolution_id": "resolution:a4fd0ea3dac7cda3",
+        "selected_entity_id": "entity:vado-alto"
+      },
+      {
+        "action": "LINK_EXISTING",
+        "assigned_entity_id": null,
+        "candidate_entity_ids": [
+          "entity:cofradia-ambar"
+        ],
+        "confidence": 1.0,
+        "entity_type": "Faction",
+        "mention_ids": [
+          "mention:extract.deterministic:aef08a46c08a7164"
+        ],
+        "reason_codes": [
+          "STRONG_MATCH",
+          "EXACT_NAME",
+          "HISTORY_SESSION",
+          "SURFACE_SIMILARITY",
+          "TYPE_COMPATIBLE"
+        ],
+        "resolution_id": "resolution:a6ba8779313aeaf8",
+        "selected_entity_id": "entity:cofradia-ambar"
+      },
+      {
+        "action": "LINK_EXISTING",
+        "assigned_entity_id": null,
+        "candidate_entity_ids": [
+          "entity:casa-ciervo"
+        ],
+        "confidence": 1.0,
+        "entity_type": "Faction",
+        "mention_ids": [
+          "mention:extract.deterministic:bc6211e9d6fb8654"
+        ],
+        "reason_codes": [
+          "STRONG_MATCH",
+          "EXACT_NAME",
+          "SURFACE_SIMILARITY",
+          "TYPE_COMPATIBLE"
+        ],
+        "resolution_id": "resolution:5ff358053042a7c0",
+        "selected_entity_id": "entity:casa-ciervo"
+      }
+    ],
+    "review_identity": []
+  },
+  "carencias": [
+    {
+      "code": "PLAN_REVISION_SIN_OPERACIONES",
+      "detail": "4 decisiones en REVIEW/ABSTAIN pero el plan de revision no lleva ninguna operacion de mutacion: el planner solo materializa las ACCEPT. Lo que el carril D tiene que consumir es `decisions`, no `review_plan.mutation_operations`"
+    },
+    {
+      "code": "SIN_ESCRITURA",
+      "detail": "dry-run: no se abrio ningun driver y no se toco Neo4j. Escribir es del carril C, contra un grafo efimero y con el gate del writer"
+    }
+  ],
+  "claims": [
+    {
+      "abstained": true,
+      "alternatives": [],
+      "claim_id": "claim:extract.deterministic:a74e1f4095d12c46",
+      "confidence": 0.0,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [],
+      "episode_id": "ep-e561281a791bcf14a75fb4fbf2ad8856",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "UNKNOWN",
+      "evidence_fragment_ids": [
+        "ef-d6fdfb05879f7b13c8b910d49c15cdd4"
+      ],
+      "metadata": {
+        "abstention_reasons": [
+          "COORDINATED_OBJECT"
+        ],
+        "rule_predicate": "MEMBER_OF"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:extract.deterministic:3ce43b3607ff715b"
+      ],
+      "predicate_candidates": [],
+      "produced_by_step": "extract.deterministic",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.extraction.deterministic",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates",
+            "direction_candidates"
+          ],
+          "provider": "local",
+          "step": "extract.deterministic",
+          "version": "3.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "es miembro de",
+      "review_required": true,
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "subject_mentions": [
+        "mention:extract.deterministic:2fd8d6debbdbeb0d"
+      ],
+      "temporal_expressions": [],
+      "workspace": "ws-cofradia"
+    },
+    {
+      "abstained": true,
+      "alternatives": [],
+      "claim_id": "claim:extract.deterministic:88d2610a027d8b41",
+      "confidence": 0.0,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [],
+      "episode_id": "ep-e561281a791bcf14a75fb4fbf2ad8856",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "UNKNOWN",
+      "evidence_fragment_ids": [
+        "ef-d6fdfb05879f7b13c8b910d49c15cdd4"
+      ],
+      "metadata": {
+        "abstention_reasons": [
+          "COORDINATED_SUBJECT",
+          "MULTIPLE_SUBJECT_CANDIDATES",
+          "TYPE_INCOMPATIBLE_WITH_PROFILE"
+        ],
+        "rule_predicate": "LIVES_IN"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:extract.deterministic:7085d008f11b69fe"
+      ],
+      "predicate_candidates": [],
+      "produced_by_step": "extract.deterministic",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.extraction.deterministic",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates",
+            "direction_candidates"
+          ],
+          "provider": "local",
+          "step": "extract.deterministic",
+          "version": "3.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "vive en",
+      "review_required": true,
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "subject_mentions": [
+        "mention:extract.deterministic:3ce43b3607ff715b"
+      ],
+      "temporal_expressions": [],
+      "workspace": "ws-cofradia"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:extract.deterministic:e3a51fcb3d1bfe0f",
+      "confidence": 0.72,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.72,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "ep-1dc2444539a37682a25d43ebc755c3d3",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "ef-7bd17977ce01366cee8f198967d47dd3"
+      ],
+      "metadata": {
+        "metadata_block_version": "1",
+        "quality_score": 1.0,
+        "rule_phrases": [
+          "lidera",
+          "es lider de",
+          "capitanea",
+          "comanda",
+          "dirige",
+          "deja de liderar",
+          "dejan de liderar",
+          "dejo de liderar",
+          "dejaron de liderar",
+          "dejaba de liderar",
+          "dejaban de liderar",
+          "dejara de liderar",
+          "dejaran de liderar",
+          "dejase de liderar",
+          "dejasen de liderar",
+          "ha dejado de liderar",
+          "han dejado de liderar",
+          "habia dejado de liderar",
+          "habian dejado de liderar",
+          "esta dejando de liderar",
+          "estan dejando de liderar",
+          "cesa de liderar",
+          "cesan de liderar",
+          "ceso de liderar",
+          "cesaron de liderar",
+          "cesaba de liderar",
+          "cesaban de liderar",
+          "ha cesado de liderar",
+          "han cesado de liderar",
+          "deja de dirigir",
+          "dejan de dirigir",
+          "dejo de dirigir",
+          "dejaron de dirigir",
+          "dejaba de dirigir",
+          "dejaban de dirigir",
+          "dejara de dirigir",
+          "dejaran de dirigir",
+          "dejase de dirigir",
+          "dejasen de dirigir",
+          "ha dejado de dirigir",
+          "han dejado de dirigir",
+          "habia dejado de dirigir",
+          "habian dejado de dirigir",
+          "esta dejando de dirigir",
+          "estan dejando de dirigir",
+          "cesa de dirigir",
+          "cesan de dirigir",
+          "ceso de dirigir",
+          "cesaron de dirigir",
+          "cesaba de dirigir",
+          "cesaban de dirigir",
+          "ha cesado de dirigir",
+          "han cesado de dirigir",
+          "deja de encabezar",
+          "dejan de encabezar",
+          "dejo de encabezar",
+          "dejaron de encabezar",
+          "dejaba de encabezar",
+          "dejaban de encabezar",
+          "dejara de encabezar",
+          "dejaran de encabezar",
+          "dejase de encabezar",
+          "dejasen de encabezar",
+          "ha dejado de encabezar",
+          "han dejado de encabezar",
+          "habia dejado de encabezar",
+          "habian dejado de encabezar",
+          "esta dejando de encabezar",
+          "estan dejando de encabezar",
+          "cesa de encabezar",
+          "cesan de encabezar",
+          "ceso de encabezar",
+          "cesaron de encabezar",
+          "cesaba de encabezar",
+          "cesaban de encabezar",
+          "ha cesado de encabezar",
+          "han cesado de encabezar",
+          "deja de presidir",
+          "dejan de presidir",
+          "dejo de presidir",
+          "dejaron de presidir",
+          "dejaba de presidir",
+          "dejaban de presidir",
+          "dejara de presidir",
+          "dejaran de presidir",
+          "dejase de presidir",
+          "dejasen de presidir",
+          "ha dejado de presidir",
+          "han dejado de presidir",
+          "habia dejado de presidir",
+          "habian dejado de presidir",
+          "esta dejando de presidir",
+          "estan dejando de presidir",
+          "cesa de presidir",
+          "cesan de presidir",
+          "ceso de presidir",
+          "cesaron de presidir",
+          "cesaba de presidir",
+          "cesaban de presidir",
+          "ha cesado de presidir",
+          "han cesado de presidir",
+          "deja de capitanear",
+          "dejan de capitanear",
+          "dejo de capitanear",
+          "dejaron de capitanear",
+          "dejaba de capitanear",
+          "dejaban de capitanear",
+          "dejara de capitanear",
+          "dejaran de capitanear",
+          "dejase de capitanear",
+          "dejasen de capitanear",
+          "ha dejado de capitanear",
+          "han dejado de capitanear",
+          "habia dejado de capitanear",
+          "habian dejado de capitanear",
+          "esta dejando de capitanear",
+          "estan dejando de capitanear",
+          "cesa de capitanear",
+          "cesan de capitanear",
+          "ceso de capitanear",
+          "cesaron de capitanear",
+          "cesaba de capitanear",
+          "cesaban de capitanear",
+          "ha cesado de capitanear",
+          "han cesado de capitanear",
+          "deja de comandar",
+          "dejan de comandar",
+          "dejo de comandar",
+          "dejaron de comandar",
+          "dejaba de comandar",
+          "dejaban de comandar",
+          "dejara de comandar",
+          "dejaran de comandar",
+          "dejase de comandar",
+          "dejasen de comandar",
+          "ha dejado de comandar",
+          "han dejado de comandar",
+          "habia dejado de comandar",
+          "habian dejado de comandar",
+          "esta dejando de comandar",
+          "estan dejando de comandar",
+          "cesa de comandar",
+          "cesan de comandar",
+          "ceso de comandar",
+          "cesaron de comandar",
+          "cesaba de comandar",
+          "cesaban de comandar",
+          "ha cesado de comandar",
+          "han cesado de comandar"
+        ]
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:extract.deterministic:452c2289a148da59"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.72,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "extract.deterministic",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.extraction.deterministic",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates",
+            "direction_candidates"
+          ],
+          "provider": "local",
+          "step": "extract.deterministic",
+          "version": "3.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "lidera",
+      "review_required": false,
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "subject_mentions": [
+        "mention:extract.deterministic:b6fbc9c0ac27d2ad"
+      ],
+      "temporal_expressions": [],
+      "workspace": "ws-cofradia"
+    },
+    {
+      "abstained": false,
+      "alternatives": [
+        {
+          "confidence": 0.63,
+          "direction": "UNDIRECTED",
+          "predicate": "ALLY_OF",
+          "reason_codes": [
+            "SYMMETRIC_PREDICATE"
+          ]
+        }
+      ],
+      "claim_id": "claim:extract.deterministic:83ab075abd667658",
+      "confidence": 0.7,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.7,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "ep-35a91c10f843f2c81f6065c1cea9d71d",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "ef-dcac9508aeb6d063682cc7b47009735a"
+      ],
+      "metadata": {
+        "metadata_block_version": "1",
+        "quality_score": 1.0,
+        "rule_phrases": [
+          "es aliado de",
+          "es aliada de",
+          "se alia con",
+          "es aliado del",
+          "es aliada del",
+          "sea aliada de",
+          "sea aliado de"
+        ]
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:extract.deterministic:bc6211e9d6fb8654"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.7,
+          "predicate": "ALLY_OF"
+        }
+      ],
+      "produced_by_step": "extract.deterministic",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.extraction.deterministic",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates",
+            "direction_candidates"
+          ],
+          "provider": "local",
+          "step": "extract.deterministic",
+          "version": "3.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "es aliada de",
+      "review_required": false,
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "subject_mentions": [
+        "mention:extract.deterministic:aef08a46c08a7164"
+      ],
+      "temporal_expressions": [],
+      "workspace": "ws-cofradia"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:extract.deterministic:fe992c855fc10191",
+      "confidence": 0.75,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.75,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "ep-3ddffc13da7acd7d19c44d3fc3ad6949",
+      "epistemic_cues": [
+        "no"
+      ],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "ef-2d98b0404929eee4d2405ffd115c23b1"
+      ],
+      "metadata": {
+        "metadata_block_version": "1",
+        "negation_kind": "SIMPLE",
+        "quality_score": 1.0,
+        "rule_phrases": [
+          "es miembro de",
+          "son miembros de",
+          "pertenece a",
+          "pertenecen a",
+          "milita en",
+          "forma parte de",
+          "forma parte del",
+          "pertenezca a",
+          "pertenezca al",
+          "pertenece al",
+          "pertenecia a",
+          "pertenecia al",
+          "pertenecio a",
+          "pertenecio al",
+          "deja de pertenecer a",
+          "dejan de pertenecer a",
+          "dejo de pertenecer a",
+          "dejaron de pertenecer a",
+          "dejaba de pertenecer a",
+          "dejaban de pertenecer a",
+          "dejara de pertenecer a",
+          "dejaran de pertenecer a",
+          "dejase de pertenecer a",
+          "dejasen de pertenecer a",
+          "ha dejado de pertenecer a",
+          "han dejado de pertenecer a",
+          "habia dejado de pertenecer a",
+          "habian dejado de pertenecer a",
+          "esta dejando de pertenecer a",
+          "estan dejando de pertenecer a",
+          "cesa de pertenecer a",
+          "cesan de pertenecer a",
+          "ceso de pertenecer a",
+          "cesaron de pertenecer a",
+          "cesaba de pertenecer a",
+          "cesaban de pertenecer a",
+          "ha cesado de pertenecer a",
+          "han cesado de pertenecer a",
+          "deja de pertenecer al",
+          "dejan de pertenecer al",
+          "dejo de pertenecer al",
+          "dejaron de pertenecer al",
+          "dejaba de pertenecer al",
+          "dejaban de pertenecer al",
+          "dejara de pertenecer al",
+          "dejaran de pertenecer al",
+          "dejase de pertenecer al",
+          "dejasen de pertenecer al",
+          "ha dejado de pertenecer al",
+          "han dejado de pertenecer al",
+          "habia dejado de pertenecer al",
+          "habian dejado de pertenecer al",
+          "esta dejando de pertenecer al",
+          "estan dejando de pertenecer al",
+          "cesa de pertenecer al",
+          "cesan de pertenecer al",
+          "ceso de pertenecer al",
+          "cesaron de pertenecer al",
+          "cesaba de pertenecer al",
+          "cesaban de pertenecer al",
+          "ha cesado de pertenecer al",
+          "han cesado de pertenecer al",
+          "haya abandonado",
+          "ceso en su condicion de miembro de"
+        ]
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:extract.deterministic:370f74bcf742491c"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.75,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "extract.deterministic",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.extraction.deterministic",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates",
+            "direction_candidates"
+          ],
+          "provider": "local",
+          "step": "extract.deterministic",
+          "version": "3.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "pertenece al",
+      "review_required": true,
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "subject_mentions": [
+        "mention:extract.deterministic:188635668a576b55"
+      ],
+      "temporal_expressions": [],
+      "workspace": "ws-cofradia"
+    }
+  ],
+  "contradictions": [],
+  "decisions": [
+    {
+      "claim_id": "claim:extract.deterministic:a74e1f4095d12c46",
+      "confidence": 0.0,
+      "conflicts": 0,
+      "decision": "ABSTAIN",
+      "direction": null,
+      "duplicate_in_batch": false,
+      "episode_id": "ep-e561281a791bcf14a75fb4fbf2ad8856",
+      "epistemic_status": "UNKNOWN",
+      "evidence_fragment_ids": [
+        "ef-d6fdfb05879f7b13c8b910d49c15cdd4"
+      ],
+      "findings": [
+        {
+          "axis": "EXISTENCE",
+          "canonical": "INSUFFICIENT_EVIDENCE",
+          "code": "CLAIM_ABSTAINED_UPSTREAM",
+          "severity": "ABSTAIN"
+        },
+        {
+          "axis": "EVIDENCE",
+          "canonical": null,
+          "code": "EVIDENCE_LITERAL_VERIFIED",
+          "severity": "INFO"
+        },
+        {
+          "axis": "EVIDENCE",
+          "canonical": "REVIEW_EVIDENCE",
+          "code": "EXTRACTOR_REQUESTED_REVIEW",
+          "severity": "REVIEW"
+        },
+        {
+          "axis": "PREDICATE",
+          "canonical": "AMBIGUOUS_SEMANTICS",
+          "code": "PREDICATE_ABSENT",
+          "severity": "ABSTAIN"
+        },
+        {
+          "axis": "EPISTEMIC",
+          "canonical": "AMBIGUOUS_SEMANTICS",
+          "code": "EPISTEMIC_UNKNOWN",
+          "severity": "ABSTAIN"
+        },
+        {
+          "axis": "TEMPORAL",
+          "canonical": null,
+          "code": "TEMPORAL_UNSPECIFIED",
+          "severity": "INFO"
+        }
+      ],
+      "negated": false,
+      "object_entity_id": null,
+      "predicate": null,
+      "reason_codes": [
+        "INSUFFICIENT_EVIDENCE",
+        "EVIDENCE_LITERAL_VERIFIED",
+        "REVIEW_EVIDENCE",
+        "AMBIGUOUS_SEMANTICS",
+        "AMBIGUOUS_SEMANTICS",
+        "TEMPORAL_UNSPECIFIED"
+      ],
+      "subject_entity_id": null
+    },
+    {
+      "claim_id": "claim:extract.deterministic:88d2610a027d8b41",
+      "confidence": 0.0,
+      "conflicts": 0,
+      "decision": "ABSTAIN",
+      "direction": null,
+      "duplicate_in_batch": false,
+      "episode_id": "ep-e561281a791bcf14a75fb4fbf2ad8856",
+      "epistemic_status": "UNKNOWN",
+      "evidence_fragment_ids": [
+        "ef-d6fdfb05879f7b13c8b910d49c15cdd4"
+      ],
+      "findings": [
+        {
+          "axis": "EXISTENCE",
+          "canonical": "INSUFFICIENT_EVIDENCE",
+          "code": "CLAIM_ABSTAINED_UPSTREAM",
+          "severity": "ABSTAIN"
+        },
+        {
+          "axis": "EVIDENCE",
+          "canonical": null,
+          "code": "EVIDENCE_LITERAL_VERIFIED",
+          "severity": "INFO"
+        },
+        {
+          "axis": "EVIDENCE",
+          "canonical": "REVIEW_EVIDENCE",
+          "code": "EXTRACTOR_REQUESTED_REVIEW",
+          "severity": "REVIEW"
+        },
+        {
+          "axis": "PREDICATE",
+          "canonical": "AMBIGUOUS_SEMANTICS",
+          "code": "PREDICATE_ABSENT",
+          "severity": "ABSTAIN"
+        },
+        {
+          "axis": "EPISTEMIC",
+          "canonical": "AMBIGUOUS_SEMANTICS",
+          "code": "EPISTEMIC_UNKNOWN",
+          "severity": "ABSTAIN"
+        },
+        {
+          "axis": "TEMPORAL",
+          "canonical": null,
+          "code": "TEMPORAL_UNSPECIFIED",
+          "severity": "INFO"
+        }
+      ],
+      "negated": false,
+      "object_entity_id": null,
+      "predicate": null,
+      "reason_codes": [
+        "INSUFFICIENT_EVIDENCE",
+        "EVIDENCE_LITERAL_VERIFIED",
+        "REVIEW_EVIDENCE",
+        "AMBIGUOUS_SEMANTICS",
+        "AMBIGUOUS_SEMANTICS",
+        "TEMPORAL_UNSPECIFIED"
+      ],
+      "subject_entity_id": null
+    },
+    {
+      "claim_id": "claim:extract.deterministic:e3a51fcb3d1bfe0f",
+      "confidence": 0.72,
+      "conflicts": 0,
+      "decision": "REVIEW",
+      "direction": "SUBJECT_TO_OBJECT",
+      "duplicate_in_batch": false,
+      "episode_id": "ep-1dc2444539a37682a25d43ebc755c3d3",
+      "epistemic_status": "ASSERTED",
+      "evidence_fragment_ids": [
+        "ef-7bd17977ce01366cee8f198967d47dd3"
+      ],
+      "findings": [
+        {
+          "axis": "EXISTENCE",
+          "canonical": "REVIEW_ENTITY",
+          "code": "ENTITY_RESOLUTION_DEFERRED",
+          "severity": "REVIEW"
+        },
+        {
+          "axis": "EVIDENCE",
+          "canonical": null,
+          "code": "EVIDENCE_LITERAL_VERIFIED",
+          "severity": "INFO"
+        },
+        {
+          "axis": "TEMPORAL",
+          "canonical": null,
+          "code": "TEMPORAL_UNSPECIFIED",
+          "severity": "INFO"
+        }
+      ],
+      "negated": false,
+      "object_entity_id": "entity:cofradia-ambar",
+      "predicate": "LEADS",
+      "reason_codes": [
+        "REVIEW_ENTITY",
+        "EVIDENCE_LITERAL_VERIFIED",
+        "TEMPORAL_UNSPECIFIED"
+      ],
+      "subject_entity_id": null
+    },
+    {
+      "claim_id": "claim:extract.deterministic:83ab075abd667658",
+      "confidence": 0.7,
+      "conflicts": 0,
+      "decision": "ACCEPT",
+      "direction": "UNDIRECTED",
+      "duplicate_in_batch": false,
+      "episode_id": "ep-35a91c10f843f2c81f6065c1cea9d71d",
+      "epistemic_status": "ASSERTED",
+      "evidence_fragment_ids": [
+        "ef-dcac9508aeb6d063682cc7b47009735a"
+      ],
+      "findings": [
+        {
+          "axis": "EVIDENCE",
+          "canonical": null,
+          "code": "EVIDENCE_LITERAL_VERIFIED",
+          "severity": "INFO"
+        },
+        {
+          "axis": "DIRECTION",
+          "canonical": null,
+          "code": "SYMMETRIC_PREDICATE",
+          "severity": "INFO"
+        },
+        {
+          "axis": "TEMPORAL",
+          "canonical": null,
+          "code": "TEMPORAL_UNSPECIFIED",
+          "severity": "INFO"
+        }
+      ],
+      "negated": false,
+      "object_entity_id": "entity:casa-ciervo",
+      "predicate": "ALLY_OF",
+      "reason_codes": [
+        "EVIDENCE_LITERAL_VERIFIED",
+        "SYMMETRIC_PREDICATE",
+        "TEMPORAL_UNSPECIFIED"
+      ],
+      "subject_entity_id": "entity:cofradia-ambar"
+    },
+    {
+      "claim_id": "claim:extract.deterministic:fe992c855fc10191",
+      "confidence": 0.75,
+      "conflicts": 0,
+      "decision": "REVIEW",
+      "direction": "SUBJECT_TO_OBJECT",
+      "duplicate_in_batch": false,
+      "episode_id": "ep-3ddffc13da7acd7d19c44d3fc3ad6949",
+      "epistemic_status": "ASSERTED",
+      "evidence_fragment_ids": [
+        "ef-2d98b0404929eee4d2405ffd115c23b1"
+      ],
+      "findings": [
+        {
+          "axis": "EVIDENCE",
+          "canonical": null,
+          "code": "EVIDENCE_LITERAL_VERIFIED",
+          "severity": "INFO"
+        },
+        {
+          "axis": "EVIDENCE",
+          "canonical": "REVIEW_EVIDENCE",
+          "code": "EXTRACTOR_REQUESTED_REVIEW",
+          "severity": "REVIEW"
+        },
+        {
+          "axis": "NEGATION",
+          "canonical": null,
+          "code": "NEGATED_CLAIM",
+          "severity": "WARN"
+        },
+        {
+          "axis": "TEMPORAL",
+          "canonical": null,
+          "code": "TEMPORAL_UNSPECIFIED",
+          "severity": "INFO"
+        }
+      ],
+      "negated": true,
+      "object_entity_id": "entity:consejo-umbra",
+      "predicate": "MEMBER_OF",
+      "reason_codes": [
+        "EVIDENCE_LITERAL_VERIFIED",
+        "REVIEW_EVIDENCE",
+        "NEGATED_CLAIM",
+        "TEMPORAL_UNSPECIFIED"
+      ],
+      "subject_entity_id": "entity:sela-marrec"
+    }
+  ],
+  "diagnostics": [],
+  "episodes": [
+    {
+      "asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "0df1efbf47779417ca305e6c8815765ed26e5752ee7b97eafab50cd8eb830d34"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "ep-cbc9027cc26ecb38c74b22672f2706c5",
+      "metadata": {
+        "heading_path": [
+          "Nota de sesion — La Cofradia de Ambar"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "ep-7f98a67a1e4f40d5fc20a062ce122ee4",
+      "page": null,
+      "previous_episode_id": null,
+      "produced_by_step": "extract",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.normalizer",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type",
+            "source_kind"
+          ],
+          "provider": "local",
+          "step": "ingest",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.adapters.markdown",
+          "produced": [
+            "episodes",
+            "text",
+            "table",
+            "evidence_fragments"
+          ],
+          "provider": "local",
+          "step": "extract",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 1.0
+      },
+      "sequence": 0,
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "# Nota de sesion — La Cofradia de Ambar",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "ws-cofradia"
+    },
+    {
+      "asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "ed831882f31e7474532615f647ed08861a73f4c8c68b59ecf27fc8fb4b5fb015"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "ep-7f98a67a1e4f40d5fc20a062ce122ee4",
+      "metadata": {
+        "heading_path": [
+          "Nota de sesion — La Cofradia de Ambar",
+          "Quien estaba en la mesa"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "ep-e561281a791bcf14a75fb4fbf2ad8856",
+      "page": null,
+      "previous_episode_id": "ep-cbc9027cc26ecb38c74b22672f2706c5",
+      "produced_by_step": "extract",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.normalizer",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type",
+            "source_kind"
+          ],
+          "provider": "local",
+          "step": "ingest",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.adapters.markdown",
+          "produced": [
+            "episodes",
+            "text",
+            "table",
+            "evidence_fragments"
+          ],
+          "provider": "local",
+          "step": "extract",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 1.0
+      },
+      "sequence": 1,
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "## Quien estaba en la mesa",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "ws-cofradia"
+    },
+    {
+      "asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "6508b8a9853b30611ba5abcf599ed1b669d50a883da0753950e2cccff9ff454c"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "ep-e561281a791bcf14a75fb4fbf2ad8856",
+      "metadata": {
+        "heading_path": [
+          "Nota de sesion — La Cofradia de Ambar",
+          "Quien estaba en la mesa"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "ep-1dc2444539a37682a25d43ebc755c3d3",
+      "page": null,
+      "previous_episode_id": "ep-7f98a67a1e4f40d5fc20a062ce122ee4",
+      "produced_by_step": "extract",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.normalizer",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type",
+            "source_kind"
+          ],
+          "provider": "local",
+          "step": "ingest",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.adapters.markdown",
+          "produced": [
+            "episodes",
+            "text",
+            "table",
+            "evidence_fragments"
+          ],
+          "provider": "local",
+          "step": "extract",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 1.0
+      },
+      "sequence": 2,
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "Sela Marrec es miembro de la Cofradia de Ambar y vive en Vado Alto.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "ws-cofradia"
+    },
+    {
+      "asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "38eff1735ca75baeb28a8c7a4bc8c24863cd0cbe4f5f6f44996701013ca2a4f7"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "ep-1dc2444539a37682a25d43ebc755c3d3",
+      "metadata": {
+        "heading_path": [
+          "Nota de sesion — La Cofradia de Ambar",
+          "Quien estaba en la mesa"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "ep-d60ef1cda9ec71cb1b5ef75c5f28867b",
+      "page": null,
+      "previous_episode_id": "ep-e561281a791bcf14a75fb4fbf2ad8856",
+      "produced_by_step": "extract",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.normalizer",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type",
+            "source_kind"
+          ],
+          "provider": "local",
+          "step": "ingest",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.adapters.markdown",
+          "produced": [
+            "episodes",
+            "text",
+            "table",
+            "evidence_fragments"
+          ],
+          "provider": "local",
+          "step": "extract",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 1.0
+      },
+      "sequence": 3,
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "Bren Halloway lidera la Cofradia de Ambar desde la tercera luna de la Era del Ciervo.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "ws-cofradia"
+    },
+    {
+      "asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "a8c0561e25c9c5424513a1d2f10c246d431614d5f7fa9100282099336826ec21"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "ep-d60ef1cda9ec71cb1b5ef75c5f28867b",
+      "metadata": {
+        "heading_path": [
+          "Nota de sesion — La Cofradia de Ambar",
+          "Lo que se acordo"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "ep-35a91c10f843f2c81f6065c1cea9d71d",
+      "page": null,
+      "previous_episode_id": "ep-1dc2444539a37682a25d43ebc755c3d3",
+      "produced_by_step": "extract",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.normalizer",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type",
+            "source_kind"
+          ],
+          "provider": "local",
+          "step": "ingest",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.adapters.markdown",
+          "produced": [
+            "episodes",
+            "text",
+            "table",
+            "evidence_fragments"
+          ],
+          "provider": "local",
+          "step": "extract",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "SHORT_TEXT"
+        ],
+        "score": 0.9
+      },
+      "sequence": 4,
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "## Lo que se acordo",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "ws-cofradia"
+    },
+    {
+      "asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "b1e79fe4216f1c23ea61b1aaf00261742535c5aadff489c3d3a90cc57df738f0"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "ep-35a91c10f843f2c81f6065c1cea9d71d",
+      "metadata": {
+        "heading_path": [
+          "Nota de sesion — La Cofradia de Ambar",
+          "Lo que se acordo"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "ep-3ddffc13da7acd7d19c44d3fc3ad6949",
+      "page": null,
+      "previous_episode_id": "ep-d60ef1cda9ec71cb1b5ef75c5f28867b",
+      "produced_by_step": "extract",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.normalizer",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type",
+            "source_kind"
+          ],
+          "provider": "local",
+          "step": "ingest",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.adapters.markdown",
+          "produced": [
+            "episodes",
+            "text",
+            "table",
+            "evidence_fragments"
+          ],
+          "provider": "local",
+          "step": "extract",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 1.0
+      },
+      "sequence": 5,
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "La Cofradia de Ambar es aliada de la Casa del Ciervo.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "ws-cofradia"
+    },
+    {
+      "asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "a3c4e59b86b0e8842a94acc58736a8af7954f405f5da6fd50b2fbecc072e9457"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "ep-3ddffc13da7acd7d19c44d3fc3ad6949",
+      "metadata": {
+        "heading_path": [
+          "Nota de sesion — La Cofradia de Ambar",
+          "Lo que se acordo"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": null,
+      "page": null,
+      "previous_episode_id": "ep-35a91c10f843f2c81f6065c1cea9d71d",
+      "produced_by_step": "extract",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.normalizer",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type",
+            "source_kind"
+          ],
+          "provider": "local",
+          "step": "ingest",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.adapters.markdown",
+          "produced": [
+            "episodes",
+            "text",
+            "table",
+            "evidence_fragments"
+          ],
+          "provider": "local",
+          "step": "extract",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 1.0
+      },
+      "sequence": 6,
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "Sela Marrec no pertenece al Consejo de Umbra.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "ws-cofradia"
+    }
+  ],
+  "evidence": [
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 39,
+      "episode_id": "ep-cbc9027cc26ecb38c74b22672f2706c5",
+      "fragment_id": "ef-ebffcfe91b028d2a131b9f21a138b3a6",
+      "frame_id": null,
+      "literal_text": "# Nota de sesion — La Cofradia de Ambar",
+      "media_type": "EMBEDDED_TEXT",
+      "normalized_text": "# Nota de sesion — La Cofradia de Ambar",
+      "page": null,
+      "produced_by_step": "extract",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.normalizer",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type",
+            "source_kind"
+          ],
+          "provider": "local",
+          "step": "ingest",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.adapters.markdown",
+          "produced": [
+            "episodes",
+            "text",
+            "table",
+            "evidence_fragments"
+          ],
+          "provider": "local",
+          "step": "extract",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.anchor",
+          "produced": [
+            "start",
+            "end",
+            "bbox",
+            "time_start",
+            "time_end",
+            "normalized_text"
+          ],
+          "provider": "local",
+          "step": "anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "ws-cofradia"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 26,
+      "episode_id": "ep-7f98a67a1e4f40d5fc20a062ce122ee4",
+      "fragment_id": "ef-5e77e4e52224529b7e273b063cba82f2",
+      "frame_id": null,
+      "literal_text": "## Quien estaba en la mesa",
+      "media_type": "EMBEDDED_TEXT",
+      "normalized_text": "## Quien estaba en la mesa",
+      "page": null,
+      "produced_by_step": "extract",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.normalizer",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type",
+            "source_kind"
+          ],
+          "provider": "local",
+          "step": "ingest",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.adapters.markdown",
+          "produced": [
+            "episodes",
+            "text",
+            "table",
+            "evidence_fragments"
+          ],
+          "provider": "local",
+          "step": "extract",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.anchor",
+          "produced": [
+            "start",
+            "end",
+            "bbox",
+            "time_start",
+            "time_end",
+            "normalized_text"
+          ],
+          "provider": "local",
+          "step": "anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "ws-cofradia"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 67,
+      "episode_id": "ep-e561281a791bcf14a75fb4fbf2ad8856",
+      "fragment_id": "ef-d6fdfb05879f7b13c8b910d49c15cdd4",
+      "frame_id": null,
+      "literal_text": "Sela Marrec es miembro de la Cofradia de Ambar y vive en Vado Alto.",
+      "media_type": "EMBEDDED_TEXT",
+      "normalized_text": "Sela Marrec es miembro de la Cofradia de Ambar y vive en Vado Alto.",
+      "page": null,
+      "produced_by_step": "extract",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.normalizer",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type",
+            "source_kind"
+          ],
+          "provider": "local",
+          "step": "ingest",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.adapters.markdown",
+          "produced": [
+            "episodes",
+            "text",
+            "table",
+            "evidence_fragments"
+          ],
+          "provider": "local",
+          "step": "extract",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.anchor",
+          "produced": [
+            "start",
+            "end",
+            "bbox",
+            "time_start",
+            "time_end",
+            "normalized_text"
+          ],
+          "provider": "local",
+          "step": "anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "ws-cofradia"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 85,
+      "episode_id": "ep-1dc2444539a37682a25d43ebc755c3d3",
+      "fragment_id": "ef-7bd17977ce01366cee8f198967d47dd3",
+      "frame_id": null,
+      "literal_text": "Bren Halloway lidera la Cofradia de Ambar desde la tercera luna de la Era del Ciervo.",
+      "media_type": "EMBEDDED_TEXT",
+      "normalized_text": "Bren Halloway lidera la Cofradia de Ambar desde la tercera luna de la Era del Ciervo.",
+      "page": null,
+      "produced_by_step": "extract",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.normalizer",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type",
+            "source_kind"
+          ],
+          "provider": "local",
+          "step": "ingest",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.adapters.markdown",
+          "produced": [
+            "episodes",
+            "text",
+            "table",
+            "evidence_fragments"
+          ],
+          "provider": "local",
+          "step": "extract",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.anchor",
+          "produced": [
+            "start",
+            "end",
+            "bbox",
+            "time_start",
+            "time_end",
+            "normalized_text"
+          ],
+          "provider": "local",
+          "step": "anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "ws-cofradia"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 19,
+      "episode_id": "ep-d60ef1cda9ec71cb1b5ef75c5f28867b",
+      "fragment_id": "ef-c96fa7e3bbf189f9cd1fd7f5a2db9e71",
+      "frame_id": null,
+      "literal_text": "## Lo que se acordo",
+      "media_type": "EMBEDDED_TEXT",
+      "normalized_text": "## Lo que se acordo",
+      "page": null,
+      "produced_by_step": "extract",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.normalizer",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type",
+            "source_kind"
+          ],
+          "provider": "local",
+          "step": "ingest",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.adapters.markdown",
+          "produced": [
+            "episodes",
+            "text",
+            "table",
+            "evidence_fragments"
+          ],
+          "provider": "local",
+          "step": "extract",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.anchor",
+          "produced": [
+            "start",
+            "end",
+            "bbox",
+            "time_start",
+            "time_end",
+            "normalized_text"
+          ],
+          "provider": "local",
+          "step": "anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "ws-cofradia"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 53,
+      "episode_id": "ep-35a91c10f843f2c81f6065c1cea9d71d",
+      "fragment_id": "ef-dcac9508aeb6d063682cc7b47009735a",
+      "frame_id": null,
+      "literal_text": "La Cofradia de Ambar es aliada de la Casa del Ciervo.",
+      "media_type": "EMBEDDED_TEXT",
+      "normalized_text": "La Cofradia de Ambar es aliada de la Casa del Ciervo.",
+      "page": null,
+      "produced_by_step": "extract",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.normalizer",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type",
+            "source_kind"
+          ],
+          "provider": "local",
+          "step": "ingest",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.adapters.markdown",
+          "produced": [
+            "episodes",
+            "text",
+            "table",
+            "evidence_fragments"
+          ],
+          "provider": "local",
+          "step": "extract",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.anchor",
+          "produced": [
+            "start",
+            "end",
+            "bbox",
+            "time_start",
+            "time_end",
+            "normalized_text"
+          ],
+          "provider": "local",
+          "step": "anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "ws-cofradia"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 45,
+      "episode_id": "ep-3ddffc13da7acd7d19c44d3fc3ad6949",
+      "fragment_id": "ef-2d98b0404929eee4d2405ffd115c23b1",
+      "frame_id": null,
+      "literal_text": "Sela Marrec no pertenece al Consejo de Umbra.",
+      "media_type": "EMBEDDED_TEXT",
+      "normalized_text": "Sela Marrec no pertenece al Consejo de Umbra.",
+      "page": null,
+      "produced_by_step": "extract",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.normalizer",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type",
+            "source_kind"
+          ],
+          "provider": "local",
+          "step": "ingest",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.adapters.markdown",
+          "produced": [
+            "episodes",
+            "text",
+            "table",
+            "evidence_fragments"
+          ],
+          "provider": "local",
+          "step": "extract",
+          "version": "1.0.0"
+        },
+        {
+          "model": null,
+          "name": "knowledge_v3.multimodal.anchor",
+          "produced": [
+            "start",
+            "end",
+            "bbox",
+            "time_start",
+            "time_end",
+            "normalized_text"
+          ],
+          "provider": "local",
+          "step": "anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "ws-cofradia"
+    }
+  ],
+  "mentions": [
+    {
+      "bbox": null,
+      "confidence": 0.9,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 39,
+      "episode_id": "ep-cbc9027cc26ecb38c74b22672f2706c5",
+      "evidence_fragment_ids": [
+        "ef-ebffcfe91b028d2a131b9f21a138b3a6"
+      ],
+      "mention_id": "mention:extract.deterministic:46fff6878efeb241",
+      "metadata": {
+        "alias_match": false,
+        "canonical_surface": "Cofradia de Ambar",
+        "match_origin": "catalog",
+        "offset_basis": "episode"
+      },
+      "normalized_surface": "cofradia de ambar",
+      "produced_by_step": "extract.deterministic",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.extraction.deterministic",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "extract.deterministic",
+          "version": "3.0.0"
+        }
+      ],
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "start": 22,
+      "surface": "Cofradia de Ambar",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.9,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "ws-cofradia"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.9,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 11,
+      "episode_id": "ep-e561281a791bcf14a75fb4fbf2ad8856",
+      "evidence_fragment_ids": [
+        "ef-d6fdfb05879f7b13c8b910d49c15cdd4"
+      ],
+      "mention_id": "mention:extract.deterministic:2fd8d6debbdbeb0d",
+      "metadata": {
+        "alias_match": false,
+        "canonical_surface": "Sela Marrec",
+        "match_origin": "catalog",
+        "offset_basis": "episode"
+      },
+      "normalized_surface": "sela marrec",
+      "produced_by_step": "extract.deterministic",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.extraction.deterministic",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "extract.deterministic",
+          "version": "3.0.0"
+        }
+      ],
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "start": 0,
+      "surface": "Sela Marrec",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.9,
+          "type": "Character"
+        }
+      ],
+      "workspace": "ws-cofradia"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.9,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 46,
+      "episode_id": "ep-e561281a791bcf14a75fb4fbf2ad8856",
+      "evidence_fragment_ids": [
+        "ef-d6fdfb05879f7b13c8b910d49c15cdd4"
+      ],
+      "mention_id": "mention:extract.deterministic:3ce43b3607ff715b",
+      "metadata": {
+        "alias_match": false,
+        "canonical_surface": "Cofradia de Ambar",
+        "match_origin": "catalog",
+        "offset_basis": "episode"
+      },
+      "normalized_surface": "cofradia de ambar",
+      "produced_by_step": "extract.deterministic",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.extraction.deterministic",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "extract.deterministic",
+          "version": "3.0.0"
+        }
+      ],
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "start": 29,
+      "surface": "Cofradia de Ambar",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.9,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "ws-cofradia"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.9,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 66,
+      "episode_id": "ep-e561281a791bcf14a75fb4fbf2ad8856",
+      "evidence_fragment_ids": [
+        "ef-d6fdfb05879f7b13c8b910d49c15cdd4"
+      ],
+      "mention_id": "mention:extract.deterministic:7085d008f11b69fe",
+      "metadata": {
+        "alias_match": false,
+        "canonical_surface": "Vado Alto",
+        "match_origin": "catalog",
+        "offset_basis": "episode"
+      },
+      "normalized_surface": "vado alto",
+      "produced_by_step": "extract.deterministic",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.extraction.deterministic",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "extract.deterministic",
+          "version": "3.0.0"
+        }
+      ],
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "start": 57,
+      "surface": "Vado Alto",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.9,
+          "type": "Location"
+        }
+      ],
+      "workspace": "ws-cofradia"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.9,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 13,
+      "episode_id": "ep-1dc2444539a37682a25d43ebc755c3d3",
+      "evidence_fragment_ids": [
+        "ef-7bd17977ce01366cee8f198967d47dd3"
+      ],
+      "mention_id": "mention:extract.deterministic:b6fbc9c0ac27d2ad",
+      "metadata": {
+        "alias_match": false,
+        "canonical_surface": "Bren Halloway",
+        "match_origin": "catalog",
+        "offset_basis": "episode"
+      },
+      "normalized_surface": "bren halloway",
+      "produced_by_step": "extract.deterministic",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.extraction.deterministic",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "extract.deterministic",
+          "version": "3.0.0"
+        }
+      ],
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "start": 0,
+      "surface": "Bren Halloway",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.9,
+          "type": "Character"
+        }
+      ],
+      "workspace": "ws-cofradia"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.9,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 41,
+      "episode_id": "ep-1dc2444539a37682a25d43ebc755c3d3",
+      "evidence_fragment_ids": [
+        "ef-7bd17977ce01366cee8f198967d47dd3"
+      ],
+      "mention_id": "mention:extract.deterministic:452c2289a148da59",
+      "metadata": {
+        "alias_match": false,
+        "canonical_surface": "Cofradia de Ambar",
+        "match_origin": "catalog",
+        "offset_basis": "episode"
+      },
+      "normalized_surface": "cofradia de ambar",
+      "produced_by_step": "extract.deterministic",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.extraction.deterministic",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "extract.deterministic",
+          "version": "3.0.0"
+        }
+      ],
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "start": 24,
+      "surface": "Cofradia de Ambar",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.9,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "ws-cofradia"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.9,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 20,
+      "episode_id": "ep-35a91c10f843f2c81f6065c1cea9d71d",
+      "evidence_fragment_ids": [
+        "ef-dcac9508aeb6d063682cc7b47009735a"
+      ],
+      "mention_id": "mention:extract.deterministic:aef08a46c08a7164",
+      "metadata": {
+        "alias_match": false,
+        "canonical_surface": "Cofradia de Ambar",
+        "match_origin": "catalog",
+        "offset_basis": "episode"
+      },
+      "normalized_surface": "cofradia de ambar",
+      "produced_by_step": "extract.deterministic",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.extraction.deterministic",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "extract.deterministic",
+          "version": "3.0.0"
+        }
+      ],
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "start": 3,
+      "surface": "Cofradia de Ambar",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.9,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "ws-cofradia"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.9,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 52,
+      "episode_id": "ep-35a91c10f843f2c81f6065c1cea9d71d",
+      "evidence_fragment_ids": [
+        "ef-dcac9508aeb6d063682cc7b47009735a"
+      ],
+      "mention_id": "mention:extract.deterministic:bc6211e9d6fb8654",
+      "metadata": {
+        "alias_match": false,
+        "canonical_surface": "Casa del Ciervo",
+        "match_origin": "catalog",
+        "offset_basis": "episode"
+      },
+      "normalized_surface": "casa del ciervo",
+      "produced_by_step": "extract.deterministic",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.extraction.deterministic",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "extract.deterministic",
+          "version": "3.0.0"
+        }
+      ],
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "start": 37,
+      "surface": "Casa del Ciervo",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.9,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "ws-cofradia"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.9,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 11,
+      "episode_id": "ep-3ddffc13da7acd7d19c44d3fc3ad6949",
+      "evidence_fragment_ids": [
+        "ef-2d98b0404929eee4d2405ffd115c23b1"
+      ],
+      "mention_id": "mention:extract.deterministic:188635668a576b55",
+      "metadata": {
+        "alias_match": false,
+        "canonical_surface": "Sela Marrec",
+        "match_origin": "catalog",
+        "offset_basis": "episode"
+      },
+      "normalized_surface": "sela marrec",
+      "produced_by_step": "extract.deterministic",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.extraction.deterministic",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "extract.deterministic",
+          "version": "3.0.0"
+        }
+      ],
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "start": 0,
+      "surface": "Sela Marrec",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.9,
+          "type": "Character"
+        }
+      ],
+      "workspace": "ws-cofradia"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.9,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 44,
+      "episode_id": "ep-3ddffc13da7acd7d19c44d3fc3ad6949",
+      "evidence_fragment_ids": [
+        "ef-2d98b0404929eee4d2405ffd115c23b1"
+      ],
+      "mention_id": "mention:extract.deterministic:370f74bcf742491c",
+      "metadata": {
+        "alias_match": false,
+        "canonical_surface": "Consejo de Umbra",
+        "match_origin": "catalog",
+        "offset_basis": "episode"
+      },
+      "normalized_surface": "consejo de umbra",
+      "produced_by_step": "extract.deterministic",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.extraction.deterministic",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "extract.deterministic",
+          "version": "3.0.0"
+        }
+      ],
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "start": 28,
+      "surface": "Consejo de Umbra",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.9,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "ws-cofradia"
+    }
+  ],
+  "normalization_report": {
+    "adapter": "knowledge_v3.multimodal.adapters.markdown",
+    "adapter_implementation": "real",
+    "adapter_version": "1.0.0",
+    "byte_size": 349,
+    "episode_count": 7,
+    "fragment_count": 7,
+    "markdown_table_episodes": 0,
+    "markdown_text_episodes": 7,
+    "media_types": [
+      "EMBEDDED_TEXT"
+    ],
+    "mime_type": "text/markdown",
+    "modalities": [
+      "TEXT"
+    ],
+    "normalizer_version": "1.0.0",
+    "pending_provider_episodes": 0,
+    "source_kind": "MARKDOWN"
+  },
+  "plan": {
+    "collection_id": "collection:ws-cofradia",
+    "contract_id": "graph-mutation-plan/v3-internal-v1",
+    "contract_version": "1.0.0",
+    "created_at": "2026-09-05T10:00:00Z",
+    "decisions": [
+      {
+        "claim_id": "claim:extract.deterministic:a74e1f4095d12c46",
+        "confidence": 0.0,
+        "decision": "ABSTAIN",
+        "decision_id": "decision:claim:extract.deterministic:a74e1f4095d12c46",
+        "direction": null,
+        "epistemic_status": "UNKNOWN",
+        "evidence_fragment_ids": [
+          "ef-d6fdfb05879f7b13c8b910d49c15cdd4"
+        ],
+        "negated": false,
+        "object_entity_id": null,
+        "predicate": null,
+        "reason_codes": [
+          "AMBIGUOUS_SEMANTICS",
+          "CLAIM_ABSTAINED_UPSTREAM",
+          "EPISTEMIC_UNKNOWN",
+          "EVIDENCE_LITERAL_VERIFIED",
+          "EXTRACTOR_REQUESTED_REVIEW",
+          "INSUFFICIENT_EVIDENCE",
+          "PREDICATE_ABSENT",
+          "TEMPORAL_UNSPECIFIED"
+        ],
+        "subject_entity_id": null
+      },
+      {
+        "claim_id": "claim:extract.deterministic:88d2610a027d8b41",
+        "confidence": 0.0,
+        "decision": "ABSTAIN",
+        "decision_id": "decision:claim:extract.deterministic:88d2610a027d8b41",
+        "direction": null,
+        "epistemic_status": "UNKNOWN",
+        "evidence_fragment_ids": [
+          "ef-d6fdfb05879f7b13c8b910d49c15cdd4"
+        ],
+        "negated": false,
+        "object_entity_id": null,
+        "predicate": null,
+        "reason_codes": [
+          "AMBIGUOUS_SEMANTICS",
+          "CLAIM_ABSTAINED_UPSTREAM",
+          "EPISTEMIC_UNKNOWN",
+          "EVIDENCE_LITERAL_VERIFIED",
+          "EXTRACTOR_REQUESTED_REVIEW",
+          "INSUFFICIENT_EVIDENCE",
+          "PREDICATE_ABSENT",
+          "TEMPORAL_UNSPECIFIED"
+        ],
+        "subject_entity_id": null
+      },
+      {
+        "claim_id": "claim:extract.deterministic:83ab075abd667658",
+        "confidence": 0.7,
+        "decision": "ACCEPT",
+        "decision_id": "decision:claim:extract.deterministic:83ab075abd667658",
+        "direction": "UNDIRECTED",
+        "epistemic_status": "ASSERTED",
+        "evidence_fragment_ids": [
+          "ef-dcac9508aeb6d063682cc7b47009735a"
+        ],
+        "negated": false,
+        "object_entity_id": "entity:casa-ciervo",
+        "predicate": "ALLY_OF",
+        "reason_codes": [
+          "EVIDENCE_LITERAL_VERIFIED",
+          "LOCAL_APPROVED",
+          "SYMMETRIC_PREDICATE",
+          "TEMPORAL_UNSPECIFIED"
+        ],
+        "subject_entity_id": "entity:cofradia-ambar"
+      }
+    ],
+    "engine_version": "3.0.0-engine.1",
+    "expires_at": "2026-09-06T10:00:00Z",
+    "game_profile": "generic",
+    "local_approval": {
+      "approved": true,
+      "approved_by": {
+        "name": "s9k.engine.local",
+        "provider": "local",
+        "version": "3.0.0-engine.1"
+      },
+      "created_at": "2026-09-05T10:00:00Z",
+      "decision_hash": {
+        "algorithm": "sha256",
+        "value": "55507039df432abb2050cecade39f6e3ca1f2cb63991f6a02fc8513e373307d7"
+      },
+      "validator_chain": [
+        {
+          "result": "PASS",
+          "validator": "structural",
+          "version": "3.0.0-engine.1"
+        },
+        {
+          "result": "PASS",
+          "validator": "semantic",
+          "version": "3.0.0-engine.1"
+        },
+        {
+          "result": "PASS",
+          "validator": "ontology",
+          "version": "3.0.0-engine.1"
+        },
+        {
+          "result": "PASS",
+          "validator": "contradiction",
+          "version": "3.0.0-engine.1"
+        },
+        {
+          "result": "PASS",
+          "validator": "authority",
+          "version": "3.0.0-engine.1"
+        },
+        {
+          "result": "PASS",
+          "validator": "concurrency",
+          "version": "3.0.0-engine.1"
+        }
+      ]
+    },
+    "mutation_operations": [
+      {
+        "assertion_id": "assertion:b4b9a50837526e362e53dc9bced236a1",
+        "decision_id": "decision:claim:extract.deterministic:83ab075abd667658",
+        "evidence_fragment_ids": [
+          "ef-dcac9508aeb6d063682cc7b47009735a"
+        ],
+        "expected_hash": null,
+        "expected_state": "WOULD_CREATE",
+        "expected_version": null,
+        "idempotency_key": "idem:sha256:2e575d692caefe60e2aaae599945623a8ea2a9e30e2167de4e0fc227411d6692",
+        "operation_id": "op:claim:extract.deterministic:83ab075abd667658:assert",
+        "operation_type": "CREATE_ASSERTION",
+        "payload": {
+          "collection_id": "collection:ws-cofradia",
+          "confidence": 0.7,
+          "direction": "UNDIRECTED",
+          "episode_ids": [
+            "ep-35a91c10f843f2c81f6065c1cea9d71d"
+          ],
+          "epistemic_status": "ASSERTED",
+          "event_time": null,
+          "evidence_fragment_ids": [
+            "ef-dcac9508aeb6d063682cc7b47009735a"
+          ],
+          "game_profile": "generic",
+          "negated": false,
+          "object_entity_id": "entity:casa-ciervo",
+          "ontology_version": "core-1.4.0",
+          "predicate": "ALLY_OF",
+          "state": "UNKNOWN",
+          "status": "ASSERTED",
+          "subject_entity_id": "entity:cofradia-ambar",
+          "valid_from": null,
+          "valid_to": null
+        },
+        "target_entity_id": null
+      },
+      {
+        "assertion_id": "assertion:b4b9a50837526e362e53dc9bced236a1",
+        "decision_id": "decision:claim:extract.deterministic:83ab075abd667658",
+        "evidence_fragment_ids": [
+          "ef-dcac9508aeb6d063682cc7b47009735a"
+        ],
+        "expected_hash": {
+          "algorithm": "sha256",
+          "value": "bf8f58bb23c167695131e7198efba048dba54a0587bee3f6a530c0f8ad7dbe60"
+        },
+        "expected_state": "WOULD_UPDATE",
+        "expected_version": 1,
+        "idempotency_key": "idem:sha256:9d0480db6a5a3473ef8b54ffb21b72819b7fdd32deca43fe12a3b4079f761fdf",
+        "operation_id": "op:claim:extract.deterministic:83ab075abd667658:project",
+        "operation_type": "PROJECT_RELATION",
+        "payload": {
+          "direction": "UNDIRECTED",
+          "negated": false,
+          "object_entity_id": "entity:casa-ciervo",
+          "predicate": "ALLY_OF",
+          "subject_entity_id": "entity:cofradia-ambar"
+        },
+        "target_entity_id": "entity:cofradia-ambar"
+      }
+    ],
+    "ontology_version": "core-1.4.0",
+    "plan_hash": {
+      "algorithm": "sha256",
+      "value": "b748451505d651fd8aa865f56c6f0d1bcf52981ff56c95d0ee66f4bf60c97132"
+    },
+    "plan_id": "plan:91f2e4f3063cc68e4c19d85ecc88acc1",
+    "produced_by_step": "engine.plan",
+    "provider_trace": [
+      {
+        "model": null,
+        "name": "s9k.engine.local",
+        "produced": [
+          "decisions",
+          "mutation_operations"
+        ],
+        "provider": "local",
+        "step": "engine.plan",
+        "version": "3.0.0-engine.1"
+      }
+    ],
+    "snapshot_id": "snapshot:sha256:33b7905e9c034a5969e0c075333ca71bb652bf3721baf0e5a06794986fc29e01",
+    "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+    "source_hash": {
+      "algorithm": "sha256",
+      "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+    },
+    "workspace": "ws-cofradia"
+  },
+  "reconciliation_report": {
+    "claim_groups": 0,
+    "claims_merged": 0,
+    "duration_ms": 0.864,
+    "input_claims": 5,
+    "input_mentions": 10,
+    "mention_groups": 0,
+    "mentions_merged": 0,
+    "output_claims": 5,
+    "output_mentions": 10,
+    "preserved_ambiguous": 0,
+    "unknown_families": 0
+  },
+  "report_contract": "ingest-run/v1",
+  "resolutions": [
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:sela-marrec"
+      ],
+      "confidence": 1.0,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "ef-2d98b0404929eee4d2405ffd115c23b1"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:extract.deterministic:188635668a576b55"
+      ],
+      "metadata": {
+        "cascade": {
+          "candidates": [
+            {
+              "adjustment": 0.03,
+              "base_score": 1.0,
+              "entity_id": "entity:sela-marrec",
+              "from_history": false,
+              "inherited_confidence": null,
+              "reason_codes": [
+                "EXACT_NAME",
+                "SURFACE_SIMILARITY",
+                "TYPE_COMPATIBLE"
+              ],
+              "score": 1.0,
+              "type_conflict": false
+            }
+          ],
+          "discarded_other_partida": 0,
+          "discarded_other_workspace": 0,
+          "mention_type": "Character",
+          "short_circuited": false,
+          "steps_run": [
+            "exact",
+            "history",
+            "alias",
+            "glossary",
+            "similarity"
+          ]
+        }
+      },
+      "produced_by_step": "resolve.identity",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.knowledge_v3.resolution",
+          "produced": [
+            "action",
+            "selected_entity_id",
+            "assigned_entity_id",
+            "confidence"
+          ],
+          "provider": "local",
+          "step": "resolve.identity",
+          "version": "3.0.0"
+        }
+      ],
+      "reason_codes": [
+        "STRONG_MATCH",
+        "EXACT_NAME",
+        "SURFACE_SIMILARITY",
+        "TYPE_COMPATIBLE"
+      ],
+      "resolution_id": "resolution:a8e045a6b3434913",
+      "selected_entity_id": "entity:sela-marrec",
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "workspace": "ws-cofradia"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:sela-marrec"
+      ],
+      "confidence": 1.0,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "ef-d6fdfb05879f7b13c8b910d49c15cdd4"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:extract.deterministic:2fd8d6debbdbeb0d"
+      ],
+      "metadata": {
+        "cascade": {
+          "candidates": [
+            {
+              "adjustment": 0.03,
+              "base_score": 1.0,
+              "entity_id": "entity:sela-marrec",
+              "from_history": false,
+              "inherited_confidence": null,
+              "reason_codes": [
+                "EXACT_NAME",
+                "HISTORY_SESSION",
+                "SURFACE_SIMILARITY",
+                "TYPE_COMPATIBLE"
+              ],
+              "score": 1.0,
+              "type_conflict": false
+            }
+          ],
+          "discarded_other_partida": 0,
+          "discarded_other_workspace": 0,
+          "mention_type": "Character",
+          "short_circuited": false,
+          "steps_run": [
+            "exact",
+            "history",
+            "alias",
+            "glossary",
+            "similarity"
+          ]
+        }
+      },
+      "produced_by_step": "resolve.identity",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.knowledge_v3.resolution",
+          "produced": [
+            "action",
+            "selected_entity_id",
+            "assigned_entity_id",
+            "confidence"
+          ],
+          "provider": "local",
+          "step": "resolve.identity",
+          "version": "3.0.0"
+        }
+      ],
+      "reason_codes": [
+        "STRONG_MATCH",
+        "EXACT_NAME",
+        "HISTORY_SESSION",
+        "SURFACE_SIMILARITY",
+        "TYPE_COMPATIBLE"
+      ],
+      "resolution_id": "resolution:9bae8dcc4552d198",
+      "selected_entity_id": "entity:sela-marrec",
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "workspace": "ws-cofradia"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:consejo-umbra"
+      ],
+      "confidence": 1.0,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "ef-2d98b0404929eee4d2405ffd115c23b1"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:extract.deterministic:370f74bcf742491c"
+      ],
+      "metadata": {
+        "cascade": {
+          "candidates": [
+            {
+              "adjustment": 0.03,
+              "base_score": 1.0,
+              "entity_id": "entity:consejo-umbra",
+              "from_history": false,
+              "inherited_confidence": null,
+              "reason_codes": [
+                "EXACT_NAME",
+                "SURFACE_SIMILARITY",
+                "TYPE_COMPATIBLE"
+              ],
+              "score": 1.0,
+              "type_conflict": false
+            }
+          ],
+          "discarded_other_partida": 0,
+          "discarded_other_workspace": 0,
+          "mention_type": "Faction",
+          "short_circuited": false,
+          "steps_run": [
+            "exact",
+            "history",
+            "alias",
+            "glossary",
+            "similarity"
+          ]
+        }
+      },
+      "produced_by_step": "resolve.identity",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.knowledge_v3.resolution",
+          "produced": [
+            "action",
+            "selected_entity_id",
+            "assigned_entity_id",
+            "confidence"
+          ],
+          "provider": "local",
+          "step": "resolve.identity",
+          "version": "3.0.0"
+        }
+      ],
+      "reason_codes": [
+        "STRONG_MATCH",
+        "EXACT_NAME",
+        "SURFACE_SIMILARITY",
+        "TYPE_COMPATIBLE"
+      ],
+      "resolution_id": "resolution:72334b1c8f2c04a3",
+      "selected_entity_id": "entity:consejo-umbra",
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "workspace": "ws-cofradia"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:cofradia-ambar"
+      ],
+      "confidence": 1.0,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "ef-d6fdfb05879f7b13c8b910d49c15cdd4"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:extract.deterministic:3ce43b3607ff715b"
+      ],
+      "metadata": {
+        "cascade": {
+          "candidates": [
+            {
+              "adjustment": 0.03,
+              "base_score": 1.0,
+              "entity_id": "entity:cofradia-ambar",
+              "from_history": false,
+              "inherited_confidence": null,
+              "reason_codes": [
+                "EXACT_NAME",
+                "SURFACE_SIMILARITY",
+                "TYPE_COMPATIBLE"
+              ],
+              "score": 1.0,
+              "type_conflict": false
+            }
+          ],
+          "discarded_other_partida": 0,
+          "discarded_other_workspace": 0,
+          "mention_type": "Faction",
+          "short_circuited": false,
+          "steps_run": [
+            "exact",
+            "history",
+            "alias",
+            "glossary",
+            "similarity"
+          ]
+        }
+      },
+      "produced_by_step": "resolve.identity",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.knowledge_v3.resolution",
+          "produced": [
+            "action",
+            "selected_entity_id",
+            "assigned_entity_id",
+            "confidence"
+          ],
+          "provider": "local",
+          "step": "resolve.identity",
+          "version": "3.0.0"
+        }
+      ],
+      "reason_codes": [
+        "STRONG_MATCH",
+        "EXACT_NAME",
+        "SURFACE_SIMILARITY",
+        "TYPE_COMPATIBLE"
+      ],
+      "resolution_id": "resolution:73bef16ed5135f39",
+      "selected_entity_id": "entity:cofradia-ambar",
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "workspace": "ws-cofradia"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:cofradia-ambar"
+      ],
+      "confidence": 1.0,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "ef-7bd17977ce01366cee8f198967d47dd3"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:extract.deterministic:452c2289a148da59"
+      ],
+      "metadata": {
+        "cascade": {
+          "candidates": [
+            {
+              "adjustment": 0.03,
+              "base_score": 1.0,
+              "entity_id": "entity:cofradia-ambar",
+              "from_history": false,
+              "inherited_confidence": null,
+              "reason_codes": [
+                "EXACT_NAME",
+                "HISTORY_SESSION",
+                "SURFACE_SIMILARITY",
+                "TYPE_COMPATIBLE"
+              ],
+              "score": 1.0,
+              "type_conflict": false
+            }
+          ],
+          "discarded_other_partida": 0,
+          "discarded_other_workspace": 0,
+          "mention_type": "Faction",
+          "short_circuited": false,
+          "steps_run": [
+            "exact",
+            "history",
+            "alias",
+            "glossary",
+            "similarity"
+          ]
+        }
+      },
+      "produced_by_step": "resolve.identity",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.knowledge_v3.resolution",
+          "produced": [
+            "action",
+            "selected_entity_id",
+            "assigned_entity_id",
+            "confidence"
+          ],
+          "provider": "local",
+          "step": "resolve.identity",
+          "version": "3.0.0"
+        }
+      ],
+      "reason_codes": [
+        "STRONG_MATCH",
+        "EXACT_NAME",
+        "HISTORY_SESSION",
+        "SURFACE_SIMILARITY",
+        "TYPE_COMPATIBLE"
+      ],
+      "resolution_id": "resolution:bc28abf80c2d2903",
+      "selected_entity_id": "entity:cofradia-ambar",
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "workspace": "ws-cofradia"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:cofradia-ambar"
+      ],
+      "confidence": 1.0,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "ef-ebffcfe91b028d2a131b9f21a138b3a6"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:extract.deterministic:46fff6878efeb241"
+      ],
+      "metadata": {
+        "cascade": {
+          "candidates": [
+            {
+              "adjustment": 0.03,
+              "base_score": 1.0,
+              "entity_id": "entity:cofradia-ambar",
+              "from_history": false,
+              "inherited_confidence": null,
+              "reason_codes": [
+                "EXACT_NAME",
+                "HISTORY_SESSION",
+                "SURFACE_SIMILARITY",
+                "TYPE_COMPATIBLE"
+              ],
+              "score": 1.0,
+              "type_conflict": false
+            }
+          ],
+          "discarded_other_partida": 0,
+          "discarded_other_workspace": 0,
+          "mention_type": "Faction",
+          "short_circuited": false,
+          "steps_run": [
+            "exact",
+            "history",
+            "alias",
+            "glossary",
+            "similarity"
+          ]
+        }
+      },
+      "produced_by_step": "resolve.identity",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.knowledge_v3.resolution",
+          "produced": [
+            "action",
+            "selected_entity_id",
+            "assigned_entity_id",
+            "confidence"
+          ],
+          "provider": "local",
+          "step": "resolve.identity",
+          "version": "3.0.0"
+        }
+      ],
+      "reason_codes": [
+        "STRONG_MATCH",
+        "EXACT_NAME",
+        "HISTORY_SESSION",
+        "SURFACE_SIMILARITY",
+        "TYPE_COMPATIBLE"
+      ],
+      "resolution_id": "resolution:54f91ca603de7acb",
+      "selected_entity_id": "entity:cofradia-ambar",
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "workspace": "ws-cofradia"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vado-alto"
+      ],
+      "confidence": 1.0,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "ef-d6fdfb05879f7b13c8b910d49c15cdd4"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:extract.deterministic:7085d008f11b69fe"
+      ],
+      "metadata": {
+        "cascade": {
+          "candidates": [
+            {
+              "adjustment": 0.03,
+              "base_score": 1.0,
+              "entity_id": "entity:vado-alto",
+              "from_history": false,
+              "inherited_confidence": null,
+              "reason_codes": [
+                "EXACT_NAME",
+                "SURFACE_SIMILARITY",
+                "TYPE_COMPATIBLE"
+              ],
+              "score": 1.0,
+              "type_conflict": false
+            }
+          ],
+          "discarded_other_partida": 0,
+          "discarded_other_workspace": 0,
+          "mention_type": "Location",
+          "short_circuited": false,
+          "steps_run": [
+            "exact",
+            "history",
+            "alias",
+            "glossary",
+            "similarity"
+          ]
+        }
+      },
+      "produced_by_step": "resolve.identity",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.knowledge_v3.resolution",
+          "produced": [
+            "action",
+            "selected_entity_id",
+            "assigned_entity_id",
+            "confidence"
+          ],
+          "provider": "local",
+          "step": "resolve.identity",
+          "version": "3.0.0"
+        }
+      ],
+      "reason_codes": [
+        "STRONG_MATCH",
+        "EXACT_NAME",
+        "SURFACE_SIMILARITY",
+        "TYPE_COMPATIBLE"
+      ],
+      "resolution_id": "resolution:a4fd0ea3dac7cda3",
+      "selected_entity_id": "entity:vado-alto",
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "workspace": "ws-cofradia"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:cofradia-ambar"
+      ],
+      "confidence": 1.0,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "ef-dcac9508aeb6d063682cc7b47009735a"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:extract.deterministic:aef08a46c08a7164"
+      ],
+      "metadata": {
+        "cascade": {
+          "candidates": [
+            {
+              "adjustment": 0.03,
+              "base_score": 1.0,
+              "entity_id": "entity:cofradia-ambar",
+              "from_history": false,
+              "inherited_confidence": null,
+              "reason_codes": [
+                "EXACT_NAME",
+                "HISTORY_SESSION",
+                "SURFACE_SIMILARITY",
+                "TYPE_COMPATIBLE"
+              ],
+              "score": 1.0,
+              "type_conflict": false
+            }
+          ],
+          "discarded_other_partida": 0,
+          "discarded_other_workspace": 0,
+          "mention_type": "Faction",
+          "short_circuited": false,
+          "steps_run": [
+            "exact",
+            "history",
+            "alias",
+            "glossary",
+            "similarity"
+          ]
+        }
+      },
+      "produced_by_step": "resolve.identity",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.knowledge_v3.resolution",
+          "produced": [
+            "action",
+            "selected_entity_id",
+            "assigned_entity_id",
+            "confidence"
+          ],
+          "provider": "local",
+          "step": "resolve.identity",
+          "version": "3.0.0"
+        }
+      ],
+      "reason_codes": [
+        "STRONG_MATCH",
+        "EXACT_NAME",
+        "HISTORY_SESSION",
+        "SURFACE_SIMILARITY",
+        "TYPE_COMPATIBLE"
+      ],
+      "resolution_id": "resolution:a6ba8779313aeaf8",
+      "selected_entity_id": "entity:cofradia-ambar",
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "workspace": "ws-cofradia"
+    },
+    {
+      "action": "CREATE_NEW",
+      "assigned_entity_id": "entity:new:b6dd95be9b1c6580",
+      "candidate_entity_ids": [],
+      "confidence": 0.9,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "ef-7bd17977ce01366cee8f198967d47dd3"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:extract.deterministic:b6fbc9c0ac27d2ad"
+      ],
+      "metadata": {
+        "cascade": {
+          "candidates": [],
+          "discarded_other_partida": 0,
+          "discarded_other_workspace": 0,
+          "mention_type": "Character",
+          "short_circuited": false,
+          "steps_run": [
+            "exact",
+            "history",
+            "alias",
+            "glossary",
+            "similarity"
+          ]
+        }
+      },
+      "produced_by_step": "resolve.identity",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.knowledge_v3.resolution",
+          "produced": [
+            "action",
+            "selected_entity_id",
+            "assigned_entity_id",
+            "confidence"
+          ],
+          "provider": "local",
+          "step": "resolve.identity",
+          "version": "3.0.0"
+        }
+      ],
+      "reason_codes": [
+        "NO_CANDIDATE",
+        "DERIVED_ID"
+      ],
+      "resolution_id": "resolution:43e5617ed53c9380",
+      "selected_entity_id": null,
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "workspace": "ws-cofradia"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:casa-ciervo"
+      ],
+      "confidence": 1.0,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "ef-dcac9508aeb6d063682cc7b47009735a"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:extract.deterministic:bc6211e9d6fb8654"
+      ],
+      "metadata": {
+        "cascade": {
+          "candidates": [
+            {
+              "adjustment": 0.03,
+              "base_score": 1.0,
+              "entity_id": "entity:casa-ciervo",
+              "from_history": false,
+              "inherited_confidence": null,
+              "reason_codes": [
+                "EXACT_NAME",
+                "SURFACE_SIMILARITY",
+                "TYPE_COMPATIBLE"
+              ],
+              "score": 1.0,
+              "type_conflict": false
+            }
+          ],
+          "discarded_other_partida": 0,
+          "discarded_other_workspace": 0,
+          "mention_type": "Faction",
+          "short_circuited": false,
+          "steps_run": [
+            "exact",
+            "history",
+            "alias",
+            "glossary",
+            "similarity"
+          ]
+        }
+      },
+      "produced_by_step": "resolve.identity",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.knowledge_v3.resolution",
+          "produced": [
+            "action",
+            "selected_entity_id",
+            "assigned_entity_id",
+            "confidence"
+          ],
+          "provider": "local",
+          "step": "resolve.identity",
+          "version": "3.0.0"
+        }
+      ],
+      "reason_codes": [
+        "STRONG_MATCH",
+        "EXACT_NAME",
+        "SURFACE_SIMILARITY",
+        "TYPE_COMPATIBLE"
+      ],
+      "resolution_id": "resolution:5ff358053042a7c0",
+      "selected_entity_id": "entity:casa-ciervo",
+      "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+      },
+      "workspace": "ws-cofradia"
+    }
+  ],
+  "review_plan": {
+    "collection_id": "collection:ws-cofradia",
+    "contract_id": "graph-mutation-plan/v3-internal-v1",
+    "contract_version": "1.0.0",
+    "created_at": "2026-09-05T10:00:00Z",
+    "decisions": [
+      {
+        "claim_id": "claim:extract.deterministic:e3a51fcb3d1bfe0f",
+        "confidence": 0.72,
+        "decision": "REVIEW",
+        "decision_id": "decision:claim:extract.deterministic:e3a51fcb3d1bfe0f",
+        "direction": "SUBJECT_TO_OBJECT",
+        "epistemic_status": "ASSERTED",
+        "evidence_fragment_ids": [
+          "ef-7bd17977ce01366cee8f198967d47dd3"
+        ],
+        "negated": false,
+        "object_entity_id": "entity:cofradia-ambar",
+        "predicate": "LEADS",
+        "reason_codes": [
+          "ENTITY_RESOLUTION_DEFERRED",
+          "EVIDENCE_LITERAL_VERIFIED",
+          "REVIEW_ENTITY",
+          "TEMPORAL_UNSPECIFIED"
+        ],
+        "subject_entity_id": null
+      },
+      {
+        "claim_id": "claim:extract.deterministic:fe992c855fc10191",
+        "confidence": 0.75,
+        "decision": "REVIEW",
+        "decision_id": "decision:claim:extract.deterministic:fe992c855fc10191",
+        "direction": "SUBJECT_TO_OBJECT",
+        "epistemic_status": "ASSERTED",
+        "evidence_fragment_ids": [
+          "ef-2d98b0404929eee4d2405ffd115c23b1"
+        ],
+        "negated": true,
+        "object_entity_id": "entity:consejo-umbra",
+        "predicate": "MEMBER_OF",
+        "reason_codes": [
+          "EVIDENCE_LITERAL_VERIFIED",
+          "EXTRACTOR_REQUESTED_REVIEW",
+          "NEGATED_CLAIM",
+          "REVIEW_EVIDENCE",
+          "TEMPORAL_UNSPECIFIED"
+        ],
+        "subject_entity_id": "entity:sela-marrec"
+      }
+    ],
+    "engine_version": "3.0.0-engine.1",
+    "expires_at": "2026-09-06T10:00:00Z",
+    "game_profile": "generic",
+    "local_approval": {
+      "approved": false,
+      "approved_by": {
+        "name": "s9k.engine.local",
+        "provider": "local",
+        "version": "3.0.0-engine.1"
+      },
+      "created_at": "2026-09-05T10:00:00Z",
+      "decision_hash": {
+        "algorithm": "sha256",
+        "value": "65cc950341937639d74a37ecefe8c56af1d7651972acfeef4545880b0161bfe0"
+      },
+      "validator_chain": [
+        {
+          "result": "PASS",
+          "validator": "structural",
+          "version": "3.0.0-engine.1"
+        },
+        {
+          "result": "PASS",
+          "validator": "semantic",
+          "version": "3.0.0-engine.1"
+        },
+        {
+          "result": "PASS",
+          "validator": "ontology",
+          "version": "3.0.0-engine.1"
+        },
+        {
+          "result": "PASS",
+          "validator": "contradiction",
+          "version": "3.0.0-engine.1"
+        },
+        {
+          "result": "PASS",
+          "validator": "authority",
+          "version": "3.0.0-engine.1"
+        },
+        {
+          "result": "PASS",
+          "validator": "concurrency",
+          "version": "3.0.0-engine.1"
+        }
+      ]
+    },
+    "mutation_operations": [],
+    "ontology_version": "core-1.4.0",
+    "plan_hash": {
+      "algorithm": "sha256",
+      "value": "9173079a6cd2c9c64b75322e967d2a16aa228d2a889af642b1c7222c3d93525a"
+    },
+    "plan_id": "plan:db04ac7046d8ec1c94452299f8fa27f2",
+    "produced_by_step": "engine.plan",
+    "provider_trace": [
+      {
+        "model": null,
+        "name": "s9k.engine.local",
+        "produced": [
+          "decisions",
+          "mutation_operations"
+        ],
+        "provider": "local",
+        "step": "engine.plan",
+        "version": "3.0.0-engine.1"
+      }
+    ],
+    "snapshot_id": "snapshot:sha256:33b7905e9c034a5969e0c075333ca71bb652bf3721baf0e5a06794986fc29e01",
+    "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+    "source_hash": {
+      "algorithm": "sha256",
+      "value": "49f7e2fa42180bc582c1425c8f8c169f0767e0eb18ab6ae29f8f813dbc6c4ea4"
+    },
+    "workspace": "ws-cofradia"
+  },
+  "run": {
+    "apply": false,
+    "byte_size": 349,
+    "catalog_entities_declared": 6,
+    "catalog_entities_linkable": 5,
+    "clock_read_at_boundary": false,
+    "collection_id": "collection:ws-cofradia",
+    "input_hash": {
+      "algorithm": "sha256",
+      "value": "64628f643b15eb13da95a0e71e1830b442cc073d18c93671a5916196335d5b73"
+    },
+    "latency_ms": 252.336,
+    "lexicon_entries": 6,
+    "now": "2026-09-05T10:00:00Z",
+    "profile_id": "generic",
+    "provider_calls": 0,
+    "source_id": "nota-cofradia-de-ambar.md",
+    "source_kind": "MARKDOWN",
+    "source_path": "examples/ingesta-v3/nota-cofradia-de-ambar.md",
+    "stop_reason": null,
+    "stopped_at": null,
+    "workspace": "ws-cofradia",
+    "writer_mode": "DRY_RUN"
+  },
+  "stage_latency_ms": {
+    "engine": 72.937,
+    "extract": 109.713,
+    "ledger": 2.558,
+    "normalize": 32.339,
+    "reconcile": 0.9,
+    "resolve": 26.852,
+    "writer": 6.947
+  },
+  "totals": {
+    "abstentions": 2,
+    "assertions": 1,
+    "claims": 5,
+    "contradictions": 0,
+    "create_entity": 1,
+    "decisions": 5,
+    "decisions_by_outcome": {
+      "ABSTAIN": 2,
+      "ACCEPT": 1,
+      "REVIEW": 2
+    },
+    "episodes": 7,
+    "evidence": 7,
+    "link_existing": 9,
+    "mentions": 10,
+    "plan_operations": 2,
+    "resolutions": 10,
+    "review_identity": 0,
+    "review_operations": 0
+  }
+}
