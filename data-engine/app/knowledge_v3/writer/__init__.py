@@ -58,12 +58,22 @@ from .provenance import (
 )
 from .reads import VisibleAssertion, list_visible_assertions
 from .rollback import (
+    ACTION_FORGET_APPLIED,
+    ACTION_PURGE_PROVENANCE,
     RollbackDocument,
     RollbackInstruction,
     RollbackNotReconstructible,
     RollbackQuery,
     build_rollback,
     rollback_query,
+)
+from .rollback_provenance import (
+    PurgeReport,
+    RollbackReport,
+    execute_purge,
+    execute_rollback,
+    residues,
+    rollback_query_for,
 )
 from .schema import (
     APPLIED_OPERATION_CONSTRAINT,
@@ -151,6 +161,14 @@ __all__ = [
     "RollbackNotReconstructible",
     "rollback_query",
     "build_rollback",
+    "ACTION_PURGE_PROVENANCE",
+    "ACTION_FORGET_APPLIED",
+    "PurgeReport",
+    "RollbackReport",
+    "execute_purge",
+    "execute_rollback",
+    "residues",
+    "rollback_query_for",
     # errores
     "Rejection",
     "WriterError",

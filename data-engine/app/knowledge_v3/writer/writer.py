@@ -37,6 +37,7 @@ from .executor import ExecutionContext, ExecutionOutcome, execute_plan, simulate
 from .gate import DEFAULT_MAX_OPERATIONS, OperatorRequest, evaluate
 from .idempotency import AppliedKeyStore, InMemoryAppliedKeys
 from .rollback import RollbackDocument, build_rollback
+from .rollback_provenance import key_evidence_query
 from .view import SignedView
 
 #: Resultados posibles de un intento. Entran en el registro de auditoria.
@@ -50,6 +51,12 @@ OUTCOME_SIMULATED = "SIMULATED"
 OUTCOME_REJECTED = "REJECTED"  # la admision dijo que no
 OUTCOME_BLOCKED = "BLOCKED"  # el gate dijo que no
 OUTCOME_ABORTED = "ABORTED"  # empezo y se revirtio entera
+#: La transaccion fue bien, pero el grafo NO sostiene lo que el resultado
+#: afirmaria. Caso medido: tras un rollback quedan marcas de idempotencia sin
+#: el conocimiento que reclamaban, y el siguiente apply se declara no-op limpio
+#: sobre un grafo vacio. No es un gate --se mide DESPUES de la transaccion y no
+#: impide ninguna escritura--: impide MENTIR sobre el desenlace.
+OUTCOME_INCONSISTENT = "INCONSISTENT"
 
 MODE_DRY_RUN = "DRY_RUN"
 MODE_APPLY = "APPLY"
@@ -337,6 +344,35 @@ class GraphWriter:
             return self._finish(OUTCOME_ABORTED, mode, req, plan_doc, [rejection])
 
         rollback = build_rollback(view, outcome.applied)
+
+        # Verdad del desenlace. Una operacion declarada no-op afirma que su
+        # efecto YA esta en el grafo; se comprueba, no se presume. Si no esta,
+        # el desenlace no puede ser APPLIED: seria decirle a un runner
+        # desatendido que el conocimiento esta cuando no esta.
+        faltan = self._noop_sin_respaldo(driver, view, outcome.noop_keys)
+        if faltan:
+            rejection = Rejection(
+                code=codes.EXEC_NOOP_WITHOUT_GRAPH_EVIDENCE,
+                message=(
+                    "hay claves declaradas ya aplicadas sin nada en el grafo que "
+                    "las sostenga: el conocimiento que reclaman no esta"
+                ),
+                detail={"idempotency_keys": faltan},
+            )
+            return self._finish(
+                OUTCOME_INCONSISTENT,
+                mode,
+                req,
+                plan_doc,
+                [rejection],
+                applied=len(outcome.applied),
+                noop=len(outcome.noop_keys),
+                created_ids=outcome.created_ids,
+                review_marks=outcome.review_marks,
+                rollback=rollback,
+                detail={"rollback": rollback.to_dict()},
+            )
+
         return self._finish(
             OUTCOME_APPLIED,
             mode,
@@ -350,6 +386,38 @@ class GraphWriter:
             rollback=rollback,
             detail={"rollback": rollback.to_dict()},
         )
+
+    def _noop_sin_respaldo(
+        self, driver: Any, view: SignedView, noop_keys: list[str]
+    ) -> list[str]:
+        """Claves declaradas aplicadas que el grafo NO respalda.
+
+        Solo cuenta lo que sostiene conocimiento --nodos y aristas--: la marca
+        `V3AppliedOperation` esta EXCLUIDA a proposito, porque es justamente la
+        que sobrevive a un borrado y la que hacia que un grafo vaciado pasara
+        por aplicado.
+
+        Un fallo de lectura no inventa un veredicto: devuelve lista vacia y el
+        desenlace no cambia por una medida que no se pudo tomar.
+        """
+        if not noop_keys:
+            return []
+        faltan: list[str] = []
+        try:
+            with driver.session() as session:
+                for key in noop_keys:
+                    query = key_evidence_query(view.workspace, key)
+                    total = 0
+                    for row in session.run(query.cypher, query.params):
+                        fila = dict(row)
+                        if fila.get("clase") == "marca":
+                            continue
+                        total += int(fila.get("cuantos") or 0)
+                    if total == 0:
+                        faltan.append(key)
+        except Exception:  # pragma: no cover - driver roto: no se afirma nada
+            return []
+        return faltan
 
     # -- Piezas de `write` -------------------------------------------------
     def _effective_limit(self, requested: Optional[int]) -> Any:
@@ -453,6 +521,7 @@ __all__ = [
     "OUTCOME_REJECTED",
     "OUTCOME_BLOCKED",
     "OUTCOME_ABORTED",
+    "OUTCOME_INCONSISTENT",
     "MODE_APPLY",
     "MODE_DRY_RUN",
 ]

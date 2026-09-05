@@ -76,6 +76,11 @@ class AppliedOperation:
     predicate: Optional[str] = None
     object_id: Optional[str] = None
     partida_id: Optional[str] = None
+    #: Referencias de procedencia que ESTA operacion estampo en el nodo escrito
+    #: (`evidence_fragment_ids` de la asercion). No son identidad: son lo que el
+    #: rollback necesita saber para poder mirar la evidencia que sostiene lo que
+    #: va a borrar ANTES de borrarlo, cuando las aristas todavia existen.
+    evidence_fragment_ids: list[str] = field(default_factory=list)
     previous_state: Optional[dict[str, Any]] = None
     changed_props: dict[str, Any] = field(default_factory=dict)
     #: M4 (rework): marcas de revision de ESTA operacion. No son rechazos: la
@@ -96,6 +101,7 @@ class AppliedOperation:
             "predicate": self.predicate,
             "object_id": self.object_id,
             "partida_id": self.partida_id,
+            "evidence_fragment_ids": list(self.evidence_fragment_ids),
             "previous_state": self.previous_state,
             "changed_props": dict(self.changed_props),
             "review_marks": [dict(m) for m in self.review_marks],
@@ -526,6 +532,10 @@ def execute_operation(
             kind="NODE",
             created_id=_field(record, "id") or assertion_id,
             target_id=assertion_id,
+            subject_id=payload.get("subject_entity_id"),
+            object_id=payload.get("object_entity_id"),
+            partida_id=partida_id,
+            evidence_fragment_ids=list(prov.get("evidence_fragment_ids") or []),
             review_marks=marks,
         )
 
