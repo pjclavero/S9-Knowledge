@@ -15,7 +15,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 #: Checkpoint vigente de los contratos congelados. Lo avanza QUIEN INTEGRA, no
 #: un carril, y siempre registrando el valor viejo y el nuevo (ver el comentario
 #: de `test_19_contratos_congelados_mantienen_su_hash`).
-FROZEN_CONTRACTS_REF = "v3-contracts-frozen-1.0.0-gate4-03"
+FROZEN_CONTRACTS_REF = "v3-contracts-frozen-1.0.0-int5"
 
 #: Raices congeladas byte a byte por el gate de contratos.
 _FROZEN_ROOTS = (
@@ -412,9 +412,35 @@ def test_19_contratos_congelados_mantienen_su_hash():
     # QUIEN INTEGRA, sobre el arbol ya revisado, y pone aqui el digest. Se
     # deja el rojo como la senal que es.
     #
+    # INTEGRACION tanda 5: hecho. El carril 5A dejo este test ROJO A PROPOSITO
+    # --pudiendo haberlo puesto verde solo-- porque `validator.py` es una de
+    # las 23 rutas congeladas y la regla escrita aqui dice que el checkpoint lo
+    # avanza QUIEN INTEGRA, sobre el arbol ya revisado. Se avanza a
+    # `v3-contracts-frozen-1.0.0-int5`, y los dos valores quedan registrados
+    # para que el avance sea auditable y no un borron:
+    #
+    #   digest anterior (gate4-03) b36fbb3e2d1353c6ab230f21368966b587b6a573b903e6e9f323086a5e611216
+    #   digest nuevo    (int5)     9e7ce73a2ee0aaba462921a3af1efcfdd5fbec1a249c7385fd7e722938f8e96b
+    #
+    # QUE CAMBIA, VERIFICADO POR EL INTEGRADOR Y NO ACEPTADO DE PALABRA
+    # -----------------------------------------------------------------
+    # `git diff --name-only` entre los dos tags, restringido a las dos raices
+    # congeladas, devuelve `contracts/knowledge-v3/v1/validator.py` y NADA MAS.
+    # Y comparando el AST de las dos versiones de ese fichero, las 14
+    # constantes de modulo son IDENTICAS: `IDEMPOTENCY_KEY_FIELDS`,
+    # `DECISION_HASH_FIELDS` y las demas no se tocan. El cambio es una insercion
+    # limpia de 32 lineas en `compute_idempotency_key` que anade `partida_id` al
+    # cuerpo SOLO cuando no es nulo, de modo que ningun plan sin ambito --que
+    # son todos los de los datasets sellados-- cambia de clave. Ningun JSON
+    # Schema y ninguna dataclass se tocan. Las 23 rutas congeladas son las
+    # mismas en los dos checkpoints.
+    #
     # Que el gate SIGUE MORDIENDO despues de avanzarlo no se presume: lo
     # demuestra `test_19b_control_negativo_...`, que inyecta un cambio
-    # contractual real y comprueba que la comparacion se pone roja.
+    # contractual real y comprueba que la comparacion se pone roja. Ese control
+    # se CONSERVA intacto al avanzar --sigue mutando `episode.py`, que esta
+    # congelado y que esta integracion no toca--, asi que sigue siendo una
+    # prueba capaz de ponerse roja y no una copia del gate que siempre pasa.
     frozen_ref = FROZEN_CONTRACTS_REF
     files = _frozen_tree_files()
     relative_paths = [path.relative_to(_REPO_ROOT).as_posix() for path in files]
