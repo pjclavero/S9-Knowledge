@@ -68,6 +68,7 @@ from knowledge_v3.writer.rollback import (  # noqa: E402
     ACTION_PURGE_PROVENANCE,
     RollbackDocument,
     RollbackInstruction,
+    RollbackNotReconstructible,
     rollback_query,
 )
 from knowledge_v3.writer.rollback_provenance import execute_rollback  # noqa: E402
@@ -260,14 +261,33 @@ def test_nueva_rollback_de_entidad_creada_por_la_ruta_real_de_b(limpio):
     #    dos mitades del merge, en el mismo detalle. Sin etiqueta, R2 deniega;
     #    sin ambito declarado, tambien.
     for instruccion in borrados:
-        assert instruccion.detail["label"] in ("V3Entity", "V3Assertion"), instruccion.detail
-        assert "partida_id" in instruccion.detail, (
-            "el ambito tiene que VIAJAR: campo ausente es DENY, no capa juego"
-        )
+        detalle = instruccion.detail
+        assert detalle["label"] in ("V3Entity", "V3Assertion"), detalle
+        # El ambito tiene que VIAJAR: campo ausente es DENY, no capa juego.
+        # Se comprueba sobre las CLAVES del detalle, no buscando texto.
+        assert {"label", "partida_id"} <= set(detalle), detalle
+
         consulta = rollback_query(instruccion)
-        # R2 dentro: etiqueta en el patron y ambito en el WHERE.
-        assert f":{instruccion.detail['label']}" in consulta.cypher
-        assert "partida_id" in consulta.cypher
+        # R2 dentro, comprobado por EFECTO y no contando texto: la consulta
+        # deja de ser reconstruible en cuanto se le quita el ambito, que es lo
+        # que significa que el ambito manda de verdad en ella.
+        sin_ambito = RollbackInstruction(
+            operation_id=instruccion.operation_id,
+            action=instruccion.action,
+            target_id=instruccion.target_id,
+            detail={k: v for k, v in detalle.items() if k != "partida_id"},
+        )
+        with pytest.raises(RollbackNotReconstructible):
+            rollback_query(sin_ambito)
+        # Y lo mismo con la etiqueta: sin ella, la lista blanca de R2 deniega.
+        sin_etiqueta = RollbackInstruction(
+            operation_id=instruccion.operation_id,
+            action=instruccion.action,
+            target_id=instruccion.target_id,
+            detail={k: v for k, v in detalle.items() if k != "label"},
+        )
+        with pytest.raises(RollbackNotReconstructible):
+            rollback_query(sin_etiqueta)
         assert "elementId" not in consulta.cypher
 
     # 2. R1 dentro: el documento retira ademas la marca de idempotencia.
