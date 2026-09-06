@@ -91,6 +91,12 @@ def build_rollback(
                     detail={
                         "created_id": op.created_id,
                         "workspace": view.workspace,
+                        "label": op.node_label,
+                        # El ambito viaja SIEMPRE, y `None` significa capa
+                        # juego, no "cualquiera". La diferencia entre el campo
+                        # ausente y el campo a `None` es justo lo que separa
+                        # un DENY de un borrado de capa juego.
+                        "partida_id": op.partida_id,
                         "idempotency_key": op.idempotency_key,
                     },
                 )
@@ -142,6 +148,8 @@ def build_rollback(
                         "restore": op.previous_state or {},
                         "changed": dict(op.changed_props),
                         "workspace": view.workspace,
+                        "label": op.node_label,
+                        "partida_id": op.partida_id,
                         "idempotency_key": op.idempotency_key,
                     },
                 )
@@ -170,6 +178,25 @@ class RollbackQuery:
     params: dict[str, Any] = field(default_factory=dict)
 
 
+#: Ausencia de campo, distinguida de `None`. `None` es un ambito CONCRETO (la
+#: capa juego); la ausencia del campo es un documento que no dice en que
+#: ambito estaba lo que quiere borrar, y eso se deniega.
+_AUSENTE = object()
+
+#: Etiquetas que una consulta de reversion puede borrar, y por que propiedad
+#: durable se localiza cada una. Es una lista blanca a proposito: sin etiqueta,
+#: un `MATCH (n {workspace, idempotency_key})` alcanza cualquier nodo que
+#: comparta clave, incluido el de otra partida.
+#:
+#: Ampliarla es el punto de extension previsto (por ejemplo `V3Evidence` con
+#: `evidence_id`): una entrada aqui y la consulta sale ya acotada por
+#: workspace, ambito y clave, sin tocar la generacion.
+DELETABLE_NODE_LABELS: dict[str, str] = {
+    cypher_mod.LABEL_ENTITY: "entity_id",
+    cypher_mod.LABEL_ASSERTION: "assertion_id",
+}
+
+
 class RollbackNotReconstructible(ValueError):
     """La instruccion no trae identidad de dominio suficiente para ejecutarse."""
 
@@ -184,17 +211,107 @@ def _require(detail: dict[str, Any], campo: str, instruccion: RollbackInstructio
     return valor
 
 
+def scope_clause(
+    alias: str, partida_id: Any, params: dict[str, Any], *, contexto: str = "rollback"
+) -> str:
+    """UNICA definicion del filtro de ambito del camino de recuperacion.
+
+    Escribe el parametro en `params` (si hace falta) y devuelve el predicado.
+    Cualquier otro modulo del camino de recuperacion --por ejemplo el de
+    procedencia-- debe llamar aqui en vez de escribir su propio criterio: dos
+    definiciones que deben coincidir sin nada que lo verifique acaban
+    divergiendo, y la que diverge borra de mas.
+
+    `None` es la capa juego (`IS NULL`), nunca un comodin. Neo4j no compara
+    `= null` como cierto, asi que esto va en `WHERE`, jamas en el patron de
+    mapa.
+    """
+    if partida_id is None:
+        return f"{alias}.partida_id IS NULL"
+    if not isinstance(partida_id, str) or not partida_id.strip():
+        raise RollbackNotReconstructible(
+            f"{contexto}: 'partida_id' malformado ({partida_id!r}); ambito "
+            "incoherente se deniega"
+        )
+    params["partida_id"] = partida_id
+    return f"{alias}.partida_id = $partida_id"
+
+
+def _scope_clause(
+    alias: str, detail: dict[str, Any], instruccion: RollbackInstruction
+) -> tuple[str, dict[str, Any]]:
+    """Filtro de ambito, fail-closed. Nunca un comodin.
+
+    Tres casos y solo tres:
+
+    * campo ausente -> DENY. Un documento que no declara ambito no autoriza a
+      borrar "donde sea": ambito ausente o incoherente se deniega.
+    * `None` -> capa juego, y se exige `IS NULL`. Neo4j no compara `= null`
+      como cierto, asi que esto va en `WHERE`, jamas en el patron de mapa.
+    * cadena no vacia -> esa partida exacta.
+
+    Cualquier otra cosa (cadena vacia, tipo raro) es un ambito malformado y
+    tambien se deniega.
+    """
+    if detail.get("partida_id", _AUSENTE) is _AUSENTE:
+        raise RollbackNotReconstructible(
+            f"{instruccion.operation_id}: la instruccion no declara "
+            "'partida_id'; sin ambito declarado no se borra (fail-closed)"
+        )
+    params: dict[str, Any] = {}
+    clause = scope_clause(
+        alias, detail["partida_id"], params, contexto=instruccion.operation_id
+    )
+    return clause, params
+
+
+def delete_node_query(
+    label: str,
+    node_id: str,
+    workspace: str,
+    partida_id: Any,
+    idempotency_key: str,
+    *,
+    contexto: str = "rollback",
+) -> RollbackQuery:
+    """Borrado de UN nodo por su clave durable completa.
+
+    Punto de extension: registrar la etiqueta en `DELETABLE_NODE_LABELS` basta
+    para que otra familia de nodos (por ejemplo `V3Evidence` por
+    `fragment_id`) se pueda borrar por esta misma via, ya acotada por
+    workspace, ambito y clave.
+    """
+    id_field = DELETABLE_NODE_LABELS.get(label)
+    if id_field is None:
+        raise RollbackNotReconstructible(
+            f"{contexto}: etiqueta {label!r} no esta en la lista blanca de "
+            "borrado; sin etiqueta conocida no se borra"
+        )
+    etiqueta = cypher_mod.safe_token(label, "label")
+    params: dict[str, Any] = {"id": node_id, "ws": workspace, "key": idempotency_key}
+    scope = scope_clause("n", partida_id, params, contexto=contexto)
+    return RollbackQuery(
+        f"MATCH (n:{etiqueta} {{{id_field}: $id, workspace: $ws, "
+        "idempotency_key: $key}) "
+        f"WHERE {scope} "
+        "DETACH DELETE n RETURN count(*) AS borrados",
+        params,
+    )
+
+
 def rollback_query(instruction: RollbackInstruction) -> RollbackQuery:
     """Traduce una instruccion a Cypher usando SOLO identidad durable.
 
-    Ni una sola de estas consultas menciona `elementId`. Se localiza por
-    `(workspace, entity_id)` mas predicado, objeto y `idempotency_key` de la
-    operacion que la escribio — todo ello propiedades del grafo, que sobreviven
-    a un restore. `element_id_at_write`, si viaja en el detalle, se ignora.
+    Ni una sola de estas consultas menciona `elementId`. Se localiza por la
+    clave durable COMPLETA -- `workspace`, sujeto/predicado/objeto o
+    identificador del nodo, etiqueta o tipo de relacion, `idempotency_key` y
+    **ambito de partida** -- todo ello propiedades del grafo, que sobreviven a
+    un restore.
 
-    El `idempotency_key` es lo que impide borrar de mas: acota el borrado a la
-    arista que ESTE plan escribio, aunque existan otras entre los mismos
-    extremos y con el mismo predicado.
+    El ambito no es decorado: dos hechos semanticamente iguales, uno en capa
+    juego y otro en `partida:otra`, comparten workspace, extremos, predicado y
+    hasta `idempotency_key`. Sin el filtro de partida, deshacer uno se lleva el
+    otro por delante. Y `partida_id: null` NO es comodin: es la capa juego.
     """
     detail = dict(instruction.detail)
     if instruction.action == "DELETE_RELATIONSHIP":
@@ -205,12 +322,20 @@ def rollback_query(instruction: RollbackInstruction) -> RollbackQuery:
         )
         workspace = _require(detail, "workspace", instruction)
         key = _require(detail, "idempotency_key", instruction)
+        scope, scope_params = _scope_clause("r", detail, instruction)
         return RollbackQuery(
             f"MATCH (a:{cypher_mod.LABEL_ENTITY} {{entity_id: $subject, workspace: $ws}})"
             f"-[r:{predicate} {{workspace: $ws, idempotency_key: $key}}]->"
             f"(b:{cypher_mod.LABEL_ENTITY} {{entity_id: $object, workspace: $ws}}) "
+            f"WHERE {scope} "
             "DELETE r RETURN count(*) AS borradas",
-            {"subject": subject, "object": obj, "ws": workspace, "key": key},
+            {
+                "subject": subject,
+                "object": obj,
+                "ws": workspace,
+                "key": key,
+                **scope_params,
+            },
         )
     if instruction.action == "DELETE_NODE":
         node_id = detail.get("created_id") or instruction.target_id
@@ -220,11 +345,19 @@ def rollback_query(instruction: RollbackInstruction) -> RollbackQuery:
             )
         workspace = _require(detail, "workspace", instruction)
         key = _require(detail, "idempotency_key", instruction)
-        return RollbackQuery(
-            "MATCH (n {workspace: $ws, idempotency_key: $key}) "
-            "WHERE n.entity_id = $id OR n.assertion_id = $id "
-            "DETACH DELETE n RETURN count(*) AS borrados",
-            {"id": node_id, "ws": workspace, "key": key},
+        label = _require(detail, "label", instruction)
+        if detail.get("partida_id", _AUSENTE) is _AUSENTE:
+            raise RollbackNotReconstructible(
+                f"{instruction.operation_id}: la instruccion no declara "
+                "'partida_id'; sin ambito declarado no se borra (fail-closed)"
+            )
+        return delete_node_query(
+            label,
+            node_id,
+            workspace,
+            detail["partida_id"],
+            key,
+            contexto=instruction.operation_id,
         )
     raise RollbackNotReconstructible(
         f"{instruction.operation_id}: {instruction.action} no se traduce a "
@@ -239,4 +372,7 @@ __all__ = [
     "RollbackQuery",
     "RollbackNotReconstructible",
     "rollback_query",
+    "DELETABLE_NODE_LABELS",
+    "delete_node_query",
+    "scope_clause",
 ]

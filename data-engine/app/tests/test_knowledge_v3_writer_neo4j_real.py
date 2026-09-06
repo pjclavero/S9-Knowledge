@@ -38,6 +38,10 @@ from knowledge_v3.writer import (  # noqa: E402
     bootstrap_writer_schema,
     codes,
 )
+from knowledge_v3.writer.schema import (  # noqa: E402
+    V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT,
+    V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT_CYPHER,
+)
 from knowledge_v3.writer.writer import (  # noqa: E402
     OUTCOME_ABORTED,
     OUTCOME_APPLIED,
@@ -994,3 +998,314 @@ def test_el_rollback_de_relacion_sobrevive_al_cambio_de_element_id(graph: GraphP
         )
         assert [f["idem"] for f in quedan] == [vecina], "borro de mas o de menos"
         assert destino.run("MATCH (n:V3Entity) RETURN count(n) AS c")[0]["c"] == 2
+
+
+# ==========================================================================
+# Ambito de partida en el camino de recuperacion (TANDA 3 / EQUIPO R2)
+# ==========================================================================
+def _instruccion(doc: dict, accion: str):
+    from knowledge_v3.writer.rollback import RollbackInstruction
+
+    bruta = next(i for i in doc["instructions"] if i["action"] == accion)
+    return RollbackInstruction(
+        operation_id=bruta["operation_id"],
+        action=bruta["action"],
+        target_id=bruta["target_id"],
+        detail=bruta["detail"],
+    )
+
+
+def _gemela_de_relacion(
+    graph: GraphProbe,
+    *,
+    partida_id: str | None,
+    clave: str,
+    workspace: str = WORKSPACE,
+    predicado: str = "MEMBER_OF",
+) -> None:
+    """Arista semanticamente igual, en OTRO ambito. Se inserta DESPUES del
+    apply a proposito: asi no la frena la comprobacion de ausencia del writer,
+    que es exactamente el ataque del supervisor."""
+    graph.run(
+        "MATCH (a:V3Entity {entity_id:'entity:origen', workspace:$ws}) "
+        "MATCH (b:V3Entity {entity_id:'entity:destino', workspace:$ws}) "
+        f"CREATE (a)-[:{predicado} "
+        "{workspace:$ws, idempotency_key:$k, partida_id:$p}]->(b)",
+        {"ws": workspace, "k": clave, "p": partida_id},
+    )
+
+
+def _censo_relaciones(graph: GraphProbe) -> list[dict]:
+    return graph.run(
+        "MATCH ()-[r]->() RETURN r.workspace AS ws, r.partida_id AS partida, "
+        "r.idempotency_key AS idem ORDER BY ws, partida, idem"
+    )
+
+
+def test_ataque_b_rollback_de_capa_juego_no_toca_la_relacion_de_otra_partida(
+    graph: GraphProbe,
+):
+    """Dos `MEMBER_OF` iguales: una de capa juego y otra de `partida:otra`.
+
+    Misma clave, mismos extremos, mismo predicado. Se deshace la de capa
+    juego; la de partida tiene que quedar intacta. Antes, la consulta ni
+    mencionaba `partida_id` y borraba las dos.
+    """
+    graph.seed_entity("entity:origen", version=1, state_hash=HASH_A["value"])
+    graph.seed_entity("entity:destino", version=1, state_hash=HASH_B["value"])
+    plan = make_plan([link_existing("op:0001", "entity:origen", "entity:destino")])
+    result = writer(graph.driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_APPLIED, result.codes
+
+    instruccion = _instruccion(result.rollback.to_dict(), "DELETE_RELATIONSHIP")
+    assert instruccion.detail["partida_id"] is None  # capa juego, declarada
+    clave = instruccion.detail["idempotency_key"]
+    _gemela_de_relacion(graph, partida_id="partida:otra", clave=clave)
+
+    antes = _censo_relaciones(graph)
+    assert len(antes) == 2, f"el censo previo no puede estar vacio: {antes}"
+    assert sorted(f["partida"] or "juego" for f in antes) == ["juego", "partida:otra"]
+
+    from knowledge_v3.writer.rollback import rollback_query
+
+    query = rollback_query(instruccion)
+    borradas = graph.run(query.cypher, query.params)[0]["borradas"]
+    assert borradas == 1, f"borro {borradas}: se llevo por delante otra partida"
+
+    despues = _censo_relaciones(graph)
+    assert [f["partida"] for f in despues] == ["partida:otra"], despues
+
+
+def test_ataque_b_inverso_rollback_de_partida_no_toca_la_relacion_de_juego(
+    graph: GraphProbe,
+):
+    """La simetrica: se deshace la de `partida:otra` y sobrevive la de juego."""
+    # El sujeto vive EN la partida (la lectura de precondicion esta acotada al
+    # ambito del plan: un sujeto de capa juego daria EXEC_SCOPE_MISMATCH).
+    graph.run(
+        "CREATE (:V3Entity:Character $props)",
+        {"props": {"entity_id": "entity:origen", "workspace": WORKSPACE,
+                   "partida_id": "partida:otra", "version": 1,
+                   "state_hash": HASH_A["value"], "canonical_name": "origen"}},
+    )
+    graph.seed_entity("entity:destino", version=1, state_hash=HASH_B["value"])
+    # En ambito de partida la sesion de revelacion se declara por OPERACION.
+    operacion = link_existing("op:0001", "entity:origen", "entity:destino")
+    operacion["payload"] = {
+        **operacion["payload"],
+        "known_from_session": 0,
+    }
+    plan = make_plan(
+        [operacion],
+        partida_id="partida:otra",
+        scope={"layer": "PARTIDA", "game_id": WORKSPACE, "partida_id": "partida:otra"},
+    )
+    result = writer(graph.driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_APPLIED, result.codes
+
+    instruccion = _instruccion(result.rollback.to_dict(), "DELETE_RELATIONSHIP")
+    assert instruccion.detail["partida_id"] == "partida:otra"
+    _gemela_de_relacion(
+        graph, partida_id=None, clave=instruccion.detail["idempotency_key"]
+    )
+
+    antes = _censo_relaciones(graph)
+    assert len(antes) == 2, f"el censo previo no puede estar vacio: {antes}"
+
+    from knowledge_v3.writer.rollback import rollback_query
+
+    query = rollback_query(instruccion)
+    assert graph.run(query.cypher, query.params)[0]["borradas"] == 1
+
+    despues = _censo_relaciones(graph)
+    assert [f["partida"] for f in despues] == [None], despues
+
+
+def test_ataque_a_rollback_de_nodo_no_toca_el_gemelo_de_otra_partida(
+    graph: GraphProbe,
+):
+    """Gemelo de nodo: mismo `assertion_id`, `workspace` y clave, otra partida.
+
+    Insertado DESPUES del apply, para que no lo pare la comprobacion de
+    ausencia. La consulta de la base borraba los dos (`{'borrados': 2}`).
+    """
+    graph.seed_entity("entity:origen", version=1, state_hash=HASH_A["value"])
+    graph.seed_entity("entity:destino", version=1, state_hash=HASH_B["value"])
+    plan = make_plan(
+        [
+            create_assertion(
+                "op:0001", "assertion:gemela", "entity:origen", "entity:destino"
+            )
+        ]
+    )
+    result = writer(graph.driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_APPLIED, result.codes
+
+    instruccion = _instruccion(result.rollback.to_dict(), "DELETE_NODE")
+    assert instruccion.detail["label"] == "V3Assertion"
+    assert instruccion.detail["partida_id"] is None
+    # La restriccion `(workspace, assertion_id) IS UNIQUE` no incluye el
+    # ambito, asi que HOY impide el gemelo aqui -- pero el preflight midio que
+    # la base real no tiene ni una restriccion, y ahi el gemelo si cabe. Se
+    # retira para reproducir esa base, y se repone al salir.
+    graph.run(f"DROP CONSTRAINT {V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT} IF EXISTS")
+    graph.run(
+        "CREATE (:V3Assertion $props)",
+        {
+            "props": {
+                "assertion_id": "assertion:gemela",
+                "workspace": WORKSPACE,
+                "idempotency_key": instruccion.detail["idempotency_key"],
+                "partida_id": "partida:otra",
+                "status": "ASSERTED",
+            }
+        },
+    )
+    antes = graph.run(
+        "MATCH (n:V3Assertion) RETURN n.partida_id AS partida ORDER BY partida"
+    )
+    assert len(antes) == 2, f"el censo previo no puede estar vacio: {antes}"
+
+    from knowledge_v3.writer.rollback import rollback_query
+
+    query = rollback_query(instruccion)
+    borrados = graph.run(query.cypher, query.params)[0]["borrados"]
+    assert borrados == 1, f"borro {borrados}: alcanzo el gemelo de otra partida"
+
+    despues = graph.run("MATCH (n:V3Assertion) RETURN n.partida_id AS partida")
+    graph.run("MATCH (n:V3Assertion) DETACH DELETE n")
+    graph.run(V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT_CYPHER)
+    assert [f["partida"] for f in despues] == ["partida:otra"], despues
+
+
+def test_el_filtro_de_ambito_no_borra_de_menos_ni_alcanza_otro_workspace(
+    graph: GraphProbe,
+):
+    """Lo que ya funcionaba sigue funcionando: otro workspace y otra clave.
+
+    Tres vecinas alrededor del objetivo — otra partida, otro workspace y otra
+    `idempotency_key` — y el rollback borra exactamente una.
+    """
+    graph.seed_entity("entity:origen", version=1, state_hash=HASH_A["value"])
+    graph.seed_entity("entity:destino", version=1, state_hash=HASH_B["value"])
+    graph.seed_entity("entity:origen", workspace=OTHER_WORKSPACE)
+    graph.seed_entity("entity:destino", workspace=OTHER_WORKSPACE)
+    plan = make_plan([link_existing("op:0001", "entity:origen", "entity:destino")])
+    result = writer(graph.driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_APPLIED, result.codes
+
+    instruccion = _instruccion(result.rollback.to_dict(), "DELETE_RELATIONSHIP")
+    clave = instruccion.detail["idempotency_key"]
+    otra_clave = "idem:sha256:" + "f" * 64
+    _gemela_de_relacion(graph, partida_id="partida:otra", clave=clave)
+    _gemela_de_relacion(graph, partida_id=None, clave=clave, workspace=OTHER_WORKSPACE)
+    _gemela_de_relacion(graph, partida_id=None, clave=otra_clave)
+
+    antes = _censo_relaciones(graph)
+    assert len(antes) == 4, f"censo previo inesperado: {antes}"
+
+    from knowledge_v3.writer.rollback import rollback_query
+
+    query = rollback_query(instruccion)
+    assert graph.run(query.cypher, query.params)[0]["borradas"] == 1
+
+    despues = _censo_relaciones(graph)
+    assert len(despues) == 3, despues
+    assert {(f["ws"], f["partida"], f["idem"]) for f in despues} == {
+        (WORKSPACE, "partida:otra", clave),
+        (OTHER_WORKSPACE, None, clave),
+        (WORKSPACE, None, otra_clave),
+    }
+
+
+def test_el_filtro_de_ambito_sobrevive_al_cambio_de_base_y_de_element_id(
+    graph: GraphProbe,
+):
+    """El ataque (b), replayado en OTRA base: ni `elementId` ni ambito perdido.
+
+    Dentro de la misma base los `elementId` se reutilizan y la comparacion no
+    mediria nada; el `elementId` lleva el UUID de la base, asi que la segunda
+    instancia efimera es donde de verdad cambia.
+    """
+    graph.seed_entity("entity:origen", version=1, state_hash=HASH_A["value"])
+    graph.seed_entity("entity:destino", version=1, state_hash=HASH_B["value"])
+    plan = make_plan([link_existing("op:0001", "entity:origen", "entity:destino")])
+    result = writer(graph.driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_APPLIED, result.codes
+
+    instruccion = _instruccion(result.rollback.to_dict(), "DELETE_RELATIONSHIP")
+    _gemela_de_relacion(
+        graph, partida_id="partida:otra", clave=instruccion.detail["idempotency_key"]
+    )
+    viejos = {f["eid"] for f in graph.run("MATCH ()-[r]->() RETURN elementId(r) AS eid")}
+    assert len(viejos) == 2, "el conjunto medido no puede estar vacio"
+
+    nodos = graph.run("MATCH (n) RETURN labels(n) AS labels, properties(n) AS props")
+    rels = graph.run(
+        "MATCH (a)-[r]->(b) RETURN type(r) AS tipo, properties(r) AS props, "
+        "a.entity_id AS desde, b.entity_id AS hasta"
+    )
+
+    from knowledge_v3.writer.rollback import rollback_query
+
+    with neo4j_efimero("s9k-v3-rollback-ambito") as otro:
+        destino = GraphProbe(otro)
+        destino.clean()
+        for nodo in nodos:
+            destino.run(
+                "CREATE (n:%s) SET n = $props" % ":".join(nodo["labels"]),
+                {"props": nodo["props"]},
+            )
+        for rel in rels:
+            destino.run(
+                "MATCH (a {entity_id: $desde}) MATCH (b {entity_id: $hasta}) "
+                "CREATE (a)-[r:%s]->(b) SET r = $props" % rel["tipo"],
+                {"desde": rel["desde"], "hasta": rel["hasta"], "props": rel["props"]},
+            )
+        nuevos = {
+            f["eid"] for f in destino.run("MATCH ()-[r]->() RETURN elementId(r) AS eid")
+        }
+        assert len(nuevos) == 2 and not (nuevos & viejos), \
+            "los elementId no cambiaron: la prueba no mediria nada"
+
+        query = rollback_query(instruccion)
+        assert "elementId" not in query.cypher
+        assert destino.run(query.cypher, query.params)[0]["borradas"] == 1
+        quedan = _censo_relaciones(destino)
+        assert [f["partida"] for f in quedan] == ["partida:otra"], quedan
+
+
+def test_una_instruccion_sin_ambito_declarado_no_llega_a_ejecutarse(
+    graph: GraphProbe,
+):
+    """Fail-closed contra base real: sin ambito no hay consulta que ejecutar."""
+    from knowledge_v3.writer.rollback import (
+        RollbackInstruction,
+        RollbackNotReconstructible,
+        rollback_query,
+    )
+
+    graph.seed_entity("entity:origen", version=1, state_hash=HASH_A["value"])
+    graph.seed_entity("entity:destino", version=1, state_hash=HASH_B["value"])
+    plan = make_plan([link_existing("op:0001", "entity:origen", "entity:destino")])
+    result = writer(graph.driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_APPLIED, result.codes
+    instruccion = _instruccion(result.rollback.to_dict(), "DELETE_RELATIONSHIP")
+    _gemela_de_relacion(
+        graph, partida_id="partida:otra", clave=instruccion.detail["idempotency_key"]
+    )
+    antes = _censo_relaciones(graph)
+    assert len(antes) == 2
+
+    detalle = dict(instruccion.detail)
+    detalle.pop("partida_id")
+    with pytest.raises(RollbackNotReconstructible):
+        rollback_query(
+            RollbackInstruction(
+                operation_id=instruccion.operation_id,
+                action=instruccion.action,
+                target_id=instruccion.target_id,
+                detail=detalle,
+            )
+        )
+    assert _censo_relaciones(graph) == antes, "el grafo se movio pese al DENY"

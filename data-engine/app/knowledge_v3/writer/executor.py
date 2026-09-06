@@ -76,6 +76,10 @@ class AppliedOperation:
     predicate: Optional[str] = None
     object_id: Optional[str] = None
     partida_id: Optional[str] = None
+    #: Etiqueta base del nodo escrito (`V3Entity`/`V3Assertion`). El rollback
+    #: la necesita para no borrar por patron sin etiqueta: sin ella, una
+    #: consulta de borrado alcanza cualquier nodo que comparta clave.
+    node_label: Optional[str] = None
     previous_state: Optional[dict[str, Any]] = None
     changed_props: dict[str, Any] = field(default_factory=dict)
     #: M4 (rework): marcas de revision de ESTA operacion. No son rechazos: la
@@ -96,6 +100,7 @@ class AppliedOperation:
             "predicate": self.predicate,
             "object_id": self.object_id,
             "partida_id": self.partida_id,
+            "node_label": self.node_label,
             "previous_state": self.previous_state,
             "changed_props": dict(self.changed_props),
             "review_marks": [dict(m) for m in self.review_marks],
@@ -508,6 +513,8 @@ def execute_operation(
             kind="NODE",
             created_id=_field(record, "id") or entity_id,
             target_id=entity_id,
+            partida_id=partida_id,
+            node_label=cypher.LABEL_ENTITY,
         )
 
     if op_type == "CREATE_ASSERTION":
@@ -526,6 +533,8 @@ def execute_operation(
             kind="NODE",
             created_id=_field(record, "id") or assertion_id,
             target_id=assertion_id,
+            partida_id=partida_id,
+            node_label=cypher.LABEL_ASSERTION,
             review_marks=marks,
         )
 
@@ -590,6 +599,8 @@ def execute_operation(
         idempotency_key=op["idempotency_key"],
         kind="PROPERTIES",
         target_id=target,
+        partida_id=partida_id,
+        node_label=cypher.LABEL_ASSERTION if is_assertion else cypher.LABEL_ENTITY,
         previous_state=previous,
         changed_props=changed,
     )
