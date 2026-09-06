@@ -260,11 +260,31 @@ def _carencias(
     #
     # `describe_outcome` es la MISMA funcion que alimenta el `rc`: el texto y
     # el codigo de salida no pueden divergir porque salen del mismo dato.
+    #
+    # EQUIPO 5C. La frase sale ahora del desenlace RESUELTO de la corrida, no
+    # del desenlace crudo del writer, porque hay dos casos que el writer no
+    # puede nombrar: no llego a correr (`NO_WRITE_PATH` bajo --apply,
+    # `NO_WRITE_REQUESTED` en dry-run) y el no-op idempotente. Antes los dos
+    # primeros caian en `SIN_RESULTADO_DE_ESCRITURA`, una frase que trataba
+    # igual "no te lo pedi" y "te lo pedi y no lo intentaste".
+    #
+    # `resolve_run_outcome` es la MISMA llamada que hace `_rc_del_desenlace`
+    # sobre el mismo informe: acta y `rc` no pueden divergir porque nombran el
+    # desenlace con la misma funcion y los mismos datos.
     escritura = getattr(run, "write_result", None)
+    bloque = None
+    if escritura is not None:
+        bloque = {
+            "outcome": getattr(escritura, "outcome", None),
+            "applied_operations": getattr(escritura, "applied_operations", 0) or 0,
+            "noop_operations": getattr(escritura, "noop_operations", 0) or 0,
+        }
+    modo_pedido = (report.get("run") or {}).get("writer_mode")
+    desenlace = exit_codes.resolve_run_outcome(modo_pedido, bloque)
     faltas.append(
         exit_codes.describe_outcome(
-            getattr(escritura, "outcome", None),
-            mode=getattr(escritura, "mode", None),
+            desenlace,
+            mode=getattr(escritura, "mode", None) or modo_pedido,
             applied_operations=getattr(escritura, "applied_operations", 0) or 0,
             codes=list(getattr(escritura, "codes", ()) or ()),
             driver_opened=bool(driver_opened),
