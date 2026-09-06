@@ -478,11 +478,42 @@ aflojan. Se dice en vez de fingir que las 32 son igual de alcanzables.
 | `CLI_ROLLBACK_OUT_PRESERVED` | `--rollback-out` apuntaba a una póliza ya existente y el documento nuevo no traía instrucciones (apply repetido = no-op idempotente). **No se pisa**: repetir una orden inocua no puede destruir la única forma de deshacer. Código de salida `2`. | directo |
 | `CLI_APPLIED_KEYS_FORGOTTEN` | El operador pidió `--forget-applied-keys <rollback.json>` y el almacén retiró esas claves (lápida en el JSONL append-only). Habilita volver a aplicar un plan ya revertido. No toca el grafo. | directo |
 | `CLI_ROLLBACK_DRY_RUN` | `cli_rollback` sin `--execute`: enumeró lo que haría y **no tocó nada**. No resuelve conexión ni lee secreto. Código de salida `0`. | directo |
-| `CLI_ROLLBACK_NOT_AUTHORIZED` | Se pidió `--execute` sin la declaración de operador que exige el APPLY (`S9K_ALLOW_REAL_INGEST=1` y `S9K_WRITER_WORKSPACE` coincidiendo con `--workspace`). La operación que **borra** no puede pedir menos que la que escribe. Código de salida `4`. | directo |
-| `CLI_ROLLBACK_WORKSPACE_MISMATCH` | El documento de rollback es de otro `workspace` que el autorizado en la línea de mando. Borrar fuera de lo autorizado es lo que la doble declaración impide. Código de salida `4`. | directo |
+| `CLI_ROLLBACK_NOT_AUTHORIZED` | Se pidió `--execute` sin la declaración de operador que exige el APPLY (`S9K_ALLOW_REAL_INGEST=1` y `S9K_WRITER_WORKSPACE` coincidiendo con `--workspace`). La operación que **borra** no puede pedir menos que la que escribe. Código de salida `1`. | directo |
+| `CLI_ROLLBACK_WORKSPACE_MISMATCH` | El documento de rollback es de otro `workspace` que el autorizado en la línea de mando. Borrar fuera de lo autorizado es lo que la doble declaración impide. Código de salida `1`. | directo |
 | `CLI_ROLLBACK_COMPLETE` | La reversión se ejecutó y **no quedó nada**: ni residuos, ni procedencia huérfana, ni instrucciones sin revertir. Único desenlace que sale con `0`. | directo |
-| `CLI_ROLLBACK_INCOMPLETE` | La reversión se ejecutó y **queda algo**: residuos con la `idempotency_key`, procedencia huérfana en el grafo, evidencia conservada por compartida, o instrucciones no reconstruibles. La línea humana se deriva del informe, así que no puede decir «revertido». Código de salida `3`. | directo |
+| `CLI_ROLLBACK_INCOMPLETE` | La reversión se ejecutó y **queda algo**: residuos con la `idempotency_key`, procedencia huérfana en el grafo, evidencia conservada por compartida, o instrucciones no reconstruibles. La línea humana se deriva del informe, así que no puede decir «revertido». Código de salida `1`. | directo |
 | `CLI_SECRET_FILE_UNUSABLE` | El fichero declarado en `--neo4j-password-file` no sirve: no existe, está vacío, o es legible por el grupo u otros (0600 obligatorio). Código **estable**, para no tener que reconocer el fallo leyendo la redacción; el mensaje nunca lleva el secreto. Código de salida `1`. | directo |
+
+### 7.5.bis. Códigos de salida: una sola tabla para todos los mandos
+
+Los `rc` son **API**: un runner desatendido no lee actas, lee el número. La
+tabla única vive en `knowledge_v3/writer/exit_codes.py` y la usan por igual
+`pipeline.ingest_cli`, `writer.cli` y `writer.cli_rollback`.
+
+| `rc` | significado | desenlaces |
+|---|---|---|
+| `0` | desenlace correcto y limpio | `APPLIED`, `SIMULATED`; en reversión `ROLLED_BACK` (sin residuos) y `DRY_RUN` |
+| `1` | el desenlace **no** es correcto: no se escribió lo que un éxito afirmaría | `BLOCKED`, `REJECTED`, `ABORTED`, `INCONSISTENT`, `ATTEMPTED`; en reversión `INCOMPLETE`, `BLOCKED` y `ERROR` |
+| `2` | error de **uso** o de configuración del mando (`argparse` ya usa 2), o desenlace correcto pero con códigos que un runner no puede leer como limpio (p. ej. `AUDIT_APPEND_FAILED`) | — |
+| `3` | hay altas de entidad sin aprobar: no se escribe | — |
+
+**Cómo se resolvió la colisión.** `cli_rollback` nació antes que esta tabla y
+traía la suya: `INCOMPLETE = 3` y `BLOCKED = 4`. Chocaba de frente, porque aquí
+`3` ya significa «altas sin aprobar» y `4` no significaba nada. El mando
+**importa la tabla** (`exit_codes.exit_code_for_rollback`) y renuncia a sus
+números; no se renumera nada de lo ya publicado. Consecuencia declarada:
+`INCOMPLETE` y `BLOCKED` de la reversión ya **no se distinguen por el `rc`**
+—ambos `1`—; quien los necesite distinguir lee el campo `code` del acta
+(`CLI_ROLLBACK_INCOMPLETE`, `CLI_ROLLBACK_NOT_AUTHORIZED`,
+`CLI_ROLLBACK_WORKSPACE_MISMATCH`), que no ha cambiado. Lo que el `rc`
+garantiza, que es lo que se pedía, es que **sólo un desenlace limpio sale `0`**,
+con el mismo número en todos los mandos.
+
+**Colisión conocida que se conserva sin tocar:** `2` no significa lo mismo en
+`writer.cli` («salió bien pero con códigos») que en `pipeline.ingest_cli`
+(«error de uso»). Ambas son «no lo leas como éxito limpio», así que la regla
+`rc == 0` ⟺ éxito se sostiene. Se documenta en vez de renumerar, porque
+renumerar rompería el histórico de los runners existentes.
 
 ### 7.6. Verdad del desenlace (`EXEC_NOOP_*`, `ROLLBACK_*`)
 

@@ -77,13 +77,21 @@ EXIT_ALTAS_NOT_APPROVED = 3
 #: pueda decidir su `rc` a partir de un informe JSON, sin objeto vivo.
 OUTCOMES_OK = ("APPLIED", "SIMULATED")
 
+#: Los unicos dos desenlaces del mando de REVERSION que valen `rc = 0`, y por
+#: la misma razon que `OUTCOMES_OK`: `ROLLED_BACK` es el `APPLIED` de la
+#: reversion (se ejecuto y no quedo nada) y `DRY_RUN` es su `SIMULATED` (se
+#: enumero y no se toco nada). `INCOMPLETE`, `BLOCKED` y `ERROR` no estan aqui.
+ROLLBACK_OUTCOMES_OK = ("ROLLED_BACK", "DRY_RUN")
+
 __all__ = [
     "EXIT_OK",
     "EXIT_OUTCOME_NOT_OK",
     "EXIT_USAGE",
     "EXIT_ALTAS_NOT_APPROVED",
     "OUTCOMES_OK",
+    "ROLLBACK_OUTCOMES_OK",
     "outcome_is_ok",
+    "exit_code_for_rollback",
     "exit_code_for_outcome",
     "describe_outcome",
 ]
@@ -218,3 +226,45 @@ def describe_outcome(
 
     falta["hechos"] = hechos
     return falta
+
+
+def exit_code_for_rollback(
+    outcome: Optional[str],
+    *,
+    usage_error: bool = False,
+) -> int:
+    """`rc` del mando de REVERSION, con LA MISMA tabla de este modulo.
+
+    El mando de rollback (equipo 4B) nacio antes de que esta tabla existiera y
+    traia numeros propios (``INCOMPLETE=3``, ``BLOCKED=4``) que chocaban con
+    ella: aqui ``3`` ya significaba "altas sin aprobar" y ``4`` no significaba
+    nada. Dos mandos del mismo producto con dos tablas distintas es justo lo
+    que este modulo existe para impedir, asi que el mando importa ESTA y no
+    conserva las suyas. No se renumera nada de lo ya publicado.
+
+    El mapeo no inventa significados nuevos, reutiliza los de la tabla:
+
+    * ``ROLLED_BACK`` limpio y ``DRY_RUN`` valido -> ``0``. Son los unicos dos.
+      Es la misma regla que `OUTCOMES_OK`, aplicada a la operacion inversa.
+    * ``INCOMPLETE`` (quedan residuos, procedencia conservada o instrucciones
+      no reconstruibles), ``BLOCKED`` (sin la declaracion de operador) y
+      ``ERROR`` de ejecucion -> ``1``: *el desenlace NO es correcto, el grafo
+      no sostiene lo que un exito afirmaria*. Literalmente la fila ``1``.
+    * ``usage_error=True`` -> ``2``: documento ilegible, conexion sin declarar
+      o fichero de secreto inservible. Es *error de USO o de configuracion del
+      mando*, la fila ``2``, y coincide con el sentido que ``2`` ya tenia en
+      ``pipeline.ingest_cli``.
+
+    CONSECUENCIA DECLARADA de unificar: ``INCOMPLETE`` y ``BLOCKED`` ya no se
+    distinguen por el `rc` (antes ``3`` y ``4``, ahora ambos ``1``). No es una
+    perdida de informacion: quien necesite distinguirlos lee el campo `code`
+    del acta (``CLI_ROLLBACK_INCOMPLETE`` / ``CLI_ROLLBACK_NOT_AUTHORIZED`` /
+    ``CLI_ROLLBACK_WORKSPACE_MISMATCH``), estable y explicito. Lo que el `rc`
+    garantiza -- y es lo que se pidio -- es que **solo un desenlace limpio sale
+    0**, con el mismo numero en todos los mandos del producto.
+    """
+    if usage_error:
+        return EXIT_USAGE
+    if outcome in ROLLBACK_OUTCOMES_OK:
+        return EXIT_OK
+    return EXIT_OUTCOME_NOT_OK

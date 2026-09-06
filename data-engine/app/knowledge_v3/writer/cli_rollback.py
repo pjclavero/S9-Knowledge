@@ -47,13 +47,22 @@ EL DESENLACE NO ES UNA FRASE INDEPENDIENTE
 La linea humana y el codigo de salida se derivan del MISMO objeto
 (`RollbackReport`): si quedan residuos, procedencia huerfana o instrucciones no
 reconstruibles, no hay forma de imprimir «revertido» ni de salir con 0. La
-regla es literal:
+regla es literal, y los numeros salen de la tabla UNICA del producto
+(`writer.exit_codes`, equipo 4C): este mando ya no tiene tabla propia.
 
-    ROLLED_BACK (nada pendiente)  -> rc = 0
-    DRY_RUN valido                -> rc = 0
-    INCOMPLETE (queda algo)       -> rc = 3
-    BLOCKED (sin autorizacion)    -> rc = 4
-    ERROR                         -> rc = 1
+    ROLLED_BACK (nada pendiente)  -> rc = 0  (EXIT_OK)
+    DRY_RUN valido                -> rc = 0  (EXIT_OK)
+    INCOMPLETE (queda algo)       -> rc = 1  (EXIT_OUTCOME_NOT_OK)
+    BLOCKED (sin autorizacion)    -> rc = 1  (EXIT_OUTCOME_NOT_OK)
+    ERROR                         -> rc = 1  (EXIT_OUTCOME_NOT_OK)
+
+`2` (EXIT_USAGE) queda para argparse, igual que en `pipeline.ingest_cli`.
+
+Las versiones previas de este mando usaban `3` para INCOMPLETE y `4` para
+BLOCKED. Chocaban con la tabla del producto, donde `3` ya significa «altas sin
+aprobar»: se adoptan los numeros de la tabla y NO se renumera nada de ella.
+INCOMPLETE y BLOCKED dejan de distinguirse por el `rc`; se distinguen por el
+campo `code` del acta, que no ha cambiado.
 
 Ejecutarlo DOS VECES es seguro: la segunda pasada no encuentra nada que borrar,
 no inventa un exito falso y no corrompe --las consultas son borrados por clave
@@ -76,7 +85,7 @@ from ..driver_neo4j import (
     build_driver_factory,
     resolve_config,
 )
-from . import codes
+from . import codes, exit_codes
 from .gate import ENV_ALLOW_REAL_INGEST, ENV_WRITER_WORKSPACE
 from .rollback import RollbackDocument, RollbackInstruction
 from .rollback_provenance import RollbackReport, execute_rollback
@@ -88,10 +97,20 @@ OUTCOME_INCOMPLETE = "INCOMPLETE"
 OUTCOME_BLOCKED = "BLOCKED"
 OUTCOME_ERROR = "ERROR"
 
-RC_OK = 0
-RC_ERROR = 1
-RC_INCOMPLETE = 3
-RC_BLOCKED = 4
+# Los `rc` NO se deciden aqui: los da la tabla UNICA del producto
+# (`writer.exit_codes`, equipo 4C). Estos nombres se conservan porque son API
+# de este mando y hay pruebas que los usan, pero ahora son ALIAS de la tabla,
+# no numeros propios. Ver `exit_codes.exit_code_for_rollback` para el mapeo y
+# para la consecuencia declarada de unificar (INCOMPLETE y BLOCKED comparten
+# `rc`; se distinguen por el campo `code` del acta, que no ha cambiado).
+RC_OK = exit_codes.EXIT_OK
+RC_ERROR = exit_codes.EXIT_OUTCOME_NOT_OK
+RC_INCOMPLETE = exit_codes.EXIT_OUTCOME_NOT_OK
+RC_BLOCKED = exit_codes.EXIT_OUTCOME_NOT_OK
+# La fila `2` de la tabla (EXIT_USAGE) NO se asigna a mano en este mando: la
+# usa argparse por su cuenta ante argumentos invalidos, exactamente igual que
+# en `pipeline.ingest_cli`. Asignarla ademas a algun desenlace mezclaria "no
+# supiste llamarme" con "no salio bien", que es lo contrario de unificar.
 
 
 def load_document(path: str) -> RollbackDocument:
@@ -329,7 +348,10 @@ def main(
         "report": report.to_dict(),
         "human": describe(outcome, report),
     })
-    return RC_OK if limpio else RC_INCOMPLETE
+    # El `rc` sale de la tabla unica a partir del MISMO `outcome` que decide la
+    # frase humana, que a su vez se deriva del `RollbackReport`. Los tres no
+    # pueden divergir porque los tres cuelgan de `limpio`.
+    return exit_codes.exit_code_for_rollback(outcome)
 
 
 if __name__ == "__main__":  # pragma: no cover
