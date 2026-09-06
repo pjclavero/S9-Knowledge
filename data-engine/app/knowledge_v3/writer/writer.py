@@ -33,7 +33,13 @@ from . import codes
 from .admission import AdmissionContext, admit, utc_now
 from .audit import AuditRecord, AuditSink, InMemoryAuditSink
 from .errors import Rejection, WriterAbort, WriterError
-from .executor import ExecutionContext, ExecutionOutcome, execute_plan, simulate_plan
+from .executor import (
+    CLOSING_TYPES,
+    ExecutionContext,
+    ExecutionOutcome,
+    execute_plan,
+    simulate_plan,
+)
 from .gate import DEFAULT_MAX_OPERATIONS, OperatorRequest, evaluate
 from .idempotency import AppliedKeyStore, InMemoryAppliedKeys
 from .rollback import RollbackDocument, build_rollback
@@ -402,6 +408,30 @@ class GraphWriter:
         """
         if not noop_keys:
             return []
+        # INTEGRACION tanda 3 -- DEFECTO REAL, encontrado al correr las tres
+        # ramas juntas. La comprobacion presupone que toda operacion deja algo
+        # LLEVANDO su `idempotency_key`. Es cierto para las que CREAN (nodo o
+        # arista), y falso para las que CIERRAN una vigencia
+        # (`UPDATE_ENTITY`/`SUPERSEDE_ASSERTION`): `close_entity_validity` y
+        # `close_assertion_validity` solo hacen `SET` de las propiedades
+        # cambiadas sobre un nodo que YA existia, y ese nodo conserva la clave
+        # de la operacion que lo creo, nunca la de este cierre.
+        #
+        # Consecuencia medida: al reaplicar un plan de solo cierre, su clave
+        # sale no-op, nada en el grafo la lleva, y el desenlace se declaraba
+        # INCONSISTENT. Falso positivo -- el conocimiento estaba entero. Lo
+        # detecto `test_knowledge_v3_e2e_neo4j_real.py::TestCesacionContra
+        # GrafoReal::test_la_cesacion_cierra_la_vigencia_y_conserva_la_historia`,
+        # una prueba PREEXISTENTE que R1 no tenia en su rama.
+        #
+        # Se excluyen esas claves porque para ellas la medida NO EXISTE, no
+        # porque se prefiera callar: sobre un cierre esta comprobacion no puede
+        # distinguir «revertido» de «nunca estampado». La garantia de R1 queda
+        # intacta donde si se puede medir, que es donde nacio (creaciones).
+        sin_medida = self._claves_sin_huella_propia(view)
+        noop_keys = [k for k in noop_keys if k not in sin_medida]
+        if not noop_keys:
+            return []
         faltan: list[str] = []
         try:
             with driver.session() as session:
@@ -418,6 +448,28 @@ class GraphWriter:
         except Exception:  # pragma: no cover - driver roto: no se afirma nada
             return []
         return faltan
+
+    @staticmethod
+    def _claves_sin_huella_propia(view: SignedView) -> set[str]:
+        """Claves de operaciones que NUNCA estampan su `idempotency_key`.
+
+        Son las de cierre de vigencia: escriben con `SET` sobre un nodo que ya
+        existia y no le ponen la clave de esta operacion. Preguntarle al grafo
+        «¿queda algo con esta clave?» no mide nada sobre ellas.
+
+        Se deriva del CATALOGO del executor (`CLOSING_TYPES`), no de una lista
+        repetida aqui: una lista paralela que hay que acordarse de actualizar
+        es la clase de proteccion que ya ha fallado antes en este repositorio.
+        """
+        sin_medida: set[str] = set()
+        for operacion in view.mutation_operations or ():
+            if not isinstance(operacion, dict):
+                continue
+            if operacion.get("operation_type") in CLOSING_TYPES:
+                clave = operacion.get("idempotency_key")
+                if clave:
+                    sin_medida.add(clave)
+        return sin_medida
 
     # -- Piezas de `write` -------------------------------------------------
     def _effective_limit(self, requested: Optional[int]) -> Any:

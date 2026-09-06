@@ -51,6 +51,7 @@ from test_knowledge_v3_writer_neo4j_real import (  # noqa: E402
     create_assertion,
     link_existing,
     make_plan,
+    supersede_assertion,
     neo4j_efimero_conexion,
     writer,
     _gemela_de_relacion,
@@ -70,6 +71,14 @@ from knowledge_v3.writer.rollback import (  # noqa: E402
     rollback_query,
 )
 from knowledge_v3.writer.rollback_provenance import execute_rollback  # noqa: E402
+from knowledge_v3.writer.writer import (  # noqa: E402
+    OUTCOME_INCONSISTENT,
+    GraphWriter,
+)
+from knowledge_v3.writer.schema import (  # noqa: E402
+    V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT,
+    V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT_CYPHER,
+)
 
 LIVE = os.environ.get("S9K_WRITER_NEO4J_REAL", "").strip() == "1"
 pytestmark = pytest.mark.skipif(
@@ -282,54 +291,69 @@ def test_nueva_rollback_de_entidad_creada_por_la_ruta_real_de_b(limpio):
 
 
 def test_nueva_la_evidencia_que_otra_asercion_viva_sostiene_no_se_borra(limpio):
-    """La combinacion nueva EN EL CASO DE R1: el documento de B incluye
-    entidades que otras aserciones ya referencian.
+    """La combinacion nueva EN EL CASO DE R1, sobre evidencia REAL de B.
 
-    Se revierte UNA SOLA de las aserciones que B escribio. Su evidencia sigue
-    sosteniendo a las demas, que estan vivas -- asi que no se borra, y se dice.
+    La evidencia la escribio la ruta de B, no una siembra. Lo que si se
+    declara a mano es el COMPARTIR: una segunda asercion viva que apunta al
+    mismo fragmento. Se hace explicito porque esta fuente no produce por si
+    sola dos aserciones sobre un mismo fragmento, y sin dos referencias el
+    caso no mide nada -- «no se borro» seria cierto por vacio.
+
+    Lo que se mide sigue siendo lo de R1: al revertir UNA asercion, su
+    evidencia NO se borra porque otra viva la sostiene, y eso se DECLARA.
     """
     informe = _b_completo(limpio.driver)
     assert informe["write"]["outcome"] == "APPLIED"
     doc = _doc_desde_dict(informe["rollback"])
 
     purgas = [i for i in doc.instructions if i.action == ACTION_PURGE_PROVENANCE]
-    if not purgas:
-        pytest.skip("esta fuente no produjo aserciones con evidencia: nada que medir")
+    assert purgas, "B no dejo ninguna purga de procedencia: nada que medir"
 
     runner = _Runner(limpio.driver)
-    fragmentos = sorted(
-        {f for i in purgas for f in (i.detail.get("fragment_ids") or [])}
-    )
+    purga = purgas[0]
+    fragmentos = [f for f in (purga.detail.get("fragment_ids") or []) if f]
     assert fragmentos, "purga sin fragmentos: no habria referencia que contar"
 
-    # Un fragmento COMPARTIDO de verdad: sostenido por mas de una asercion
-    # viva. Se comprueba que existe ANTES de afirmar nada sobre el.
-    filas = runner.run(
-        "UNWIND $frs AS fid "
-        "MATCH (ev:V3Evidence {fragment_id: fid, workspace: $ws}) "
-        "OPTIONAL MATCH (a:V3Assertion)-[:SUPPORTED_BY]->(ev) "
-        "RETURN ev.fragment_id AS fid, count(a) AS vivas",
-        {"frs": fragmentos, "ws": WS_B},
-    )
-    assert filas, "la evidencia que la purga nombra no esta en el grafo"
-    compartidos = [f["fid"] for f in filas if int(f["vivas"] or 0) > 1]
-    if not compartidos:
-        pytest.skip("ninguna evidencia compartida en esta fuente: nada que medir")
-
-    # Se revierte SOLO la primera purga, dejando vivas las demas aserciones.
-    parcial = RollbackDocument(
-        workspace=doc.workspace, snapshot_id=doc.snapshot_id, plan_hash=doc.plan_hash
-    )
-    parcial.instructions = [purgas[0]]
-    execute_rollback(runner, parcial)
-
-    quedan = runner.run(
+    # La evidencia de B existe DE VERDAD antes de tocar nada.
+    presentes = runner.run(
         "UNWIND $frs AS fid "
         "MATCH (ev:V3Evidence {fragment_id: fid, workspace: $ws}) "
         "RETURN ev.fragment_id AS fid",
-        {"frs": compartidos, "ws": WS_B},
+        {"frs": fragmentos, "ws": WS_B},
     )
-    assert {f["fid"] for f in quedan} == set(compartidos), (
+    assert presentes, "la evidencia que la purga nombra no esta en el grafo"
+    objetivo = presentes[0]["fid"]
+
+    # El COMPARTIR, declarado: otra asercion VIVA sobre el mismo fragmento.
+    # No la revierte este documento, asi que sigue viva cuando la purga corre.
+    runner.run(
+        "MATCH (ev:V3Evidence {fragment_id: $fid, workspace: $ws}) "
+        "CREATE (a:V3Assertion {assertion_id:'assertion:otra-viva', "
+        "workspace:$ws, status:'ASSERTED'})-[:SUPPORTED_BY]->(ev)",
+        {"fid": objetivo, "ws": WS_B},
+    )
+    vivas = runner.run(
+        "MATCH (ev:V3Evidence {fragment_id: $fid, workspace: $ws}) "
+        "OPTIONAL MATCH (a:V3Assertion)-[:SUPPORTED_BY]->(ev) "
+        "RETURN count(a) AS vivas",
+        {"fid": objetivo, "ws": WS_B},
+    )
+    assert vivas and int(vivas[0]["vivas"]) > 1, (
+        f"el escenario no quedo montado, el fragmento no esta compartido: {vivas}"
+    )
+
+    parcial = RollbackDocument(
+        workspace=doc.workspace, snapshot_id=doc.snapshot_id, plan_hash=doc.plan_hash
+    )
+    parcial.instructions = [purga]
+    execute_rollback(runner, parcial)
+
+    quedan = runner.run(
+        "MATCH (ev:V3Evidence {fragment_id: $fid, workspace: $ws}) "
+        "RETURN ev.fragment_id AS fid",
+        {"fid": objetivo, "ws": WS_B},
+    )
+    assert [f["fid"] for f in quedan] == [objetivo], (
         "se borro evidencia que otra asercion VIVA sostiene"
     )
     assert any("NO se borro" in linea for linea in parcial.unrecoverable), (
@@ -367,9 +391,26 @@ def test_r2_sigue_vivo_el_rollback_de_capa_juego_no_toca_otra_partida(graph):
 
 
 def test_r2_sigue_vivo_el_gemelo_por_NODO_de_otra_partida_no_se_borra(graph):
-    """El mismo ataque, por nodo. Aqui es donde entra la lista blanca de
-    etiquetas de R2: sin ella, un `MATCH (n {workspace, idempotency_key})`
-    alcanza cualquier nodo que comparta clave, incluido el de otra partida."""
+    """El mismo ataque, por nodo. Aqui entra la lista blanca de etiquetas de
+    R2: sin ella, un `MATCH (n {workspace, idempotency_key})` alcanza cualquier
+    nodo que comparta clave, incluido el de otra partida.
+
+    LA RESTRICCION HAY QUE RETIRARLA, y conviene entender por que -- se midio
+    en `artifacts/tanda3-integracion/reproduccion_identidad_assertion.py`:
+
+    `(workspace, assertion_id) IS UNIQUE` NO incluye el ambito, y es CORRECTA
+    asi: el contrato exige que un `assertion_id` sea unico en todo el
+    workspace, cruzando capa juego y todas sus partidas. Es decir, este gemelo
+    es un estado que el producto NO puede crear por su ruta -- el writer lo
+    rechaza con `EXEC_TARGET_ALREADY_EXISTS` incluso sin restriccion.
+
+    Entonces, ¿por que probarlo? Porque el preflight midio que la base
+    PRODUCTIVA no tiene ni una restriccion, y ahi el gemelo si cabe: por una
+    restauracion, una importacion o cualquier escritura que no pase por el
+    writer. La consulta de reversion tiene que ser correcta tambien sobre ese
+    grafo. Se reproduce esa base retirando la restriccion, y se REPONE al
+    salir -- verificandolo.
+    """
     graph.seed_entity("entity:a", version=1, state_hash=HASH_A["value"])
     graph.seed_entity("entity:b", version=1, state_hash=HASH_B["value"])
     plan = make_plan(
@@ -383,31 +424,158 @@ def test_r2_sigue_vivo_el_gemelo_por_NODO_de_otra_partida_no_se_borra(graph):
     assert instruccion.detail["label"] == "V3Assertion"
     assert instruccion.detail["partida_id"] is None
 
-    # Gemelo por NODO en otra partida, con la MISMA clave. Se inserta despues
-    # del apply: asi no lo frena la comprobacion de ausencia del writer.
+    def restricciones():
+        return {
+            f["name"]
+            for f in graph.run("SHOW CONSTRAINTS YIELD name RETURN name")
+        }
+
+    assert V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT in restricciones()
     graph.run(
-        "CREATE (n:V3Assertion {assertion_id:'assertion:x', workspace:$ws, "
-        "idempotency_key:$k, partida_id:'partida:otra'})",
-        {"ws": WORKSPACE, "k": clave},
+        f"DROP CONSTRAINT {V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT} IF EXISTS"
     )
-    antes = graph.run(
-        "MATCH (n:V3Assertion {assertion_id:'assertion:x', workspace:$ws}) "
-        "RETURN n.partida_id AS partida ORDER BY partida",
+    try:
+        assert V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT not in restricciones(), (
+            "no se retiro de verdad: el caso siguiente no mediria lo que dice"
+        )
+        graph.run(
+            "CREATE (n:V3Assertion {assertion_id:'assertion:x', workspace:$ws, "
+            "idempotency_key:$k, partida_id:'partida:otra', status:'ASSERTED'})",
+            {"ws": WORKSPACE, "k": clave},
+        )
+        antes = graph.run(
+            "MATCH (n:V3Assertion {assertion_id:'assertion:x', workspace:$ws}) "
+            "RETURN n.partida_id AS partida ORDER BY partida",
+            {"ws": WORKSPACE},
+        )
+        assert len(antes) == 2, f"el escenario no quedo montado: {antes}"
+
+        consulta = rollback_query(instruccion)
+        graph.run(consulta.cypher, consulta.params)
+
+        despues = graph.run(
+            "MATCH (n:V3Assertion {assertion_id:'assertion:x', workspace:$ws}) "
+            "RETURN n.partida_id AS partida",
+            {"ws": WORKSPACE},
+        )
+        assert [f["partida"] for f in despues] == ["partida:otra"], (
+            f"el gemelo por nodo de otra partida no sobrevivio: {despues}"
+        )
+    finally:
+        # El gemelo impediria recrear la restriccion: se limpia primero.
+        graph.run("MATCH (n:V3Assertion) DETACH DELETE n")
+        graph.run(V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT_CYPHER)
+    assert V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT in restricciones(), (
+        "la restriccion NO se repuso"
+    )
+
+
+def test_el_contrato_de_identidad_de_assertion_es_por_workspace_no_por_partida():
+    """El hallazgo que R2 senalo al pasar, resuelto por el CONTRATO.
+
+    Reproducido entero contra Neo4j real en
+    `artifacts/tanda3-integracion/reproduccion_identidad_assertion.py`. Aqui
+    queda la parte que no necesita base: lo que el contrato EXIGE.
+
+    `FactAssertion` es un documento CERRADO que no tiene campo de ambito. Una
+    asercion no puede ni declarar en que partida vive, asi que su identidad no
+    puede incluir la partida. La clave es `(workspace, assertion_id)`, la misma
+    forma que `(workspace, entity_id)`: no hay asimetria entre las dos.
+    """
+    import json
+
+    esquema = json.loads(
+        (RAIZ / "contracts/knowledge-v3/v1/fact-assertion-v3.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    props = esquema["properties"]
+    assert esquema["additionalProperties"] is False
+    assert "partida_id" not in props and "scope" not in props, (
+        "si FactAssertion gana un campo de ambito, esta conclusion caduca y "
+        "hay que rehacer la medida"
+    )
+    # Y las dos restricciones tienen la MISMA forma: workspace + id durable.
+    assert "(n.workspace, n.assertion_id) IS UNIQUE" in (
+        V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT_CYPHER
+    )
+
+
+# --- defecto encontrado AL JUNTAR LAS RAMAS ---------------------------------
+def test_reaplicar_un_plan_de_solo_cierre_no_se_declara_INCONSISTENT(graph):
+    """Regresion del defecto que sólo aparecio con las tres ramas juntas.
+
+    La comprobacion de honestidad de R1 pregunta al grafo «¿queda algo con
+    esta `idempotency_key`?» y, si no, declara INCONSISTENT. Presupone que
+    toda operacion deja algo LLEVANDO su clave. Las que CIERRAN una vigencia
+    no: `close_assertion_validity` hace `SET` sobre un nodo que ya existia y
+    ese nodo conserva la clave de quien lo creo.
+
+    Resultado antes del arreglo: reaplicar un plan de solo cierre se declaraba
+    INCONSISTENT con el conocimiento INTACTO. Falso positivo.
+    """
+    graph.seed_assertion("assertion:lidera", version=1, state_hash=HASH_B["value"])
+    plan = make_plan([supersede_assertion("op:0001", "assertion:lidera")])
+
+    primero = writer(graph.driver).write(plan, apply_request(plan))
+    assert primero.outcome == OUTCOME_APPLIED, primero.codes
+
+    # El conocimiento sigue entero: se MIDE antes de afirmar nada del replay.
+    vivo = graph.run(
+        "MATCH (n:V3Assertion {assertion_id:'assertion:lidera', workspace:$ws}) "
+        "RETURN n.status AS status",
         {"ws": WORKSPACE},
     )
-    assert len(antes) == 2, f"el escenario no quedo montado: {antes}"
+    assert vivo and vivo[0]["status"] == "SUPERSEDED", vivo
 
-    consulta = rollback_query(instruccion)
-    graph.run(consulta.cypher, consulta.params)
+    repetido = writer(graph.driver).write(plan, apply_request(plan))
+    assert repetido.outcome != OUTCOME_INCONSISTENT, (
+        "un cierre reaplicado sobre conocimiento INTACTO se declara "
+        f"INCONSISTENT: {repetido.codes}"
+    )
+    assert repetido.outcome == OUTCOME_APPLIED, repetido.codes
 
-    despues = graph.run(
-        "MATCH (n:V3Assertion {assertion_id:'assertion:x', workspace:$ws}) "
-        "RETURN n.partida_id AS partida",
+
+def test_y_la_garantia_de_R1_sigue_mordiendo_donde_SI_se_puede_medir(graph):
+    """CONTROL POSITIVO del arreglo anterior.
+
+    Excluir los cierres no puede haber apagado la comprobacion entera. Sobre
+    una CREACION --que si estampa su clave-- borrar el conocimiento y dejar la
+    marca tiene que seguir dando INCONSISTENT, que es exactamente el caso que
+    R1 vino a cerrar.
+    """
+    graph.seed_entity("entity:a", version=1, state_hash=HASH_A["value"])
+    graph.seed_entity("entity:b", version=1, state_hash=HASH_B["value"])
+    plan = make_plan(
+        [create_assertion("op:0001", "assertion:creada", "entity:a", "entity:b")]
+    )
+    primero = writer(graph.driver).write(plan, apply_request(plan))
+    assert primero.outcome == OUTCOME_APPLIED, primero.codes
+
+    # Se borra el CONOCIMIENTO y se deja la MARCA: el estado que mentia.
+    graph.run(
+        "MATCH (n:V3Assertion {assertion_id:'assertion:creada', workspace:$ws}) "
+        "DETACH DELETE n",
         {"ws": WORKSPACE},
     )
-    assert [f["partida"] for f in despues] == ["partida:otra"], (
-        f"el gemelo por nodo de otra partida no sobrevivio: {despues}"
+    quedan = graph.run(
+        "MATCH (n:V3Assertion {assertion_id:'assertion:creada', workspace:$ws}) "
+        "RETURN count(n) AS c",
+        {"ws": WORKSPACE},
     )
+    assert quedan[0]["c"] == 0, "el escenario no quedo montado"
+    marca = graph.run(
+        "MATCH (op:V3AppliedOperation {workspace:$ws}) RETURN count(op) AS c",
+        {"ws": WORKSPACE},
+    )
+    assert marca[0]["c"] > 0, "sin marca superviviente no hay nada que detectar"
+
+    repetido = writer(graph.driver).write(plan, apply_request(plan))
+    assert repetido.outcome == OUTCOME_INCONSISTENT, (
+        "la garantia de R1 dejo de morder sobre creaciones: "
+        f"{repetido.outcome} {repetido.codes}"
+    )
+    assert "EXEC_NOOP_WITHOUT_GRAPH_EVIDENCE" in repetido.codes
 
 
 # --- la frontera del merge, medida -----------------------------------------
