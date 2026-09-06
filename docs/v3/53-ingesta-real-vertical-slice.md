@@ -24,9 +24,12 @@ python3 -m knowledge_v3.pipeline.ingest_cli examples/ingesta-v3/nota-cofradia-de
 `fichero -> SourceInput -> SourceCase -> episodios -> evidencia -> extracción ->
 reconciliación -> resolución -> motor -> GraphMutationPlan`.
 
-**Nunca escribe.** No hay `--apply`, no se construye ningún driver y pasar la
-bandera es un error explícito del parser, no un no-op. La escritura contra un
-Neo4j efímero es del carril C.
+**Dry-run por defecto.** Cuando se escribió este documento la bandera `--apply`
+no existía; hoy **sí existe** (verificado contra `build_parser`), igual que
+`--desde-grafo`, que abre driver para LEER el catálogo del grafo. Lo que no
+cambia es que la escritura la manda el **gate del writer**, no este CLI: sin
+`S9K_ALLOW_REAL_INGEST=1`, `S9K_WRITER_WORKSPACE` y `--operador`, el desenlace
+es `BLOCKED` y el mando sale con `rc = 1`.
 
 ## 2. El defecto GATE4-03, reproducido y corregido
 
@@ -133,8 +136,22 @@ con evidencia literal verificada. La frase negada
   `ACCEPT`. El carril D tiene que consumir `decisions`, no
   `review_plan.mutation_operations`. Declarado como
   `PLAN_REVISION_SIN_OPERACIONES`.
-* **Sin escritura.** `SIN_ESCRITURA` es una carencia permanente de este CLI por
-  diseño.
+* **La entrada de escritura del acta ya no es fija.** `SIN_ESCRITURA` era una
+  carencia que se anexaba SIEMPRE, con el texto «dry-run: no se abrió ningún
+  driver y no se tocó Neo4j» — y se imprimía igual con `--desde-grafo` (driver
+  abierto, Neo4j consultado) y con `--apply` (que no es dry-run). Ahora la
+  entrada se **deriva del desenlace real** del writer
+  (`knowledge_v3.writer.exit_codes.describe_outcome`): `SIN_ESCRITURA` sólo
+  cuando el desenlace es `SIMULATED`, y si no `ESCRITURA_APLICADA`,
+  `ESCRITURA_BLOQUEADA` o `ESCRITURA_NO_COMPLETADA`. Cada entrada lleva además
+  los **hechos estructurados** (`driver_opened`, `wrote_anything`,
+  `was_dry_run`, `applied_operations`, `codes`) para que un auditor compare
+  semántica en vez de buscar subcadenas en la prosa.
+* **Los códigos de salida son API.** El `rc` sale de la misma función que la
+  frase (`exit_code_for_outcome`), así que texto y código no pueden divergir.
+  `0` = `APPLIED`/`SIMULATED` limpio; `1` = desenlace no correcto (`BLOCKED`,
+  `REJECTED`, `ABORTED`, `INCONSISTENT`); `2` = error de uso; `3` = altas sin
+  aprobar. Antes un APPLY que el gate bloqueaba salía `0`.
 * **Los identificadores no son los del gold.** El normalizador los deriva por
   sha256 (`ep-…`, `ef-…`); esta salida no es comparable con el arnés, y no
   pretende serlo (defecto D-4, `11-e2e.md §5`).

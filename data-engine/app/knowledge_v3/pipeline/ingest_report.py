@@ -58,6 +58,8 @@ un conteo que no se puede comprobar mirando el documento no es un conteo.
 from __future__ import annotations
 
 from pathlib import Path
+
+from knowledge_v3.writer import exit_codes
 from typing import Any, Optional, Sequence
 
 REPORT_CONTRACT = "ingest-run/v1"
@@ -163,8 +165,19 @@ def _contradictions(decisions: Sequence[Any]) -> list[dict]:
     return out
 
 
-def _carencias(report: dict, run: Any, lexicon_size: Optional[int]) -> list[dict]:
-    """Lo que la corrida NO pudo enseñar, cada cosa con su motivo observado."""
+def _carencias(
+    report: dict,
+    run: Any,
+    lexicon_size: Optional[int],
+    *,
+    driver_opened: bool = False,
+) -> list[dict]:
+    """Lo que la corrida NO pudo enseñar, cada cosa con su motivo observado.
+
+    `driver_opened` NO es decorativo: la ultima entrada de esta lista habla de
+    la conexion, y antes lo hacia con una frase fija que se escribia igual con
+    driver que sin el. Ahora la afirmacion sale del hecho observado.
+    """
     faltas: list[dict] = []
     if lexicon_size == 0:
         faltas.append(
@@ -239,14 +252,23 @@ def _carencias(report: dict, run: Any, lexicon_size: Optional[int]) -> list[dict
                 ),
             }
         )
+    # LA FRASE SALE DEL DESENLACE, no al reves. Antes se anexaba SIEMPRE un
+    # `SIN_ESCRITURA` que afirmaba "dry-run: no se abrio ningun driver y no se
+    # toco Neo4j" -- y se imprimia igual con `--desde-grafo` (driver abierto,
+    # Neo4j consultado) y con `--apply` (no era dry-run). Una frase construida
+    # aparte del resultado es una frase que puede mentir, y mentia.
+    #
+    # `describe_outcome` es la MISMA funcion que alimenta el `rc`: el texto y
+    # el codigo de salida no pueden divergir porque salen del mismo dato.
+    escritura = getattr(run, "write_result", None)
     faltas.append(
-        {
-            "code": "SIN_ESCRITURA",
-            "detail": (
-                "dry-run: no se abrio ningun driver y no se toco Neo4j. Escribir "
-                "es del carril C, contra un grafo efimero y con el gate del writer"
-            ),
-        }
+        exit_codes.describe_outcome(
+            getattr(escritura, "outcome", None),
+            mode=getattr(escritura, "mode", None),
+            applied_operations=getattr(escritura, "applied_operations", 0) or 0,
+            codes=list(getattr(escritura, "codes", ()) or ()),
+            driver_opened=bool(driver_opened),
+        )
     )
     return faltas
 
@@ -261,6 +283,7 @@ def ingest_report(
     profile: Any,
     lexicon_entries: int,
     clock_read_at_boundary: bool,
+    driver_opened: bool = False,
 ) -> dict:
     """`PipelineResult` de UNA fuente -> documento `ingest-run/v1`."""
     if len(result.runs) != 1:
@@ -341,7 +364,9 @@ def ingest_report(
         por_veredicto[fila["decision"]] = por_veredicto.get(fila["decision"], 0) + 1
     report["totals"]["decisions_by_outcome"] = dict(sorted(por_veredicto.items()))
     report["run"]["lexicon_entries"] = int(lexicon_entries)
-    report["carencias"] = _carencias(report, run, int(lexicon_entries))
+    report["carencias"] = _carencias(
+        report, run, int(lexicon_entries), driver_opened=bool(driver_opened)
+    )
     return report
 
 

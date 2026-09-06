@@ -100,6 +100,7 @@ from ..resolution.catalog import CatalogEntity, InMemoryEntityCatalog
 from .config import PipelineConfig
 from . import bridge
 from .errors import PipelineError
+from ..writer import exit_codes
 from .ingest_report import ingest_report, to_markdown
 from .pipeline import KnowledgePipeline, SourceCase
 from . import entity_decisions, graph_catalog
@@ -362,6 +363,9 @@ def run_ingest(
         profile=profile,
         lexicon_entries=len(getattr(lexicon, "entries", ()) or ()),
         clock_read_at_boundary=now is None,
+        # OBSERVADO, no supuesto: `--desde-grafo` abre driver para LEER el
+        # catalogo aunque sea dry-run. El acta lo dira tal cual.
+        driver_opened=driver is not None,
     )
     # Lo que el writer HIZO, publicado en el informe. `ingest_report` no lo
     # traia porque hasta ahora no habia escritura que contar; sin este bloque,
@@ -569,7 +573,7 @@ def _modo_revision(args: argparse.Namespace) -> int:
     if not args.revisor:
         print("ERROR: --revisar exige --revisor: una aprobacion sin revisor no "
               "es una aprobacion", file=sys.stderr)
-        return 2
+        return exit_codes.EXIT_USAGE
     ruta = _ledger_path(args)
     ledger = _leer_ledger(ruta)
     nuevo = entity_decisions.approve(
@@ -591,6 +595,23 @@ def _modo_revision(args: argparse.Namespace) -> int:
     return 0
 
 
+def _rc_del_desenlace(report: dict) -> int:
+    """`rc` de la corrida, derivado del desenlace de escritura publicado.
+
+    Sin bloque `write` no hubo writer: la corrida es una ingesta que produjo su
+    informe y eso es un exito (`0`). Con bloque `write`, manda la tabla de
+    `writer.exit_codes` -- la misma para todos los mandos del producto.
+    """
+    escritura = report.get("write")
+    if not escritura:
+        return exit_codes.EXIT_OK
+    return exit_codes.exit_code_for_outcome(
+        escritura.get("outcome"),
+        escritura.get("codes") or (),
+        mode=escritura.get("mode"),
+    )
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -600,7 +621,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return _modo_revision(args)
         except (PipelineError, ValueError, OSError, json.JSONDecodeError) as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
-            return 2
+            return exit_codes.EXIT_USAGE
 
     if args.fichero is None or args.perfil is None:
         parser.error("hace falta el fichero a ingerir y --perfil")
@@ -630,7 +651,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 # grafo, seguir con un catalogo de fichero seria contestar
                 # otra pregunta.
                 print(f"ERROR [conexion]: {exc}", file=sys.stderr)
-                return 2
+                return exit_codes.EXIT_USAGE
             driver = factory()
 
         aprobadas: list[dict] = []
@@ -696,13 +717,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     except entity_decisions.AltaNoAprobada as exc:
         print(f"ERROR [altas]: {exc}", file=sys.stderr)
-        return 3
+        return exit_codes.EXIT_ALTAS_NOT_APPROVED
     except PipelineError as exc:
         print(f"ERROR [{exc.stage}]: {exc}", file=sys.stderr)
-        return 2
+        return exit_codes.EXIT_USAGE
     except (FileNotFoundError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
-        return 2
+        return exit_codes.EXIT_USAGE
     finally:
         if driver is not None:
             driver.close()
@@ -730,14 +751,25 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if args.apply and report.get("write"):
         print("write: " + json.dumps(report["write"], ensure_ascii=False,
                                      sort_keys=True))
+
+    # EL DESENLACE MANDA EL `rc`. Antes esta funcion salia 0 pasara lo que
+    # pasara con la escritura: un APPLY que el gate BLOQUEO (0 operaciones,
+    # grafo intacto) y uno que la admision RECHAZO salian igual que un APPLY
+    # aplicado. Un runner desatendido leia exito donde no se escribio nada --
+    # y la inconsistencia era interna, porque quitar `--operador` si daba 2.
+    #
+    # `exit_code_for_outcome` es la MISMA funcion que da la frase del acta
+    # (`describe_outcome`), asi que texto y codigo no pueden divergir.
+    rc = _rc_del_desenlace(report)
+
     if args.out_dir is not None:
-        return 0
+        return rc
 
     if args.formato in ("json", "ambos"):
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     if args.formato in ("markdown", "ambos"):
         print(acta)
-    return 0
+    return rc
 
 
 if __name__ == "__main__":  # pragma: no cover
