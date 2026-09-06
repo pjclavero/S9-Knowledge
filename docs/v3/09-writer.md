@@ -257,6 +257,45 @@ documento lo declara en `unrecoverable` en vez de fingir que puede.
 
 ## 5. Flujo operativo real
 
+### 5.0. Preparar el esquema (una vez por base, y es idempotente)
+
+> **Defecto medido y cerrado (equipo 5A).** Las restricciones de este documento
+> estaban **definidas** en `writer/schema.py` y **no instaladas**.
+> `SHOW CONSTRAINTS` sobre un grafo con un apply real completo detrás devolvía
+> **cero** (solo los dos índices LOOKUP que Neo4j crea solo).
+> `bootstrap_writer_schema` existía, pero **ningún mando de operador lo
+> llamaba**: se exportaba y se importaba. La única forma de arrancar un Neo4j
+> nuevo era teclear Cypher a mano — justo lo que el criterio de producto
+> prohíbe. Y sobre esa propiedad *presupuesta* descansaba el argumento de que
+> `FORGET_APPLIED` no es una fuga.
+
+```bash
+cd data-engine/app
+
+# Solo mirar (no crea nada). rc=0 si está todo, rc=3 si falta algo.
+python -m knowledge_v3.writer.schema_cli verify \
+    --neo4j-uri "$S9K_NEO4J_URI" --neo4j-user neo4j \
+    --neo4j-password-file /etc/s9k/neo4j.pass
+
+# Instalar. Idempotente: la segunda vez crea 0 y sale 0.
+python -m knowledge_v3.writer.schema_cli ensure \
+    --neo4j-uri "$S9K_NEO4J_URI" --neo4j-user neo4j \
+    --neo4j-password-file /etc/s9k/neo4j.pass
+```
+
+`ensure` imprime el censo **antes** y **después**, y cuántas creó en esta
+ejecución. No dice «hecho»: dice **qué hay**, leído del servidor con
+`SHOW CONSTRAINTS`. La diferencia es exactamente el defecto que cierra.
+
+**Esto no es un gate.** Un gate juzga si se permite una operación; esto instala
+lo que el producto necesita para funcionar. Es funcionalidad que faltaba.
+
+Desde ahora, **`--apply` falla cerrado si las restricciones requeridas no están
+presentes**: aborta con `EXEC_SCHEMA_CONSTRAINTS_MISSING` antes de abrir la
+transacción, y el detalle del rechazo lista cuáles faltan y remite a este
+mando. La comprobación **pregunta al servidor**, no a `writer/schema.py`: un
+fichero que declara una restricción no es una restricción.
+
 ### 5.1. Simular (siempre primero)
 
 ```bash
@@ -459,6 +498,7 @@ aflojan. Se dice en vez de fingir que las 32 son igual de alcanzables.
 | `EXEC_TARGET_MISSING` | La operación apunta a algo que no existe. | directo |
 | `EXEC_TARGET_ALREADY_EXISTS` | Una creación apunta a algo que ya existe (CREATE-only estricto). | directo |
 | `EXEC_SCOPE_MISMATCH` | M3 (docs/v3/49 §2.4): el objetivo existe, pero en OTRO ámbito de partida que el declarado por el plan (drift/carrera detectado en lectura, acotada por Cypher). Aborta el plan entero. | directo |
+| `EXEC_SCHEMA_CONSTRAINTS_MISSING` | Equipo 5A: las restricciones requeridas NO estan instaladas en el grafo. Se comprueba preguntando al servidor (`SHOW CONSTRAINTS`), no leyendo `writer/schema.py`. Fail-closed ANTES de abrir la transaccion: sin ellas, la unicidad de `(workspace, entity_id)` y la de `(workspace, idempotency_key)` son una creencia de este repo, no una propiedad del grafo. Se sale con `writer.schema_cli ensure` (ver 5.0), no con una autorizacion: es una precondicion fisica, no un permiso. | directo |
 | `EXEC_UNSUPPORTED_OPERATION` | Tipo de operación no soportado. | defensivo (el `enum` del schema ya los limita a seis, y el writer soporta los seis) |
 | `EXEC_UNSUPPORTED_PAYLOAD` | Payload inejecutable con seguridad: propiedad reservada, nombre inadmisible, etiqueta o predicado con forma sospechosa, valor no escalar. | directo |
 | `EXEC_REASON_CODE_MISSING` | Cierre de vigencia sin `reason_code` válido (R1). | directo |

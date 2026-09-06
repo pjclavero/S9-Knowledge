@@ -145,17 +145,22 @@ def test_real_plan_roundtrip_does_not_inject_partida_id_or_scope():
 # ==========================================================================
 # 3) El hueco del decision_hash: fijado, no solo documentado en prosa
 # ==========================================================================
-@pytest.mark.xfail(
-    reason=(
-        "AGUJERO CONOCIDO (docs/v3/49-multipartida-diseno.md, M0): "
-        "DECISION_HASH_FIELDS no cubre partida_id/scope a proposito, para no "
-        "romper decision_hash ya congelados en datasets gold/held-out. Cuando "
-        "M3 cierre esto (con regeneracion deliberada de datasets), este test "
-        "debe pasar a XPASS y entonces se borra el xfail: es la senal de que "
-        "el hueco se cerro sin que nadie lo olvidase."
-    ),
-    strict=True,
-)
+# EQUIPO 5A -- EL XFAIL SE RETIRA: LA SENAL SONO.
+#
+# El `xfail(strict=True)` que habia aqui decia, con todas las letras: "cuando
+# M3 cierre esto, este test debe pasar a XPASS y entonces se borra el xfail:
+# es la senal de que el hueco se cerro sin que nadie lo olvidase". El
+# mecanismo funciono exactamente como se diseno: al estampar el ambito en el
+# plan, el test empezo a pasar y el `strict` lo convirtio en rojo para que
+# alguien viniera a mirar. Se retira el marcador y queda la asercion.
+#
+# UN MATIZ CONTRA LO QUE AQUEL TEXTO PREVEIA: se cerro SIN "regeneracion
+# deliberada de datasets". No hizo falta tocar `DECISION_HASH_FIELDS`; el
+# ambito llega a `decision_hash` por dentro de `mutation_operations`, via la
+# `idempotency_key`, y esta solo cambia cuando `partida_id` no es nulo.
+# VERIFICADO recomputando las claves de los 21 planes sellados del repo: los
+# unicos dos que cambian son fixtures de `examples/invalid/` cuyo proposito es
+# tener la clave mal. Cero documentos validos regenerados.
 def test_m3_pendiente_decision_hash_deberia_distinguir_partida_id():
     from knowledge_v3.contracts import seal_plan
 

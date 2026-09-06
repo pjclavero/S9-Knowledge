@@ -159,6 +159,65 @@ DURABLE_IDENTITY_CONSTRAINTS: tuple[tuple[str, str, str, str], ...] = (
 #: la base de verdad.
 
 
+# --- LO QUE `--apply` EXIGE ENCONTRAR PUESTO (EQUIPO 5A) -------------------
+#
+# EL DEFECTO QUE ESTE BLOQUE CIERRA
+# --------------------------------------------------------------------------
+# Todo lo de arriba estaba DEFINIDO y no INSTALADO. `SHOW CONSTRAINTS` sobre un
+# grafo con un apply real completo devolvia CERO (solo los dos indices LOOKUP
+# que Neo4j crea solo). `bootstrap_writer_schema` existia, pero ningun camino
+# de operador lo llamaba: se exportaba y se importaba, nada mas. Y sobre esa
+# propiedad PRESUPUESTA descansaba el argumento de que `FORGET_APPLIED` no era
+# una fuga.
+#
+# La leccion, escrita donde se cometio: un fichero que declara una restriccion
+# no es una restriccion. Solo `SHOW CONSTRAINTS` sabe cuales hay, asi que la
+# comprobacion PREGUNTA AL SERVIDOR y no se cree este modulo.
+REQUIRED_CONSTRAINT_NAMES: tuple[str, ...] = (
+    APPLIED_OPERATION_CONSTRAINT,
+    ENTITY_DURABLE_IDENTITY_CONSTRAINT,
+    V3_ENTITY_DURABLE_IDENTITY_CONSTRAINT,
+    V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT,
+) + tuple(
+    f"v3_{label.lower()}_identidad_durable_unique"
+    for label in _provenance.PROVENANCE_LABELS
+)
+
+REQUIRED_INDEX_NAMES: tuple[str, ...] = (
+    ENTITY_PARTIDA_INDEX,
+    ASSERTION_PARTIDA_INDEX,
+)
+
+
+def observed_constraint_names(driver: Any) -> set[str]:
+    """Los nombres que el SERVIDOR dice tener. Observado, no presupuesto."""
+    with driver.session() as session:
+        return {
+            row["name"]
+            for row in session.run("SHOW CONSTRAINTS YIELD name RETURN name")
+            if row.get("name")
+        }
+
+
+def observed_index_names(driver: Any) -> set[str]:
+    with driver.session() as session:
+        return {
+            row["name"]
+            for row in session.run("SHOW INDEXES YIELD name RETURN name")
+            if row.get("name")
+        }
+
+
+def missing_required_constraints(driver: Any) -> list[str]:
+    """Restricciones requeridas que NO estan puestas, en orden estable.
+
+    Un fallo de lectura NO se traga: si no se puede saber que hay, no se
+    puede afirmar que esta todo, y quien llama debe fallar cerrado.
+    """
+    presentes = observed_constraint_names(driver)
+    return [n for n in REQUIRED_CONSTRAINT_NAMES if n not in presentes]
+
+
 def bootstrap_writer_schema(driver: Any) -> None:
     """Crea de forma idempotente las restricciones e indices requeridos."""
     with driver.session() as session:
@@ -188,4 +247,9 @@ __all__ = [
     "ASSERTION_PARTIDA_INDEX_CYPHER",
     "SCHEMA_VERSION",
     "bootstrap_writer_schema",
+    "REQUIRED_CONSTRAINT_NAMES",
+    "REQUIRED_INDEX_NAMES",
+    "observed_constraint_names",
+    "observed_index_names",
+    "missing_required_constraints",
 ]

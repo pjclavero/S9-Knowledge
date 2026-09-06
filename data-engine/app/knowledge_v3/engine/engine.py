@@ -147,6 +147,7 @@ class LocalKnowledgeEngine:
         collection_id: str,
         now: str,
         signals: Sequence[ExternalSignal] = (),
+        partida_id: Optional[str] = None,
     ) -> EngineResult:
         """Decide sobre el lote y construye los planes. No escribe nada."""
         workspace, asset_id, source_hash = self._check_inputs(
@@ -199,6 +200,11 @@ class LocalKnowledgeEngine:
             ontology_version=self.ontology_version,
             snapshot=snapshot,
             now=now,
+            # EQUIPO 5A. El ambito se PASA, no se deduce: el motor no tiene
+            # como saber en que partida se esta ingiriendo si no se lo dicen,
+            # y adivinarlo seria exactamente la clase de valor por defecto que
+            # hacia que dos partidas acabasen en el mismo nodo.
+            partida_id=partida_id,
             engine_version=self.version,
         )
         proposal_steps = {c.claim_id: c.producing_provider() for c in claims}

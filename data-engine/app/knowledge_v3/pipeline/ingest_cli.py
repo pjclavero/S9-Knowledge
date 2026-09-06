@@ -304,6 +304,11 @@ def run_ingest(
         profile=profile,
         now=moment,
         ingested_at=ingested,
+        # EQUIPO 5A. `--partida` llegaba hasta aqui y se quedaba en la puerta:
+        # se usaba para LEER el catalogo acotado (`catalog_rows`) y para el
+        # documento de rollback, pero NUNCA entraba en la corrida, asi que el
+        # plan salia sin ambito. Ese era el tramo que faltaba de la carretera.
+        partida_id=partida_id,
         # Las altas aprobadas NO entran aqui. Ni en el catalogo ni en el
         # glosario. MEDIDO: al meterlas, la cascada del resolutor cambiaba de
         # rama y los `entity_id` derivados pasaban de `entity:prov:...` a
@@ -545,6 +550,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="aprueba el alta de ESE entity_id. Repetible. No existe "
              "'aprobar todas': cada alta se aprueba por su id",
     )
+    parser.add_argument(
+        "--tipo-alta", action="append", default=[], dest="tipo_alta",
+        metavar="ENTITY_ID=TIPO",
+        help="declara el `entity_type` de un alta que se esta aprobando. "
+             "Repetible. Hace falta cuando el resolutor no pudo inferirlo "
+             "(tipico en un grafo nuevo): sin tipo, la creacion no se puede "
+             "construir y el mando lo dice en vez de descartar el alta",
+    )
     parser.add_argument("--revisor", default=None,
                         help="quien aprueba las altas. Obligatorio con --revisar")
 
@@ -568,16 +581,56 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _tipos_declarados(pares: Sequence[str]) -> dict:
+    """`--tipo-alta id=Tipo` -> dict. Un par mal escrito es un ERROR de uso.
+
+    No se acepta `id=` vacio: declarar un tipo vacio es lo mismo que no
+    declararlo, y tragarselo devolveria el descarte silencioso por otra via.
+    """
+    tipos: dict = {}
+    for par in pares:
+        if "=" not in par:
+            raise ValueError(f"--tipo-alta espera ENTITY_ID=TIPO, no {par!r}")
+        entity_id, _, tipo = par.partition("=")
+        entity_id, tipo = entity_id.strip(), tipo.strip()
+        if not entity_id or not tipo:
+            raise ValueError(f"--tipo-alta con id o tipo vacio: {par!r}")
+        if entity_id in tipos and tipos[entity_id] != tipo:
+            raise ValueError(
+                f"dos tipos distintos para {entity_id}: "
+                f"{tipos[entity_id]!r} y {tipo!r}"
+            )
+        tipos[entity_id] = tipo
+    return tipos
+
+
 def _modo_revision(args: argparse.Namespace) -> int:
     """Aprueba altas. No abre ninguna conexion y no toca el grafo."""
     if not args.revisor:
         print("ERROR: --revisar exige --revisor: una aprobacion sin revisor no "
               "es una aprobacion", file=sys.stderr)
         return exit_codes.EXIT_USAGE
+    try:
+        tipos = _tipos_declarados(args.tipo_alta)
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return exit_codes.EXIT_USAGE
     ruta = _ledger_path(args)
     ledger = _leer_ledger(ruta)
-    nuevo = entity_decisions.approve(
-        ledger, args.aprobar_alta, reviewer=args.revisor, at=_utc_now()
+    try:
+        nuevo = entity_decisions.approve(
+            ledger, args.aprobar_alta, reviewer=args.revisor, at=_utc_now(),
+            entity_types=tipos,
+        )
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return exit_codes.EXIT_USAGE
+    # EQUIPO 5A. Se avisa AQUI, cuando el revisor todavia esta mirando, de las
+    # altas que aprobo y no podran crearse por falta de tipo. Descubrirlo en
+    # el apply siguiente es tarde, y descubrirlo nunca era el defecto.
+    sin_tipo = sorted(
+        str(d.entity_id) for d in nuevo.aprobadas
+        if d.entity_id and not d.entity_type
     )
     _escribir_ledger(ruta, nuevo)
     print(json.dumps(
@@ -585,6 +638,7 @@ def _modo_revision(args: argparse.Namespace) -> int:
             "documento": str(ruta),
             "revisor": args.revisor,
             "aprobadas_ahora": sorted(args.aprobar_alta),
+            "aprobadas_sin_tipo": sin_tipo,
             "totals": nuevo.to_dict()["totals"],
             "pendientes": sorted(
                 str(d.entity_id) for d in nuevo.pendientes
@@ -710,12 +764,29 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     cuando = next(
                         (d.approved_at for d in ledger_previo.aprobadas
                          if d.entity_id in ya and d.approved_at), _utc_now())
+                    # EQUIPO 5A. El tipo que el revisor declaro vive en el
+                    # ledger ANTERIOR; la reconciliacion lo acaba de
+                    # regenerar desde las resoluciones, donde vuelve a ser
+                    # `None`. Sin arrastrarlo, reingerir borraba el dato que
+                    # una persona habia aportado y el alta volvia a caerse.
+                    tipos_previos = {
+                        d.entity_id: d.entity_type
+                        for d in ledger_previo.aprobadas
+                        if d.entity_id in ya and d.entity_type
+                    }
                     ledger = entity_decisions.approve(
-                        ledger, ya, reviewer=quien, at=cuando)
+                        ledger, ya, reviewer=quien, at=cuando,
+                        entity_types=tipos_previos)
             report["entity_decisions"] = ledger.to_dict()
             report.setdefault("carencias", []).extend(graph_catalog.carencias(filas))
 
     except entity_decisions.AltaNoAprobada as exc:
+        print(f"ERROR [altas]: {exc}", file=sys.stderr)
+        return exit_codes.EXIT_ALTAS_NOT_APPROVED
+    except entity_decisions.AltaAprobadaSinTipo as exc:
+        # Mismo rc que "altas sin aprobar" y por la misma razon de producto:
+        # hay altas que una persona tiene que atender antes de que se escriba
+        # nada. No es un desenlace nuevo del writer; es la misma puerta.
         print(f"ERROR [altas]: {exc}", file=sys.stderr)
         return exit_codes.EXIT_ALTAS_NOT_APPROVED
     except PipelineError as exc:

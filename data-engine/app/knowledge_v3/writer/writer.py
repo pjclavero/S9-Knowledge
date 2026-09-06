@@ -44,6 +44,7 @@ from .gate import DEFAULT_MAX_OPERATIONS, OperatorRequest, evaluate
 from .idempotency import AppliedKeyStore, InMemoryAppliedKeys
 from .rollback import RollbackDocument, build_rollback
 from .rollback_provenance import key_evidence_query
+from . import schema
 from .view import SignedView
 
 #: Resultados posibles de un intento. Entran en el registro de auditoria.
@@ -338,6 +339,24 @@ class GraphWriter:
         driver, driver_failure = self._resolve_driver()
         if driver_failure is not None:
             return self._finish(OUTCOME_ABORTED, mode, req, plan_doc, [driver_failure])
+
+        # EQUIPO 5A -- FALLO CERRADO SI EL ESQUEMA NO ESTA PUESTO.
+        # -------------------------------------------------------------------
+        # Se pregunta AL SERVIDOR (`SHOW CONSTRAINTS`), no a `schema.py`. Ese
+        # matiz es el defecto entero: las restricciones estaban declaradas en
+        # el modulo y ausentes del grafo, y varias garantias ya escritas --la
+        # unicidad de `(workspace, entity_id)` y el argumento de que
+        # `FORGET_APPLIED` no es una fuga-- las daban por instaladas. Un
+        # writer que escribe sin ellas produce estado que su propio modelo de
+        # identidad declara imposible.
+        #
+        # Va DESPUES del gate y ANTES de la transaccion: no es un permiso que
+        # conceder, es una precondicion del grafo, y comprobarla exige un
+        # driver ya resuelto.
+        schema_failure = self._schema_incompleto(driver)
+        if schema_failure is not None:
+            return self._finish(OUTCOME_ABORTED, mode, req, plan_doc, [schema_failure])
+
         try:
             outcome = execute_plan(driver, view, exec_ctx)
         except WriterError as exc:
@@ -391,6 +410,40 @@ class GraphWriter:
             review_marks=outcome.review_marks,
             rollback=rollback,
             detail={"rollback": rollback.to_dict()},
+        )
+
+    def _schema_incompleto(self, driver: Any) -> Optional[Rejection]:
+        """`None` si el esquema requerido esta puesto; un rechazo si falta algo.
+
+        NO SE TRAGA EL FALLO DE LECTURA. Si `SHOW CONSTRAINTS` no se puede
+        ejecutar, no se sabe si las restricciones estan, y "no se sabe" tiene
+        que comportarse como "no estan": lo contrario convierte una medida que
+        no se pudo tomar en un permiso para escribir.
+        """
+        try:
+            faltan = schema.missing_required_constraints(driver)
+        except Exception as exc:
+            return Rejection(
+                code=codes.EXEC_SCHEMA_CONSTRAINTS_MISSING,
+                message=(
+                    "no se pudo comprobar el esquema del grafo: sin poder "
+                    "observarlo no se escribe"
+                ),
+                detail={"error": str(exc)},
+            )
+        if not faltan:
+            return None
+        return Rejection(
+            code=codes.EXEC_SCHEMA_CONSTRAINTS_MISSING,
+            message=(
+                "faltan restricciones requeridas en el grafo; instalalas con "
+                "`python -m knowledge_v3.writer.schema_cli ensure` y repite"
+            ),
+            detail={
+                "faltantes": faltan,
+                "requeridas": list(schema.REQUIRED_CONSTRAINT_NAMES),
+                "schema_version": schema.SCHEMA_VERSION,
+            },
         )
 
     def _noop_sin_respaldo(

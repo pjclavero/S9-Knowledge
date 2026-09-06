@@ -448,6 +448,7 @@ class KnowledgePipeline:
             snapshot=snapshot,
             collection_id=self.config.collection_id,
             now=self.config.now,
+            partida_id=self.config.partida_id,
         )
         run.engine_result = result
         run.plan = result.plan

@@ -578,8 +578,28 @@ def test_m0_two_plans_differing_only_in_partida_id_have_different_plan_hash():
     plan_b = seal_plan({**base, "partida_id": "partida:brumal-02"})
 
     assert plan_a["plan_hash"] != plan_b["plan_hash"]
-    # Agujero conocido y documentado, no cerrado en M0 (ver docstring):
-    assert plan_a["local_approval"]["decision_hash"] == plan_b["local_approval"]["decision_hash"]
+    # EQUIPO 5A -- ESTE AGUJERO SE HA CERRADO, Y GRATIS.
+    #
+    # Antes: `decision_hash` NO distinguia ambito, porque
+    # `DECISION_HASH_FIELDS` es una lista curada que M0 decidio no tocar (y
+    # con razon: anadir "partida_id" ahi inserta `None` en el cuerpo de todo
+    # plan ya sellado y obliga a regenerar 264+ ficheros congelados).
+    #
+    # Ahora lo distingue SIN tocar esa lista. `decision_hash` cubre
+    # `mutation_operations`, y cada operacion lleva su `idempotency_key`, que
+    # desde el arreglo del ambito SI depende de `partida_id`. El efecto llega
+    # por dentro de un campo que ya estaba en la lista.
+    #
+    # Y no rompe nada sellado: la clave solo cambia cuando `partida_id` NO es
+    # nulo. VERIFICADO recomputando la clave de los 21 documentos de plan
+    # sellados del repo: los unicos dos que cambian son
+    # `examples/invalid/plan_invented_idempotency_key.json` y
+    # `plan_workspace_changed.json`, fixtures cuyo proposito ES tener la clave
+    # mal. Cero planes validos afectados.
+    assert (
+        plan_a["local_approval"]["decision_hash"]
+        != plan_b["local_approval"]["decision_hash"]
+    )
 
     GraphMutationPlan.from_dict(plan_a)
     GraphMutationPlan.from_dict(plan_b)
@@ -597,7 +617,13 @@ def test_m0_two_plans_differing_only_in_scope_have_different_plan_hash():
     plan_b = seal_plan({**base, "scope": scope_b})
 
     assert plan_a["plan_hash"] != plan_b["plan_hash"]
-    assert plan_a["local_approval"]["decision_hash"] == plan_b["local_approval"]["decision_hash"]
+    # EQUIPO 5A: gemelo del test de `partida_id`. `decision_hash` ya distingue
+    # ambito, por la via de la `idempotency_key` de las operaciones, sin tocar
+    # `DECISION_HASH_FIELDS` ni regenerar nada sellado.
+    assert (
+        plan_a["local_approval"]["decision_hash"]
+        != plan_b["local_approval"]["decision_hash"]
+    )
 
 
 def test_m0_plan_none_partida_id_matches_a_plan_never_declaring_it():
