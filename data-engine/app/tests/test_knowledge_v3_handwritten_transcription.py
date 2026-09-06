@@ -381,6 +381,37 @@ def test_19_contratos_congelados_mantienen_su_hash():
     # Unico cambio de contrato entre ambos: el `episode.py` de arriba. Las 23
     # rutas congeladas son las mismas en los dos checkpoints.
     #
+    # EQUIPO 5A (ambito de partida + ruta de esquema): ESTE TEST ESTA ROJO A
+    # PROPOSITO EN LA RAMA DEL EQUIPO, Y NO SE TOCA LA CONSTANTE.
+    #
+    # El carril cambia UNA de las 23 rutas congeladas:
+    # `contracts/knowledge-v3/v1/validator.py`. VERIFICADO con
+    # `git diff --name-only v3-contracts-frozen-1.0.0-gate4-03 HEAD --
+    # contracts/ .../knowledge_v3/contracts/`, que devuelve ese fichero y
+    # ninguno mas. Las 23 rutas siguen siendo las mismas.
+    #
+    #   digest anterior (gate4-03) b36fbb3e2d1353c6ab230f21368966b587b6a573b903e6e9f323086a5e611216
+    #   digest de esta rama        9e7ce73a2ee0aaba462921a3af1efcfdd5fbec1a249c7385fd7e722938f8e96b
+    #
+    # QUE CAMBIA Y POR QUE NO ES UN BORRON: `compute_idempotency_key` mete
+    # `partida_id` en el cuerpo de la clave SOLO cuando no es nulo. No se
+    # toca `IDEMPOTENCY_KEY_FIELDS` ni `DECISION_HASH_FIELDS` --las dos
+    # tuplas que M0/M3 declararon intocables--, no cambia ningun JSON Schema
+    # y no cambia ninguna dataclass. Un plan que no declara ambito produce el
+    # cuerpo IDENTICO de antes y, por tanto, la MISMA clave.
+    #
+    # MEDIDO, no supuesto: recomputando `compute_idempotency_key` sobre los
+    # 21 documentos de plan sellados del repo, los unicos dos que cambian son
+    # `contracts/knowledge-v3/v1/examples/invalid/plan_invented_idempotency_
+    # key.json` y `plan_workspace_changed.json`, fixtures cuyo proposito ES
+    # tener la clave mal. Cero documentos validos afectados; cero datasets
+    # que regenerar.
+    #
+    # AVANZAR EL CHECKPOINT NO ES DECISION DE ESTE CARRIL, por la misma regla
+    # que dejo escrita GATE4-03 unas lineas mas arriba: el tag nuevo lo crea
+    # QUIEN INTEGRA, sobre el arbol ya revisado, y pone aqui el digest. Se
+    # deja el rojo como la senal que es.
+    #
     # Que el gate SIGUE MORDIENDO despues de avanzarlo no se presume: lo
     # demuestra `test_19b_control_negativo_...`, que inyecta un cambio
     # contractual real y comprueba que la comparacion se pone roja.
