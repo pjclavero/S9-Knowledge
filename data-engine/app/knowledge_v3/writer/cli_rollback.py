@@ -20,8 +20,12 @@ Esto lo cierra:
     S9K_ALLOW_REAL_INGEST=1 S9K_WRITER_WORKSPACE=leyenda \\
     python -m knowledge_v3.writer.cli_rollback rollback.json \\
         --workspace leyenda --operator pjc --execute \\
+        --audit-log /var/log/s9k/rollback.jsonl \\
         --neo4j-uri "$S9K_NEO4J_URI" --neo4j-user neo4j \\
         --neo4j-password-file /etc/s9k/neo4j.pass
+
+`--operator` y `--audit-log` son OBLIGATORIOS con `--execute`: la reversion
+borra, y sin operador ni rastro no se borra. Ver `authorize`.
 
 LAS MISMAS REGLAS QUE EL APPLY, SIN AFLOJAR NINGUNA
 ---------------------------------------------------
@@ -52,9 +56,15 @@ regla es literal, y los numeros salen de la tabla UNICA del producto
 
     ROLLED_BACK (nada pendiente)  -> rc = 0  (EXIT_OK)
     DRY_RUN valido                -> rc = 0  (EXIT_OK)
-    INCOMPLETE (queda algo)       -> rc = 1  (EXIT_OUTCOME_NOT_OK)
+    UNEXPECTED_RESIDUE            -> rc = 1  (EXIT_OUTCOME_NOT_OK)
+    NO_OPERATOR                   -> rc = 1  (EXIT_OUTCOME_NOT_OK)
+    NO_AUDIT                      -> rc = 1  (EXIT_OUTCOME_NOT_OK)
     BLOCKED (sin autorizacion)    -> rc = 1  (EXIT_OUTCOME_NOT_OK)
     ERROR                         -> rc = 1  (EXIT_OUTCOME_NOT_OK)
+
+Los tres nombres del medio los acordo el equipo 5C, que los dejo previstos en
+su tabla antes de que existieran. NO hace falta tocar `exit_codes` para que
+salgan mal: `ROLLBACK_OUTCOMES_OK` es lista blanca y falla CERRADO.
 
 `2` (EXIT_USAGE) queda para argparse, igual que en `pipeline.ingest_cli`.
 
@@ -86,7 +96,8 @@ from ..driver_neo4j import (
     resolve_config,
 )
 from . import codes, exit_codes
-from .gate import ENV_ALLOW_REAL_INGEST, ENV_WRITER_WORKSPACE
+from .audit import AuditRecord, JsonlAuditSink
+from .gate import ENV_ALLOW_REAL_INGEST, ENV_WRITER_WORKSPACE, _OPERATOR_ID
 from .rollback import RollbackDocument, RollbackInstruction
 from .rollback_provenance import RollbackReport, execute_rollback
 
@@ -96,6 +107,31 @@ OUTCOME_ROLLED_BACK = "ROLLED_BACK"
 OUTCOME_INCOMPLETE = "INCOMPLETE"
 OUTCOME_BLOCKED = "BLOCKED"
 OUTCOME_ERROR = "ERROR"
+
+# --- Desenlaces NUEVOS del bloque 5B ---------------------------------------
+# Nombres acordados con el equipo 5C, que los dejo previstos en su tabla
+# (`exit_codes`, comentario de `RUN_OUTCOMES_OK`) antes de que existieran. Se
+# adoptan tal cual para que no vuelva a pasar lo de la tanda anterior, cuando
+# dos equipos eligieron codigos distintos para lo mismo y hubo que unificarlos
+# en la integracion.
+#
+# NO hace falta tocar el modulo del 5C para que salgan mal: su
+# `exit_code_for_rollback` es una LISTA BLANCA (`ROLLBACK_OUTCOMES_OK`) y falla
+# CERRADO, asi que cualquier desenlace que no este en ella sale `!= 0` por
+# omision. Se comprueba en las pruebas en vez de darlo por supuesto.
+
+#: Se pidio borrar sin `--operator`. Un borrado anonimo no es auditable.
+OUTCOME_NO_OPERATOR = "NO_OPERATOR"
+
+#: Se pidio borrar sin un registro de auditoria UTILIZABLE (ausente, o
+#: declarado pero no escribible). Sin rastro no se borra.
+OUTCOME_NO_AUDIT = "NO_AUDIT"
+
+#: La reversion corrio y el grafo NO sostiene lo que un exito afirmaria:
+#: quedan residuos, procedencia huerfana o puntos no revertidos. Es el
+#: desenlace que antes se llamaba `INCOMPLETE` a secas; el nombre nuevo dice
+#: QUE quedo mal, y `INCOMPLETE` se conserva como alias historico.
+OUTCOME_UNEXPECTED_RESIDUE = "UNEXPECTED_RESIDUE"
 
 # Los `rc` NO se deciden aqui: los da la tabla UNICA del producto
 # (`writer.exit_codes`, equipo 4C). Estos nombres se conservan porque son API
@@ -147,12 +183,36 @@ def load_document(path: str) -> RollbackDocument:
 
 
 def authorize(
-    workspace: str, env: Optional[dict[str, str]]
+    workspace: str,
+    env: Optional[dict[str, str]],
+    *,
+    operator: Optional[str] = None,
+    audit_sink: Optional[Any] = None,
 ) -> Optional[dict[str, Any]]:
-    """Las dos declaraciones del APPLY, exigidas tambien para la inversa.
+    """Las MISMAS condiciones esenciales del APPLY, exigidas tambien a la inversa.
+
+    PRIMER DEFECTO MEDIDO, Y EL GRAVE
+    ---------------------------------
+    Con el entorno y el workspace correctos pero SIN `--operator`, la reversion
+    se ejecutaba de verdad: 1 relacion, 1 marca y 12 nodos de procedencia
+    borrados, y el propio informe decia ``"operator": null``. El mando ni
+    siquiera aceptaba `--audit-log`. Un borrado real, anonimo y sin traza.
+
+    Las condiciones del gate del writer --*hay operador*, *forma admisible*,
+    *registro de auditoria utilizable*-- no tenian contrapartida aqui. Ahora
+    la tienen. **No es un gate nuevo**: son las condiciones que YA existen para
+    escribir, aplicadas a la operacion que BORRA, que no puede pedir menos que
+    la que escribe. Se reutilizan sus mismos codigos
+    (`GATE_OPERATOR_MISSING`, `GATE_OPERATOR_INVALID`, `GATE_AUDIT_UNAVAILABLE`)
+    y su misma expresion de forma admisible (`gate._OPERATOR_ID`), a proposito:
+    dos definiciones de «operador valido» acabarian divergiendo.
 
     Devuelve `None` si autoriza, o el informe de bloqueo. No lee `os.environ`
     por su cuenta: el entorno llega desde `main`, igual que en el gate.
+
+    ORDEN: se comprueba TODO esto ANTES de resolver la conexion, leer el
+    secreto y tocar el grafo. Fail-closed de verdad es no llegar a abrir la
+    sesion, no arrepentirse a mitad.
     """
     environ = env or {}
     if environ.get(ENV_ALLOW_REAL_INGEST) != "1":
@@ -167,33 +227,116 @@ def authorize(
             "error": f"{ENV_WRITER_WORKSPACE}={declarado!r} no coincide con "
                      f"--workspace={workspace!r}: la doble declaracion no cuadra",
         }
+    if not operator:
+        return {
+            "outcome": OUTCOME_NO_OPERATOR,
+            "code": codes.GATE_OPERATOR_MISSING,
+            "error": "la reversion BORRA: sin --operator no se borra. Un borrado "
+                     "anonimo no es reversible ni auditable",
+        }
+    if not _OPERATOR_ID.match(operator):
+        return {
+            "outcome": OUTCOME_NO_OPERATOR,
+            "code": codes.GATE_OPERATOR_INVALID,
+            "error": "--operator con forma no admisible (misma regla que el "
+                     "apply); un identificador que no se puede atribuir no "
+                     "sirve de traza",
+        }
+    if audit_sink is None or not audit_sink.available():
+        return {
+            "outcome": OUTCOME_NO_AUDIT,
+            "code": codes.GATE_AUDIT_UNAVAILABLE,
+            "error": "no hay registro de auditoria utilizable: declara "
+                     "--audit-log con una ruta escribible. Sin rastro no se borra",
+        }
     return None
 
 
-def describe(outcome: str, report: Optional[RollbackReport]) -> str:
-    """La linea humana, DERIVADA del informe. No puede contradecirlo.
+def rollback_facts(
+    outcome: str, report: Optional[RollbackReport]
+) -> dict[str, Any]:
+    """Los HECHOS de los que sale la frase. Booleanos que no admiten matiz.
 
-    Se construye a partir de los mismos campos que deciden el rc, de modo que
-    no exista ninguna redaccion que diga «revertido» sobre un informe con
-    residuos.
+    Misma disciplina que los `hechos` de `exit_codes.describe_outcome` (equipo
+    5C), aplicada al mando de reversion: quien quiera comprobar que el acta no
+    miente compara ESTOS campos, no busca subcadenas en la prosa. Contar texto
+    da falsos negativos en cuanto alguien reescribe una palabra.
+
+    Y es lo que cierra el DEFECTO 4 de raiz. La contradiccion medida
+    --``"human": "...NO es una reversion limpia..."`` junto a ``"clean": true``
+    en el mismo documento-- existia porque la frase y el campo se calculaban
+    por su cuenta. Ahora los dos salen de aqui: `deleted_anything` y
+    `clean` son datos observados del informe, y la prosa es una funcion de
+    ellos. Para que vuelvan a contradecirse haria falta que un dato se
+    contradijese consigo mismo.
     """
     if report is None:
-        return "no se ejecuto nada."
+        return {
+            "outcome": outcome,
+            "ran": False,
+            "deleted_anything": False,
+            "clean": False,
+            "residues": 0,
+            "unrecoverable": 0,
+            "executed": 0,
+            "purges": 0,
+            "deleted_provenance_nodes": 0,
+        }
     borrados = sum(
         len(p.get("deleted_evidence") or []) + len(p.get("deleted_episodes") or [])
         + len(p.get("deleted_sources") or [])
         for p in report.purges
     )
+    return {
+        "outcome": outcome,
+        "ran": True,
+        # ¿Se borro algo DE VERDAD? Ni el `rc` ni la frase pueden fingirlo.
+        "deleted_anything": bool(borrados) or bool(report.executed),
+        "clean": report.clean,
+        "residues": len(report.residues),
+        "unrecoverable": len(report.unrecoverable),
+        "executed": len(report.executed),
+        "purges": len(report.purges),
+        "deleted_provenance_nodes": borrados,
+    }
+
+
+def describe(outcome: str, report: Optional[RollbackReport]) -> str:
+    """La linea humana, DERIVADA de los hechos. No puede contradecirlos.
+
+    Una rama por desenlace, y cada rama solo puede decir lo que los hechos
+    sostienen. En particular: la palabra «limpia» solo aparece bajo
+    `hechos["clean"] is True`, y ese mismo booleano es el que se publica en el
+    acta -- no hay dos definiciones que puedan divergir.
+    """
+    hechos = rollback_facts(outcome, report)
+
+    if outcome == OUTCOME_NO_OPERATOR:
+        return (
+            "BLOQUEADO sin --operator: no se borro nada y no se llego a abrir "
+            "sesion contra el grafo. La reversion borra, y un borrado anonimo "
+            "no es atribuible ni auditable."
+        )
+    if outcome == OUTCOME_NO_AUDIT:
+        return (
+            "BLOQUEADO sin registro de auditoria utilizable: no se borro nada "
+            "y no se llego a abrir sesion contra el grafo. Sin rastro no se "
+            "borra, igual que en el apply."
+        )
+    if not hechos["ran"]:
+        return "no se ejecuto nada."
+
     base = (
-        f"{len(report.executed)} instrucciones ejecutadas, "
-        f"{len(report.purges)} purgas de procedencia "
-        f"({borrados} nodos de procedencia borrados)"
+        f"{hechos['executed']} instrucciones ejecutadas, "
+        f"{hechos['purges']} purgas de procedencia "
+        f"({hechos['deleted_provenance_nodes']} nodos de procedencia borrados)"
     )
-    if outcome == OUTCOME_ROLLED_BACK:
+    if hechos["clean"]:
+        # Unico camino que puede decir «limpia», y solo bajo el booleano.
         return f"{base}. No queda nada de esa operacion en el grafo."
     return (
-        f"{base}. NO es una reversion limpia: {len(report.residues)} residuos y "
-        f"{len(report.unrecoverable)} puntos no revertidos (ver 'unrecoverable')."
+        f"{base}. NO es una reversion limpia: {hechos['residues']} residuos y "
+        f"{hechos['unrecoverable']} puntos no revertidos (ver 'unrecoverable')."
     )
 
 
@@ -206,7 +349,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--workspace", required=True,
                    help="workspace autorizado (declaracion 1 de 2; la 2 es "
                         f"{ENV_WRITER_WORKSPACE})")
-    p.add_argument("--operator", default=None, help="identificador del operador")
+    p.add_argument("--operator", default=None,
+                   help="identificador del operador. OBLIGATORIO con --execute: "
+                        "la reversion borra, y sin operador no se borra.")
+    p.add_argument("--audit-log", default=None,
+                   help="ruta del registro de auditoria JSONL (append-only). "
+                        "OBLIGATORIO con --execute: sin rastro utilizable no se "
+                        "borra. Misma condicion que el apply.")
     p.add_argument("--execute", action="store_true",
                    help="BORRADO REAL. Sin esto solo se enumera lo que haria.")
     p.add_argument("--doc-out", default=None,
@@ -219,6 +368,44 @@ def build_parser() -> argparse.ArgumentParser:
                         f"stdin ({ENV_PASSWORD_FILE}). NUNCA por argv.")
     p.add_argument("--neo4j-database", default=None, help=f"base ({ENV_DATABASE})")
     return p
+
+
+def _audit(
+    sink: Optional[Any],
+    *,
+    outcome: str,
+    doc: RollbackDocument,
+    operator: Optional[str],
+    workspace: str,
+    detail: dict[str, Any],
+) -> None:
+    """Una linea de auditoria de la REVERSION. Se registra TODO intento.
+
+    Mismo `AuditRecord` y mismo sink append-only que el apply: la operacion que
+    borra deja el mismo tipo de rastro que la que escribe. `mode` va como
+    ``ROLLBACK`` para que una linea de reversion no se confunda nunca con una
+    de escritura al releer el fichero.
+
+    Un fallo al registrar NO se traga en silencio, pero tampoco puede dejar el
+    grafo a medias: por eso el registro de INTENTO va ANTES de tocar nada --si
+    no se puede escribir, no se borra-- y el de desenlace va despues.
+    """
+    if sink is None:
+        return
+    from datetime import datetime, timezone
+
+    sink.append(
+        AuditRecord(
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            outcome=outcome,
+            mode="ROLLBACK",
+            workspace=workspace,
+            operator_id=operator,
+            plan_hash=doc.plan_hash or None,
+            snapshot_id=doc.snapshot_id or None,
+            detail=detail,
+        )
+    )
 
 
 def _emit(payload: dict[str, Any]) -> None:
@@ -270,10 +457,63 @@ def main(
         })
         return RC_OK
 
-    bloqueo = authorize(args.workspace, environ)
+    # La auditoria se resuelve ANTES de autorizar, porque «hay registro
+    # utilizable» es una de las condiciones que autorizan. `available()` es la
+    # misma comprobacion que usa el apply: directorio creable y fichero
+    # escribible, medido, no supuesto.
+    sink = JsonlAuditSink(args.audit_log) if args.audit_log else None
+
+    bloqueo = authorize(
+        args.workspace, environ, operator=args.operator, audit_sink=sink
+    )
     if bloqueo is not None:
-        _emit({"ok": False, "outcome": OUTCOME_BLOCKED, **bloqueo})
-        return RC_BLOCKED
+        # El bloqueo se registra SI hay donde registrarlo. Cuando el bloqueo es
+        # precisamente «no hay auditoria», no hay donde: eso no es un agujero,
+        # es la razon de no haber borrado nada, y queda en la salida del mando.
+        # El desenlace lo trae el propio bloqueo cuando es uno de los nuevos
+        # (`NO_OPERATOR` / `NO_AUDIT`); los antiguos siguen siendo `BLOCKED`.
+        desenlace = bloqueo.pop("outcome", OUTCOME_BLOCKED)
+        _audit(
+            sink if (sink is not None and sink.available()) else None,
+            outcome=desenlace,
+            doc=doc,
+            operator=args.operator,
+            workspace=args.workspace,
+            detail={"code": bloqueo.get("code"), "error": bloqueo.get("error")},
+        )
+        _emit({
+            "ok": False,
+            "outcome": desenlace,
+            **bloqueo,
+            "hechos": rollback_facts(desenlace, None),
+            "human": describe(desenlace, None),
+        })
+        # Sale por la tabla UNICA, que falla CERRADA: `NO_OPERATOR` y
+        # `NO_AUDIT` no estan en `ROLLBACK_OUTCOMES_OK`, luego `rc != 0` sin
+        # tocar el modulo del 5C. Se comprueba, no se presume.
+        return exit_codes.exit_code_for_rollback(desenlace)
+
+    # INTENTO, antes de abrir la sesion. Si esto no se puede escribir, no se
+    # borra: el rastro precede al borrado, no lo persigue.
+    try:
+        _audit(
+            sink,
+            outcome="ATTEMPTED",
+            doc=doc,
+            operator=args.operator,
+            workspace=args.workspace,
+            detail={"instructions": len(doc.instructions)},
+        )
+    except OSError as exc:
+        _emit({
+            "ok": False,
+            "outcome": OUTCOME_NO_AUDIT,
+            "code": codes.GATE_AUDIT_UNAVAILABLE,
+            "error": f"no se pudo escribir el registro de auditoria: {exc}",
+            "hechos": rollback_facts(OUTCOME_NO_AUDIT, None),
+            "human": describe(OUTCOME_NO_AUDIT, None),
+        })
+        return exit_codes.exit_code_for_rollback(OUTCOME_NO_AUDIT)
 
     factory = driver_factory
     if factory is None:
@@ -336,16 +576,35 @@ def main(
             encoding="utf-8",
         )
 
-    # El desenlace sale del informe, no de una decision aparte.
-    limpio = report.clean and not report.unrecoverable
-    outcome = OUTCOME_ROLLED_BACK if limpio else OUTCOME_INCOMPLETE
+    # El desenlace sale del informe, y de UNA sola propiedad suya. `clean` ya
+    # significa «ni residuos ni puntos no revertidos» (ver `RollbackReport`):
+    # repetir aqui la segunda mitad era tener dos definiciones de «limpio», que
+    # es exactamente como nacio la contradiccion `human` vs `clean`.
+    limpio = report.clean
+    outcome = OUTCOME_ROLLED_BACK if limpio else OUTCOME_UNEXPECTED_RESIDUE
+    _audit(
+        sink,
+        outcome=outcome,
+        doc=doc,
+        operator=args.operator,
+        workspace=args.workspace,
+        detail={
+            "executed": len(report.executed),
+            "purges": len(report.purges),
+            "residues": len(report.residues),
+            "unrecoverable": len(report.unrecoverable),
+            "clean": limpio,
+        },
+    )
     _emit({
         "ok": limpio,
         "outcome": outcome,
         "code": codes.CLI_ROLLBACK_COMPLETE if limpio else codes.CLI_ROLLBACK_INCOMPLETE,
         "operator": args.operator,
+        "audit_log": args.audit_log,
         "workspace": doc.workspace,
         "report": report.to_dict(),
+        "hechos": rollback_facts(outcome, report),
         "human": describe(outcome, report),
     })
     # El `rc` sale de la tabla unica a partir del MISMO `outcome` que decide la

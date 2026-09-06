@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from typing import Any, Iterable
 
 from . import cypher as cypher_mod
+from .apply_identity import APPLY_ID_FIELD, is_apply_id
 from .executor import AppliedOperation
 from .view import SignedView
 
@@ -232,7 +233,8 @@ def add_provenance_sweep(
     *,
     workspace: str,
     partida_id: Any,
-    fragment_ids: Iterable[str],
+    fragment_ids: Iterable[str] = (),
+    apply_id: str | None = None,
 ) -> RollbackInstruction | None:
     """Anade al documento la procedencia que el RUN persistio, no solo la citada.
 
@@ -258,7 +260,49 @@ def add_provenance_sweep(
 
     Va al FINAL del documento a proposito: la cuenta de referencias vivas solo
     mide la verdad despues de que las aserciones revertidas ya no esten.
+
+    EL RADIO: `apply`, NO `run` (segundo defecto medido, y el de fondo)
+    -------------------------------------------------------------------
+    La version anterior de esta funcion emitia ``scope: "run"`` con la lista
+    ENTERA de fragmentos de la corrida. Medido: revertir un apply que solo
+    habia creado UNA arista barrio 6 episodios y 6 evidencias que ese apply no
+    creo, y dejo la ``V3Source`` con 1 de 7 episodios. Nada VIVO se perdio
+    --la guarda de cero referencias vivas hizo su trabajo-- pero la fuente
+    dejo de ser navegable: se borro P-noX, que es justo lo prohibido.
+
+    Con `apply_id` el radio deja de ser la corrida y pasa a ser la operacion:
+    el conjunto candidato NO se enumera aqui, se DESCUBRE en el grafo
+    preguntando que nodos llevan esa marca de creacion
+    (`rollback_provenance.owned_by_apply_query`). Por eso la instruccion con
+    ``scope: "apply"`` no necesita `fragment_ids`: enumerarlos seria volver a
+    fijar el radio en el documento, y el documento es justo lo que se
+    equivocaba.
+
+    Se conserva la forma ``scope: "run"`` para documentos ya emitidos que no
+    llevan marca. NO es equivalente y no se finge que lo sea: es el radio
+    antiguo, y el ejecutor lo trata como tal.
     """
+    if apply_id is not None:
+        if not is_apply_id(apply_id):
+            raise ValueError(
+                f"add_provenance_sweep: {APPLY_ID_FIELD}={apply_id!r} no tiene "
+                "forma admisible; un barrido con marca malformada borraria por "
+                "una propiedad que no distingue nada"
+            )
+        instruction = RollbackInstruction(
+            operation_id=SWEEP_OPERATION_ID,
+            action=ACTION_PURGE_PROVENANCE,
+            target_id=None,
+            detail={
+                "workspace": workspace,
+                "partida_id": partida_id,
+                APPLY_ID_FIELD: apply_id,
+                "scope": "apply",
+            },
+        )
+        doc.instructions.append(instruction)
+        return instruction
+
     fragments = [f for f in fragment_ids if f]
     if not fragments:
         return None

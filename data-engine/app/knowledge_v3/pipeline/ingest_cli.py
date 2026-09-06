@@ -398,11 +398,25 @@ def run_ingest(
             # amplia el conjunto candidato; la condicion de borrado --cero
             # referencias vivas, dentro del propio DELETE-- no se toca.
             if run.provenance_result is not None:
+                # EL RADIO ES EL APPLY, NO LA CORRIDA. Con `apply_id` el
+                # barrido no enumera fragmentos: declara de QUIEN es lo que
+                # puede borrar, y el ejecutor descubre ese conjunto en el
+                # grafo. Enumerarlos aqui era fijar el radio en la corrida
+                # entera, que es como revertir un apply de UNA arista se
+                # llevaba 6 episodios y 6 evidencias que no habia creado.
+                #
+                # Sin `apply_id` (apply sin identidad completa) se conserva el
+                # radio antiguo, declarado como `scope: "run"` en el propio
+                # documento. No es equivalente y no se finge que lo sea.
                 add_provenance_sweep(
                     escritura.rollback,
                     workspace=ws,
                     partida_id=(run.plan.partida_id if run.plan else None),
-                    fragment_ids=[f.fragment_id for f in run.fragments],
+                    fragment_ids=(
+                        [] if run.apply_id
+                        else [f.fragment_id for f in run.fragments]
+                    ),
+                    apply_id=run.apply_id,
                 )
             report["rollback"] = escritura.rollback.to_dict()
     if run.provenance_result is not None:

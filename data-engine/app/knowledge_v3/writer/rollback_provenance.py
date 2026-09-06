@@ -58,6 +58,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from . import codes
+from .apply_identity import APPLY_ID_FIELD, is_apply_id
 from .cypher import LABEL_APPLIED_OPERATION, LABEL_ASSERTION
 from .provenance import (
     IDENTITY_FIELD,
@@ -92,6 +93,60 @@ OWN_ACTIONS = (ACTION_PURGE_PROVENANCE, ACTION_FORGET_APPLIED)
 # caso que esta no cubria: valida el ambito malformado (cadena vacia, tipo raro)
 # en vez de dejarlo pasar como si fuese una partida. Los cuatro puntos de uso
 # llaman ya directamente a `scope_clause`; no queda alias.
+
+
+# --- Propiedad por apply ---------------------------------------------------
+def ownership_clause(
+    alias: str, apply_id: Optional[str], params: dict[str, Any], *, contexto: str
+) -> str:
+    """UNICA definicion del predicado de PROPIEDAD del camino de reversion.
+
+    Igual que `rollback.scope_clause` es la unica definicion del ambito, esta
+    es la unica de la propiedad. Dos definiciones que deben coincidir sin nada
+    que lo verifique acaban divergiendo, y la que diverge borra de mas.
+
+    Fail-closed en las dos direcciones:
+
+    * `apply_id` ausente (`None`) -> se devuelve un predicado SIEMPRE CIERTO,
+      que es el radio antiguo `run`. NO se disfraza: quien pasa `None` esta
+      pidiendo explicitamente el radio sin propiedad, y el ejecutor lo declara
+      en el informe. La propiedad solo estrecha; nunca amplia.
+    * `apply_id` con forma no admisible -> excepcion. Una marca malformada
+      filtraria por una propiedad que no distingue nada, que es peor que no
+      filtrar: pareceria acotado.
+    """
+    if apply_id is None:
+        return "true"
+    if not is_apply_id(apply_id):
+        raise RollbackNotReconstructible(
+            f"{contexto}: {APPLY_ID_FIELD}={apply_id!r} no tiene forma "
+            "admisible; sin propiedad declarada no se borra"
+        )
+    params["apply_id"] = apply_id
+    return f"{alias}.{APPLY_ID_FIELD} = $apply_id"
+
+
+def owned_by_apply_query(
+    workspace: str, apply_id: str, partida_id: Optional[str], label: str = LABEL_EVIDENCE
+) -> RollbackQuery:
+    """Que nodos de esa etiqueta CREO ese apply. El conjunto PX, medido.
+
+    El conjunto candidato no se lee de una lista del documento --que es lo que
+    fijaba el radio en la corrida entera-- sino del propio grafo, preguntando
+    por la marca de creacion. Un nodo que este apply REUTILIZO lleva el
+    `apply_id` de quien lo creo y por tanto NO sale de aqui: P-noX es
+    inalcanzable por construccion, no por una comprobacion posterior.
+    """
+    field_name = IDENTITY_FIELD[label]
+    params: dict[str, Any] = {"ws": workspace}
+    scope = scope_clause("n", partida_id, params, contexto="owned_by_apply")
+    own = ownership_clause("n", apply_id, params, contexto="owned_by_apply")
+    return RollbackQuery(
+        f"MATCH (n:{label} {{workspace: $ws}}) "
+        f"WHERE {scope} AND {own} "
+        f"RETURN DISTINCT n.{field_name} AS id",
+        params,
+    )
 
 
 # --- Consultas -------------------------------------------------------------
@@ -142,21 +197,33 @@ def _delete_if_unreferenced(
     workspace: str,
     partida_id: Optional[str],
     guard: str,
+    apply_id: Optional[str] = None,
 ) -> RollbackQuery:
+    """El borrado. Las TRES condiciones van DENTRO del mismo `DELETE`.
+
+    Ambito, propiedad y cero-referencias-vivas se evaluan en la misma
+    operacion atomica que borra. Contar fuera y borrar despues seria TOCTOU:
+    entre el censo y el `DELETE` otra transaccion puede crear la referencia
+    que hacia inseguro el borrado. El censo de `execute_purge` INFORMA; esta
+    consulta DECIDE. Ese diseno ya existia para la guarda de referencias y se
+    conserva; la propiedad se anade en el mismo sitio, no en un paso previo.
+    """
     field_name = IDENTITY_FIELD[label]
     params: dict[str, Any] = {"ws": workspace, "ids": list(ids)}
     cond = scope_clause("n", partida_id, params)
+    own = ownership_clause("n", apply_id, params, contexto=f"purge:{label}")
     return RollbackQuery(
         "UNWIND $ids AS wanted "
         f"MATCH (n:{label} {{{field_name}: wanted, workspace: $ws}}) "
-        f"WHERE {cond} AND NOT {guard} "
+        f"WHERE {cond} AND {own} AND NOT {guard} "
         "DETACH DELETE n RETURN count(n) AS borrados",
         params,
     )
 
 
 def delete_orphan_evidence_query(
-    workspace: str, fragment_ids: list[str], partida_id: Optional[str]
+    workspace: str, fragment_ids: list[str], partida_id: Optional[str],
+    apply_id: Optional[str] = None,
 ) -> RollbackQuery:
     """Solo la evidencia SIN ninguna asercion viva detras."""
     return _delete_if_unreferenced(
@@ -165,11 +232,13 @@ def delete_orphan_evidence_query(
         workspace,
         partida_id,
         f"EXISTS {{ MATCH (:{LABEL_ASSERTION})-[:{REL_SUPPORTED_BY}]->(n) }}",
+        apply_id,
     )
 
 
 def delete_orphan_episode_query(
-    workspace: str, episode_ids: list[str], partida_id: Optional[str]
+    workspace: str, episode_ids: list[str], partida_id: Optional[str],
+    apply_id: Optional[str] = None,
 ) -> RollbackQuery:
     return _delete_if_unreferenced(
         LABEL_EPISODE,
@@ -177,11 +246,13 @@ def delete_orphan_episode_query(
         workspace,
         partida_id,
         f"EXISTS {{ MATCH (n)-[:{REL_HAS_FRAGMENT}]->(:{LABEL_EVIDENCE}) }}",
+        apply_id,
     )
 
 
 def delete_orphan_source_query(
-    workspace: str, source_ids: list[str], partida_id: Optional[str]
+    workspace: str, source_ids: list[str], partida_id: Optional[str],
+    apply_id: Optional[str] = None,
 ) -> RollbackQuery:
     return _delete_if_unreferenced(
         LABEL_SOURCE,
@@ -189,6 +260,7 @@ def delete_orphan_source_query(
         workspace,
         partida_id,
         f"EXISTS {{ MATCH (n)-[:{REL_HAS_EPISODE}]->(:{LABEL_EPISODE}) }}",
+        apply_id,
     )
 
 
@@ -246,6 +318,54 @@ def forget_applied_query(workspace: str, idempotency_key: str) -> RollbackQuery:
         "{workspace: $ws, idempotency_key: $key}) "
         "DELETE op RETURN count(op) AS borrados",
         {"ws": workspace, "key": idempotency_key},
+    )
+
+
+def dangling_applied_marks_query(workspace: str) -> RollbackQuery:
+    """Marcas `V3AppliedOperation` que afirman un conocimiento que ya no existe.
+
+    POR QUE (tercer defecto medido)
+    -------------------------------
+    Tras un rollback declarado limpio --``ROLLED_BACK``, «No queda nada de esa
+    operacion en el grafo», ``residues: []``-- un censo independiente encontro
+    UNA `V3AppliedOperation` superviviente: el `S0` real era 1 nodo, no 0. Y no
+    era inofensiva: la marca sigue diciendo «esto ya esta aplicado», asi que la
+    relacion no se puede reescribir y el grafo queda atascado.
+
+    `residues` no la veia porque solo preguntaba por las `idempotency_key` que
+    el DOCUMENTO nombra, y esta no estaba nombrada. Lo que el documento no
+    menciona es justo lo que hay que poder ver: el mismo problema de censo
+    incompleto que ya se cerro para la procedencia huerfana, ahora para las
+    marcas.
+
+    QUE CUENTA COMO COLGANTE, Y QUE NO
+    ----------------------------------
+    NO se denuncia toda marca ajena: una marca de OTRO apply cuyo conocimiento
+    sigue vivo es legitima, y denunciarla convertiria el censo en ruido que
+    nadie leeria. Se denuncia la marca **colgante**: la que no tiene ni un solo
+    nodo ni arista viva con su `idempotency_key`. Esa es, por definicion, una
+    afirmacion que el grafo desmiente.
+
+    CARENCIA DECLARADA: el ambito es el `workspace`, no la partida, porque hoy
+    `V3AppliedOperation` no lleva `partida_id` --el equipo 5A lo esta anadiendo
+    aguas arriba--. Cuando lo lleve, esta consulta debe acotarse tambien por
+    ambito; hasta entonces mide de mas, no de menos, que es el lado seguro
+    para un censo (y este modulo no borra: OBSERVA).
+
+    Dos `MATCH` sueltos darian producto cartesiano; aqui la cuenta va en un
+    subpatron `COUNT {}` sobre la MISMA fila de la marca.
+    """
+    return RollbackQuery(
+        f"MATCH (op:{LABEL_APPLIED_OPERATION} {{workspace: $ws}}) "
+        "WITH op, "
+        "  COUNT { MATCH (n {workspace: op.workspace, "
+        f"           idempotency_key: op.idempotency_key}}) "
+        f"          WHERE NOT n:{LABEL_APPLIED_OPERATION} }} AS nodos, "
+        "  COUNT { MATCH ()-[r {workspace: op.workspace, "
+        "           idempotency_key: op.idempotency_key}]->() } AS aristas "
+        "WHERE nodos = 0 AND aristas = 0 "
+        "RETURN op.idempotency_key AS idempotency_key",
+        {"ws": workspace},
     )
 
 
@@ -332,9 +452,23 @@ class PurgeReport:
     retained_ancestors: dict[str, list[str]] = field(default_factory=dict)
     #: fragmentos que la instruccion nombraba y que ya no estaban en el grafo.
     absent: list[str] = field(default_factory=list)
+    #: Radio de esta purga, DECLARADO: "apply" (acotada a lo que ese apply
+    #: creo) o "run" (radio antiguo, la corrida entera). Un informe que no
+    #: dice su radio deja al lector suponiendolo, y el radio es exactamente lo
+    #: que estaba mal.
+    scope: str = "run"
+    #: Marca de propiedad usada para acotar, si la hubo.
+    apply_id: Optional[str] = None
+    #: Nodos que este apply NO creo y que por eso quedaron fuera del conjunto
+    #: candidato. Es la mitad positiva de la propiedad: no basta con no
+    #: borrarlos, hay que poder ENSENAR que se supo distinguirlos.
+    not_owned: dict[str, list[str]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            "scope": self.scope,
+            "apply_id": self.apply_id,
+            "not_owned": {k: list(v) for k, v in self.not_owned.items()},
             "deleted_evidence": list(self.deleted_evidence),
             "deleted_episodes": list(self.deleted_episodes),
             "deleted_sources": list(self.deleted_sources),
@@ -352,13 +486,44 @@ def execute_purge(runner: Any, instruction: RollbackInstruction) -> PurgeReport:
     """
     detail = dict(instruction.detail)
     ws = detail.get("workspace")
-    fragments = [f for f in (detail.get("fragment_ids") or []) if f]
     partida = detail.get("partida_id")
     if not ws:
         raise RollbackNotReconstructible(
             f"{instruction.operation_id}: purga sin workspace"
         )
-    report = PurgeReport()
+    apply_id = detail.get(APPLY_ID_FIELD)
+    declarado = str(detail.get("scope") or ("apply" if apply_id else "run"))
+    if declarado == "apply" and not apply_id:
+        # Un documento que dice estar acotado por propiedad y no trae la marca
+        # borraria con radio de corrida creyendose acotado. Fail-closed.
+        raise RollbackNotReconstructible(
+            f"{instruction.operation_id}: scope 'apply' sin {APPLY_ID_FIELD}; "
+            "sin propiedad declarada no se borra"
+        )
+    if apply_id is not None and not is_apply_id(apply_id):
+        raise RollbackNotReconstructible(
+            f"{instruction.operation_id}: {APPLY_ID_FIELD}={apply_id!r} no "
+            "tiene forma admisible; sin propiedad declarada no se borra"
+        )
+
+    report = PurgeReport(scope=declarado, apply_id=apply_id)
+
+    if apply_id is not None:
+        # RADIO POR PROPIEDAD. El conjunto candidato se DESCUBRE en el grafo
+        # --que nodos llevan esta marca de creacion--, no se lee de una lista
+        # del documento. Esa lista era el radio "run" y es justo lo que barria
+        # lo que el apply no habia creado.
+        fragments = sorted(
+            {
+                r["id"]
+                for r in _rows(
+                    runner, owned_by_apply_query(ws, apply_id, partida, LABEL_EVIDENCE)
+                )
+                if r.get("id")
+            }
+        )
+    else:
+        fragments = [f for f in (detail.get("fragment_ids") or []) if f]
     if not fragments:
         return report
 
@@ -368,6 +533,26 @@ def execute_purge(runner: Any, instruction: RollbackInstruction) -> PurgeReport:
     report.absent = sorted(set(fragments) - presentes)
     episodios = sorted({r["episode_id"] for r in ancestros if r.get("episode_id")})
     fuentes = sorted({r["source_asset_id"] for r in ancestros if r.get("source_asset_id")})
+
+    if apply_id is not None:
+        # Los antepasados salen por el CAMINO, asi que pueden ser de otro
+        # apply: un episodio creado por el apply 1 es antepasado legitimo de un
+        # fragmento del apply 2. Se recortan a los que ESTE apply creo, y los
+        # que quedan fuera se DECLARAN en vez de desaparecer del informe.
+        # (Aunque no se recortaran aqui, el `DELETE` los rechazaria: la
+        # propiedad viaja tambien dentro de la consulta de borrado. Se hace en
+        # los dos sitios a proposito -- lo que se declara y lo que se ejecuta
+        # tienen que salir del mismo criterio.)
+        for label, lista in ((LABEL_EPISODE, episodios), (LABEL_SOURCE, fuentes)):
+            propios = {
+                r["id"]
+                for r in _rows(runner, owned_by_apply_query(ws, apply_id, partida, label))
+                if r.get("id")
+            }
+            ajenos = sorted(set(lista) - propios)
+            if ajenos:
+                report.not_owned[label] = ajenos
+            lista[:] = sorted(set(lista) & propios)
 
     # 2. Censo de referencias vivas: quien se queda, y por que.
     huerfanos: list[str] = []
@@ -384,19 +569,19 @@ def execute_purge(runner: Any, instruction: RollbackInstruction) -> PurgeReport:
     #    borrado el grafo puede cambiar). Y lo borrado se MIDE preguntando que
     #    sigue existiendo, no dando por hecho lo que se pidio.
     if huerfanos:
-        _rows(runner, delete_orphan_evidence_query(ws, huerfanos, partida))
+        _rows(runner, delete_orphan_evidence_query(ws, huerfanos, partida, apply_id))
         siguen = _existing(runner, LABEL_EVIDENCE, huerfanos, ws, partida)
         report.deleted_evidence = sorted(set(huerfanos) - siguen)
         for fid in sorted(siguen):
             report.retained_evidence.setdefault(fid, [])
     if episodios:
-        _rows(runner, delete_orphan_episode_query(ws, episodios, partida))
+        _rows(runner, delete_orphan_episode_query(ws, episodios, partida, apply_id))
         siguen = _existing(runner, LABEL_EPISODE, episodios, ws, partida)
         report.deleted_episodes = sorted(set(episodios) - siguen)
         if siguen:
             report.retained_ancestors[LABEL_EPISODE] = sorted(siguen)
     if fuentes:
-        _rows(runner, delete_orphan_source_query(ws, fuentes, partida))
+        _rows(runner, delete_orphan_source_query(ws, fuentes, partida, apply_id))
         siguen = _existing(runner, LABEL_SOURCE, fuentes, ws, partida)
         report.deleted_sources = sorted(set(fuentes) - siguen)
         if siguen:
@@ -415,7 +600,20 @@ class RollbackReport:
 
     @property
     def clean(self) -> bool:
-        return not self.residues
+        """LIMPIO = ni residuos NI puntos no revertidos. Una sola definicion.
+
+        CUARTO DEFECTO MEDIDO: `clean` solo miraba `residues`, mientras el
+        mando decidia el desenlace con `report.clean and not
+        report.unrecoverable`. Resultado: un mismo documento con
+        ``"human": "...NO es una reversion limpia..."`` y ``"clean": true``
+        dentro. No era una redaccion desafortunada: eran DOS definiciones de
+        «limpio», y por eso podian contradecirse.
+
+        Ahora hay una. La frase humana, el `code`, el `ok` y el `rc` cuelgan
+        todos de esta propiedad, asi que no existe forma de imprimir
+        «revertido» sobre un informe que no lo esta.
+        """
+        return not self.residues and not self.unrecoverable
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -531,6 +729,28 @@ def residues(runner: Any, doc: RollbackDocument) -> list[dict[str, Any]]:
                     }
                 )
 
+    # Barrido de MARCAS COLGANTES: lo que el documento no nombra, otra vez.
+    # Una `V3AppliedOperation` sin ni un nodo ni una arista viva con su clave
+    # afirma un conocimiento que ya no existe, atasca la reescritura de la
+    # relacion y no aparecia en ningun censo. El ambito es el `workspace` del
+    # documento y de las instrucciones: no se inventa ninguno.
+    workspaces = {doc.workspace} | {
+        i.detail.get("workspace") for i in doc.instructions if i.detail.get("workspace")
+    }
+    for ws in sorted(w for w in workspaces if w):
+        for fila in _rows(runner, dangling_applied_marks_query(ws)):
+            clave = fila.get("idempotency_key")
+            if not clave:
+                continue
+            fuera.append(
+                {
+                    "operation_id": SWEEP_OPERATION_ID,
+                    "what": "marca V3AppliedOperation COLGANTE: afirma una "
+                    "operacion aplicada de la que no queda nada en el grafo",
+                    "detail": {"idempotency_key": clave, "workspace": ws},
+                }
+            )
+
     # Barrido por AMBITO: lo que el documento NO nombra. Sin esto, un documento
     # incompleto producia un desenlace limpio sobre un grafo con procedencia
     # huerfana dentro -- medido.
@@ -568,6 +788,7 @@ __all__ = [
     "ancestors_query",
     "delete_orphan_episode_query",
     "delete_orphan_evidence_query",
+    "dangling_applied_marks_query",
     "delete_orphan_source_query",
     "execute_purge",
     "execute_rollback",
@@ -575,6 +796,8 @@ __all__ = [
     "key_evidence_query",
     "live_references_query",
     "orphan_provenance_query",
+    "ownership_clause",
+    "owned_by_apply_query",
     "residues",
     "rollback_query_for",
 ]
