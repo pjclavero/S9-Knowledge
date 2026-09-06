@@ -227,10 +227,40 @@ CLI_ROLLBACK_OUT_PRESERVED = "CLI_ROLLBACK_OUT_PRESERVED"
 #: El operador pidio olvidar claves aplicadas y el almacen las retiro.
 CLI_APPLIED_KEYS_FORGOTTEN = "CLI_APPLIED_KEYS_FORGOTTEN"
 
+# --- Mando de reversion (`cli_rollback`) -----------------------------------
+#: La reversion se pidio sin la declaracion de operador que exige el APPLY
+#: (`S9K_ALLOW_REAL_INGEST=1` y `S9K_WRITER_WORKSPACE`). No se degrada a
+#: dry-run silencioso: se dice que esta BLOQUEADA y el rc no es 0.
+CLI_ROLLBACK_NOT_AUTHORIZED = "CLI_ROLLBACK_NOT_AUTHORIZED"
+#: El `workspace` del documento no es el que el operador declaro en la linea de
+#: mando. Borrar en otro workspace del que se autorizo es exactamente lo que la
+#: doble declaracion existe para impedir.
+CLI_ROLLBACK_WORKSPACE_MISMATCH = "CLI_ROLLBACK_WORKSPACE_MISMATCH"
+#: La reversion se ejecuto y NO quedo nada: ni residuos ni instrucciones sin
+#: revertir. Es el unico desenlace que puede salir con rc=0.
+CLI_ROLLBACK_COMPLETE = "CLI_ROLLBACK_COMPLETE"
+#: La reversion se ejecuto y quedo algo: residuos en el grafo, procedencia
+#: conservada por compartida, o instrucciones no reconstruibles. El desenlace
+#: humano lo dice y el rc NO es 0.
+CLI_ROLLBACK_INCOMPLETE = "CLI_ROLLBACK_INCOMPLETE"
+#: Simulacion: se leyo el documento y se enumero lo que haria. No toco nada.
+CLI_ROLLBACK_DRY_RUN = "CLI_ROLLBACK_DRY_RUN"
+#: El fichero del secreto no se pudo usar: no existe, esta vacio, o es legible
+#: por el grupo u otros (0600 obligatorio). Codigo ESTABLE, para que nadie
+#: tenga que reconocer este fallo leyendo la redaccion del mensaje. El mensaje
+#: nunca lleva el secreto.
+CLI_SECRET_FILE_UNUSABLE = "CLI_SECRET_FILE_UNUSABLE"
+
 CLI_CODES = (
     CLI_DRIVER_CONFIG_MISSING,
     CLI_ROLLBACK_OUT_PRESERVED,
     CLI_APPLIED_KEYS_FORGOTTEN,
+    CLI_ROLLBACK_NOT_AUTHORIZED,
+    CLI_ROLLBACK_WORKSPACE_MISMATCH,
+    CLI_ROLLBACK_COMPLETE,
+    CLI_ROLLBACK_INCOMPLETE,
+    CLI_ROLLBACK_DRY_RUN,
+    CLI_SECRET_FILE_UNUSABLE,
 )
 
 ALL_CODES = (

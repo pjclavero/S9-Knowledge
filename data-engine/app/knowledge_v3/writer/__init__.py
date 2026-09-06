@@ -64,6 +64,7 @@ from .rollback import (
     RollbackInstruction,
     RollbackNotReconstructible,
     RollbackQuery,
+    add_provenance_sweep,
     build_rollback,
     rollback_query,
 )
@@ -161,6 +162,7 @@ __all__ = [
     "RollbackNotReconstructible",
     "rollback_query",
     "build_rollback",
+    "add_provenance_sweep",
     "ACTION_PURGE_PROVENANCE",
     "ACTION_FORGET_APPLIED",
     "PurgeReport",

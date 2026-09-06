@@ -53,6 +53,7 @@ encaminar las acciones nuevas y a delegar en ella todo lo demas.
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -73,6 +74,7 @@ from .rollback import (
     RollbackDocument,
     RollbackInstruction,
     RollbackNotReconstructible,
+    SWEEP_OPERATION_ID,
     RollbackQuery,
     rollback_query,
     scope_clause,
@@ -187,6 +189,53 @@ def delete_orphan_source_query(
         workspace,
         partida_id,
         f"EXISTS {{ MATCH (n)-[:{REL_HAS_EPISODE}]->(:{LABEL_EPISODE}) }}",
+    )
+
+
+def orphan_provenance_query(
+    workspace: str, partida_id: Optional[str]
+) -> RollbackQuery:
+    """Procedencia HUERFANA en un ambito, la nombre el documento o no.
+
+    POR QUE NO BASTA CON MIRAR LO QUE EL DOCUMENTO NOMBRA (defecto medido)
+    ---------------------------------------------------------------------
+    `residues` solo buscaba evidencia huerfana entre los `fragment_ids` que
+    alguna instruccion `PURGE_PROVENANCE` citaba. Medido: ejecutando un
+    documento al que le faltaba el barrido de procedencia quedaron evidencias y
+    episodios huerfanos en el grafo Y el mando salio con
+    `ROLLED_BACK` / rc=0 -- es decir, el desenlace limpio era una frase que el
+    grafo desmentia. Lo que un documento NO nombra es justo lo que hay que
+    poder ver.
+
+    Tres ramas en `UNION ALL`, no tres patrones en la misma consulta: dos
+    `MATCH` sueltos darian producto cartesiano y, con cualquiera de los tres
+    conjuntos vacio, CERO filas -- un verde que no mide nada.
+
+    Esto NO es una capa de proteccion: no impide ningun borrado. Es
+    OBSERVACION, y es la unica de las tres que puede ver lo que el documento no
+    menciona. La conservacion de lo compartido la siguen sosteniendo el censo y
+    la guarda del propio `DELETE`, que no se tocan.
+    """
+    params: dict[str, Any] = {"ws": workspace}
+    ev = scope_clause("ev", partida_id, params)
+    ep = scope_clause("ep", partida_id, params)
+    src = scope_clause("src", partida_id, params)
+    return RollbackQuery(
+        f"MATCH (ev:{LABEL_EVIDENCE} {{workspace: $ws}}) WHERE {ev} "
+        f"OPTIONAL MATCH (:{LABEL_ASSERTION})-[sup:{REL_SUPPORTED_BY}]->(ev) "
+        "WITH ev, count(sup) AS vivas WHERE vivas = 0 "
+        f"RETURN '{LABEL_EVIDENCE}' AS clase, ev.fragment_id AS id "
+        "UNION ALL "
+        f"MATCH (ep:{LABEL_EPISODE} {{workspace: $ws}}) WHERE {ep} "
+        f"OPTIONAL MATCH (ep)-[frg:{REL_HAS_FRAGMENT}]->(:{LABEL_EVIDENCE}) "
+        "WITH ep, count(frg) AS vivas WHERE vivas = 0 "
+        f"RETURN '{LABEL_EPISODE}' AS clase, ep.episode_id AS id "
+        "UNION ALL "
+        f"MATCH (src:{LABEL_SOURCE} {{workspace: $ws}}) WHERE {src} "
+        f"OPTIONAL MATCH (src)-[epi:{REL_HAS_EPISODE}]->(:{LABEL_EPISODE}) "
+        "WITH src, count(epi) AS vivas WHERE vivas = 0 "
+        f"RETURN '{LABEL_SOURCE}' AS clase, src.source_asset_id AS id",
+        params,
     )
 
 
@@ -440,7 +489,13 @@ def residues(runner: Any, doc: RollbackDocument) -> list[dict[str, Any]]:
     """
     fuera: list[dict[str, Any]] = []
     vistas: set[tuple[str, str]] = set()
+    ambitos: set[tuple[str, Any]] = set()
     for instruction in doc.instructions:
+        detalle = dict(instruction.detail)
+        if instruction.action == ACTION_PURGE_PROVENANCE:
+            ambitos.add(
+                (detalle.get("workspace") or doc.workspace, detalle.get("partida_id"))
+            )
         detail = dict(instruction.detail)
         ws = detail.get("workspace") or doc.workspace
         key = detail.get("idempotency_key")
@@ -475,6 +530,34 @@ def residues(runner: Any, doc: RollbackDocument) -> list[dict[str, Any]]:
                         "detail": {"fragment_id": fila["fragment_id"]},
                     }
                 )
+
+    # Barrido por AMBITO: lo que el documento NO nombra. Sin esto, un documento
+    # incompleto producia un desenlace limpio sobre un grafo con procedencia
+    # huerfana dentro -- medido.
+    ya_dicho = {
+        (r["what"], json.dumps(r["detail"], sort_keys=True, default=str))
+        for r in fuera
+    }
+    for ws, partida in sorted(ambitos, key=lambda x: (x[0], str(x[1]))):
+        try:
+            consulta = orphan_provenance_query(ws, partida)
+        except RollbackNotReconstructible:
+            continue  # ambito malformado: ya se denuncio al intentar ejecutarlo
+        for fila in _rows(runner, consulta):
+            if not fila.get("id"):
+                continue
+            que = (
+                f"procedencia HUERFANA en el grafo ({fila['clase']}): nada vivo "
+                "la sostiene y el documento no la nombraba"
+            )
+            detalle = {"clase": fila["clase"], "id": fila["id"], "workspace": ws}
+            firma = (que, json.dumps(detalle, sort_keys=True, default=str))
+            if firma in ya_dicho:
+                continue
+            ya_dicho.add(firma)
+            fuera.append(
+                {"operation_id": SWEEP_OPERATION_ID, "what": que, "detail": detalle}
+            )
     return fuera
 
 
@@ -491,6 +574,7 @@ __all__ = [
     "forget_applied_query",
     "key_evidence_query",
     "live_references_query",
+    "orphan_provenance_query",
     "residues",
     "rollback_query_for",
 ]

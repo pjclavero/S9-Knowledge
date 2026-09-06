@@ -145,7 +145,12 @@ INVENTARIO_ACTUAL_ESTRICTO_IN_STR = 50
 
 #: Cota superior (detector AMPLIO), base y actual.
 INVENTARIO_BASE_AMPLIO = 345
-INVENTARIO_ACTUAL_AMPLIO = 295
+#: +1 respecto de 295: el mando de reversion (`cli_rollback`) trae una
+#: comprobacion por subcadena en su prueba de honestidad del desenlace
+#: (`"NO es una reversion limpia" in texto`), que mide REDACCION a proposito
+#: --es justo lo que esa garantia afirma-- y por eso entra en la cota AMPLIA
+#: sin tocar la ESTRICTA, que sigue en 127.
+INVENTARIO_ACTUAL_AMPLIO = 296
 
 #: Guardas `match=` NUEVAS que introduce el carril: las dos de
 #: `test_carril5_exception_codes.py` que protegen al propio instrumento.

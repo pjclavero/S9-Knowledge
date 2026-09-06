@@ -103,6 +103,7 @@ from .errors import PipelineError
 from .ingest_report import ingest_report, to_markdown
 from .pipeline import KnowledgePipeline, SourceCase
 from . import entity_decisions, graph_catalog
+from ..writer.rollback import add_provenance_sweep
 
 #: Extension -> `source_kind`, solo para las que este CLI declara soportar de
 #: verdad. Lo demas se le deja al registro de adaptadores, que resuelve por
@@ -385,6 +386,20 @@ def run_ingest(
         # El documento es DESCRIPTIVO: nadie lo ejecuta por su cuenta. Se
         # publica para que exista, no para que actue.
         if escritura.rollback is not None:
+            # DEFECTO MEDIDO Y CERRADO: el documento solo llevaba la
+            # procedencia que las aserciones CITAN, mientras el volcado
+            # persiste la de toda la corrida. Un apply de 7 evidencias / 7
+            # episodios / 1 fuente producia un documento con UN `fragment_id`,
+            # y revertirlo dejaba el resto huerfano en el grafo. El barrido
+            # amplia el conjunto candidato; la condicion de borrado --cero
+            # referencias vivas, dentro del propio DELETE-- no se toca.
+            if run.provenance_result is not None:
+                add_provenance_sweep(
+                    escritura.rollback,
+                    workspace=ws,
+                    partida_id=(run.plan.partida_id if run.plan else None),
+                    fragment_ids=[f.fragment_id for f in run.fragments],
+                )
             report["rollback"] = escritura.rollback.to_dict()
     if run.provenance_result is not None:
         report["provenance"] = run.provenance_result.to_dict()
