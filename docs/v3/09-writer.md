@@ -477,6 +477,12 @@ aflojan. Se dice en vez de fingir que las 32 son igual de alcanzables.
 | `CLI_DRIVER_CONFIG_MISSING` | Se pidió `--apply` sin declarar cómo llegar al servidor (URI, usuario o camino del fichero con la contraseña). Falla cerrado, con código de salida `1`, sin escribir y sin degradarse a dry-run. | directo |
 | `CLI_ROLLBACK_OUT_PRESERVED` | `--rollback-out` apuntaba a una póliza ya existente y el documento nuevo no traía instrucciones (apply repetido = no-op idempotente). **No se pisa**: repetir una orden inocua no puede destruir la única forma de deshacer. Código de salida `2`. | directo |
 | `CLI_APPLIED_KEYS_FORGOTTEN` | El operador pidió `--forget-applied-keys <rollback.json>` y el almacén retiró esas claves (lápida en el JSONL append-only). Habilita volver a aplicar un plan ya revertido. No toca el grafo. | directo |
+| `CLI_ROLLBACK_DRY_RUN` | `cli_rollback` sin `--execute`: enumeró lo que haría y **no tocó nada**. No resuelve conexión ni lee secreto. Código de salida `0`. | directo |
+| `CLI_ROLLBACK_NOT_AUTHORIZED` | Se pidió `--execute` sin la declaración de operador que exige el APPLY (`S9K_ALLOW_REAL_INGEST=1` y `S9K_WRITER_WORKSPACE` coincidiendo con `--workspace`). La operación que **borra** no puede pedir menos que la que escribe. Código de salida `4`. | directo |
+| `CLI_ROLLBACK_WORKSPACE_MISMATCH` | El documento de rollback es de otro `workspace` que el autorizado en la línea de mando. Borrar fuera de lo autorizado es lo que la doble declaración impide. Código de salida `4`. | directo |
+| `CLI_ROLLBACK_COMPLETE` | La reversión se ejecutó y **no quedó nada**: ni residuos, ni procedencia huérfana, ni instrucciones sin revertir. Único desenlace que sale con `0`. | directo |
+| `CLI_ROLLBACK_INCOMPLETE` | La reversión se ejecutó y **queda algo**: residuos con la `idempotency_key`, procedencia huérfana en el grafo, evidencia conservada por compartida, o instrucciones no reconstruibles. La línea humana se deriva del informe, así que no puede decir «revertido». Código de salida `3`. | directo |
+| `CLI_SECRET_FILE_UNUSABLE` | El fichero declarado en `--neo4j-password-file` no sirve: no existe, está vacío, o es legible por el grupo u otros (0600 obligatorio). Código **estable**, para no tener que reconocer el fallo leyendo la redacción; el mensaje nunca lleva el secreto. Código de salida `1`. | directo |
 
 ### 7.6. Verdad del desenlace (`EXEC_NOOP_*`, `ROLLBACK_*`)
 

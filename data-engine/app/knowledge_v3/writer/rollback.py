@@ -222,6 +222,61 @@ def build_rollback(
     return doc
 
 
+#: `operation_id` de la instruccion de barrido. Es una operacion del RUN, no de
+#: una sola asercion: por eso no lleva el `operation_id` de ninguna.
+SWEEP_OPERATION_ID = "provenance:sweep"
+
+
+def add_provenance_sweep(
+    doc: RollbackDocument,
+    *,
+    workspace: str,
+    partida_id: Any,
+    fragment_ids: Iterable[str],
+) -> RollbackInstruction | None:
+    """Anade al documento la procedencia que el RUN persistio, no solo la citada.
+
+    POR QUE HACE FALTA (defecto medido)
+    -----------------------------------
+    `build_rollback` solo sabe de la procedencia que cada asercion CITA
+    (`op.evidence_fragment_ids`). Pero el volcado de procedencia
+    (`provenance.persist_provenance`) escribe TODOS los fragmentos y episodios
+    de la corrida, los cite alguien o no. Medido en la ruta de operador: un
+    apply creo 7 evidencias, 7 episodios y 1 fuente, y el documento de rollback
+    llevaba UN solo `fragment_id`. Revertir con ese documento dejaba ~6
+    evidencias y ~6 episodios huerfanos --con el literal de la fuente dentro--
+    y el documento afirmaba haber deshecho el apply.
+
+    QUE NO CAMBIA
+    -------------
+    El criterio de borrado sigue siendo el mismo y sigue viviendo DENTRO del
+    `DELETE` (`rollback_provenance._delete_if_unreferenced`): cero referencias
+    vivas. Este barrido amplia el CONJUNTO CANDIDATO, no relaja la condicion.
+    Un fragmento que otra asercion viva sostenga se conserva igual, y se
+    declara. Los episodios y la fuente salen del censo de antepasados POR EL
+    CAMINO, asi que no hace falta enumerarlos aqui.
+
+    Va al FINAL del documento a proposito: la cuenta de referencias vivas solo
+    mide la verdad despues de que las aserciones revertidas ya no esten.
+    """
+    fragments = [f for f in fragment_ids if f]
+    if not fragments:
+        return None
+    instruction = RollbackInstruction(
+        operation_id=SWEEP_OPERATION_ID,
+        action=ACTION_PURGE_PROVENANCE,
+        target_id=None,
+        detail={
+            "workspace": workspace,
+            "partida_id": partida_id,
+            "fragment_ids": sorted(set(fragments)),
+            "scope": "run",
+        },
+    )
+    doc.instructions.append(instruction)
+    return instruction
+
+
 def _provenance_edges_of(op: AppliedOperation) -> list[dict[str, Any]]:
     """Aristas de procedencia que cuelgan del nodo que se va a borrar.
 
@@ -451,6 +506,8 @@ __all__ = [
     "RollbackInstruction",
     "RollbackDocument",
     "build_rollback",
+    "add_provenance_sweep",
+    "SWEEP_OPERATION_ID",
     "RollbackQuery",
     "RollbackNotReconstructible",
     "rollback_query",
