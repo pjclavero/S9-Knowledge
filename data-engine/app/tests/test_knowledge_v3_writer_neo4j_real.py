@@ -750,7 +750,21 @@ def test_id_01_y_02_primera_aplicacion_y_repeticion_exacta(graph: GraphProbe):
     assert len(graph.applied_operations()) == 1
 
 
-def test_id_03_misma_clave_con_plan_incompatible_falla_cerrado(graph: GraphProbe):
+def test_id_03_misma_clave_en_dos_planes_distintos_es_un_NO_OP(graph: GraphProbe):
+    """Contra Neo4j real: la MISMA operacion logica en dos planes distintos.
+
+    El contrato congelado dice que ese segundo apply debe ser un no-op (ver la
+    descripcion de `idempotency_key` en
+    `contracts/knowledge-v3/v1/graph-mutation-plan-v3.schema.json`). Esta
+    prueba exigia lo contrario -- abortar -- y esa exigencia es la que dejaba
+    la segunda ingesta de una fuente clavada para siempre: su plan es
+    legitimamente distinto (ya proyecta la relacion) y chocaba en la clave de
+    la `CREATE_ASSERTION` identica.
+
+    Lo que sigue siendo fail-closed, y se comprueba abajo: no se escribe nada
+    por segunda vez, ni se duplica el nodo, ni se toca la marca original. El
+    conflicto entre PARTIDAS distintas conserva su prueba aparte.
+    """
     plan_a = make_plan(
         [create_entity("op:id-03", "entity:id-03", "ID-03")],
         plan_id="plan:id-03:a",
@@ -769,8 +783,10 @@ def test_id_03_misma_clave_con_plan_incompatible_falla_cerrado(graph: GraphProbe
     second = writer(graph.driver).write(plan_b, apply_request(plan_b))
 
     assert first.outcome == OUTCOME_APPLIED
-    assert second.outcome == OUTCOME_ABORTED
-    assert codes.EXEC_IDEMPOTENCY_CONFLICT in second.codes
+    assert second.outcome == OUTCOME_APPLIED
+    assert second.applied_operations == 0 and second.noop_operations == 1
+    assert codes.EXEC_IDEMPOTENCY_CONFLICT not in second.codes
+    # Fail-closed donde importa: ni un nodo de mas, ni la marca reescrita.
     assert graph.knowledge_counts() == {"nodes": 1, "relationships": 0}
     assert graph.applied_operations() == original_mark
 

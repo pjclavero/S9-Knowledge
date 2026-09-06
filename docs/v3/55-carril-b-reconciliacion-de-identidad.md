@@ -205,13 +205,22 @@ Ninguna se relajó. Comprobado por efecto, no leyendo el código:
 
 ## 6. Carencias declaradas
 
-1. **`ENTIDAD_SIN_STATE_HASH`** — el writer **no escribe `state_hash` al crear
-   una entidad** (`version` y `state_hash` están en `RESERVED_PROPS`, y
-   `_provenance` sólo estampa `version: 0`). Consecuencia real: una entidad
-   recién creada **no puede anclar un control optimista**, y por tanto ninguna
-   `PROJECT_RELATION` podrá proyectarse sobre ella nunca — ni en esta ingesta
-   ni en la siguiente. Hoy el carril lo rodea no proyectando; **cerrarlo exige
-   tocar el writer** y queda fuera de este alcance.
+1. ~~**`ENTIDAD_SIN_STATE_HASH`**~~ — **CERRADA**. Se declaró que «el carril lo
+   rodea no proyectando», y eso **era falso en la segunda ingesta**: en la
+   primera pasada la entidad es `pending_creation` y el planificador no
+   proyecta, pero en la segunda ya está en el grafo, **sí** emite
+   `PROJECT_RELATION`, y el plan moría contra el validador congelado con
+   *"modifica algo existente sin expected_version/expected_hash"* — traza
+   Python cruda y `rc=1` para el operador. La limitación declarada era **más
+   pequeña que la real**: no era «no se proyecta», era «la segunda ingesta de
+   cualquier fuente no vuelve a funcionar nunca».
+
+   Cerrada tocando el writer: `CREATE_ENTITY` estampa ahora `version` y un
+   `state_hash` que **describe el estado realmente persistido** y se recomputa
+   desde el grafo (`writer/state.py`). `RESERVED_PROPS` **se conserva**: lo que
+   prohíbe es que el *payload* dicte su propio hash, que es justo lo que
+   volvería inútil el control optimista; el defecto no era la reserva, sino que
+   nadie más lo escribía.
 2. **`GRAFO_SIN_ALIAS`** — el grafo no almacena alias de entidad. El glosario
    recibe sólo el nombre canónico de cada nodo; las menciones por alias
    dependen del perfil.

@@ -319,11 +319,19 @@ class FakeTx:
                     "plan_hash": params["plan_hash"],
                     "operation_id": params["operation_id"],
                     "claim_token": params["claim_token"],
+                    # `ON CREATE SET` tambien graba el ambito: es el campo que
+                    # la `idempotency_key` deja fuera y con el que el executor
+                    # distingue un reintento de una colision entre partidas.
+                    # Si el doble no lo devolviese, el reintento legitimo
+                    # pareceria una colision -- un rojo del doble, no del
+                    # producto.
+                    "partida_id": params.get("partida_id"),
                 }
                 self.pending_marks[identity] = mark
             return FakeResult({
                 "plan_hash": mark["plan_hash"],
                 "operation_id": mark["operation_id"],
+                "partida_id": mark.get("partida_id"),
                 "created": mark["claim_token"] == params["claim_token"],
             })
         if "CREATE (a)-[r:" in cypher:
@@ -1412,7 +1420,31 @@ def test_dos_partidas_con_operacion_identica_comparten_idempotency_key_pero_no_c
     assert codes.EXEC_IDEMPOTENCY_CONFLICT in r2.codes
 
 
-def test_la_misma_clave_con_plan_distinto_falla_cerrado():
+def test_la_misma_clave_en_dos_planes_distintos_es_un_NO_OP_no_un_conflicto():
+    """Lo que el contrato CONGELADO manda, y que antes no se cumplia.
+
+    La descripcion de `idempotency_key` en
+    `contracts/knowledge-v3/v1/graph-mutation-plan-v3.schema.json` dice, con
+    todas las letras, que `operation_id` queda fuera de la clave "para que la
+    misma operacion logica calculada en dos planes distintos produzca la MISMA
+    clave y el segundo apply sea un no-op".
+
+    Esta prueba afirmaba lo CONTRARIO -- que el segundo plan debia abortar --
+    y esa exigencia hacia imposible el no-op que el contrato promete. Medido
+    contra Neo4j real con el mando del operador: la segunda ingesta de la misma
+    fuente produce un plan legitimamente distinto (ya puede proyectar la
+    relacion sobre una entidad que en la primera pasada aun no existia) y
+    abortaba con `EXEC_IDEMPOTENCY_CONFLICT` sobre una `CREATE_ASSERTION`
+    identica -- misma clave, mismo `operation_id`, mismo `snapshot_id`, misma
+    partida. El grafo no volvia a moverse nunca mas.
+
+    El fail-closed que la nota del validador quiere NO se pierde: sigue siendo
+    de partidas distintas que colisionan en la clave, y lo cubren
+    `test_dos_partidas_con_operacion_identica_...` y
+    `test_conflicto_de_idempotencia_entre_partidas_es_diagnosticable_...`.
+    Ademas, que operacion autoriza el operador lo sigue fijando
+    `expected_plan_hash` en la peticion, que no se toca.
+    """
     # Misma identidad logica, distinto plan_id y created_at: la clave se deriva
     # de (workspace, snapshot, identidad de la operacion), no del plan.
     plan_a = make_plan()
@@ -1423,6 +1455,7 @@ def test_la_misma_clave_con_plan_distinto_falla_cerrado():
         plan_a["mutation_operations"][0]["idempotency_key"]
         == plan_b["mutation_operations"][0]["idempotency_key"]
     )
+    assert plan_a["plan_hash"]["value"] != plan_b["plan_hash"]["value"]
     keys = InMemoryAppliedKeys()
     driver = FakeDriver()
     # Neo4j is authoritative. Simulate the committed marker surviving while
@@ -1431,8 +1464,10 @@ def test_la_misma_clave_con_plan_distinto_falla_cerrado():
     make_writer(first_driver, applied_keys=keys).write(plan_a, apply_request(plan_a))
     driver.applied_marks.update(first_driver.applied_marks)
     result = make_writer(driver, applied_keys=keys).write(plan_b, apply_request(plan_b))
-    assert result.outcome == OUTCOME_ABORTED
-    assert codes.EXEC_IDEMPOTENCY_CONFLICT in result.codes
+    assert result.outcome == OUTCOME_APPLIED
+    assert result.noop_operations == 1
+    assert codes.EXEC_IDEMPOTENCY_CONFLICT not in result.codes
+    # Lo que de verdad importa: NO se escribio nada por segunda vez.
     assert driver.writes == []
 
 

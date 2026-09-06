@@ -28,7 +28,7 @@ from typing import Any, Optional
 
 from ..ledger.entries import LedgerOperation
 from ..ledger.supersession import CANONICAL_REASONS as _LEDGER_CANONICAL_REASONS
-from . import codes, cypher
+from . import codes, cypher, state
 from .admission import declares_local_override
 from .errors import WriterAbort
 from .idempotency import AppliedKeyStore
@@ -234,7 +234,15 @@ def _check_expected_state(
             },
         )
     expected_hash = (op.get("expected_hash") or {}).get("value")
-    if expected_hash is not None and state_hash != expected_hash:
+    # El plan trae el hash como `{algorithm, value}` (asi lo exige el contrato)
+    # y el grafo lo devuelve como hexadecimal. Se comparan los DOS
+    # hexadecimales: sin normalizar, un documento nunca es igual a una cadena y
+    # el control optimista se volveria un rechazo constante, no una
+    # comprobacion. No se relaja nada -- `None` sigue siendo `None` y un
+    # hexadecimal distinto sigue abortando.
+    if expected_hash is not None and state.hash_value(state_hash) != state.hash_value(
+        expected_hash
+    ):
         raise WriterAbort(
             codes.EXEC_HASH_MISMATCH,
             "el hash de estado leido no es el esperado",
@@ -598,6 +606,16 @@ def execute_operation(
     changed["reason_code"] = reason
     changed["version"] = int(op["expected_version"]) + 1
     changed["updated_at"] = ctx.written_at
+    if not is_assertion:
+        # El estado cambia, asi que el hash que lo describia deja de hacerlo.
+        # Se recalcula sobre el mapa RESULTANTE (lo leido + lo que se va a
+        # fijar), dentro de la misma transaccion y despues de que
+        # `_check_expected_state` haya comprobado que nadie se movio debajo.
+        # Dejarlo sin tocar seria peor que no tenerlo: un hash que ya no
+        # describe el nodo hace pasar una comprobacion que deberia fallar.
+        actual = _single(tx, cypher.read_entity_props(target, ws, partida_id))
+        previas = dict(_field(actual, "props") or {}) if actual is not None else {}
+        changed["state_hash"] = state.state_hash_value({**previas, **changed})
     writer_fn = (
         cypher.close_assertion_validity if is_assertion else cypher.close_entity_validity
     )
@@ -652,18 +670,40 @@ def execute_plan(driver: Any, view: SignedView, ctx: ExecutionContext) -> Execut
                         op["operation_id"],
                         ctx.written_at,
                         uuid.uuid4().hex,
+                        partida_id=view.partida_id,
                     ),
                 )
                 existing_hash = _field(claimed, "plan_hash")
                 existing_operation = _field(claimed, "operation_id")
+                existing_partida = _field(claimed, "partida_id")
                 created = _field(claimed, "created")
                 # Compatibilidad con drivers falsos antiguos sin retorno tipado.
                 if created is None and existing_hash is None:
                     created = not cached
                 if not created:
+                    # QUE HACE INCOMPATIBLE A UNA RECLAMACION REPETIDA
+                    # ------------------------------------------------
+                    # El esquema congelado deja `operation_id` FUERA de la
+                    # clave a proposito, "para que la misma operacion logica
+                    # calculada en dos planes distintos produzca la MISMA clave
+                    # y el segundo apply sea un no-op". Exigir el mismo
+                    # `plan_hash` hacia ese no-op IMPOSIBLE: medido contra
+                    # Neo4j real, la segunda ingesta de la misma fuente produce
+                    # un plan legitimamente distinto (ya puede proyectar la
+                    # relacion) y abortaba con `EXEC_IDEMPOTENCY_CONFLICT`
+                    # sobre una `CREATE_ASSERTION` identica -- misma clave,
+                    # mismo `operation_id`, mismo `snapshot_id`.
+                    #
+                    # Lo que la nota del validador quiere impedir NO es eso,
+                    # sino que dos PARTIDAS distintas compartan clave y se
+                    # fusionen en silencio. `partida_id` es exactamente el
+                    # campo que la clave omite, asi que se compara EL, que es
+                    # el discriminante real, en lugar de `plan_hash`, que era
+                    # un proxy que rechazaba de mas y no cubria de menos.
+                    # `plan_hash` sigue viajando en el diagnostico.
                     if (
-                        existing_hash != view.plan_hash_value
-                        or existing_operation != op["operation_id"]
+                        existing_operation != op["operation_id"]
+                        or existing_partida != view.partida_id
                     ):
                         raise WriterAbort(
                             codes.EXEC_IDEMPOTENCY_CONFLICT,
@@ -675,6 +715,8 @@ def execute_plan(driver: Any, view: SignedView, ctx: ExecutionContext) -> Execut
                                 "actual_plan_hash": existing_hash,
                                 "expected_operation_id": op["operation_id"],
                                 "actual_operation_id": existing_operation,
+                                "expected_partida_id": view.partida_id,
+                                "actual_partida_id": existing_partida,
                             },
                         )
                     outcome.noop_keys.append(key)

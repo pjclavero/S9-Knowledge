@@ -17,9 +17,11 @@ TRES COSAS QUE NO SE INVENTAN AQUI
   `expected_version` del plan y el executor la contrasta contra este mismo
   grafo. Un valor por defecto de 1 sobre un nodo que esta a 0 produce un
   `EXEC_VERSION_MISMATCH` en el apply, no antes.
-* **`state_hash`**: idem con `expected_hash`. Si el nodo no lo trae, la fila lo
-  trae a `None` y se DECLARA (`ENTIDAD_SIN_STATE_HASH`); no se sustituye por el
-  hash derivado, que es plausible y falso.
+* **`state_hash`**: idem con `expected_hash`. Desde que el writer lo estampa al
+  crear (`writer/state.py`), un nodo escrito por el producto SIEMPRE lo trae.
+  Si aun asi falta -- nodos anteriores a ese arreglo, o sembrados a mano -- la
+  fila lo trae a `None` y se DECLARA (`ENTIDAD_SIN_STATE_HASH`); no se sustituye
+  por el hash derivado, que es plausible y falso.
 * **`aliases`**: el grafo no los guarda. Salen vacios y se declara la carencia,
   en vez de fabricarlos desde el nombre.
 """
@@ -125,9 +127,11 @@ def carencias(rows: Iterable[dict]) -> list[dict]:
         faltas.append({
             "code": "ENTIDAD_SIN_STATE_HASH",
             "detail": (
-                "el writer no escribe `state_hash` al crear una entidad, asi "
-                "que estas no pueden anclar un control optimista y ninguna "
-                "relacion podra proyectarse sobre ellas hasta que lo tengan: "
+                "estas entidades no traen `state_hash`, asi que no pueden "
+                "anclar un control optimista y ninguna relacion podra "
+                "proyectarse sobre ellas hasta que lo tengan. El writer SI lo "
+                "escribe al crear, de modo que esto solo alcanza a nodos "
+                "anteriores a ese arreglo o sembrados por fuera del producto: "
                 + ", ".join(sorted(str(x) for x in sin_hash))
             ),
         })

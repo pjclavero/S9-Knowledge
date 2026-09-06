@@ -32,6 +32,7 @@ from typing import Any
 from ..ledger.supersession import LIVE_STATUSES as _LEDGER_LIVE_STATUSES
 from . import codes
 from .errors import WriterAbort
+from .state import state_hash_value
 
 #: Estados que una lectura "visible" puede devolver. Es el MISMO catalogo del
 #: ledger (`ledger.supersession.LIVE_STATUSES`), no una copia a mano: quien
@@ -254,6 +255,18 @@ def read_assertion_state(
     )
 
 
+def read_entity_props(entity_id: str, workspace: str, partida_id: str | None = None) -> Query:
+    """TODAS las propiedades del nodo. Para recalcular su `state_hash`.
+
+    Un cierre de vigencia cambia el estado, asi que el hash que lo describia
+    deja de describirlo. Recalcularlo exige el mapa COMPLETO -- el que se va a
+    quedar escrito, no el trozo que la operacion toca -- y de ahi esta lectura,
+    que ocurre dentro de la MISMA transaccion que la escritura.
+    """
+    pattern, params = _scoped_match(LABEL_ENTITY, "entity_id", entity_id, workspace, partida_id)
+    return Query(f"{pattern} RETURN properties(n) AS props", params)
+
+
 def read_entity_state_any_scope(entity_id: str, workspace: str) -> Query:
     """Existencia SIN filtro de ambito: solo para diagnosticar un drift.
 
@@ -285,16 +298,24 @@ def claim_applied_operation(
     operation_id: str,
     applied_at: str,
     claim_token: str,
+    partida_id: str | None = None,
 ) -> Query:
-    """Reclama la clave dentro de la misma transacción que la mutación."""
+    """Reclama la clave dentro de la misma transacción que la mutación.
+
+    `partida_id` se GUARDA en la marca porque es el unico campo de ambito que
+    la `idempotency_key` deja fuera (`IDEMPOTENCY_KEY_FIELDS` en el validador
+    congelado). Sin el, el executor no tiene con que distinguir "la misma
+    operacion logica, repetida" de "otra partida que colisiona en la clave",
+    que es justo lo que la nota del contrato dice que el writer debe atajar.
+    """
     return Query(
         f"MERGE (op:{LABEL_APPLIED_OPERATION} "
         "{workspace: $ws, idempotency_key: $key}) "
         "ON CREATE SET op.plan_hash = $plan_hash, "
         "op.operation_id = $operation_id, op.applied_at = $applied_at, "
-        "op.claim_token = $claim_token "
+        "op.claim_token = $claim_token, op.partida_id = $partida_id "
         "RETURN op.plan_hash AS plan_hash, op.operation_id AS operation_id, "
-        "op.claim_token = $claim_token AS created",
+        "op.partida_id AS partida_id, op.claim_token = $claim_token AS created",
         {
             "ws": workspace,
             "key": idempotency_key,
@@ -302,6 +323,7 @@ def claim_applied_operation(
             "operation_id": operation_id,
             "applied_at": applied_at,
             "claim_token": claim_token,
+            "partida_id": partida_id,
         },
     )
 
@@ -330,17 +352,21 @@ def create_entity(
     labels = f":{LABEL_ENTITY}"
     if label:
         labels += f":{safe_token(label, 'entity_type')}"
+    persistidas = {
+        **stamp_visibility(props, visibility, partida_id=partida_id,
+                           known_from_session=known_from_session),
+        "entity_id": entity_id,
+        "workspace": workspace,
+        "partida_id": partida_id,
+    }
+    # El `state_hash` se calcula AQUI, sobre el mapa ya completo, y no antes:
+    # es el unico punto donde se sabe todo lo que va a quedar escrito -- la
+    # visibilidad estampada incluida. Calcularlo en el executor, sobre el
+    # payload, produciria un hash de algo que no es el nodo.
+    persistidas["state_hash"] = state_hash_value(persistidas)
     return Query(
         f"CREATE (n{labels} $props) RETURN n.entity_id AS id",
-        {
-            "props": {
-                **stamp_visibility(props, visibility, partida_id=partida_id,
-                               known_from_session=known_from_session),
-                "entity_id": entity_id,
-                "workspace": workspace,
-                "partida_id": partida_id,
-            }
-        },
+        {"props": persistidas},
     )
 
 
