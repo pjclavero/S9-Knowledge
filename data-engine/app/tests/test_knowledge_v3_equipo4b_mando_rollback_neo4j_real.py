@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import pathlib
 import os
 
 import pytest
@@ -195,14 +196,28 @@ def _evidencias_huerfanas(driver, ws: str) -> list[str]:
 
 # --- el mando de operador ---------------------------------------------------
 def ejecutar_mando(driver, doc_path, *, execute=True, env=ENTORNO_AUTORIZADO,
-                   workspace=WS_B, capsys=None):
+                   workspace=WS_B, capsys=None, audit_log=None):
     """Invoca el MANDO, no la libreria. `driver_factory` sustituye la conexion.
 
     Lo que se sustituye es solo COMO se llega al servidor; el resto del mando
     --autorizacion, ambito fail-closed, desenlace y rc-- corre entero. La
     lectura del secreto de fichero 0600 se prueba aparte, sin Neo4j.
+
+    INTEGRACION tanda 5: `--audit-log` ES OBLIGATORIO con `--execute` desde que
+    el carril 5B cerro el borrado anonimo ("sin rastro no se borra"). Este
+    fichero se escribio antes de esa regla y no lo declaraba, asi que TODAS sus
+    ejecuciones reales salian `NO_AUDIT`/`GATE_AUDIT_UNAVAILABLE` y ni siquiera
+    llegaban al grafo -- un rojo que solo aparece contra Neo4j real, porque el
+    hermano offline SI se actualizo. Se declara aqui una ruta escribible, junto
+    al propio documento, para que estas pruebas vuelvan a medir lo que miden
+    (la reversion) en vez de la puerta de auditoria, que tiene sus propias
+    pruebas en el fichero de 5B.
     """
-    argv = [str(doc_path), "--workspace", workspace, "--operator", "pjc"]
+    destino_audit = audit_log or (pathlib.Path(doc_path).parent / "rollback-audit.jsonl")
+    argv = [
+        str(doc_path), "--workspace", workspace, "--operator", "pjc",
+        "--audit-log", str(destino_audit),
+    ]
     if execute:
         argv.append("--execute")
     rc = cli_rollback.main(argv, driver_factory=lambda: driver, env=dict(env))
@@ -309,13 +324,38 @@ def test_el_documento_cubre_TODA_la_procedencia_que_el_apply_persistio(limpio, t
     }
     assert en_grafo, "el apply no persistio evidencia: no hay nada que cubrir"
 
+    # INTEGRACION tanda 5: el barrido con `scope: "apply"` que introdujo 5B NO
+    # lleva `fragment_ids`, y no es un olvido: el radio se DESCUBRE en el grafo
+    # preguntando que nodos llevan la marca de creacion de ese apply, en vez de
+    # quedar fijado en el documento --que es justo lo que se equivocaba--. Asi
+    # que aqui se mide igual: lo barrido es lo que el grafo dice que ese apply
+    # creo. La propiedad que se comprueba no cambia (el barrido cubre TODO lo
+    # persistido) y la prueba sigue pudiendo ponerse roja: si el apply no
+    # hubiese estampado toda la procedencia, el conjunto saldria mas pequenno.
     citados = set()
     barridos = set()
     for i in doc["instructions"]:
         if i["action"] != ACTION_PURGE_PROVENANCE:
             continue
-        destino = barridos if i["operation_id"] == SWEEP_OPERATION_ID else citados
-        destino.update(i["detail"]["fragment_ids"])
+        detalle = i["detail"]
+        if i["operation_id"] != SWEEP_OPERATION_ID:
+            citados.update(detalle.get("fragment_ids") or ())
+            continue
+        if detalle.get("scope") == "apply":
+            marca = detalle.get("apply_id")
+            assert marca, "barrido con scope apply y sin marca: no medirin nada"
+            barridos.update(
+                f["fid"]
+                for f in _consulta(
+                    driver,
+                    "MATCH (ev:V3Evidence {workspace:$ws}) "
+                    "WHERE ev.apply_id = $a RETURN ev.fragment_id AS fid",
+                    {"ws": WS_B, "a": marca},
+                )
+            )
+            assert barridos, "el radio por apply no descubrio nada: conjunto vacio"
+        else:
+            barridos.update(detalle.get("fragment_ids") or ())
 
     # La forma del defecto: lo CITADO es un subconjunto propio de lo persistido.
     assert citados < en_grafo, (
@@ -348,7 +388,11 @@ def test_sin_el_barrido_el_rollback_deja_procedencia_huerfana(limpio, tmp_path, 
     huerfanas = _evidencias_huerfanas(driver, WS_B)
     assert huerfanas, "sin barrido NO quedo nada huerfano: el barrido no sostiene nada"
     # Y el mando NO miente sobre ello: ni desenlace limpio ni rc=0.
-    assert salida["outcome"] == "INCOMPLETE", salida
+    # INTEGRACION tanda 5: 5B renombro este desenlace a `UNEXPECTED_RESIDUE`
+    # (el nombre dice QUE quedo mal, no solo que quedo algo) y actualizo su
+    # hermano offline, pero no este fichero. Se adopta el nombre nuevo: es el
+    # deliberado, y el `rc` no cambia porque la lista blanca sigue excluyendolo.
+    assert salida["outcome"] == cli_rollback.OUTCOME_UNEXPECTED_RESIDUE, salida
     assert rc != 0
     assert any("HUERFANA" in u for u in salida["report"]["unrecoverable"]), salida
 
@@ -436,7 +480,11 @@ def test_casos_A_B_C_D_conservacion_y_limpieza(limpio, tmp_path, capsys):
     assert episodio_vivo not in borrados_ep
 
     # --- el desenlace NO es limpio, y el rc lo dice -------------------------
-    assert salida["outcome"] == "INCOMPLETE", salida
+    # INTEGRACION tanda 5: 5B renombro este desenlace a `UNEXPECTED_RESIDUE`
+    # (el nombre dice QUE quedo mal, no solo que quedo algo) y actualizo su
+    # hermano offline, pero no este fichero. Se adopta el nombre nuevo: es el
+    # deliberado, y el `rc` no cambia porque la lista blanca sigue excluyendolo.
+    assert salida["outcome"] == cli_rollback.OUTCOME_UNEXPECTED_RESIDUE, salida
     assert rc != 0
     assert "NO es una reversion limpia" in salida["human"]
 
@@ -575,7 +623,11 @@ def test_ambito_ausente_falla_cerrado_y_no_ensucia_el_desenlace(limpio, tmp_path
     destino.write_text(json.dumps(mutilado, ensure_ascii=False), encoding="utf-8")
 
     rc, salida = ejecutar_mando(driver, destino, capsys=capsys)
-    assert salida["outcome"] == "INCOMPLETE", salida
+    # INTEGRACION tanda 5: 5B renombro este desenlace a `UNEXPECTED_RESIDUE`
+    # (el nombre dice QUE quedo mal, no solo que quedo algo) y actualizo su
+    # hermano offline, pero no este fichero. Se adopta el nombre nuevo: es el
+    # deliberado, y el `rc` no cambia porque la lista blanca sigue excluyendolo.
+    assert salida["outcome"] == cli_rollback.OUTCOME_UNEXPECTED_RESIDUE, salida
     assert rc != 0
     assert any("fail-closed" in u for u in salida["report"]["unrecoverable"]), salida
     # Los nodos cuyo ambito no se declaro SIGUEN ahi: no se borro "donde sea".
