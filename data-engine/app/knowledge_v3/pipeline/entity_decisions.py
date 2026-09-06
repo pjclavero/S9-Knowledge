@@ -355,6 +355,7 @@ def approve(
     *,
     reviewer: str,
     at: str,
+    entity_types: Optional[Mapping[str, str]] = None,
 ) -> DecisionLedger:
     """Aprueba altas POR ID. Sin comodines y sin "aprobar todas".
 
@@ -379,12 +380,28 @@ def approve(
             + (", ".join(sorted(str(p) for p in pendientes)) or "(ninguna)")
         )
     elegidos = set(pedidos)
+    # EQUIPO 5A. El revisor puede DECLARAR el tipo al aprobar. En un grafo
+    # nuevo el resolutor no tiene con que inferirlo y `entity_type` sale
+    # `None` para todo; sin esta via, la unica salida era que el alta se
+    # descartase despues en silencio (ver `approved_snapshot_entities`).
+    # Aprobar sigue siendo por id, uno a uno: esto no aprueba nada, solo
+    # completa el dato que le falta a un alta que YA se esta aprobando.
+    tipos = dict(entity_types or {})
+    ajenos = [e for e in tipos if e not in elegidos]
+    if ajenos:
+        raise ValueError(
+            "se declaro tipo para ids que no se estan aprobando: "
+            + ", ".join(sorted(ajenos))
+        )
     nuevas = tuple(
         EntityDecision(
             resolution_id=d.resolution_id,
             decision=d.decision,
             entity_id=d.entity_id,
-            entity_type=d.entity_type,
+            entity_type=(
+                tipos.get(d.entity_id, d.entity_type)
+                if d.entity_id in elegidos else d.entity_type
+            ),
             name=d.name,
             mention_ids=d.mention_ids,
             confidence=d.confidence,
@@ -422,13 +439,53 @@ def require_reviewed(ledger: DecisionLedger, *, ignore_review_identity: bool = T
         raise AltaNoAprobada(pendientes)
 
 
+class AltaAprobadaSinTipo(RuntimeError):
+    """Un alta que una PERSONA aprobo y que no se puede crear por falta de tipo.
+
+    EL DEFECTO QUE ESTA EXCEPCION SUSTITUYE
+    ---------------------------------------
+    `approved_snapshot_entities` filtraba `if d.entity_id and d.entity_type`.
+    En un grafo nuevo, `entity_type` sale `None` para TODO --el resolutor no
+    tiene contra que inferirlo-- incluso declarando el titulo en el perfil y
+    usandolo en el texto. Consecuencia MEDIDA: un alta aprobada por una
+    persona desaparecia sin codigo, sin carencia y sin mensaje, mientras el
+    mando seguia informando `"aprobadas": 10`. La cadena entera
+    (`CREATE_PROVISIONAL` -> `ENTITY_PROVISIONAL` -> todo a `REVIEW` ->
+    `_altas()` nunca invocado -> `plan_operations: 0`) hacia imposible
+    arrancar un workspace nuevo por la ruta documentada.
+
+    Un filtro silencioso sobre una decision humana es la peor forma de
+    perderla: no deja rastro que auditar. Se cambia por esto, que DICE cual
+    falta y como darselo.
+    """
+
+    def __init__(self, decisiones: Sequence["EntityDecision"]):
+        self.decisiones = tuple(decisiones)
+        ids = ", ".join(sorted(str(d.entity_id) for d in self.decisiones))
+        super().__init__(
+            "hay altas APROBADAS que no se pueden crear porque les falta "
+            f"`entity_type`: {ids}. El tipo no se inventa: declaralo al "
+            "aprobar (`--tipo-alta <entity_id>=<Tipo>`) o escribelo en el "
+            "campo `entity_type` del documento de decisiones."
+        )
+
+
 def approved_snapshot_entities(ledger: DecisionLedger) -> list[dict]:
     """Las altas APROBADAS, en la forma que el snapshot del motor entiende.
 
     Solo `review == APROBADA`. Una pendiente no sale de aqui ni por descuido:
     esta funcion es la unica puerta por la que un alta entra en el snapshot,
     y filtra por el campo que escribe una persona.
+
+    EQUIPO 5A: lo que falta se DICE. Un alta aprobada sin `entity_type` ya no
+    se descarta: levanta `AltaAprobadaSinTipo`. `entity_id` ausente si sigue
+    siendo un descarte legitimo --sin id no hay nada que crear ni que
+    nombrarle al operador, y esa decision no es un alta, es una fila
+    incompleta que nunca se aprobo por id.
     """
+    faltan_tipo = [d for d in ledger.aprobadas if d.entity_id and not d.entity_type]
+    if faltan_tipo:
+        raise AltaAprobadaSinTipo(faltan_tipo)
     return [
         {
             "entity_id": d.entity_id,
@@ -452,6 +509,7 @@ __all__ = [
     "EntityDecision",
     "DecisionLedger",
     "AltaNoAprobada",
+    "AltaAprobadaSinTipo",
     "reconcile",
     "approve",
     "require_reviewed",

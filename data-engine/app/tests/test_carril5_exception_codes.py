@@ -320,9 +320,15 @@ def test_el_inventario_de_la_base_y_la_conversion_cuadran():
     assert b["estricto"]["total"] == carril5_deuda.INVENTARIO_BASE_ESTRICTO
     assert b["estricto"]["match"] == carril5_deuda.INVENTARIO_BASE_ESTRICTO_MATCH
     assert b["amplio"]["total"] == carril5_deuda.INVENTARIO_BASE_AMPLIO
+    # EQUIPO 5A: la identidad gana el termino de los sitios NUEVOS. Sin el,
+    # cualquier codigo posterior a la base la rompia aunque no hubiera nada
+    # que reprocharle -- y la unica salida habria sido retocar `CONVERTIDAS`,
+    # que es justo la cifra que esta prueba protege.
     assert (carril5_deuda.INVENTARIO_BASE_ESTRICTO
             - carril5_deuda.INVENTARIO_ACTUAL_ESTRICTO
-            + carril5_deuda.GUARDAS_NUEVAS == carril5_deuda.CONVERTIDAS)
+            + carril5_deuda.GUARDAS_NUEVAS
+            + carril5_deuda.SITIOS_NUEVOS_POSTERIORES_A_LA_BASE
+            == carril5_deuda.CONVERTIDAS)
     assert (carril5_deuda.INVENTARIO_BASE_ESTRICTO_MATCH
             - carril5_deuda.CONVERTIDAS
             + carril5_deuda.GUARDAS_NUEVAS

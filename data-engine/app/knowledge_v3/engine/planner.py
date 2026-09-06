@@ -58,6 +58,18 @@ class PlanContext:
     #: dos ejecuciones sobre la misma entrada darian planes distintos y nada
     #: seria reproducible ni comparable en un benchmark.
     now: str
+    #: EQUIPO 5A. Ambito de partida del plan (docs/v3/49 #0): `None` = capa
+    #: juego (lore compartido), valor = partida privada. Se declara aqui, en
+    #: el CONTEXTO, y no se deduce en ningun punto interior: el motor no
+    #: inventa un ambito igual que no inventa un `now()`.
+    #:
+    #: ES EL CAMPO QUE FALTABA. `writer/executor.py` ya comparaba
+    #: `partida_id` para negarse a fusionar dos partidas en una clave
+    #: compartida, y `writer/admission.py` ya validaba la coherencia del
+    #: bloque `scope`. Ninguna de las dos barreras se disparaba nunca porque
+    #: el plan salia de aqui SIN ambito: el planificador no tenia donde
+    #: leerlo. Estampar esto es lo que pone trafico en esa carretera.
+    partida_id: Optional[str] = None
     engine_version: str = ENGINE_VERSION
 
     def expires_at(self, ttl_seconds: int) -> str:
@@ -81,6 +93,28 @@ def derive_assertion_id(context: PlanContext, decision: ClaimDecision) -> str:
         "direction": decision.direction,
         "negated": decision.negated,
     }
+    # EQUIPO 5A. La ASERCION esta acotada por partida; la ENTIDAD no.
+    # ---------------------------------------------------------------------
+    # No es una intuicion: es lo que exige `writer/executor.py::
+    # _assert_absent`, que comprueba la ausencia de un `assertion_id` SIN
+    # filtro de ambito porque "dos ambitos jamas comparten el mismo id".
+    # Si dos partidas del mismo juego afirman el mismo hecho, esta derivacion
+    # -- que hasta ahora ignoraba el ambito -- les daba el MISMO
+    # `assertion_id`, y entonces solo una de las dos podia existir: la
+    # segunda chocaba, o peor, reutilizaba la de la primera. Meter el ambito
+    # en la derivacion es lo que hace CIERTO el invariante que el writer ya
+    # daba por cierto.
+    #
+    # La identidad de ENTIDAD no se toca: sigue siendo workspace-global
+    # (`(workspace, entity_id)`), tal y como la fija `writer/schema.py`. Lo
+    # que se acota por partida es lo que el ambito realmente privatiza --
+    # aserciones y relaciones materializadas--, no el catalogo de entidades.
+    #
+    # Omitido cuando es nulo: un plan de capa juego produce el cuerpo de
+    # siempre y, por tanto, el MISMO `assertion_id` que antes de este cambio.
+    # Retrocompatibilidad byte a byte con todo lo ya sellado.
+    if context.partida_id is not None:
+        body["partida_id"] = context.partida_id
     return "assertion:" + sha256_hash(body)["value"][:32]
 
 
@@ -509,6 +543,15 @@ def _plan_body(
         "game_profile": context.game_profile,
         "collection_id": context.collection_id,
         "created_at": context.now,
+        # EQUIPO 5A. El ambito viaja EN el plan, que es lo unico que el writer
+        # llega a ver. `GraphMutationPlan.OMIT_IF_NONE` retira ambas claves
+        # cuando son nulas, asi que un plan de capa juego sigue siendo
+        # identico byte a byte al de antes (y conserva su `plan_hash`).
+        # El bloque `scope` NO es decorativo: `writer/admission.py::
+        # _scope_incoherence` exige que raiz y `scope` concuerden y rechaza
+        # con `PLAN_SCOPE_CROSS_PARTIDA` si no, de modo que declarar uno sin
+        # el otro seria un plan inadmisible, no un plan a medias.
+        **_scope_fields(context),
         "expires_at": context.expires_at(config.plan_ttl_seconds),
         "decisions": [d.to_contract_dict() for d in decisions],
         "mutation_operations": [dict(op) for op in operations],
@@ -535,7 +578,37 @@ def _plan_id(context: PlanContext, kind: str, decisions: Sequence[ClaimDecision]
         "kind": kind,
         "decisions": sorted(d.decision_id for d in decisions),
     }
+    # EQUIPO 5A. Mismo criterio y misma omision-si-nulo que el resto: dos
+    # partidas que ingieren la misma fuente con las mismas decisiones son DOS
+    # planes, no uno, y necesitan `plan_id` distinto para poder auditarse por
+    # separado.
+    if context.partida_id is not None:
+        body["partida_id"] = context.partida_id
     return "plan:" + sha256_hash(body)["value"][:32]
+
+
+def _scope_fields(context: PlanContext) -> dict:
+    """Raiz `partida_id` + bloque `scope`, o nada si es capa juego.
+
+    Los dos campos se emiten SIEMPRE JUNTOS. Emitir solo uno produce
+    exactamente los dos rechazos que `writer/admission.py` ya sabe dar
+    (`partida_id declarado sin bloque scope` y su espejo), asi que se
+    construyen en un unico sitio para que no puedan divergir.
+
+    `game_id` es el `workspace`: es la decision de representacion de
+    docs/v3/49 #1 ("`workspace` sigue siendo el identificador del juego"),
+    y `admission._scope_incoherence` compara justamente eso.
+    """
+    if context.partida_id is None:
+        return {}
+    return {
+        "partida_id": context.partida_id,
+        "scope": {
+            "layer": "PARTIDA",
+            "game_id": context.workspace,
+            "partida_id": context.partida_id,
+        },
+    }
 
 
 @dataclass(frozen=True)

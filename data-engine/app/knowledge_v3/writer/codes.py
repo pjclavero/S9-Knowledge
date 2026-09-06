@@ -125,6 +125,18 @@ EXEC_SCOPE_MISMATCH = "EXEC_SCOPE_MISMATCH"
 #: invalida. Tiene codigo propio porque salir como EXEC_DRIVER_FAILURE es un
 #: diagnostico enganoso: no ha fallado el driver, ha faltado una declaracion.
 EXEC_REVELACION_NO_DECLARADA = "EXEC_REVELACION_NO_DECLARADA"
+#: EQUIPO 5A. Las restricciones que el writer da por instaladas NO estan en el
+#: servidor. Fail-closed ANTES de escribir: sin ellas, la unicidad de
+#: `(workspace, entity_id)` y la de `(workspace, idempotency_key)` son una
+#: creencia de este repo, no una propiedad del grafo -- y sobre esa creencia
+#: descansaban argumentos de seguridad ya escritos. Se comprueba preguntando
+#: al servidor con `SHOW CONSTRAINTS`, no leyendo `schema.py`.
+#:
+#: NO es un gate: no juzga permisos ni intencion del operador. Es una
+#: PRECONDICION FISICA del grafo, del mismo genero que `EXEC_TARGET_MISSING`.
+#: Se sale de ella con el mando de esquema (`writer/schema_cli.py ensure`),
+#: no con una autorizacion.
+EXEC_SCHEMA_CONSTRAINTS_MISSING = "EXEC_SCHEMA_CONSTRAINTS_MISSING"
 #: Tipo de operacion no soportado por este writer.
 EXEC_UNSUPPORTED_OPERATION = "EXEC_UNSUPPORTED_OPERATION"
 #: El payload no permite construir una escritura segura (campos, tipos, tokens).
@@ -169,6 +181,7 @@ EXECUTION_CODES = (
     EXEC_TARGET_MISSING,
     EXEC_TARGET_ALREADY_EXISTS,
     EXEC_SCOPE_MISMATCH,
+    EXEC_SCHEMA_CONSTRAINTS_MISSING,
     EXEC_UNSUPPORTED_OPERATION,
     EXEC_UNSUPPORTED_PAYLOAD,
     EXEC_REASON_CODE_MISSING,

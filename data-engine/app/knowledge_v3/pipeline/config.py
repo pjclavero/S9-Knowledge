@@ -48,6 +48,12 @@ class PipelineConfig:
     #: Instante inyectado. La cadena no llama al reloj en ningun punto.
     now: str
     ingested_at: str
+    #: EQUIPO 5A. Ambito de partida de la corrida: `None` = capa juego (lore
+    #: compartido), valor = partida privada. Viaja hasta `PlanContext` y de
+    #: ahi al plan sellado; es lo que permite que dos partidas del mismo
+    #: workspace no compartan `idempotency_key` ni reutilicen los objetos de
+    #: la otra.
+    partida_id: Optional[str] = None
 
     # -- proveedores --------------------------------------------------------
     #: Uno de LOCAL_ONLY / EXTERNAL_ONLY / LOCAL_PLUS_EXTERNAL / NO_OLLAMA.

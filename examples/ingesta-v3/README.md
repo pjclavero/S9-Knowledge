@@ -42,6 +42,7 @@ conexión con Neo4j.
 | `--desde-grafo` | **abre driver**: el catálogo se LEE del grafo (solo lectura) |
 | `--decisiones` | documento de decisiones de identidad |
 | `--revisar` `--aprobar-alta` `--revisor` | modo REVISIÓN: aprueba altas, no ingiere ni conecta |
+| `--tipo-alta` | `ENTITY_ID=TIPO`. Declara el `entity_type` de un alta que se aprueba. Hace falta cuando el resolutor no pudo inferirlo — el caso típico en un grafo nuevo. Sin tipo, la creación no se puede construir: el mando **lo dice** y falla cerrado, en vez de descartar el alta en silencio |
 | `--apply` | **ESCRITURA REAL**. Exige además el gate del writer |
 | `--operador` | quien autoriza el APPLY |
 | `--neo4j-uri` `--neo4j-user` `--neo4j-password-file` `--neo4j-database` | conexión. La contraseña va por CAMINO de fichero o stdin, **nunca por argv** |

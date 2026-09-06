@@ -43,6 +43,7 @@ from knowledge_v3.writer.writer import (  # noqa: E402
     OUTCOME_REJECTED,
     OUTCOME_SIMULATED,
 )
+from knowledge_v3.writer import schema as _schema  # noqa: E402
 from knowledge_v3.writer import cypher  # noqa: E402
 from knowledge_v3.writer.executor import AppliedOperation  # noqa: E402
 from knowledge_v3.writer.rollback import build_rollback  # noqa: E402
@@ -385,6 +386,25 @@ class FakeSession:
     def __exit__(self, *exc):
         return False
 
+    def run(self, cypher: str, params: dict | None = None):
+        """EQUIPO 5A. El doble ahora MODELA EL ESQUEMA del grafo.
+
+        Antes no tenia `run` de sesion siquiera: el esquema no existia para
+        el doble, ni puesto ni ausente. Desde que `--apply` falla cerrado
+        cuando faltan restricciones, "no modela el esquema" y "no tiene
+        esquema" dejan de ser lo mismo, y un doble mudo haria abortar a
+        pruebas que hablan de otra cosa.
+
+        Por defecto responde como un grafo BIEN APROVISIONADO, que es la
+        precondicion que todas estas pruebas ya daban por supuesta.
+        `FakeDriver(constraints=set())` simula el grafo sin esquema.
+        """
+        if "SHOW CONSTRAINTS" in cypher:
+            return [{"name": n} for n in sorted(self.driver.constraints)]
+        if "SHOW INDEXES" in cypher:
+            return [{"name": n} for n in sorted(self.driver.indexes)]
+        raise AssertionError(f"consulta de sesion no modelada por el doble: {cypher}")
+
     def begin_transaction(self):
         tx = FakeTx(self.driver)
         self.driver.transactions.append(tx)
@@ -394,9 +414,18 @@ class FakeSession:
 class FakeDriver:
     """Driver de mentira con estado consultable. Nunca habla con Neo4j."""
 
-    def __init__(self, nodes: dict | None = None, fail_at: int | None = None):
+    def __init__(self, nodes: dict | None = None, fail_at: int | None = None,
+                 constraints: set | None = None, indexes: set | None = None):
         self.nodes = nodes or {}
         self.fail_at = fail_at
+        # EQUIPO 5A: grafo aprovisionado por defecto (ver `FakeSession.run`).
+        self.constraints = (
+            set(_schema.REQUIRED_CONSTRAINT_NAMES) if constraints is None
+            else set(constraints)
+        )
+        self.indexes = (
+            set(_schema.REQUIRED_INDEX_NAMES) if indexes is None else set(indexes)
+        )
         self.queries: list = []
         self.writes: list = []
         self.transactions: list = []
@@ -1381,43 +1410,77 @@ def test_reaplicar_el_mismo_plan_no_escribe_dos_veces():
     assert segundo.writes == writes_after_first
 
 
-def test_dos_partidas_con_operacion_identica_comparten_idempotency_key_pero_no_corrompen():
-    """(d) DECISION DE M3, mismo rigor que `decision_hash` (docs/v3/49 §9):
-    `IDEMPOTENCY_KEY_FIELDS`/`compute_idempotency_key` (contracts validator)
-    NO incluyen `partida_id`/`scope` -- solo `workspace`+`snapshot_id`+
-    identidad logica de la operacion (`operation_type`, `decision_id`,
-    `target_entity_id`, `assertion_id`, `payload`). Si dos planes de DOS
-    partidas distintas, mismo workspace y snapshot, calculasen una operacion
-    con identidad logica identica (mismo `decision_id`/`target_entity_id`/
-    `payload`), compartirian idempotency_key.
+def test_dos_partidas_con_operacion_identica_NO_comparten_idempotency_key():
+    """EQUIPO 5A. ESTE TEST FIJABA EL DEFECTO. Se INVIERTE, no se borra.
 
-    NO se cierra este hueco en M3 (igual que `decision_hash` en M0): tocar
-    `IDEMPOTENCY_KEY_FIELDS` es cirugia de contrato congelado (mismo
-    validador que M0 decidio no tocar), y aqui no hace falta -- a diferencia
-    de `decision_hash` (que es un hueco de AUDITABILIDAD silencioso), la
-    colision de idempotency_key es SEGURA por construccion: `execute_plan`
-    reclama la clave con `claim_applied_operation` y, si ya esta tomada por
-    un `plan_hash`/`operation_id` distinto, aborta con
-    `EXEC_IDEMPOTENCY_CONFLICT` -- fail-closed, nunca una fusion silenciosa
-    de dos operaciones de partidas distintas. Este test fija ESE
-    comportamiento (el abort), no un cierre del hueco de la clave."""
+    QUE AFIRMABA ANTES
+    ------------------
+    Que dos planes de DOS partidas distintas con la misma identidad logica de
+    operacion compartian `idempotency_key`, y que eso era SEGURO porque
+    `execute_plan` reclamaba la clave y abortaba con
+    `EXEC_IDEMPOTENCY_CONFLICT`. La decision de M3 (docs/v3/49 §9) se apoyaba
+    en este test para dejar el hueco abierto: "no hay hueco de seguridad que
+    cerrar".
+
+    POR QUE ERA FALSO -- MEDIDO, NO OPINADO
+    ---------------------------------------
+    El guardia comparaba `view.partida_id`... y `view.partida_id` era `None`
+    en las DOS partidas, porque `engine/planner.py` nunca estampaba el ambito
+    en el plan. El guardia era correcto y vigilaba una carretera por la que el
+    `partida_id` no pasaba nunca. Contra Neo4j real, con la misma fuente
+    ingerida en dos partidas del mismo workspace, lo OBSERVADO fue:
+    `V3Entity.partida_id = NULL`, `V3Assertion.partida_id = NULL`,
+    `V3AppliedOperation` sin siquiera la clave `partida_id`, la MISMA
+    `idempotency_key` en ambas, la segunda partida reutilizando en silencio el
+    nodo y la arista de la primera, y el rollback de una borrando la relacion
+    de la otra. La "fusion silenciosa" que este test juraba imposible era
+    exactamente lo que pasaba.
+
+    Este test afirma ahora la propiedad correcta: la clave DISTINGUE ambito.
+    """
     ops_a = [op_create_entity("op:0001", "decision:0001", "entity:mismo-id")]
     ops_b = [op_create_entity("op:0001", "decision:0001", "entity:mismo-id")]
     plan_a = make_plan(operations=ops_a, partida_id="partida:brumal-01", scope=partida_scope())
     plan_b = make_plan(operations=ops_b, partida_id="partida:brumal-02", scope=partida_scope("partida:brumal-02"))
 
-    # Confirmado: la clave derivada es IDENTICA pese a ser partidas distintas
-    # (no lee scope/partida_id -- verificacion, no suposicion).
-    assert plan_a["mutation_operations"][0]["idempotency_key"] == plan_b["mutation_operations"][0]["idempotency_key"]
+    clave_a = plan_a["mutation_operations"][0]["idempotency_key"]
+    clave_b = plan_b["mutation_operations"][0]["idempotency_key"]
+    assert clave_a != clave_b, (
+        "dos partidas distintas comparten idempotency_key: la fuga sigue abierta"
+    )
 
+    # Y la clave sigue siendo DERIVABLE (no inventada): el writer la recomputa
+    # en admision y no rechaza ninguno de los dos planes por firma.
     keys = InMemoryAppliedKeys()
     driver = FakeDriver()
     r1 = make_writer(driver, applied_keys=keys).write(plan_a, apply_request(plan_a))
     assert r1.outcome == OUTCOME_APPLIED
+    assert codes.PLAN_IDEMPOTENCY_KEY_UNDERIVED not in r1.codes
 
-    r2 = make_writer(driver, applied_keys=keys).write(plan_b, apply_request(plan_b))
-    assert r2.outcome == OUTCOME_ABORTED
-    assert codes.EXEC_IDEMPOTENCY_CONFLICT in r2.codes
+
+def test_capa_juego_conserva_su_idempotency_key_historica():
+    """EQUIPO 5A. La contrapartida del test de arriba, y la que protege los
+    datasets sellados: un plan SIN ambito produce EXACTAMENTE la clave de
+    siempre. `partida_id` solo entra en el cuerpo cuando NO es nulo (mismo
+    `OMIT_IF_NONE` que ya aplica `contracts/mutation_plan.py`), asi que los
+    264+ documentos congelados de heldout/negation-battery/benchmarks --
+    ninguno de los cuales declara ambito-- no cambian ni un byte.
+    """
+    from knowledge_v3.contracts.base import sha256_hash
+
+    plan = make_plan(operations=[op_create_entity("op:0001", "decision:0001", "entity:lore")])
+    assert "partida_id" not in plan and "scope" not in plan
+    op = plan["mutation_operations"][0]
+    cuerpo_historico = {
+        "workspace": plan["workspace"],
+        "snapshot_id": plan["snapshot_id"],
+        "operation_type": op.get("operation_type"),
+        "decision_id": op.get("decision_id"),
+        "target_entity_id": op.get("target_entity_id"),
+        "assertion_id": op.get("assertion_id"),
+        "payload": op.get("payload"),
+    }
+    assert op["idempotency_key"] == "idem:sha256:" + sha256_hash(cuerpo_historico)["value"]
 
 
 def test_la_misma_clave_en_dos_planes_distintos_es_un_NO_OP_no_un_conflicto():
@@ -2380,29 +2443,41 @@ def test_retry_legitimo_de_la_misma_partida_sigue_siendo_idempotente():
     assert codes.EXEC_IDEMPOTENCY_CONFLICT not in r2.codes
 
 
-def test_conflicto_de_idempotencia_entre_partidas_es_diagnosticable_por_el_operador():
-    """(5) El diagnostico de `EXEC_IDEMPOTENCY_CONFLICT` debe permitir a un
-    operador humano distinguir POR QUE aborto: el detalle de la Rejection
-    lleva `expected_plan_hash`/`actual_plan_hash` y
-    `expected_operation_id`/`actual_operation_id` distintos entre si, no
-    solo el codigo. Sin esto, dos partidas distintas chocando en la misma
-    clave y un reintento corrupto del mismo plan serian indistinguibles
-    para quien lee el informe."""
-    ops_a = [op_create_entity("op:0001", "decision:0001", "entity:mismo-id-2")]
-    ops_b = [op_create_entity("op:0001", "decision:0001", "entity:mismo-id-2")]
+def test_dos_partidas_ya_no_pueden_colisionar_en_la_clave():
+    """EQUIPO 5A. Sustituye a
+    `test_conflicto_de_idempotencia_entre_partidas_es_diagnosticable_por_el_operador`.
+
+    Aquel test comprobaba que el diagnostico de `EXEC_IDEMPOTENCY_CONFLICT`
+    dejaba a un operador distinguir "dos partidas chocando en la clave" de
+    "reintento corrupto del mismo plan". Su PREMISA acaba de desaparecer: dos
+    partidas distintas ya no pueden colisionar en la clave, porque el ambito
+    entra en ella. El escenario que aquel test montaba no es reproducible.
+
+    Borrarlo sin mas habria perdido la propiedad. Lo que se conserva es lo que
+    sigue siendo cierto y comprobable: los dos planes se aplican, cada uno con
+    SU clave, y ninguno declara el otro como no-op --que es la reutilizacion
+    silenciosa que se venia a matar--.
+
+    El `EXEC_IDEMPOTENCY_CONFLICT` NO se toca ni se debilita: sigue vivo para
+    lo que siempre debio cubrir --una clave ya tomada por otra `operation_id`
+    o por otro ambito-- y su diagnostico sigue llevando los cuatro campos.
+    """
+    ops_a = [op_create_entity("op:0001", "decision:0001", "entity:mesa-a")]
+    ops_b = [op_create_entity("op:0001", "decision:0001", "entity:mesa-b")]
     plan_a = make_plan(operations=ops_a, partida_id="partida:mesa-A", scope=partida_scope("partida:mesa-A"))
     plan_b = make_plan(operations=ops_b, partida_id="partida:mesa-B", scope=partida_scope("partida:mesa-B"))
 
     keys = InMemoryAppliedKeys()
     driver = FakeDriver()
-    make_writer(driver, applied_keys=keys).write(plan_a, apply_request(plan_a))
+    r1 = make_writer(driver, applied_keys=keys).write(plan_a, apply_request(plan_a))
     r2 = make_writer(driver, applied_keys=keys).write(plan_b, apply_request(plan_b))
 
-    assert r2.outcome == OUTCOME_ABORTED
-    rejection = next(r for r in r2.rejections if r.code == codes.EXEC_IDEMPOTENCY_CONFLICT)
-    detail = rejection.detail
-    assert detail["expected_plan_hash"] != detail["actual_plan_hash"]
-    assert detail["expected_operation_id"] == detail["actual_operation_id"] == "op:0001"
+    assert r1.outcome == OUTCOME_APPLIED
+    assert r2.outcome == OUTCOME_APPLIED, r2.codes
+    assert codes.EXEC_IDEMPOTENCY_CONFLICT not in r2.codes
+    # LO QUE IMPORTA: la segunda no se ha comido a la primera.
+    assert r2.applied_operations == 1
+    assert r2.noop_operations == 0
 
 
 def test_material_none_produce_props_con_partida_id_null_explicito_no_ausente():

@@ -139,9 +139,16 @@ INVENTARIO_BASE_ESTRICTO_MATCH = 127
 INVENTARIO_BASE_ESTRICTO_IN_STR = 50
 
 #: Arbol actual (esta rama). Detector ESTRICTO. La caida es la conversion.
-INVENTARIO_ACTUAL_ESTRICTO = 127
+#: EQUIPO 5A: +2 en `in_str` (127 -> 129, 50 -> 52). Son las dos comprobaciones
+#: por subcadena de la ruta de esquema, que miden REDACCION a proposito:
+#: el mensaje de `AltaAprobadaSinTipo` tiene que NOMBRAR el alta que falta y
+#: decir con que mando arreglarla, y el rechazo de esquema tiene que remitir a
+#: `schema_cli ensure`. En los dos casos el texto ES la garantia --el defecto
+#: era precisamente que no habia mensaje ninguno--, asi que comprobarlo por
+#: subcadena es lo correcto, no deuda que convertir. `match=` no se mueve.
+INVENTARIO_ACTUAL_ESTRICTO = 129
 INVENTARIO_ACTUAL_ESTRICTO_MATCH = 77
-INVENTARIO_ACTUAL_ESTRICTO_IN_STR = 50
+INVENTARIO_ACTUAL_ESTRICTO_IN_STR = 52
 
 #: Cota superior (detector AMPLIO), base y actual.
 INVENTARIO_BASE_AMPLIO = 345
@@ -150,7 +157,8 @@ INVENTARIO_BASE_AMPLIO = 345
 #: (`"NO es una reversion limpia" in texto`), que mide REDACCION a proposito
 #: --es justo lo que esa garantia afirma-- y por eso entra en la cota AMPLIA
 #: sin tocar la ESTRICTA, que sigue en 127.
-INVENTARIO_ACTUAL_AMPLIO = 296
+#: EQUIPO 5A: +2, las mismas dos de arriba.
+INVENTARIO_ACTUAL_AMPLIO = 298
 
 #: Guardas `match=` NUEVAS que introduce el carril: las dos de
 #: `test_carril5_exception_codes.py` que protegen al propio instrumento.
@@ -159,6 +167,16 @@ GUARDAS_NUEVAS = 2
 #: Convertidas. NO es un dato independiente: es la diferencia medida.
 #:   177 (base) - 127 (actual) + 2 (guardas nuevas) = 52
 CONVERTIDAS = 52
+
+#: EQUIPO 5A. Sitios NUEVOS, no heredados de la base `aaf9695`.
+#:
+#: La identidad `base - actual + guardas = convertidas` da por supuesto que el
+#: arbol actual solo puede tener MENOS sitios que la base (los que el carril
+#: convirtio). Codigo nuevo la rompe sin que nada este mal: dos sitios de la
+#: ruta de esquema no estaban en la base porque la ruta de esquema no existia.
+#: Se anade el termino en vez de cuadrar la cifra a mano, que habria escondido
+#: exactamente lo que la identidad existe para vigilar.
+SITIOS_NUEVOS_POSTERIORES_A_LA_BASE = 2
 
 #: Nombres antiguos, conservados para no romper a quien los importe. Apuntan a
 #: la medida ESTRICTA de la base, que es la unica que un detector reproduce.
@@ -340,7 +358,7 @@ SIN_ANCLA_NOMINAL = (
 
 
 __all__ = [
-    "CONVERTIDAS", "DEUDA_FUERA_DE_ALCANCE", "DEUDA_UNIFICACION_CARRIL3",
+    "CONVERTIDAS", "SITIOS_NUEVOS_POSTERIORES_A_LA_BASE", "DEUDA_FUERA_DE_ALCANCE", "DEUDA_UNIFICACION_CARRIL3",
     "SIN_ANCLA_NOMINAL", "deuda_por_familia",
     "INVENTARIO_IN_STR", "INVENTARIO_MATCH", "INVENTARIO_TOTAL",
     "MODULOS_SELLADOS", "SIN_ANCLA_MEDIDA", "SITIOS_CON_ANCLA",
