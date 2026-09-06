@@ -66,6 +66,7 @@ from ..reconcile import ProposalReconciler
 from ..resolution.resolver import EntityResolver, ResolutionRequest
 from ..writer.gate import OperatorRequest
 from ..writer import writer as writer_mod
+from ..writer.apply_identity import compute_apply_id
 from ..writer.provenance import persist_provenance
 from ..writer.writer import GraphWriter
 from . import bridge
@@ -94,6 +95,12 @@ class SourceRun:
     #: Lo que el volcado de PROCEDENCIA escribio de verdad (docs/v3/54).
     #: `None` = no se intento (dry-run, sin driver o plan no aplicado).
     provenance_result: Optional[Any] = None
+    #: Identidad durable de PROCEDENCIA DEL APPLY (`writer.apply_identity`).
+    #: Se calcula UNA vez en `write` y la consumen tanto el volcado de
+    #: procedencia --que la estampa en lo que CREA-- como el documento de
+    #: rollback --que acota su barrido por ella--. Calcularla dos veces seria
+    #: tener dos definiciones de propiedad; la que divergiese borraria de mas.
+    apply_id: Optional[str] = None
     #: Diagnosticos del extractor + notas de coordinacion del orquestador.
     diagnostics: list[dict] = field(default_factory=list)
     normalization_report: dict = field(default_factory=dict)
@@ -511,6 +518,24 @@ class KnowledgePipeline:
             current_snapshot_id=snapshot_id,
             env=dict(cfg.writer_env),
         )
+        # La marca de propiedad se fija AQUI, con lo que identifica al apply:
+        # workspace, ambito, snapshot y plan. No lleva reloj ni contador, asi
+        # que es la misma cadena en cualquier base y despues de un restore --a
+        # diferencia de un `elementId`, que se regenera justo cuando hace falta.
+        try:
+            run.apply_id = compute_apply_id(
+                workspace=cfg.workspace,
+                snapshot_id=snapshot_id,
+                plan_hash=run.plan.plan_hash["value"],
+                partida_id=run.plan.partida_id,
+            )
+        except ValueError as exc:
+            # Sin identidad completa no se inventa una marca: se anota y el
+            # volcado escribe SIN propiedad, que el camino de reversion lee
+            # como «propiedad desconocida» y trata como no borrable por radio
+            # de apply. Degradar a marca vacia seria peor: pareceria acotado.
+            run.apply_id = None
+            run.note("provenance", "APPLY_ID_UNAVAILABLE", str(exc))
         run.write_result = writer.write(run.plan.to_dict(), request)
         self.write_provenance(run)
 
@@ -548,6 +573,7 @@ class KnowledgePipeline:
                 episodes=[e.to_dict() for e in run.episodes],
                 fragments=[f.to_dict() for f in run.fragments],
                 assertion_ids=assertion_ids,
+                apply_id=run.apply_id,
             )
             run.note(
                 "provenance",

@@ -48,6 +48,13 @@ from .gate import (
 )
 from .gate import evaluate as evaluate_gate
 from .idempotency import AppliedKeyStore, InMemoryAppliedKeys, JsonlAppliedKeys
+from .apply_identity import (
+    APPLY_ID_FIELD,
+    apply_id_for_view,
+    compute_apply_id,
+    is_apply_id,
+    require_apply_id,
+)
 from .provenance import (
     PROVENANCE_LABELS,
     PROVENANCE_RELATIONS,
@@ -144,6 +151,11 @@ __all__ = [
     "PROVENANCE_LABELS",
     "PROVENANCE_RELATIONS",
     "ProvenanceOutcome",
+    "APPLY_ID_FIELD",
+    "apply_id_for_view",
+    "compute_apply_id",
+    "is_apply_id",
+    "require_apply_id",
     "persist_provenance",
     "trace",
     "trace_query",

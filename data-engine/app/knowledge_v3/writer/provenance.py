@@ -69,6 +69,7 @@ from dataclasses import dataclass, field
 from typing import Any, Iterable, Optional
 
 from . import codes
+from .apply_identity import APPLY_ID_FIELD
 from .cypher import LABEL_ASSERTION, LABEL_ENTITY, Query, safe_props
 from .errors import WriterAbort
 
@@ -99,7 +100,9 @@ IDENTITY_FIELD: dict[str, str] = {
 }
 
 #: Propiedades que estampa este modulo y que un documento no puede imponer.
-_STAMPED = frozenset({"workspace", "partida_id", "provenance_contract"})
+_STAMPED = frozenset(
+    {"workspace", "partida_id", "provenance_contract", APPLY_ID_FIELD}
+)
 
 
 @dataclass
@@ -175,13 +178,21 @@ def flatten_document(doc: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
 
 
 def _node_props(
-    doc: dict[str, Any], contract_id: str, workspace: str, partida_id: Optional[str]
+    doc: dict[str, Any], contract_id: str, workspace: str, partida_id: Optional[str],
+    apply_id: Optional[str] = None,
 ) -> tuple[dict[str, Any], list[str]]:
     props, omitted = flatten_document(doc)
     props = safe_props(props)  # misma whitelist de nombres que el resto del writer
     props["workspace"] = workspace
     props["partida_id"] = partida_id
     props["provenance_contract"] = contract_id
+    if apply_id is not None:
+        # MARCA DE CREACION, no de uso. Solo llega aqui quien va a hacer el
+        # `CREATE`: un nodo REUTILIZADO no pasa por esta funcion y conserva el
+        # `apply_id` de quien lo creo. Esa asimetria es la propiedad entera:
+        # contesta "quien lo creo", que es lo que el rollback necesita saber
+        # para no borrar lo que creo otro apply.
+        props[APPLY_ID_FIELD] = apply_id
     return props, omitted
 
 
@@ -284,6 +295,7 @@ def _run(tx: Any, query: Query) -> list[Any]:
 def _ensure_node(
     tx: Any, out: ProvenanceOutcome, label: str, doc: dict[str, Any],
     contract_id: str, workspace: str, partida_id: Optional[str],
+    apply_id: Optional[str] = None,
 ) -> Optional[str]:
     node_id = doc.get(IDENTITY_FIELD[label])
     if not node_id:
@@ -295,7 +307,7 @@ def _ensure_node(
     if _run(tx, _scoped(label, node_id, workspace, partida_id)):
         out._bump(out.nodes_reused, label)
         return node_id
-    props, omitted = _node_props(doc, contract_id, workspace, partida_id)
+    props, omitted = _node_props(doc, contract_id, workspace, partida_id, apply_id)
     if omitted:
         conocidos = out.omitted_fields.setdefault(label, [])
         for name in omitted:
@@ -392,22 +404,30 @@ def persist_provenance_tx(
     episodes: Iterable[dict[str, Any]] = (),
     fragments: Iterable[dict[str, Any]] = (),
     assertion_ids: Iterable[str] = (),
+    apply_id: Optional[str] = None,
     out: Optional[ProvenanceOutcome] = None,
 ) -> ProvenanceOutcome:
-    """Todo el volcado dentro de UNA transaccion que inyecta quien llama."""
+    """Todo el volcado dentro de UNA transaccion que inyecta quien llama.
+
+    `apply_id` es la marca de propiedad (`apply_identity`). Se estampa SOLO en
+    lo que este volcado CREA; lo que reutiliza conserva la marca de quien lo
+    creo. Sin `apply_id` el volcado sigue funcionando exactamente igual y no
+    estampa nada: la ausencia de marca se lee despues como «propiedad
+    desconocida», que el camino de reversion trata como NO borrable.
+    """
     out = out or ProvenanceOutcome()
     if source_asset:
         _ensure_node(tx, out, LABEL_SOURCE, source_asset,
-                     "source-asset/v3-internal-v1", workspace, partida_id)
+                     "source-asset/v3-internal-v1", workspace, partida_id, apply_id)
     for episode in episodes:
         _ensure_node(tx, out, LABEL_EPISODE, episode,
-                     "source-episode/v3-internal-v1", workspace, partida_id)
+                     "source-episode/v3-internal-v1", workspace, partida_id, apply_id)
         _ensure_relation(tx, out, LABEL_SOURCE, episode.get("source_asset_id"),
                          REL_HAS_EPISODE, LABEL_EPISODE, episode.get("episode_id"),
                          workspace, partida_id)
     for fragment in fragments:
         _ensure_node(tx, out, LABEL_EVIDENCE, fragment,
-                     "evidence-fragment/v3-internal-v1", workspace, partida_id)
+                     "evidence-fragment/v3-internal-v1", workspace, partida_id, apply_id)
         _ensure_relation(tx, out, LABEL_EPISODE, fragment.get("episode_id"),
                          REL_HAS_FRAGMENT, LABEL_EVIDENCE, fragment.get("fragment_id"),
                          workspace, partida_id)
@@ -424,6 +444,7 @@ def persist_provenance(
     episodes: Iterable[dict[str, Any]] = (),
     fragments: Iterable[dict[str, Any]] = (),
     assertion_ids: Iterable[str] = (),
+    apply_id: Optional[str] = None,
 ) -> ProvenanceOutcome:
     """Volcado completo. El driver se INYECTA: aqui no se importa `neo4j`."""
     episodios = list(episodes)
@@ -436,12 +457,14 @@ def persist_provenance(
                     tx, workspace=workspace, partida_id=partida_id,
                     source_asset=source_asset, episodes=episodios,
                     fragments=fragmentos, assertion_ids=aserciones,
+                    apply_id=apply_id,
                 )
             )
         return persist_provenance_tx(  # pragma: no cover - drivers de prueba
             session, workspace=workspace, partida_id=partida_id,
             source_asset=source_asset, episodes=episodios,
             fragments=fragmentos, assertion_ids=aserciones,
+            apply_id=apply_id,
         )
 
 
