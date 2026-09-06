@@ -19,7 +19,7 @@ import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
@@ -78,11 +78,27 @@ def _run(cmd: list[str], *, check: bool = True) -> subprocess.CompletedProcess:
         raise RuntimeError(f"ejecutable no disponible: {cmd[0]}") from exc
 
 
+@dataclass(frozen=True)
+class ConexionEfimera:
+    """Como llegar al Neo4j efimero. La contrasena NO se imprime en el `repr`.
+
+    Existe para que un guion de operador pueda pasarle URI y usuario a un
+    subproceso — el secreto va siempre por un fichero privado, nunca por
+    `argv` — sin necesitar un segundo mecanismo de arranque.
+    """
+
+    driver: Any
+    uri: str
+    user: str
+    password: str = field(repr=False)
+
+
 @contextmanager
-def neo4j_efimero(prefijo: str = "s9k-v3-writer-test"):
+def neo4j_efimero_conexion(prefijo: str = "s9k-v3-writer-test"):
     """Levanta y destruye un Neo4j propio. UN solo mecanismo de arranque.
 
-    Lo usan la fixture de sesion y cualquier prueba que necesite una SEGUNDA
+    Lo usan la fixture de sesion, `neo4j_efimero` (que es esta misma funcion
+    quedandose solo con el driver) y cualquier prueba que necesite una SEGUNDA
     base -- por ejemplo la que comprueba que un documento de rollback sigue
     siendo ejecutable cuando los `elementId` ya no son los mismos, porque el
     `elementId` lleva dentro el UUID de la base.
@@ -133,10 +149,22 @@ def neo4j_efimero(prefijo: str = "s9k-v3-writer-test"):
                     raise RuntimeError(f"Neo4j no acepto conexiones en {uri}: {exc}") from exc
                 time.sleep(1)
         bootstrap_writer_schema(driver)
-        yield driver
+        yield ConexionEfimera(driver=driver, uri=uri, user="neo4j", password=password)
     finally:
         driver.close()
         _run(["docker", "rm", "-f", name], check=False)
+
+
+@contextmanager
+def neo4j_efimero(prefijo: str = "s9k-v3-writer-test"):
+    """El mismo arranque, quedandose solo con el driver.
+
+    No es un segundo camino: delega enteramente en
+    `neo4j_efimero_conexion`. Existe porque casi todo el mundo aqui solo
+    necesita el driver y `with ... as driver` se lee mejor.
+    """
+    with neo4j_efimero_conexion(prefijo) as conexion:
+        yield conexion.driver
 
 
 @pytest.fixture(scope="session")

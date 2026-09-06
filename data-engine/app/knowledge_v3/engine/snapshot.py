@@ -42,6 +42,19 @@ class SnapshotEntity:
     version: int
     state_hash: dict
     labels: tuple[str, ...] = ()
+    #: `True` = entidad que AUN NO EXISTE en el grafo y cuya alta ha aprobado
+    #: un humano (carril B). Entra en el snapshot para que el motor pueda
+    #: aceptar un hecho que la menciona, pero el planificador la trata al
+    #: reves que a una entidad real: emite un `CREATE_ENTITY` para ella y NO
+    #: proyecta relaciones sobre ella, porque no hay version que anclar.
+    #:
+    #: Nadie la pone a `True` por deduccion: solo la aprobacion explicita de
+    #: un alta la enciende. `LINK_EXISTING` y `CREATE_ENTITY` siguen siendo
+    #: dos cosas distintas, y este campo es la frontera entre ambas.
+    pending_creation: bool = False
+    #: Nombre canonico declarado en el alta aprobada. Solo lo consume el
+    #: `payload` del `CREATE_ENTITY`; para una entidad ya existente sobra.
+    canonical_name: Optional[str] = None
 
     @staticmethod
     def of(entity_id: str, entity_type: str, version: int = 1, **kw) -> "SnapshotEntity":

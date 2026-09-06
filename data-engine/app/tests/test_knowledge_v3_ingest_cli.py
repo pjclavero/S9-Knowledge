@@ -121,22 +121,58 @@ def test_el_plan_esta_sellado_y_es_lo_que_consume_el_carril_c(informe):
 # --------------------------------------------------------------------------
 # 2. Negativo critico
 # --------------------------------------------------------------------------
-def test_el_cli_no_admite_apply(capsys):
-    """Escribir es del carril C. No hay bandera, y por eso no hay descuido.
+def test_el_apply_existe_pero_no_escribe_sin_operador_ni_decisiones(capsys):
+    """`--apply` ya existe. Lo que NO existe es un apply sin autorizacion.
 
-    Se comprueba la ESTRUCTURA del parser (que `--apply` no es una opcion
-    declarada) y el EFECTO (salida distinta de cero), no la redaccion del aviso.
+    Antes la garantia era la AUSENCIA de la bandera. Ahora la bandera esta, y
+    la garantia es que falla CERRADO mientras falte cualquiera de las dos
+    declaraciones que nadie puede poner por el operador: quien aplica
+    (`--operador`) y que altas aprobo un humano (`--decisiones`).
+
+    Se comprueba el EFECTO (salida distinta de cero) y, sobre todo, que NO se
+    abre ninguna conexion: el driver se construiria en `_driver_factory`, y si
+    el CLI llegara hasta ahi el fallo seria otro.
     """
     opciones = {
         cadena
         for accion in ingest_cli.build_parser()._actions
         for cadena in accion.option_strings
     }
-    assert "--apply" not in opciones
+    assert "--apply" in opciones
+    assert "--decisiones" in opciones
+    assert "--aprobar-alta" in opciones
+    # No hay comodin de aprobacion: aprobar es siempre por id.
+    assert not [o for o in opciones if "todas" in o]
+
+    # Sin --operador: el parser corta antes de tocar nada.
     with pytest.raises(SystemExit) as exc:
         ingest_cli.main([str(FUENTE), "--perfil", str(PERFIL), "--apply"])
     assert exc.value.code != 0
     capsys.readouterr()
+
+    # Con --operador pero sin documento de decisiones revisado: tampoco.
+    with pytest.raises(SystemExit) as exc:
+        ingest_cli.main([
+            str(FUENTE), "--perfil", str(PERFIL), "--apply", "--operador", "pjc",
+        ])
+    assert exc.value.code != 0
+    capsys.readouterr()
+
+
+def test_sin_driver_el_dry_run_sigue_sin_abrir_conexion(monkeypatch):
+    """El modo por defecto no resuelve URI, ni usuario, ni secreto.
+
+    Se prueba por EFECTO: si el dry-run construyese una fabrica de driver,
+    esta trampa saltaria. No se cuenta texto ni se lee el codigo fuente.
+    """
+    def _prohibido(*a, **kw):  # pragma: no cover - debe no llamarse
+        raise AssertionError("el dry-run intento construir una conexion")
+
+    monkeypatch.setattr(ingest_cli, "_driver_factory", _prohibido)
+    assert ingest_cli.main([
+        str(FUENTE), "--perfil", str(PERFIL), "--catalogo", str(CATALOGO),
+        "--formato", "json",
+    ]) == 0
 
 
 def test_la_corrida_declara_dry_run_y_no_lleva_driver(informe):

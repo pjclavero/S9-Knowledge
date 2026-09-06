@@ -187,11 +187,11 @@ class InMemoryEntityCatalog(EntityCatalog):
 class Neo4jEntityCatalog(EntityCatalog):
     """ENGANCHE de integracion: catalogo respaldado por Neo4j, SOLO LECTURA.
 
-    No esta implementado a proposito. Este editor no tiene acceso a un Neo4j con
-    datos reales, y una implementacion no ejecutada nunca es una implementacion
-    no verificada: se declara la frontera (constructor, firma, aislamiento por
-    workspace y prohibicion de escritura) y se deja la consulta al bloque de
-    integracion, que si puede medirla.
+    IMPLEMENTADO por el carril B contra un Neo4j real y efimero. La frontera
+    (constructor, firma, aislamiento por workspace, prohibicion de escritura)
+    la habia dejado declarada el bloque anterior, que no tenia grafo con el
+    que medirla; aqui si lo hay, y la consulta se ejecuta de verdad antes de
+    afirmar que funciona.
 
     Requisitos que la implementacion debe cumplir:
 
@@ -213,17 +213,66 @@ class Neo4jEntityCatalog(EntityCatalog):
        aislamiento.
     """
 
+    IMPLEMENTADO_POR = "carril B, medido contra un Neo4j real y efimero"
+
     def __init__(self, driver: Any, *, database: str | None = None) -> None:
         self._driver = driver
         self._database = database
 
     def entities(
         self, workspace: str, *, partida_scope: str | None = None
-    ) -> Sequence[CatalogEntity]:  # pragma: no cover
-        raise NotImplementedError(
-            "Neo4jEntityCatalog es un enganche declarado, no una implementacion: "
-            "lo completa el bloque de integracion con Neo4j real (solo lectura)."
+    ) -> Sequence[CatalogEntity]:
+        """Las entidades que el grafo TIENE, no las que un fichero declara.
+
+        Los cinco requisitos del enganche, cumplidos donde se pueden observar:
+
+        1 y 5. `workspace` y `partida_scope` van en el `WHERE` de
+        `cypher.list_entities_query`, no en un filtro de Python posterior.
+        2. La consulta es `MATCH` + `RETURN`.
+        3. Un fallo del driver se propaga (`reads.list_entities` no lo captura).
+        4. `locate()` esta implementado justo debajo.
+
+        `entity_type` sale de la propiedad del nodo, no de sus etiquetas: la
+        etiqueta la elige el writer desde el mismo campo, y leer la propiedad
+        evita tener que adivinar cual de las etiquetas es el tipo.
+        """
+        from ..writer.reads import list_entities
+
+        filas = list_entities(self._driver, workspace, partida_scope)
+        return tuple(
+            CatalogEntity(
+                entity_id=fila.entity_id,
+                workspace=workspace,
+                entity_type=fila.entity_type,
+                # Sin `name` no hay superficie que comparar. Se cae al
+                # `entity_id` en vez de inventar un nombre: el resolutor vera
+                # una superficie que no casa con nada, que es la verdad.
+                canonical_name=fila.name or fila.entity_id,
+                aliases=(),
+                provisional=False,
+                metadata={
+                    "graph_version": fila.version,
+                    "graph_state_hash": fila.state_hash,
+                    "graph_status": fila.status,
+                    "graph_labels": list(fila.labels),
+                },
+                partida_id=fila.partida_id,
+            )
+            for fila in filas
         )
+
+    def locate(self, entity_id: str) -> str | None:
+        """La segunda cerradura: de que boveda es este `entity_id`.
+
+        Devuelve `None` tanto si no consta como si consta en MAS de un
+        workspace. Lo segundo no es un empate que se pueda desempatar aqui:
+        es una violacion del aislamiento, y responder con uno de los dos
+        seria elegir a ciegas cual de las dos bovedas gana.
+        """
+        from ..writer.reads import locate_entity
+
+        encontrados = locate_entity(self._driver, entity_id)
+        return encontrados[0] if len(encontrados) == 1 else None
 
 
 __all__ = [

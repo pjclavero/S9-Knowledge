@@ -75,4 +75,79 @@ def list_visible_assertions(
     return out
 
 
-__all__ = ["VisibleAssertion", "list_visible_assertions"]
+@dataclass(frozen=True)
+class GraphEntity:
+    """Una entidad OBSERVADA en el grafo. Nada de esto se deriva ni se rellena.
+
+    `version` y `state_hash` son los del nodo. Pueden venir a `None` — el
+    writer no los escribe al crear — y esa ausencia se PROPAGA en vez de
+    sustituirse por un valor plausible: quien construya un plan con un
+    `expected_hash` inventado descubrira la mentira en el executor, y para
+    entonces ya habra abortado una transaccion en produccion.
+    """
+
+    entity_id: str
+    entity_type: Optional[str]
+    name: Optional[str]
+    version: Optional[int]
+    state_hash: Optional[str]
+    partida_id: Optional[str]
+    status: Optional[str]
+    labels: tuple[str, ...] = ()
+
+
+def list_entities(
+    driver: Any,
+    workspace: str,
+    partida_id: Optional[str] = None,
+) -> list[GraphEntity]:
+    """Entidades que EXISTEN en el grafo, en el ambito de lectura declarado.
+
+    Es la lectura que le faltaba a este subsistema y la que une las dos
+    mitades del producto: hasta ahora el catalogo del resolutor salia de un
+    FICHERO y el grafo del writer era otro mundo, sin nada que los
+    contrastase. Con esto, "que entidades ya existen" se OBSERVA.
+
+    `driver` se inyecta, igual que en `list_visible_assertions`: este modulo
+    no importa `neo4j` ni abre conexiones. Un fallo del driver se PROPAGA:
+    degradar en silencio a "no hay ninguna" convertiria una caida de Neo4j en
+    una avalancha de altas de entidades, que es exactamente el accidente que
+    este carril existe para no cometer.
+    """
+    query = cypher.list_entities_query(workspace, partida_id)
+    with driver.session() as session:
+        rows = list(session.run(query.cypher, query.params))
+    out: list[GraphEntity] = []
+    for row in rows:
+        etiquetas = _row_get(row, "labels") or ()
+        version = _row_get(row, "version")
+        out.append(
+            GraphEntity(
+                entity_id=_row_get(row, "entity_id"),
+                entity_type=_row_get(row, "entity_type"),
+                name=_row_get(row, "name"),
+                version=int(version) if version is not None else None,
+                state_hash=_row_get(row, "state_hash"),
+                partida_id=_row_get(row, "partida_id"),
+                status=_row_get(row, "status"),
+                labels=tuple(etiquetas),
+            )
+        )
+    return out
+
+
+def locate_entity(driver: Any, entity_id: str) -> list[str]:
+    """Workspaces en los que consta `entity_id`. Lista vacia = no consta."""
+    query = cypher.locate_entity_query(entity_id)
+    with driver.session() as session:
+        rows = list(session.run(query.cypher, query.params))
+    return [_row_get(row, "workspace") for row in rows]
+
+
+__all__ = [
+    "VisibleAssertion",
+    "GraphEntity",
+    "list_visible_assertions",
+    "list_entities",
+    "locate_entity",
+]

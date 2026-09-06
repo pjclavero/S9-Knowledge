@@ -237,10 +237,66 @@ class TestCatalogo:
         ids = [e.entity_id for e in F.catalog().entities(WS)]
         assert "entity:daiki-tinieblas" not in ids
 
-    def test_neo4j_es_un_enganche_declarado_no_una_implementacion(self):
-        """Se declara la frontera; devolver datos inventados seria peor."""
-        with pytest.raises(NotImplementedError):
-            Neo4jEntityCatalog(driver=object()).entities(WS)
+    def test_neo4j_consulta_el_grafo_y_aisla_por_workspace(self):
+        """El enganche ya NO es un `NotImplementedError`: consulta de verdad.
+
+        Aqui se comprueba la DISCIPLINA de la consulta con un driver falso que
+        registra lo que se le pide: que el workspace viaje en los PARAMETROS
+        (no filtrado en Python despues) y que la sentencia sea de solo lectura.
+        Que la consulta devuelva lo que hay en un Neo4j real se mide en
+        `test_knowledge_v3_carril_b_neo4j_real.py`, contra un contenedor.
+        """
+        vistas = []
+
+        class _Sesion:
+            def __enter__(self_):
+                return self_
+
+            def __exit__(self_, *a):
+                return False
+
+            def run(self_, cypher, params=None):
+                vistas.append((cypher, dict(params or {})))
+                return []
+
+        class _Driver:
+            def session(self_, **kw):
+                return _Sesion()
+
+        assert Neo4jEntityCatalog(driver=_Driver()).entities(WS) == ()
+        cypher, params = vistas[0]
+        assert params["ws"] == WS
+        assert "n.workspace = $ws" in cypher
+        for prohibida in ("CREATE", "MERGE", "SET ", "DELETE", "REMOVE"):
+            assert prohibida not in cypher.upper()
+
+    def test_neo4j_locate_no_elige_entre_dos_bovedas(self):
+        """Un `entity_id` en dos workspaces es una violacion, no un empate."""
+
+        class _Sesion:
+            def __init__(self_, filas):
+                self_.filas = filas
+
+            def __enter__(self_):
+                return self_
+
+            def __exit__(self_, *a):
+                return False
+
+            def run(self_, cypher, params=None):
+                return self_.filas
+
+        class _Driver:
+            def __init__(self_, filas):
+                self_.filas = filas
+
+            def session(self_, **kw):
+                return _Sesion(self_.filas)
+
+        assert Neo4jEntityCatalog(_Driver([{"workspace": WS}])).locate("entity:x") == WS
+        assert Neo4jEntityCatalog(_Driver([])).locate("entity:x") is None
+        dos = [{"workspace": WS}, {"workspace": "otra"}]
+        assert Neo4jEntityCatalog(_Driver(dos)).locate("entity:x") is None
 
     def test_glossary_store_source_tambien_es_enganche(self):
         with pytest.raises(NotImplementedError):

@@ -558,6 +558,62 @@ def list_visible_assertions_query(
     )
 
 
+def list_entities_query(workspace: str, partida_id: str | None = None) -> Query:
+    """Entidades del workspace VISIBLES en el ambito de lectura declarado.
+
+    Es la consulta que faltaba. Hasta ahora `cypher.py` solo sabia leer UN
+    nodo por id (`read_entity_state`), porque el executor nunca necesita mas:
+    opera sobre un objetivo concreto. Pero "que entidades existen ya" es una
+    pregunta de LISTADO, y sin ella el catalogo del resolutor solo podia salir
+    de un fichero — que es justamente el hueco de este carril: el fichero dice
+    una cosa y el grafo otra, y nada los contrasta.
+
+    AMBITO (misma disciplina que `_visible_predicate`, no una version propia):
+    la capa juego (`partida_id IS NULL`) siempre entra, y una lectura de
+    partida anade ademas las entidades nacidas en ESA partida. Nunca un
+    comodin: sin el `WHERE`, dos `MATCH` sueltos o un filtrado posterior en
+    Python devolverian entidades de otra partida o de otro workspace, que es
+    exactamente el cruce que el aislamiento prohibe.
+
+    SOLO LECTURA: `MATCH` + `RETURN`. Ni `CREATE`, ni `MERGE`, ni `SET`.
+
+    Se devuelven `version` y `state_hash` TAL COMO ESTAN en el nodo, sin
+    sustituirlos por un valor derivado: son lo que el control optimista del
+    plan (`expected_version`/`expected_hash`) tendra que contrastar contra
+    este mismo grafo, y un valor inventado aqui produciria un plan que aborta
+    en el executor. Si el nodo no los trae, la fila los trae a `None` y quien
+    construya el catalogo debera declararlo, no rellenarlo.
+    """
+    where = [_visible_predicate("n", partida_id), "n.workspace = $ws"]
+    params: dict[str, Any] = {"ws": workspace}
+    if partida_id is not None:
+        params["partida_id"] = partida_id
+    return Query(
+        f"MATCH (n:{LABEL_ENTITY}) WHERE {' AND '.join(where)} "
+        "RETURN n.entity_id AS entity_id, n.entity_type AS entity_type, "
+        "n.name AS name, n.version AS version, n.state_hash AS state_hash, "
+        "n.partida_id AS partida_id, n.status AS status, labels(n) AS labels "
+        "ORDER BY n.entity_id",
+        params,
+    )
+
+
+def locate_entity_query(entity_id: str) -> Query:
+    """En que workspace(s) consta un `entity_id`. Cerradura de aislamiento.
+
+    Sin ambito de partida a proposito: la pregunta es de PROPIEDAD ("de que
+    boveda es esta entidad"), igual que `InMemoryEntityCatalog.get`, y una
+    vista recortada por partida respondera "no me consta" sobre una entidad
+    que si existe — que es la respuesta que abre la puerta, no la que la
+    cierra.
+    """
+    return Query(
+        f"MATCH (n:{LABEL_ENTITY} {{entity_id: $id}}) "
+        "RETURN DISTINCT n.workspace AS workspace ORDER BY workspace",
+        {"id": entity_id},
+    )
+
+
 __all__ = [
     "Query",
     "assert_safe",
@@ -574,6 +630,8 @@ __all__ = [
     "close_assertion_validity",
     "find_local_override",
     "list_visible_assertions_query",
+    "list_entities_query",
+    "locate_entity_query",
     "LIVE_STATUS_VALUES",
     "LABEL_ENTITY",
     "LABEL_ASSERTION",

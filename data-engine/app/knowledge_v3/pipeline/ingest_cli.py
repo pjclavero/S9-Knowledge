@@ -18,13 +18,43 @@ real y publica lo que la cadena produjo.
     fichero -> SourceInput -> SourceCase -> episodios + evidencia
             -> extraccion -> reconciliacion -> resolucion -> motor -> plan
 
-NO ESCRIBE EN NEO4J
--------------------
-`--dry-run` es el defecto y hoy el UNICO modo. No hay `--apply`: escribir exige
-un driver, un grafo efimero y el gate del writer, y eso es del carril C. Este
-modulo no construye ningun driver, igual que `runner.py` no lo construye, y la
-ausencia de la bandera es la garantia — no un booleano que alguien pueda poner
-a `True`.
+DE DONDE SALE EL MUNDO: DEL GRAFO, NO DE UN FICHERO
+---------------------------------------------------
+`--catalogo` lee de un JSON que entidades existen. Ese fichero y el grafo real
+eran dos afirmaciones independientes sobre el mismo mundo, sin nada que las
+contrastara: el fichero decia que `entity:sela-marrec` existe, el grafo estaba
+vacio, y el APPLY abortaba con `EXEC_TARGET_MISSING`. La unica salida era
+sembrar las entidades a mano por Cypher.
+
+`--desde-grafo` cierra ese hueco: el catalogo se LEE del grafo (solo lectura,
+`writer.reads.list_entities`) y cada mencion sale reconciliada como
+`LINK_EXISTING` o `CREATE_ENTITY_REQUIRED`.
+
+LAS ALTAS LAS APRUEBA UNA PERSONA
+---------------------------------
+`LINK_EXISTING` NO es "enlaza, y si no existe creala". Un enlace sin respaldo
+en el grafo se DEGRADA a alta pendiente y se para. Las altas se aprueban por
+id, una a una (`--revisar --aprobar-alta <id> --revisor <quien>`); no hay
+"aprobar todas".
+
+ESCRITURA REAL
+--------------
+`--dry-run` sigue siendo el defecto. `--apply` existe ahora, y NO relaja nada:
+el gate del writer sigue mandando (`S9K_ALLOW_REAL_INGEST=1`,
+`S9K_WRITER_WORKSPACE`, `--operador`, hash de plan confirmado por la propia
+cadena), la contrasena no viaja por `argv` y sin documento de decisiones
+revisado no se escribe. Los tres pasos del operador:
+
+    ...ingest_cli fuente.md --perfil P --desde-grafo --out-dir DIR \
+        --neo4j-uri "$S9K_NEO4J_URI" --neo4j-user neo4j \
+        --neo4j-password-file /ruta/privada/neo4j.pass
+
+    ...ingest_cli --revisar --decisiones DIR/decisiones.json \
+        --revisor pjc --aprobar-alta entity:new:...
+
+    S9K_ALLOW_REAL_INGEST=1 S9K_WRITER_WORKSPACE=ws \
+    ...ingest_cli fuente.md --perfil P --apply --operador pjc \
+        --decisiones DIR/decisiones.json --neo4j-...
 
 DE DONDE SALE EL MUNDO
 ----------------------
@@ -46,6 +76,7 @@ from __future__ import annotations
 import argparse
 import json
 import mimetypes
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -53,6 +84,15 @@ from typing import Any, Optional, Sequence
 
 from ..contracts.base import sha256_hash
 from ..contracts.game_profile import GameProfile
+from ..driver_neo4j import (
+    ENV_DATABASE,
+    ENV_PASSWORD_FILE,
+    ENV_URI,
+    ENV_USER,
+    DriverConfigError,
+    build_driver_factory,
+    resolve_config,
+)
 from ..extraction.lexicon import Lexicon, LexiconEntry
 from ..multimodal.base import IngestOptions, SourceInput
 from ..multimodal.registry import default_registry
@@ -62,6 +102,7 @@ from . import bridge
 from .errors import PipelineError
 from .ingest_report import ingest_report, to_markdown
 from .pipeline import KnowledgePipeline, SourceCase
+from . import entity_decisions, graph_catalog
 
 #: Extension -> `source_kind`, solo para las que este CLI declara soportar de
 #: verdad. Lo demas se le deja al registro de adaptadores, que resuelve por
@@ -176,6 +217,20 @@ def supported_kinds() -> list[str]:
     return default_registry().source_kinds()
 
 
+def _como_provisionales(altas: Sequence[dict]) -> list[dict]:
+    """Altas aprobadas, en la forma que `build_catalog`/`build_lexicon` leen."""
+    return [
+        {
+            "entity_id": a["entity_id"],
+            "type": a["type"],
+            "name": a.get("name") or a["entity_id"],
+            "aliases": list(a.get("aliases") or ()),
+            "provisional": True,
+        }
+        for a in altas
+    ]
+
+
 def run_ingest(
     path: Path,
     *,
@@ -186,15 +241,54 @@ def run_ingest(
     now: Optional[str] = None,
     ingested_at: Optional[str] = None,
     source_kind: Optional[str] = None,
+    driver: Any = None,
+    partida_id: Optional[str] = None,
+    approved_altas: Sequence[dict] = (),
+    apply: bool = False,
+    operator_id: Optional[str] = None,
+    writer_env: Optional[dict] = None,
 ) -> dict:
-    """Corre la cadena sobre UN fichero y devuelve el informe estructurado."""
+    """Corre la cadena sobre UN fichero y devuelve el informe estructurado.
+
+    `driver` presente = el mundo sale del GRAFO, no del fichero `--catalogo`.
+    Leer no es escribir: con `apply=False` el driver solo se usa para la
+    consulta de solo lectura del catalogo, y el writer sigue simulando.
+    """
     profile = load_profile(profile_path, workspace=workspace)
     ws = profile.workspace
     moment = now or _utc_now()
     ingested = ingested_at or moment
     collection = collection_id or f"collection:{ws}"
 
-    entities = load_catalog(catalog_path)
+    # DOS FUENTES, DOS PREGUNTAS DISTINTAS. Es el reparto que faltaba y el que
+    # explica todo este carril:
+    #
+    #   * el CATALOGO declarado (`--catalogo`) dice COMO SE LLAMAN las cosas.
+    #     Es vocabulario de identidad: sin el, el resolutor no tiene con que
+    #     enlazar y todo sale provisional — y el motor manda a revision humana
+    #     cualquier hecho sobre una entidad provisional (`ENTITY_PROVISIONAL`),
+    #     asi que no se escribe nada. MEDIDO: con el grafo vacio y sin
+    #     catalogo, 5 claims -> 3 REVIEW + 2 ABSTAIN, 0 operaciones.
+    #   * el GRAFO dice QUE EXISTE de verdad, con su `version` y su
+    #     `state_hash`.
+    #
+    # Antes solo habia la primera, tratada como si respondiera tambien a la
+    # segunda. De ahi el `EXEC_TARGET_MISSING`: el fichero declaraba
+    # `entity:cofradia-ambar` y el grafo no la tenia.
+    #
+    # Se juntan para RESOLVER, y el grafo manda cuando el mismo id esta en los
+    # dos (su fila trae la version observada). Lo declarado y ausente NO entra
+    # en el snapshot: sale como `CREATE_ENTITY_REQUIRED` y espera a un humano.
+    declaradas = load_catalog(catalog_path)
+    graph_rows: list[dict] = []
+    if driver is not None:
+        graph_rows = graph_catalog.catalog_rows(driver, ws, partida_id)
+        observados = {f["entity_id"] for f in graph_rows}
+        entities = graph_rows + [
+            e for e in declaradas if e["entity_id"] not in observados
+        ]
+    else:
+        entities = declaradas
     source = build_source(path, source_kind=source_kind)
     options = IngestOptions(
         workspace=ws,
@@ -208,11 +302,32 @@ def run_ingest(
         profile=profile,
         now=moment,
         ingested_at=ingested,
+        # Las altas aprobadas NO entran aqui. Ni en el catalogo ni en el
+        # glosario. MEDIDO: al meterlas, la cascada del resolutor cambiaba de
+        # rama y los `entity_id` derivados pasaban de `entity:prov:...` a
+        # `entity:new:...` entre la primera pasada y la segunda — es decir, el
+        # operador aprobaba unos ids y se escribian otros, y la aprobacion
+        # dejaba de cubrir lo que se escribia.
+        #
+        # La regla que queda: **aprobar un alta autoriza una creacion; no
+        # cambia como se resuelve la identidad.** La resolucion es la misma
+        # con aprobacion y sin ella (misma entrada, misma salida), y lo unico
+        # que la aprobacion mueve es el SNAPSHOT, mas abajo.
         catalog=build_catalog(entities, ws),
         lexicon=build_lexicon(entities, profile),
-        # DRY-RUN: sin driver, el writer solo puede simular.
-        apply=False,
-        writer_driver=None,
+        # El writer solo escribe si el operador lo pidio Y hay driver. Sin
+        # `--apply` sigue siendo DRY-RUN aunque la conexion exista, porque el
+        # driver tambien se usa para LEER el catalogo.
+        apply=bool(apply),
+        writer_driver=driver if apply else None,
+        operator_id=operator_id or "s9k.pipeline",
+        # El gate lee de AQUI, no de `os.environ`, si el diccionario no es
+        # vacio. Pasarle `{}` seria falsificar un entorno sin
+        # `S9K_ALLOW_REAL_INGEST` y hacer que el APPLY se bloquease siempre
+        # con `GATE_ENV_NOT_ALLOWED` — un fallo cerrado, pero por el motivo
+        # equivocado. Se le pasa el entorno REAL del proceso: la declaracion
+        # sigue siendo del operador, no de este modulo.
+        writer_env=dict(writer_env) if writer_env is not None else dict(os.environ),
         ablation="operator_ingest",
     )
     case = SourceCase(
@@ -222,10 +337,22 @@ def run_ingest(
     # El snapshot del motor arranca del catalogo: sin el, NINGUNA entidad
     # existe para el motor y todo cae por `ENTITY_NOT_IN_SNAPSHOT` aunque el
     # resolutor haya enlazado con confianza 1.0. Mismo puente que usa el runner.
-    result = KnowledgePipeline(config).run(
-        [case], catalog_entities=bridge.entities_from_catalog(entities)
-    )
-    return ingest_report(
+    #
+    # Con driver, el snapshot lleva ademas la `version`/`state_hash` OBSERVADAS
+    # y las altas APROBADAS marcadas `pending_creation`, que es lo que hace que
+    # el planificador emita sus `CREATE_ENTITY`.
+    if driver is not None:
+        # SOLO lo observado + las altas aprobadas. Lo declarado y ausente se
+        # queda fuera a proposito: meterlo aqui es exactamente lo que producia
+        # el `EXEC_TARGET_MISSING` — un plan anclado a entidades que el grafo
+        # no tiene.
+        snapshot_entities = graph_catalog.snapshot_entities(
+            graph_rows, altas=approved_altas
+        )
+    else:
+        snapshot_entities = bridge.entities_from_catalog(entities)
+    result = KnowledgePipeline(config).run([case], catalog_entities=snapshot_entities)
+    report = ingest_report(
         result,
         source_path=path,
         input_hash=sha256_hash(source.data.decode("utf-8", errors="replace")),
@@ -235,33 +362,128 @@ def run_ingest(
         lexicon_entries=len(getattr(lexicon, "entries", ()) or ()),
         clock_read_at_boundary=now is None,
     )
+    # Lo que el writer HIZO, publicado en el informe. `ingest_report` no lo
+    # traia porque hasta ahora no habia escritura que contar; sin este bloque,
+    # un APPLY exitoso y uno abortado producen actas indistinguibles.
+    run = result.runs[0]
+    escritura = run.write_result
+    if escritura is not None:
+        report["write"] = {
+            "outcome": escritura.outcome,
+            "mode": escritura.mode,
+            "codes": list(escritura.codes),
+            "applied_operations": escritura.applied_operations,
+            "noop_operations": escritura.noop_operations,
+            "created_ids": list(escritura.created_ids),
+        }
+    if run.provenance_result is not None:
+        report["provenance"] = run.provenance_result.to_dict()
+    return report
+
+
+def _driver_factory(args: argparse.Namespace, env: Optional[dict] = None):
+    """La FABRICA de driver, con las reglas de `driver_neo4j` intactas.
+
+    La contrasena NO viaja por `argv`: se declara el CAMINO de un fichero
+    privado (modo 0o600), o `-` para leerla de la entrada estandar. Este
+    modulo no la ve, no la guarda y no la imprime.
+    """
+    config = resolve_config(
+        uri=args.neo4j_uri,
+        user=args.neo4j_user,
+        password_file=args.neo4j_password_file,
+        database=args.neo4j_database,
+        env=env,
+    )
+    return build_driver_factory(config)
+
+
+def _necesita_grafo(args: argparse.Namespace) -> bool:
+    """¿Hay que abrir conexion? Leer el catalogo del grafo tambien cuenta."""
+    return bool(args.desde_grafo or args.apply)
+
+
+def _ledger_path(args: argparse.Namespace) -> Path:
+    if args.decisiones is not None:
+        return args.decisiones
+    if args.out_dir is not None:
+        return args.out_dir / "decisiones.json"
+    raise PipelineError(
+        "config",
+        "no se dijo donde vive el documento de decisiones: usa --decisiones o "
+        "--out-dir",
+    )
+
+
+def _escribir_ledger(ruta: Path, ledger: entity_decisions.DecisionLedger) -> None:
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    ruta.write_text(
+        json.dumps(ledger.to_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _leer_ledger(ruta: Path) -> entity_decisions.DecisionLedger:
+    return entity_decisions.DecisionLedger.from_dict(
+        json.loads(ruta.read_text(encoding="utf-8"))
+    )
+
+
+def _resoluciones(report: dict) -> list[dict]:
+    """Todas las candidatas del informe, sin reagrupar.
+
+    El criterio de reparto sigue siendo el `action` del contrato, que
+    `entity_decisions.reconcile` vuelve a leer. Aqui solo se juntan las tres
+    listas que `ingest_report` publico por separado.
+    """
+    cand = report.get("candidates") or {}
+    return (
+        list(cand.get("link_existing") or ())
+        + list(cand.get("create_entity") or ())
+        + list(cand.get("review_identity") or ())
+    )
+
+
+def _nombres_por_mencion(report: dict) -> dict:
+    """`mention_id -> superficie`. Es el nombre que llevara un alta."""
+    return {
+        m["mention_id"]: m.get("surface")
+        for m in (report.get("mentions") or ())
+        if m.get("mention_id") and m.get("surface")
+    }
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="knowledge_v3.pipeline.ingest_cli",
         description=(
-            "Mete una fuente real por la cadena V3 y publica lo que produjo. "
-            "DRY-RUN siempre: no escribe en Neo4j y no admite --apply."
+            "Mete una fuente real por la cadena V3. DRY-RUN por defecto. "
+            "Con --desde-grafo el catalogo se LEE del grafo en vez de un "
+            "fichero; con --apply se escribe, y entonces manda el gate del "
+            "writer, no esta CLI."
         ),
     )
-    parser.add_argument("fichero", type=Path, help="fuente a ingerir (.md, .txt)")
+    parser.add_argument("fichero", type=Path, nargs="?",
+                        help="fuente a ingerir (.md, .txt)")
     parser.add_argument(
-        "--perfil", type=Path, required=True, help="GameProfile del workspace (JSON)"
+        "--perfil", type=Path, default=None, help="GameProfile del workspace (JSON)"
     )
     parser.add_argument(
         "--catalogo", type=Path, default=None,
-        help="entidades ya existentes en el grafo (JSON). Sin el, el glosario "
-             "solo tiene los alias del perfil",
+        help="entidades ya existentes (JSON). Alternativa OFFLINE a "
+             "--desde-grafo; si se dan las dos, manda el grafo",
     )
     parser.add_argument("--workspace", default=None, help="debe coincidir con el perfil")
+    parser.add_argument("--partida", default=None, dest="partida_id",
+                        help="ambito de partida; sin el, capa juego (lore)")
     parser.add_argument("--collection", default=None)
     parser.add_argument("--source-kind", default=None, help="fuerza el adaptador")
     parser.add_argument("--ahora", default=None, help="instante inyectado (ISO-8601 Z)")
     parser.add_argument("--ingerido-en", default=None, dest="ingerido_en")
     parser.add_argument(
         "--dry-run", action="store_true", default=True,
-        help="no escribe en el grafo. Es el defecto y el unico modo",
+        help="no escribe en el grafo. Sigue siendo el defecto",
     )
     parser.add_argument(
         "--formato", choices=("markdown", "json", "ambos"), default="markdown",
@@ -269,27 +491,132 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--out-dir", type=Path, default=None,
-        help="escribe acta.md e informe.json ahi en vez de por la salida estandar",
+        help="escribe acta.md, informe.json y decisiones.json ahi",
     )
+
+    # -- reconciliacion contra el grafo real --------------------------------
+    parser.add_argument(
+        "--desde-grafo", action="store_true", dest="desde_grafo",
+        help="el catalogo del workspace se LEE del grafo (solo lectura). Es "
+             "lo que permite decidir que entidades existen de verdad",
+    )
+    parser.add_argument(
+        "--decisiones", type=Path, default=None,
+        help="documento de decisiones de identidad: se escribe en la ingesta "
+             "y se lee en la revision y en el APPLY",
+    )
+    parser.add_argument(
+        "--revisar", action="store_true",
+        help="modo REVISION: no ingiere nada; aprueba altas sobre un "
+             "documento de decisiones ya generado",
+    )
+    parser.add_argument(
+        "--aprobar-alta", action="append", default=[], dest="aprobar_alta",
+        metavar="ENTITY_ID",
+        help="aprueba el alta de ESE entity_id. Repetible. No existe "
+             "'aprobar todas': cada alta se aprueba por su id",
+    )
+    parser.add_argument("--revisor", default=None,
+                        help="quien aprueba las altas. Obligatorio con --revisar")
+
+    # -- escritura real ------------------------------------------------------
+    parser.add_argument(
+        "--apply", action="store_true",
+        help="ESCRITURA REAL. Exige ademas el gate del writer: "
+             "S9K_ALLOW_REAL_INGEST=1, S9K_WRITER_WORKSPACE y --operador",
+    )
+    parser.add_argument("--operador", default=None, dest="operator_id",
+                        help="identificador del operador que autoriza el APPLY")
+    parser.add_argument("--neo4j-uri", default=None, help=f"URI del servidor ({ENV_URI})")
+    parser.add_argument("--neo4j-user", default=None, help=f"usuario ({ENV_USER})")
+    parser.add_argument(
+        "--neo4j-password-file", default=None,
+        help=f"CAMINO de un fichero privado con la contrasena, o '-' para "
+             f"stdin ({ENV_PASSWORD_FILE}). NUNCA se pasa por argv.",
+    )
+    parser.add_argument("--neo4j-database", default=None,
+                        help=f"base de datos ({ENV_DATABASE})")
     return parser
+
+
+def _modo_revision(args: argparse.Namespace) -> int:
+    """Aprueba altas. No abre ninguna conexion y no toca el grafo."""
+    if not args.revisor:
+        print("ERROR: --revisar exige --revisor: una aprobacion sin revisor no "
+              "es una aprobacion", file=sys.stderr)
+        return 2
+    ruta = _ledger_path(args)
+    ledger = _leer_ledger(ruta)
+    nuevo = entity_decisions.approve(
+        ledger, args.aprobar_alta, reviewer=args.revisor, at=_utc_now()
+    )
+    _escribir_ledger(ruta, nuevo)
+    print(json.dumps(
+        {
+            "documento": str(ruta),
+            "revisor": args.revisor,
+            "aprobadas_ahora": sorted(args.aprobar_alta),
+            "totals": nuevo.to_dict()["totals"],
+            "pendientes": sorted(
+                str(d.entity_id) for d in nuevo.pendientes
+                if d.decision == entity_decisions.CREATE_ENTITY_REQUIRED
+            ),
+        },
+        ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = build_parser()
-    args, extra = parser.parse_known_args(argv)
-    if extra:
-        # `--apply` no es "todavia no implementado": es que escribir de verdad
-        # exige driver, grafo efimero y el gate del writer. Un mensaje claro
-        # vale mas que una bandera que no hace nada.
-        if "--apply" in extra:
-            parser.error(
-                "--apply no existe en este CLI. La escritura la ejerce el writer "
-                "controlado (carril C) contra un Neo4j efimero y con su gate; "
-                "este modulo no construye ningun driver"
-            )
-        parser.error(f"argumentos desconocidos: {extra}")
+    args = parser.parse_args(argv)
 
+    if args.revisar:
+        try:
+            return _modo_revision(args)
+        except (PipelineError, ValueError, OSError, json.JSONDecodeError) as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 2
+
+    if args.fichero is None or args.perfil is None:
+        parser.error("hace falta el fichero a ingerir y --perfil")
+    # Las dos declaraciones que nadie puede poner por el operador se exigen
+    # ANTES de abrir conexion: gastar credenciales y una sesion en un APPLY
+    # que ya no puede autorizarse no aporta nada, y deja el fallo detras de un
+    # error de red que lo tapa.
+    if args.apply and not args.operator_id:
+        parser.error("--apply exige --operador: el gate del writer rechaza un "
+                     "APPLY sin operador identificado")
+    if args.apply and (args.decisiones is None or not args.decisiones.exists()):
+        parser.error(
+            "--apply exige --decisiones apuntando a un documento de decisiones "
+            "REVISADO. Sin el no hay constancia de que nadie haya aprobado las "
+            "altas de entidad que se van a escribir"
+        )
+
+    driver = None
+    ledger = None
     try:
+        if _necesita_grafo(args):
+            try:
+                factory = _driver_factory(args)
+            except DriverConfigError as exc:
+                # Falla CERRADO y sin secreto en el mensaje. No se degrada a
+                # dry-run offline en silencio: si el operador pidio leer el
+                # grafo, seguir con un catalogo de fichero seria contestar
+                # otra pregunta.
+                print(f"ERROR [conexion]: {exc}", file=sys.stderr)
+                return 2
+            driver = factory()
+
+        aprobadas: list[dict] = []
+        ledger_previo = None
+        if args.decisiones is not None and args.decisiones.exists():
+            ledger_previo = _leer_ledger(args.decisiones)
+            if args.apply:
+                # Falla CERRADO: con altas sin aprobar no se escribe nada.
+                entity_decisions.require_reviewed(ledger_previo)
+            aprobadas = entity_decisions.approved_snapshot_entities(ledger_previo)
+
         report = run_ingest(
             args.fichero,
             profile_path=args.perfil,
@@ -299,13 +626,61 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             now=args.ahora,
             ingested_at=args.ingerido_en,
             source_kind=args.source_kind,
+            driver=driver,
+            partida_id=args.partida_id,
+            approved_altas=aprobadas,
+            apply=bool(args.apply),
+            operator_id=args.operator_id,
         )
+
+        if driver is not None:
+            filas = graph_catalog.catalog_rows(driver, report["run"]["workspace"],
+                                               args.partida_id)
+            ledger = entity_decisions.reconcile(
+                resolutions=_resoluciones(report),
+                graph_entity_ids=graph_catalog.entity_ids(filas),
+                workspace=report["run"]["workspace"],
+                source_path=str(args.fichero),
+                partida_id=args.partida_id,
+                generated_at=report["run"]["now"],
+                names_by_mention=_nombres_por_mencion(report),
+            )
+            # Una revision previa no se pierde al reingerir: lo aprobado sigue
+            # aprobado si la decision sigue siendo la misma alta pendiente.
+            if ledger_previo is not None and ledger_previo.aprobadas:
+                pendientes_ahora = {p.entity_id for p in ledger.pendientes}
+                # DEDUPLICADO: varias menciones distintas pueden resolver a la
+                # MISMA entidad, asi que el mismo id aparece varias veces entre
+                # las aprobadas. Aprobarlo dos veces fallaba con "no es un alta
+                # pendiente" — la primera pasada ya lo habia dejado aprobado.
+                ya = sorted({
+                    d.entity_id for d in ledger_previo.aprobadas
+                    if d.entity_id in pendientes_ahora
+                })
+                if ya:
+                    quien = next(
+                        (d.approved_by for d in ledger_previo.aprobadas
+                         if d.entity_id in ya and d.approved_by), "revision-previa")
+                    cuando = next(
+                        (d.approved_at for d in ledger_previo.aprobadas
+                         if d.entity_id in ya and d.approved_at), _utc_now())
+                    ledger = entity_decisions.approve(
+                        ledger, ya, reviewer=quien, at=cuando)
+            report["entity_decisions"] = ledger.to_dict()
+            report.setdefault("carencias", []).extend(graph_catalog.carencias(filas))
+
+    except entity_decisions.AltaNoAprobada as exc:
+        print(f"ERROR [altas]: {exc}", file=sys.stderr)
+        return 3
     except PipelineError as exc:
         print(f"ERROR [{exc.stage}]: {exc}", file=sys.stderr)
         return 2
-    except FileNotFoundError as exc:
+    except (FileNotFoundError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
+    finally:
+        if driver is not None:
+            driver.close()
 
     acta = to_markdown(report)
     if args.out_dir is not None:
@@ -317,6 +692,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         )
         print(f"acta:    {args.out_dir / 'acta.md'}")
         print(f"informe: {args.out_dir / 'informe.json'}")
+    if ledger is not None:
+        destino = _ledger_path(args)
+        _escribir_ledger(destino, ledger)
+        print(f"decisiones: {destino}")
+        print(json.dumps(ledger.to_dict()["totals"], ensure_ascii=False,
+                         sort_keys=True))
+        for d in ledger.pendientes:
+            if d.decision == entity_decisions.CREATE_ENTITY_REQUIRED:
+                print(f"  ALTA PENDIENTE {d.entity_id} ({d.entity_type}) "
+                      f"{','.join(d.reason_codes)}")
+    if args.apply and report.get("write"):
+        print("write: " + json.dumps(report["write"], ensure_ascii=False,
+                                     sort_keys=True))
+    if args.out_dir is not None:
         return 0
 
     if args.formato in ("json", "ambos"):

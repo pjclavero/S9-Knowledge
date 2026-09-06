@@ -170,12 +170,90 @@ def _cessation_valid_to(decision: ClaimDecision) -> Optional[str]:
     return temporal.valid_from or temporal.event_time
 
 
+def _altas(context: PlanContext, decision: ClaimDecision) -> list[dict]:
+    """`CREATE_ENTITY` para las entidades del hecho cuya alta aprobo un humano.
+
+    POR QUE ESTA FUNCION EXISTE
+    ---------------------------
+    Hasta este carril, NINGUN camino del producto emitia un `CREATE_ENTITY`.
+    El tipo estaba en el contrato, el executor sabia ejecutarlo y los planes
+    gold lo traian escrito a mano — pero el planificador no lo producia
+    jamas. Consecuencia observada contra un Neo4j real y vacio: todo plan
+    salia con `CREATE_ASSERTION` + `PROJECT_RELATION` y abortaba con
+    `EXEC_TARGET_MISSING` sobre entidades que nadie habia creado. La unica
+    salida era sembrarlas a mano por Cypher, que es lo que el criterio de
+    producto prohibe.
+
+    LA REGLA QUE NO SE RELAJA
+    -------------------------
+    Un alta se emite SOLO si la entidad viene marcada `pending_creation` en
+    el snapshot, y eso solo lo enciende una aprobacion humana explicita
+    (`pipeline/entity_decisions.py`). Aqui no hay ningun "si no existe,
+    creala": una entidad ausente y NO aprobada no llega siquiera al snapshot,
+    el motor la rechaza por `ENTITY_NOT_IN_SNAPSHOT` y no hay hecho que
+    planificar. `LINK_EXISTING` y `CREATE_ENTITY` siguen siendo dos
+    decisiones distintas, y la frontera la cruza una persona.
+
+    UNA SOLA VEZ POR PLAN: `_dedupe_altas` (en `build_plan`) retira las
+    repetidas, porque dos hechos pueden mencionar la misma entidad nueva y el
+    executor aborta con `EXEC_TARGET_EXISTS` al crearla dos veces.
+    """
+    ops: list[dict] = []
+    vistos: set[str] = set()
+    for entity_id in (decision.subject_entity_id, decision.object_entity_id):
+        if not entity_id or entity_id in vistos:
+            continue
+        node = context.snapshot.entity(entity_id)
+        if node is None or not getattr(node, "pending_creation", False):
+            continue
+        vistos.add(entity_id)
+        ops.append(
+            {
+                "operation_id": f"op:alta:{entity_id}",
+                "operation_type": "CREATE_ENTITY",
+                "decision_id": decision.decision_id,
+                "target_entity_id": entity_id,
+                "payload": {
+                    "entity_type": node.entity_type,
+                    "name": node.canonical_name or entity_id,
+                },
+                "evidence_fragment_ids": list(decision.evidence_fragment_ids),
+                "idempotency_key": "",  # lo deriva seal_plan
+                "expected_state": "WOULD_CREATE",
+                "expected_version": None,
+                "expected_hash": None,
+            }
+        )
+    return ops
+
+
+def _dedupe_altas(operations: list[dict]) -> list[dict]:
+    """Una entidad se da de alta UNA vez por plan, aunque la citen dos hechos.
+
+    Se conserva la primera aparicion — y con ella su `decision_id`, que es
+    real: esa decision si menciona la entidad. Quedarse con la ultima seria
+    igual de valido y menos predecible; lo que no vale es dejar las dos, que
+    aborta el plan entero en el executor.
+    """
+    vistos: set[str] = set()
+    out: list[dict] = []
+    for op in operations:
+        if op["operation_type"] == "CREATE_ENTITY":
+            target = op.get("target_entity_id")
+            if target in vistos:
+                continue
+            vistos.add(target)
+        out.append(op)
+    return out
+
+
 def _operations(
     context: PlanContext, decision: ClaimDecision, assertion: FactAssertion, config: EngineConfig
 ) -> list[dict]:
     doc = assertion.to_dict()
     payload = {k: doc[k] for k in PAYLOAD_FIELDS if k in doc}
-    ops = [
+    ops = _altas(context, decision)
+    ops.append(
         {
             "operation_id": f"op:{decision.claim_id}:assert",
             "operation_type": "CREATE_ASSERTION",
@@ -189,7 +267,7 @@ def _operations(
             "expected_version": None,
             "expected_hash": None,
         }
-    ]
+    )
     if decision.supersedes is not None:
         # Cierre de la vigencia anterior. Va con `expected_version` y
         # `expected_hash` de la afirmacion del snapshot: si otro proceso la
@@ -231,6 +309,34 @@ def _operations(
         return ops
     node = context.snapshot.entity(decision.subject_entity_id)
     if node is None:  # pragma: no cover - la identidad ya exigio que exista
+        return ops
+    if getattr(node, "pending_creation", False):
+        # La entidad se CREA en este mismo plan: no tiene todavia `version` ni
+        # `state_hash` en el grafo, y `PROJECT_RELATION` los exige para el
+        # control optimista (`anchored`, mas abajo, y `_check_expected_state`
+        # en el executor). Proyectar aqui produciria un plan que el propio
+        # motor declara no anclado, o que aborta al aplicarse.
+        #
+        # No es una perdida silenciosa: el hecho SI se escribe como
+        # `CREATE_ASSERTION`, que es donde vive el conocimiento. La arista
+        # proyectada la emitira la siguiente ingesta, cuando la entidad ya
+        # exista en el grafo con su version. Es exactamente lo que hacen los
+        # planes gold que traen un `CREATE_ENTITY` (dev/kestrel-tripulacion):
+        # alta + asercion, sin proyeccion.
+        return ops
+    if (
+        decision.object_entity_id
+        and getattr(
+            context.snapshot.entity(decision.object_entity_id),
+            "pending_creation",
+            False,
+        )
+    ):
+        # Mismo motivo por el otro extremo: `create_relation` exige que el
+        # OBJETO sea visible en el ambito, y una entidad que se crea en la
+        # misma transaccion no lo es todavia para la lectura de la arista.
+        # Aqui esta el `EXEC_TARGET_MISSING` que el supervisor encontro; se
+        # evita no proyectando, no relajando la comprobacion.
         return ops
     ops.append(
         {
@@ -488,6 +594,13 @@ def build_plan(
     # de las operaciones auxiliares afecta al hash o a la idempotency key.
     assertions.sort(key=lambda assertion: assertion.assertion_id)
     operations.sort(key=lambda operation: operation["operation_id"])
+    # Las altas se emiten por HECHO (un hecho puede mencionar una entidad
+    # nueva), asi que dos hechos sobre la misma entidad nueva producen dos
+    # `CREATE_ENTITY` identicos. Se retiran DESPUES de ordenar, para que el
+    # que sobrevive no dependa del orden de llegada de los claims. El orden
+    # resultante deja `op:alta:*` antes que `op:claim:*`, que es el que el
+    # executor necesita: crear antes de afirmar.
+    operations = _dedupe_altas(operations)
     has_review = any(d.decision == "REVIEW" for d in decisions)
     chain = _validator_chain(context, decisions, operations, profile, True, semantic_failures)
     approved = (

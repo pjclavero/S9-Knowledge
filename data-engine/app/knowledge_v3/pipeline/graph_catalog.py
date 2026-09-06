@@ -1,0 +1,152 @@
+# -*- coding: utf-8 -*-
+"""El catalogo del workspace, LEIDO DEL GRAFO en vez de declarado en un fichero.
+
+`ingest_cli --catalogo` lee un JSON que dice que entidades existen. Ese fichero
+y el grafo real son dos afirmaciones independientes sobre el mismo mundo, y
+nada las contrastaba: el fichero podia decir que `entity:sela-marrec` existe
+mientras el grafo estaba vacio. El plan salia adelante, y el APPLY abortaba con
+`EXEC_TARGET_MISSING`.
+
+Este modulo es la union que faltaba. La misma estructura que devolvia
+`load_catalog` — `entity_id` / `type` / `name` / `aliases` — pero cada fila
+sale de un nodo `V3Entity` observado.
+
+TRES COSAS QUE NO SE INVENTAN AQUI
+----------------------------------
+* **`version`**: es la del nodo. `bridge.entities_from_catalog` la copia al
+  `expected_version` del plan y el executor la contrasta contra este mismo
+  grafo. Un valor por defecto de 1 sobre un nodo que esta a 0 produce un
+  `EXEC_VERSION_MISMATCH` en el apply, no antes.
+* **`state_hash`**: idem con `expected_hash`. Si el nodo no lo trae, la fila lo
+  trae a `None` y se DECLARA (`ENTIDAD_SIN_STATE_HASH`); no se sustituye por el
+  hash derivado, que es plausible y falso.
+* **`aliases`**: el grafo no los guarda. Salen vacios y se declara la carencia,
+  en vez de fabricarlos desde el nombre.
+"""
+from __future__ import annotations
+
+from typing import Any, Iterable, Optional
+
+from ..engine.snapshot import SnapshotEntity
+from ..resolution.catalog import CatalogEntity, Neo4jEntityCatalog
+
+
+def catalog_entities(
+    driver: Any,
+    workspace: str,
+    partida_id: Optional[str] = None,
+) -> list[CatalogEntity]:
+    """Entidades observadas, ya como `CatalogEntity` del resolutor."""
+    return list(Neo4jEntityCatalog(driver).entities(workspace, partida_scope=partida_id))
+
+
+def catalog_rows(
+    driver: Any,
+    workspace: str,
+    partida_id: Optional[str] = None,
+) -> list[dict]:
+    """Mismo formato que el fichero `--catalogo`, pero observado.
+
+    Se conserva la forma del fichero a proposito: `build_catalog`,
+    `build_lexicon` y `bridge.entities_from_catalog` ya la consumen, y cambiar
+    el formato para cambiar el origen habria obligado a tocar tres consumidores
+    para arreglar uno.
+    """
+    filas: list[dict] = []
+    for entidad in catalog_entities(driver, workspace, partida_id):
+        meta = dict(entidad.metadata or {})
+        filas.append({
+            "entity_id": entidad.entity_id,
+            "type": entidad.entity_type,
+            "name": entidad.canonical_name,
+            "aliases": list(entidad.aliases),
+            "version": meta.get("graph_version"),
+            "state_hash": meta.get("graph_state_hash"),
+            "origen": "grafo",
+        })
+    return filas
+
+
+def entity_ids(rows: Iterable[dict]) -> list[str]:
+    """Los ids OBSERVADOS. Es el conjunto contra el que se reconcilia."""
+    return sorted({str(f["entity_id"]) for f in rows if f.get("entity_id")})
+
+
+def snapshot_entities(
+    rows: Iterable[dict],
+    *,
+    altas: Iterable[dict] = (),
+) -> list[SnapshotEntity]:
+    """Snapshot del motor: lo observado, mas las altas APROBADAS por un humano.
+
+    Las observadas llevan la `version` y el `state_hash` del grafo — con el
+    hash tal cual, incluso ausente, para que el desajuste salga en la cadena de
+    validadores (`concurrency`) y no dentro de una transaccion.
+
+    Las altas entran marcadas `pending_creation`: el motor puede entonces
+    aceptar un hecho que las menciona, y el planificador emite su
+    `CREATE_ENTITY`. Nada mas las distingue de una entidad real, y nada
+    excepto una aprobacion humana las mete en esta lista
+    (`entity_decisions.approved_snapshot_entities` es su unica fuente).
+    """
+    out: list[SnapshotEntity] = []
+    for fila in rows:
+        if fila.get("provisional"):
+            continue
+        state_hash = fila.get("state_hash")
+        version = fila.get("version")
+        out.append(SnapshotEntity(
+            entity_id=fila["entity_id"],
+            entity_type=fila["type"],
+            version=int(version) if version is not None else 0,
+            state_hash=(
+                {"algorithm": "sha256", "value": state_hash}
+                if isinstance(state_hash, str) else None
+            ),
+        ))
+    for alta in altas:
+        out.append(SnapshotEntity(
+            entity_id=alta["entity_id"],
+            entity_type=alta["type"],
+            version=0,
+            state_hash=None,
+            pending_creation=True,
+            canonical_name=alta.get("name"),
+        ))
+    return sorted(out, key=lambda e: e.entity_id)
+
+
+def carencias(rows: Iterable[dict]) -> list[dict]:
+    """Lo que el grafo NO pudo decir de sus propias entidades."""
+    filas = list(rows)
+    faltas: list[dict] = []
+    sin_hash = [f["entity_id"] for f in filas if not f.get("state_hash")]
+    if sin_hash:
+        faltas.append({
+            "code": "ENTIDAD_SIN_STATE_HASH",
+            "detail": (
+                "el writer no escribe `state_hash` al crear una entidad, asi "
+                "que estas no pueden anclar un control optimista y ninguna "
+                "relacion podra proyectarse sobre ellas hasta que lo tengan: "
+                + ", ".join(sorted(str(x) for x in sin_hash))
+            ),
+        })
+    if filas:
+        faltas.append({
+            "code": "GRAFO_SIN_ALIAS",
+            "detail": (
+                "el grafo no almacena alias de entidad; el glosario del "
+                "extractor solo recibe el nombre canonico de cada nodo. Las "
+                "menciones por alias dependeran del perfil, no del catalogo"
+            ),
+        })
+    return faltas
+
+
+__all__ = [
+    "catalog_entities",
+    "catalog_rows",
+    "entity_ids",
+    "snapshot_entities",
+    "carencias",
+]
