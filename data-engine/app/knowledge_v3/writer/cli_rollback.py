@@ -120,18 +120,20 @@ OUTCOME_ERROR = "ERROR"
 # CERRADO, asi que cualquier desenlace que no este en ella sale `!= 0` por
 # omision. Se comprueba en las pruebas en vez de darlo por supuesto.
 
-#: Se pidio borrar sin `--operator`. Un borrado anonimo no es auditable.
-OUTCOME_NO_OPERATOR = "NO_OPERATOR"
-
-#: Se pidio borrar sin un registro de auditoria UTILIZABLE (ausente, o
-#: declarado pero no escribible). Sin rastro no se borra.
-OUTCOME_NO_AUDIT = "NO_AUDIT"
-
-#: La reversion corrio y el grafo NO sostiene lo que un exito afirmaria:
-#: quedan residuos, procedencia huerfana o puntos no revertidos. Es el
-#: desenlace que antes se llamaba `INCOMPLETE` a secas; el nombre nuevo dice
-#: QUE quedo mal, y `INCOMPLETE` se conserva como alias historico.
-OUTCOME_UNEXPECTED_RESIDUE = "UNEXPECTED_RESIDUE"
+# INTEGRACION tanda 5 -- RESPUESTA A LA PREGUNTA DE 5B (donde viven las frases)
+# ---------------------------------------------------------------------------
+# Estos tres nombres, y las frases fijas que les corresponden, ya NO se
+# definen aqui: viven junto a `ROLLBACK_OUTCOMES_OK` y `exit_code_for_rollback`
+# en `writer.exit_codes`, que es donde la tabla de `rc` de la reversion ya
+# estaba. Antes el vocabulario del rollback estaba PARTIDO -- `rc` alli,
+# nombres y frases aqui --, asi que dar de alta un desenlace obligaba a tocar
+# dos ficheros y olvidar uno producia un desenlace con `rc` pero sin frase (o
+# al reves). Se importan para que sigan siendo API de este mando: quien hacia
+# `cli_rollback.OUTCOME_NO_OPERATOR` lo sigue teniendo, pero hay UN solo sitio
+# donde darlos de alta. Ver el bloque de `exit_codes` para el razonamiento.
+OUTCOME_NO_OPERATOR = exit_codes.ROLLBACK_NO_OPERATOR
+OUTCOME_NO_AUDIT = exit_codes.ROLLBACK_NO_AUDIT
+OUTCOME_UNEXPECTED_RESIDUE = exit_codes.ROLLBACK_UNEXPECTED_RESIDUE
 
 # Los `rc` NO se deciden aqui: los da la tabla UNICA del producto
 # (`writer.exit_codes`, equipo 4C). Estos nombres se conservan porque son API
@@ -311,18 +313,14 @@ def describe(outcome: str, report: Optional[RollbackReport]) -> str:
     """
     hechos = rollback_facts(outcome, report)
 
-    if outcome == OUTCOME_NO_OPERATOR:
-        return (
-            "BLOQUEADO sin --operator: no se borro nada y no se llego a abrir "
-            "sesion contra el grafo. La reversion borra, y un borrado anonimo "
-            "no es atribuible ni auditable."
-        )
-    if outcome == OUTCOME_NO_AUDIT:
-        return (
-            "BLOQUEADO sin registro de auditoria utilizable: no se borro nada "
-            "y no se llego a abrir sesion contra el grafo. Sin rastro no se "
-            "borra, igual que en el apply."
-        )
+    # Los desenlaces cuya frase NO depende de los hechos salen de la tabla
+    # unica, la MISMA que les da el `rc`. Asi el texto y el codigo se derivan
+    # del mismo desenlace por construccion, y no por que dos ficheros digan lo
+    # mismo. Los que SI dependen de los hechos se redactan abajo desde
+    # `hechos`, que es lo que impide que la frase contradiga al grafo.
+    fija = exit_codes.describe_rollback_outcome(outcome)
+    if fija is not None:
+        return fija
     if not hechos["ran"]:
         return "no se ejecuto nada."
 

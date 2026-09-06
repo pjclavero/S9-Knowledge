@@ -99,6 +99,75 @@ OUTCOMES_OK = ("APPLIED", "SIMULATED")
 ROLLBACK_OUTCOMES_OK = ("ROLLED_BACK", "DRY_RUN")
 
 # ---------------------------------------------------------------------------
+# VOCABULARIO DE DESENLACES DE LA REVERSION (consolidado en la INTEGRACION 5).
+# ---------------------------------------------------------------------------
+# El equipo 5B pregunto explicitamente al integrador donde debian vivir las
+# frases de `NO_OPERATOR` / `NO_AUDIT` / `UNEXPECTED_RESIDUE`, y razono que
+# `describe_outcome`/`RUN_OUTCOMES_OK` son de la CORRIDA DE INGESTA mientras
+# que el rollback tiene su propia tabla. Lo primero es cierto; la conclusion
+# no se sigue, y lo que decide es un hecho observable del arbol ya integrado:
+#
+#   la tabla de `rc` del rollback YA VIVIA AQUI  -> `ROLLBACK_OUTCOMES_OK`
+#                                                   `exit_code_for_rollback`
+#   los NOMBRES y las FRASES vivian en `cli_rollback`
+#
+# Es decir, el vocabulario del rollback ya estaba PARTIDO en dos ficheros: dar
+# de alta un desenlace nuevo obligaba a tocar los dos, y quien tocase solo uno
+# obtendria un desenlace con `rc` pero sin frase, o con frase pero colandose
+# por la lista blanca. Eso es exactamente el "dos sitios donde tocar para lo
+# mismo" que hay que evitar, y es la razon de que se consolide AQUI y no en
+# `cli_rollback`: este modulo es, por su propia cabecera, la casa de los
+# desenlaces de LOS MANDOS DEL WRITER (en plural), y ya alberga dos tablas
+# distintas conviviendo -- la de operacion (`OUTCOMES_OK`) y la de corrida
+# (`RUN_OUTCOMES_OK`). El rollback es la tercera, no una excepcion.
+#
+# Lo que NO se hace: mezclar las tablas. `RUN_*` sigue siendo de la ingesta y
+# `ROLLBACK_*` de la reversion; son vecinas, no la misma. `cli_rollback`
+# reexporta estos nombres para no romper su API ni las pruebas que la usan.
+
+#: Se pidio borrar sin `--operator`. Un borrado anonimo no es auditable.
+ROLLBACK_NO_OPERATOR = "NO_OPERATOR"
+
+#: Se pidio borrar sin registro de auditoria UTILIZABLE (ausente, o declarado
+#: pero no escribible). Sin rastro no se borra.
+ROLLBACK_NO_AUDIT = "NO_AUDIT"
+
+#: La reversion corrio y el grafo NO sostiene lo que un exito afirmaria.
+#: Sustituye a `INCOMPLETE` a secas, que se conserva como alias historico.
+ROLLBACK_UNEXPECTED_RESIDUE = "UNEXPECTED_RESIDUE"
+
+#: Frases de los desenlaces del rollback que NO dependen del informe. Viven
+#: junto a la lista blanca que les da el `rc`, de modo que el nombre, el `rc` y
+#: la frase se dan de alta en UN solo sitio. Los desenlaces cuya frase SI
+#: depende de los hechos medidos (`ROLLED_BACK`/`UNEXPECTED_RESIDUE`) no
+#: pueden ser una constante: los redacta `cli_rollback.describe` a partir de
+#: `rollback_facts`, que es lo que impide que la frase contradiga al grafo.
+ROLLBACK_PHRASES: dict[str, str] = {
+    ROLLBACK_NO_OPERATOR: (
+        "BLOQUEADO sin --operator: no se borro nada y no se llego a abrir "
+        "sesion contra el grafo. La reversion borra, y un borrado anonimo "
+        "no es atribuible ni auditable."
+    ),
+    ROLLBACK_NO_AUDIT: (
+        "BLOQUEADO sin registro de auditoria utilizable: no se borro nada "
+        "y no se llego a abrir sesion contra el grafo. Sin rastro no se "
+        "borra, igual que en el apply."
+    ),
+}
+
+
+def describe_rollback_outcome(outcome: str) -> Optional[str]:
+    """La frase fija de ese desenlace de reversion, o `None` si no la tiene.
+
+    `None` NO significa "no hay frase": significa "esta frase se DERIVA de los
+    hechos medidos", y quien pregunta debe redactarla desde el informe. Se
+    devuelve `None` en vez de una cadena generica a proposito, para que un
+    desenlace nuevo sin frase no se disfrace de desenlace descrito.
+    """
+    return ROLLBACK_PHRASES.get(outcome)
+
+
+# ---------------------------------------------------------------------------
 # TABLA DE DESENLACES DE CORRIDA (equipo 5C). PUBLICA: importadla, no la
 # reinventeis.
 # ---------------------------------------------------------------------------
@@ -165,6 +234,11 @@ __all__ = [
     "EXIT_ALTAS_NOT_APPROVED",
     "OUTCOMES_OK",
     "ROLLBACK_OUTCOMES_OK",
+    "ROLLBACK_NO_OPERATOR",
+    "ROLLBACK_NO_AUDIT",
+    "ROLLBACK_UNEXPECTED_RESIDUE",
+    "ROLLBACK_PHRASES",
+    "describe_rollback_outcome",
     "outcome_is_ok",
     "exit_code_for_rollback",
     "exit_code_for_outcome",

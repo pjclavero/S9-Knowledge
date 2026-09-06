@@ -287,6 +287,28 @@ def orphan_provenance_query(
     OBSERVACION, y es la unica de las tres que puede ver lo que el documento no
     menciona. La conservacion de lo compartido la siguen sosteniendo el censo y
     la guarda del propio `DELETE`, que no se tocan.
+
+    POR QUE ESTE BARRIDO NO SE ACOTA POR `apply_id` (INTEGRACION tanda 5)
+    --------------------------------------------------------------------
+    5B declaro un residuo: en su demo el desenlace salio `INCOMPLETE` con 3
+    residuos porque este barrido es de AMBITO, no de apply, y su siembra
+    sintetica no crea aserciones. Con `apply_id` ya disponible cabia acotarlo
+    tambien por apply. SE EVALUO Y SE DECIDE QUE NO, porque acotarlo destruiria
+    la propiedad por la que este barrido existe:
+
+    es el unico que ve LO QUE EL DOCUMENTO NO NOMBRA. Un `apply_id` en el
+    filtro solo dejaria pasar procedencia que el apply revertido creo --que es,
+    por definicion, la que el documento SI nombra--, y la huerfana dejada por
+    otro apply del mismo ambito volveria a ser invisible. Ese es el defecto
+    exacto que este bloque cerro: un `ROLLED_BACK` con rc=0 sobre un grafo que
+    lo desmiente. Acotar aqui es reabrirlo.
+
+    Lo que SI faltaba no era alcance sino ATRIBUCION: el operador no podia
+    distinguir «esto lo he dejado yo» de «esto ya estaba ahi». Por eso la
+    consulta devuelve ademas el `apply_id` del nodo huerfano y `residues` lo
+    publica en el detalle. El alcance NO cambia --mismo recall sobre todo el
+    ambito--, y el `INCOMPLETE` pasa a ser accionable en vez de un numero sin
+    duenno.
     """
     params: dict[str, Any] = {"ws": workspace}
     ev = scope_clause("ev", partida_id, params)
@@ -296,17 +318,20 @@ def orphan_provenance_query(
         f"MATCH (ev:{LABEL_EVIDENCE} {{workspace: $ws}}) WHERE {ev} "
         f"OPTIONAL MATCH (:{LABEL_ASSERTION})-[sup:{REL_SUPPORTED_BY}]->(ev) "
         "WITH ev, count(sup) AS vivas WHERE vivas = 0 "
-        f"RETURN '{LABEL_EVIDENCE}' AS clase, ev.fragment_id AS id "
+        f"RETURN '{LABEL_EVIDENCE}' AS clase, ev.fragment_id AS id, "
+        "ev.apply_id AS apply_id "
         "UNION ALL "
         f"MATCH (ep:{LABEL_EPISODE} {{workspace: $ws}}) WHERE {ep} "
         f"OPTIONAL MATCH (ep)-[frg:{REL_HAS_FRAGMENT}]->(:{LABEL_EVIDENCE}) "
         "WITH ep, count(frg) AS vivas WHERE vivas = 0 "
-        f"RETURN '{LABEL_EPISODE}' AS clase, ep.episode_id AS id "
+        f"RETURN '{LABEL_EPISODE}' AS clase, ep.episode_id AS id, "
+        "ep.apply_id AS apply_id "
         "UNION ALL "
         f"MATCH (src:{LABEL_SOURCE} {{workspace: $ws}}) WHERE {src} "
         f"OPTIONAL MATCH (src)-[epi:{REL_HAS_EPISODE}]->(:{LABEL_EPISODE}) "
         "WITH src, count(epi) AS vivas WHERE vivas = 0 "
-        f"RETURN '{LABEL_SOURCE}' AS clase, src.source_asset_id AS id",
+        f"RETURN '{LABEL_SOURCE}' AS clase, src.source_asset_id AS id, "
+        "src.apply_id AS apply_id",
         params,
     )
 
@@ -321,7 +346,9 @@ def forget_applied_query(workspace: str, idempotency_key: str) -> RollbackQuery:
     )
 
 
-def dangling_applied_marks_query(workspace: str) -> RollbackQuery:
+def dangling_applied_marks_query(
+    workspace: str, partida_id: Optional[str] = None
+) -> RollbackQuery:
     """Marcas `V3AppliedOperation` que afirman un conocimiento que ya no existe.
 
     POR QUE (tercer defecto medido)
@@ -346,17 +373,34 @@ def dangling_applied_marks_query(workspace: str) -> RollbackQuery:
     nodo ni arista viva con su `idempotency_key`. Esa es, por definicion, una
     afirmacion que el grafo desmiente.
 
-    CARENCIA DECLARADA: el ambito es el `workspace`, no la partida, porque hoy
-    `V3AppliedOperation` no lleva `partida_id` --el equipo 5A lo esta anadiendo
-    aguas arriba--. Cuando lo lleve, esta consulta debe acotarse tambien por
-    ambito; hasta entonces mide de mas, no de menos, que es el lado seguro
-    para un censo (y este modulo no borra: OBSERVA).
+    AMBITO (INTEGRACION tanda 5): la carencia que 5B declaro aqui --«el ambito
+    es el `workspace`, no la partida, porque `V3AppliedOperation` no lleva
+    `partida_id`»-- SE CIERRA AL INTEGRAR: 5A hace que el writer estampe
+    `op.partida_id` en la marca (`cypher.claim_applied_operation`), asi que el
+    campo por el que acotar ya existe y esta poblado. La consulta se acota por
+    ambito con la MISMA definicion unica que el resto del modulo
+    (`rollback.scope_clause`): `partida_id=None` exige capa juego
+    (`IS NULL`), un ambito declarado exige igualdad exacta.
+
+    Sigue siendo fail-closed hacia el lado seguro: acotar ESTRECHA lo que se
+    denuncia, nunca lo amplia, y este barrido OBSERVA -- no borra --, de modo
+    que el peor caso de un ambito mal derivado es un censo que no menciona una
+    marca ajena, jamas un borrado de mas.
+
+    Los subpatrones `COUNT {}` NO se acotan por partida a proposito: lo que se
+    pregunta ahi es «¿queda ALGO vivo con esta `idempotency_key`?». Un nodo
+    superviviente de otra partida sigue siendo conocimiento vivo que sostiene
+    la marca, y filtrarlo la declararia colgante cuando no lo esta: seria
+    denunciar de mas, que es justo lo contrario de lo que se busca.
 
     Dos `MATCH` sueltos darian producto cartesiano; aqui la cuenta va en un
     subpatron `COUNT {}` sobre la MISMA fila de la marca.
     """
+    params: dict[str, Any] = {"ws": workspace}
+    cond = scope_clause("op", partida_id, params, contexto="dangling_applied_marks")
     return RollbackQuery(
         f"MATCH (op:{LABEL_APPLIED_OPERATION} {{workspace: $ws}}) "
+        f"WHERE {cond} "
         "WITH op, "
         "  COUNT { MATCH (n {workspace: op.workspace, "
         f"           idempotency_key: op.idempotency_key}}) "
@@ -365,7 +409,7 @@ def dangling_applied_marks_query(workspace: str) -> RollbackQuery:
         "           idempotency_key: op.idempotency_key}]->() } AS aristas "
         "WHERE nodos = 0 AND aristas = 0 "
         "RETURN op.idempotency_key AS idempotency_key",
-        {"ws": workspace},
+        params,
     )
 
 
@@ -732,22 +776,52 @@ def residues(runner: Any, doc: RollbackDocument) -> list[dict[str, Any]]:
     # Barrido de MARCAS COLGANTES: lo que el documento no nombra, otra vez.
     # Una `V3AppliedOperation` sin ni un nodo ni una arista viva con su clave
     # afirma un conocimiento que ya no existe, atasca la reescritura de la
-    # relacion y no aparecia en ningun censo. El ambito es el `workspace` del
-    # documento y de las instrucciones: no se inventa ninguno.
-    workspaces = {doc.workspace} | {
-        i.detail.get("workspace") for i in doc.instructions if i.detail.get("workspace")
-    }
-    for ws in sorted(w for w in workspaces if w):
-        for fila in _rows(runner, dangling_applied_marks_query(ws)):
+    # relacion y no aparecia en ningun censo.
+    #
+    # INTEGRACION tanda 5: el ambito ya NO es solo el `workspace`. 5B lo dejo
+    # acotado asi por una carencia real --`V3AppliedOperation` no llevaba
+    # `partida_id`-- que 5A cierra aguas arriba, de modo que al integrar se
+    # acota por (workspace, partida). El ambito NO se inventa: sale del
+    # documento y de sus instrucciones, igual que el `workspace`. Un documento
+    # que no declara partida barre la capa juego (`partida_id IS NULL`), que es
+    # exactamente lo que ese documento revertio.
+    # `RollbackDocument` no lleva `partida_id` en la raiz --se comprobo sobre
+    # la dataclass, no se presumio--, asi que el ambito se deriva de las
+    # INSTRUCCIONES, que son las que lo declaran. Un documento sin ninguna
+    # instruccion con ambito revirtio capa juego, y capa juego es `None`.
+    marca_ambitos: set[tuple[str, Any]] = set()
+    for i in doc.instructions:
+        ws_i = i.detail.get("workspace") or doc.workspace
+        if ws_i:
+            marca_ambitos.add((ws_i, i.detail.get("partida_id")))
+    if not marca_ambitos and doc.workspace:
+        marca_ambitos.add((doc.workspace, None))
+    for ws, partida in sorted(
+        ((w, p) for w, p in marca_ambitos if w), key=lambda x: (x[0], str(x[1]))
+    ):
+        try:
+            consulta_marcas = dangling_applied_marks_query(ws, partida)
+        except RollbackNotReconstructible:
+            continue  # ambito malformado: ya se denuncio al intentar ejecutarlo
+        for fila in _rows(runner, consulta_marcas):
             clave = fila.get("idempotency_key")
             if not clave:
+                continue
+            detalle_marca = {"idempotency_key": clave, "workspace": ws}
+            firma_marca = (
+                "marca V3AppliedOperation COLGANTE: afirma una "
+                "operacion aplicada de la que no queda nada en el grafo"
+            )
+            if any(
+                r["what"] == firma_marca and r["detail"] == detalle_marca
+                for r in fuera
+            ):
                 continue
             fuera.append(
                 {
                     "operation_id": SWEEP_OPERATION_ID,
-                    "what": "marca V3AppliedOperation COLGANTE: afirma una "
-                    "operacion aplicada de la que no queda nada en el grafo",
-                    "detail": {"idempotency_key": clave, "workspace": ws},
+                    "what": firma_marca,
+                    "detail": detalle_marca,
                 }
             )
 
@@ -770,7 +844,15 @@ def residues(runner: Any, doc: RollbackDocument) -> list[dict[str, Any]]:
                 f"procedencia HUERFANA en el grafo ({fila['clase']}): nada vivo "
                 "la sostiene y el documento no la nombraba"
             )
-            detalle = {"clase": fila["clase"], "id": fila["id"], "workspace": ws}
+            # ATRIBUCION (tanda 5): de quien es lo huerfano. `None` es
+            # informacion, no ausencia de dato: dice que el nodo no lleva
+            # `apply_id`, o sea que lo dejo un apply anterior a la propiedad.
+            detalle = {
+                "clase": fila["clase"],
+                "id": fila["id"],
+                "workspace": ws,
+                "apply_id": fila.get("apply_id"),
+            }
             firma = (que, json.dumps(detalle, sort_keys=True, default=str))
             if firma in ya_dicho:
                 continue
