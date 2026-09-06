@@ -1,4 +1,8 @@
-# 55 — El rollback revierte lo que creó, y dice lo que no
+# 56 — El rollback revierte lo que creó, y dice lo que no
+
+> Renumerado de 55 a 56 en la integración de la tanda 3: el carril B traía
+> también un `docs/v3/55`, y `tests/test_docs_numbering.py` lo detectó como
+> colisión real. El contenido no cambia.
 
 **Rama:** `equipo-r1/rollback-procedencia-honesto`
 **Bases de partida:** `feat/writer-ruta-operador-rollback-durable` (`22f0660`) +

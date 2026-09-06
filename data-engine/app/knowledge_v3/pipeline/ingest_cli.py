@@ -376,6 +376,16 @@ def run_ingest(
             "noop_operations": escritura.noop_operations,
             "created_ids": list(escritura.created_ids),
         }
+        # INTEGRACION tanda 3. El carril B hizo que esta ruta emitiera
+        # `CREATE_ENTITY` DE VERDAD: por primera vez el producto crea
+        # entidades por aqui. Crear sin publicar como deshacerlo deja al
+        # operador con conocimiento escrito y sin documento de reversion, que
+        # es justo lo que la ruta de operador del writer existe para evitar.
+        #
+        # El documento es DESCRIPTIVO: nadie lo ejecuta por su cuenta. Se
+        # publica para que exista, no para que actue.
+        if escritura.rollback is not None:
+            report["rollback"] = escritura.rollback.to_dict()
     if run.provenance_result is not None:
         report["provenance"] = run.provenance_result.to_dict()
     return report

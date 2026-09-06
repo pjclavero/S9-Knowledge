@@ -22,6 +22,7 @@ from knowledge_v3.writer.rollback import (
     ACTION_PURGE_PROVENANCE,
     RollbackDocument,
     RollbackInstruction,
+    RollbackNotReconstructible,
     build_rollback,
 )
 from knowledge_v3.writer.rollback_provenance import (
@@ -129,12 +130,32 @@ def test_el_borrado_exige_cero_referencias_vivas():
 
 
 def test_el_ambito_falla_cerrado():
+    """INTEGRACION tanda 3: el parametro se llama ahora `partida_id`.
+
+    El filtro de ambito de este modulo ya no se define aqui: se llama a
+    `rollback.scope_clause`, que es la UNICA definicion del criterio en todo el
+    camino de recuperacion. El criterio es el MISMO (`IS NULL` para capa juego,
+    igualdad exacta si hay partida); lo que cambia es el nombre del parametro,
+    de `$partida` a `$partida_id`.
+    """
     sin_partida = delete_orphan_evidence_query("leyenda", ["fragment:f1"], None)
     con_partida = delete_orphan_evidence_query("leyenda", ["fragment:f1"], "partida:1")
     assert "n.partida_id IS NULL" in sin_partida.cypher
-    assert "partida" not in sin_partida.params
-    assert "n.partida_id = $partida" in con_partida.cypher
-    assert con_partida.params["partida"] == "partida:1"
+    assert "partida_id" not in sin_partida.params
+    assert "n.partida_id = $partida_id" in con_partida.cypher
+    assert con_partida.params["partida_id"] == "partida:1"
+
+
+def test_el_ambito_malformado_tambien_se_deniega():
+    """Lo que la definicion unificada gana respecto a la que habia aqui.
+
+    `_scope` aceptaba cualquier cosa que no fuese `None` y la metia tal cual
+    como si fuese una partida. `scope_clause` valida: una cadena vacia o un
+    tipo raro es un ambito incoherente, y un ambito incoherente se deniega.
+    """
+    for malo in ("", "   ", 7, [], {}):
+        with pytest.raises(RollbackNotReconstructible):
+            delete_orphan_evidence_query("leyenda", ["fragment:f1"], malo)
 
 
 def test_el_encaminador_delega_lo_que_no_es_suyo():
@@ -147,11 +168,37 @@ def test_el_encaminador_delega_lo_que_no_es_suyo():
             "predicate": "MEMBER_OF",
             "object": "entity:casa",
             "workspace": "leyenda",
+            # INTEGRACION tanda 3: el ambito es ahora OBLIGATORIO en el
+            # detalle. `None` es la capa juego; el campo AUSENTE se deniega
+            # (ver el caso de abajo). Antes del merge con R2 esta instruccion
+            # no lo declaraba y aun asi se ejecutaba.
+            "partida_id": None,
             "idempotency_key": "idem:sha256:" + "c" * 64,
         },
     )
     query = rollback_query_for(instruccion)
     assert "DELETE r" in query.cypher  # la genera `rollback.rollback_query`
+    assert "r.partida_id IS NULL" in query.cypher
+
+
+def test_el_encaminador_deniega_lo_que_no_declara_ambito():
+    """La otra mitad del caso anterior, y la razon de que se le anadiera el
+    campo: sin ambito declarado no se borra. Delegar no relaja el fail-closed
+    de R2 -- el encaminador delega, y lo delegado deniega."""
+    instruccion = RollbackInstruction(
+        operation_id="op:0003",
+        action="DELETE_RELATIONSHIP",
+        target_id="entity:ilaria",
+        detail={
+            "subject": "entity:ilaria",
+            "predicate": "MEMBER_OF",
+            "object": "entity:casa",
+            "workspace": "leyenda",
+            "idempotency_key": "idem:sha256:" + "d" * 64,
+        },  # sin `partida_id`: no dice en que ambito borra
+    )
+    with pytest.raises(RollbackNotReconstructible):
+        rollback_query_for(instruccion)
 
 
 # --- La purga: las dos direcciones -----------------------------------------
