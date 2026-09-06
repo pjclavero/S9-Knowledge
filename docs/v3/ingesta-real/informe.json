@@ -193,7 +193,7 @@
     "ingested_at": "2026-09-05T10:00:00Z",
     "language_hint": null,
     "mime_type": "text/markdown",
-    "original_location": "file:///home/ia02/S9-Knowledge/.claude/worktrees/agent-af9a655cf842e27f8/examples/ingesta-v3/nota-cofradia-de-ambar.md",
+    "original_location": "file:examples/ingesta-v3/nota-cofradia-de-ambar.md",
     "original_name": "nota-cofradia-de-ambar.md",
     "privacy_class": "INTERNAL",
     "processing_policy": {

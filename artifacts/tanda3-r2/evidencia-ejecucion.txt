@@ -1,0 +1,26 @@
+
+== ATAQUE (b): arista gemela en otra partida ==
+  outcome del apply: APPLIED
+  partida_id de la instruccion: None
+  censo ANTES: [{'ws': 'writer-real', 'partida': 'partida:otra', 'idem': 'idem:sha256:3a9cc3126e1b74aaeeb680d7320e0c94fd30db79d5ba2361a5929c98727b2b24'}, {'ws': 'writer-real', 'partida': None, 'idem': 'idem:sha256:3a9cc3126e1b74aaeeb680d7320e0c94fd30db79d5ba2361a5929c98727b2b24'}]
+  cypher: MATCH (a:V3Entity {entity_id: $subject, workspace: $ws})-[r:MEMBER_OF {workspace: $ws, idempotency_key: $key}]->(b:V3Entity {entity_id: $object, workspace: $ws}) WHERE r.partida_id IS NULL DELETE r RETURN count(*) AS borradas
+  params: {'subject': 'entity:origen', 'object': 'entity:destino', 'ws': 'writer-real', 'key': 'idem:sha256:3a9cc3126e1b74aaeeb680d7320e0c94fd30db79d5ba2361a5929c98727b2b24'}
+  borradas: 1
+  censo DESPUES: [{'ws': 'writer-real', 'partida': 'partida:otra', 'idem': 'idem:sha256:3a9cc3126e1b74aaeeb680d7320e0c94fd30db79d5ba2361a5929c98727b2b24'}]
+  [OK ] censo previo no vacio (2 aristas)
+  [OK ] borra exactamente una
+  [OK ] sobrevive la de partida:otra
+
+== ATAQUE (a): nodo gemelo en otra partida ==
+  outcome del apply: APPLIED
+  label: V3Assertion | partida_id: None
+  censo ANTES: [{'id': 'assertion:gemela', 'partida': 'partida:otra'}, {'id': 'assertion:gemela', 'partida': None}]
+  cypher: MATCH (n:V3Assertion {assertion_id: $id, workspace: $ws, idempotency_key: $key}) WHERE n.partida_id IS NULL DETACH DELETE n RETURN count(*) AS borrados
+  params: {'id': 'assertion:gemela', 'ws': 'writer-real', 'key': 'idem:sha256:1037fbc5fbf13db58b370c80d458051d0e4907415f5876261d2f1d8bfd51a3c8'}
+  borrados: 1
+  censo DESPUES: [{'id': 'assertion:gemela', 'partida': 'partida:otra'}]
+  [OK ] censo previo no vacio (2 nodos)
+  [OK ] borra exactamente uno
+  [OK ] sobrevive el de partida:otra
+
+RESULTADO: TODO EN VERDE

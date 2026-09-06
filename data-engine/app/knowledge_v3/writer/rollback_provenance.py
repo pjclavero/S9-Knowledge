@@ -43,7 +43,10 @@ FRONTERA CON EL BLOQUE DE AISLAMIENTO POR AMBITO
 ------------------------------------------------
 El filtro de ambito de estas consultas es DELIBERADAMENTE estrecho y
 fail-closed (`partida_id IS NULL` si el plan no declara partida; igualdad
-exacta si la declara), de modo que nunca alcance otra partida. La generacion
+exacta si la declara), de modo que nunca alcance otra partida. Desde la
+integracion de la tanda 3 NO se define aqui: se llama a
+`rollback.scope_clause`, que es la UNICA definicion del filtro en todo el
+camino de recuperacion. La generacion
 de Cypher de las consultas de borrado del conocimiento
 (`rollback.rollback_query`) NO se toca aqui: `rollback_query_for` se limita a
 encaminar las acciones nuevas y a delegar en ella todo lo demas.
@@ -72,18 +75,21 @@ from .rollback import (
     RollbackNotReconstructible,
     RollbackQuery,
     rollback_query,
+    scope_clause,
 )
 
 #: Acciones que encamina este modulo. El resto va a `rollback.rollback_query`.
 OWN_ACTIONS = (ACTION_PURGE_PROVENANCE, ACTION_FORGET_APPLIED)
 
 
-def _scope(alias: str, partida_id: Optional[str], params: dict[str, Any]) -> str:
-    """Filtro de ambito, fail-closed: jamas alcanza otra partida."""
-    if partida_id is None:
-        return f"{alias}.partida_id IS NULL"
-    params["partida"] = partida_id
-    return f"{alias}.partida_id = $partida"
+# INTEGRACION tanda 3: el filtro de ambito del camino de recuperacion tiene UNA
+# sola definicion, y vive en `rollback.scope_clause`. Este modulo tenia la suya
+# (`_scope`), que decia lo mismo con otras palabras y otro nombre de parametro.
+# Dos definiciones que deben coincidir sin nada que lo verifique acaban
+# divergiendo, y la que diverge borra de mas. La de `rollback` cubre ademas un
+# caso que esta no cubria: valida el ambito malformado (cadena vacia, tipo raro)
+# en vez de dejarlo pasar como si fuese una partida. Los cuatro puntos de uso
+# llaman ya directamente a `scope_clause`; no queda alias.
 
 
 # --- Consultas -------------------------------------------------------------
@@ -98,7 +104,7 @@ def ancestors_query(
     fragmentos no aparece.
     """
     params: dict[str, Any] = {"ws": workspace, "fragments": list(fragment_ids)}
-    cond = _scope("ev", partida_id, params)
+    cond = scope_clause("ev", partida_id, params)
     return RollbackQuery(
         "UNWIND $fragments AS fid "
         f"MATCH (ev:{LABEL_EVIDENCE} {{fragment_id: fid, workspace: $ws}}) "
@@ -116,7 +122,7 @@ def live_references_query(
 ) -> RollbackQuery:
     """Cuantas aserciones VIVAS sostiene cada fragmento, y cuales."""
     params: dict[str, Any] = {"ws": workspace, "fragments": list(fragment_ids)}
-    cond = _scope("ev", partida_id, params)
+    cond = scope_clause("ev", partida_id, params)
     return RollbackQuery(
         "UNWIND $fragments AS fid "
         f"MATCH (ev:{LABEL_EVIDENCE} {{fragment_id: fid, workspace: $ws}}) "
@@ -137,7 +143,7 @@ def _delete_if_unreferenced(
 ) -> RollbackQuery:
     field_name = IDENTITY_FIELD[label]
     params: dict[str, Any] = {"ws": workspace, "ids": list(ids)}
-    cond = _scope("n", partida_id, params)
+    cond = scope_clause("n", partida_id, params)
     return RollbackQuery(
         "UNWIND $ids AS wanted "
         f"MATCH (n:{label} {{{field_name}: wanted, workspace: $ws}}) "
@@ -251,7 +257,7 @@ def _existing(
     """Que sigue EXISTIENDO de esa lista. Se mide, no se presume."""
     field_name = IDENTITY_FIELD[label]
     params: dict[str, Any] = {"ws": workspace, "ids": list(ids)}
-    cond = _scope("n", partida_id, params)
+    cond = scope_clause("n", partida_id, params)
     filas = _rows(
         runner,
         RollbackQuery(

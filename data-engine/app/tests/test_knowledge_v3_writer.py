@@ -2066,7 +2066,131 @@ def test_el_rollback_de_relacion_no_depende_del_element_id():
         "ws": WORKSPACE,
         "key": op.idempotency_key,
     }
+    assert "r.partida_id IS NULL" in query.cypher  # capa juego, no comodin
     assert "idempotency_key" in query.cypher  # acota: no borra vecinos
+
+
+# --- Ambito de partida en el rollback (R2) ---------------------------------
+def _relacion(partida_id, **over):
+    base = dict(
+        operation_id="op:0001",
+        operation_type="LINK_EXISTING",
+        idempotency_key="idem:sha256:" + "0" * 64,
+        kind="RELATIONSHIP",
+        created_id="5:3b999953-e45d-4a29-9250-1938f00f801c:0",
+        target_id="entity:origen",
+        subject_id="entity:origen",
+        predicate="MEMBER_OF",
+        object_id="entity:destino",
+        partida_id=partida_id,
+    )
+    base.update(over)
+    return AppliedOperation(**base)
+
+
+def test_la_consulta_de_relacion_de_capa_juego_exige_partida_nula():
+    """`partida_id: null` es un ambito concreto, no un comodin."""
+    from knowledge_v3.writer.rollback import rollback_query
+
+    query = rollback_query(build_rollback(_vista_minima(), [_relacion(None)]).instructions[0])
+    assert "r.partida_id IS NULL" in query.cypher
+    assert "partida_id" not in query.params
+
+
+def test_la_consulta_de_relacion_de_partida_exige_esa_partida():
+    from knowledge_v3.writer.rollback import rollback_query
+
+    query = rollback_query(
+        build_rollback(_vista_minima(), [_relacion("partida:otra")]).instructions[0]
+    )
+    assert "r.partida_id = $partida_id" in query.cypher
+    assert query.params["partida_id"] == "partida:otra"
+
+
+def test_sin_ambito_declarado_se_deniega_en_vez_de_borrar():
+    """Ambito ausente => DENY. Nunca 'sin ambito, probablemente es global'."""
+    from knowledge_v3.writer.rollback import (
+        RollbackInstruction,
+        RollbackNotReconstructible,
+        rollback_query,
+    )
+
+    instr = build_rollback(_vista_minima(), [_relacion(None)]).instructions[0]
+    detalle = dict(instr.detail)
+    detalle.pop("partida_id")
+    sin_ambito = RollbackInstruction(
+        operation_id=instr.operation_id,
+        action=instr.action,
+        target_id=instr.target_id,
+        detail=detalle,
+    )
+    with pytest.raises(RollbackNotReconstructible):
+        rollback_query(sin_ambito)
+
+
+@pytest.mark.parametrize("malformado", ["", "   ", 7, ["partida:otra"]])
+def test_un_ambito_malformado_se_deniega(malformado):
+    from knowledge_v3.writer.rollback import (
+        RollbackInstruction,
+        RollbackNotReconstructible,
+        rollback_query,
+    )
+
+    instr = build_rollback(_vista_minima(), [_relacion(None)]).instructions[0]
+    with pytest.raises(RollbackNotReconstructible):
+        rollback_query(
+            RollbackInstruction(
+                operation_id=instr.operation_id,
+                action=instr.action,
+                target_id=instr.target_id,
+                detail={**instr.detail, "partida_id": malformado},
+            )
+        )
+
+
+def test_el_borrado_de_nodo_lleva_etiqueta_y_ambito():
+    from knowledge_v3.writer.rollback import rollback_query
+
+    op = AppliedOperation(
+        operation_id="op:0003",
+        operation_type="CREATE_ASSERTION",
+        idempotency_key="idem:sha256:" + "2" * 64,
+        kind="NODE",
+        created_id="assertion:x",
+        target_id="assertion:x",
+        partida_id="partida:brumal-01",
+        node_label="V3Assertion",
+    )
+    query = rollback_query(build_rollback(_vista_minima(), [op]).instructions[0])
+    assert "MATCH (n:V3Assertion {assertion_id: $id" in query.cypher
+    assert "n.partida_id = $partida_id" in query.cypher
+    assert query.params["partida_id"] == "partida:brumal-01"
+
+
+def test_un_nodo_sin_etiqueta_conocida_no_se_borra():
+    """Sin etiqueta, `MATCH (n {ws, key})` alcanza el gemelo de otra partida."""
+    from knowledge_v3.writer.rollback import (
+        RollbackInstruction,
+        RollbackNotReconstructible,
+        rollback_query,
+    )
+
+    for etiqueta in (None, "", "Cualquiera"):
+        with pytest.raises(RollbackNotReconstructible):
+            rollback_query(
+                RollbackInstruction(
+                    operation_id="op:0004",
+                    action="DELETE_NODE",
+                    target_id="assertion:x",
+                    detail={
+                        "created_id": "assertion:x",
+                        "workspace": WORKSPACE,
+                        "label": etiqueta,
+                        "partida_id": None,
+                        "idempotency_key": "idem:sha256:" + "3" * 64,
+                    },
+                )
+            )
 
 
 def test_una_relacion_sin_identidad_de_dominio_se_declara_irrecuperable():
