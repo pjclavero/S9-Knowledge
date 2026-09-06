@@ -1,7 +1,7 @@
 # Ingesta V3 de una fuente REAL
 
 Este directorio contiene lo mínimo que un operador necesita para meter un
-fichero suyo por la cadena V3 y ver qué produce, **sin tocar el grafo**:
+fichero suyo por la cadena V3 y ver qué produce:
 
 | fichero | qué es |
 |---|---|
@@ -9,7 +9,7 @@ fichero suyo por la cadena V3 y ver qué produce, **sin tocar el grafo**:
 | `perfil-operador.json` | el `GameProfile` del workspace (ontología: tipos, predicados, títulos) |
 | `catalogo-workspace.json` | las entidades que YA existen en el grafo del workspace |
 
-## Cómo se corre
+## Cómo se corre (dry-run OFFLINE, sin tocar Neo4j)
 
 ```
 export PYTHONPATH=data-engine/app
@@ -19,9 +19,72 @@ python3 -m knowledge_v3.pipeline.ingest_cli examples/ingesta-v3/nota-cofradia-de
     --dry-run
 ```
 
-`--dry-run` es el comportamiento POR DEFECTO y hoy el único: el CLI no
-construye ningún driver de Neo4j y no admite `--apply`. Escribir es del
-carril C.
+`--dry-run` sigue siendo el comportamiento **por defecto**: con `--catalogo` no
+se construye ningún driver de Neo4j.
+
+## Los mandos que existen de verdad
+
+Esta tabla se comprueba **contra el parser**, no de memoria
+(`knowledge_v3.pipeline.ingest_cli.build_parser`). La versión anterior de este
+README negaba que existiera `--apply`. Existe, y `--desde-grafo` además abre
+conexión con Neo4j.
+
+| mando | qué hace |
+|---|---|
+| `--perfil` | `GameProfile` del workspace (obligatorio salvo en `--revisar`) |
+| `--catalogo` | entidades ya existentes, leídas de un JSON. Alternativa OFFLINE a `--desde-grafo` |
+| `--workspace` `--partida` `--collection` | ámbito de la corrida |
+| `--source-kind` | fuerza el adaptador multimodal |
+| `--ahora` `--ingerido-en` | relojes inyectados (ISO-8601 Z) |
+| `--dry-run` | no escribe. Es el defecto |
+| `--formato` | `markdown` / `json` / `ambos` |
+| `--out-dir` | escribe `acta.md`, `informe.json` y `decisiones.json` |
+| `--desde-grafo` | **abre driver**: el catálogo se LEE del grafo (solo lectura) |
+| `--decisiones` | documento de decisiones de identidad |
+| `--revisar` `--aprobar-alta` `--revisor` | modo REVISIÓN: aprueba altas, no ingiere ni conecta |
+| `--apply` | **ESCRITURA REAL**. Exige además el gate del writer |
+| `--operador` | quien autoriza el APPLY |
+| `--neo4j-uri` `--neo4j-user` `--neo4j-password-file` `--neo4j-database` | conexión. La contraseña va por CAMINO de fichero o stdin, **nunca por argv** |
+
+## Códigos de salida: son API
+
+Un runner desatendido no lee el acta, lee el `rc`. La tabla la fija
+`knowledge_v3.writer.exit_codes` y la comparten todos los mandos del writer:
+
+| `rc` | significado |
+|---|---|
+| `0` | desenlace correcto y limpio (`APPLIED`, o `SIMULATED` en dry-run) |
+| `1` | el desenlace **no** es correcto: `BLOCKED` (el gate paró el APPLY), `REJECTED`, `ABORTED`, `INCONSISTENT` |
+| `2` | error de uso o de configuración (argparse ya usa 2) |
+| `3` | hay altas de entidad sin aprobar: no se escribe |
+
+**Un APPLY que el gate bloquea sale `1`, no `0`.** Antes salía `0` con cero
+operaciones escritas y el grafo intacto, mientras que olvidar `--operador` sí
+salía `2`: la inconsistencia era interna al mismo mando.
+
+## El acta no afirma lo que no ocurrió
+
+La sección de carencias emite una entrada de escritura **derivada del desenlace
+real**, no una frase fija:
+
+| desenlace | código en el acta |
+|---|---|
+| `SIMULATED` | `SIN_ESCRITURA` — «no se escribió nada», y dice si se abrió driver o no |
+| `APPLIED` | `ESCRITURA_APLICADA`, con el número de operaciones |
+| `BLOCKED` | `ESCRITURA_BLOQUEADA`, con los códigos del gate |
+| otros | `ESCRITURA_NO_COMPLETADA`, con los códigos |
+
+Antes se anexaba siempre `SIN_ESCRITURA | dry-run: no se abrió ningún driver y
+no se tocó Neo4j`, incluso con `--desde-grafo` (driver abierto y Neo4j
+consultado) y con `--apply` (que no es dry-run). El texto se construía aparte
+del resultado, así que podía mentir — y mentía.
+
+## El ruido del driver va por stderr
+
+Con `--desde-grafo`, el driver de Neo4j emite avisos
+(`UnknownPropertyKeyWarning`) sobre un grafo recién arrancado. **Medido: salen
+por `stderr`, no por `stdout`.** `stdout` queda limpio para el acta y el JSON,
+así que una tubería `... | jq` funciona sin filtrar nada.
 
 ## Por qué hace falta un catálogo, y qué pasa sin él
 
@@ -35,5 +98,4 @@ motor.
 El CLI lo dice en voz alta en vez de enseñar un cero mudo: si el glosario está
 vacío emite `SIN_GLOSARIO` y la sección de carencias del acta lo recoge.
 
-En producción el catálogo lo da Neo4j. Aquí lo da un fichero porque el dry-run
-no abre conexiones.
+En producción el catálogo lo da Neo4j, con `--desde-grafo`.
