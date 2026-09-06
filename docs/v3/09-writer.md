@@ -475,6 +475,37 @@ aflojan. Se dice en vez de fingir que las 32 son igual de alcanzables.
 | Código | Motivo | Alcance |
 |---|---|---|
 | `CLI_DRIVER_CONFIG_MISSING` | Se pidió `--apply` sin declarar cómo llegar al servidor (URI, usuario o camino del fichero con la contraseña). Falla cerrado, con código de salida `1`, sin escribir y sin degradarse a dry-run. | directo |
+| `CLI_ROLLBACK_OUT_PRESERVED` | `--rollback-out` apuntaba a una póliza ya existente y el documento nuevo no traía instrucciones (apply repetido = no-op idempotente). **No se pisa**: repetir una orden inocua no puede destruir la única forma de deshacer. Código de salida `2`. | directo |
+| `CLI_APPLIED_KEYS_FORGOTTEN` | El operador pidió `--forget-applied-keys <rollback.json>` y el almacén retiró esas claves (lápida en el JSONL append-only). Habilita volver a aplicar un plan ya revertido. No toca el grafo. | directo |
+
+### 7.6. Verdad del desenlace (`EXEC_NOOP_*`, `ROLLBACK_*`)
+
+No son gates: **ninguno impide una escritura**. Se miden *después* de la
+transacción y sólo impiden que el resultado afirme algo que el grafo no
+sostiene.
+
+| Código | Motivo | Alcance |
+|---|---|---|
+| `EXEC_NOOP_WITHOUT_GRAPH_EVIDENCE` | Una operación se declaró no-op («esa clave ya se aplicó») pero en el grafo no queda ningún nodo ni arista con esa `idempotency_key`: sólo sobrevivía la marca `V3AppliedOperation`. El desenlace pasa a `INCONSISTENT` y la CLI sale con `1`, en vez de `APPLIED`/`0` sobre un grafo del que ese conocimiento ya no está. | desenlace |
+| `ROLLBACK_RESIDUE` | Tras ejecutar el documento de rollback quedan residuos de esa operación: algo con su `idempotency_key`, o evidencia huérfana que ninguna aserción viva sostiene. Se escribe en `unrecoverable`. | desenlace |
+| `ROLLBACK_RETAINED_SHARED` | Un nodo de procedencia **no** se borró porque otra aserción viva sigue apuntándolo. Es conservación deliberada — la otra dirección del mismo criterio — y se declara en `unrecoverable` en vez de dejar `[]`. | desenlace |
+
+### 7.7. Rollback de la procedencia
+
+`build_rollback` añade dos instrucciones a las tres de siempre:
+
+* `PURGE_PROVENANCE` — se ejecuta **después** del `DELETE_NODE` de la aserción y
+  purga en cascada `V3Evidence → V3Episode → V3Source`, **sólo lo que queda sin
+  ninguna referencia viva**. Los antepasados se leen por el camino *antes* de
+  borrar (después las aristas ya no existen). El `DELETE_NODE` declara además,
+  en `detaches_provenance`, las aristas que su `DETACH DELETE` se va a llevar
+  por delante: `SUPPORTED_BY`, `HAS_SUBJECT` y `HAS_OBJECT`.
+* `FORGET_APPLIED_OPERATION` — retira la marca autoritativa
+  `V3AppliedOperation` de la operación revertida.
+
+La ejecución (`rollback_provenance.execute_rollback`) devuelve lo borrado, lo
+**conservado por estar compartido** y los residuos, y los escribe en
+`unrecoverable` del propio documento.
 
 ---
 

@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional, Protocol
 
@@ -30,6 +31,8 @@ class AppliedKeyStore(Protocol):
     def record(self, key: str, entry: dict[str, Any]) -> None: ...
 
     def get(self, key: str) -> Optional[dict[str, Any]]: ...
+
+    def forget(self, key: str) -> bool: ...
 
 
 @dataclass
@@ -45,6 +48,9 @@ class InMemoryAppliedKeys:
     def get(self, key: str) -> Optional[dict[str, Any]]:
         entry = self.entries.get(key)
         return dict(entry) if entry is not None else None
+
+    def forget(self, key: str) -> bool:
+        return self.entries.pop(key, None) is not None
 
 
 class JsonlAppliedKeys:
@@ -70,7 +76,13 @@ class JsonlAppliedKeys:
                         if not line:
                             continue
                         entry = json.loads(line)
-                        cache.setdefault(entry["idempotency_key"], entry)
+                        clave = entry["idempotency_key"]
+                        # Una lapida posterior gana sobre el registro previo: el
+                        # rastro se conserva, la clave deja de estar aplicada.
+                        if entry.get("forgotten"):
+                            cache.pop(clave, None)
+                            continue
+                        cache.setdefault(clave, entry)
             self._cache = cache
         return self._cache
 
@@ -92,6 +104,31 @@ class JsonlAppliedKeys:
     def get(self, key: str) -> Optional[dict[str, Any]]:
         entry = self._load().get(key)
         return dict(entry) if entry is not None else None
+
+    def forget(self, key: str) -> bool:
+        """Retira una clave. Append-only: se anota una LAPIDA, no se reescribe.
+
+        Un rollback deja de ser reversible de verdad si la clave sigue marcada
+        como aplicada: el siguiente dry-run diria «no-op» sobre un grafo del que
+        ese conocimiento ya no esta. Pero borrar lineas de un registro
+        append-only destruiria el rastro de que la operacion se aplico alguna
+        vez, que es lo unico que delata un truncado. Asi que se ANADE una linea
+        de olvido con su momento, y la lectura la interpreta.
+        """
+        cache = self._load()
+        if key not in cache:
+            return False
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self.path.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(
+                {"idempotency_key": key, "forgotten": True,
+                 "forgotten_at": datetime.now(timezone.utc)
+                 .strftime("%Y-%m-%dT%H:%M:%SZ")},
+                ensure_ascii=False, sort_keys=True,
+            ))
+            fh.write("\n")
+        cache.pop(key, None)
+        return True
 
 
 __all__ = ["AppliedKeyStore", "InMemoryAppliedKeys", "JsonlAppliedKeys"]

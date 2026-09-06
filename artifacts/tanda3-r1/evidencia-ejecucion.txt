@@ -1,0 +1,95 @@
+== Neo4j efimero en bolt://127.0.0.1:40959
+
+=== A. apply -> rollback -> CERO residuos, y `unrecoverable` no miente
+   $ python -m knowledge_v3.writer.cli plan-a.json ... --apply
+   rc=0 outcome=APPLIED applied=1 noop=0 codes=[]
+   [OK ] A0: el APPLY sale limpio
+   procedencia escrita: {"nodes_created": {"V3Episode": 1, "V3Evidence": 1, "V3Source": 1}, "nodes_reused": {}, "omitted_fields": {}, "relations_created": {"HAS_EPISODE": 1, "HAS_FRAGMENT": 1, "HAS_OBJECT": 1, "HAS_SUBJECT": 1, "SUPPORTED_BY": 1}, "relations_reused": {}}
+   ANTES del rollback     nodos={"Character": 2, "V3AppliedOperation": 1, "V3Assertion": 1, "V3Entity": 2, "V3Episode": 1, "V3Evidence": 1, "V3Source": 1}
+                          aristas={"HAS_EPISODE": 1, "HAS_FRAGMENT": 1, "HAS_OBJECT": 1, "HAS_SUBJECT": 1, "SUPPORTED_BY": 1}
+   [OK ] A1: hay 1 asercion (no medimos el vacio)
+   [OK ] A2: hay evidencia persistida
+   [OK ] A3: la arista de evidencia existe
+   DESPUES del rollback   nodos={"Character": 2, "V3Entity": 2}
+                          aristas={}
+   unrecoverable = []
+   residuos      = []
+   [OK ] A4: la asercion se fue
+   [OK ] A5: la evidencia HUERFANA se fue
+   [OK ] A6: el episodio sin fragmentos se fue
+   [OK ] A7: la fuente sin episodios se fue
+   [OK ] A8: la marca de idempotencia se fue
+   [OK ] A9: las entidades AJENAS al plan siguen ahi
+   [OK ] A10: cero residuos MEDIDOS
+   [OK ] A11: `unrecoverable` vacio porque de verdad no queda nada
+
+=== B. evidencia COMPARTIDA por una asercion viva: NO se borra
+   $ python -m knowledge_v3.writer.cli plan-b1.json ... --apply
+   rc=0 outcome=APPLIED applied=1 noop=0 codes=[]
+   $ python -m knowledge_v3.writer.cli plan-b2.json ... --apply
+   rc=0 outcome=APPLIED applied=1 noop=0 codes=[]
+   [OK ] B0: los dos APPLY salen limpios
+   ANTES del rollback     nodos={"Character": 2, "V3AppliedOperation": 2, "V3Assertion": 2, "V3Entity": 2, "V3Episode": 1, "V3Evidence": 2, "V3Source": 1}
+                          aristas={"HAS_EPISODE": 1, "HAS_FRAGMENT": 2, "HAS_OBJECT": 2, "HAS_SUBJECT": 2, "SUPPORTED_BY": 3}
+   aserciones que sostienen el fragmento compartido: ['assertion:b1', 'assertion:b2']
+   [OK ] B1: DOS aserciones comparten el mismo fragmento
+   DESPUES del rollback de b1 nodos={"Character": 2, "V3AppliedOperation": 1, "V3Assertion": 1, "V3Entity": 2, "V3Episode": 1, "V3Evidence": 1, "V3Source": 1}
+                          aristas={"HAS_EPISODE": 1, "HAS_FRAGMENT": 1, "HAS_OBJECT": 1, "HAS_SUBJECT": 1, "SUPPORTED_BY": 1}
+   unrecoverable = ["ROLLBACK_RETAINED_SHARED op:0001: la evidencia fragment:compartido NO se borro porque la sostienen aserciones vivas ['assertion:b2']"]
+   purgas        = [{"operation_id": "op:0001", "deleted_evidence": ["fragment:solo-de-b1"], "deleted_episodes": [], "deleted_sources": [], "retained_evidence": {"fragment:compartido": ["assertion:b2"]}, "retained_ancestors": {"V3Episode": ["episode:e1"], "V3Source": ["source:s1"]}, "absent": []}]
+   b2 (viva) conserva su evidencia: [{"id": "fragment:compartido", "texto": "Ilaria lidera la Casa del Ciervo."}]
+   [OK ] B2: la evidencia compartida SIGUE, con su literal, colgando de la viva
+   [OK ] B3: b1 se fue, b2 sigue
+   [OK ] B4: se borro SOLO el fragmento que se quedo sin referencias
+   [OK ] B5: episodio y fuente se CONSERVAN porque aun cuelga un fragmento
+   V3Evidence sin ninguna asercion viva detras: 0
+   [OK ] B6: CERO evidencia huerfana (el defecto original)
+   [OK ] B7: lo conservado se DECLARA en `unrecoverable`, no se calla
+   [OK ] B8: no hay residuos de la operacion revertida
+
+=== C. el re-apply no miente sobre un grafo inconsistente
+   $ python -m knowledge_v3.writer.cli plan-c.json ... --apply
+   rc=0 outcome=APPLIED applied=1 noop=0 codes=[]
+   [OK ] C0: el primer APPLY sale limpio
+   asercion borrada a mano: [{"c": 1}] · marcas que sobreviven: 1
+   [OK ] C1: la marca de idempotencia sigue reclamando la operacion
+   $ python -m knowledge_v3.writer.cli plan-c.json ... --apply
+   rc=1 outcome=INCONSISTENT applied=0 noop=1 codes=['EXEC_NOOP_WITHOUT_GRAPH_EVIDENCE']
+   [OK ] C2: rc=1, NO rc=0
+   [OK ] C3: outcome=INCONSISTENT, no APPLIED
+   [OK ] C4: el motivo viaja con codigo estable
+   $ python -m knowledge_v3.writer.cli plan-c.json ... --apply
+   rc=0 outcome=APPLIED applied=1 noop=0 codes=[]
+   tras el rollback completo nodos={"Character": 2, "V3Entity": 2}
+                          aristas={}
+   $ python -m knowledge_v3.writer.cli plan-c.json ... --apply
+   rc=0 outcome=APPLIED applied=1 noop=0 codes=[]
+   [OK ] C5: tras un rollback COMPLETO el re-apply vuelve a escribir de verdad
+   [OK ] C6: y el conocimiento esta otra vez en el grafo
+
+=== D. repetir el apply NO destruye el documento de rollback
+   $ python -m knowledge_v3.writer.cli plan-d.json ... --apply
+   rc=0 outcome=APPLIED applied=1 noop=0 codes=[]
+   poliza guardada: 3 instrucciones · sha256=21c77893eef231b8
+   [OK ] D1: la primera poliza trae instrucciones
+   $ python -m knowledge_v3.writer.cli plan-d.json ... --apply
+   rc=2 outcome=APPLIED applied=0 noop=1 codes=[]
+   tras repetir el apply: sha256=21c77893eef231b8 rc=2
+   [OK ] D2: la poliza NO se piso con un documento vacio
+   [OK ] D3: y el rc lo dice (2: hay algo que leer, no es exito limpio)
+
+=== E. sigue siendo idempotente: el grafo queda IDENTICO
+   antes de repetir       nodos={"Character": 2, "V3AppliedOperation": 1, "V3Assertion": 1, "V3Entity": 2}
+                          aristas={}
+   $ python -m knowledge_v3.writer.cli plan-d.json ... --apply
+   rc=0 outcome=APPLIED applied=0 noop=1 codes=[]
+   tras repetir           nodos={"Character": 2, "V3AppliedOperation": 1, "V3Assertion": 1, "V3Entity": 2}
+                          aristas={}
+   huella antes  = 8895fc1944df003fc73e16168949958868ad27d1e8c9aff1ebbda58337404c24
+   huella despues= 8895fc1944df003fc73e16168949958868ad27d1e8c9aff1ebbda58337404c24
+   [OK ] E1: huella del CONTENIDO identica (sin elementId)
+   [OK ] E2: 0 escrituras nuevas, 1 no-op
+   [OK ] E3: y ese no-op SI es legitimo (el grafo lo respalda): rc=0
+
+== VEREDICTO: TODO MEDIDO EN VERDE
+RC=0

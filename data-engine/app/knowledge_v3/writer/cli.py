@@ -84,7 +84,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--audit-log", default="writer_audit.jsonl")
     p.add_argument("--applied-keys", default="writer_applied_keys.jsonl")
     p.add_argument("--rollback-out", default=None,
-                   help="fichero donde guardar el documento de rollback del APPLY")
+                   help="fichero donde guardar el documento de rollback del APPLY. "
+                        "NUNCA se pisa una poliza existente con un documento sin "
+                        "instrucciones: repetir un apply no destruye el rollback.")
+    p.add_argument("--forget-applied-keys", default=None, metavar="ROLLBACK_JSON",
+                   help="MANDO DE OPERADOR: retira del almacen de claves aplicadas "
+                        "las de ESE documento de rollback, para que un plan ya "
+                        "revertido se pueda volver a aplicar. No toca el grafo.")
     p.add_argument("--neo4j-uri", default=None, help=f"URI del servidor ({ENV_URI})")
     p.add_argument("--neo4j-user", default=None, help=f"usuario ({ENV_USER})")
     p.add_argument(
@@ -100,6 +106,58 @@ def build_parser() -> argparse.ArgumentParser:
         help="ESCRITURA REAL. Sin esto, y sin S9K_ALLOW_REAL_INGEST=1, solo simula.",
     )
     return p
+
+
+def forget_keys_from_rollback(path: str, store: Any) -> dict[str, Any]:
+    """Retira del almacen las claves de un documento de rollback ya ejecutado.
+
+    Por que hace falta un mando explicito: nadie limpiaba el almacen. Tras
+    revertir un plan, sus claves seguian marcadas como aplicadas, asi que el
+    dry-run siguiente clasificaba como no-op unas operaciones cuyo conocimiento
+    ya no estaba en el grafo.
+
+    Es del OPERADOR y no automatico a proposito: olvidar una clave habilita una
+    reescritura, y eso no se decide solo. Solo mira el documento; no toca Neo4j.
+    """
+    doc = json.loads(Path(path).read_text(encoding="utf-8"))
+    claves: list[str] = []
+    for instruccion in doc.get("instructions") or []:
+        clave = (instruccion.get("detail") or {}).get("idempotency_key")
+        if clave and clave not in claves:
+            claves.append(clave)
+    olvidadas = [c for c in claves if store.forget(c)]
+    return {
+        "code": codes.CLI_APPLIED_KEYS_FORGOTTEN,
+        "rollback_document": path,
+        "keys_in_document": claves,
+        "forgotten": olvidadas,
+        "already_absent": [c for c in claves if c not in olvidadas],
+    }
+
+
+def save_rollback(path: str, doc: Any) -> dict[str, Any]:
+    """Guarda la poliza SIN poder destruir la que ya hubiera.
+
+    Un apply repetido es un no-op idempotente y su documento no trae ninguna
+    instruccion. Escribirlo encima del anterior borraria la unica forma de
+    deshacer lo que se aplico la primera vez -- una orden inocua destruyendo la
+    poliza de recuperacion. Asi que un documento SIN instrucciones nunca pisa
+    un fichero existente, y se dice con codigo.
+    """
+    destino = Path(path)
+    payload = doc.to_dict()
+    if destino.exists() and not payload.get("instructions"):
+        return {
+            "code": codes.CLI_ROLLBACK_OUT_PRESERVED,
+            "path": str(destino),
+            "reason": "el documento nuevo no trae instrucciones y ya habia una "
+                      "poliza guardada: no se pisa",
+        }
+    destino.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    return {"code": None, "path": str(destino), "instructions": len(payload.get("instructions") or [])}
 
 
 def main(
@@ -131,11 +189,21 @@ def main(
                  "error": str(exc)},
                 ensure_ascii=False, indent=2, sort_keys=True))
             return 1
+    applied_keys = JsonlAppliedKeys(args.applied_keys)
+
+    # Mando de operador: no aplica nada, solo retira claves. Va antes de
+    # construir el writer porque no necesita ni plan ni conexion.
+    if args.forget_applied_keys:
+        informe = forget_keys_from_rollback(args.forget_applied_keys, applied_keys)
+        print(json.dumps(informe, ensure_ascii=False, indent=2, sort_keys=True))
+        if not args.apply:
+            return 0
+
     writer = GraphWriter(
         workspace=args.workspace,
         driver_factory=factory if args.apply else None,
         audit=JsonlAuditSink(args.audit_log),
-        applied_keys=JsonlAppliedKeys(args.applied_keys),
+        applied_keys=applied_keys,
         max_operations=args.max_operations,
     )
     result = writer.write(
@@ -151,14 +219,17 @@ def main(
         ),
     )
     print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
+    guardado = None
     if args.rollback_out and result.rollback is not None:
-        Path(args.rollback_out).write_text(
-            json.dumps(result.rollback.to_dict(), ensure_ascii=False, indent=2,
-                       sort_keys=True),
-            encoding="utf-8",
-        )
+        guardado = save_rollback(args.rollback_out, result.rollback)
+        print(json.dumps({"rollback_out": guardado}, ensure_ascii=False,
+                         indent=2, sort_keys=True))
     if not result.ok:
+        # INCONSISTENT entra por aqui: la transaccion no fallo, pero el grafo no
+        # sostiene lo que un APPLIED afirmaria. rc=1, no rc=0.
         return 1
+    if guardado is not None and guardado.get("code"):
+        return 2  # la poliza vieja se conservo: hay algo que leer, no es limpio
     # Salio bien pero con codigos: p.ej. AUDIT_APPEND_FAILED, escritura aplicada
     # sin linea de desenlace. Un runner desatendido no puede leer eso como exito
     # limpio, asi que se distingue del 0.

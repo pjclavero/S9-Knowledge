@@ -31,6 +31,19 @@ from . import cypher as cypher_mod
 from .executor import AppliedOperation
 from .view import SignedView
 
+#: Acciones. Las tres primeras existian; las dos ultimas las anade este bloque.
+ACTION_DELETE_NODE = "DELETE_NODE"
+ACTION_DELETE_RELATIONSHIP = "DELETE_RELATIONSHIP"
+ACTION_RESTORE_PROPERTIES = "RESTORE_PROPERTIES"
+#: Purga la procedencia que sostenia lo borrado -- y SOLO la que se queda sin
+#: ninguna referencia viva. Se ejecuta DESPUES del `DELETE_NODE` de la asercion.
+ACTION_PURGE_PROVENANCE = "PURGE_PROVENANCE"
+#: Retira la marca autoritativa de idempotencia (`V3AppliedOperation`) de la
+#: operacion revertida. Sin esto, el grafo sigue afirmando que la operacion esta
+#: aplicada cuando su conocimiento ya no existe, y el siguiente apply devuelve
+#: un no-op limpio sobre un grafo vacio.
+ACTION_FORGET_APPLIED = "FORGET_APPLIED_OPERATION"
+
 
 @dataclass
 class RollbackInstruction:
@@ -83,18 +96,43 @@ def build_rollback(
     )
     for op in reversed(list(applied)):
         if op.kind == "NODE":
+            # Lo que el `DETACH DELETE` de este nodo se va a llevar por delante
+            # SIN decirlo: las aristas de procedencia que apuntan a la asercion.
+            # Se DECLARAN aqui, en el propio documento, en vez de descubrirlas
+            # comparando censos despues.
+            detaches = _provenance_edges_of(op)
             doc.instructions.append(
                 RollbackInstruction(
                     operation_id=op.operation_id,
-                    action="DELETE_NODE",
+                    action=ACTION_DELETE_NODE,
                     target_id=op.target_id,
                     detail={
                         "created_id": op.created_id,
                         "workspace": view.workspace,
+                        "partida_id": op.partida_id if op.partida_id else view.partida_id,
                         "idempotency_key": op.idempotency_key,
+                        "detaches_provenance": detaches,
                     },
                 )
             )
+            if op.evidence_fragment_ids:
+                # La purga va DESPUES del borrado del nodo, a proposito: solo
+                # entonces la evidencia que sostenia queda (o no) sin referencias
+                # vivas, y la cuenta de referencias mide lo que hay de verdad.
+                doc.instructions.append(
+                    RollbackInstruction(
+                        operation_id=op.operation_id,
+                        action=ACTION_PURGE_PROVENANCE,
+                        target_id=op.target_id,
+                        detail={
+                            "workspace": view.workspace,
+                            "partida_id": op.partida_id if op.partida_id else view.partida_id,
+                            "assertion_id": op.target_id,
+                            "fragment_ids": list(op.evidence_fragment_ids),
+                            "idempotency_key": op.idempotency_key,
+                        },
+                    )
+                )
         elif op.kind == "RELATIONSHIP":
             # `target_id` es el SUJETO (identidad de producto), no el
             # `elementId`. El `elementId` contiene el UUID de la base y se
@@ -105,7 +143,7 @@ def build_rollback(
             doc.instructions.append(
                 RollbackInstruction(
                     operation_id=op.operation_id,
-                    action="DELETE_RELATIONSHIP",
+                    action=ACTION_DELETE_RELATIONSHIP,
                     target_id=op.subject_id or op.target_id,
                     detail={
                         "subject": op.subject_id or op.target_id,
@@ -136,7 +174,7 @@ def build_rollback(
             doc.instructions.append(
                 RollbackInstruction(
                     operation_id=op.operation_id,
-                    action="RESTORE_PROPERTIES",
+                    action=ACTION_RESTORE_PROPERTIES,
                     target_id=op.target_id,
                     detail={
                         "restore": op.previous_state or {},
@@ -153,7 +191,42 @@ def build_rollback(
                 )
         else:  # SIMULATED u otro: no escribio nada, no hay nada que deshacer.
             continue
+        # La marca de idempotencia vive en el grafo (`V3AppliedOperation`) y es
+        # lo que decide si el proximo apply reescribe o se declara no-op. Si el
+        # rollback no la retira, el grafo afirma «esto ya esta aplicado» sobre
+        # un conocimiento que acaba de borrar.
+        doc.instructions.append(
+            RollbackInstruction(
+                operation_id=op.operation_id,
+                action=ACTION_FORGET_APPLIED,
+                target_id=op.idempotency_key,
+                detail={
+                    "workspace": view.workspace,
+                    "idempotency_key": op.idempotency_key,
+                    "plan_hash": view.plan_hash_value,
+                },
+            )
+        )
     return doc
+
+
+def _provenance_edges_of(op: AppliedOperation) -> list[dict[str, Any]]:
+    """Aristas de procedencia que cuelgan del nodo que se va a borrar.
+
+    Se derivan de lo que el writer ESTAMPO en ese nodo (`evidence_fragment_ids`,
+    sujeto y objeto), no de una lectura del grafo: el documento se construye en
+    el APPLY y la procedencia se persiste despues, en su propia transaccion.
+    Que existan o no en el momento del rollback lo dice la ejecucion; que el
+    `DETACH DELETE` se las llevaria, lo dice esto.
+    """
+    edges: list[dict[str, Any]] = []
+    for fragment_id in op.evidence_fragment_ids or []:
+        edges.append({"type": "SUPPORTED_BY", "to_label": "V3Evidence", "to_id": fragment_id})
+    if op.subject_id:
+        edges.append({"type": "HAS_SUBJECT", "to_label": "V3Entity", "to_id": op.subject_id})
+    if op.object_id:
+        edges.append({"type": "HAS_OBJECT", "to_label": "V3Entity", "to_id": op.object_id})
+    return edges
 
 
 # --- Reconstruccion: de instruccion a consulta ------------------------------
@@ -233,6 +306,11 @@ def rollback_query(instruction: RollbackInstruction) -> RollbackQuery:
 
 
 __all__ = [
+    "ACTION_DELETE_NODE",
+    "ACTION_DELETE_RELATIONSHIP",
+    "ACTION_RESTORE_PROPERTIES",
+    "ACTION_PURGE_PROVENANCE",
+    "ACTION_FORGET_APPLIED",
     "RollbackInstruction",
     "RollbackDocument",
     "build_rollback",

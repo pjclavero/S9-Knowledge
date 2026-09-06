@@ -1523,8 +1523,16 @@ def test_el_writer_sabe_generar_las_instrucciones_inversas():
     result = make_writer(driver).write(plan, apply_request(plan))
     assert result.outcome == OUTCOME_APPLIED, result.codes
     acciones = [i.action for i in result.rollback.instructions]
-    # Orden inverso: primero se deshace lo ultimo que se hizo.
-    assert acciones == ["RESTORE_PROPERTIES", "DELETE_RELATIONSHIP", "DELETE_NODE"]
+    # Orden inverso: primero se deshace lo ultimo que se hizo. Y cada operacion
+    # revertida retira ADEMAS su marca de idempotencia del grafo: sin eso, el
+    # grafo seguiria afirmando «ya aplicado» sobre un conocimiento borrado.
+    assert acciones == [
+        "RESTORE_PROPERTIES", "FORGET_APPLIED_OPERATION",
+        "DELETE_RELATIONSHIP", "FORGET_APPLIED_OPERATION",
+        "DELETE_NODE", "FORGET_APPLIED_OPERATION",
+    ]
+    inversas = [a for a in acciones if a != "FORGET_APPLIED_OPERATION"]
+    assert inversas == ["RESTORE_PROPERTIES", "DELETE_RELATIONSHIP", "DELETE_NODE"]
 
 
 def test_el_rollback_declara_lo_que_no_puede_restaurar():

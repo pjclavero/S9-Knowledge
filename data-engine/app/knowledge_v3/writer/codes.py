@@ -192,21 +192,58 @@ LOCAL_DIVERGENCE_PENDING_REVIEW = "LOCAL_DIVERGENCE_PENDING_REVIEW"
 
 REVIEW_MARK_CODES = (LOCAL_DIVERGENCE_PENDING_REVIEW,)
 
+# --- Verdad del desenlace --------------------------------------------------
+#: Una operacion se declaro NO-OP («esta clave ya se aplico») pero en el grafo
+#: no queda NADA con esa `idempotency_key`: la marca de aplicacion sobrevivio a
+#: un borrado del conocimiento que sostenia. Un APPLY que devolviese
+#: APPLIED/rc=0 en ese estado estaria afirmando que el conocimiento esta,
+#: cuando no esta. No es un gate: se mide DESPUES de la transaccion y no impide
+#: ninguna escritura; solo impide MENTIR sobre el resultado.
+EXEC_NOOP_WITHOUT_GRAPH_EVIDENCE = "EXEC_NOOP_WITHOUT_GRAPH_EVIDENCE"
+#: El rollback dejo residuos de la operacion que decia deshacer.
+ROLLBACK_RESIDUE = "ROLLBACK_RESIDUE"
+#: Un nodo de procedencia NO se borro porque sigue sostiendo conocimiento vivo.
+#: Es conservacion deliberada, y se declara: forma parte de lo que ese apply
+#: creo y que este rollback NO revierte.
+ROLLBACK_RETAINED_SHARED = "ROLLBACK_RETAINED_SHARED"
+
+TRUTH_CODES = (
+    EXEC_NOOP_WITHOUT_GRAPH_EVIDENCE,
+    ROLLBACK_RESIDUE,
+    ROLLBACK_RETAINED_SHARED,
+)
+
 # --- Ruta de operador ------------------------------------------------------
 #: El APPLY se pidio sin declarar como llegar al servidor (URI, usuario o el
 #: CAMINO del fichero con la contrasena). Falla CERRADO: no se degrada a
 #: dry-run, que seria decirle "ok" a quien pidio escribir.
 CLI_DRIVER_CONFIG_MISSING = "CLI_DRIVER_CONFIG_MISSING"
 
-CLI_CODES = (CLI_DRIVER_CONFIG_MISSING,)
+#: Un fichero de rollback que YA existia iba a ser pisado por un documento sin
+#: instrucciones (el no-op idempotente devuelve `instructions: []`). Repetir un
+#: apply inocuo destruiria la unica poliza de recuperacion, asi que NO se pisa y
+#: se dice. La poliza vieja queda intacta.
+CLI_ROLLBACK_OUT_PRESERVED = "CLI_ROLLBACK_OUT_PRESERVED"
+#: El operador pidio olvidar claves aplicadas y el almacen las retiro.
+CLI_APPLIED_KEYS_FORGOTTEN = "CLI_APPLIED_KEYS_FORGOTTEN"
 
-ALL_CODES = ADMISSION_CODES + GATE_CODES + AUDIT_CODES + EXECUTION_CODES + CLI_CODES
+CLI_CODES = (
+    CLI_DRIVER_CONFIG_MISSING,
+    CLI_ROLLBACK_OUT_PRESERVED,
+    CLI_APPLIED_KEYS_FORGOTTEN,
+)
+
+ALL_CODES = (
+    ADMISSION_CODES + GATE_CODES + AUDIT_CODES + EXECUTION_CODES
+    + TRUTH_CODES + CLI_CODES
+)
 
 __all__ = [
     "ADMISSION_CODES",
     "GATE_CODES",
     "AUDIT_CODES",
     "EXECUTION_CODES",
+    "TRUTH_CODES",
     "CLI_CODES",
     "REVIEW_MARK_CODES",
     "ALL_CODES",
