@@ -34,6 +34,21 @@ TABLA (estable; reutiliza los codigos que el producto ya usaba)
 ``3``   hay altas de entidad sin aprobar: no se escribe          --
 ======  ======================================================  =============
 
+TABLA DE CORRIDA (equipo 5C). Misma numeracion, desenlaces de la corrida
+entera -- incluidos los que ocurren cuando el writer NO llega a correr::
+
+    APPLIED                     -> 0   escribio
+    NOOP_IDEMPOTENT             -> 0   nada que cambiar; ya estaba escrito
+    SIMULATED                   -> 0   si se pidio dry-run
+    NO_WRITE_REQUESTED          -> 0   si se pidio dry-run
+
+    NO_WRITE_PATH               -> 1   se pidio --apply y no se llego al writer
+    BLOCKED / REJECTED / ...    -> 1   el desenlace del writer no es correcto
+    <cualquier desenlace nuevo> -> 1   falla CERRADO: lo desconocido no es exito
+
+`resolve_run_outcome` nombra el desenlace UNA vez; `exit_code_for_run` da el
+numero y `describe_outcome` da la frase a partir de ESA misma cadena.
+
 ``1`` no se ha inventado: ``writer.cli`` ya devolvia ``1`` para
 ``not result.ok``. Lo que se hace es EXTENDERLO a ``pipeline.ingest_cli``,
 donde ``1`` estaba libre, de modo que BLOCKED queda distinguible del ``2`` de
@@ -83,7 +98,67 @@ OUTCOMES_OK = ("APPLIED", "SIMULATED")
 #: enumero y no se toco nada). `INCOMPLETE`, `BLOCKED` y `ERROR` no estan aqui.
 ROLLBACK_OUTCOMES_OK = ("ROLLED_BACK", "DRY_RUN")
 
+# ---------------------------------------------------------------------------
+# TABLA DE DESENLACES DE CORRIDA (equipo 5C). PUBLICA: importadla, no la
+# reinventeis.
+# ---------------------------------------------------------------------------
+# Los desenlaces de ARRIBA (`OUTCOMES_OK`) son los del WRITER: lo que el writer
+# devuelve cuando corre. Esta segunda tabla es la de la CORRIDA ENTERA, que es
+# lo que un runner desatendido observa, y existe porque hay desenlaces que el
+# writer no puede nombrar: **los que ocurren cuando el writer no llega a
+# correr**.
+#
+# DEFECTO MEDIDO QUE CIERRA ESTA TABLA
+# ------------------------------------
+# `pipeline.ingest_cli` salia `0` en un `--apply` que no habia escrito nada,
+# porque razonaba "sin bloque `write` no hubo writer, luego fue una ingesta
+# normal, luego exito". Eso es cierto en dry-run y FALSO bajo `--apply`: si el
+# operador pidio escribir y la cadena paro antes del writer (`SIN_PLAN`,
+# `CADENA_DETENIDA`), el acta lo declaraba con honestidad y el `rc` decia 0.
+# Una clase entera de APPLY fallidos era indistinguible de un APPLY aplicado.
+#
+# LA TRAMPA QUE ESTA TABLA NO PISA
+# --------------------------------
+# "0 operaciones" NO es "fallo". Un `--apply` repetido sobre conocimiento que
+# ya esta escrito devuelve `APPLIED` con `applied_operations == 0` y
+# `noop_operations > 0`: es el NO-OP IDEMPOTENTE, y es un EXITO. Por eso la
+# regla NO es `operaciones == 0 -> error`, que romperia la idempotencia; la
+# regla es que manda **el desenlace**, y el recuento solo sirve para NOMBRAR
+# ese desenlace (`APPLIED` con 0 escrituras y algun no-op respaldado es
+# `NOOP_IDEMPOTENT`, no un APPLY vacio).
+
+#: El operador pidio `--apply` y el writer NUNCA llego a correr: la cadena paro
+#: antes (sin plan, sin claims, etapa detenida) o se configuro sin writer. No
+#: hay desenlace de escritura que informar, y por eso mismo no puede ser 0.
+RUN_NO_WRITE_PATH = "NO_WRITE_PATH"
+#: `--apply` que no tenia nada semantico que cambiar: el conocimiento ya estaba
+#: escrito. Es `APPLIED` con 0 operaciones nuevas y no-ops respaldados por el
+#: grafo. **Exito**, y el desenlace que ninguna regla simplista debe romper.
+RUN_NOOP_IDEMPOTENT = "NOOP_IDEMPOTENT"
+#: No se pidio escribir y no se escribio: ingesta en dry-run cuya cadena no
+#: llego al writer. El usuario pidio dry-run y obtuvo dry-run. Exito.
+RUN_NO_WRITE_REQUESTED = "NO_WRITE_REQUESTED"
+
+#: Los UNICOS desenlaces de corrida que valen `rc = 0`. Todo lo demas -- lo que
+#: ya existe y **lo que otros equipos añadan** -- sale distinto de 0 sin tocar
+#: este modulo. Eso es deliberado: la tabla falla CERRADA, asi que un desenlace
+#: nuevo (p.ej. el `CONSTRAINTS_MISSING` que el equipo 5A va a introducir, o
+#: los `NO_OPERATOR` / `NO_AUDIT` / `UNEXPECTED_RESIDUE` del 5B) es no-cero por
+#: omision y solo se añade aqui si de verdad es un exito limpio.
+RUN_OUTCOMES_OK = (
+    "APPLIED",
+    "SIMULATED",
+    RUN_NOOP_IDEMPOTENT,
+    RUN_NO_WRITE_REQUESTED,
+)
+
 __all__ = [
+    "RUN_NO_WRITE_PATH",
+    "RUN_NOOP_IDEMPOTENT",
+    "RUN_NO_WRITE_REQUESTED",
+    "RUN_OUTCOMES_OK",
+    "resolve_run_outcome",
+    "exit_code_for_run",
     "EXIT_OK",
     "EXIT_OUTCOME_NOT_OK",
     "EXIT_USAGE",
@@ -177,6 +252,13 @@ def describe_outcome(
         # Lo que de verdad ocurrio, en dos booleanos que no admiten matiz.
         "wrote_anything": outcome == "APPLIED" and int(applied_operations or 0) > 0,
         "was_dry_run": outcome == "SIMULATED",
+        # ¿Llego a correr el writer? `NO_WRITE_PATH` y `NO_WRITE_REQUESTED`
+        # son justo los dos desenlaces en que NO corrio, y distinguirlos del
+        # resto es lo que permite a un lector saber si el silencio del acta es
+        # esperado (dry-run) o un fallo (apply sin camino al writer).
+        "reached_writer": outcome not in (
+            None, RUN_NO_WRITE_PATH, RUN_NO_WRITE_REQUESTED,
+        ),
     }
 
     if outcome is None:
@@ -206,6 +288,36 @@ def describe_outcome(
                 "del writer"
             ),
         }
+    elif outcome == RUN_NO_WRITE_PATH:
+        falta = {
+            "code": "APPLY_SIN_CAMINO_AL_WRITER",
+            "detail": (
+                "se pidio --apply y la cadena NO llego al writer: no hubo "
+                f"intento de escritura y el grafo esta como estaba ({conexion}). "
+                "Esto NO es una ingesta correcta: lo que se pidio -- escribir -- "
+                "no se intento siquiera. Mira las carencias previas (SIN_PLAN, "
+                "SIN_CLAIMS, CADENA_DETENIDA) para saber donde paro"
+            ),
+        }
+    elif outcome == RUN_NOOP_IDEMPOTENT:
+        falta = {
+            "code": "SIN_CAMBIOS_IDEMPOTENTE",
+            "detail": (
+                f"APPLY idempotente: no habia nada semantico que cambiar "
+                f"({conexion}). Las operaciones del plan ya estaban aplicadas y "
+                "el writer comprobo que el grafo las sostiene. Se escribieron 0 "
+                "operaciones nuevas y eso es el resultado CORRECTO, no un fallo"
+            ),
+        }
+    elif outcome == RUN_NO_WRITE_REQUESTED:
+        falta = {
+            "code": "SIN_ESCRITURA",
+            "detail": (
+                f"no se pidio escribir y no se escribio nada ({conexion}). La "
+                "cadena no llego al writer y en dry-run eso es lo esperado: "
+                "para escribir hace falta --apply"
+            ),
+        }
     elif outcome == "BLOCKED":
         falta = {
             "code": "ESCRITURA_BLOQUEADA",
@@ -226,6 +338,77 @@ def describe_outcome(
 
     falta["hechos"] = hechos
     return falta
+
+
+def resolve_run_outcome(
+    requested_mode: Optional[str],
+    write_block: Optional[dict],
+) -> str:
+    """El DESENLACE de la corrida entera, a partir de lo OBSERVADO.
+
+    Un solo sitio decide que paso de verdad, y despues `exit_code_for_run` da
+    el numero y `describe_outcome` da la frase **a partir de esta misma
+    cadena**. Ese es el invariante que impide que texto y codigo divergan: si
+    se construyesen por separado volveria el agujero que la tanda anterior ya
+    cerro un piso mas abajo.
+
+    `requested_mode` es lo que el USUARIO pidio (`"APPLY"` / `"DRY_RUN"`), no
+    lo que el writer hizo. La distincion es el nucleo del arreglo: sin ella no
+    se puede separar "no se escribio porque no me lo pediste" de "no se
+    escribio aunque me lo pediste".
+
+    `write_block` es el bloque `write` del informe, o ``None`` si el writer no
+    llego a correr.
+    """
+    pedido_apply = requested_mode == "APPLY"
+
+    if not write_block:
+        # El writer NUNCA corrio. En dry-run eso es lo esperado; bajo --apply
+        # es un fallo, y es exactamente el caso que salia 0.
+        return RUN_NO_WRITE_PATH if pedido_apply else RUN_NO_WRITE_REQUESTED
+
+    outcome = write_block.get("outcome")
+    aplicadas = int(write_block.get("applied_operations") or 0)
+    noop = int(write_block.get("noop_operations") or 0)
+
+    # NO-OP IDEMPOTENTE. Se nombra aparte de `APPLIED` porque son cosas
+    # distintas que merecen frases distintas, pero AMBAS valen 0: el writer ya
+    # comprobo (`EXEC_NOOP_WITHOUT_GRAPH_EVIDENCE`) que cada no-op tiene
+    # respaldo en el grafo, asi que "0 escrituras" aqui significa "ya estaba",
+    # no "no se pudo".
+    if outcome == "APPLIED" and aplicadas == 0 and noop > 0:
+        return RUN_NOOP_IDEMPOTENT
+
+    # Cualquier otro desenlace se pasa TAL CUAL: los del writer que ya existen
+    # y los que otros equipos añadan. `exit_code_for_run` falla cerrado sobre
+    # los que no reconoce, asi que un desenlace nuevo no puede colarse como 0.
+    return outcome if outcome is not None else RUN_NO_WRITE_PATH
+
+
+def exit_code_for_run(
+    outcome: Optional[str],
+    codes: Iterable[str] = (),
+    *,
+    requested_mode: Optional[str] = None,
+) -> int:
+    """`rc` de la CORRIDA entera. Misma tabla, aplicada al desenlace resuelto.
+
+    Falla CERRADO: lo que no este en `RUN_OUTCOMES_OK` sale distinto de 0,
+    incluido cualquier desenlace que un equipo añada mañana sin tocar este
+    modulo. Un desenlace desconocido no es un exito.
+
+    `requested_mode` cierra la misma mentira que cierra `exit_code_for_outcome`
+    un piso mas abajo: un `SIMULATED` cuando el operador pidio `APPLY` es "me
+    pediste escribir y solo simule", y eso no es 0.
+    """
+    lista = [c for c in codes]
+    if outcome not in RUN_OUTCOMES_OK:
+        return EXIT_OUTCOME_NOT_OK
+    if requested_mode == "APPLY" and outcome in ("SIMULATED", RUN_NO_WRITE_REQUESTED):
+        return EXIT_OUTCOME_NOT_OK
+    if lista:
+        return EXIT_USAGE
+    return EXIT_OK
 
 
 def exit_code_for_rollback(

@@ -596,19 +596,32 @@ def _modo_revision(args: argparse.Namespace) -> int:
 
 
 def _rc_del_desenlace(report: dict) -> int:
-    """`rc` de la corrida, derivado del desenlace de escritura publicado.
+    """`rc` de la corrida, derivado del DESENLACE resuelto de la corrida.
 
-    Sin bloque `write` no hubo writer: la corrida es una ingesta que produjo su
-    informe y eso es un exito (`0`). Con bloque `write`, manda la tabla de
-    `writer.exit_codes` -- la misma para todos los mandos del producto.
+    DEFECTO CERRADO (equipo 5C). Esta funcion decia antes: "sin bloque `write`
+    no hubo writer, la corrida es una ingesta que produjo su informe y eso es
+    un exito (0)". Es cierto en dry-run y **falso bajo `--apply`**: un
+    `--apply --operador ... --desde-grafo` cuya cadena paraba antes del writer
+    (`SIN_PLAN`, `CADENA_DETENIDA`) publicaba un acta honesta que decia
+    `SIN_RESULTADO_DE_ESCRITURA` ... y salia `0`, con el grafo intacto. Un
+    runner desatendido no podia distinguir ese APPLY fallido de uno aplicado.
+
+    Ahora el desenlace se RESUELVE primero -- cruzando lo que el usuario pidio
+    (`run.writer_mode`, que es el modo PEDIDO, no el ejecutado) con lo que
+    ocurrio -- y el `rc` sale de ese desenlace. `describe_outcome` publica la
+    frase a partir de la MISMA cadena, asi que acta y `rc` no pueden divergir.
+
+    Lo que NO se hace, a proposito: `operaciones == 0 -> error`. Un `--apply`
+    repetido sobre conocimiento ya escrito da 0 operaciones y es un EXITO
+    (`NOOP_IDEMPOTENT`); esa regla simplista romperia la idempotencia.
     """
+    modo_pedido = (report.get("run") or {}).get("writer_mode")
     escritura = report.get("write")
-    if not escritura:
-        return exit_codes.EXIT_OK
-    return exit_codes.exit_code_for_outcome(
-        escritura.get("outcome"),
-        escritura.get("codes") or (),
-        mode=escritura.get("mode"),
+    desenlace = exit_codes.resolve_run_outcome(modo_pedido, escritura)
+    return exit_codes.exit_code_for_run(
+        desenlace,
+        (escritura or {}).get("codes") or (),
+        requested_mode=modo_pedido,
     )
 
 
