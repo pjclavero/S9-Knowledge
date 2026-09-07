@@ -48,6 +48,7 @@ from test_knowledge_v3_writer_neo4j_real import neo4j_efimero_conexion  # noqa: 
 RAIZ = APP_DIR.parents[1]
 EJEMPLOS = RAIZ / "examples" / "ingesta-v3"
 PERFIL = EJEMPLOS / "perfil-operador.json"
+CATALOGO = EJEMPLOS / "catalogo-workspace.json"
 
 WS = "ws-cofradia"
 AHORA = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -128,7 +129,16 @@ def corrida(op, f, out, *, partida=None, sesion=None, operador, tipos_alta):
         ambito = ["--partida", partida, "--sesion", str(sesion)]
 
     # 1. SECO con grafo: produce decisiones.json
-    base = [str(f), "--perfil", str(PERFIL), "--workspace", WS, "--ahora", AHORA,
+    # `--catalogo` NO es opcional aunque haya `--desde-grafo`, y el motivo esta
+    # MEDIDO: el extractor determinista no tiene reconocedor de entidades
+    # propio, su vocabulario sale del glosario (alias del perfil + nombres del
+    # catalogo). Con el grafo VACIO, `--desde-grafo` no aporta vocabulario
+    # ninguno, todas las menciones salen `entity:prov:*` y el apply muere con
+    # rc=3 ("altas sin aprobacion humana"). Las dos fuentes responden a
+    # preguntas distintas: el catalogo dice COMO SE LLAMAN las cosas, el grafo
+    # dice CUALES YA ESTAN.
+    base = [str(f), "--perfil", str(PERFIL), "--catalogo", str(CATALOGO),
+            "--workspace", WS, "--ahora", AHORA,
             "--desde-grafo", "--out-dir", str(out), "--formato", "json"] + ambito
     r1 = op.ingest(base + op.conexion_args())
     dec = out / "decisiones.json"
@@ -139,14 +149,22 @@ def corrida(op, f, out, *, partida=None, sesion=None, operador, tipos_alta):
 
     # 2. REVISION: aprobar las altas (firma humana), con su tipo declarado
     doc = json.loads(dec.read_text(encoding="utf-8"))
-    altas = [d.get("entity_id") for d in (doc.get("altas") or [])]
-    altas = [a for a in altas if a and not a.startswith(("entity:prov:", "entity:new:"))]
+    # El documento trae `decisions`, y el alta es la que pide CREATE. NO se
+    # filtran los `entity:prov:*`: son exactamente las altas que hay que
+    # aprobar. El tipo se declara con `--tipo-alta` cuando el resolutor no
+    # pudo inferirlo (el caso tipico en un grafo nuevo), porque sin tipo la
+    # creacion no se puede construir y el mando falla cerrado.
+    altas = [(d.get("entity_id"), d.get("entity_type"))
+             for d in (doc.get("decisions") or [])
+             if d.get("decision") == "CREATE_ENTITY_REQUIRED" and d.get("entity_id")]
+    print(f"     altas a aprobar: {altas}")
     if altas:
         argv = [str(f), "--revisar", "--decisiones", str(dec), "--revisor", operador]
-        for a in altas:
+        for a, t in altas:
             argv += ["--aprobar-alta", a]
-            if a in tipos_alta:
-                argv += ["--tipo-alta", f"{a}={tipos_alta[a]}"]
+            tipo = tipos_alta.get(a) or t
+            if tipo:
+                argv += ["--tipo-alta", f"{a}={tipo}"]
         r2 = op.ingest(argv)
         if r2.returncode != 0:
             print(f"     (revision rc={r2.returncode}) {r2.stdout[-300:]} {r2.stderr[-300:]}")
@@ -315,15 +333,24 @@ def main():
                 print("     stderr:", (r.stderr or "")[-400:])
                 nota("el acta del rollback de B no se pudo leer como JSON")
             else:
-                print(f"     acta: outcome={acta.get('outcome')} code={acta.get('code')} "
-                      f"clean={acta.get('clean')} deleted_anything={acta.get('deleted_anything')}")
-                for k in ("PX", "SHARED", "RESIDUE", "residue", "shared", "px"):
-                    if k in acta:
-                        print(f"     {k}: {acta[k]}")
-                check("rollback B: limpio", acta.get("clean") is True, str(acta.get("clean")))
-                check("rollback B: RESIDUE vacio",
-                      not (acta.get("residue") or acta.get("RESIDUE")),
-                      str(acta.get("residue") or acta.get("RESIDUE")))
+                # Los contadores viven en `hechos` (ver `cli_rollback`), no en
+                # la raiz del acta. Se buscan en los dos sitios para no medir
+                # un `None` y llamarlo verde.
+                h = acta.get("hechos") if isinstance(acta.get("hechos"), dict) else acta
+                print(f"     acta: outcome={acta.get('outcome')} code={acta.get('code')}")
+                print(f"     hechos: " + ", ".join(
+                    f"{k}={h.get(k)}" for k in
+                    ("clean", "deleted_anything", "deleted_nodes", "deleted_relationships",
+                     "deleted_marks", "residues", "retained", "observations",
+                     "unrecoverable", "executed", "purges")))
+                check("rollback B: limpio (clean=true)", h.get("clean") is True,
+                      str(h.get("clean")))
+                # RESIDUE == vacio es LA definicion de rollback limpio (6B).
+                check("rollback B: RESIDUE vacio", h.get("residues") == 0,
+                      f"residues={h.get('residues')}")
+                check("rollback B: nada irrecuperable", h.get("unrecoverable") == 0,
+                      f"unrecoverable={h.get('unrecoverable')}")
+                acta_h = h
 
             post = censo(driver)
             # A INTACTA: por identidad durable, no por posicion ni por conteo
@@ -343,8 +370,8 @@ def main():
             borro_de_verdad = (estado_pre_rb["nodos"] != post["nodos"])
             if acta is not None:
                 check("deleted_anything COINCIDE con los hechos",
-                      bool(acta.get("deleted_anything")) == borro_de_verdad,
-                      f"acta={acta.get('deleted_anything')} hechos={borro_de_verdad} "
+                      bool(acta_h.get("deleted_anything")) == borro_de_verdad,
+                      f"acta={acta_h.get('deleted_anything')} hechos={borro_de_verdad} "
                       f"(nodos {estado_pre_rb['nodos']}->{post['nodos']})")
 
         # ---- ROLLBACK DE A -> S0 ------------------------------------------
