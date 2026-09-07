@@ -49,10 +49,26 @@ LAS MISMAS REGLAS QUE EL APPLY, SIN AFLOJAR NINGUNA
 EL DESENLACE NO ES UNA FRASE INDEPENDIENTE
 ------------------------------------------
 La linea humana y el codigo de salida se derivan del MISMO objeto
-(`RollbackReport`): si quedan residuos, procedencia huerfana o instrucciones no
+(`RollbackReport`): si quedan RESIDUOS de esta operacion o instrucciones no
 reconstruibles, no hay forma de imprimir «revertido» ni de salir con 0. La
 regla es literal, y los numeros salen de la tabla UNICA del producto
 (`writer.exit_codes`, equipo 4C): este mando ya no tiene tabla propia.
+
+QUE ES UN RESIDUO, Y QUE NO (equipo 6B)
+---------------------------------------
+    PX       = elementos propiedad del apply X
+    SHARED   = elementos de PX que siguen sostenidos por estado vivo
+    RESIDUE  = elementos de PX que DEBERIAN haber desaparecido
+               y siguen presentes
+
+    rollback limpio  <=>  RESIDUE == vacio
+
+NO es «veo nodos de procedencia -> esta sucio». Una `V3Source` o una
+`V3Evidence` compartida PUEDE y DEBE sobrevivir, y se declara en `retained`.
+Lo que otro apply dejo en el ambito se ve en `observations` y NO decide este
+desenlace. Antes ambas cosas contaban como residuo, asi que un rollback EXACTO
+--grafo identico al estado previo-- salia `rc=1` en cuanto la base tenia una
+fuente navegable: un runner no podia distinguirlo de uno sucio.
 
     ROLLED_BACK (nada pendiente)  -> rc = 0  (EXIT_OK)
     DRY_RUN valido                -> rc = 0  (EXIT_OK)
@@ -98,7 +114,13 @@ from ..driver_neo4j import (
 from . import codes, exit_codes
 from .audit import AuditRecord, JsonlAuditSink
 from .gate import ENV_ALLOW_REAL_INGEST, ENV_WRITER_WORKSPACE, _OPERATOR_ID
-from .rollback import RollbackDocument, RollbackInstruction
+from .rollback import (
+    ACTION_DELETE_NODE,
+    ACTION_DELETE_RELATIONSHIP,
+    ACTION_FORGET_APPLIED,
+    RollbackDocument,
+    RollbackInstruction,
+)
 from .rollback_provenance import RollbackReport, execute_rollback
 
 #: Desenlaces. Misma familia de nombres que el writer, misma disciplina.
@@ -254,6 +276,58 @@ def authorize(
     return None
 
 
+def _deletion_counters(report: RollbackReport) -> tuple[int, int, int]:
+    """`(nodos, aristas, marcas)` REALMENTE borrados. Contadores, no intentos.
+
+    Cada consulta de borrado del camino de reversion devuelve su propio
+    recuento --`borrados` para nodos y marcas, `borradas` para aristas-- y
+    sobre un grafo que no tiene nada que borrar devuelve CERO, no ninguna
+    fila: la agregacion sobre entrada vacia da 0. Ese cero es el dato honesto
+    y es el que se lee aqui.
+
+    Los tres contadores se derivan de cosas distintas y se cuentan por
+    separado, sin mezclarlos en una suma que oculte cual fue:
+
+    * nodos    -- `DELETE_NODE`, mas la procedencia purgada realmente borrada
+                  (`deleted_evidence` / `deleted_episodes` / `deleted_sources`,
+                  que son las listas de lo que el `DELETE` se llevo, no de lo
+                  que se le pidio).
+    * aristas  -- `DELETE_RELATIONSHIP`.
+    * marcas   -- `FORGET_APPLIED_OPERATION`.
+
+    `RESTORE_PROPERTIES` NO aparece: restaurar no es borrar, y sumarlo aqui
+    haria que `deleted_anything` mintiese en la otra direccion.
+    """
+    nodos = aristas = marcas = 0
+    for entrada in report.executed:
+        accion = entrada.get("action")
+        filas = entrada.get("result") or []
+        if not isinstance(filas, list):
+            continue
+        cuantos = 0
+        for fila in filas:
+            if not isinstance(fila, dict):
+                continue
+            for campo in ("borrados", "borradas"):
+                valor = fila.get(campo)
+                if isinstance(valor, bool) or not isinstance(valor, (int, float)):
+                    continue
+                cuantos += int(valor)
+        if accion == ACTION_DELETE_NODE:
+            nodos += cuantos
+        elif accion == ACTION_DELETE_RELATIONSHIP:
+            aristas += cuantos
+        elif accion == ACTION_FORGET_APPLIED:
+            marcas += cuantos
+    for purga in report.purges:
+        nodos += (
+            len(purga.get("deleted_evidence") or [])
+            + len(purga.get("deleted_episodes") or [])
+            + len(purga.get("deleted_sources") or [])
+        )
+    return nodos, aristas, marcas
+
+
 def rollback_facts(
     outcome: str, report: Optional[RollbackReport]
 ) -> dict[str, Any]:
@@ -277,9 +351,14 @@ def rollback_facts(
             "outcome": outcome,
             "ran": False,
             "deleted_anything": False,
+            "deleted_nodes": 0,
+            "deleted_relationships": 0,
+            "deleted_marks": 0,
             "clean": False,
             "residues": 0,
             "unrecoverable": 0,
+            "observations": 0,
+            "retained": 0,
             "executed": 0,
             "purges": 0,
             "deleted_provenance_nodes": 0,
@@ -289,14 +368,39 @@ def rollback_facts(
         + len(p.get("deleted_sources") or [])
         for p in report.purges
     )
+    nodos, aristas, marcas = _deletion_counters(report)
     return {
         "outcome": outcome,
         "ran": True,
-        # ¿Se borro algo DE VERDAD? Ni el `rc` ni la frase pueden fingirlo.
-        "deleted_anything": bool(borrados) or bool(report.executed),
+        # DEFECTO D4, MEDIDO Y CERRADO AQUI. Esto salia `true` sobre un grafo
+        # VACIO: repetir el rollback con la base en 0 nodos devolvia
+        # `ok: true`, `executed: 6`, `deleted_anything: true` y la frase «6
+        # instrucciones ejecutadas... No queda nada de esa operacion en el
+        # grafo». No habia borrado NADA. Era seguro --no hubo borrado
+        # indebido-- pero el HECHO estructurado era falso, y es justo el campo
+        # del que la prosa se deriva.
+        #
+        # La causa era `bool(report.executed)`: `executed` cuenta
+        # INSTRUCCIONES EJECUTADAS, o sea «se INTENTO borrar», no «se borro».
+        # Una instruccion contra un grafo vacio se ejecuta igual y devuelve 0
+        # filas borradas.
+        #
+        # Ahora sale EXCLUSIVAMENTE de contadores reales de las operaciones,
+        # que es la regla literal:
+        #     deleted_nodes > 0 OR deleted_relationships > 0 OR deleted_marks > 0
+        # Nunca de «se intento borrar».
+        "deleted_anything": bool(nodos or aristas or marcas),
+        "deleted_nodes": nodos,
+        "deleted_relationships": aristas,
+        "deleted_marks": marcas,
         "clean": report.clean,
         "residues": len(report.residues),
         "unrecoverable": len(report.unrecoverable),
+        # Rarezas del ambito que este apply NO creo. Se informan; NO deciden
+        # `clean` ni el `rc`.
+        "observations": len(report.observations),
+        # SHARED: lo de PX conservado a proposito por seguir sostenido.
+        "retained": len(report.retained),
         "executed": len(report.executed),
         "purges": len(report.purges),
         "deleted_provenance_nodes": borrados,
@@ -324,18 +428,47 @@ def describe(outcome: str, report: Optional[RollbackReport]) -> str:
     if not hechos["ran"]:
         return "no se ejecuto nada."
 
+    # CADA CIFRA DE LA FRASE SALE DE UN CONTADOR REAL. Antes la frase decia
+    # «N instrucciones ejecutadas ... No queda nada de esa operacion en el
+    # grafo» sobre un grafo VACIO en el que no se habia borrado nada: las
+    # instrucciones se ejecutaron, si, pero borraron cero. La frase se lee como
+    # trabajo hecho, y no lo hubo.
     base = (
-        f"{hechos['executed']} instrucciones ejecutadas, "
-        f"{hechos['purges']} purgas de procedencia "
-        f"({hechos['deleted_provenance_nodes']} nodos de procedencia borrados)"
+        f"{hechos['executed']} instrucciones ejecutadas; borrados de verdad: "
+        f"{hechos['deleted_nodes']} nodos, "
+        f"{hechos['deleted_relationships']} aristas, "
+        f"{hechos['deleted_marks']} marcas"
     )
-    if hechos["clean"]:
-        # Unico camino que puede decir «limpia», y solo bajo el booleano.
-        return f"{base}. No queda nada de esa operacion en el grafo."
-    return (
-        f"{base}. NO es una reversion limpia: {hechos['residues']} residuos y "
-        f"{hechos['unrecoverable']} puntos no revertidos (ver 'unrecoverable')."
-    )
+    if not hechos["deleted_anything"]:
+        base += " (no se borro NADA: no quedaba nada que borrar)"
+
+    if not hechos["clean"]:
+        return (
+            f"{base}. NO es una reversion limpia: {hechos['residues']} residuos "
+            f"de ESTA operacion (creados por ella, no compartidos y todavia "
+            f"presentes) y {hechos['unrecoverable']} puntos no revertidos "
+            "(ver 'residues' y 'unrecoverable')."
+        )
+
+    # Unico camino que puede decir «limpia», y solo bajo el booleano `clean`.
+    # LA FRASE NO AFIRMA MAS DE LO QUE `clean` SOSTIENE. En particular ya no
+    # dice «no queda nada de esa operacion en el grafo»: eso seria falso
+    # cuando algo de esta operacion se conserva por estar COMPARTIDO, que es
+    # legitimo y esta medido en `retained`. Lo que `clean` sostiene, y lo
+    # unico que se dice, es que no queda RESIDUO.
+    detalle = "No queda ningun residuo de esta operacion en el grafo."
+    if hechos["retained"]:
+        detalle += (
+            f" {hechos['retained']} elementos suyos se CONSERVAN a proposito "
+            "porque siguen sostenidos por estado vivo (ver 'retained')."
+        )
+    if hechos["observations"]:
+        detalle += (
+            f" Aparte, {hechos['observations']} observaciones sobre elementos "
+            "que esta operacion NO creo: no afectan a este desenlace "
+            "(ver 'observations')."
+        )
+    return f"{base}. {detalle}"
 
 
 def build_parser() -> argparse.ArgumentParser:

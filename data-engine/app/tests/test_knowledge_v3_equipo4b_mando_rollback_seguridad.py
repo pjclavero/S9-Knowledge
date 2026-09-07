@@ -135,9 +135,16 @@ def test_el_desenlace_humano_no_puede_contradecir_al_informe():
     assert not sucio.clean
 
     limpio = RollbackReport()
-    assert cli_rollback.describe(cli_rollback.OUTCOME_ROLLED_BACK, limpio).endswith(
-        "No queda nada de esa operacion en el grafo."
+    texto_limpio = cli_rollback.describe(cli_rollback.OUTCOME_ROLLED_BACK, limpio)
+    # EQUIPO 6B: la frase ya no dice «no queda NADA de esa operacion». Eso
+    # seria falso cuando algo suyo se conserva por estar COMPARTIDO, que es
+    # legitimo (`retained`). Lo unico que `clean` sostiene --y lo unico que se
+    # afirma-- es que no queda RESIDUO.
+    assert texto_limpio.endswith(
+        "No queda ningun residuo de esta operacion en el grafo."
     )
+    assert "NO es una reversion limpia" not in texto_limpio
+    assert limpio.clean
 
 
 def test_documento_ilegible_o_incompleto_no_ejecuta_nada(tmp_path, capsys):
