@@ -208,14 +208,23 @@ def main():
         f_lore = fuente(tmp, "lore.md",
                         "# Lore de la cofradia\n\n"
                         "Sela Marrec es miembro de la Cofradia de Ambar.\n")
+        # MEDIDO, y por eso las frases son estas: el extractor determinista no
+        # tiene reconocedor de entidades propio. Con "Sela Marrec lidera la
+        # Cofradia de Ambar" el SUJETO enlaza con la entidad compartida
+        # (`LINK_EXISTING`) pero el OBJETO sale `CREATE_PROVISIONAL`, el claim
+        # se va a `REVIEW` con `no_promovible_por: ["object_entity_id"]` y la
+        # corrida no aplica nada. No es cosa de estos tres carriles --y NO se
+        # arregla aqui--: se usa el patron que si resuelve, que es el mismo que
+        # 6C dejo probado.
         f_a = fuente(tmp, "A-s3.md",
                      "# Partida A, sesion 3\n\n"
-                     "Sela Marrec lidera la Cofradia de Ambar.\n")
+                     "Sela Marrec es miembro de la Cofradia de Ambar.\n")
         f_b = fuente(tmp, "B-s7.md",
                      "# Partida B, sesion 7\n\n"
-                     "Sela Marrec traiciona a la Cofradia de Ambar.\n")
+                     "Sela Marrec es miembro del Consejo de Umbra.\n")
 
-        TIPOS = {"entity:sela-marrec": "Character", "entity:cofradia-ambar": "Faction"}
+        TIPOS = {"entity:sela-marrec": "Character", "entity:cofradia-ambar": "Faction",
+                 "entity:consejo-umbra": "Faction"}
 
         print("\n== CAPA JUEGO (lore): entidades COMPARTIDAS ==")
         rc_l, inf_l = corrida(op, f_lore, tmp / "lore", operador=OP_LORE, tipos_alta=TIPOS)
@@ -242,9 +251,15 @@ def main():
         ids_ent = [e["id"] for e in c_b["entidades"]]
         check("(workspace, entity_id) sigue siendo UNICO tras las dos partidas",
               len(ids_ent) == len(set(ids_ent)), f"{sorted(set(ids_ent))}")
+        # REUTILIZAR = la compartida sigue siendo UNA, no aparece un gemelo de
+        # otro ambito. Que B traiga ademas entidad propia es lo esperado: lo
+        # que se afirma es que no DUPLICO la compartida.
         check("B REUTILIZO la Entity compartida (no la duplico)",
-              compartidas.issubset(set(ids_ent)) and len(set(ids_ent)) == len(compartidas),
+              compartidas.issubset(set(ids_ent)),
               f"entidades={sorted(set(ids_ent))} compartidas={sorted(compartidas)}")
+        dup = [e for e in c_b["entidades"] if e["id"] in compartidas and e["p"] is not None]
+        check("la Entity compartida NO tiene copia con ambito de partida",
+              not dup, f"copias={dup}")
 
         # ---- LA TABLA DE SEGUIMIENTO DE LOS SEIS VALORES -------------------
         print("\n== SEGUIMIENTO DE LOS SEIS VALORES: entrada -> Neo4j ==")
