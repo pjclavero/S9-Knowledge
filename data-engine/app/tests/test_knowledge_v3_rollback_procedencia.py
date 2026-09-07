@@ -316,7 +316,16 @@ def test_la_evidencia_huerfana_que_sobrevive_es_un_RESIDUO_declarado():
     })
     doc = _documento_con_purga()
     fuera = residues(runner, doc)
-    assert any("HUERFANA" in r["what"] for r in fuera)
+    # EQUIPO 6B: sigue siendo RESIDUO --el defecto que este caso cubre no se
+    # ha reabierto-- pero la frase ya no dice «HUERFANA». Ese adjetivo era
+    # justo el defecto D3: se aplicaba a cualquier procedencia sin asercion
+    # detras, incluida la alcanzable desde una `V3Source` viva de OTRO apply.
+    # Este documento no declara `apply_id`, asi que PX se aproxima por lo que
+    # el documento NOMBRA, y eso es lo que la frase dice ahora.
+    assert any("NOMBRADA por el documento" in r["what"] for r in fuera)
+    assert any(
+        r["detail"].get("fragment_id") == "fragment:compartido" for r in fuera
+    )
 
 
 def test_una_marca_de_idempotencia_superviviente_es_residuo():

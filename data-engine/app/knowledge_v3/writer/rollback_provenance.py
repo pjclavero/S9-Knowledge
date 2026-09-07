@@ -336,6 +336,115 @@ def orphan_provenance_query(
     )
 
 
+# --- CLASIFICACION DEL RESULTADO: PX / SHARED / RESIDUE --------------------
+#: Predicado de «este vecino NO es de X». `apply_id` ausente cuenta como AJENO
+#: a proposito: un nodo sin marca lo dejo un apply anterior a la propiedad, asi
+#: que no es de X, y tratarlo como propio seria reclamar lo que no se creo.
+#: La consecuencia se declara: sobre un grafo sin `apply_id` poblado, esta
+#: clasificacion no denuncia residuo -- y es correcta, porque sin marca de
+#: creacion NO hay conjunto PX que medir. Quien quiera ver esos nodos los tiene
+#: en `observations`, que sigue barriendo todo el ambito.
+def _ajeno(alias: str) -> str:
+    return f"({alias}.{APPLY_ID_FIELD} IS NULL OR {alias}.{APPLY_ID_FIELD} <> $apply_id)"
+
+
+def owned_residue_query(
+    workspace: str, apply_id: str, partida_id: Optional[str], label: str
+) -> RollbackQuery:
+    """RESIDUE del apply X para UNA etiqueta. La definicion del operador, literal.
+
+        PX       = elementos propiedad del apply X
+        SHARED   = elementos de PX que siguen sostenidos por estado VIVO
+        RESIDUE  = PX presentes que DEBERIAN haber desaparecido
+
+        rollback limpio  <=>  RESIDUE == vacio
+
+    POR QUE EXISTE (defecto D3, medido)
+    -----------------------------------
+    `orphan_provenance_query` barre el AMBITO entero y llama huerfano a todo lo
+    que no tenga una asercion viva detras. Medido: un rollback EXACTO --diff
+    vacio contra el estado previo, byte a byte-- salio `UNEXPECTED_RESIDUE`,
+    `clean: false`, `rc=1`, denunciando 6 evidencias de OTRA fuente con la
+    frase «procedencia HUERFANA ... nada vivo la sostiene». Era falso: las 7
+    eran alcanzables desde su `V3Source` por `HAS_EPISODE`/`HAS_FRAGMENT`. El
+    barrido denunciaba justo la procedencia que `docs/v3/58 §3` presume
+    conservar, de modo que en CUALQUIER grafo con una fuente navegable todo
+    rollback correcto salia `rc=1` y un runner no podia distinguirlo de uno
+    sucio.
+
+    La regla NO es «veo nodos de procedencia -> esta sucio». Una `V3Source` o
+    una `V3Evidence` compartida PUEDE y DEBE sobrevivir. Y al reves: algo
+    creado por X, no compartido y todavia presente es `INCOMPLETE`.
+
+    QUE CUENTA COMO SOSTENIDO POR ESTADO VIVO, POR ETIQUETA
+    -------------------------------------------------------
+    * `V3Evidence`  -- la sostiene cualquier `V3Assertion -[SUPPORTED_BY]->`
+      viva, o un `V3Episode` que X no creo (borrarla dejaria coja una fuente
+      ajena).
+    * `V3Episode`   -- lo sostiene un `V3Source` ajeno que lo cuelga, o una
+      `V3Evidence` ajena que cuelga de el.
+    * `V3Source`    -- la sostiene cualquier `V3Episode` ajeno que cuelgue de
+      ella.
+
+    Una fuente cuyos episodios son TODOS de X no esta sostenida por nada vivo:
+    si sigue presente despues del rollback, es RESIDUE, y eso es exactamente el
+    `INCOMPLETE` que se quiere poder ver.
+
+    UNA CONSULTA POR ETIQUETA, no tres patrones en una. Dos `MATCH` sueltos
+    darian producto cartesiano y, con cualquier conjunto vacio, CERO filas: un
+    verde que no mide nada. Los vecinos se cuentan con subpatrones `COUNT {}`
+    sobre la MISMA fila del nodo, que no multiplican.
+
+    Esto OBSERVA; no borra. La condicion de borrado sigue siendo la de siempre
+    y sigue viviendo DENTRO del `DELETE` (`_delete_if_unreferenced`): separar
+    censo y borrado seria TOCTOU. Aqui se clasifica el RESULTADO, no se decide
+    ningun borrado.
+    """
+    if label not in IDENTITY_FIELD:
+        raise RollbackNotReconstructible(
+            f"owned_residue_query: etiqueta {label!r} sin identidad durable"
+        )
+    field_name = IDENTITY_FIELD[label]
+    params: dict[str, Any] = {"ws": workspace}
+    scope = scope_clause("n", partida_id, params, contexto="owned_residue")
+    own = ownership_clause("n", apply_id, params, contexto="owned_residue")
+    if apply_id is None:
+        raise RollbackNotReconstructible(
+            "owned_residue_query: sin apply_id no hay conjunto PX que medir"
+        )
+
+    if label == LABEL_EVIDENCE:
+        sostenes = (
+            f"  COUNT {{ MATCH (:{LABEL_ASSERTION})-[:{REL_SUPPORTED_BY}]->(n) }} "
+            "AS vivas, "
+            f"  COUNT {{ MATCH (ep:{LABEL_EPISODE})-[:{REL_HAS_FRAGMENT}]->(n) "
+            f"           WHERE {_ajeno('ep')} }} AS ajenos"
+        )
+    elif label == LABEL_EPISODE:
+        sostenes = (
+            f"  COUNT {{ MATCH (src:{LABEL_SOURCE})-[:{REL_HAS_EPISODE}]->(n) "
+            f"           WHERE {_ajeno('src')} }} AS vivas, "
+            f"  COUNT {{ MATCH (n)-[:{REL_HAS_FRAGMENT}]->(ev:{LABEL_EVIDENCE}) "
+            f"           WHERE {_ajeno('ev')} }} AS ajenos"
+        )
+    else:  # LABEL_SOURCE
+        sostenes = (
+            f"  COUNT {{ MATCH (n)-[:{REL_HAS_EPISODE}]->(ep:{LABEL_EPISODE}) "
+            f"           WHERE {_ajeno('ep')} }} AS vivas, "
+            "  0 AS ajenos"
+        )
+
+    return RollbackQuery(
+        f"MATCH (n:{label} {{workspace: $ws}}) "
+        f"WHERE {scope} AND {own} "
+        f"WITH n, {sostenes} "
+        "WHERE vivas = 0 AND ajenos = 0 "
+        f"RETURN '{label}' AS clase, n.{field_name} AS id, "
+        f"n.{APPLY_ID_FIELD} AS apply_id",
+        params,
+    )
+
+
 def forget_applied_query(workspace: str, idempotency_key: str) -> RollbackQuery:
     """Retira la marca autoritativa de idempotencia de UNA operacion."""
     return RollbackQuery(
@@ -408,7 +517,8 @@ def dangling_applied_marks_query(
         "  COUNT { MATCH ()-[r {workspace: op.workspace, "
         "           idempotency_key: op.idempotency_key}]->() } AS aristas "
         "WHERE nodos = 0 AND aristas = 0 "
-        "RETURN op.idempotency_key AS idempotency_key",
+        "RETURN op.idempotency_key AS idempotency_key, "
+        "op.plan_hash AS plan_hash",
         params,
     )
 
@@ -641,6 +751,16 @@ class RollbackReport:
     purges: list[dict[str, Any]] = field(default_factory=list)
     residues: list[dict[str, Any]] = field(default_factory=list)
     unrecoverable: list[str] = field(default_factory=list)
+    #: Rarezas del AMBITO que este apply NO creo. Se publican para que el
+    #: operador las vea y NO entran en `clean`: el desenlace de esta reversion
+    #: no puede depender de lo que otro apply dejo. Ver `observations`.
+    observations: list[dict[str, Any]] = field(default_factory=list)
+    #: SHARED: elementos de PX que siguen sostenidos por estado VIVO y por eso
+    #: NO se borraron. Se declaran --el operador tiene que poder verlos-- y NO
+    #: entran en `clean`, porque la definicion es explicita: una `V3Source` o
+    #: una `V3Evidence` compartida PUEDE y DEBE sobrevivir. RESIDUE es lo que
+    #: deberia haber desaparecido; esto es justo lo contrario.
+    retained: list[str] = field(default_factory=list)
 
     @property
     def clean(self) -> bool:
@@ -656,6 +776,16 @@ class RollbackReport:
         Ahora hay una. La frase humana, el `code`, el `ok` y el `rc` cuelgan
         todos de esta propiedad, asi que no existe forma de imprimir
         «revertido» sobre un informe que no lo esta.
+
+        LO QUE `clean` NO MIRA, Y POR QUE (arreglo del defecto D3)
+        ---------------------------------------------------------
+        * `observations` -- rarezas del ambito que este apply NO creo. El
+          desenlace de ESTA reversion no puede depender de lo que otro dejo.
+        * `retained`     -- SHARED: elementos de PX sostenidos por estado vivo,
+          que por definicion del operador PUEDEN y DEBEN sobrevivir.
+
+        `unrecoverable` SI cuenta, porque ahi queda lo que no se pudo revertir
+        de verdad: instrucciones no reconstruibles y la prosa de los residuos.
         """
         return not self.residues and not self.unrecoverable
 
@@ -665,6 +795,8 @@ class RollbackReport:
             "purges": [dict(p) for p in self.purges],
             "residues": [dict(r) for r in self.residues],
             "unrecoverable": list(self.unrecoverable),
+            "observations": [dict(o) for o in self.observations],
+            "retained": list(self.retained),
             "clean": self.clean,
         }
 
@@ -685,7 +817,10 @@ def execute_rollback(
                 {"operation_id": instruction.operation_id, **purga.to_dict()}
             )
             for fid, referrers in sorted(purga.retained_evidence.items()):
-                report.unrecoverable.append(
+                # SHARED, no RESIDUE. Va a `retained`, que se publica y NO
+                # ensucia el desenlace: conservar lo que sigue sostenido por
+                # estado vivo es el comportamiento CORRECTO, no una carencia.
+                report.retained.append(
                     f"{codes.ROLLBACK_RETAINED_SHARED} {instruction.operation_id}: "
                     f"la evidencia {fid} NO se borro porque la sostienen "
                     f"aserciones vivas {referrers}"
@@ -706,110 +841,207 @@ def execute_rollback(
         )
 
     report.residues = residues(runner, doc)
+    # Canal SEPARADO, a proposito: lo que otro apply dejo se VE pero no decide
+    # si esta reversion fue limpia. Mezclarlos era el defecto D3.
+    report.observations = observations(runner, doc)
     for residuo in report.residues:
         report.unrecoverable.append(
             f"{codes.ROLLBACK_RESIDUE} {residuo['operation_id']}: "
             f"{residuo['what']} ({residuo['detail']})"
         )
     if annotate:
-        for linea in report.unrecoverable:
+        # El documento que un operador RELEE debe decir la verdad de todo lo
+        # que no se borro, tambien de lo conservado por compartido. Que no
+        # ensucie el desenlace no significa que se calle.
+        for linea in list(report.unrecoverable) + list(report.retained):
             if linea not in doc.unrecoverable:
                 doc.unrecoverable.append(linea)
     return report
 
 
+def _ambitos_de(doc: RollbackDocument) -> dict[tuple[str, Any], Optional[str]]:
+    """Los ambitos que este documento revirtio, y el `apply_id` de cada uno.
+
+    El ambito NO se inventa: sale del documento y de sus instrucciones, igual
+    que el `workspace`. Un documento sin ninguna instruccion con ambito
+    revirtio la capa juego, que es `None` -- ausencia de campo y `None` no son
+    lo mismo, y aqui se distingue.
+
+    `apply_id` es lo que hace medible el conjunto PX. Viene del detalle de las
+    instrucciones (`add_provenance_sweep` con `scope: "apply"` lo estampa). Si
+    ninguna lo declara, el valor es `None` y quien pregunte sabe que sobre ese
+    ambito NO hay propiedad que medir -- no se adivina una.
+    """
+    fuera: dict[tuple[str, Any], Optional[str]] = {}
+    for i in doc.instructions:
+        ws = i.detail.get("workspace") or doc.workspace
+        if not ws:
+            continue
+        clave = (ws, i.detail.get("partida_id"))
+        declarado = i.detail.get(APPLY_ID_FIELD)
+        if clave not in fuera or (fuera[clave] is None and declarado):
+            fuera[clave] = declarado or fuera.get(clave)
+    if not fuera and doc.workspace:
+        fuera[(doc.workspace, None)] = None
+    return fuera
+
+
 def residues(runner: Any, doc: RollbackDocument) -> list[dict[str, Any]]:
-    """Lo que queda de ESA operacion despues de haberla deshecho.
+    """RESIDUE: lo de X que DEBERIA haber desaparecido y sigue presente.
 
-    Dos familias, medidas por separado:
+    LA DEFINICION, TAL CUAL LA DA EL OPERADOR
+    -----------------------------------------
+        PX       = elementos propiedad del apply X
+        SHARED   = elementos de PX que siguen sostenidos por estado vivo
+        RESIDUE  = elementos de PX que DEBERIAN haber desaparecido
+                   y siguen presentes
 
-    * cualquier nodo, arista o marca que aun lleve una `idempotency_key` del
-      documento;
-    * evidencia que la purga nombraba, sigue en el grafo y NO tiene ninguna
-      asercion viva detras: procedencia huerfana, que es exactamente el defecto
-      que este bloque cierra.
+        rollback limpio  <=>  RESIDUE == vacio
+
+    Lo que esta funcion ya NO hace, y es el arreglo (defecto D3, medido): NO
+    llama residuo a toda procedencia del ambito que no tenga una asercion
+    detras. Un rollback EXACTO --diff vacio contra el estado previo-- salia
+    `UNEXPECTED_RESIDUE` / `clean: false` / `rc=1` denunciando 6 evidencias de
+    OTRA fuente con la frase «procedencia HUERFANA ... nada vivo la sostiene»,
+    siendo que las 7 eran alcanzables desde su `V3Source` por
+    `HAS_EPISODE`/`HAS_FRAGMENT`. Consecuencia: en cualquier grafo con una
+    fuente navegable TODO rollback correcto salia `rc=1`, y un runner no podia
+    distinguirlo de uno sucio.
+
+    Ese barrido de ambito NO desaparece: sigue corriendo, con el MISMO alcance,
+    en `observations`. Cambia de canal, no de recall. Lo que deja de hacer es
+    decidir si el desenlace es limpio.
+
+    TRES FAMILIAS, MEDIDAS POR SEPARADO, UNA CONSULTA POR COSA CONTADA
+    ------------------------------------------------------------------
+    1. Cualquier nodo, arista o MARCA que aun lleve una `idempotency_key` del
+       documento. Es de X por construccion: la clave la puso este apply.
+    2. Procedencia de PX presente y no compartida (`owned_residue_query`),
+       cuando el documento declara `apply_id`. Sin `apply_id` no hay PX que
+       medir por propiedad y se cae al radio que el documento NOMBRA, que es
+       la mejor aproximacion observable de PX y sigue siendo de X.
+    3. Marcas `V3AppliedOperation` COLGANTES de ESTE apply. Se distinguen por
+       `plan_hash`, que es lo que la marca guarda y lo que el documento trae.
+       Cierra el caso medido de `residues: []` con una marca viva que el
+       documento no nombraba: era de X, luego era residuo. Las colgantes de
+       OTROS applies siguen viendose, en `observations`.
     """
     fuera: list[dict[str, Any]] = []
     vistas: set[tuple[str, str]] = set()
-    ambitos: set[tuple[str, Any]] = set()
+
+    # --- Familia 1: lo que aun lleva una clave de este documento -----------
     for instruction in doc.instructions:
-        detalle = dict(instruction.detail)
-        if instruction.action == ACTION_PURGE_PROVENANCE:
-            ambitos.add(
-                (detalle.get("workspace") or doc.workspace, detalle.get("partida_id"))
-            )
         detail = dict(instruction.detail)
         ws = detail.get("workspace") or doc.workspace
         key = detail.get("idempotency_key")
-        if key and (ws, key) not in vistas:
-            vistas.add((ws, key))
-            for fila in _rows(runner, key_evidence_query(ws, key)):
-                if int(fila.get("cuantos") or 0) > 0:
-                    fuera.append(
-                        {
-                            "operation_id": instruction.operation_id,
-                            "what": f"queda {fila['clase']} con la idempotency_key",
-                            "detail": {
-                                "idempotency_key": key,
-                                "cuantos": fila["cuantos"],
-                            },
-                        }
-                    )
-        if instruction.action != ACTION_PURGE_PROVENANCE:
+        if not key or (ws, key) in vistas:
             continue
-        fragments = [f for f in (detail.get("fragment_ids") or []) if f]
-        if not fragments:
-            continue
-        for fila in _rows(
-            runner, live_references_query(ws, fragments, detail.get("partida_id"))
-        ):
-            if int(fila.get("vivas") or 0) == 0:
+        vistas.add((ws, key))
+        for fila in _rows(runner, key_evidence_query(ws, key)):
+            if int(fila.get("cuantos") or 0) > 0:
                 fuera.append(
                     {
                         "operation_id": instruction.operation_id,
-                        "what": "evidencia HUERFANA: sigue en el grafo y ninguna "
-                        "asercion viva la sostiene",
-                        "detail": {"fragment_id": fila["fragment_id"]},
+                        "what": f"queda {fila['clase']} con la idempotency_key",
+                        "detail": {
+                            "idempotency_key": key,
+                            "cuantos": fila["cuantos"],
+                        },
                     }
                 )
 
-    # Barrido de MARCAS COLGANTES: lo que el documento no nombra, otra vez.
-    # Una `V3AppliedOperation` sin ni un nodo ni una arista viva con su clave
-    # afirma un conocimiento que ya no existe, atasca la reescritura de la
-    # relacion y no aparecia en ningun censo.
-    #
-    # INTEGRACION tanda 5: el ambito ya NO es solo el `workspace`. 5B lo dejo
-    # acotado asi por una carencia real --`V3AppliedOperation` no llevaba
-    # `partida_id`-- que 5A cierra aguas arriba, de modo que al integrar se
-    # acota por (workspace, partida). El ambito NO se inventa: sale del
-    # documento y de sus instrucciones, igual que el `workspace`. Un documento
-    # que no declara partida barre la capa juego (`partida_id IS NULL`), que es
-    # exactamente lo que ese documento revertio.
-    # `RollbackDocument` no lleva `partida_id` en la raiz --se comprobo sobre
-    # la dataclass, no se presumio--, asi que el ambito se deriva de las
-    # INSTRUCCIONES, que son las que lo declaran. Un documento sin ninguna
-    # instruccion con ambito revirtio capa juego, y capa juego es `None`.
-    marca_ambitos: set[tuple[str, Any]] = set()
-    for i in doc.instructions:
-        ws_i = i.detail.get("workspace") or doc.workspace
-        if ws_i:
-            marca_ambitos.add((ws_i, i.detail.get("partida_id")))
-    if not marca_ambitos and doc.workspace:
-        marca_ambitos.add((doc.workspace, None))
-    for ws, partida in sorted(
-        ((w, p) for w, p in marca_ambitos if w), key=lambda x: (x[0], str(x[1]))
+    ambitos = _ambitos_de(doc)
+
+    # --- Familia 2: PX de procedencia presente y NO compartido -------------
+    ya_dicho: set[tuple[str, str]] = set()
+    for (ws, partida), apply_id in sorted(
+        ambitos.items(), key=lambda kv: (kv[0][0], str(kv[0][1]))
+    ):
+        if apply_id:
+            for label in (LABEL_EVIDENCE, LABEL_EPISODE, LABEL_SOURCE):
+                try:
+                    consulta = owned_residue_query(ws, apply_id, partida, label)
+                except RollbackNotReconstructible:
+                    continue  # ambito o propiedad malformados: ya se denuncio
+                for fila in _rows(runner, consulta):
+                    if not fila.get("id"):
+                        continue
+                    detalle = {
+                        "clase": fila["clase"],
+                        "id": fila["id"],
+                        "workspace": ws,
+                        APPLY_ID_FIELD: apply_id,
+                    }
+                    que = (
+                        f"RESIDUO de este apply ({fila['clase']}): lo creo esta "
+                        "operacion, sigue en el grafo y NINGUN estado vivo "
+                        "ajeno lo sostiene"
+                    )
+                    firma = (que, json.dumps(detalle, sort_keys=True, default=str))
+                    if firma in ya_dicho:
+                        continue
+                    ya_dicho.add(firma)
+                    fuera.append(
+                        {
+                            "operation_id": SWEEP_OPERATION_ID,
+                            "what": que,
+                            "detail": detalle,
+                        }
+                    )
+            continue
+        # Sin `apply_id`: PX se aproxima por lo que el documento NOMBRA. Se
+        # denuncia la evidencia nombrada que sigue viva sin ninguna asercion
+        # detras. Es el radio antiguo, restringido a lo nombrado: nunca alcanza
+        # procedencia de otro apply que el documento no cite.
+        for instruction in doc.instructions:
+            if instruction.action != ACTION_PURGE_PROVENANCE:
+                continue
+            detail = dict(instruction.detail)
+            if (detail.get("workspace") or doc.workspace) != ws:
+                continue
+            if detail.get("partida_id") != partida:
+                continue
+            fragments = [f for f in (detail.get("fragment_ids") or []) if f]
+            if not fragments:
+                continue
+            for fila in _rows(
+                runner, live_references_query(ws, fragments, partida)
+            ):
+                if int(fila.get("vivas") or 0) == 0:
+                    fuera.append(
+                        {
+                            "operation_id": instruction.operation_id,
+                            "what": "evidencia NOMBRADA por el documento que "
+                            "sigue en el grafo y ninguna asercion viva la "
+                            "sostiene",
+                            "detail": {"fragment_id": fila["fragment_id"]},
+                        }
+                    )
+
+    # --- Familia 3: marcas colgantes de ESTE apply -------------------------
+    for (ws, partida), _apply_id in sorted(
+        ambitos.items(), key=lambda kv: (kv[0][0], str(kv[0][1]))
     ):
         try:
             consulta_marcas = dangling_applied_marks_query(ws, partida)
         except RollbackNotReconstructible:
-            continue  # ambito malformado: ya se denuncio al intentar ejecutarlo
+            continue
         for fila in _rows(runner, consulta_marcas):
             clave = fila.get("idempotency_key")
             if not clave:
                 continue
-            detalle_marca = {"idempotency_key": clave, "workspace": ws}
+            # Propiedad de la marca: `V3AppliedOperation` no lleva `apply_id`,
+            # pero SI `plan_hash`, que es la mitad de la identidad del apply y
+            # lo que el documento trae. Se compara eso, no se presume.
+            if not doc.plan_hash or fila.get("plan_hash") != doc.plan_hash:
+                continue
+            detalle_marca = {
+                "idempotency_key": clave,
+                "workspace": ws,
+                "plan_hash": doc.plan_hash,
+            }
             firma_marca = (
-                "marca V3AppliedOperation COLGANTE: afirma una "
+                "marca V3AppliedOperation COLGANTE de este apply: afirma una "
                 "operacion aplicada de la que no queda nada en el grafo"
             )
             if any(
@@ -824,35 +1056,51 @@ def residues(runner: Any, doc: RollbackDocument) -> list[dict[str, Any]]:
                     "detail": detalle_marca,
                 }
             )
+    return fuera
 
-    # Barrido por AMBITO: lo que el documento NO nombra. Sin esto, un documento
-    # incompleto producia un desenlace limpio sobre un grafo con procedencia
-    # huerfana dentro -- medido.
-    ya_dicho = {
-        (r["what"], json.dumps(r["detail"], sort_keys=True, default=str))
-        for r in fuera
-    }
-    for ws, partida in sorted(ambitos, key=lambda x: (x[0], str(x[1]))):
+
+def observations(runner: Any, doc: RollbackDocument) -> list[dict[str, Any]]:
+    """Cosas RARAS del ambito que este rollback no creo. NO deciden el desenlace.
+
+    Es el barrido global de siempre --`orphan_provenance_query` y las marcas
+    colgantes--, con el MISMO alcance: sigue viendo lo que el documento no
+    nombra, que es la propiedad por la que existe. Lo unico que cambia es que
+    ya no etiqueta como RESIDUO cualquier procedencia alcanzable, porque eso
+    hacia que todo rollback correcto sobre un grafo con una fuente navegable
+    saliese `rc=1` (defecto D3).
+
+    Un dato aqui NO afecta a `clean` ni al `rc`: es de OTRO apply, y el
+    desenlace de ESTA reversion no puede depender de lo que otro dejo. Se
+    publica igualmente para que el operador lo vea y pueda actuar.
+    """
+    fuera: list[dict[str, Any]] = []
+    ya_dicho: set[tuple[str, str]] = set()
+    ambitos = _ambitos_de(doc)
+    for (ws, partida), apply_id in sorted(
+        ambitos.items(), key=lambda kv: (kv[0][0], str(kv[0][1]))
+    ):
         try:
             consulta = orphan_provenance_query(ws, partida)
         except RollbackNotReconstructible:
-            continue  # ambito malformado: ya se denuncio al intentar ejecutarlo
+            continue
         for fila in _rows(runner, consulta):
             if not fila.get("id"):
                 continue
-            que = (
-                f"procedencia HUERFANA en el grafo ({fila['clase']}): nada vivo "
-                "la sostiene y el documento no la nombraba"
-            )
-            # ATRIBUCION (tanda 5): de quien es lo huerfano. `None` es
-            # informacion, no ausencia de dato: dice que el nodo no lleva
-            # `apply_id`, o sea que lo dejo un apply anterior a la propiedad.
+            # Lo de X no es una observacion ajena: es residuo, y lo denuncia
+            # `residues`. Aqui se publica lo que NO es de este apply.
+            if apply_id and fila.get("apply_id") == apply_id:
+                continue
             detalle = {
                 "clase": fila["clase"],
                 "id": fila["id"],
                 "workspace": ws,
                 "apply_id": fila.get("apply_id"),
             }
+            que = (
+                f"procedencia sin asercion viva detras ({fila['clase']}) que "
+                "este apply NO creo: puede ser legitima (una fuente navegable "
+                "lo es) o resto de otra operacion"
+            )
             firma = (que, json.dumps(detalle, sort_keys=True, default=str))
             if firma in ya_dicho:
                 continue
@@ -860,7 +1108,41 @@ def residues(runner: Any, doc: RollbackDocument) -> list[dict[str, Any]]:
             fuera.append(
                 {"operation_id": SWEEP_OPERATION_ID, "what": que, "detail": detalle}
             )
+        try:
+            consulta_marcas = dangling_applied_marks_query(ws, partida)
+        except RollbackNotReconstructible:
+            continue
+        for fila in _rows(runner, consulta_marcas):
+            clave = fila.get("idempotency_key")
+            if not clave:
+                continue
+            if doc.plan_hash and fila.get("plan_hash") == doc.plan_hash:
+                continue  # es de X: lo dice `residues`
+            detalle_marca = {
+                "idempotency_key": clave,
+                "workspace": ws,
+                "plan_hash": fila.get("plan_hash"),
+            }
+            que_marca = (
+                "marca V3AppliedOperation COLGANTE de OTRO apply: afirma una "
+                "operacion aplicada de la que no queda nada en el grafo"
+            )
+            firma = (
+                que_marca,
+                json.dumps(detalle_marca, sort_keys=True, default=str),
+            )
+            if firma in ya_dicho:
+                continue
+            ya_dicho.add(firma)
+            fuera.append(
+                {
+                    "operation_id": SWEEP_OPERATION_ID,
+                    "what": que_marca,
+                    "detail": detalle_marca,
+                }
+            )
     return fuera
+
 
 
 __all__ = [
@@ -877,7 +1159,9 @@ __all__ = [
     "forget_applied_query",
     "key_evidence_query",
     "live_references_query",
+    "observations",
     "orphan_provenance_query",
+    "owned_residue_query",
     "ownership_clause",
     "owned_by_apply_query",
     "residues",
