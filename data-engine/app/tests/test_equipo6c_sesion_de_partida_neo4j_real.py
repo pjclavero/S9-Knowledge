@@ -50,6 +50,7 @@ import json
 import os
 import pathlib
 import sys
+from datetime import datetime, timezone
 
 import pytest
 
@@ -78,7 +79,12 @@ EJEMPLOS = RAIZ / "examples" / "ingesta-v3"
 PERFIL = EJEMPLOS / "perfil-operador.json"
 CATALOGO = EJEMPLOS / "catalogo-workspace.json"
 WS = "ws-cofradia"
-AHORA = "2026-09-07T12:00:00Z"
+#: INTEGRACION TANDA 6. 6C neutralizo la bomba de reloj en SU fichero
+#: adelantando la fecha a `2026-09-07T12:00:00Z`. Eso la desarmaba para el dia
+#: de la entrega y la volvia a armar para el 2026-09-08T12:00Z: adelantar la
+#: fecha REPROGRAMA la bomba, no la desactiva. Se deriva del reloj, igual que
+#: en los otros dos ficheros que la llevaban.
+AHORA = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 PARTIDA_A = "partida:A"
 PARTIDA_B = "partida:B"

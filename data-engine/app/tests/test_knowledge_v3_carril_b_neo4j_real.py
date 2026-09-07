@@ -16,6 +16,7 @@ import os
 import pathlib
 import stat
 import sys
+from datetime import datetime, timezone
 
 import pytest
 
@@ -42,7 +43,13 @@ FUENTE = EJEMPLOS / "nota-cofradia-de-ambar.md"
 PERFIL = EJEMPLOS / "perfil-operador.json"
 CATALOGO = EJEMPLOS / "catalogo-workspace.json"
 WS = "ws-cofradia"
-AHORA = "2026-09-06T10:00:00Z"
+#: INTEGRACION TANDA 6 -- BOMBA DE RELOJ DESACTIVADA DE RAIZ. Ver la nota
+#: extensa en `test_knowledge_v3_tanda3_integracion_neo4j_real.py`: este
+#: fichero llevaba la MISMA fecha fija (`2026-09-06T10:00:00Z`) con el mismo
+#: `plan_ttl_seconds = 86400`, y caducaba el mismo instante con `PLAN_EXPIRED`.
+#: Se deriva del reloj por el mismo motivo: adelantar la fecha reprograma la
+#: bomba, derivarla la desactiva.
+AHORA = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 @pytest.fixture(scope="module")

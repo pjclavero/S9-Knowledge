@@ -35,6 +35,7 @@ from __future__ import annotations
 import ast
 import os
 import pathlib
+from datetime import datetime, timezone
 
 import pytest
 
@@ -92,7 +93,23 @@ FUENTE = EJEMPLOS / "nota-cofradia-de-ambar.md"
 PERFIL = EJEMPLOS / "perfil-operador.json"
 CATALOGO = EJEMPLOS / "catalogo-workspace.json"
 WS_B = "ws-cofradia"
-AHORA = "2026-09-06T10:00:00Z"
+#: INTEGRACION TANDA 6 -- BOMBA DE RELOJ DESACTIVADA DE RAIZ.
+#:
+#: Aqui habia `"2026-09-06T10:00:00Z"` FIJO. Con `plan_ttl_seconds = 86400`
+#: (`engine/config.py:109`) el plan que este fichero construye caducaba el
+#: 2026-09-07T10:00:00Z: a partir de ese instante TODA ejecucion salia roja con
+#: `PLAN_EXPIRED` --y el producto la rechazaba CORRECTAMENTE, porque un plan
+#: caducado no se debe aplicar--. El rojo era del dato de la prueba, no del
+#: producto ni del entorno; se atribuyo al entorno cinco veces.
+#:
+#: La cura no es mover la fecha hacia adelante: eso solo reprograma la bomba
+#: (mover a `2026-09-07T12:00Z` la habria vuelto a armar para el 2026-09-08).
+#: Se deriva del RELOJ, que es lo unico que no caduca. Sigue siendo una
+#: constante de modulo --se evalua UNA vez por proceso--, asi que el plan que
+#: produce esta corrida conserva su determinismo interno: `plan_hash` y
+#: `apply_id` son estables DENTRO de la corrida, que es lo unico que este
+#: fichero afirma (no compara identidades entre procesos).
+AHORA = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 @pytest.fixture(scope="module")
