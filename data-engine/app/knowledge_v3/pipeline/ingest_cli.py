@@ -246,6 +246,7 @@ def run_ingest(
     source_kind: Optional[str] = None,
     driver: Any = None,
     partida_id: Optional[str] = None,
+    known_from_session: Optional[int] = None,
     approved_altas: Sequence[dict] = (),
     promotions: Sequence[Any] = (),
     apply: bool = False,
@@ -258,6 +259,27 @@ def run_ingest(
     Leer no es escribir: con `apply=False` el driver solo se usa para la
     consulta de solo lectura del catalogo, y el writer sigue simulando.
     """
+    # EQUIPO 6C. FAIL CLOSED lo antes posible: si el ambito es de partida y no
+    # hay sesion de revelacion declarada, no se abre conexion, no se extrae y
+    # no se planifica. El motor volveria a rechazarlo mas abajo
+    # (`PlanContext.__post_init__`), pero para entonces ya se habria gastado
+    # una corrida entera —y, con `--apply`, credenciales— en un plan que el
+    # writer no podia admitir. Nunca se degrada a capa juego.
+    if partida_id is not None and known_from_session is None:
+        raise PipelineError(
+            "scope",
+            "PLAN_SESION_NO_DECLARADA: --partida exige --sesion N (la sesion "
+            "de REVELACION del contenido; 0 = conocido desde el inicio). Sin "
+            "ella el writer aborta con EXEC_REVELACION_NO_DECLARADA, y "
+            "asumirla seria conceder una revelacion que nadie declaro."
+        )
+    if partida_id is None and known_from_session is not None:
+        raise PipelineError(
+            "scope",
+            "PLAN_SESION_SIN_AMBITO: --sesion solo tiene sentido con "
+            "--partida. La capa juego no esta sujeta a progresion de sesion y "
+            "el valor se descartaria en silencio."
+        )
     profile = load_profile(profile_path, workspace=workspace)
     ws = profile.workspace
     moment = now or _utc_now()
@@ -311,6 +333,10 @@ def run_ingest(
         # documento de rollback, pero NUNCA entraba en la corrida, asi que el
         # plan salia sin ambito. Ese era el tramo que faltaba de la carretera.
         partida_id=partida_id,
+        # EQUIPO 6C. Y con el ambito viaja su sesion de revelacion. Iban por
+        # rutas distintas hasta aqui y por eso el plan de partida salia sin
+        # ella: el ambito entraba en la corrida y la sesion no existia.
+        known_from_session=known_from_session,
         # Las altas aprobadas NO entran aqui. Ni en el catalogo ni en el
         # glosario. MEDIDO: al meterlas, la cascada del resolutor cambiaba de
         # rama y los `entity_id` derivados pasaban de `entity:prov:...` a
@@ -618,6 +644,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--workspace", default=None, help="debe coincidir con el perfil")
     parser.add_argument("--partida", default=None, dest="partida_id",
                         help="ambito de partida; sin el, capa juego (lore)")
+    # EQUIPO 6C. La sesion de REVELACION (T2) la declara quien ingiere, igual
+    # que el ambito: es un dato del mundo (en que sesion se juega/se revela lo
+    # que hay en la fuente) que ningun punto del software puede deducir del
+    # fichero. Obligatoria con `--partida`.
+    parser.add_argument("--sesion", default=None, dest="known_from_session",
+                        type=int, metavar="N",
+                        help="sesion de REVELACION del contenido (T2): desde "
+                             "que sesion puede revelarse. Obligatoria con "
+                             "--partida; 0 = conocido desde el inicio")
     parser.add_argument("--collection", default=None)
     parser.add_argument("--source-kind", default=None, help="fuerza el adaptador")
     parser.add_argument("--ahora", default=None, help="instante inyectado (ISO-8601 Z)")
@@ -969,6 +1004,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             source_kind=args.source_kind,
             driver=driver,
             partida_id=args.partida_id,
+            known_from_session=args.known_from_session,
             approved_altas=aprobadas,
             promotions=promociones,
             apply=bool(args.apply),

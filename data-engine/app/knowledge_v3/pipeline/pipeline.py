@@ -457,6 +457,7 @@ class KnowledgePipeline:
             now=self.config.now,
             partida_id=self.config.partida_id,
             promotions=self.config.promotions,
+            known_from_session=self.config.known_from_session,
         )
         run.engine_result = result
         for entrada in result.promotion_report:

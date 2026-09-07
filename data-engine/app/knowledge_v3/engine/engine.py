@@ -154,6 +154,7 @@ class LocalKnowledgeEngine:
         signals: Sequence[ExternalSignal] = (),
         partida_id: Optional[str] = None,
         promotions: Sequence[Any] = (),
+        known_from_session: Optional[int] = None,
     ) -> EngineResult:
         """Decide sobre el lote y construye los planes. No escribe nada."""
         workspace, asset_id, source_hash = self._check_inputs(
@@ -219,6 +220,11 @@ class LocalKnowledgeEngine:
             # y adivinarlo seria exactamente la clase de valor por defecto que
             # hacia que dos partidas acabasen en el mismo nodo.
             partida_id=partida_id,
+            # EQUIPO 6C. La sesion de revelacion se PASA igual que el ambito y
+            # por el mismo motivo: el motor no puede saber en que sesion se
+            # jugo lo que hay en la fuente. `PlanContext.__post_init__` falla
+            # cerrado si hay partida y no hay sesion.
+            known_from_session=known_from_session,
             engine_version=self.version,
         )
         proposal_steps = {c.claim_id: c.producing_provider() for c in claims}

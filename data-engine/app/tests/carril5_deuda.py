@@ -153,9 +153,24 @@ INVENTARIO_BASE_ESTRICTO_IN_STR = 50
 #: convertir-- porque una promocion es una firma humana que autoriza una
 #: escritura: un rechazo que no distingue POR QUE rechaza dejaria pasar un
 #: documento ajeno como si fuera un fallo de forma. `in_str` no se mueve.
-INVENTARIO_ACTUAL_ESTRICTO = 131
+#: EQUIPO 6C: +3 en `in_str` (52 -> 55). Son las tres guardas de la sesion de
+#: revelacion --`PLAN_SESION_NO_DECLARADA`, `PLAN_SESION_SIN_AMBITO` y
+#: `PLAN_SESION_INVALIDA`--, que se comprueban por subcadena porque el codigo
+#: viaja DENTRO del mensaje del error del motor y de la CLI, que no tienen
+#: registro de codigos propio. `match=` no se mueve.
+#:
+#: INTEGRACION TANDA 6. Los dos carriles suman sobre la MISMA base 129 y son
+#: disjuntos (6A toca solo `match=`, 6C solo `in_str`), asi que el checkpoint
+#: avanza a la union y NO a ninguno de los dos valores de rama:
+#:   ESTRICTO  131 (6A) / 132 (6C) -> 134   = 129 base + 2 (6A) + 3 (6C)
+#:   MATCH      79 (6A) /  77 (6C) ->  79   = 77 base + 2 (6A), 6C no lo mueve
+#:   IN_STR     52 (6A) /  55 (6C) ->  55   = 52 base + 3 (6C), 6A no lo mueve
+#: Ninguna de las tres cifras esta escrita a mano: `test_carril5_exception_codes`
+#: las vuelve a medir con el detector entregado sobre el arbol integrado, de modo
+#: que si esta suma fuese falsa la suite se pone roja.
+INVENTARIO_ACTUAL_ESTRICTO = 134
 INVENTARIO_ACTUAL_ESTRICTO_MATCH = 79
-INVENTARIO_ACTUAL_ESTRICTO_IN_STR = 52
+INVENTARIO_ACTUAL_ESTRICTO_IN_STR = 55
 
 #: Cota superior (detector AMPLIO), base y actual.
 INVENTARIO_BASE_AMPLIO = 345
@@ -178,7 +193,12 @@ INVENTARIO_BASE_AMPLIO = 345
 #: atarlo convertiria una garantia del producto en una prueba de la version
 #: del interprete. Lo que se afirma es la firma, y eso ya se comprueba por
 #: `inspect.signature` en la misma prueba.
-INVENTARIO_ACTUAL_AMPLIO = 303
+#: EQUIPO 6C: +3, las mismas tres de arriba.
+#:
+#: INTEGRACION TANDA 6: 303 (6A) / 301 (6C) -> 306 = 298 base + 5 (6A) + 3 (6C).
+#: Tambien aqui los dos carriles son disjuntos y la cifra la vuelve a medir el
+#: detector AMPLIO sobre el arbol integrado.
+INVENTARIO_ACTUAL_AMPLIO = 306
 
 #: Guardas `match=` NUEVAS que introduce el carril: las dos de
 #: `test_carril5_exception_codes.py` que protegen al propio instrumento.
@@ -200,7 +220,11 @@ CONVERTIDAS = 52
 #: existia en la base, asi que sus sitios no pueden ser deuda heredada. Se
 #: anade el termino en vez de cuadrar la cifra a mano, por el mismo motivo que
 #: la primera vez: cuadrarla a mano esconde justo lo que la identidad vigila.
-SITIOS_NUEVOS_POSTERIORES_A_LA_BASE = 4
+#: EQUIPO 6C: +3. Las tres guardas de la sesion de revelacion tampoco estaban
+#: en la base: `known_from_session` no viajaba por ningun sitio.
+#:
+#: INTEGRACION TANDA 6: 4 (6A) / 5 (6C) -> 7 = 2 (base 5A) + 2 (6A) + 3 (6C).
+SITIOS_NUEVOS_POSTERIORES_A_LA_BASE = 7
 
 #: EQUIPO 6A. De los sitios nuevos, los que ya nacen con `match=`.
 #:
@@ -210,6 +234,8 @@ SITIOS_NUEVOS_POSTERIORES_A_LA_BASE = 4
 #: `match=` la rompe sin que haya nada que reprochar -- y la unica salida
 #: habria sido retocar `CONVERTIDAS`, que es justo la cifra que la prueba
 #: protege. Se anade el termino, igual que la primera vez.
+#: Las tres de 6C NO entran aqui: nacen por subcadena (`in_str`), no con
+#: `match=`, asi que este termino se queda en los 2 de 6A.
 SITIOS_NUEVOS_MATCH_POSTERIORES_A_LA_BASE = 2
 
 #: Nombres antiguos, conservados para no romper a quien los importe. Apuntan a
