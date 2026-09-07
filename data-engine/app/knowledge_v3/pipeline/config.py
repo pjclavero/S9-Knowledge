@@ -54,6 +54,9 @@ class PipelineConfig:
     #: workspace no compartan `idempotency_key` ni reutilicen los objetos de
     #: la otra.
     partida_id: Optional[str] = None
+    #: Promociones humanas de `REVIEW` (`engine.promotion.ClaimPromotion`).
+    #: Vacio = ninguna, que es el defecto: nada se promueve solo.
+    promotions: tuple = ()
 
     # -- proveedores --------------------------------------------------------
     #: Uno de LOCAL_ONLY / EXTERNAL_ONLY / LOCAL_PLUS_EXTERNAL / NO_OLLAMA.

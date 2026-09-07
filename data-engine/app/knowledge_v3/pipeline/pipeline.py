@@ -65,9 +65,7 @@ from ..multimodal.registry import default_registry
 from ..reconcile import ProposalReconciler
 from ..resolution.resolver import EntityResolver, ResolutionRequest
 from ..writer.gate import OperatorRequest
-from ..writer import writer as writer_mod
-from ..writer.apply_identity import compute_apply_id
-from ..writer.provenance import persist_provenance
+from ..writer.apply import ProvenanceBundle, apply_v3
 from ..writer.writer import GraphWriter
 from . import bridge
 from .config import GoldInjection, PipelineConfig
@@ -101,6 +99,9 @@ class SourceRun:
     #: rollback --que acota su barrido por ella--. Calcularla dos veces seria
     #: tener dos definiciones de propiedad; la que divergiese borraria de mas.
     apply_id: Optional[str] = None
+    #: Desenlace COMPLETO del apply canonico (`writer.apply.ApplyOutcome`):
+    #: escritura + procedencia + referencias colgantes + notas.
+    apply_outcome: Optional[Any] = None
     #: Diagnosticos del extractor + notas de coordinacion del orquestador.
     diagnostics: list[dict] = field(default_factory=list)
     normalization_report: dict = field(default_factory=dict)
@@ -456,8 +457,11 @@ class KnowledgePipeline:
             collection_id=self.config.collection_id,
             now=self.config.now,
             partida_id=self.config.partida_id,
+            promotions=self.config.promotions,
         )
         run.engine_result = result
+        for entrada in result.promotion_report:
+            run.note("promotion", entrada["code"], entrada["detail"])
         run.plan = result.plan
         run.review_plan = result.review_plan
         run.assertions = list(result.assertions)
@@ -497,7 +501,15 @@ class KnowledgePipeline:
                 )
 
     def write(self, run: SourceRun, snapshot_id: str) -> None:
-        """Etapa 7. El plan al writer. DRY-RUN salvo peticion explicita."""
+        """Etapa 7. El plan a LA RUTA CANONICA. DRY-RUN salvo peticion explicita.
+
+        Esta etapa ya no define que es aplicar: lo pide. La secuencia entera
+        --identidad del apply, gate y escritura, volcado de procedencia en su
+        propia transaccion, y barrido acotado del documento de rollback-- vive
+        en `writer.apply.apply_v3`, que es tambien la que usa `writer.cli`.
+        Mientras estuvo aqui dentro, la otra ruta no podia alcanzarla: escribia
+        el conocimiento y dejaba las referencias de evidencia colgando.
+        """
         if not self.config.with_writer or run.plan is None:
             return
         cfg = self.config
@@ -518,74 +530,27 @@ class KnowledgePipeline:
             current_snapshot_id=snapshot_id,
             env=dict(cfg.writer_env),
         )
-        # La marca de propiedad se fija AQUI, con lo que identifica al apply:
-        # workspace, ambito, snapshot y plan. No lleva reloj ni contador, asi
-        # que es la misma cadena en cualquier base y despues de un restore --a
-        # diferencia de un `elementId`, que se regenera justo cuando hace falta.
-        try:
-            run.apply_id = compute_apply_id(
-                workspace=cfg.workspace,
-                snapshot_id=snapshot_id,
-                plan_hash=run.plan.plan_hash["value"],
-                partida_id=run.plan.partida_id,
-            )
-        except ValueError as exc:
-            # Sin identidad completa no se inventa una marca: se anota y el
-            # volcado escribe SIN propiedad, que el camino de reversion lee
-            # como «propiedad desconocida» y trata como no borrable por radio
-            # de apply. Degradar a marca vacia seria peor: pareceria acotado.
-            run.apply_id = None
-            run.note("provenance", "APPLY_ID_UNAVAILABLE", str(exc))
-        run.write_result = writer.write(run.plan.to_dict(), request)
-        self.write_provenance(run)
-
-    def write_provenance(self, run: SourceRun) -> None:
-        """Etapa 7b. La PROCEDENCIA al grafo, para que la fuente sea navegable.
-
-        Solo tras un APPLY real: en dry-run no hay driver y no se escribe
-        nada. Va en su PROPIA transaccion, despues de la del plan y nunca
-        dentro: la transaccion del writer es todo-o-nada sobre el
-        conocimiento y meterle una escritura que el plan no declara
-        convertiria un fallo de procedencia en un plan revertido.
-
-        Por eso mismo un fallo aqui se ANOTA y no propaga: el conocimiento ya
-        esta escrito y una excepcion tardia no lo desharia; lo unico que
-        conseguiria es ocultar que el plan si se aplico. El diagnostico deja
-        constancia de que ese conocimiento quedo SIN procedencia navegable.
-        """
-        cfg = self.config
-        result = run.write_result
-        if cfg.writer_driver is None or result is None or not getattr(result, "ok", False):
-            return
-        if result.mode != writer_mod.MODE_APPLY:
-            return
-        assertion_ids = [
-            op["assertion_id"]
-            for op in (run.plan.mutation_operations if run.plan else [])
-            if op.get("assertion_id")
-        ]
-        try:
-            run.provenance_result = persist_provenance(
-                cfg.writer_driver,
-                workspace=cfg.workspace,
-                partida_id=(run.plan.partida_id if run.plan else None),
-                source_asset=run.asset.to_dict() if run.asset else None,
-                episodes=[e.to_dict() for e in run.episodes],
-                fragments=[f.to_dict() for f in run.fragments],
-                assertion_ids=assertion_ids,
-                apply_id=run.apply_id,
-            )
-            run.note(
-                "provenance",
-                "PROVENANCE_PERSISTED",
-                json.dumps(run.provenance_result.to_dict(), sort_keys=True),
-            )
-        except Exception as exc:  # noqa: BLE001 - se anota, no se traga en silencio
-            run.note(
-                "provenance",
-                "PROVENANCE_FAILED",
-                f"{type(exc).__name__}: {exc}",
-            )
+        # EL PAQUETE ES LO QUE DISTINGUE LAS DOS RUTAS, y no es codigo: son
+        # datos. La ingesta SI tiene los documentos que los
+        # `evidence_fragment_ids` del plan nombran, asi que los aporta. Un
+        # mando al que solo se le da `plan.json` no los tiene, y por eso la
+        # funcion canonica le contesta con `APPLY_PROVENANCE_NOT_PERSISTED` en
+        # vez de con un `APPLIED` silencioso.
+        paquete = ProvenanceBundle.of(
+            source_asset=run.asset.to_dict() if run.asset else None,
+            episodes=[e.to_dict() for e in run.episodes],
+            fragments=[f.to_dict() for f in run.fragments],
+        )
+        outcome = apply_v3(
+            run.plan.to_dict(), request, writer=writer, provenance=paquete,
+            driver=cfg.writer_driver,
+        )
+        run.apply_id = outcome.apply_id
+        run.write_result = outcome.write_result
+        run.provenance_result = outcome.provenance_result
+        run.apply_outcome = outcome
+        for nota in outcome.notes:
+            run.note("provenance", nota["code"], nota["detail"])
 
     # -- corrida -------------------------------------------------------------
     def run_source(

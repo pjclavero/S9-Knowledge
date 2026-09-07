@@ -38,9 +38,12 @@ conexión con Neo4j.
 | `--ahora` `--ingerido-en` | relojes inyectados (ISO-8601 Z) |
 | `--dry-run` | no escribe. Es el defecto |
 | `--formato` | `markdown` / `json` / `ambos` |
-| `--out-dir` | escribe `acta.md`, `informe.json` y `decisiones.json` |
+| `--out-dir` | escribe `acta.md`, `informe.json`, `plan.json`, `procedencia.json`, `rollback.json`, `promociones.json` y `decisiones.json` |
 | `--desde-grafo` | **abre driver**: el catálogo se LEE del grafo (solo lectura) |
-| `--decisiones` | documento de decisiones de identidad |
+| `--decisiones` | documento de decisiones de identidad. **Se escribe solo cuando la corrida abrió el grafo** (`--desde-grafo` o `--apply`): sin grafo no hay con qué reconciliar, y el mando lo dice en vez de ignorar la ruta en silencio |
+| `--promociones` | documento de PROMOCIONES de revisión: sale de cada ingesta con lo que el motor mandó a `REVIEW` y sus motivos, y se lee en la siguiente |
+| `--promover` `--nota-promocion` | modo REVISIÓN: **la salida que `REVIEW` no tenía**. Firma la promoción de un claim en revisión asumiendo sus motivos actuales. No fija la decisión: retira los hallazgos firmados y la **recalcula**, así que un `REJECT` o un `ABSTAIN` sobreviven a cualquier promoción, y si los motivos cambian la firma caduca (`PROMOTION_STALE`) y no se aplica |
+| `--rollback-out` | dónde guardar el **documento de rollback** del apply: la póliza que `knowledge_v3.writer.cli_rollback` ejecuta para deshacerlo |
 | `--revisar` `--aprobar-alta` `--revisor` | modo REVISIÓN: aprueba altas, no ingiere ni conecta |
 | `--tipo-alta` | `ENTITY_ID=TIPO`. Declara el `entity_type` de un alta que se aprueba. Hace falta cuando el resolutor no pudo inferirlo — el caso típico en un grafo nuevo. Sin tipo, la creación no se puede construir: el mando **lo dice** y falla cerrado, en vez de descartar el alta en silencio |
 | `--apply` | **ESCRITURA REAL**. Exige además el gate del writer |

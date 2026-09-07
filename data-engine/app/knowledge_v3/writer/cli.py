@@ -1,5 +1,34 @@
 # -*- coding: utf-8 -*-
-"""CLI del writer. Dry-run por defecto; el APPLY hay que pedirlo escribiendolo.
+"""MANDO DE BAJO NIVEL del writer. **No es la ruta de operador.**
+
+QUE ES Y QUE NO ES (leelo antes de usarlo)
+------------------------------------------
+Esto aplica un `GraphMutationPlan` ya sellado y nada mas. **No produce el
+producto de extremo a extremo de V3.** Un plan no contiene la procedencia: cita
+`evidence_fragment_ids`, pero los documentos `SourceAsset` / `SourceEpisode` /
+`EvidenceFragment` que esos ids nombran viven en la corrida de ingesta. Si aqui
+solo se da `plan.json`, el conocimiento se escribe y esas referencias **quedan
+colgando**.
+
+Eso se midio: el mismo plan por los dos mandos daba 18 aristas / 1 `V3Source` /
+7 `V3Evidence` por la ruta de operador, y 0 / 0 / 0 por esta -- que ademas
+reportaba `APPLIED` sin una sola advertencia. Ya no calla: sin paquete de
+procedencia el resultado trae `APPLY_PROVENANCE_NOT_PERSISTED` con la lista de
+referencias colgantes, y `rc = 2` (no es un exito limpio).
+
+**La ruta de operador es `knowledge_v3.pipeline.ingest_cli`**, que recorre
+fuente -> ingesta -> decisiones -> revision -> promocion -> plan sellado ->
+apply -> procedencia -> documento de rollback.
+
+NO HAY DOS DEFINICIONES DE APLICAR
+----------------------------------
+Este mando **no implementa** el apply: llama a `writer.apply.apply_v3`, la
+misma y unica funcion que llama la ruta de operador. Lo que las distingue no es
+codigo, son datos: con `--procedencia PAQUETE.json` este mando produce
+exactamente el mismo grafo que la ruta de operador; sin el, produce menos y lo
+declara.
+
+Dry-run por defecto; el APPLY hay que pedirlo escribiendolo.
 
 Lo que esta CLI NO hace, a proposito:
 
@@ -26,6 +55,10 @@ Uso tipico, en dos pasos que no se pueden saltar:
         --neo4j-uri "$S9K_NEO4J_URI" --neo4j-user neo4j \\
         --neo4j-password-file /etc/s9k/neo4j.pass
 
+El paquete de procedencia lo emite la ruta de operador en su `--out-dir`
+(`procedencia.json`). Pasarselo aqui con `--procedencia` es lo que hace que
+este mando escriba lo mismo que aquella.
+
 El documento de rollback que devuelve el APPLY se guarda con `--rollback-out`:
 es lo que hay que conservar para poder deshacer, y esta escrito con identidad
 durable `(workspace, entity_id, predicado, objeto)`, no con `elementId`.
@@ -48,6 +81,13 @@ from ..driver_neo4j import (
     resolve_config,
 )
 from . import codes
+from .apply import (
+    CODE_PROVENANCE_FAILED,
+    CODE_PROVENANCE_NOT_PERSISTED,
+    ProvenanceBundle,
+    apply_v3,
+    logical_plan_identity,
+)
 from .audit import JsonlAuditSink
 from .gate import DEFAULT_MAX_OPERATIONS, OperatorRequest
 from .idempotency import JsonlAppliedKeys
@@ -73,7 +113,12 @@ def driver_factory_from_args(args: argparse.Namespace, env: Optional[dict[str, s
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="knowledge_v3.writer",
-        description="Aplica un GraphMutationPlan sellado. Dry-run por defecto.",
+        description=(
+            "MANDO DE BAJO NIVEL. Aplica un GraphMutationPlan sellado y nada "
+            "mas. NO es la ruta de operador: sin --procedencia el conocimiento "
+            "se escribe con las referencias de evidencia COLGANDO. La ruta de "
+            "operador es knowledge_v3.pipeline.ingest_cli. Dry-run por defecto."
+        ),
     )
     p.add_argument("plan", help="ruta del GraphMutationPlan en JSON")
     p.add_argument("--workspace", required=True, help="workspace (declaracion 1 de 2)")
@@ -83,6 +128,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--max-operations", type=int, default=DEFAULT_MAX_OPERATIONS)
     p.add_argument("--audit-log", default="writer_audit.jsonl")
     p.add_argument("--applied-keys", default="writer_applied_keys.jsonl")
+    p.add_argument(
+        "--procedencia", default=None, metavar="PAQUETE_JSON",
+        help="paquete de procedencia (source_asset/episodes/fragments) que la "
+             "ruta de operador emite en su --out-dir como procedencia.json. "
+             "SIN el, este mando escribe conocimiento con las referencias de "
+             "evidencia colgando, lo declara con "
+             "APPLY_PROVENANCE_NOT_PERSISTED y sale con rc=2",
+    )
     p.add_argument("--rollback-out", default=None,
                    help="fichero donde guardar el documento de rollback del APPLY. "
                         "NUNCA se pisa una poliza existente con un documento sin "
@@ -206,7 +259,25 @@ def main(
         applied_keys=applied_keys,
         max_operations=args.max_operations,
     )
-    result = writer.write(
+    paquete = None
+    if args.procedencia:
+        try:
+            paquete = ProvenanceBundle.from_dict(
+                json.loads(Path(args.procedencia).read_text(encoding="utf-8"))
+            )
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            # Falla CERRADO: un paquete ilegible NO se degrada a "sin paquete".
+            # Degradarlo escribiria conocimiento sin procedencia creyendo el
+            # operador que la lleva, que es exactamente el defecto que se cierra.
+            print(json.dumps(
+                {"ok": False, "code": "CLI_PROVENANCE_BUNDLE_UNREADABLE",
+                 "error": str(exc)},
+                ensure_ascii=False, indent=2, sort_keys=True))
+            return 1
+
+    # UNA SOLA DEFINICION DE APLICAR. Este mando no reimplementa el apply: lo
+    # pide a la misma funcion que la ruta de operador.
+    outcome = apply_v3(
         plan_doc,
         OperatorRequest(
             apply=bool(args.apply),
@@ -217,8 +288,22 @@ def main(
             current_snapshot_id=args.snapshot,
             env=env,
         ),
+        writer=writer,
+        provenance=paquete,
     )
-    print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
+    result = outcome.write_result
+    salida = result.to_dict()
+    salida["apply"] = {
+        "apply_id": outcome.apply_id,
+        "plan_id_no_firmado": logical_plan_identity(plan_doc),
+        "provenance": (
+            outcome.provenance_result.to_dict()
+            if outcome.provenance_result else None
+        ),
+        "dangling_fragment_ids": list(outcome.dangling_fragment_ids),
+        "notes": [dict(n) for n in outcome.notes],
+    }
+    print(json.dumps(salida, ensure_ascii=False, indent=2, sort_keys=True))
     guardado = None
     if args.rollback_out and result.rollback is not None:
         guardado = save_rollback(args.rollback_out, result.rollback)
@@ -233,6 +318,14 @@ def main(
     # Salio bien pero con codigos: p.ej. AUDIT_APPEND_FAILED, escritura aplicada
     # sin linea de desenlace. Un runner desatendido no puede leer eso como exito
     # limpio, asi que se distingue del 0.
+    #
+    # LA PROCEDENCIA AUSENTE CUENTA. Un APPLY que escribe conocimiento cuyas
+    # referencias de evidencia quedan colgando NO es un exito limpio, por mucho
+    # que la transaccion del plan haya ido bien: es justo el desenlace que este
+    # mando declaraba antes como `APPLIED` sin decir nada.
+    sin_procedencia = {CODE_PROVENANCE_NOT_PERSISTED, CODE_PROVENANCE_FAILED}
+    if sin_procedencia.intersection(outcome.codes):
+        return 2
     return 2 if result.codes else 0
 
 

@@ -170,6 +170,11 @@ class GraphWriter:
         self.applied_keys = applied_keys if applied_keys is not None else InMemoryAppliedKeys()
         self.clock = clock
         self.max_operations = max_operations
+        #: El driver que `_resolve_driver` obtuvo DESPUES del gate. Se guarda
+        #: para que la ruta canonica (`writer.apply`) pueda persistir la
+        #: procedencia sobre la MISMA conexion sin abrir otra ni adelantar la
+        #: apertura: sigue siendo `None` hasta que el gate autoriza.
+        self._resolved_driver: Any = driver
 
     # -- Auditoria ---------------------------------------------------------
     def _now_iso(self) -> str:
@@ -542,9 +547,19 @@ class GraphWriter:
             return min(requested, self.max_operations)
         return requested  # pragma: no cover - writer mal construido
 
+    @property
+    def resolved_driver(self) -> Any:
+        """El driver realmente usado, o `None` si aun no se abrio ninguno.
+
+        No abre nada: solo publica lo que `_resolve_driver` ya obtuvo. Leerlo
+        antes de un APPLY autorizado devuelve `None`, que es la verdad.
+        """
+        return self._resolved_driver
+
     def _resolve_driver(self) -> tuple[Any, Optional[Rejection]]:
         """Obtiene el driver DESPUES del gate. Antes seria abrir sin permiso."""
         if self.driver is not None:
+            self._resolved_driver = self.driver
             return self.driver, None
         if self.driver_factory is None:
             return None, Rejection(
@@ -563,6 +578,7 @@ class GraphWriter:
                 code=codes.EXEC_DRIVER_FAILURE,
                 message="la fabrica de driver no devolvio ningun driver",
             )
+        self._resolved_driver = driver
         return driver, None
 
     def _finish(

@@ -104,7 +104,8 @@ from ..writer import exit_codes
 from .ingest_report import ingest_report, to_markdown
 from .pipeline import KnowledgePipeline, SourceCase
 from . import entity_decisions, graph_catalog
-from ..writer.rollback import add_provenance_sweep
+from ..engine import promotion as promo
+from ..writer.apply import ProvenanceBundle
 
 #: Extension -> `source_kind`, solo para las que este CLI declara soportar de
 #: verdad. Lo demas se le deja al registro de adaptadores, que resuelve por
@@ -246,6 +247,7 @@ def run_ingest(
     driver: Any = None,
     partida_id: Optional[str] = None,
     approved_altas: Sequence[dict] = (),
+    promotions: Sequence[Any] = (),
     apply: bool = False,
     operator_id: Optional[str] = None,
     writer_env: Optional[dict] = None,
@@ -320,6 +322,7 @@ def run_ingest(
         # cambia como se resuelve la identidad.** La resolucion es la misma
         # con aprobacion y sin ella (misma entrada, misma salida), y lo unico
         # que la aprobacion mueve es el SNAPSHOT, mas abajo.
+        promotions=tuple(promotions),
         catalog=build_catalog(entities, ws),
         lexicon=build_lexicon(entities, profile),
         # El writer solo escribe si el operador lo pidio Y hay driver. Sin
@@ -377,6 +380,48 @@ def run_ingest(
     # un APPLY exitoso y uno abortado producen actas indistinguibles.
     run = result.runs[0]
     escritura = run.write_result
+    # EL PAQUETE DE PROCEDENCIA, PUBLICADO. Es lo unico que el fichero de plan
+    # no puede contener y sin lo cual el conocimiento se escribe con las
+    # referencias de evidencia colgando. Publicarlo es lo que permite que el
+    # mando de bajo nivel (`writer.cli --procedencia`) llegue al MISMO grafo:
+    # la diferencia entre las dos rutas son datos, no dos implementaciones.
+    # LO PROMOVIBLE Y LO PROMOVIDO, EN EL INFORME. Antes, revisar era leer:
+    # el motor mandaba una relacion a REVIEW y no habia mando para promoverla.
+    if run.engine_result is not None:
+        report["revision"] = {
+            "pendientes": promo.pending_rows(run.engine_result.decisions),
+            "promociones": [dict(e) for e in run.engine_result.promotion_report],
+        }
+    report["procedencia_paquete"] = ProvenanceBundle.of(
+        source_asset=run.asset.to_dict() if run.asset else None,
+        episodes=[e.to_dict() for e in run.episodes],
+        fragments=[f.to_dict() for f in run.fragments],
+    ).to_dict()
+    # IDENTIDAD DEL APPLY, PUBLICADA Y DESGLOSADA. Un equipo anterior afirmo
+    # que `apply_id` era "la misma cadena en cualquier base y tras un restore".
+    # Es cierto A IGUALDAD DE PLAN -- y `plan_hash` cubre `created_at`, que sale
+    # del reloj de pared. Sin `--ahora`, cada ejecucion produce un plan nuevo y
+    # por tanto un `apply_id` nuevo. Aqui se dice, con las piezas a la vista,
+    # en vez de dejarlo para que alguien lo descubra comparando.
+    report["apply_identity"] = {
+        "apply_id": run.apply_id,
+        "plan_id": (run.plan.plan_id if run.plan else None),
+        "plan_hash": (run.plan.plan_hash["value"] if run.plan else None),
+        "snapshot_id": (run.plan.snapshot_id if run.plan else None),
+        "workspace": ws,
+        "partida_id": (run.plan.partida_id if run.plan else None),
+        "created_at": (run.plan.created_at if run.plan else None),
+        "reloj_fijado": now is not None,
+        "carencia": (
+            None if now is not None else
+            "SIN --ahora: `created_at` sale del reloj de pared, entra en "
+            "`plan_hash` y por tanto en `apply_id`. Repetir esta misma orden "
+            "produce OTRO apply_id. La identidad LOGICA estable del plan es "
+            "`plan_id` (no depende del reloj), pero el contrato congelado la "
+            "declara NO FIRMADA, asi que no puede sostener una decision de "
+            "escritura. Fija --ahora para que el apply_id sea reproducible."
+        ),
+    }
     if escritura is not None:
         report["write"] = {
             "outcome": escritura.outcome,
@@ -384,49 +429,88 @@ def run_ingest(
             "codes": list(escritura.codes),
             "applied_operations": escritura.applied_operations,
             "noop_operations": escritura.noop_operations,
-            "created_ids": list(escritura.created_ids),
+            # IDENTIDAD DURABLE, NO `elementId`. `created_ids` devolvia al
+            # operador el `elementId` crudo de cada arista creada
+            # (`cypher.create_relation` termina en `RETURN elementId(r)`),
+            # mezclado con los `entity_id`/`assertion_id` de los nodos y sin
+            # forma de distinguirlos. El `elementId` se regenera al restaurar
+            # un dump: no identifica nada durable, y publicarlo como "id
+            # creado" invita a usarlo como si lo fuera.
+            "created": _creado_durable(escritura),
+            # Se conserva el nombre historico, pero SOLO con ids durables: los
+            # `elementId` de arista salen de aqui y viven en `created`, bajo
+            # `element_id_at_write`.
+            "created_ids": [
+                c["identidad_durable"]["id"]
+                for c in _creado_durable(escritura)
+                if c["kind"] == "NODE" and c["identidad_durable"].get("id")
+            ],
         }
-        # INTEGRACION tanda 3. El carril B hizo que esta ruta emitiera
-        # `CREATE_ENTITY` DE VERDAD: por primera vez el producto crea
-        # entidades por aqui. Crear sin publicar como deshacerlo deja al
-        # operador con conocimiento escrito y sin documento de reversion, que
-        # es justo lo que la ruta de operador del writer existe para evitar.
-        #
-        # El documento es DESCRIPTIVO: nadie lo ejecuta por su cuenta. Se
-        # publica para que exista, no para que actue.
         if escritura.rollback is not None:
-            # DEFECTO MEDIDO Y CERRADO: el documento solo llevaba la
-            # procedencia que las aserciones CITAN, mientras el volcado
-            # persiste la de toda la corrida. Un apply de 7 evidencias / 7
-            # episodios / 1 fuente producia un documento con UN `fragment_id`,
-            # y revertirlo dejaba el resto huerfano en el grafo. El barrido
-            # amplia el conjunto candidato; la condicion de borrado --cero
-            # referencias vivas, dentro del propio DELETE-- no se toca.
-            if run.provenance_result is not None:
-                # EL RADIO ES EL APPLY, NO LA CORRIDA. Con `apply_id` el
-                # barrido no enumera fragmentos: declara de QUIEN es lo que
-                # puede borrar, y el ejecutor descubre ese conjunto en el
-                # grafo. Enumerarlos aqui era fijar el radio en la corrida
-                # entera, que es como revertir un apply de UNA arista se
-                # llevaba 6 episodios y 6 evidencias que no habia creado.
-                #
-                # Sin `apply_id` (apply sin identidad completa) se conserva el
-                # radio antiguo, declarado como `scope: "run"` en el propio
-                # documento. No es equivalente y no se finge que lo sea.
-                add_provenance_sweep(
-                    escritura.rollback,
-                    workspace=ws,
-                    partida_id=(run.plan.partida_id if run.plan else None),
-                    fragment_ids=(
-                        [] if run.apply_id
-                        else [f.fragment_id for f in run.fragments]
-                    ),
-                    apply_id=run.apply_id,
-                )
             report["rollback"] = escritura.rollback.to_dict()
+    if run.apply_outcome is not None:
+        salida = run.apply_outcome
+        report["apply"] = {
+            "notes": [dict(n) for n in salida.notes],
+            "dangling_fragment_ids": list(salida.dangling_fragment_ids),
+        }
     if run.provenance_result is not None:
         report["provenance"] = run.provenance_result.to_dict()
     return report
+
+
+def _creado_durable(escritura: Any) -> list:
+    """Lo que el APPLY creo, con IDENTIDAD DURABLE y no con `elementId`.
+
+    DEFECTO CERRADO. `write.created_ids` publicaba al operador la lista cruda
+    de `WriteResult.created_ids`, que para las ARISTAS es el `elementId(r)` que
+    devuelve `cypher.create_relation`. Tres cosas mal a la vez:
+
+    * el `elementId` se regenera al restaurar un dump -- deja de identificar
+      justo durante una recuperacion, que es cuando hace falta;
+    * iba mezclado con los `entity_id`/`assertion_id` de los nodos, sin ninguna
+      marca que permitiera distinguir cual era cual;
+    * publicado como "id creado", invita a usarlo como identidad durable, que
+      es exactamente lo que el proyecto tiene escrito que NO es.
+
+    La identidad de producto es `(workspace, entity_id)`; la de una arista, la
+    tripleta `(sujeto, predicado, objeto)` dentro de su ambito. Eso es lo que
+    se publica. El `elementId` se conserva bajo el nombre que le corresponde
+    --`element_id_at_write`, el mismo que ya usa el documento de rollback-- y
+    solo para las aristas, que es donde existe.
+    """
+    salida: list = []
+    if escritura.rollback is None:
+        return salida
+    for instr in escritura.rollback.instructions:
+        det = dict(instr.detail or {})
+        if instr.action == "DELETE_RELATIONSHIP":
+            salida.append({
+                "operation_id": instr.operation_id,
+                "kind": "RELATIONSHIP",
+                "identidad_durable": {
+                    "workspace": det.get("workspace"),
+                    "subject_id": det.get("subject"),
+                    "predicate": det.get("predicate"),
+                    "object_id": det.get("object"),
+                    "partida_id": det.get("partida_id"),
+                },
+                # Se conserva con el nombre que dice lo que es: dato del
+                # momento de la escritura, NUNCA identidad durable.
+                "element_id_at_write": det.get("element_id_at_write"),
+            })
+        elif instr.action == "DELETE_NODE":
+            salida.append({
+                "operation_id": instr.operation_id,
+                "kind": "NODE",
+                "identidad_durable": {
+                    "workspace": det.get("workspace"),
+                    "id": det.get("created_id") or instr.target_id,
+                    "label": det.get("label"),
+                    "partida_id": det.get("partida_id"),
+                },
+            })
+    return salida
 
 
 def _driver_factory(args: argparse.Namespace, env: Optional[dict] = None):
@@ -460,6 +544,15 @@ def _ledger_path(args: argparse.Namespace) -> Path:
         "config",
         "no se dijo donde vive el documento de decisiones: usa --decisiones o "
         "--out-dir",
+    )
+
+
+def _volcar(ruta: Path, doc: Any) -> None:
+    """Un documento JSON del operador, determinista y sin rutas de nadie."""
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    ruta.write_text(
+        json.dumps(doc, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
     )
 
 
@@ -550,8 +643,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--decisiones", type=Path, default=None,
-        help="documento de decisiones de identidad: se escribe en la ingesta "
-             "y se lee en la revision y en el APPLY",
+        help="documento de decisiones de identidad. SE ESCRIBE solo cuando la "
+             "corrida abrio el grafo (--desde-grafo o --apply): el documento "
+             "se reconcilia contra lo que el grafo tiene, y sin grafo no hay "
+             "con que reconciliar. En una ingesta OFFLINE esta ruta no se "
+             "escribe y el mando lo dice, en vez de ignorarla en silencio. "
+             "Se LEE en --revisar y en el APPLY",
     )
     parser.add_argument(
         "--revisar", action="store_true",
@@ -573,13 +670,43 @@ def build_parser() -> argparse.ArgumentParser:
              "construir y el mando lo dice en vez de descartar el alta",
     )
     parser.add_argument("--revisor", default=None,
-                        help="quien aprueba las altas. Obligatorio con --revisar")
+                        help="quien aprueba las altas o promueve revisiones. "
+                             "Obligatorio con --revisar")
+    parser.add_argument(
+        "--promociones", type=Path, default=None, metavar="RUTA",
+        help="documento de PROMOCIONES de revision. Se ESCRIBE en cada "
+             "ingesta con lo que el motor mando a REVIEW (para que el revisor "
+             "no tenga que abrir el informe.json), se edita con "
+             "--revisar --promover, y se LEE en la ingesta siguiente. "
+             "Con --out-dir se escribe ademas en DIR/promociones.json",
+    )
+    parser.add_argument(
+        "--promover", action="append", default=[], dest="promover",
+        metavar="CLAIM_ID",
+        help="MODO REVISION: promueve ESE claim de REVIEW asumiendo sus "
+             "motivos actuales. Repetible. No existe 'promover todo': cada "
+             "promocion es una firma sobre unos motivos concretos, y si esos "
+             "motivos cambian la firma caduca y no se aplica",
+    )
+    parser.add_argument(
+        "--nota-promocion", default=None, dest="nota_promocion",
+        help="por que se promueve. Queda en el documento y en la explicacion "
+             "de la decision",
+    )
 
     # -- escritura real ------------------------------------------------------
     parser.add_argument(
         "--apply", action="store_true",
         help="ESCRITURA REAL. Exige ademas el gate del writer: "
              "S9K_ALLOW_REAL_INGEST=1, S9K_WRITER_WORKSPACE y --operador",
+    )
+    parser.add_argument(
+        "--rollback-out", type=Path, default=None, metavar="RUTA",
+        help="donde guardar el DOCUMENTO DE ROLLBACK del apply: la poliza que "
+             "`knowledge_v3.writer.cli_rollback` ejecuta para deshacerlo. Sin "
+             "--out-dir, este mando no emitia ninguna y el operador tenia que "
+             "extraer el plan del informe.json a mano. Con --out-dir se "
+             "escribe ademas en DIR/rollback.json",
     )
     parser.add_argument("--operador", default=None, dest="operator_id",
                         help="identificador del operador que autoriza el APPLY")
@@ -618,6 +745,84 @@ def _tipos_declarados(pares: Sequence[str]) -> dict:
     return tipos
 
 
+def _promociones_path(args: argparse.Namespace) -> Path:
+    if args.promociones is not None:
+        return args.promociones
+    if args.out_dir is not None:
+        return args.out_dir / "promociones.json"
+    raise PipelineError(
+        "config",
+        "no se dijo donde vive el documento de promociones: usa "
+        "--promociones o --out-dir",
+    )
+
+
+def _leer_promociones(ruta: Path) -> promo.PromotionLedger:
+    return promo.PromotionLedger.from_dict(
+        json.loads(ruta.read_text(encoding="utf-8"))
+    )
+
+
+def _promover(args: argparse.Namespace) -> int:
+    """Firma la promocion de unos claims en REVIEW. No abre ninguna conexion.
+
+    La firma se ata a los motivos que el documento registro cuando la corrida
+    los produjo. Aqui no se juzga nada: se comprueba que el claim esta en la
+    lista de pendientes y se copian SUS motivos a la firma. Que la firma siga
+    valiendo en la ingesta siguiente lo decide `engine.promotion`, comparando
+    contra lo que el motor produzca entonces.
+    """
+    ruta = _promociones_path(args)
+    if not ruta.exists():
+        print(f"ERROR: no hay documento de promociones en {ruta}. Corre "
+              "primero la ingesta con --out-dir o --promociones para que se "
+              "genere con lo que el motor mando a REVIEW", file=sys.stderr)
+        return exit_codes.EXIT_USAGE
+    doc = _leer_promociones(ruta)
+    pendientes = {p["claim_id"]: p for p in doc.pending}
+    ya = doc.by_claim()
+    incompletos = sorted(
+        c for c in args.promover
+        if c in pendientes and not pendientes[c].get("promovible", True)
+    )
+    if incompletos:
+        for c in incompletos:
+            print(f"ERROR: {c} no es promovible: le falta "
+                  f"{pendientes[c]['no_promovible_por']}. Un ACCEPT sobre un "
+                  "claim incompleto no valida contra el contrato congelado",
+                  file=sys.stderr)
+        return exit_codes.EXIT_USAGE
+    desconocidos = sorted(set(args.promover) - set(pendientes))
+    if desconocidos:
+        print(f"ERROR: estos claims no estan pendientes de revision en "
+              f"{ruta}: {desconocidos}. Pendientes: {sorted(pendientes)}",
+              file=sys.stderr)
+        return exit_codes.EXIT_USAGE
+    ahora = _utc_now()
+    nuevas = []
+    for claim_id in sorted(set(args.promover)):
+        if claim_id in ya:
+            continue
+        nuevas.append(promo.ClaimPromotion(
+            claim_id=claim_id,
+            reason_codes=tuple(pendientes[claim_id]["reason_codes"]),
+            promoted_by=args.revisor,
+            promoted_at=ahora,
+            note=args.nota_promocion or "",
+        ))
+    doc.promotions = list(doc.promotions) + nuevas
+    _volcar(ruta, doc.to_dict())
+    print(json.dumps({
+        "documento": str(ruta),
+        "revisor": args.revisor,
+        "promovidas_ahora": [p.claim_id for p in nuevas],
+        "ya_promovidas": sorted(set(args.promover) & set(ya)),
+        "pendientes_sin_promover": sorted(set(pendientes) - {p.claim_id for p in doc.promotions}),
+        "totals": doc.to_dict()["totals"],
+    }, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
 def _modo_revision(args: argparse.Namespace) -> int:
     """Aprueba altas. No abre ninguna conexion y no toca el grafo."""
     if not args.revisor:
@@ -629,6 +834,11 @@ def _modo_revision(args: argparse.Namespace) -> int:
     except ValueError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return exit_codes.EXIT_USAGE
+    # PROMOCION DE REVISIONES. Es la salida que `REVIEW` no tenia: hasta
+    # ahora `--aprobar-alta` solo aprobaba altas de ENTIDAD y una relacion en
+    # revision no tenia ningun mando que la moviera.
+    if args.promover:
+        return _promover(args)
     ruta = _ledger_path(args)
     ledger = _leer_ledger(ruta)
     try:
@@ -744,6 +954,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 entity_decisions.require_reviewed(ledger_previo)
             aprobadas = entity_decisions.approved_snapshot_entities(ledger_previo)
 
+        promociones: list = []
+        if args.promociones is not None and args.promociones.exists():
+            promociones = list(_leer_promociones(args.promociones).promotions)
+
         report = run_ingest(
             args.fichero,
             profile_path=args.perfil,
@@ -756,6 +970,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             driver=driver,
             partida_id=args.partida_id,
             approved_altas=aprobadas,
+            promotions=promociones,
             apply=bool(args.apply),
             operator_id=args.operator_id,
         )
@@ -836,6 +1051,68 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         )
         print(f"acta:    {args.out_dir / 'acta.md'}")
         print(f"informe: {args.out_dir / 'informe.json'}")
+        # EL PLAN SELLADO, COMO FICHERO. El unico mando que emitia poliza
+        # (`writer.cli --rollback-out`) exige un fichero de plan que NADIE
+        # producia: un supervisor tuvo que extraerlo del informe.json a mano.
+        # Ahora sale solo, y es el mismo documento que el writer verifica.
+        if report.get("plan") is not None:
+            _volcar(args.out_dir / "plan.json", report["plan"])
+            print(f"plan:    {args.out_dir / 'plan.json'}")
+        # EL PAQUETE DE PROCEDENCIA. Es lo que el plan no puede llevar dentro y
+        # lo que hace que `writer.cli --procedencia` alcance el MISMO grafo.
+        if report.get("procedencia_paquete") is not None:
+            _volcar(args.out_dir / "procedencia.json",
+                    report["procedencia_paquete"])
+            print(f"procedencia: {args.out_dir / 'procedencia.json'}")
+    # EL DOCUMENTO DE PROMOCIONES, SIEMPRE. Es lo que hace que revisar deje de
+    # ser leer: sale con los claims que el motor mando a REVIEW y sus motivos,
+    # listo para `--revisar --promover`. No hace falta grafo: la revision de
+    # claims es una decision sobre lo que el motor dijo, no sobre el grafo.
+    revision = report.get("revision") or {}
+    destinos_promo: list = []
+    if args.promociones is not None:
+        destinos_promo.append(args.promociones)
+    if args.out_dir is not None and args.promociones is None:
+        destinos_promo.append(args.out_dir / "promociones.json")
+    for destino in destinos_promo:
+        previas = []
+        if destino.exists():
+            try:
+                previas = list(_leer_promociones(destino).promotions)
+            except (ValueError, json.JSONDecodeError) as exc:
+                # Falla CERRADO: no se pisa un documento que no se entiende.
+                print(f"ERROR [promociones]: {destino} ilegible: {exc}",
+                      file=sys.stderr)
+                return exit_codes.EXIT_USAGE
+        doc = promo.PromotionLedger(
+            workspace=report["run"]["workspace"],
+            partida_id=args.partida_id,
+            source_path=str(args.fichero),
+            generated_at=report["run"]["now"],
+            promotions=previas,
+            pending=revision.get("pendientes") or [],
+        )
+        _volcar(destino, doc.to_dict())
+        print(f"promociones: {destino} "
+              f"({len(doc.pending)} en REVIEW, {len(doc.promotions)} promovidas)")
+    for entrada in revision.get("promociones") or []:
+        print(f"promocion[{entrada['code']}] {entrada['claim_id']}: "
+              f"{entrada['detail']}")
+    for fila in revision.get("pendientes") or []:
+        marca = "" if fila.get("promovible", True) else \
+            f" [NO PROMOVIBLE: falta {','.join(fila['no_promovible_por'])}]"
+        print(f"  REVISION PENDIENTE {fila['claim_id']} "
+              f"({fila['predicate']} conf={fila['confidence']:.3f}) "
+              f"{','.join(fila['reason_codes'])}{marca}")
+
+    if ledger is None and args.decisiones is not None:
+        # Antes esto no se decia: el operador pasaba --decisiones RUTA en una
+        # ingesta offline, el fichero no aparecia nunca y la ayuda afirmaba
+        # que "se escribe en la ingesta".
+        print(f"decisiones: NO SE ESCRIBE {args.decisiones}: esta corrida no "
+              "abrio el grafo (hace falta --desde-grafo o --apply para poder "
+              "reconciliar las decisiones contra lo que el grafo tiene)",
+              file=sys.stderr)
     if ledger is not None:
         destino = _ledger_path(args)
         _escribir_ledger(destino, ledger)
@@ -846,6 +1123,42 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             if d.decision == entity_decisions.CREATE_ENTITY_REQUIRED:
                 print(f"  ALTA PENDIENTE {d.entity_id} ({d.entity_type}) "
                       f"{','.join(d.reason_codes)}")
+    # LA POLIZA DEL APPLY. Un apply que escribe y no publica como deshacerlo
+    # deja al operador con conocimiento en el grafo y sin documento de
+    # reversion -- que es justo lo que la ruta de operador existe para evitar.
+    destinos_rollback = []
+    if args.rollback_out is not None:
+        destinos_rollback.append(args.rollback_out)
+    if args.out_dir is not None:
+        destinos_rollback.append(args.out_dir / "rollback.json")
+    doc_rollback = report.get("rollback")
+    for destino in destinos_rollback:
+        if doc_rollback is None:
+            print(f"rollback: SIN DOCUMENTO ({destino} no se escribe): "
+                  "esta corrida no aplico nada", file=sys.stderr)
+            continue
+        # NUNCA se pisa una poliza existente con un documento SIN
+        # instrucciones: repetir un apply es un no-op idempotente y su
+        # documento va vacio; escribirlo encima borraria la unica forma de
+        # deshacer lo que se aplico la primera vez. Misma regla que
+        # `writer.cli.save_rollback`, y por la misma razon.
+        if destino.exists() and not (doc_rollback.get("instructions") or []):
+            print(f"rollback: SE CONSERVA la poliza previa en {destino} (el "
+                  "documento nuevo no trae instrucciones)")
+            continue
+        _volcar(destino, doc_rollback)
+        print(f"rollback: {destino} "
+              f"({len(doc_rollback.get('instructions') or [])} instrucciones)")
+    if args.apply and report.get("apply_identity"):
+        print("apply_identity: " + json.dumps(
+            report["apply_identity"], ensure_ascii=False, sort_keys=True))
+    if args.apply and report.get("apply"):
+        for nota in report["apply"]["notes"]:
+            print(f"apply[{nota['code']}] {nota['detail']}")
+        if report["apply"]["dangling_fragment_ids"]:
+            print("apply: REFERENCIAS COLGANTES -> "
+                  + ", ".join(report["apply"]["dangling_fragment_ids"]),
+                  file=sys.stderr)
     if args.apply and report.get("write"):
         print("write: " + json.dumps(report["write"], ensure_ascii=False,
                                      sort_keys=True))

@@ -18,6 +18,31 @@ desenlace), `cli.py`, `idempotency.py`, `executor.py`.
 Cadena real: apply por la CLI del writer → procedencia persistida → ejecución
 del documento de rollback.
 
+> **CORRECCIÓN (equipo 6A, tanda 5).** Esta frase describía un montaje del
+> supervisor, no lo que el mando hacía: `writer.cli --apply` **no persistía
+> ninguna procedencia**. Medido aplicando el mismo plan con el mismo esquema
+> por los dos mandos: `ingest_cli --apply` dejaba 18 aristas / 1 `V3Source` /
+> 7 `V3Evidence`, y `writer.cli --apply` dejaba **0 / 0 / 0**, escribiendo la
+> aserción con `evidence_fragment_ids` apuntando a un fragmento inexistente,
+> sin `SUPPORTED_BY`, y reportando `APPLIED` sin una sola advertencia.
+>
+> La causa es estructural y no se arregla duplicando código: **la procedencia
+> no está en el plan**. El plan cita `evidence_fragment_ids`; los documentos
+> que esos ids nombran viven en la corrida de ingesta. Un mando al que solo se
+> le da `plan.json` no tiene con qué persistirla.
+>
+> Lo que hay ahora: una sola ruta canónica, `writer/apply.py::apply_v3`, que
+> usan las dos CLIs. `writer.cli` queda declarado **de bajo nivel**; sin
+> `--procedencia` emite `APPLY_PROVENANCE_NOT_PERSISTED`, **enumera las
+> referencias que deja colgando** y sale con `rc = 2`. Con
+> `--procedencia PAQUETE.json` (el `procedencia.json` que `ingest_cli
+> --out-dir` emite) alcanza el mismo grafo que la ruta de operador: medido
+> nodo a nodo por identidad durable, 0 diferencias de producto — las únicas
+> que quedan son de reloj (`applied_at`, `written_at`, `claim_token`,
+> `state_hash`).
+>
+> La ruta de operador es `knowledge_v3.pipeline.ingest_cli`.
+
 ```
 antes:    V3Entity 4 · V3Assertion 1 · V3Source 1 · V3Episode 7 · V3Evidence 7
           SUPPORTED_BY 1 · HAS_SUBJECT 1 · HAS_OBJECT 1 · HAS_EPISODE 7 · HAS_FRAGMENT 7 · LEADS 2
