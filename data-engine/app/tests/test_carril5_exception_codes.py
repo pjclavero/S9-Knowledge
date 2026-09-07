@@ -329,9 +329,13 @@ def test_el_inventario_de_la_base_y_la_conversion_cuadran():
             + carril5_deuda.GUARDAS_NUEVAS
             + carril5_deuda.SITIOS_NUEVOS_POSTERIORES_A_LA_BASE
             == carril5_deuda.CONVERTIDAS)
+    # EQUIPO 6A: la segunda identidad gana su propio termino de sitios NUEVOS,
+    # por la misma razon y con el mismo criterio que la primera: una guarda
+    # nueva que NACE con `match=` no es una conversion.
     assert (carril5_deuda.INVENTARIO_BASE_ESTRICTO_MATCH
             - carril5_deuda.CONVERTIDAS
             + carril5_deuda.GUARDAS_NUEVAS
+            + carril5_deuda.SITIOS_NUEVOS_MATCH_POSTERIORES_A_LA_BASE
             == carril5_deuda.INVENTARIO_ACTUAL_ESTRICTO_MATCH)
 
 

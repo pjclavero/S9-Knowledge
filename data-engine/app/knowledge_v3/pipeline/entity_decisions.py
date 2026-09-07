@@ -214,7 +214,7 @@ def reconcile(
     source_path: str,
     partida_id: Optional[str] = None,
     generated_at: Optional[str] = None,
-    names_by_mention: Optional[Mapping[str, str]] = None,
+    names_by_mention: Mapping[str, str],
 ) -> DecisionLedger:
     """Contrasta lo que el resolutor PIDIO con lo que el grafo TIENE.
 
@@ -225,9 +225,25 @@ def reconcile(
 
     `graph_entity_ids` es lo OBSERVADO. Un conjunto vacio es un dato
     legitimo (grafo nuevo) y produce altas para todo, no un enlace optimista.
+
+    `names_by_mention` es OBLIGATORIO, y no por gusto (hallazgo de 6C, tanda 5)
+    ----------------------------------------------------------------------
+    Era un parametro opcional. `ingest_cli.main` se lo pasaba; cualquier otra
+    ruta que no lo hiciera dejaba cada decision con `name = None`, y
+    `approved_snapshot_entities` lo rellenaba con el `entity_id`. Consecuencia:
+    entidades creadas con `name = "entity:prov:a1b2..."`, es decir
+    innombrables, y la ingesta SIGUIENTE en ese ambito no las reconocia por
+    nombre y volvia entera a `REVIEW_ENTITY`.
+
+    Es el patron que ha dominado cinco tandas --«la guarda existe pero el dato
+    no llega»-- en su variante mas dificil de ver: el fallo no aparece en la
+    corrida que lo causa, sino en la siguiente. Un parametro opcional que una
+    ruta pasa y otra no ES una segunda ruta. Ahora hay que declararlo: quien no
+    tenga nombres pasa `{}` A PROPOSITO, y la carencia queda escrita en el
+    documento en vez de descubrirse una ingesta despues.
     """
     presentes = set(graph_entity_ids)
-    nombres = dict(names_by_mention or {})
+    nombres = dict(names_by_mention)
     salida: list[EntityDecision] = []
 
     for fila in resolutions:

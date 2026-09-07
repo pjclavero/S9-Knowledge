@@ -315,12 +315,12 @@ def test_no_se_promueve_lo_que_no_esta_en_review():
 
 def test_el_documento_de_promociones_rechaza_otro_contrato():
     """Fail-closed: un documento ajeno no autoriza a promover nada."""
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="se esperaba"):
         P.PromotionLedger.from_dict({"contract": "otra-cosa/v1"})
 
 
 def test_una_promocion_con_campos_desconocidos_se_rechaza():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="campos desconocidos"):
         P.ClaimPromotion.from_dict({
             "claim_id": "c", "reason_codes": ["x"], "promoted_by": "p",
             "promoted_at": "t", "inventado": 1,
@@ -368,3 +368,167 @@ def test_created_ids_del_informe_no_lleva_element_ids():
     # El elementId se conserva, pero con el nombre que dice lo que es.
     assert creado[0]["element_id_at_write"] == "4:abc123:7"
     assert "4:abc123:7" not in json.dumps(creado[0]["identidad_durable"])
+
+
+# ---------------------------------------------------------------------------
+# 6. UN PARAMETRO OPCIONAL QUE UNA RUTA PASA Y OTRA NO **ES** UNA SEGUNDA RUTA
+# ---------------------------------------------------------------------------
+def test_reconcile_exige_los_nombres_de_mencion():
+    """Hallazgo de 6C (tanda 5), y de la misma familia que este carril.
+
+    `entity_decisions.reconcile` aceptaba `names_by_mention` como OPCIONAL.
+    `ingest_cli.main` se lo pasaba; cualquier otra ruta que no lo hiciera
+    dejaba cada decision con `name = None`, y `approved_snapshot_entities` lo
+    rellenaba con el `entity_id`: entidades creadas con
+    `name = "entity:prov:a1b2..."`, innombrables, y la ingesta SIGUIENTE en
+    ese ambito volvia entera a `REVIEW_ENTITY`.
+
+    El fallo no aparecia en la corrida que lo causaba sino en la siguiente, que
+    es la variante mas dificil de ver de «la guarda existe pero el dato no
+    llega». Un parametro opcional que una ruta pasa y otra no ES una segunda
+    ruta, que es exactamente lo que este carril viene a eliminar: ahora hay que
+    declararlo, aunque sea `{}`.
+    """
+    import inspect
+
+    from knowledge_v3.pipeline import entity_decisions
+
+    firma = inspect.signature(entity_decisions.reconcile)
+    parametro = firma.parameters["names_by_mention"]
+    assert parametro.default is inspect.Parameter.empty, (
+        "names_by_mention volvio a tener valor por defecto: una ruta que se lo "
+        "salte creara entidades innombrables y la ingesta siguiente volvera a "
+        "REVIEW_ENTITY sin que nada lo diga"
+    )
+    with pytest.raises(TypeError):
+        entity_decisions.reconcile(
+            resolutions=(), graph_entity_ids=(), workspace="ws",
+            source_path="f.md",
+        )
+
+
+def test_una_alta_sin_nombre_se_declara_como_carencia():
+    """No basta con exigir el dato: la consecuencia tiene que verse.
+
+    Pasar `{}` es legitimo (puede no haber nombre), pero entonces el alta usara
+    su propio `entity_id` como `name`, y eso se DICE en el documento en vez de
+    descubrirse una ingesta despues.
+    """
+    from knowledge_v3.pipeline import entity_decisions
+
+    ledger = entity_decisions.reconcile(
+        resolutions=[{
+            "action": "CREATE_NEW",
+            "resolution_id": "r1", "mention_ids": ["m1"],
+            "assigned_entity_id": "entity:prov:a1b2", "entity_type": "Faction",
+            "reason_codes": [],
+        }],
+        graph_entity_ids=(), workspace="ws", source_path="f.md",
+        names_by_mention={},
+    )
+    codigos = [c["code"] for c in ledger.carencias]
+    assert "ALTA_SIN_NOMBRE_OBSERVADO" in codigos
+    assert "entity:prov:a1b2" in " ".join(c["detail"] for c in ledger.carencias)
+
+
+# ---------------------------------------------------------------------------
+# 7. LA MARCA DE PROPIEDAD, COMPLETA (peticiones de 6B)
+# ---------------------------------------------------------------------------
+def _view_de_prueba():
+    from knowledge_v3.writer.view import SignedView
+    return SignedView(
+        workspace="ws", snapshot_id="snapshot:s", contract_version="v3-internal-v1",
+        engine_version="e", ontology_version="o", game_profile="g",
+        collection_id="col", source_asset_id="sa", source_hash={},
+        expires_at="2099-01-01T00:00:00Z", decisions=(), mutation_operations=(),
+        validator_chain=(), approved=True, approved_by={},
+        plan_hash={"algorithm": "sha256", "value": "a" * 64},
+        decision_hash={}, partida_id=None,
+    )
+
+
+def test_el_documento_de_rollback_lleva_apply_id_en_la_raiz():
+    """Petición de 6B. Sin barrido tambien: es el caso que le importa.
+
+    `PX` ya no se lee de una lista del documento: se mide en el grafo por la
+    marca de creacion. Si el `apply_id` solo viviera dentro del detalle de la
+    instruccion de barrido, un apply que no emite barrido dejaria a quien
+    clasifica SIN `PX` medible, y caeria al radio POR NOMBRE -- justo el
+    defecto que esta tanda cerro. Aqui se construye un documento SIN una sola
+    instruccion y se exige que la raiz ya lo lleve.
+    """
+    from knowledge_v3.writer.rollback import build_rollback
+
+    doc = build_rollback(_view_de_prueba(), [])
+    assert not doc.instructions, "el caso que importa es el documento sin barrido"
+    assert doc.apply_id is not None
+    assert doc.to_dict()["apply_id"] == doc.apply_id
+    # Y es EL MISMO que estampan los nodos de procedencia: una sola identidad
+    # en todo el grafo, no dos que haya que reconciliar.
+    assert doc.apply_id == compute_apply_id(
+        workspace="ws", snapshot_id="snapshot:s", plan_hash="a" * 64,
+        partida_id=None,
+    )
+
+
+def test_la_marca_de_idempotencia_estampa_apply_id():
+    """Petición de 6B: `V3AppliedOperation` llevaba solo `plan_hash`.
+
+    Atribuir una marca colgante por `plan_hash` es MEDIA identidad: dos applies
+    del mismo plan sobre snapshots o ambitos distintos lo comparten. Con
+    `apply_id` la marca lleva la misma identidad que los nodos de procedencia.
+    """
+    from knowledge_v3.writer import cypher
+
+    q = cypher.claim_applied_operation(
+        "ws", "idem:k", "h", "op:1", "2026-09-07T12:00:00Z", "tok",
+        partida_id=None, apply_id="apply:" + "0" * 32,
+    )
+    assert "op.apply_id = $apply_id" in q.cypher
+    assert q.params["apply_id"] == "apply:" + "0" * 32
+    # ON CREATE SET, no SET: una marca reclamada antes conserva el apply_id de
+    # QUIEN LA CREO, que es la pregunta que el rollback hace.
+    assert "ON CREATE SET" in q.cypher
+    assert " SET op.apply_id" not in q.cypher.replace("ON CREATE SET", "@")
+
+
+def test_la_ruta_canonica_entrega_el_plan_INTACTO_al_writer():
+    """Aviso de 6C: `known_from_session` viaja en el `payload` de cada operacion
+    (solo en ambito PARTIDA) y **entra en la `idempotency_key`**.
+
+    Si la ruta canonica reescribiera el plan --normalizando, copiando campos
+    conocidos, filtrando payloads-- ese valor se perderia y el sintoma seria
+    `EXEC_REVELACION_NO_DECLARADA`, lejos de la causa. La propiedad que lo
+    impide es sencilla y se comprueba, no se presume: `apply_v3` entrega al
+    writer EL MISMO objeto que recibio, sin tocarlo.
+    """
+    import copy
+
+    plan = copy.deepcopy(PLAN_MINIMO)
+    plan["partida_id"] = "partida:007"
+    plan["mutation_operations"][0]["payload"]["known_from_session"] = "sesion:42"
+    antes = copy.deepcopy(plan)
+
+    writer = _WriterFalso()
+    apply_mod.apply_v3(plan, _Peticion(), writer=writer, provenance=None)
+
+    entregado, _ = writer.recibido
+    assert entregado is plan, "el writer tiene que recibir EL MISMO objeto"
+    assert plan == antes, "la ruta canonica no puede modificar el plan"
+    assert (entregado["mutation_operations"][0]["payload"]["known_from_session"]
+            == "sesion:42")
+
+
+def test_la_ruta_canonica_lee_el_ambito_del_plan_y_no_lo_inventa():
+    """6C: el contexto de partida sigue pasando por donde pasaba.
+
+    `apply_v3` no recibe `partida_id` por parametro: lo LEE del plan, con el
+    mismo criterio que `SignedView.of` (el bloque `scope` manda sobre la raiz).
+    Asi no puede haber dos verdades sobre el ambito de un mismo apply.
+    """
+    plan = dict(PLAN_MINIMO, partida_id="partida:raiz",
+                scope={"partida_id": "partida:scope", "game_id": "ws"})
+    assert apply_mod.plan_partida_id(plan) == "partida:scope"
+    assert apply_mod.plan_partida_id(dict(PLAN_MINIMO, partida_id="partida:raiz")) \
+        == "partida:raiz"
+    assert apply_mod.plan_partida_id(PLAN_MINIMO) is None

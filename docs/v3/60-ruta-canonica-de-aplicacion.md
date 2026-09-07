@@ -186,7 +186,79 @@ contra lo que el grafo tiene, y sin grafo no hay con qué reconciliar. En una
 ingesta offline la ruta se ignoraba **en silencio**; ahora la ayuda lo dice y
 el mando avisa por `stderr` nombrando el fichero que no va a escribir.
 
-## 8. Lo que NO se tocó
+## 8. La marca de propiedad, completa (peticiones de 6B)
+
+Dos piezas que **estrechan** la clasificación del rollback; ninguna la afloja.
+
+**1 · El documento de rollback lleva `apply_id` en la raíz.** Antes sólo vivía
+dentro del detalle de la instrucción de barrido, así que 6B lo derivaba de las
+instrucciones — y **un apply que no emite barrido lo dejaba sin `PX` medible**,
+cayendo al radio por nombre, que es el defecto que esta tanda cerró. Ahora lo
+pone `build_rollback` desde el view **firmado**, así que lo lleva **todo**
+documento, con barrido o sin él. Medido:
+
+```
+raiz apply_id : apply:05c58bc96e0eabaea073f21f63ff6e70
+en el barrido : apply:05c58bc96e0eabaea073f21f63ff6e70
+```
+
+**2 · `V3AppliedOperation` lleva `apply_id`.** Traía sólo `plan_hash`, así que
+las marcas colgantes se atribuían por ahí: **media identidad**, porque dos
+applies del mismo plan sobre snapshots o ámbitos distintos lo comparten. El
+executor lo compone del mismo view firmado (`apply_id_for_view`), y va en
+`ON CREATE SET` como los demás campos: una marca ya reclamada conserva el
+`apply_id` de **quien la creó**, que es la pregunta que el rollback hace.
+Medido en el grafo:
+
+```
+marcas V3AppliedOperation: 3
+con apply_id no nulo     : 3
+apply_id distintos       : ['apply:05c58bc96e0eabaea073f21f63ff6e70']
+```
+
+Ahora la misma identidad marca los nodos de procedencia, la marca de
+idempotencia y la raíz del documento: **un solo campo en todo el grafo**.
+
+### El matiz que 6B señala, dicho entero
+
+6B observa que atar la atribución a `plan_hash` **empeora** si la identidad
+lógica se separa del reloj. Es cierto a medias y conviene no dejarlo ambiguo:
+
+`apply_id` **también deriva de `plan_hash`**, así que **hereda su dependencia
+del reloj** — estamparlo no la elimina. Lo que sí hace, y es lo que estrecha la
+clasificación, es dos cosas: la identidad pasa a ser **completa** (workspace +
+ámbito + snapshot + plan, no sólo el plan, así que dos applies del mismo plan
+ya no se confunden) y **única** (el mismo campo en los tres sitios, sin
+reconciliar dos esquemas de atribución).
+
+La dependencia del reloj **no se puede quitar sin romper el contrato
+congelado** — ver §5: el único campo sin reloj es `plan_id`, y no está firmado.
+Queda como **carencia declarada**, y la mitigación es operativa: con `--ahora`
+fijado el `apply_id` es reproducible, y el informe lo dice en cada corrida que
+no lo fija.
+
+## 9. Un parámetro opcional **es** una segunda ruta
+
+Hallazgo de 6C, cerrado aquí porque es exactamente la clase de divergencia que
+este carril viene a eliminar.
+
+`entity_decisions.reconcile` aceptaba `names_by_mention` como **opcional**.
+`ingest_cli.main` se lo pasaba; **cualquier otra ruta que no lo hiciera** dejaba
+cada decisión con `name = None`, y `approved_snapshot_entities` lo rellenaba con
+el `entity_id`. Consecuencia: entidades creadas con
+`name = "entity:prov:a1b2…"` — innombrables — y **la ingesta siguiente en ese
+ámbito volvía entera a `REVIEW_ENTITY`**.
+
+Medido en este árbol: **1 llamada de producto lo pasaba y 9 sitios lo omitían.**
+
+Es «la guarda existe pero el dato no llega» en su variante más difícil de ver:
+el fallo no aparece en la corrida que lo causa sino en la siguiente. El
+parámetro pasa a ser **obligatorio**: quien no tenga nombres pasa `{}` a
+propósito, y la carencia `ALTA_SIN_NOMBRE_OBSERVADO` queda escrita en el
+documento. Dos pruebas lo fijan: que el parámetro no vuelva a tener valor por
+defecto, y que la carencia se emita nombrando el alta afectada.
+
+## 10. Lo que NO se tocó
 
 `authz/`, `policies/`, grants, visibilidad, protección de rama, producción,
 VM105. Ningún gate nuevo. **Ninguna garantía del writer relajada**: gate triple

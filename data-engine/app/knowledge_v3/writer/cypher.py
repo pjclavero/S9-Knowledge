@@ -299,8 +299,21 @@ def claim_applied_operation(
     applied_at: str,
     claim_token: str,
     partida_id: str | None = None,
+    apply_id: str | None = None,
 ) -> Query:
     """Reclama la clave dentro de la misma transacción que la mutación.
+
+    `apply_id` se GUARDA en la marca (peticion de 6B, tanda 5). Antes la marca
+    solo traia `plan_hash`, asi que atribuir una `V3AppliedOperation` colgante
+    a su apply habia que hacerlo por ahi -- y eso es MEDIA identidad: dos
+    applies del mismo plan sobre snapshots o ambitos distintos comparten
+    `plan_hash` y se confunden. Con `apply_id` la marca lleva la MISMA
+    identidad que los nodos de procedencia, asi que la clasificacion del
+    rollback atribuye por un solo campo en todo el grafo.
+
+    NO cambia ninguna condicion de borrado: es un campo mas en la marca. Y va
+    en `ON CREATE SET`, como los demas: una marca reclamada antes conserva el
+    `apply_id` de quien la creo, que es la pregunta que el rollback hace.
 
     `partida_id` se GUARDA en la marca porque es el unico campo de ambito que
     la `idempotency_key` deja fuera (`IDEMPOTENCY_KEY_FIELDS` en el validador
@@ -313,9 +326,11 @@ def claim_applied_operation(
         "{workspace: $ws, idempotency_key: $key}) "
         "ON CREATE SET op.plan_hash = $plan_hash, "
         "op.operation_id = $operation_id, op.applied_at = $applied_at, "
-        "op.claim_token = $claim_token, op.partida_id = $partida_id "
+        "op.claim_token = $claim_token, op.partida_id = $partida_id, "
+        "op.apply_id = $apply_id "
         "RETURN op.plan_hash AS plan_hash, op.operation_id AS operation_id, "
-        "op.partida_id AS partida_id, op.claim_token = $claim_token AS created",
+        "op.partida_id AS partida_id, op.apply_id AS apply_id, "
+        "op.claim_token = $claim_token AS created",
         {
             "ws": workspace,
             "key": idempotency_key,
@@ -324,6 +339,7 @@ def claim_applied_operation(
             "applied_at": applied_at,
             "claim_token": claim_token,
             "partida_id": partida_id,
+            "apply_id": apply_id,
         },
     )
 

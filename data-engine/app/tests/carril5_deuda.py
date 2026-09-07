@@ -146,8 +146,15 @@ INVENTARIO_BASE_ESTRICTO_IN_STR = 50
 #: `schema_cli ensure`. En los dos casos el texto ES la garantia --el defecto
 #: era precisamente que no habia mensaje ninguno--, asi que comprobarlo por
 #: subcadena es lo correcto, no deuda que convertir. `match=` no se mueve.
-INVENTARIO_ACTUAL_ESTRICTO = 129
-INVENTARIO_ACTUAL_ESTRICTO_MATCH = 77
+#: EQUIPO 6A (tanda 5): +2 en `match=` (129 -> 131, 77 -> 79). Son las dos
+#: guardas de `test_knowledge_v3_equipo6a_ruta_canonica.py` sobre el documento
+#: de PROMOCIONES: que rechaza otro contrato y que rechaza campos
+#: desconocidos. Llevan `match=` desde el primer dia --no son deuda que
+#: convertir-- porque una promocion es una firma humana que autoriza una
+#: escritura: un rechazo que no distingue POR QUE rechaza dejaria pasar un
+#: documento ajeno como si fuera un fallo de forma. `in_str` no se mueve.
+INVENTARIO_ACTUAL_ESTRICTO = 131
+INVENTARIO_ACTUAL_ESTRICTO_MATCH = 79
 INVENTARIO_ACTUAL_ESTRICTO_IN_STR = 52
 
 #: Cota superior (detector AMPLIO), base y actual.
@@ -158,7 +165,20 @@ INVENTARIO_BASE_AMPLIO = 345
 #: --es justo lo que esa garantia afirma-- y por eso entra en la cota AMPLIA
 #: sin tocar la ESTRICTA, que sigue en 127.
 #: EQUIPO 5A: +2, las mismas dos de arriba.
-INVENTARIO_ACTUAL_AMPLIO = 298
+#: EQUIPO 6A: +4 (298 -> 302). Dos son las guardas `match=` de arriba; las
+#: otras dos son sitios de PRODUCTO nuevos, en `engine/promotion.py`:
+#: `ClaimPromotion.from_dict` y `PromotionLedger.from_dict` levantan
+#: `ValueError` ante un documento de promociones malformado o de otro
+#: contrato. Son fail-closed y NO se convierten a codigo: son la puerta por la
+#: que entra una firma humana, y ahi lo correcto es negarse.
+#: EQUIPO 6A (2): +1 mas (302 -> 303). Es el `pytest.raises(TypeError)` que
+#: comprueba que `entity_decisions.reconcile` ya NO acepta que le falte
+#: `names_by_mention`. Va SIN `match=` a proposito: ese texto lo redacta
+#: CPython al faltar un argumento obligatorio, cambia entre versiones, y
+#: atarlo convertiria una garantia del producto en una prueba de la version
+#: del interprete. Lo que se afirma es la firma, y eso ya se comprueba por
+#: `inspect.signature` en la misma prueba.
+INVENTARIO_ACTUAL_AMPLIO = 303
 
 #: Guardas `match=` NUEVAS que introduce el carril: las dos de
 #: `test_carril5_exception_codes.py` que protegen al propio instrumento.
@@ -176,7 +196,21 @@ CONVERTIDAS = 52
 #: ruta de esquema no estaban en la base porque la ruta de esquema no existia.
 #: Se anade el termino en vez de cuadrar la cifra a mano, que habria escondido
 #: exactamente lo que la identidad existe para vigilar.
-SITIOS_NUEVOS_POSTERIORES_A_LA_BASE = 2
+#: EQUIPO 6A: +2, los dos de `engine/promotion.py`. La ruta de promocion no
+#: existia en la base, asi que sus sitios no pueden ser deuda heredada. Se
+#: anade el termino en vez de cuadrar la cifra a mano, por el mismo motivo que
+#: la primera vez: cuadrarla a mano esconde justo lo que la identidad vigila.
+SITIOS_NUEVOS_POSTERIORES_A_LA_BASE = 4
+
+#: EQUIPO 6A. De los sitios nuevos, los que ya nacen con `match=`.
+#:
+#: La segunda identidad (`BASE_MATCH - CONVERTIDAS + GUARDAS = ACTUAL_MATCH`)
+#: tenia el MISMO hueco que 5A cerro en la primera: da por supuesto que
+#: `ACTUAL_MATCH` solo crece por conversiones. Una guarda NUEVA que nace con
+#: `match=` la rompe sin que haya nada que reprochar -- y la unica salida
+#: habria sido retocar `CONVERTIDAS`, que es justo la cifra que la prueba
+#: protege. Se anade el termino, igual que la primera vez.
+SITIOS_NUEVOS_MATCH_POSTERIORES_A_LA_BASE = 2
 
 #: Nombres antiguos, conservados para no romper a quien los importe. Apuntan a
 #: la medida ESTRICTA de la base, que es la unica que un detector reproduce.

@@ -25,10 +25,10 @@ hecho.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Iterable
+from typing import Any, Iterable, Optional
 
 from . import cypher as cypher_mod
-from .apply_identity import APPLY_ID_FIELD, is_apply_id
+from .apply_identity import APPLY_ID_FIELD, apply_id_for_view, is_apply_id
 from .executor import AppliedOperation
 from .view import SignedView
 
@@ -69,6 +69,13 @@ class RollbackDocument:
     workspace: str
     snapshot_id: str
     plan_hash: str
+    #: Identidad durable del apply que este documento revierte (peticion de
+    #: 6B, tanda 5). Va en la RAIZ y no solo dentro del detalle de la
+    #: instruccion de barrido: si el barrido no se emite --un apply sin
+    #: procedencia, o sin identidad completa-- quien clasifica se quedaba sin
+    #: `PX` medible y caia al radio POR NOMBRE, que es justo el defecto que
+    #: esta tanda cerro. En la raiz esta siempre que se pueda componer.
+    apply_id: Optional[str] = None
     instructions: list[RollbackInstruction] = field(default_factory=list)
     unrecoverable: list[str] = field(default_factory=list)
 
@@ -77,6 +84,7 @@ class RollbackDocument:
             "workspace": self.workspace,
             "snapshot_id": self.snapshot_id,
             "plan_hash": self.plan_hash,
+            APPLY_ID_FIELD: self.apply_id,
             "instructions": [i.to_dict() for i in self.instructions],
             "unrecoverable": list(self.unrecoverable),
         }
@@ -94,6 +102,9 @@ def build_rollback(
         workspace=view.workspace,
         snapshot_id=view.snapshot_id,
         plan_hash=view.plan_hash_value,
+        # Del view FIRMADO, aqui, para que TODO documento lo lleve -- no solo
+        # los que acaban emitiendo barrido de procedencia.
+        apply_id=apply_id_for_view(view),
     )
     for op in reversed(list(applied)):
         if op.kind == "NODE":

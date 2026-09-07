@@ -29,6 +29,7 @@ from typing import Any, Optional
 from ..ledger.entries import LedgerOperation
 from ..ledger.supersession import CANONICAL_REASONS as _LEDGER_CANONICAL_REASONS
 from . import codes, cypher, state
+from .apply_identity import apply_id_for_view
 from .admission import declares_local_override
 from .errors import WriterAbort
 from .idempotency import AppliedKeyStore
@@ -671,6 +672,11 @@ def execute_plan(driver: Any, view: SignedView, ctx: ExecutionContext) -> Execut
                         ctx.written_at,
                         uuid.uuid4().hex,
                         partida_id=view.partida_id,
+                        # Del propio view FIRMADO, no de un parametro que
+                        # alguna ruta pudiera olvidarse de pasar. `None` si el
+                        # view no permite componerlo, que el camino de
+                        # reversion lee como «propiedad desconocida».
+                        apply_id=apply_id_for_view(view),
                     ),
                 )
                 existing_hash = _field(claimed, "plan_hash")

@@ -195,6 +195,7 @@ def _b_completo(driver):
         graph_entity_ids=[],
         workspace=WS_B,
         source_path=str(FUENTE),
+        names_by_mention={},
     )
     # Aprobadas UNA A UNA, con su revisor. Sin altas aprobadas el plan no trae
     # `CREATE_ENTITY` y este caso no mediria nada.
