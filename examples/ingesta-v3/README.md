@@ -34,6 +34,7 @@ conexión con Neo4j.
 | `--perfil` | `GameProfile` del workspace (obligatorio salvo en `--revisar`) |
 | `--catalogo` | entidades ya existentes, leídas de un JSON. Alternativa OFFLINE a `--desde-grafo` |
 | `--workspace` `--partida` `--collection` | ámbito de la corrida |
+| `--sesion` | sesión de **revelación** (T2): desde qué sesión de juego puede revelarse lo que se ingiere. **Obligatoria con `--partida`** y sólo válida con ella; `0` = conocido desde el inicio. Sin ella, el ámbito de partida no se planifica (`PLAN_SESION_NO_DECLARADA`): no se asume `0` ni se degrada a capa juego |
 | `--source-kind` | fuerza el adaptador multimodal |
 | `--ahora` `--ingerido-en` | relojes inyectados (ISO-8601 Z) |
 | `--dry-run` | no escribe. Es el defecto |

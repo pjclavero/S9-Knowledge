@@ -54,6 +54,13 @@ class PipelineConfig:
     #: workspace no compartan `idempotency_key` ni reutilicen los objetos de
     #: la otra.
     partida_id: Optional[str] = None
+    #: EQUIPO 6C. Sesion de REVELACION declarada para esta corrida (T2). Viaja
+    #: hasta `PlanContext` y de ahi al payload de cada operacion, que es donde
+    #: el writer la busca para estamparla. Obligatoria cuando hay
+    #: `partida_id`: sin ella el plan no se construye (fail closed en
+    #: `PlanContext.__post_init__`), en vez de construirse y abortar en el
+    #: writer con `EXEC_REVELACION_NO_DECLARADA`.
+    known_from_session: Optional[int] = None
 
     # -- proveedores --------------------------------------------------------
     #: Uno de LOCAL_ONLY / EXTERNAL_ONLY / LOCAL_PLUS_EXTERNAL / NO_OLLAMA.

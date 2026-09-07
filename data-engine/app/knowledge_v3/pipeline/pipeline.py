@@ -456,6 +456,7 @@ class KnowledgePipeline:
             collection_id=self.config.collection_id,
             now=self.config.now,
             partida_id=self.config.partida_id,
+            known_from_session=self.config.known_from_session,
         )
         run.engine_result = result
         run.plan = result.plan

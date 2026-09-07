@@ -70,7 +70,61 @@ class PlanContext:
     #: el plan salia de aqui SIN ambito: el planificador no tenia donde
     #: leerlo. Estampar esto es lo que pone trafico en esa carretera.
     partida_id: Optional[str] = None
+    #: EQUIPO 6C. Sesion de REVELACION de la corrida (T2): desde que sesion de
+    #: juego puede revelarse lo que se ingiere aqui. Igual que `partida_id` y
+    #: que `now`, se DECLARA en el contexto y no se deduce en ningun punto
+    #: interior: el motor no tiene forma de saber en que sesion se jugo lo que
+    #: hay en el fichero, y cualquier valor inventado (empezando por `0`)
+    #: seria una revelacion concedida por el software y no por quien dirige.
+    #:
+    #: ES EL CAMPO QUE FALTABA. `writer/visibility.py::revelacion_props` exige
+    #: `known_from_session` para todo lo de ambito PARTIDA desde M5b, y
+    #: `writer/executor.py` lo busca en `op["payload"]`. Ningun constructor de
+    #: operaciones lo ponia nunca ahi, asi que en cuanto EQUIPO 5A abrio la
+    #: ruta `--partida` TODO plan de partida abortaba con
+    #: `EXEC_REVELACION_NO_DECLARADA`. La guardia estaba bien; lo que no
+    #: llegaba era el dato.
+    known_from_session: Optional[int] = None
     engine_version: str = ENGINE_VERSION
+
+    def __post_init__(self) -> None:
+        """FAIL CLOSED de la declaracion de ambito, en el borde del motor.
+
+        Se comprueba AQUI, al construir el contexto, y no mas abajo, porque
+        este es el primer punto donde constan a la vez el ambito y la sesion.
+        Las dos incoherencias posibles se rechazan, y ninguna se degrada:
+
+        * ambito de partida SIN sesion -> no se planifica. Degradar a capa
+          juego seria publicar como lore compartido algo que se declaro
+          privado de una partida; poner `0` seria declarar "conocido desde el
+          inicio" en nombre del director.
+        * sesion SIN ambito de partida -> tampoco. El estampado la descarta
+          en capa juego (`revelacion_props` devuelve `{}` para `juego`), asi
+          que aceptarla en silencio dejaria a quien la declaro creyendo que
+          viaja al grafo cuando no viaja. Se falla en voz alta.
+        """
+        sesion = self.known_from_session
+        if self.partida_id is not None and sesion is None:
+            raise EnginePlanError(
+                "PLAN_SESION_NO_DECLARADA: el ambito de partida "
+                f"{self.partida_id!r} exige declarar `known_from_session` "
+                "(0 si es conocido desde el inicio, o el numero de sesion en "
+                "que se revela). No se degrada a capa juego ni se asume 0."
+            )
+        if self.partida_id is None and sesion is not None:
+            raise EnginePlanError(
+                "PLAN_SESION_SIN_AMBITO: se declaro `known_from_session="
+                f"{sesion!r}` sin ambito de partida. La capa juego no esta "
+                "sujeta a progresion de sesion y el estampado la descartaria: "
+                "declara `--partida` o no declares sesion."
+            )
+        if sesion is not None and (
+            isinstance(sesion, bool) or not isinstance(sesion, int) or sesion < 0
+        ):
+            raise EnginePlanError(
+                f"PLAN_SESION_INVALIDA: known_from_session={sesion!r}; debe "
+                "ser un entero no negativo."
+            )
 
     def expires_at(self, ttl_seconds: int) -> str:
         moment = datetime.strptime(self.now, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
@@ -396,6 +450,41 @@ def _operations(
     return ops
 
 
+def _stampar_revelacion(context: PlanContext, operations: list[dict]) -> list[dict]:
+    """Pone la sesion de revelacion declarada en el payload de CADA operacion.
+
+    UN SOLO PUNTO, a proposito. El writer la exige por OPERACION —dos hechos
+    del mismo plan pueden revelarse en sesiones distintas—, pero hoy la unica
+    fuente que existe es la declaracion de la corrida, que es por PLAN. Repartir
+    ese valor desde cuatro constructores distintos (`_altas`, la asercion, la
+    supersesion y la proyeccion) habria dado cuatro sitios donde olvidarlo, que
+    es exactamente como nacio el defecto que esto arregla.
+
+    En capa juego no se toca nada: `revelacion_props` no la pide y el plan sale
+    byte a byte identico al de antes, con su mismo `plan_hash`.
+
+    El valor NO acaba como propiedad cruda del nodo: `writer/executor.py::
+    _validated_payload` lo retira del payload antes de calcular `props` y lo
+    estampa `visibility.stamp`, que es el unico punto por el que entra al grafo.
+    """
+    if context.partida_id is None:
+        return operations
+    sesion = context.known_from_session
+    # `__post_init__` ya garantiza que no es None con ambito de partida; esta
+    # comprobacion es la que sobrevive si alguien construye el contexto por
+    # otra via. Preferimos no planificar a planificar algo que aborta.
+    if sesion is None:  # pragma: no cover - defensa en profundidad
+        raise EnginePlanError(
+            "PLAN_SESION_NO_DECLARADA: ambito de partida sin sesion de revelacion"
+        )
+    out: list[dict] = []
+    for op in operations:
+        nuevo = dict(op)
+        nuevo["payload"] = {**(op.get("payload") or {}), "known_from_session": sesion}
+        out.append(nuevo)
+    return out
+
+
 def plan_is_self_consistent(operations: Sequence[dict], profile: ProfileIndex) -> bool:
     """Ninguna operacion del plan contradice o repite a otra del MISMO plan.
 
@@ -674,6 +763,12 @@ def build_plan(
     # resultante deja `op:alta:*` antes que `op:claim:*`, que es el que el
     # executor necesita: crear antes de afirmar.
     operations = _dedupe_altas(operations)
+    # EQUIPO 6C. Ultimo paso antes de sellar: la `idempotency_key` se deriva
+    # del payload, asi que la sesion de revelacion entra en la firma de la
+    # operacion. Es lo correcto: la misma afirmacion revelada en sesiones
+    # distintas es una declaracion distinta y no debe colapsar en la misma
+    # clave.
+    operations = _stampar_revelacion(context, operations)
     has_review = any(d.decision == "REVIEW" for d in decisions)
     chain = _validator_chain(context, decisions, operations, profile, True, semantic_failures)
     approved = (

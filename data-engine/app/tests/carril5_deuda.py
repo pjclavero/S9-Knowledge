@@ -146,9 +146,14 @@ INVENTARIO_BASE_ESTRICTO_IN_STR = 50
 #: `schema_cli ensure`. En los dos casos el texto ES la garantia --el defecto
 #: era precisamente que no habia mensaje ninguno--, asi que comprobarlo por
 #: subcadena es lo correcto, no deuda que convertir. `match=` no se mueve.
-INVENTARIO_ACTUAL_ESTRICTO = 129
+# EQUIPO 6C: +3 en `in_str` (129 -> 132, 52 -> 55). Son las tres guardas de la
+#: sesion de revelacion --`PLAN_SESION_NO_DECLARADA`, `PLAN_SESION_SIN_AMBITO`
+#: y `PLAN_SESION_INVALIDA`--, que se comprueban por subcadena porque el codigo
+#: viaja DENTRO del mensaje del error del motor y de la CLI, que no tienen
+#: registro de codigos propio. `match=` no se mueve.
+INVENTARIO_ACTUAL_ESTRICTO = 132
 INVENTARIO_ACTUAL_ESTRICTO_MATCH = 77
-INVENTARIO_ACTUAL_ESTRICTO_IN_STR = 52
+INVENTARIO_ACTUAL_ESTRICTO_IN_STR = 55
 
 #: Cota superior (detector AMPLIO), base y actual.
 INVENTARIO_BASE_AMPLIO = 345
@@ -158,7 +163,8 @@ INVENTARIO_BASE_AMPLIO = 345
 #: --es justo lo que esa garantia afirma-- y por eso entra en la cota AMPLIA
 #: sin tocar la ESTRICTA, que sigue en 127.
 #: EQUIPO 5A: +2, las mismas dos de arriba.
-INVENTARIO_ACTUAL_AMPLIO = 298
+#: EQUIPO 6C: +3, las mismas tres de arriba.
+INVENTARIO_ACTUAL_AMPLIO = 301
 
 #: Guardas `match=` NUEVAS que introduce el carril: las dos de
 #: `test_carril5_exception_codes.py` que protegen al propio instrumento.
@@ -176,7 +182,9 @@ CONVERTIDAS = 52
 #: ruta de esquema no estaban en la base porque la ruta de esquema no existia.
 #: Se anade el termino en vez de cuadrar la cifra a mano, que habria escondido
 #: exactamente lo que la identidad existe para vigilar.
-SITIOS_NUEVOS_POSTERIORES_A_LA_BASE = 2
+#: EQUIPO 6C: 2 -> 5. Las tres guardas de la sesion de revelacion tampoco
+#: estaban en la base: `known_from_session` no viajaba por ningun sitio.
+SITIOS_NUEVOS_POSTERIORES_A_LA_BASE = 5
 
 #: Nombres antiguos, conservados para no romper a quien los importe. Apuntan a
 #: la medida ESTRICTA de la base, que es la unica que un detector reproduce.
