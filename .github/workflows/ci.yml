@@ -226,9 +226,17 @@ jobs:
           # devolvia vacio con 29 nodos reales delante.
           # `test_contrato_writer_a_visor_neo4j.py` puebla la base con el writer
           # REAL (plan V3 -> ingest_cli / GraphWriter) y lee por la API REAL.
+          # El CUARTO fichero es el de la integracion de la tanda 11. Los tres
+          # anteriores miden ESTADOS; este mide la HISTORIA completa
+          # (apply -> repeat -> rollback -> re-apply) y, en cada paso, lo que el
+          # visor ve. Va en la MISMA invocacion a proposito: si se quedara
+          # fuera, saldria SKIPPED en `test-viewer` --que no define
+          # NEO4J_TEST_URI-- y un skip verde equivale a no tener la prueba, que
+          # es exactamente el agujero que este paso existe para tapar.
           out="$(python -m pytest viewer/tests/test_neo4j_integration_authz.py \
                                   viewer/tests/test_contrato_paneles_neo4j.py \
                                   viewer/tests/test_contrato_writer_a_visor_neo4j.py \
+                                  viewer/tests/test_integracion_tanda11_recorrido_completo.py \
                                   -v --no-header 2>&1)"
           rc=$?
           set -e
