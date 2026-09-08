@@ -267,6 +267,42 @@ def read_entity_props(entity_id: str, workspace: str, partida_id: str | None = N
     return Query(f"{pattern} RETURN properties(n) AS props", params)
 
 
+def read_entity_state_visible(
+    entity_id: str, workspace: str, partida_id: str | None = None
+) -> Query:
+    """Estado de una entidad REFERENCIADA, con el ambito de VISIBILIDAD.
+
+    No es una variante laxa de `read_entity_state`: responde a otra pregunta.
+    `read_entity_state` (via `_scoped_match`) es la precondicion de una
+    operacion que MUTA ese nodo, y por eso exige el ambito exacto -- una
+    partida no cierra la vigencia de un hecho del lore (docs/v3/49 §2.5: "el
+    lore intacto"). Esta lectura es la precondicion de una operacion que
+    solo REFERENCIA el nodo (los extremos de una relacion), y ahi el ambito
+    que manda es el mismo `_visible_predicate` que la propia
+    `create_relation` aplica a sus dos extremos: capa juego + la partida
+    propia, NUNCA otra partida (docs/v3/49 §0 y §2.3).
+
+    Sin esto, la precondicion contradice a la consulta de la que es
+    precondicion: `create_relation` acepta un extremo de capa juego desde un
+    plan de partida y la lectura previa lo rechazaba, haciendo la herencia
+    juego->partida estructuralmente imposible en escritura.
+
+    El ambito ausente NO se convierte en capa juego por defecto:
+    `partida_id=None` es un plan de CAPA JUEGO y `_visible_predicate` lo
+    traduce a `IS NULL`, que es exactamente lo que ya exigia `_scoped_match`
+    para ese caso. La diferencia solo existe cuando el plan declara partida.
+    """
+    params: dict[str, Any] = {"id": entity_id, "ws": workspace}
+    if partida_id is not None:
+        params["partida_id"] = partida_id
+    return Query(
+        f"MATCH (n:{LABEL_ENTITY} {{entity_id: $id, workspace: $ws}}) "
+        f"WHERE {_visible_predicate('n', partida_id)} "
+        "RETURN n.version AS version, n.state_hash AS state_hash",
+        params,
+    )
+
+
 def read_entity_state_any_scope(entity_id: str, workspace: str) -> Query:
     """Existencia SIN filtro de ambito: solo para diagnosticar un drift.
 

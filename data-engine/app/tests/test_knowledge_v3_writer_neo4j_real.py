@@ -1360,3 +1360,86 @@ def test_una_instruccion_sin_ambito_declarado_no_llega_a_ejecutarse(
             )
         )
     assert _censo_relaciones(graph) == antes, "el grafo se movio pese al DENY"
+
+
+# ==========================================================================
+# CARRIL 9 -- la herencia juego->partida, contra Neo4j REAL
+#
+# Aqui la garantia no la decide ningun doble: la decide el motor de Cypher.
+# Es donde se calibra la mutacion negativa (quitar la discriminacion A/B),
+# porque un doble que re-implementa el predicado no puede notarla.
+# ==========================================================================
+def _plan_de_partida_que_enlaza(subject: str, obj: str, partida: str, *, version=1):
+    operacion = link_existing("op:0001", subject, obj, version=version)
+    operacion["payload"] = {**operacion["payload"], "known_from_session": 0}
+    return make_plan(
+        [operacion],
+        partida_id=partida,
+        scope={"layer": "PARTIDA", "game_id": WORKSPACE, "partida_id": partida},
+    )
+
+
+def test_carril9_un_plan_de_partida_enlaza_entidades_de_CAPA_JUEGO(graph: GraphProbe):
+    """La casilla que estaba estructuralmente prohibida.
+
+    El modelo (docs/v3/49 §0) dice que una partida ve `partida_id IS NULL OR
+    = la suya`. La precondicion de la relacion exigia IGUALDAD EXACTA, asi que
+    un plan de partida no podia referenciar el lore compartido: el escenario
+    A/B moria en `EXEC_SCOPE_MISMATCH` con el plan aprobado y 6 validadores
+    en PASS.
+    """
+    graph.seed_entity("entity:sela-marrec")   # capa juego: sin `partida_id`
+    graph.seed_entity("entity:cofradia-ambar")
+    plan = _plan_de_partida_que_enlaza(
+        "entity:sela-marrec", "entity:cofradia-ambar", "partida:A"
+    )
+    result = writer(graph.driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_APPLIED, result.codes
+
+    # UNA consulta por cosa contada, y el conjunto NO vacio.
+    aristas = graph.run(
+        "MATCH (:V3Entity {entity_id: $s, workspace: $ws})-[r]->"
+        "(:V3Entity {entity_id: $o, workspace: $ws}) "
+        "RETURN r.partida_id AS partida_id",
+        {"s": "entity:sela-marrec", "o": "entity:cofradia-ambar", "ws": WORKSPACE},
+    )
+    assert len(aristas) == 1, f"censo de aristas vacio o duplicado: {aristas}"
+    # La arista es DE LA PARTIDA: la herencia es de lectura del extremo, no de
+    # propiedad de lo escrito.
+    assert aristas[0]["partida_id"] == "partida:A"
+
+    # Y el lore no se ha movido: los dos extremos siguen en capa juego.
+    extremos = graph.run(
+        "MATCH (n:V3Entity {workspace: $ws}) WHERE n.entity_id IN $ids "
+        "RETURN n.entity_id AS id, n.partida_id AS partida_id ORDER BY n.entity_id",
+        {"ws": WORKSPACE, "ids": ["entity:cofradia-ambar", "entity:sela-marrec"]},
+    )
+    assert len(extremos) == 2, extremos
+    assert all(e["partida_id"] is None for e in extremos), extremos
+
+
+def test_carril9_desde_A_una_entidad_de_B_sigue_abortando(graph: GraphProbe):
+    """LA MUTACION NEGATIVA se calibra contra ESTA prueba.
+
+    Ensanchar hacia la capa juego no puede ensanchar hacia otra partida. Si se
+    retira la discriminacion A/B del predicado de visibilidad, esto pasa a
+    `APPLIED` y el aislamiento entre mesas se ha perdido.
+    """
+    graph.run(
+        "CREATE (:V3Entity:Character $props)",
+        {"props": {"entity_id": "entity:de-B", "workspace": WORKSPACE,
+                   "partida_id": "partida:B", "version": 1,
+                   "state_hash": HASH_A["value"], "canonical_name": "de-B"}},
+    )
+    graph.seed_entity("entity:destino")
+    plan = _plan_de_partida_que_enlaza("entity:de-B", "entity:destino", "partida:A")
+    result = writer(graph.driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_ABORTED, result.codes
+    assert codes.EXEC_SCOPE_MISMATCH in result.codes
+
+    # Y no ha quedado ninguna arista: el aborto revierte la transaccion.
+    aristas = graph.run(
+        "MATCH (:V3Entity {entity_id: $s, workspace: $ws})-[r]->() RETURN count(r) AS n",
+        {"s": "entity:de-B", "ws": WORKSPACE},
+    )
+    assert aristas[0]["n"] == 0, aristas

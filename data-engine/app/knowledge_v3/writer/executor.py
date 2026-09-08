@@ -189,6 +189,8 @@ def _check_expected_state(
     target_id: str,
     is_assertion: bool,
     partida_id: str | None = None,
+    *,
+    solo_referencia: bool = False,
 ) -> dict:
     """Concurrencia optimista. Un desajuste aborta el PLAN, no la operacion.
 
@@ -197,8 +199,24 @@ def _check_expected_state(
     consulta, tambien en Cypher -- entre "no existe" (`EXEC_TARGET_MISSING`)
     y "existe, pero en otro ambito" (`EXEC_SCOPE_MISMATCH`, el Invariante 2
     violado en lectura: leer un nodo de otra partida y operarlo).
+
+    `solo_referencia=True` cuando el objetivo NO se muta y solo se
+    REFERENCIA (los extremos de una relacion). El ambito que manda entonces
+    es el de VISIBILIDAD (`cypher.read_entity_state_visible`), el mismo que
+    `cypher.create_relation` ya aplica a sus dos extremos: capa juego + la
+    partida propia. No ensancha nada hacia otra partida -- un nodo de
+    `partida:B` sigue sin ser visible desde `partida:A`, la segunda consulta
+    lo encuentra y el aborto sigue siendo `EXEC_SCOPE_MISMATCH`.
+
+    La distincion no es "mas laxo": es la unica lectura coherente con el
+    modelo (docs/v3/49 §0, §2.3). Exigir igualdad exacta tambien para
+    referenciar hacia el mando dice que una partida hereda el lore y a la vez
+    hace esa herencia imposible de escribir.
     """
-    reader = cypher.read_assertion_state if is_assertion else cypher.read_entity_state
+    if solo_referencia and not is_assertion:
+        reader = cypher.read_entity_state_visible
+    else:
+        reader = cypher.read_assertion_state if is_assertion else cypher.read_entity_state
     record = _single(tx, reader(target_id, workspace, partida_id))
     if record is None:
         any_scope_reader = (
@@ -562,7 +580,15 @@ def execute_operation(
         obj = _require(payload.get("object_entity_id"), op, "payload.object_entity_id")
         predicate = _require(payload.get("predicate"), op, "payload.predicate")
         target = op.get("target_entity_id") or subject
-        previous = _check_expected_state(tx, op, ws, target, is_assertion=False, partida_id=partida_id)
+        # El objetivo de una relacion NO se muta: solo se referencia (la
+        # escritura es la arista, que nace con el `partida_id` del plan). Por
+        # eso la precondicion se lee con el ambito de VISIBILIDAD, el mismo
+        # que `create_relation` exige abajo a sus dos extremos. Con el ambito
+        # exacto, un plan de partida no podia enlazar el lore compartido.
+        previous = _check_expected_state(
+            tx, op, ws, target, is_assertion=False, partida_id=partida_id,
+            solo_referencia=True,
+        )
         rel_props = {k: v for k, v in props.items() if k != "predicate"}
         record = _single(
             tx,

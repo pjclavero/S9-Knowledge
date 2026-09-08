@@ -277,7 +277,23 @@ class FakeTx:
                 # "partida_id" en params ni "IS NULL" en el texto: ven el
                 # nodo exista en la partida que exista (existencia pura).
                 node_partida = state.get("partida_id")
-                if "partida_id" in params:
+                # CARRIL 9: el doble honra el predicado que el Cypher
+                # DECLARA, no el que el doble supone. Hay tres formas y se
+                # distinguen por el texto, no por adivinacion:
+                #   * `IS NULL OR ... = $partida_id`  -> VISIBILIDAD
+                #     (`read_entity_state_visible`): capa juego + la propia.
+                #   * `{... partida_id: $partida_id}` -> AMBITO EXACTO
+                #     (`_scoped_match`): solo esa partida.
+                #   * `partida_id IS NULL`            -> capa juego.
+                # Sin esta rama el doble aplicaria igualdad exacta tambien a
+                # la lectura de visibilidad y mediria el doble, no el
+                # producto.
+                visible = "partida_id IS NULL OR" in cypher
+                if visible:
+                    if not (node_partida is None
+                            or node_partida == params.get("partida_id")):
+                        state = None
+                elif "partida_id" in params:
                     if node_partida != params["partida_id"]:
                         state = None
                 elif "partida_id IS NULL" in cypher and node_partida is not None:
