@@ -29,11 +29,32 @@ LA MATRIZ (REFERENCIA), CADA CASILLA OBSERVADA AQUI
     dato PARTIDA A + contexto JUEGO     -> DENY
     ambito ausente/incoherente          -> DENY (admision, intacta)
 
-MUTACION NEGATIVA (una, y basta)
---------------------------------
-Quitar la discriminacion A/B -- devolver visible incondicionalmente en
-`cypher.read_entity_state_visible` -- pone ROJO
-`test_desde_A_una_entidad_de_B_sigue_siendo_SCOPE_MISMATCH`.
+QUE PUEDE AFIRMAR ESTE FICHERO Y QUE NO (carril 10B, MEDIDO)
+------------------------------------------------------------
+Estas ocho pruebas corren sobre `FakeDriver`, un DOBLE. El doble honra la
+FORMA que el Cypher declara, pero no EJECUTA el predicado: rederiva la
+visibilidad por su cuenta. De ahi el reparto de autoridad:
+
+    doble offline (este fichero) -> CONTRATO, FORMA y COMPOSICION
+    Neo4j real                   -> SEMANTICA EFECTIVA del ambito
+                                    y AISLAMIENTO A/B entre partidas
+
+La version anterior de esta cabecera afirmaba que quitar la discriminacion
+A/B --devolver visible incondicionalmente en `cypher.read_entity_state_visible`--
+ponia ROJO a `test_desde_A_una_entidad_de_B_sigue_siendo_SCOPE_MISMATCH`.
+ESO ERA FALSO y se retira: aplicada esa mutacion, ese testigo sigue en VERDE
+aqui. Un doble que reimplementa el predicado no puede notar que el predicado
+ha desaparecido. (Las tres pruebas de este fichero que si enrojecen con esa
+mutacion lo hacen por otras casillas de la matriz, no por la discriminacion
+A/B: contarlas como cobertura del aislamiento seria un rojo prestado.)
+
+Donde SI se mide, y de forma obligatoria: `test_knowledge_v3_writer_neo4j_real
+.py::test_carril9_desde_A_una_entidad_de_B_sigue_abortando`, contra la base
+efimera del paso "Writer y E2E V3 contra Neo4j REAL" de `test-data-engine`,
+que exige ese nombre como PASSED y trata `skipped` como ROJO. Calibrado:
+verde sin mutacion, ROJO con ella.
+
+NINGUN informe puede decir "el test offline demuestra la separacion A/B".
 """
 from __future__ import annotations
 
