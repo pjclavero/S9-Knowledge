@@ -577,6 +577,11 @@ def _check_plan(doc: dict[str, Any]) -> None:
         raise ContractV3Error("operation_id duplicado")
     if _dupes([o["idempotency_key"] for o in ops]):
         raise ContractV3Error("idempotency_key duplicada: el plan no seria idempotente")
+    altas_del_plan = {
+        o.get("target_entity_id")
+        for o in ops
+        if o["operation_type"] == "CREATE_ENTITY"
+    }
     for o in ops:
         expected_key = compute_idempotency_key(doc, o)
         if o["idempotency_key"] != expected_key:
@@ -586,6 +591,23 @@ def _check_plan(doc: dict[str, Any]) -> None:
                 "garantiza idempotencia entre planes"
             )
         creates = o["operation_type"] in ("CREATE_ENTITY", "CREATE_ASSERTION")
+        # Una proyeccion sobre un extremo que ESTE MISMO plan da de alta
+        # tampoco tiene estado previo que declarar: no existe todavia en el
+        # grafo. Su ancla no es una version --no la hay-- sino el
+        # `CREATE_ENTITY` que el plan trae por delante, y se exige aqui que ese
+        # alta este de verdad en el plan. Sin esa alta la operacion vuelve a
+        # ser "modifica algo existente" y sigue necesitando version y hash.
+        #
+        # Sin esto, la unica forma de escribir la arista era dejarla para un
+        # SEGUNDO apply: el primero creaba las entidades y no materializaba
+        # nunca la relacion.
+        if (
+            not creates
+            and o["operation_type"] == "PROJECT_RELATION"
+            and o.get("expected_state") == "WOULD_CREATE"
+            and o.get("target_entity_id") in altas_del_plan
+        ):
+            creates = True
         if not creates and (o["expected_version"] is None or o["expected_hash"] is None):
             raise ContractV3Error(
                 f"{o['operation_id']} modifica algo existente sin expected_version/"

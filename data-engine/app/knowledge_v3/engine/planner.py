@@ -429,34 +429,28 @@ def _operations(
     node = context.snapshot.entity(decision.subject_entity_id)
     if node is None:  # pragma: no cover - la identidad ya exigio que exista
         return ops
-    if getattr(node, "pending_creation", False):
-        # La entidad se CREA en este mismo plan: no tiene todavia `version` ni
-        # `state_hash` en el grafo, y `PROJECT_RELATION` los exige para el
-        # control optimista (`anchored`, mas abajo, y `_check_expected_state`
-        # en el executor). Proyectar aqui produciria un plan que el propio
-        # motor declara no anclado, o que aborta al aplicarse.
-        #
-        # No es una perdida silenciosa: el hecho SI se escribe como
-        # `CREATE_ASSERTION`, que es donde vive el conocimiento. La arista
-        # proyectada la emitira la siguiente ingesta, cuando la entidad ya
-        # exista en el grafo con su version. Es exactamente lo que hacen los
-        # planes gold que traen un `CREATE_ENTITY` (dev/kestrel-tripulacion):
-        # alta + asercion, sin proyeccion.
-        return ops
-    if (
-        decision.object_entity_id
-        and getattr(
-            context.snapshot.entity(decision.object_entity_id),
-            "pending_creation",
-            False,
-        )
-    ):
-        # Mismo motivo por el otro extremo: `create_relation` exige que el
-        # OBJETO sea visible en el ambito, y una entidad que se crea en la
-        # misma transaccion no lo es todavia para la lectura de la arista.
-        # Aqui esta el `EXEC_TARGET_MISSING` que el supervisor encontro; se
-        # evita no proyectando, no relajando la comprobacion.
-        return ops
+    # Un extremo que se CREA en este mismo plan no tiene todavia `version` ni
+    # `state_hash` en el grafo. Antes eso se resolvia NO proyectando y dejando
+    # la arista para "la siguiente ingesta": es decir, un primer apply que
+    # creaba entidades no materializaba nunca la relacion, y el segundo apply
+    # --el que se anunciaba como NOOP-- hacia la escritura que faltaba. Eso no
+    # es idempotencia: es un plan a medias que otro apply termina.
+    #
+    # El ancla correcta para esa arista no es una version del grafo que aun no
+    # existe: es el `CREATE_ENTITY` que este MISMO plan trae por delante. La
+    # proyeccion se emite con `expected_state=WOULD_CREATE` y sin version ni
+    # hash esperados --exactamente lo que el contrato reserva para "la
+    # operacion crea algo que aun no existe"-- y el executor exige entonces que
+    # el propio plan contenga el alta del extremo y que el nodo este visible ya
+    # en la transaccion. No se relaja ninguna comprobacion: se cambia el ancla.
+    sujeto_nuevo = bool(getattr(node, "pending_creation", False))
+    objeto = (
+        context.snapshot.entity(decision.object_entity_id)
+        if decision.object_entity_id
+        else None
+    )
+    objeto_nuevo = bool(getattr(objeto, "pending_creation", False))
+    en_este_plan = sujeto_nuevo or objeto_nuevo
     ops.append(
         {
             "operation_id": f"op:{decision.claim_id}:project",
@@ -473,9 +467,9 @@ def _operations(
             },
             "evidence_fragment_ids": list(decision.evidence_fragment_ids),
             "idempotency_key": "",
-            "expected_state": "WOULD_UPDATE",
-            "expected_version": node.version,
-            "expected_hash": node.state_hash,
+            "expected_state": "WOULD_CREATE" if en_este_plan else "WOULD_UPDATE",
+            "expected_version": None if sujeto_nuevo else node.version,
+            "expected_hash": None if sujeto_nuevo else node.state_hash,
         }
     )
     return ops
@@ -592,14 +586,30 @@ def _validator_chain(
     ontology_ok = all(
         profile.spec(d.predicate) is not None for d in decisions if d.accepted and d.predicate
     ) and context.ontology_version == profile.ontology_version
-    anchored = all(
-        (
-            op["expected_version"] is not None
-            and op["expected_hash"] is not None
-        )
-        or op["operation_type"] in ("CREATE_ENTITY", "CREATE_ASSERTION")
+    # Altas del propio plan: son el ancla legitima de una proyeccion sobre una
+    # entidad que aun no existe en el grafo. Se leen del artefacto FINAL, no de
+    # las decisiones, para que el ancla sea comprobable en el plan mismo.
+    altas_del_plan = {
+        op.get("target_entity_id")
         for op in operations
-    )
+        if op["operation_type"] == "CREATE_ENTITY"
+    }
+
+    def _anclada(op: dict) -> bool:
+        if op["expected_version"] is not None and op["expected_hash"] is not None:
+            return True
+        if op["operation_type"] in ("CREATE_ENTITY", "CREATE_ASSERTION"):
+            return True
+        # Proyeccion sobre un extremo dado de alta en ESTE plan: el ancla es el
+        # `CREATE_ENTITY` que va delante, no una version del grafo. Sin ese alta
+        # en el plan la operacion sigue SIN anclar, que es lo que debe pasar.
+        return (
+            op["operation_type"] == "PROJECT_RELATION"
+            and op.get("expected_state") == "WOULD_CREATE"
+            and op.get("target_entity_id") in altas_del_plan
+        )
+
+    anchored = all(_anclada(op) for op in operations)
 
     return [
         entry("structural", structural_ok, () if structural_ok else ["CONTRACT_VALIDATION_FAILED"]),

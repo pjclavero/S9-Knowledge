@@ -1197,24 +1197,32 @@ def residues(runner: Any, doc: RollbackDocument) -> list[dict[str, Any]]:
             clave = fila.get("idempotency_key")
             if not clave:
                 continue
-            # Propiedad de la marca. El comentario que habia aqui decia que
-            # `V3AppliedOperation` NO lleva `apply_id`; dejo de ser cierto
-            # cuando `cypher.claim_applied_operation` empezo a estamparlo, y la
-            # marca lleva hoy ademas `ownership_id` (equipo 8B). Se corrige la
-            # prosa, no la comparacion: se sigue comparando `plan_hash` porque
-            # es lo que ESTE camino tiene garantizado en el documento, y una
-            # comparacion se hace contra lo que se ha comprobado que llega, no
-            # contra el campo mas nuevo que exista en el grafo.
-            if not doc.plan_hash or fila.get("plan_hash") != doc.plan_hash:
-                continue
+            # Antes se exigia ademas `plan_hash == doc.plan_hash`, es decir:
+            # solo contaba como residuo la marca colgante de ESTE apply. Una
+            # marca colgante de OTRO apply se degradaba a `observations`, que
+            # NO decide el desenlace -- y asi salio un rollback con
+            # `clean: true, residues: 0` sobre un grafo del que la relacion ya
+            # no se podia volver a materializar nunca.
+            #
+            # El dano no depende de quien escribio la marca. Una marca
+            # COLGANTE --sin un solo nodo ni arista viva con su
+            # `idempotency_key`, que es lo que `dangling_applied_marks_query`
+            # ya filtra-- afirma "esto ya esta aplicado" sobre un grafo donde
+            # no queda nada: cualquier reintento se cierra en NOOP y el
+            # conocimiento queda irrecuperable. Eso es un residuo, venga del
+            # apply que venga. La marca de otro apply cuyo conocimiento SIGUE
+            # VIVO no es colgante y no llega hasta aqui: la legitimidad se
+            # decide por evidencia en el grafo, no por el `plan_hash`.
+            del_apply = bool(doc.plan_hash) and fila.get("plan_hash") == doc.plan_hash
             detalle_marca = {
                 "idempotency_key": clave,
                 "workspace": ws,
-                "plan_hash": doc.plan_hash,
+                "plan_hash": fila.get("plan_hash"),
+                "de_este_apply": del_apply,
             }
             firma_marca = (
-                "marca V3AppliedOperation COLGANTE de este apply: afirma una "
-                "operacion aplicada de la que no queda nada en el grafo"
+                "marca V3AppliedOperation COLGANTE: afirma una operacion "
+                "aplicada de la que no queda nada en el grafo"
             )
             if any(
                 r["what"] == firma_marca and r["detail"] == detalle_marca
@@ -1296,8 +1304,11 @@ def observations(runner: Any, doc: RollbackDocument) -> list[dict[str, Any]]:
             clave = fila.get("idempotency_key")
             if not clave:
                 continue
-            if doc.plan_hash and fila.get("plan_hash") == doc.plan_hash:
-                continue  # es de X: lo dice `residues`
+            # TODA marca colgante --sea de este apply o de otro-- la denuncia
+            # ya `residues`, que ademas decide el desenlace. Repetirla aqui
+            # solo dejaria la misma marca contada dos veces, una en un campo
+            # que manda y otra en uno que no.
+            continue
             detalle_marca = {
                 "idempotency_key": clave,
                 "workspace": ws,
