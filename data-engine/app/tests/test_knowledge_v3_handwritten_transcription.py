@@ -15,7 +15,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 #: Checkpoint vigente de los contratos congelados. Lo avanza QUIEN INTEGRA, no
 #: un carril, y siempre registrando el valor viejo y el nuevo (ver el comentario
 #: de `test_19_contratos_congelados_mantienen_su_hash`).
-FROZEN_CONTRACTS_REF = "v3-contracts-frozen-1.0.0-int5"
+FROZEN_CONTRACTS_REF = "v3-contracts-frozen-1.0.0-int11"
 
 #: Raices congeladas byte a byte por el gate de contratos.
 _FROZEN_ROOTS = (
@@ -441,6 +441,38 @@ def test_19_contratos_congelados_mantienen_su_hash():
     # se CONSERVA intacto al avanzar --sigue mutando `episode.py`, que esta
     # congelado y que esta integracion no toca--, asi que sigue siendo una
     # prueba capaz de ponerse roja y no una copia del gate que siempre pasa.
+    # INTEGRACION tanda 11: hecho. El equipo 11A dejo este test ROJO A PROPOSITO
+    # --pudiendo haberlo puesto verde solo-- porque `validator.py` es una de las
+    # 23 rutas congeladas y la regla escrita arriba dice que el checkpoint lo
+    # avanza QUIEN INTEGRA, sobre el arbol ya revisado. Se avanza a
+    # `v3-contracts-frozen-1.0.0-int11`, y los dos valores quedan registrados
+    # para que el avance sea auditable y no un borron:
+    #
+    #   digest anterior (int5)  9e7ce73a2ee0aaba462921a3af1efcfdd5fbec1a249c7385fd7e722938f8e96b
+    #   digest nuevo    (int11) 5676f7475159634c135a8df8543da5be6f2e8cc4562d22ba252583ba43bc3813
+    #
+    # QUE CAMBIA, VERIFICADO POR EL INTEGRADOR Y NO ACEPTADO DE PALABRA
+    # -----------------------------------------------------------------
+    # El diff de nombres entre int5 y HEAD, restringido a las dos raices
+    # congeladas, devuelve `contracts/knowledge-v3/v1/validator.py` y NADA MAS.
+    # Comparando el AST de las dos versiones de ese fichero: las 14 constantes
+    # de modulo son IDENTICAS --`DECISION_HASH_FIELDS` e `IDEMPOTENCY_KEY_FIELDS`
+    # incluidas--, no hay funciones nuevas ni eliminadas, y la UNICA funcion
+    # modificada es `_check_plan`. Las 23 rutas congeladas son las mismas en los
+    # dos checkpoints (comparadas ruta a ruta, no por recuento).
+    #
+    # QUE HACE EL CAMBIO Y POR QUE NO AFLOJA EL CONTRATO: una `PROJECT_RELATION`
+    # con `expected_state=WOULD_CREATE` cuyo extremo lo da de alta ESE MISMO
+    # plan cuenta como creacion, y por tanto puede traer `expected_version` y
+    # `expected_hash` nulos. No es aflojar la regla "modificar algo existente
+    # exige version y hash": es que ahi no hay nada existente todavia, y el
+    # propio validador EXIGE que el `CREATE_ENTITY` del extremo este de verdad
+    # en el plan. Sin esa alta, la operacion vuelve a necesitar version y hash.
+    #
+    # Que el gate SIGUE MORDIENDO despues de avanzarlo no se presume: lo
+    # demuestra `test_19b_control_negativo_...`, que se CONSERVA intacto --sigue
+    # mutando `episode.py`, congelado y que esta integracion no toca-- y que
+    # esta integracion ha verificado que se pone rojo al mutar.
     frozen_ref = FROZEN_CONTRACTS_REF
     files = _frozen_tree_files()
     relative_paths = [path.relative_to(_REPO_ROOT).as_posix() for path in files]
