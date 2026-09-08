@@ -59,6 +59,7 @@ from typing import Any, Optional
 
 from . import codes
 from .apply_identity import APPLY_ID_FIELD, is_apply_id
+from .ownership_identity import OWNERSHIP_ID_FIELD, is_ownership_id
 from .cypher import LABEL_APPLIED_OPERATION, LABEL_ASSERTION
 from .provenance import (
     IDENTITY_FIELD,
@@ -95,9 +96,139 @@ OWN_ACTIONS = (ACTION_PURGE_PROVENANCE, ACTION_FORGET_APPLIED)
 # llaman ya directamente a `scope_clause`; no queda alias.
 
 
-# --- Propiedad por apply ---------------------------------------------------
+# --- Propiedad del apply ---------------------------------------------------
+#: Campo del grafo por el que se filtra segun la clase de marca recibida.
+#: La marca DICE de que campo es: los prefijos (`own:` / `apply:`) son
+#: disjuntos y las dos formas se validan estrictamente, asi que no hay que
+#: adivinar ni pasar un parametro extra por los cuatro puntos de uso.
+_CAMPO_DE_MARCA = (
+    (is_ownership_id, OWNERSHIP_ID_FIELD, "ownership_id"),
+    (is_apply_id, APPLY_ID_FIELD, "apply_id"),
+)
+
+
+def campo_de_marca(marca: str) -> tuple[str, str]:
+    """`(campo_del_grafo, nombre_de_parametro)` de una marca de propiedad.
+
+    INTEGRACION tanda 8. Excepcion si la marca no es de ninguna clase
+    conocida: filtrar por una marca malformada es peor que no filtrar, porque
+    pareceria acotado.
+    """
+    for reconoce, campo, param in _CAMPO_DE_MARCA:
+        if reconoce(marca):
+            return campo, param
+    raise RollbackNotReconstructible(
+        f"marca de propiedad {marca!r} sin forma admisible "
+        f"({OWNERSHIP_ID_FIELD} ni {APPLY_ID_FIELD})"
+    )
+
+
+class Propiedad:
+    """Las marcas con las que un documento reclama los efectos de SU apply.
+
+    INTEGRACION tanda 8 -- POR QUE SON DOS Y NO UNA
+    -----------------------------------------------
+    8B dejo declarado que la clasificacion seguia consumiendo `apply_id`, que
+    es identidad de INTENTO: deriva de `plan_hash`, que cubre el reloj, asi
+    que el mismo apply LOGICO replanificado tras un restore trae otro
+    `apply_id` y la clasificacion deja de reconocer lo que ella misma creo.
+    Esa es la migracion, y la marca durable es `ownership_id`.
+
+    Pero quedarse SOLO con la durable seria fail-OPEN sobre un grafo escrito
+    antes de que existiera: esos nodos llevan `apply_id` y no llevan
+    `ownership_id`, asi que un residuo real dejaria de verse y el mando diria
+    `clean` de algo que no lo esta. MEDIDO: con el filtro solo por la durable,
+    `test_algo_creado_por_X_no_compartido_y_presente_sale_INCOMPLETE` pasa de
+    `UNEXPECTED_RESIDUE` a `ROLLED_BACK`.
+
+    Por eso el predicado es la DISYUNCION de las marcas presentes. No amplia
+    la propiedad a nada ajeno: `apply_id` deriva del `plan_hash` de ESTE plan,
+    de modo que solo lo llevan los nodos que escribio este mismo intento --que
+    son, por definicion, del mismo apply logico. Lo que la disyuncion compra
+    es que la propiedad se reconozca por CUALQUIERA de las dos marcas:
+
+        misma base, mismo intento -> casan las dos
+        base restaurada / replan  -> casa `ownership_id` (`apply_id` no existe alli)
+        grafo anterior a 8B       -> casa `apply_id` (no hay `ownership_id`)
+
+    La propiedad sigue solo ESTRECHANDO el conjunto candidato; nunca lo
+    amplia mas alla de este apply logico.
+    """
+
+    __slots__ = ("marcas",)
+
+    def __init__(self, marcas: tuple[str, ...]):
+        self.marcas = marcas
+
+    def __bool__(self) -> bool:
+        return bool(self.marcas)
+
+    @property
+    def durable(self) -> Optional[str]:
+        for m in self.marcas:
+            if is_ownership_id(m):
+                return m
+        return None
+
+    @property
+    def principal(self) -> Optional[str]:
+        """La marca con la que se ROTULA un informe: la durable si la hay."""
+        return self.durable or (self.marcas[0] if self.marcas else None)
+
+    def _pares(self, params: dict[str, Any]) -> list[tuple[str, str]]:
+        fuera = []
+        for marca in self.marcas:
+            campo, param = campo_de_marca(marca)
+            params[param] = marca
+            fuera.append((campo, param))
+        return fuera
+
+    def propio(self, alias: str, params: dict[str, Any]) -> str:
+        """«Este nodo es de este apply». `NULL` cuenta como NO propio.
+
+        `coalesce` es lo que hace el predicado seguro con nulos: en Cypher
+        `NULL = $x` es `NULL`, y un `NULL` en un `OR` se propaga de formas que
+        no se leen a simple vista. Aqui se decide explicitamente: sin marca,
+        no es de este apply.
+        """
+        pares = self._pares(params)
+        if not pares:
+            return "true"
+        return "(" + " OR ".join(
+            f"coalesce({alias}.{campo} = ${param}, false)" for campo, param in pares
+        ) + ")"
+
+    def ajeno(self, alias: str, params: dict[str, Any]) -> str:
+        """«Este vecino NO es de este apply». Marca ausente cuenta como AJENO.
+
+        Es la negacion EXACTA de `propio` sobre el mismo material: si las dos
+        se escribieran por separado acabarian divergiendo, y la que divergiese
+        haria que un vecino contase a la vez como propio y como ajeno.
+        """
+        pares = self._pares(params)
+        if not pares:
+            return "false"
+        return "NOT (" + " OR ".join(
+            f"coalesce({alias}.{campo} = ${param}, false)" for campo, param in pares
+        ) + ")"
+
+
+def propiedad_de(marca: Any) -> Propiedad:
+    """`Propiedad` a partir de lo que reciba un punto de uso.
+
+    Admite `None` (sin propiedad: radio antiguo `run`), una marca suelta --que
+    es como llaman los documentos y las pruebas anteriores a esta tanda-- o
+    una `Propiedad` ya compuesta.
+    """
+    if isinstance(marca, Propiedad):
+        return marca
+    if marca is None:
+        return Propiedad(())
+    return Propiedad((marca,))
+
+
 def ownership_clause(
-    alias: str, apply_id: Optional[str], params: dict[str, Any], *, contexto: str
+    alias: str, marca: Any, params: dict[str, Any], *, contexto: str
 ) -> str:
     """UNICA definicion del predicado de PROPIEDAD del camino de reversion.
 
@@ -107,23 +238,36 @@ def ownership_clause(
 
     Fail-closed en las dos direcciones:
 
-    * `apply_id` ausente (`None`) -> se devuelve un predicado SIEMPRE CIERTO,
-      que es el radio antiguo `run`. NO se disfraza: quien pasa `None` esta
-      pidiendo explicitamente el radio sin propiedad, y el ejecutor lo declara
-      en el informe. La propiedad solo estrecha; nunca amplia.
-    * `apply_id` con forma no admisible -> excepcion. Una marca malformada
+    * sin propiedad (`None`) -> predicado SIEMPRE CIERTO, que es el radio
+      antiguo `run`. NO se disfraza: quien pasa `None` esta pidiendo
+      explicitamente el radio sin propiedad, y el ejecutor lo declara en el
+      informe.
+    * marca con forma no admisible -> excepcion. Una marca malformada
       filtraria por una propiedad que no distingue nada, que es peor que no
       filtrar: pareceria acotado.
     """
-    if apply_id is None:
+    prop = propiedad_de(marca)
+    if not prop:
         return "true"
-    if not is_apply_id(apply_id):
+    try:
+        return prop.propio(alias, params)
+    except RollbackNotReconstructible as exc:
         raise RollbackNotReconstructible(
-            f"{contexto}: {APPLY_ID_FIELD}={apply_id!r} no tiene forma "
-            "admisible; sin propiedad declarada no se borra"
-        )
-    params["apply_id"] = apply_id
-    return f"{alias}.{APPLY_ID_FIELD} = $apply_id"
+            f"{contexto}: {exc}; sin propiedad declarada no se borra"
+        ) from exc
+
+
+def marca_de_detalle(detail: dict[str, Any]) -> Propiedad:
+    """La propiedad que declara una instruccion: LAS DOS marcas si estan.
+
+    INTEGRACION tanda 8. `ownership_id` va primero porque es la que rotula el
+    informe y la que sobrevive al restore; `apply_id` se conserva para que un
+    grafo escrito antes de que la durable existiera siga siendo clasificable.
+    """
+    marcas = tuple(
+        m for m in (detail.get(OWNERSHIP_ID_FIELD), detail.get(APPLY_ID_FIELD)) if m
+    )
+    return Propiedad(marcas)
 
 
 def owned_by_apply_query(
@@ -319,33 +463,36 @@ def orphan_provenance_query(
         f"OPTIONAL MATCH (:{LABEL_ASSERTION})-[sup:{REL_SUPPORTED_BY}]->(ev) "
         "WITH ev, count(sup) AS vivas WHERE vivas = 0 "
         f"RETURN '{LABEL_EVIDENCE}' AS clase, ev.fragment_id AS id, "
-        "ev.apply_id AS apply_id "
+        "ev.apply_id AS apply_id, ev.ownership_id AS ownership_id "
         "UNION ALL "
         f"MATCH (ep:{LABEL_EPISODE} {{workspace: $ws}}) WHERE {ep} "
         f"OPTIONAL MATCH (ep)-[frg:{REL_HAS_FRAGMENT}]->(:{LABEL_EVIDENCE}) "
         "WITH ep, count(frg) AS vivas WHERE vivas = 0 "
         f"RETURN '{LABEL_EPISODE}' AS clase, ep.episode_id AS id, "
-        "ep.apply_id AS apply_id "
+        "ep.apply_id AS apply_id, ep.ownership_id AS ownership_id "
         "UNION ALL "
         f"MATCH (src:{LABEL_SOURCE} {{workspace: $ws}}) WHERE {src} "
         f"OPTIONAL MATCH (src)-[epi:{REL_HAS_EPISODE}]->(:{LABEL_EPISODE}) "
         "WITH src, count(epi) AS vivas WHERE vivas = 0 "
         f"RETURN '{LABEL_SOURCE}' AS clase, src.source_asset_id AS id, "
-        "src.apply_id AS apply_id",
+        "src.apply_id AS apply_id, src.ownership_id AS ownership_id",
         params,
     )
 
 
 # --- CLASIFICACION DEL RESULTADO: PX / SHARED / RESIDUE --------------------
-#: Predicado de «este vecino NO es de X». `apply_id` ausente cuenta como AJENO
+#: Predicado de «este vecino NO es de X». Marca ausente cuenta como AJENO
 #: a proposito: un nodo sin marca lo dejo un apply anterior a la propiedad, asi
 #: que no es de X, y tratarlo como propio seria reclamar lo que no se creo.
 #: La consecuencia se declara: sobre un grafo sin `apply_id` poblado, esta
 #: clasificacion no denuncia residuo -- y es correcta, porque sin marca de
 #: creacion NO hay conjunto PX que medir. Quien quiera ver esos nodos los tiene
 #: en `observations`, que sigue barriendo todo el ambito.
-def _ajeno(alias: str) -> str:
-    return f"({alias}.{APPLY_ID_FIELD} IS NULL OR {alias}.{APPLY_ID_FIELD} <> $apply_id)"
+def _ajeno(alias: str, prop: "Propiedad", params: dict[str, Any]) -> str:
+    # INTEGRACION tanda 8: el vecino se juzga con LA MISMA propiedad que el
+    # nodo. Si esta funcion mirase una marca distinta de la del filtro de PX,
+    # un mismo vecino podria contar a la vez como propio y como ajeno.
+    return prop.ajeno(alias, params)
 
 
 def owned_residue_query(
@@ -406,31 +553,34 @@ def owned_residue_query(
         )
     field_name = IDENTITY_FIELD[label]
     params: dict[str, Any] = {"ws": workspace}
-    scope = scope_clause("n", partida_id, params, contexto="owned_residue")
-    own = ownership_clause("n", apply_id, params, contexto="owned_residue")
-    if apply_id is None:
+    if not propiedad_de(apply_id):
         raise RollbackNotReconstructible(
-            "owned_residue_query: sin apply_id no hay conjunto PX que medir"
+            "owned_residue_query: sin marca de propiedad no hay conjunto PX "
+            "que medir"
         )
+    scope = scope_clause("n", partida_id, params, contexto="owned_residue")
+    # La MISMA propiedad para el nodo y para sus vecinos (`_ajeno`).
+    prop = propiedad_de(apply_id)
+    own = ownership_clause("n", prop, params, contexto="owned_residue")
 
     if label == LABEL_EVIDENCE:
         sostenes = (
             f"  COUNT {{ MATCH (:{LABEL_ASSERTION})-[:{REL_SUPPORTED_BY}]->(n) }} "
             "AS vivas, "
             f"  COUNT {{ MATCH (ep:{LABEL_EPISODE})-[:{REL_HAS_FRAGMENT}]->(n) "
-            f"           WHERE {_ajeno('ep')} }} AS ajenos"
+            f"           WHERE {_ajeno('ep', prop, params)} }} AS ajenos"
         )
     elif label == LABEL_EPISODE:
         sostenes = (
             f"  COUNT {{ MATCH (src:{LABEL_SOURCE})-[:{REL_HAS_EPISODE}]->(n) "
-            f"           WHERE {_ajeno('src')} }} AS vivas, "
+            f"           WHERE {_ajeno('src', prop, params)} }} AS vivas, "
             f"  COUNT {{ MATCH (n)-[:{REL_HAS_FRAGMENT}]->(ev:{LABEL_EVIDENCE}) "
-            f"           WHERE {_ajeno('ev')} }} AS ajenos"
+            f"           WHERE {_ajeno('ev', prop, params)} }} AS ajenos"
         )
     else:  # LABEL_SOURCE
         sostenes = (
             f"  COUNT {{ MATCH (n)-[:{REL_HAS_EPISODE}]->(ep:{LABEL_EPISODE}) "
-            f"           WHERE {_ajeno('ep')} }} AS vivas, "
+            f"           WHERE {_ajeno('ep', prop, params)} }} AS vivas, "
             "  0 AS ajenos"
         )
 
@@ -440,7 +590,11 @@ def owned_residue_query(
         f"WITH n, {sostenes} "
         "WHERE vivas = 0 AND ajenos = 0 "
         f"RETURN '{label}' AS clase, n.{field_name} AS id, "
-        f"n.{APPLY_ID_FIELD} AS apply_id",
+        # La fila declara las DOS marcas del nodo. Anunciar un residuo bajo la
+        # clave `apply_id` cuando se acoto por `ownership_id` diria que
+        # pertenece a un intento concreto, que es justo lo que dejo de ser.
+        f"n.{OWNERSHIP_ID_FIELD} AS {OWNERSHIP_ID_FIELD}, "
+        f"n.{APPLY_ID_FIELD} AS {APPLY_ID_FIELD}",
         params,
     )
 
@@ -611,8 +765,12 @@ class PurgeReport:
     #: dice su radio deja al lector suponiendolo, y el radio es exactamente lo
     #: que estaba mal.
     scope: str = "run"
-    #: Marca de propiedad usada para acotar, si la hubo.
+    #: Marca de INTENTO del documento, si la hubo. Se conserva para auditoria.
     apply_id: Optional[str] = None
+    #: Marca DURABLE de propiedad. INTEGRACION tanda 8: es la que acota de
+    #: verdad cuando esta; `apply_id` solo queda como radio de los documentos
+    #: emitidos antes de que existiera.
+    ownership_id: Optional[str] = None
     #: Nodos que este apply NO creo y que por eso quedaron fuera del conjunto
     #: candidato. Es la mitad positiva de la propiedad: no basta con no
     #: borrarlos, hay que poder ENSENAR que se supo distinguirlos.
@@ -622,6 +780,7 @@ class PurgeReport:
         return {
             "scope": self.scope,
             "apply_id": self.apply_id,
+            "ownership_id": self.ownership_id,
             "not_owned": {k: list(v) for k, v in self.not_owned.items()},
             "deleted_evidence": list(self.deleted_evidence),
             "deleted_episodes": list(self.deleted_episodes),
@@ -645,24 +804,32 @@ def execute_purge(runner: Any, instruction: RollbackInstruction) -> PurgeReport:
         raise RollbackNotReconstructible(
             f"{instruction.operation_id}: purga sin workspace"
         )
-    apply_id = detail.get(APPLY_ID_FIELD)
+    # INTEGRACION tanda 8: la propiedad se toma de la marca DURABLE
+    # (`ownership_id`) y solo se cae a `apply_id` cuando el documento es
+    # anterior a ella. `apply_id` identifica el INTENTO: el mismo apply
+    # logico replanificado tras un restore trae otro, y con el la purga
+    # dejaba de reconocer lo que ella misma creo.
+    apply_id = marca_de_detalle(detail)
     declarado = str(detail.get("scope") or ("apply" if apply_id else "run"))
     if declarado == "apply" and not apply_id:
         # Un documento que dice estar acotado por propiedad y no trae la marca
         # borraria con radio de corrida creyendose acotado. Fail-closed.
         raise RollbackNotReconstructible(
-            f"{instruction.operation_id}: scope 'apply' sin {APPLY_ID_FIELD}; "
-            "sin propiedad declarada no se borra"
+            f"{instruction.operation_id}: scope 'apply' sin "
+            f"{OWNERSHIP_ID_FIELD} ni {APPLY_ID_FIELD}; sin propiedad "
+            "declarada no se borra"
         )
-    if apply_id is not None and not is_apply_id(apply_id):
-        raise RollbackNotReconstructible(
-            f"{instruction.operation_id}: {APPLY_ID_FIELD}={apply_id!r} no "
-            "tiene forma admisible; sin propiedad declarada no se borra"
-        )
+    for _m in apply_id.marcas:
+        # Forma admisible de la clase que sea; malformada, no se borra nada.
+        campo_de_marca(_m)
 
-    report = PurgeReport(scope=declarado, apply_id=apply_id)
+    report = PurgeReport(
+        scope=declarado,
+        apply_id=detail.get(APPLY_ID_FIELD),
+        ownership_id=detail.get(OWNERSHIP_ID_FIELD),
+    )
 
-    if apply_id is not None:
+    if apply_id:
         # RADIO POR PROPIEDAD. El conjunto candidato se DESCUBRE en el grafo
         # --que nodos llevan esta marca de creacion--, no se lee de una lista
         # del documento. Esa lista era el radio "run" y es justo lo que barria
@@ -688,7 +855,7 @@ def execute_purge(runner: Any, instruction: RollbackInstruction) -> PurgeReport:
     episodios = sorted({r["episode_id"] for r in ancestros if r.get("episode_id")})
     fuentes = sorted({r["source_asset_id"] for r in ancestros if r.get("source_asset_id")})
 
-    if apply_id is not None:
+    if apply_id:
         # Los antepasados salen por el CAMINO, asi que pueden ser de otro
         # apply: un episodio creado por el apply 1 es antepasado legitimo de un
         # fragmento del apply 2. Se recortan a los que ESTE apply creo, y los
@@ -859,7 +1026,7 @@ def execute_rollback(
     return report
 
 
-def _ambitos_de(doc: RollbackDocument) -> dict[tuple[str, Any], Optional[str]]:
+def _ambitos_de(doc: RollbackDocument) -> dict[tuple[str, Any], "Propiedad"]:
     """Los ambitos que este documento revirtio, y el `apply_id` de cada uno.
 
     El ambito NO se inventa: sale del documento y de sus instrucciones, igual
@@ -872,17 +1039,17 @@ def _ambitos_de(doc: RollbackDocument) -> dict[tuple[str, Any], Optional[str]]:
     ninguna lo declara, el valor es `None` y quien pregunte sabe que sobre ese
     ambito NO hay propiedad que medir -- no se adivina una.
     """
-    fuera: dict[tuple[str, Any], Optional[str]] = {}
+    fuera: dict[tuple[str, Any], Propiedad] = {}
     for i in doc.instructions:
         ws = i.detail.get("workspace") or doc.workspace
         if not ws:
             continue
         clave = (ws, i.detail.get("partida_id"))
-        declarado = i.detail.get(APPLY_ID_FIELD)
-        if clave not in fuera or (fuera[clave] is None and declarado):
-            fuera[clave] = declarado or fuera.get(clave)
+        declarado = marca_de_detalle(i.detail)
+        if clave not in fuera or (not fuera[clave] and declarado):
+            fuera[clave] = declarado or fuera.get(clave, Propiedad(()))
     if not fuera and doc.workspace:
-        fuera[(doc.workspace, None)] = None
+        fuera[(doc.workspace, None)] = Propiedad(())
     return fuera
 
 
@@ -970,7 +1137,7 @@ def residues(runner: Any, doc: RollbackDocument) -> list[dict[str, Any]]:
                         "clase": fila["clase"],
                         "id": fila["id"],
                         "workspace": ws,
-                        APPLY_ID_FIELD: apply_id,
+                        campo_de_marca(apply_id.principal)[0]: apply_id.principal,
                     }
                     que = (
                         f"RESIDUO de este apply ({fila['clase']}): lo creo esta "
@@ -1093,13 +1260,21 @@ def observations(runner: Any, doc: RollbackDocument) -> list[dict[str, Any]]:
                 continue
             # Lo de X no es una observacion ajena: es residuo, y lo denuncia
             # `residues`. Aqui se publica lo que NO es de este apply.
-            if apply_id and fila.get("apply_id") == apply_id:
+            # INTEGRACION tanda 8: se compara por el campo de la MARCA en
+            # uso. Comparando siempre `apply_id` mientras la propiedad va por
+            # `ownership_id`, lo que X SI creo dejaria de reconocerse y se
+            # publicaria aqui como «que este apply NO creo» -- ademas de
+            # denunciarse, correctamente, en `residues`.
+            if apply_id and any(
+                fila.get(campo_de_marca(m)[0]) == m for m in apply_id.marcas
+            ):
                 continue
             detalle = {
                 "clase": fila["clase"],
                 "id": fila["id"],
                 "workspace": ws,
                 "apply_id": fila.get("apply_id"),
+                OWNERSHIP_ID_FIELD: fila.get(OWNERSHIP_ID_FIELD),
             }
             que = (
                 f"procedencia sin asercion viva detras ({fila['clase']}) que "
@@ -1168,6 +1343,10 @@ __all__ = [
     "orphan_provenance_query",
     "owned_residue_query",
     "ownership_clause",
+    "campo_de_marca",
+    "marca_de_detalle",
+    "Propiedad",
+    "propiedad_de",
     "owned_by_apply_query",
     "residues",
     "rollback_query_for",
