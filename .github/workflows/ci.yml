@@ -111,6 +111,26 @@ jobs:
             echo "::error::las pruebas del writer real no llegaron a ejecutarse"
             exit 1
           fi
+          # QUINTO ESTADO: el aislamiento A/B, POR NOMBRE.
+          #
+          # Los tres guardas de arriba son de FICHERO: miran el conjunto. Un
+          # `N passed` sin `skipped` sigue siendo verde si la prueba concreta
+          # que sostiene la discriminacion entre partidas se renombra, se
+          # borra o se marca `xfail` -- y esa es justo la garantia que no
+          # tiene otra red: MEDIDO en esta rama, la mutacion que retira la
+          # discriminacion A/B de `cypher.read_entity_state_visible` deja la
+          # suite OFFLINE de carril 9 con su testigo A/B en VERDE (el doble
+          # rederiva la visibilidad en vez de ejecutar el predicado) y solo
+          # enrojece aqui, contra Neo4j de verdad.
+          #
+          # Por eso el nombre se exige explicitamente: si desaparece, este
+          # paso se pone ROJO en vez de dejar la garantia sostenida por una
+          # prueba que ya no corre. No es un gate nuevo ni un check nuevo:
+          # es una condicion mas del paso que ya levanta la base efimera.
+          if ! grep -qE 'test_carril9_desde_A_una_entidad_de_B_sigue_abortando.*PASSED' <<<"$out"; then
+            echo "::error::el test de AISLAMIENTO A/B contra Neo4j real no aparece como PASSED: sin el, la discriminacion entre partidas se queda sin cobertura efectiva (el doble offline NO la detecta)"
+            exit 1
+          fi
 
   test-viewer:
     name: Viewer Tests
