@@ -79,6 +79,66 @@ def jaccard(a: frozenset[str], b: frozenset[str]) -> float:
     return inter / len(a | b)
 
 
+#: Determinantes iniciales del espanol que un extractor arrastra dentro de la
+#: superficie de la mencion (`"la Marea Negra"`, `"del Consejo de Umbra"`) y que
+#: NO forman parte del nombre de la entidad en el grafo (`"Marea Negra"`,
+#: `"Consejo de Umbra"`).
+#:
+#: Lista CERRADA y deliberadamente corta: articulos determinados, sus dos
+#: contracciones y los indeterminados. No entra ningun posesivo, ningun
+#: demostrativo y ninguna preposicion suelta — `"de Ambar"` NO es `"Ambar"`, y
+#: recortar por ahi si seria hacer el resolutor mas permisivo.
+LEADING_DETERMINERS: frozenset[str] = frozenset(
+    {"el", "la", "los", "las", "lo", "del", "al", "un", "una", "unos", "unas"}
+)
+
+
+def strip_leading_determiners(normalized: str) -> str:
+    """Quita los determinantes INICIALES de una superficie ya normalizada.
+
+    Solo por delante y solo mientras quede algo detras: `"la marea negra"` ->
+    `"marea negra"`, pero `"la"` -> `"la"` (quitarlo dejaria la cadena vacia) y
+    `"marea la negra"` -> `"marea la negra"` (el determinante no encabeza).
+
+    NO se aplica dentro de `normalize_surface`: la forma literal debe seguir
+    existiendo. Esta es una VARIANTE que se anade, no una sustitucion. Ver
+    `surface_variants`.
+    """
+    parts = normalized.split()
+    i = 0
+    while i < len(parts) - 1 and parts[i] in LEADING_DETERMINERS:
+        i += 1
+    return " ".join(parts[i:])
+
+
+def surface_variants(text: str) -> tuple[str, ...]:
+    """Formas normalizadas de una superficie, la literal SIEMPRE primero.
+
+    Existe porque la superficie que produce el extractor y el nombre que guarda
+    el grafo no tienen por que coincidir palabra por palabra, y los pasos
+    `exact` y `alias` de la cascada comparan por IGUALDAD de cadena. Sin esta
+    variante, `"la Marea Negra"` no puede alcanzar a `"Marea Negra"` por ninguna
+    senal fuerte: solo le queda `similarity`, cuyo techo (`similarity_weight`,
+    0.88) esta por DEBAJO del umbral de enlace (`link_min_score`, 0.90) a
+    proposito. Es decir, la resolucion correcta era ESTRUCTURALMENTE
+    inalcanzable, no simplemente improbable.
+
+    Anadir una variante NO relaja ninguna decision: no toca umbrales, no toca
+    el margen de ambiguedad y no elige candidato. Solo hace que el dato llegue a
+    las guardias que ya existian. Si la variante alcanza a DOS entidades, la
+    regla de ambiguedad las ve a las dos y la decision sigue siendo `REVIEW`.
+
+    Orden estable y sin duplicados: la literal manda, la variante acompana.
+    """
+    base = normalize_surface(text)
+    if not base:
+        return ()
+    stripped = strip_leading_determiners(base)
+    if stripped and stripped != base:
+        return (base, stripped)
+    return (base,)
+
+
 __all__ = [
     "strip_accents",
     "normalize_surface",
@@ -86,4 +146,7 @@ __all__ = [
     "token_set",
     "char_ngrams",
     "jaccard",
+    "LEADING_DETERMINERS",
+    "strip_leading_determiners",
+    "surface_variants",
 ]

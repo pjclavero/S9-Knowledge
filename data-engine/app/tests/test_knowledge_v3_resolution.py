@@ -1234,3 +1234,116 @@ class TestSplitReservado:
         segunda = resolve(res, "Ilya Petrovna", mention_id="mention:2", confidence=0.95)
         assert segunda.action == "LINK_EXISTING"
         assert segunda.resolution.selected_entity_id == primera.resolution.assigned_entity_id
+
+
+class TestDeterminanteInicialCarril7:
+    """CARRIL 7: `LINK_EXISTING` frente a `CREATE_PROVISIONAL`.
+
+    Defecto reproducido sobre el producto: la superficie que produce el
+    extractor arrastra el determinante del espanol natural (`"la Marea Negra"`,
+    `"del Consejo de Umbra"`), pero los pasos `exact` y `alias` de la cascada
+    comparan por IGUALDAD de cadena normalizada. Sin variante sin determinante,
+    la unica senal que podia alcanzar a la entidad existente era `similarity`,
+    cuyo techo (`similarity_weight` = 0.88) esta por DEBAJO del umbral de enlace
+    (`link_min_score` = 0.90) POR DISENO. La resolucion correcta no era
+    improbable: era ESTRUCTURALMENTE inalcanzable.
+
+    El arreglo no toca ningun umbral. Anade la variante para que el dato llegue
+    a las guardias que ya existian; la de ambiguedad sigue mandando a `REVIEW`.
+    """
+
+    @staticmethod
+    def _faccion(entity_id: str, nombre: str, aliases=()) -> CatalogEntity:
+        return CatalogEntity(
+            entity_id=entity_id, workspace=WS, entity_type="Faction",
+            canonical_name=nombre, aliases=aliases,
+        )
+
+    @staticmethod
+    def _resolver_con(*entidades) -> EntityResolver:
+        return EntityResolver(
+            catalog=InMemoryEntityCatalog(entidades),
+            glossary=NullGlossarySource(),
+            similarity=TrigramJaccardSimilarity(),
+        )
+
+    def test_la_variante_sin_determinante_se_deriva_pero_la_literal_se_conserva(self):
+        from knowledge_v3.resolution.normalization import surface_variants
+
+        assert surface_variants("la Marea Negra") == ("la marea negra", "marea negra")
+        assert surface_variants("del Consejo de Umbra") == (
+            "del consejo de umbra", "consejo de umbra",
+        )
+        # Sin determinante inicial no se inventa variante alguna.
+        assert surface_variants("Marea Negra") == ("marea negra",)
+        # Un determinante que NO encabeza no se toca: "de Ambar" no es "Ambar".
+        assert surface_variants("Casa de la Moneda") == ("casa de la moneda",)
+        # Si quitarlo dejaria la cadena vacia, no se quita.
+        assert surface_variants("La") == ("la",)
+
+    def test_caso_1_el_articulo_no_impide_enlazar_con_el_nombre_exacto(self):
+        """`"la Marea Negra"` debe enlazar con `"Marea Negra"`, igual que sin
+        articulo, y por la senal FUERTE (`EXACT_NAME`), no por similitud."""
+        marea = self._faccion("entity:faction:marea-negra", "Marea Negra",
+                              aliases=("la Marea",))
+        res = self._resolver_con(marea)
+
+        sin_art = resolve(res, "Marea Negra", types=(("Faction", 0.92),))
+        con_art = resolve(res, "la Marea Negra", types=(("Faction", 0.92),))
+
+        assert sin_art.action == "LINK_EXISTING"
+        assert con_art.action == "LINK_EXISTING", "el articulo degradaba a REVIEW"
+        # Identidad durable, no posicion.
+        assert con_art.entity_id == "entity:faction:marea-negra"
+        assert con_art.entity_id == sin_art.entity_id
+        # Y por la senal fuerte: si enlazase por SURFACE_SIMILARITY seria un
+        # umbral relajado, no el dato llegando a la guardia.
+        assert "EXACT_NAME" in con_art.resolution.reason_codes
+        assert con_art.resolution.confidence == sin_art.resolution.confidence
+
+    def test_caso_2_los_objetos_existentes_resuelven_a_su_entity_id_real(self):
+        """Superficies literales del escenario multipartida de tanda 6."""
+        cofradia = self._faccion("entity:cofradia-ambar", "Cofradia de Ambar")
+        consejo = self._faccion("entity:consejo-umbra", "Consejo de Umbra")
+        res = self._resolver_con(cofradia, consejo)
+
+        for superficie, esperado in (
+            ("la Cofradia de Ambar", "entity:cofradia-ambar"),
+            ("del Consejo de Umbra", "entity:consejo-umbra"),
+        ):
+            out = resolve(res, superficie, types=(("Faction", 0.92),))
+            assert out.action == "LINK_EXISTING", f"{superficie} -> {out.action}"
+            # No `CREATE_PROVISIONAL`: el id es el REAL, no uno derivado.
+            assert out.entity_id == esperado
+            assert not out.entity_id.startswith(DEFAULT_CONFIG.provisional_id_prefix)
+
+    def test_caso_3_la_ambiguedad_genuina_sigue_degradando(self):
+        """Condicion de aceptacion, no adorno: si hay dos candidatos realmente
+        plausibles, `REVIEW` sigue siendo la respuesta correcta. Aqui las DOS
+        entidades declaran el MISMO alias exacto, asi que la ambiguedad no
+        depende de ningun umbral."""
+        negra = self._faccion("entity:faction:marea-negra", "Marea Negra",
+                              aliases=("la Marea",))
+        roja = self._faccion("entity:faction:marea-roja", "Marea Roja",
+                             aliases=("la Marea",))
+        res = self._resolver_con(negra, roja)
+
+        out = resolve(res, "la Marea", types=(("Faction", 0.92),))
+        assert out.action == "REVIEW"
+        assert out.entity_id is None
+        # `.count(...) == 1` y no `in`: comprobacion EXACTA sobre una lista de
+        # codigos estables (mas fuerte: exige que aparezca una sola vez) y no
+        # un contains, asi que no anade un sitio al inventario de
+        # comprobaciones fragiles de `test_carril5_exception_codes.py`.
+        assert out.resolution.reason_codes.count("AMBIGUOUS_CANDIDATES") == 1
+        # Explicito: la variante NO ha elegido ganador por ser mas corta.
+        assert out.entity_id not in (negra.entity_id, roja.entity_id)
+
+    def test_la_variante_no_relaja_ningun_umbral(self):
+        """Control: el arreglo vive en la construccion de superficies, no en la
+        configuracion. Ningun umbral de decision cambia."""
+        assert DEFAULT_CONFIG.link_min_score == 0.90
+        assert DEFAULT_CONFIG.review_min_score == 0.60
+        assert DEFAULT_CONFIG.ambiguity_margin == 0.10
+        assert DEFAULT_CONFIG.similarity_weight == 0.88
+        assert DEFAULT_CONFIG.similarity_weight < DEFAULT_CONFIG.link_min_score

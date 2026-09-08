@@ -29,7 +29,7 @@ from .config import DEFAULT_CONFIG, ResolutionConfig
 from .errors import ResolutionInputError
 from .glossary import GlossarySource, NullGlossarySource
 from .history import ResolutionHistory
-from .normalization import normalize_surface
+from .normalization import normalize_surface, surface_variants
 from .provisional import derive_entity_id, derive_resolution_id
 from .similarity import SurfaceSimilarity, TrigramJaccardSimilarity
 
@@ -327,9 +327,20 @@ def _read_envelope(mentions: Sequence[EntityMention]) -> _Envelope:
 
 def _build_context(request: ResolutionRequest, envelope: _Envelope) -> CascadeContext:
     surfaces = tuple(m.surface for m in request.mentions)
+    # Cada mencion aporta su forma literal normalizada Y, si la superficie viene
+    # encabezada por un determinante ("la Marea Negra", "del Consejo de Umbra"),
+    # la misma forma sin el. Es el ESLABON donde se perdia la resolucion: los
+    # pasos `exact` y `alias` comparan por igualdad de cadena, asi que sin esta
+    # variante la unica senal que podia alcanzar a la entidad existente era
+    # `similarity`, cuyo techo (0.88) esta por debajo del umbral de enlace
+    # (0.90) por diseno. Ver `surface_variants` en `normalization.py`.
     normalized = tuple(
         dict.fromkeys(
-            [normalize_surface(m.normalized_surface or m.surface) for m in request.mentions]
+            [
+                form
+                for m in request.mentions
+                for form in surface_variants(m.normalized_surface or m.surface)
+            ]
         )
     )
     return CascadeContext(
