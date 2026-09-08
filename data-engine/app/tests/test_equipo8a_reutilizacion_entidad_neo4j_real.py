@@ -309,9 +309,22 @@ def test_caso_1_la_corrida_siguiente_reutiliza_por_nombre(
         f"link_existing={seco['candidates'].get('link_existing')} "
         f"create_entity={seco['candidates'].get('create_entity')}"
     )
+    # Y la MISMA mencion no se fue ademas por la rama de alta. Se compara por
+    # IDENTIDAD de la mencion, no buscando "cofradia" dentro del id asignado:
+    # una comprobacion por subcadena daria verde tambien si el producto
+    # empezara a derivar otro id, que es justo lo que habria que detectar.
+    mencion_canonica = next(
+        (m["mention_id"] for m in (seco.get("mentions") or ())
+         if m.get("surface") == CANONICO),
+        None,
+    )
+    assert mencion_canonica is not None, (
+        f"no se extrajo ninguna mencion con superficie {CANONICO!r}: "
+        f"{[m.get('surface') for m in (seco.get('mentions') or ())]}"
+    )
     altas = [
         f for f in (seco["candidates"].get("create_entity") or [])
-        if "cofradia" in str(f.get("assigned_entity_id", "")).lower()
+        if mencion_canonica in (f.get("mention_ids") or ())
     ]
     assert not altas, f"se propuso un alta para algo ya existente: {altas}"
 

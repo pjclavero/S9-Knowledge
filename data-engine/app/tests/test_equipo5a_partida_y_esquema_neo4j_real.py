@@ -343,6 +343,11 @@ def test_alta_aprobada_con_tipo_si_se_crea():
         "entity_id": "entity:new:ilva",
         "type": "Character",
         "name": "Ilva Roen",
+        # EQUIPO 8A: los alias viajan con el alta hasta el nodo. Este ledger
+        # de prueba no declara ninguno, asi que la lista sale VACIA -- y sale
+        # explicitamente, no ausente: el dia que el alta traiga alias y no
+        # lleguen al snapshot, esta comparacion exacta se pone roja.
+        "aliases": [],
         "pending_creation": True,
     }]
 
