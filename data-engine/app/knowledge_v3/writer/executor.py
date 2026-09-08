@@ -191,6 +191,7 @@ def _check_expected_state(
     partida_id: str | None = None,
     *,
     solo_referencia: bool = False,
+    ancla_en_plan: bool = False,
 ) -> dict:
     """Concurrencia optimista. Un desajuste aborta el PLAN, no la operacion.
 
@@ -242,6 +243,18 @@ def _check_expected_state(
         )
     version = _field(record, "version")
     state_hash = _field(record, "state_hash")
+    if ancla_en_plan:
+        # El extremo lo ha creado el `CREATE_ENTITY` de ESTE mismo plan, unas
+        # operaciones mas arriba y dentro de esta misma transaccion. No hay una
+        # version previa contra la que comparar: el ancla es el alta del plan,
+        # ya exigida por el validador `concurrency` del motor y reconfirmada
+        # aqui contra las operaciones del plan firmado.
+        #
+        # Lo que NO se salta: la lectura de arriba. Si el nodo no existe o
+        # pertenece a otro ambito, esta funcion ya ha abortado con
+        # `EXEC_TARGET_MISSING` o `EXEC_SCOPE_MISMATCH`. Se omite la
+        # comparacion optimista, no la comprobacion de que el extremo esta ahi.
+        return {"version": version, "state_hash": state_hash}
     if version != op["expected_version"]:
         raise WriterAbort(
             codes.EXEC_VERSION_MISMATCH,
@@ -585,9 +598,31 @@ def execute_operation(
         # eso la precondicion se lee con el ambito de VISIBILIDAD, el mismo
         # que `create_relation` exige abajo a sus dos extremos. Con el ambito
         # exacto, un plan de partida no podia enlazar el lore compartido.
+        # Proyeccion anclada al alta del propio plan: `expected_state`
+        # WOULD_CREATE y sin version esperada. Se reconfirma aqui, sobre el
+        # plan FIRMADO, que ese alta existe de verdad: un plan que pidiera
+        # saltarse el control optimista sin traer el `CREATE_ENTITY` del
+        # extremo no es un plan anclado, y aborta.
+        ancla_en_plan = (
+            op.get("expected_state") == "WOULD_CREATE"
+            and op.get("expected_version") is None
+        )
+        if ancla_en_plan:
+            altas = {
+                otra.get("target_entity_id")
+                for otra in view.mutation_operations
+                if otra["operation_type"] == "CREATE_ENTITY"
+            }
+            if target not in altas:
+                raise WriterAbort(
+                    codes.EXEC_TARGET_MISSING,
+                    f"la operacion {op['operation_id']} dice anclarse al alta de "
+                    f"{target!r} en este plan, pero el plan no trae ese CREATE_ENTITY",
+                    {"operation_id": op["operation_id"], "target_id": target},
+                )
         previous = _check_expected_state(
             tx, op, ws, target, is_assertion=False, partida_id=partida_id,
-            solo_referencia=True,
+            solo_referencia=True, ancla_en_plan=ancla_en_plan,
         )
         rel_props = {k: v for k, v in props.items() if k != "predicate"}
         record = _single(
