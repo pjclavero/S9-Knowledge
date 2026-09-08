@@ -22,8 +22,11 @@ TRES COSAS QUE NO SE INVENTAN AQUI
   Si aun asi falta -- nodos anteriores a ese arreglo, o sembrados a mano -- la
   fila lo trae a `None` y se DECLARA (`ENTIDAD_SIN_STATE_HASH`); no se sustituye
   por el hash derivado, que es plausible y falso.
-* **`aliases`**: el grafo no los guarda. Salen vacios y se declara la carencia,
-  en vez de fabricarlos desde el nombre.
+* **`aliases`**: son los del nodo. EQUIPO 8A: el grafo ya los guarda, y esta
+  fila los propaga tal cual. Un nodo que no traiga ninguno sale con la tupla
+  vacia y lo DECLARA (`GRAFO_SIN_ALIAS`); no se fabrica ningun alias desde el
+  nombre, que es plausible y falso -- y es exactamente el error inverso al que
+  este equipo vino a arreglar.
 """
 from __future__ import annotations
 
@@ -114,6 +117,7 @@ def snapshot_entities(
             state_hash=None,
             pending_creation=True,
             canonical_name=alta.get("name"),
+            aliases=tuple(alta.get("aliases") or ()),
         ))
     return sorted(out, key=lambda e: e.entity_id)
 
@@ -135,13 +139,23 @@ def carencias(rows: Iterable[dict]) -> list[dict]:
                 + ", ".join(sorted(str(x) for x in sin_hash))
             ),
         })
-    if filas:
+    # EQUIPO 8A. `GRAFO_SIN_ALIAS` era INCONDICIONAL: se declaraba en cuanto
+    # habia una fila, porque el grafo no sabia guardar alias en absoluto. Ya
+    # los guarda y los devuelve, asi que la carencia deja de ser una propiedad
+    # del grafo y pasa a ser una propiedad de CADA NODO: solo la declaran los
+    # que no traen ninguno -- nodos anteriores a este arreglo o sembrados por
+    # fuera del producto. Seguir declarandola siempre escondería el arreglo
+    # detras de una queja permanente; no declararla nunca escondería los nodos
+    # viejos, que siguen sin poder resolverse por alias.
+    sin_alias = [f["entity_id"] for f in filas if not f.get("aliases")]
+    if sin_alias:
         faltas.append({
             "code": "GRAFO_SIN_ALIAS",
             "detail": (
-                "el grafo no almacena alias de entidad; el glosario del "
-                "extractor solo recibe el nombre canonico de cada nodo. Las "
-                "menciones por alias dependeran del perfil, no del catalogo"
+                "estas entidades no traen alias en el grafo, asi que solo se "
+                "las podra alcanzar por su nombre canonico o por el glosario "
+                "del perfil, nunca por `step_alias`: "
+                + ", ".join(sorted(str(x) for x in sin_alias))
             ),
         })
     return faltas

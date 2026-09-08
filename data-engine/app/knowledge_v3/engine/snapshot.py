@@ -55,6 +55,11 @@ class SnapshotEntity:
     #: Nombre canonico declarado en el alta aprobada. Solo lo consume el
     #: `payload` del `CREATE_ENTITY`; para una entidad ya existente sobra.
     canonical_name: Optional[str] = None
+    #: Alias declarados del alta aprobada. Como `canonical_name`, solo los
+    #: consume el `payload` del `CREATE_ENTITY`. EQUIPO 8A: sin ellos, la
+    #: entidad nacia sin ninguna forma alternativa por la que alcanzarla, y
+    #: la corrida siguiente no podia resolverla mas que por el nombre exacto.
+    aliases: tuple[str, ...] = ()
 
     @staticmethod
     def of(entity_id: str, entity_type: str, version: int = 1, **kw) -> "SnapshotEntity":

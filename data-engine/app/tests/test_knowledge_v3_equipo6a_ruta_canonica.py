@@ -425,6 +425,7 @@ def test_una_alta_sin_nombre_se_declara_como_carencia():
         }],
         graph_entity_ids=(), workspace="ws", source_path="f.md",
         names_by_mention={},
+        catalog_by_entity={},
     )
     codigos = [c["code"] for c in ledger.carencias]
     assert "ALTA_SIN_NOMBRE_OBSERVADO" in codigos

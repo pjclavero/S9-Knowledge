@@ -213,6 +213,7 @@ def _b_completo(driver):
         workspace=WS_B,
         source_path=str(FUENTE),
         names_by_mention={},
+        catalog_by_entity={},
     )
     # Aprobadas UNA A UNA, con su revisor. Sin altas aprobadas el plan no trae
     # `CREATE_ENTITY` y este caso no mediria nada.

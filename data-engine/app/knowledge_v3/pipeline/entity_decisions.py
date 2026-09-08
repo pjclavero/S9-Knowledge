@@ -76,6 +76,10 @@ class EntityDecision:
     entity_id: Optional[str]
     entity_type: Optional[str]
     name: Optional[str]
+    #: Alias del catalogo para esta identidad. EQUIPO 8A: viajan con el alta
+    #: hasta el nodo, para que la corrida siguiente pueda alcanzarla por una
+    #: forma que no sea el nombre canonico exacto.
+    aliases: tuple[str, ...]
     mention_ids: tuple[str, ...]
     confidence: Optional[float]
     #: Codigos del resolutor MAS los que anade esta reconciliacion.
@@ -97,6 +101,7 @@ class EntityDecision:
             "entity_id": self.entity_id,
             "entity_type": self.entity_type,
             "name": self.name,
+            "aliases": list(self.aliases),
             "mention_ids": list(self.mention_ids),
             "confidence": self.confidence,
             "reason_codes": list(self.reason_codes),
@@ -113,6 +118,7 @@ class EntityDecision:
             entity_id=doc.get("entity_id"),
             entity_type=doc.get("entity_type"),
             name=doc.get("name"),
+            aliases=tuple(doc.get("aliases") or ()),
             mention_ids=tuple(doc.get("mention_ids") or ()),
             confidence=doc.get("confidence"),
             reason_codes=tuple(doc.get("reason_codes") or ()),
@@ -215,6 +221,7 @@ def reconcile(
     partida_id: Optional[str] = None,
     generated_at: Optional[str] = None,
     names_by_mention: Mapping[str, str],
+    catalog_by_entity: Mapping[str, Mapping[str, Any]],
 ) -> DecisionLedger:
     """Contrasta lo que el resolutor PIDIO con lo que el grafo TIENE.
 
@@ -244,7 +251,37 @@ def reconcile(
     """
     presentes = set(graph_entity_ids)
     nombres = dict(names_by_mention)
+    catalogo = dict(catalog_by_entity)
     salida: list[EntityDecision] = []
+
+    def identidad(entity_id: Optional[str]) -> tuple[Optional[str], tuple[str, ...]]:
+        """Como se llama DE VERDAD la entidad, y por que otras formas se la alcanza.
+
+        EQUIPO 8A -- AQUI se perdia el nombre canonico
+        ---------------------------------------------
+        Antes esta funcion no existia y el nombre del alta era, siempre, la
+        SUPERFICIE de la mencion que resolvio (`names_by_mention`). Con un
+        catalogo que declaraba `entity:cofradia-ambar` = "La Cofradia de
+        Ambar" con alias "la Cofradia", una fuente que dijera "la Cofradia"
+        creaba el nodo con `name = 'la Cofradia'`. En la corrida SIGUIENTE,
+        `Neo4jEntityCatalog` deriva el `canonical_name` de ese `name`, y
+        "cofradia de ambar" ya no alcanzaba a "la cofradia" por ninguna via:
+        `CREATE_PROVISIONAL` / `NO_CANDIDATE` -> `REVIEW` -> no se aplica nada.
+
+        La distincion que restaura: **la superficie observada y el nombre
+        canonico son conceptos distintos**. Cuando el catalogo (fichero o
+        grafo) CONOCE esta identidad, el nombre y los alias salen de EL, que
+        es quien sabe como se llama la cosa. La superficie solo se usa cuando
+        el catalogo no la conoce -- una identidad genuinamente nueva, donde la
+        superficie es lo unico que hay y ya no se esta infiriendo un canonico
+        desde una coincidencia, sino nombrando algo por primera vez.
+        """
+        entrada = catalogo.get(entity_id) if entity_id else None
+        if entrada is None:
+            return None, ()
+        nombre_cat = entrada.get("name")
+        alias_cat = tuple(str(a) for a in (entrada.get("aliases") or ()) if str(a).strip())
+        return (str(nombre_cat) if nombre_cat else None), alias_cat
 
     for fila in resolutions:
         accion = fila.get("action")
@@ -253,9 +290,14 @@ def reconcile(
         motivos = list(fila.get("reason_codes") or ())
         seleccionada = fila.get("selected_entity_id")
         asignada = fila.get("assigned_entity_id")
-        nombre = next(
+        superficie = next(
             (nombres[m] for m in mention_ids if m in nombres), None
         )
+        # El id contra el que se juzga la identidad, sea enlace o alta.
+        objetivo = seleccionada or asignada
+        nombre_canonico, alias = identidad(objetivo)
+        # El catalogo manda; la superficie es el ultimo recurso, no el primero.
+        nombre = nombre_canonico or superficie
 
         if accion == LINK_EXISTING:
             if seleccionada in presentes:
@@ -265,6 +307,7 @@ def reconcile(
                     entity_id=seleccionada,
                     entity_type=fila.get("entity_type"),
                     name=nombre,
+                    aliases=alias,
                     mention_ids=mention_ids,
                     confidence=fila.get("confidence"),
                     reason_codes=tuple(motivos + ["OBSERVADA_EN_GRAFO"]),
@@ -281,6 +324,7 @@ def reconcile(
                 entity_id=seleccionada,
                 entity_type=fila.get("entity_type"),
                 name=nombre,
+                aliases=alias,
                 mention_ids=mention_ids,
                 confidence=fila.get("confidence"),
                 reason_codes=tuple(motivos + ["ENLACE_SIN_RESPALDO_EN_GRAFO"]),
@@ -300,6 +344,7 @@ def reconcile(
                     entity_id=entity_id,
                     entity_type=fila.get("entity_type"),
                     name=nombre,
+                    aliases=alias,
                     mention_ids=mention_ids,
                     confidence=fila.get("confidence"),
                     reason_codes=tuple(motivos + ["ALTA_CON_ID_YA_EXISTENTE"]),
@@ -312,6 +357,7 @@ def reconcile(
                 entity_id=entity_id,
                 entity_type=fila.get("entity_type"),
                 name=nombre,
+                aliases=alias,
                 mention_ids=mention_ids,
                 confidence=fila.get("confidence"),
                 reason_codes=tuple(motivos + ["AUSENTE_DEL_GRAFO"]),
@@ -325,6 +371,7 @@ def reconcile(
             entity_id=seleccionada or asignada,
             entity_type=fila.get("entity_type"),
             name=nombre,
+            aliases=alias,
             mention_ids=mention_ids,
             confidence=fila.get("confidence"),
             reason_codes=tuple(motivos),
@@ -419,6 +466,7 @@ def approve(
                 if d.entity_id in elegidos else d.entity_type
             ),
             name=d.name,
+            aliases=d.aliases,
             mention_ids=d.mention_ids,
             confidence=d.confidence,
             reason_codes=d.reason_codes,
@@ -507,6 +555,7 @@ def approved_snapshot_entities(ledger: DecisionLedger) -> list[dict]:
             "entity_id": d.entity_id,
             "type": d.entity_type,
             "name": d.name or d.entity_id,
+            "aliases": list(d.aliases),
             "pending_creation": True,
         }
         for d in ledger.aprobadas

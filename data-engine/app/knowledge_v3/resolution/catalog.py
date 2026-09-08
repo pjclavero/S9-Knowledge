@@ -248,7 +248,12 @@ class Neo4jEntityCatalog(EntityCatalog):
                 # `entity_id` en vez de inventar un nombre: el resolutor vera
                 # una superficie que no casa con nada, que es la verdad.
                 canonical_name=fila.name or fila.entity_id,
-                aliases=(),
+                # EQUIPO 8A. Antes esto era `()` cableado, y como `step_alias`
+                # recorre `normalized_aliases`, la senal de alias (0.95) estaba
+                # estructuralmente MUERTA contra grafo real: no podia disparar
+                # aunque la entidad declarase alias, porque nunca le llegaba
+                # ninguno. Ahora sale de la propiedad OBSERVADA del nodo.
+                aliases=tuple(fila.aliases),
                 provisional=False,
                 metadata={
                     "graph_version": fila.version,

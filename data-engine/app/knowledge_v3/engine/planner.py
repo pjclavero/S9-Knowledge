@@ -301,10 +301,7 @@ def _altas(context: PlanContext, decision: ClaimDecision) -> list[dict]:
                 "operation_type": "CREATE_ENTITY",
                 "decision_id": decision.decision_id,
                 "target_entity_id": entity_id,
-                "payload": {
-                    "entity_type": node.entity_type,
-                    "name": node.canonical_name or entity_id,
-                },
+                "payload": _payload_alta(node, entity_id),
                 "evidence_fragment_ids": list(decision.evidence_fragment_ids),
                 "idempotency_key": "",  # lo deriva seal_plan
                 "expected_state": "WOULD_CREATE",
@@ -313,6 +310,40 @@ def _altas(context: PlanContext, decision: ClaimDecision) -> list[dict]:
             }
         )
     return ops
+
+
+def _payload_alta(node, entity_id: str) -> dict:
+    """El `payload` de un `CREATE_ENTITY`: como se llama la entidad que nace.
+
+    EQUIPO 8A. Llevaba solo `entity_type` y `name`. Los alias aprobados con el
+    alta se quedaban aqui, y el nodo nacia sin ninguna forma alternativa por
+    la que alcanzarlo: la corrida SIGUIENTE tenia que acertar el nombre
+    canonico exacto o la entidad no se reutilizaba.
+
+    `aliases` viaja dentro de `payload`, que es la EXCEPCION DOCUMENTADA a
+    `additionalProperties:false` del contrato congelado
+    (`graph-mutation-plan-v3.schema.json`, `$defs/mutation_operation`): no se
+    inventa ningun campo de contrato ni se firma nada nuevo. Sobrevive a
+    `cypher.safe_props` porque `aliases` cumple `^[a-z][a-z0-9_]{0,63}$` y una
+    LISTA de cadenas es un valor que Neo4j si almacena (lo que `safe_props`
+    rechaza son `dict` y `set`).
+
+    La clave se OMITE cuando no hay alias, en vez de mandar `[]`: una lista
+    vacia entraria en el `state_hash` del nodo y haria distintos dos nodos que
+    son iguales.
+    """
+    payload = {
+        "entity_type": node.entity_type,
+        "name": node.canonical_name or entity_id,
+    }
+    aliases = tuple(getattr(node, "aliases", ()) or ())
+    if aliases:
+        # Deduplicado y ordenado: el plan debe ser identico para la misma alta
+        # aprobada, y el orden en que un catalogo enumere los alias no es un
+        # dato del mundo. Sin esto, dos corridas iguales darian dos
+        # `idempotency_key` distintas.
+        payload["aliases"] = sorted({str(a) for a in aliases if str(a).strip()})
+    return payload
 
 
 def _dedupe_altas(operations: list[dict]) -> list[dict]:

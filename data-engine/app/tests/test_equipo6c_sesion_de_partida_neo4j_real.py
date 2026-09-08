@@ -131,12 +131,19 @@ def _altas_aprobadas(fuente, driver, partida, sesion):
     provisional. Medido en este mismo carril antes de anadirlo.
     """
     seco = _ingesta(fuente, driver, partida_id=partida, known_from_session=sesion)
+    # EQUIPO 8A. `catalog_by_entity` es lo que impide que el alta se nombre con
+    # la SUPERFICIE que la menciono. Se construye igual que en `ingest_cli.main`
+    # (mismo helper), no con una copia de la fusion.
+    mundo = ingest_cli.merge_catalogo(
+        gc.catalog_rows(driver, WS, partida), ingest_cli.load_catalog(CATALOGO)
+    )
     ledger = entity_decisions.reconcile(
         resolutions=(seco["candidates"]["link_existing"] + seco["candidates"]["create_entity"]),
         graph_entity_ids=gc.entity_ids(gc.catalog_rows(driver, WS, partida)),
         workspace=WS,
         source_path=str(fuente),
         names_by_mention=ingest_cli._nombres_por_mencion(seco),
+        catalog_by_entity=ingest_cli.identidades_por_entidad(mundo),
     )
     ids = sorted({
         d.entity_id for d in ledger.altas

@@ -158,6 +158,46 @@ def load_catalog(path: Optional[Path]) -> list[dict[str, Any]]:
     return entities
 
 
+def merge_catalogo(graph_rows: Sequence[dict], declaradas: Sequence[dict]) -> list[dict]:
+    """El mundo: lo OBSERVADO en el grafo, mas lo DECLARADO que aun no existe.
+
+    El grafo manda cuando el mismo `entity_id` esta en los dos: su fila trae la
+    `version` y el `state_hash` observados, y una fila de fichero los inventaria.
+
+    EQUIPO 8A. Existe como funcion propia porque ahora tiene DOS consumidores:
+    `run_ingest`, que construye con ella el catalogo del resolutor, y `main`,
+    que necesita el mismo mundo para decirle a `reconcile` COMO SE LLAMAN las
+    entidades. Copiar la fusion en el segundo sitio habria creado justo lo que
+    este fichero ya advierte en `reconcile`: una segunda ruta que se desvia de
+    la primera sin que nada lo note.
+    """
+    observados = {f["entity_id"] for f in graph_rows}
+    return list(graph_rows) + [
+        e for e in declaradas if e["entity_id"] not in observados
+    ]
+
+
+def identidades_por_entidad(entities: Sequence[dict]) -> dict[str, dict]:
+    """`entity_id -> {name, aliases}`: el nombre CANONICO y sus alias.
+
+    Es lo que `reconcile` necesita para no volver a nombrar una entidad con la
+    superficie que la menciono. Solo se incluyen las entradas que traen nombre:
+    una fila sin `name` no aporta nada y dejarla entrar haria que un `name`
+    vacio del catalogo pisara la superficie, que es peor que la superficie.
+    """
+    salida: dict[str, dict] = {}
+    for e in entities:
+        entity_id = e.get("entity_id")
+        nombre = e.get("name")
+        if not entity_id or not nombre:
+            continue
+        salida[str(entity_id)] = {
+            "name": str(nombre),
+            "aliases": [str(a) for a in (e.get("aliases") or ()) if str(a).strip()],
+        }
+    return salida
+
+
 def build_catalog(entities: Sequence[dict], workspace: str) -> InMemoryEntityCatalog:
     """Catalogo del resolutor: SOLO lo que ya existe en el grafo.
 
@@ -309,10 +349,7 @@ def run_ingest(
     graph_rows: list[dict] = []
     if driver is not None:
         graph_rows = graph_catalog.catalog_rows(driver, ws, partida_id)
-        observados = {f["entity_id"] for f in graph_rows}
-        entities = graph_rows + [
-            e for e in declaradas if e["entity_id"] not in observados
-        ]
+        entities = merge_catalogo(graph_rows, declaradas)
     else:
         entities = declaradas
     source = build_source(path, source_kind=source_kind)
@@ -1022,6 +1059,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 partida_id=args.partida_id,
                 generated_at=report["run"]["now"],
                 names_by_mention=_nombres_por_mencion(report),
+                # EQUIPO 8A. La superficie de la mencion ya no basta para
+                # nombrar una entidad: cuando el mundo (grafo + `--catalogo`)
+                # conoce esa identidad, el nombre y los alias salen de ahi.
+                catalog_by_entity=identidades_por_entidad(
+                    merge_catalogo(filas, load_catalog(args.catalogo))
+                ),
             )
             # Una revision previa no se pierde al reingerir: lo aprobado sigue
             # aprobado si la decision sigue siendo la misma alta pendiente.

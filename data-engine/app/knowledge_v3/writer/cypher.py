@@ -633,7 +633,8 @@ def list_entities_query(workspace: str, partida_id: str | None = None) -> Query:
     return Query(
         f"MATCH (n:{LABEL_ENTITY}) WHERE {' AND '.join(where)} "
         "RETURN n.entity_id AS entity_id, n.entity_type AS entity_type, "
-        "n.name AS name, n.version AS version, n.state_hash AS state_hash, "
+        "n.name AS name, n.aliases AS aliases, "
+        "n.version AS version, n.state_hash AS state_hash, "
         "n.partida_id AS partida_id, n.status AS status, labels(n) AS labels "
         "ORDER BY n.entity_id",
         params,

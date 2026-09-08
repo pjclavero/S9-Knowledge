@@ -143,6 +143,7 @@ def _altas_aprobadas(driver):
         workspace=WS,
         source_path=str(FUENTE),
         names_by_mention={},
+        catalog_by_entity={},
     )
     aprobado = entity_decisions.approve(
         ledger, sorted({d.entity_id for d in ledger.altas}),
@@ -165,6 +166,7 @@ def test_grafo_vacio_no_produce_ni_un_enlace_automatico(limpio):
         workspace=WS,
         source_path=str(FUENTE),
         names_by_mention={},
+        catalog_by_entity={},
     )
     assert ledger.decisions, "sin decisiones no hay nada que comprobar"
     assert not [d for d in ledger.decisions
@@ -184,6 +186,7 @@ def test_un_alta_sin_aprobar_no_llega_al_snapshot(limpio):
         workspace=WS,
         source_path=str(FUENTE),
         names_by_mention={},
+        catalog_by_entity={},
     )
     assert ledger.altas
     assert entity_decisions.approved_snapshot_entities(ledger) == []
@@ -199,6 +202,7 @@ def test_aprobar_un_id_que_no_esta_pendiente_es_un_error(limpio):
         workspace=WS,
         source_path=str(FUENTE),
         names_by_mention={},
+        catalog_by_entity={},
     )
     with pytest.raises(ValueError):
         entity_decisions.approve(ledger, ["entity:inventada"], reviewer="pjc",
@@ -228,6 +232,7 @@ def test_un_enlace_sin_respaldo_en_el_grafo_se_degrada_a_alta():
         workspace=WS,
         source_path="x",
         names_by_mention={},
+        catalog_by_entity={},
     )
     (decision,) = ledger.decisions
     assert decision.decision == entity_decisions.CREATE_ENTITY_REQUIRED
@@ -252,6 +257,7 @@ def test_un_enlace_con_respaldo_se_queda_en_enlace():
         workspace=WS,
         source_path="x",
         names_by_mention={},
+        catalog_by_entity={},
     )
     (decision,) = ledger.decisions
     assert decision.decision == entity_decisions.LINK_EXISTING
@@ -270,6 +276,7 @@ def test_con_altas_aprobadas_el_plan_trae_create_entity(limpio):
         workspace=WS,
         source_path=str(FUENTE),
         names_by_mention={},
+        catalog_by_entity={},
     )
     ids = [d.entity_id for d in ledger.altas]
     aprobado = entity_decisions.approve(ledger, ids, reviewer="pjc", at=AHORA)
@@ -292,6 +299,7 @@ def test_apply_real_escribe_y_deja_la_procedencia_navegable(limpio):
         workspace=WS,
         source_path=str(FUENTE),
         names_by_mention={},
+        catalog_by_entity={},
     )
     aprobado = entity_decisions.approve(
         ledger, [d.entity_id for d in ledger.altas], reviewer="pjc", at=AHORA)

@@ -89,6 +89,13 @@ class GraphEntity:
     entity_id: str
     entity_type: Optional[str]
     name: Optional[str]
+    #: Alias DECLARADOS del nodo, tal como el writer los persistio. Vacio
+    #: significa "este nodo no trae alias", no "el grafo no sabe guardarlos":
+    #: desde el arreglo del EQUIPO 8A el writer SI los escribe, de modo que
+    #: una tupla vacia alcanza solo a nodos anteriores o sembrados por fuera
+    #: del producto. Como `version`/`state_hash`, se PROPAGA lo observado; no
+    #: se fabrica ningun alias a partir del nombre.
+    aliases: tuple[str, ...]
     version: Optional[int]
     state_hash: Optional[str]
     partida_id: Optional[str]
@@ -126,6 +133,7 @@ def list_entities(
                 entity_id=_row_get(row, "entity_id"),
                 entity_type=_row_get(row, "entity_type"),
                 name=_row_get(row, "name"),
+                aliases=tuple(_row_get(row, "aliases") or ()),
                 version=int(version) if version is not None else None,
                 state_hash=_row_get(row, "state_hash"),
                 partida_id=_row_get(row, "partida_id"),
