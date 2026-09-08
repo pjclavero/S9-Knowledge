@@ -1,0 +1,68 @@
+Received notification from DBMS server: {severity: WARNING} {code: Neo.ClientNotification.Statement.UnknownPropertyKeyWarning} {category: UNRECOGNIZED} {title: The provided property key is not in the database} {description: One of the property names in your query is not available in the database, make sure you didn't misspell it or that the label is available when you run this statement in your application (the missing property name is: known_from_session)} {position: line: 1, column: 63, offset: 62} for query: 'MATCH (a:V3Assertion {workspace:$ws, partida_id:$p}) RETURN a.known_from_session AS s, count(*) AS c'
+Received notification from DBMS server: {severity: WARNING} {code: Neo.ClientNotification.Statement.UnknownPropertyKeyWarning} {category: UNRECOGNIZED} {title: The provided property key is not in the database} {description: One of the property names in your query is not available in the database, make sure you didn't misspell it or that the label is available when you run this statement in your application (the missing property name is: known_from_session)} {position: line: 1, column: 63, offset: 62} for query: 'MATCH (a:V3Assertion {workspace:$ws, partida_id:$p}) RETURN a.known_from_session AS s, count(*) AS c'
+
+== S0: el grafo arranca VACIO (se comprueba, no se presume) ==
+  [OK ] S0 sin nodos  -- nodos=0
+  [OK ] S0 sin aristas  -- aristas=0
+
+== CAPA JUEGO (lore): entidades COMPARTIDAS ==
+     altas a aprobar: [('entity:cofradia-ambar', 'Faction'), ('entity:sela-marrec', 'Character'), ('entity:cofradia-ambar', 'Faction')]
+  [OK ] lore aplica rc=0  -- rc=0
+  [OK ] lore creo entidades  -- [('entity:cofradia-ambar', None), ('entity:sela-marrec', None)]
+  [OK ] las entidades del lore son de CAPA JUEGO (partida_id NULL)  -- compartidas=['entity:cofradia-ambar', 'entity:sela-marrec']
+
+== PARTIDA A - sesion 3 ==
+     altas a aprobar: [('entity:prov:f4a1950bcb48d978', 'Faction')]
+     (apply rc=1) stderr: rollback: SIN DOCUMENTO (/tmp/esc-base/A/rollback.json no se escribe): esta corrida no aplico nada
+rollback: SIN DOCUMENTO (/tmp/esc-base/A/rollback.json no se escribe): esta corrida no aplico nada
+
+  [FALLA] A aplica rc=0  -- rc=1
+
+== PARTIDA B - sesion 7 (debe REUTILIZAR la Entity compartida) ==
+     altas a aprobar: [('entity:consejo-umbra', 'Faction')]
+     (apply rc=1) stderr: rollback: SIN DOCUMENTO (/tmp/esc-base/B/rollback.json no se escribe): esta corrida no aplico nada
+rollback: SIN DOCUMENTO (/tmp/esc-base/B/rollback.json no se escribe): esta corrida no aplico nada
+
+  [FALLA] B aplica rc=0  -- rc=1
+  [OK ] (workspace, entity_id) sigue siendo UNICO tras las dos partidas  -- ['entity:cofradia-ambar', 'entity:sela-marrec']
+  [OK ] B REUTILIZO la Entity compartida (no la duplico)  -- entidades=['entity:cofradia-ambar', 'entity:sela-marrec'] compartidas=['entity:cofradia-ambar', 'entity:sela-marrec']
+  [OK ] la Entity compartida NO tiene copia con ambito de partida  -- copias=[]
+
+== SEGUIMIENTO DE LOS SEIS VALORES: entrada -> Neo4j ==
+  -- propiedades REALES (introspeccion, no adivinanza) --
+     V3Assertion: ['epistemic_status', 'status', 'direction', 'confidence', 'predicate', 'state', 'subject_entity_id', 'object_entity_id', 'engine_version', 'negated', 'episode_ids', 'known_by', 'version', 'ontology_version', 'written_at', 'game_profile', 'visibility', 'visibility_source', 'scope', 'collection_id', 'decision_id', 'evidence_fragment_ids', 'written_snapshot_id', 'reason_codes', 'visibility_contract', 'written_by_plan_hash', 'written_by_operator', 'source_asset_id', 'workspace', 'idempotency_key', 'assertion_id']
+     V3AppliedOperation: ['workspace', 'idempotency_key', 'apply_id', 'claim_token', 'applied_at', 'plan_hash', 'operation_id']
+     V3Entity: ['engine_version', 'ontology_version', 'name', 'version', 'entity_type', 'written_at', 'game_profile', 'visibility', 'decision_id', 'state_hash', 'scope', 'known_by', 'visibility_source', 'visibility_contract', 'reason_codes', 'collection_id', 'written_by_operator', 'written_snapshot_id', 'source_asset_id', 'entity_id', 'evidence_fragment_ids', 'workspace', 'idempotency_key', 'written_by_plan_hash']
+     V3Evidence: ['produced_by_step', 'contract_id', 'confidence', 'contract_version', 'fragment_id', 'episode_id', 'source_asset_id', 'literal_text', 'media_type', 'end', 'apply_id', 'normalized_text', 'provenance_contract', 'source_hash_value', 'workspace', 'start']
+  [FALLA] A: censo de aserciones de la partida NO VACIO  -- filas=0
+  [FALLA] B: censo de aserciones de la partida NO VACIO  -- filas=0
+  [OK ] entity_type llego a Neo4j  -- [('entity:cofradia-ambar', 'Faction'), ('entity:sela-marrec', 'Character')]
+  [OK ] evidence realmente ENLAZADA (SUPPORTED_BY)  -- {'frag': 1, 'enlaces': 1}
+     lore: apply_id=apply:51dafdae93b11b98ace7b886a7a9a23b plan_id=plan:e994d7226f19ecb4873c4ca887bd75de reloj_fijado=True carencia=None
+     A: apply_id=None plan_id=None reloj_fijado=True carencia=None
+     B: apply_id=None plan_id=None reloj_fijado=True carencia=None
+  [OK ] apply_id estampado en V3AppliedOperation  -- distintos=1
+
+== APPLY REPETIDO -> NOOP legitimo, rc=0 ==
+     altas a aprobar: [('entity:consejo-umbra', 'Faction')]
+     (apply rc=1) stderr: rollback: SIN DOCUMENTO (/tmp/esc-base/B-repeat/rollback.json no se escribe): esta corrida no aplico nada
+rollback: SIN DOCUMENTO (/tmp/esc-base/B-repeat/rollback.json no se escribe): esta corrida no aplico nada
+
+  [FALLA] apply repetido rc=0  -- rc=1
+  [OK ] apply repetido NO cambia el censo durable  -- nodos 11->11
+     outcome=None aplicadas=None noop=None codes=None
+
+== ROLLBACK DE B ==
+  [nota] no hay documento de rollback de B en /tmp/esc-base/B/rollback.json: el ciclo no se puede medir
+
+== ROLLBACK DE A ==
+  [nota] no hay documento de rollback de A en /tmp/esc-base/A/rollback.json
+
+== RESULTADO ==
+  OK=12  FALLA=5  NOTAS=2
+  FALLOS:
+    - A aplica rc=0
+    - B aplica rc=0
+    - A: censo de aserciones de la partida NO VACIO
+    - B: censo de aserciones de la partida NO VACIO
+    - apply repetido rc=0
