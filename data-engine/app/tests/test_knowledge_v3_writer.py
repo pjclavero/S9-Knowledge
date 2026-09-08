@@ -288,6 +288,24 @@ class FakeTx:
                 # Sin esta rama el doble aplicaria igualdad exacta tambien a
                 # la lectura de visibilidad y mediria el doble, no el
                 # producto.
+                #
+                # HASTA DONDE LLEGA ESTE DOBLE (MEDIDO, integracion tanda 9).
+                # El doble honra la FORMA que el Cypher declara --elige rama
+                # por el texto-- pero NO ejecuta el predicado: la visibilidad
+                # la vuelve a derivar aqui del estado del nodo. Consecuencia
+                # calibrada con la mutacion que el propio carril 9 declara
+                # (quitar la discriminacion A/B de
+                # `read_entity_state_visible` conservando el marcador de
+                # texto, `WHERE (n.partida_id IS NULL OR true)`):
+                #   * offline (este doble): 8 passed, PYTEST_RC=0  -> CIEGO
+                #   * Neo4j real: RED, `EXEC_SCOPE_MISMATCH` pasa a
+                #     `EXEC_TARGET_MISSING` en
+                #     `test_carril9_desde_A_una_entidad_de_B_sigue_abortando`
+                # Es decir: la discriminacion A/B NO la sostiene ninguna
+                # casilla offline, la sostiene el test de Neo4j real, que esta
+                # SKIPPED salvo con `S9K_WRITER_NEO4J_REAL=1`. Quien cambie el
+                # cuerpo del predicado no puede apoyarse en la suite por
+                # defecto para saber si lo ha roto.
                 visible = "partida_id IS NULL OR" in cypher
                 if visible:
                     if not (node_partida is None

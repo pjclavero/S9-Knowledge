@@ -226,6 +226,38 @@ def main():
         f_a = fuente(tmp, "A-s3.md",
                      "# Partida A, sesion 3\n\n"
                      "Sela Marrec lidera la Cofradia de Ambar.\n")
+        # MEDIDO (integracion tanda 9): los TRES fallos que quedan --"B aplica
+        # rc=0", "B: censo de aserciones NO VACIO" y "apply repetido rc=0"-- son
+        # UN SOLO defecto, y NO esta en el writer ni en el ambito de partida.
+        # Esta frase muere ANTES de llegar al plan: el propio producto lo
+        # declara en `informe.json`
+        #   diagnostics: PIPELINE_STOPPED / step=engine
+        #                "el extractor no propuso ningun claim para esta fuente"
+        # con `mentions=2`, `resolutions=2`, `link_existing=2` y `claims=0`: las
+        # dos menciones se extraen y se resuelven bien (sela-marrec
+        # LINK_EXISTING, consejo-umbra alta aprobada), pero no se forma ninguna
+        # relacion entre ellas, asi que `plan_operations=0` y no hay nada que
+        # aplicar. Sin apply no hay rollback.json, y por eso el apply repetido
+        # tampoco puede ser NOOP: los dos fallos derivados cuelgan del primero.
+        #
+        # LA CAUSA, en `extraction/deterministic.py`: la regla MEMBER_OF lista
+        # "es miembro de" pero NO la contraccion "es miembro del". El emparejado
+        # es por TOKENS (`phrase_tokens`), y ('es','miembro','de') no casa con
+        # ('es','miembro','del'). La regla si cubre otras contracciones
+        # ("forma parte del", "pertenece al", "pertenecia al", "pertenecio al"),
+        # de modo que la laguna es asimetrica, no una decision de diseno.
+        #
+        # CONTROL DIFERENCIAL (misma frase, unica variacion "es miembro del" ->
+        # "pertenece al", base de datos y directorio propios): las tres casillas
+        # se ponen VERDES, la cadena A/B se completa entera --consejo-umbra nace
+        # con partida:B, sela-marrec y cofradia-ambar siguen con partida_id
+        # NULL, aserciones LEADS@partida:A + MEMBER_OF@partida:B + MEMBER_OF@
+        # lore-- y el rollback de B se escribe.
+        #
+        # NO SE TOCA LA FRASE NI LA REGLA. Cambiar la frase pondria el escenario
+        # verde ocultando una laguna real del extractor, y anadir la frase a
+        # `RELATION_RULES` es una apuesta de precision que el benchmark de la
+        # puerta 4/6 tiene que pagar: area cerrada, decision del operador.
         f_b = fuente(tmp, "B-s7.md",
                      "# Partida B, sesion 7\n\n"
                      "Sela Marrec es miembro del Consejo de Umbra.\n")
