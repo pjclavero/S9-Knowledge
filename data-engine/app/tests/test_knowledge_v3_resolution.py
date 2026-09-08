@@ -1331,7 +1331,11 @@ class TestDeterminanteInicialCarril7:
         out = resolve(res, "la Marea", types=(("Faction", 0.92),))
         assert out.action == "REVIEW"
         assert out.entity_id is None
-        assert "AMBIGUOUS_CANDIDATES" in out.resolution.reason_codes
+        # `.count(...) == 1` y no `in`: comprobacion EXACTA sobre una lista de
+        # codigos estables (mas fuerte: exige que aparezca una sola vez) y no
+        # un contains, asi que no anade un sitio al inventario de
+        # comprobaciones fragiles de `test_carril5_exception_codes.py`.
+        assert out.resolution.reason_codes.count("AMBIGUOUS_CANDIDATES") == 1
         # Explicito: la variante NO ha elegido ganador por ser mas corta.
         assert out.entity_id not in (negra.entity_id, roja.entity_id)
 
