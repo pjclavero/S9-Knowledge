@@ -30,6 +30,7 @@ from ..ledger.entries import LedgerOperation
 from ..ledger.supersession import CANONICAL_REASONS as _LEDGER_CANONICAL_REASONS
 from . import codes, cypher, state
 from .apply_identity import apply_id_for_view
+from .ownership_identity import ownership_id_for_view
 from .admission import declares_local_override
 from .errors import WriterAbort
 from .idempotency import AppliedKeyStore
@@ -677,6 +678,10 @@ def execute_plan(driver: Any, view: SignedView, ctx: ExecutionContext) -> Execut
                         # view no permite componerlo, que el camino de
                         # reversion lee como «propiedad desconocida».
                         apply_id=apply_id_for_view(view),
+                        # PROPIEDAD durable, del mismo view firmado. `apply_id`
+                        # dice que INTENTO; esto dice a que apply LOGICO
+                        # pertenece la marca, y sobrevive al reloj y al restore.
+                        ownership_id=ownership_id_for_view(view),
                     ),
                 )
                 existing_hash = _field(claimed, "plan_hash")

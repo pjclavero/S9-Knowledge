@@ -114,6 +114,8 @@ from ..driver_neo4j import (
 from . import codes, exit_codes
 from .audit import AuditRecord, JsonlAuditSink
 from .gate import ENV_ALLOW_REAL_INGEST, ENV_WRITER_WORKSPACE, _OPERATOR_ID
+from .apply_identity import APPLY_ID_FIELD
+from .ownership_identity import OWNERSHIP_ID_FIELD
 from .rollback import (
     ACTION_DELETE_NODE,
     ACTION_DELETE_RELATIONSHIP,
@@ -192,6 +194,13 @@ def load_document(path: str) -> RollbackDocument:
         workspace=str(raw["workspace"]),
         snapshot_id=str(raw.get("snapshot_id") or ""),
         plan_hash=str(raw.get("plan_hash") or ""),
+        # Las marcas de la RAIZ se releen. Antes se perdian al recargar: el
+        # documento las serializaba y `load_document` no las miraba, asi que
+        # un rollback ejecutado desde fichero clasificaba como si el apply no
+        # tuviera identidad y caia al radio POR NOMBRE. Se leen las dos, y
+        # `None` si no vienen (documentos antiguos), nunca un valor inventado.
+        apply_id=raw.get(APPLY_ID_FIELD) or None,
+        ownership_id=raw.get(OWNERSHIP_ID_FIELD) or None,
         unrecoverable=list(raw.get("unrecoverable") or []),
     )
     for item in raw["instructions"] or []:

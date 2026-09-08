@@ -29,6 +29,11 @@ from typing import Any, Iterable, Optional
 
 from . import cypher as cypher_mod
 from .apply_identity import APPLY_ID_FIELD, apply_id_for_view, is_apply_id
+from .ownership_identity import (
+    OWNERSHIP_ID_FIELD,
+    is_ownership_id,
+    ownership_id_for_view,
+)
 from .executor import AppliedOperation
 from .view import SignedView
 
@@ -76,6 +81,13 @@ class RollbackDocument:
     #: `PX` medible y caia al radio POR NOMBRE, que es justo el defecto que
     #: esta tanda cerro. En la raiz esta siempre que se pueda componer.
     apply_id: Optional[str] = None
+    #: PROPIEDAD durable de los efectos. Va tambien en la raiz y por la misma
+    #: razon que `apply_id`. La diferencia: `apply_id` identifica el INTENTO
+    #: --deriva de `plan_hash`, que cubre el reloj-- y `ownership_id` no
+    #: cambia aunque el apply logico se reejecute o se replanifique tras un
+    #: restore. Un documento emitido antes de este campo lo trae a `None`, y
+    #: quien clasifica cae a `apply_id` como hasta ahora.
+    ownership_id: Optional[str] = None
     instructions: list[RollbackInstruction] = field(default_factory=list)
     unrecoverable: list[str] = field(default_factory=list)
 
@@ -85,6 +97,7 @@ class RollbackDocument:
             "snapshot_id": self.snapshot_id,
             "plan_hash": self.plan_hash,
             APPLY_ID_FIELD: self.apply_id,
+            OWNERSHIP_ID_FIELD: self.ownership_id,
             "instructions": [i.to_dict() for i in self.instructions],
             "unrecoverable": list(self.unrecoverable),
         }
@@ -105,6 +118,7 @@ def build_rollback(
         # Del view FIRMADO, aqui, para que TODO documento lo lleve -- no solo
         # los que acaban emitiendo barrido de procedencia.
         apply_id=apply_id_for_view(view),
+        ownership_id=ownership_id_for_view(view),
     )
     for op in reversed(list(applied)):
         if op.kind == "NODE":
@@ -246,6 +260,7 @@ def add_provenance_sweep(
     partida_id: Any,
     fragment_ids: Iterable[str] = (),
     apply_id: str | None = None,
+    ownership_id: str | None = None,
 ) -> RollbackInstruction | None:
     """Anade al documento la procedencia que el RUN persistio, no solo la citada.
 
@@ -293,6 +308,12 @@ def add_provenance_sweep(
     llevan marca. NO es equivalente y no se finge que lo sea: es el radio
     antiguo, y el ejecutor lo trata como tal.
     """
+    if ownership_id is not None and not is_ownership_id(ownership_id):
+        raise ValueError(
+            f"add_provenance_sweep: {OWNERSHIP_ID_FIELD}={ownership_id!r} no "
+            "tiene forma admisible; un barrido con propiedad malformada "
+            "borraria por una marca que no distingue nada"
+        )
     if apply_id is not None:
         if not is_apply_id(apply_id):
             raise ValueError(
@@ -308,6 +329,7 @@ def add_provenance_sweep(
                 "workspace": workspace,
                 "partida_id": partida_id,
                 APPLY_ID_FIELD: apply_id,
+                OWNERSHIP_ID_FIELD: ownership_id,
                 "scope": "apply",
             },
         )

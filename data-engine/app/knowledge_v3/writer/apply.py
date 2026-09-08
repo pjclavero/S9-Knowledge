@@ -59,6 +59,7 @@ from typing import Any, Iterable, Optional
 
 from . import writer as writer_mod
 from .apply_identity import compute_apply_id
+from .ownership_identity import compute_ownership_id
 from .gate import OperatorRequest
 from .provenance import persist_provenance
 from .rollback import add_provenance_sweep
@@ -79,6 +80,11 @@ CODE_PROVENANCE_PERSISTED = "APPLY_PROVENANCE_PERSISTED"
 #: No se pudo componer una identidad de apply completa: el volcado va SIN
 #: marca de propiedad y el radio del barrido cae al antiguo ``scope: "run"``.
 CODE_APPLY_ID_UNAVAILABLE = "APPLY_ID_UNAVAILABLE"
+
+#: El apply no pudo componer una PROPIEDAD durable (sin operaciones, o sin
+#: workspace/snapshot legibles). Degradado seguro: se estampa sin marca de
+#: propiedad, nunca con una marca vacia que igualaria applies distintos.
+CODE_OWNERSHIP_ID_UNAVAILABLE = "OWNERSHIP_ID_UNAVAILABLE"
 
 
 @dataclass(frozen=True)
@@ -144,6 +150,9 @@ class ApplyOutcome:
     write_result: Any = None
     provenance_result: Any = None
     apply_id: Optional[str] = None
+    #: Propiedad DURABLE de los efectos (ver `ownership_identity`). Sobrevive al
+    #: reloj y al restore; `apply_id` no.
+    ownership_id: Optional[str] = None
     #: Referencias de procedencia que el plan CITA y que este apply no
     #: persistio. No vacio = hay aserciones escritas apuntando a la nada.
     dangling_fragment_ids: tuple = ()
@@ -163,6 +172,7 @@ class ApplyOutcome:
     def to_dict(self) -> dict:
         return {
             "apply_id": self.apply_id,
+            "ownership_id": self.ownership_id,
             "write": self.write_result.to_dict() if self.write_result else None,
             "provenance": (
                 self.provenance_result.to_dict() if self.provenance_result else None
@@ -196,6 +206,29 @@ def plan_hash_value(plan_doc: Any) -> str:
         return ""
     h = plan_doc.get("plan_hash")
     return h.get("value", "") if isinstance(h, dict) else ""
+
+
+def plan_idempotency_keys(plan_doc: Any) -> list:
+    """Claves de idempotencia que el plan declara, en crudo.
+
+    Defensiva igual que las de arriba: un plan malformado no revienta la
+    composicion de la identidad; devuelve lo que haya y quien componga el
+    `ownership_id` decidira que sin claves no hay propiedad que estampar.
+
+    No se RE-DERIVAN aqui a proposito: la admision ya las re-deriva y rechaza
+    el plan con `PLAN_IDEMPOTENCY_KEY_UNDERIVED` si alguna no cuadra con su
+    operacion, asi que para cuando esto corre son claves verificadas.
+    """
+    if not isinstance(plan_doc, dict):
+        return []
+    ops = plan_doc.get("mutation_operations") or []
+    if not isinstance(ops, list):
+        return []
+    return [
+        o["idempotency_key"]
+        for o in ops
+        if isinstance(o, dict) and isinstance(o.get("idempotency_key"), str)
+    ]
 
 
 def plan_assertion_ids(plan_doc: Any) -> list:
@@ -294,6 +327,23 @@ def apply_v3(
         out.apply_id = None
         out.note(CODE_APPLY_ID_UNAVAILABLE, str(exc))
 
+    # 1-bis. PROPIEDAD durable de los efectos. `apply_id` (arriba) identifica el
+    #    INTENTO: deriva de `plan_hash`, que cubre `created_at`/`expires_at` y
+    #    por tanto cambia con el reloj. `ownership_id` no: se compone de
+    #    workspace + ambito + snapshot_id + las `idempotency_key` selladas, que
+    #    son la identidad LOGICA de cada operacion segun el propio contrato.
+    #    Los dos se estampan; cada uno contesta a su pregunta.
+    try:
+        out.ownership_id = compute_ownership_id(
+            workspace=request.workspace,
+            snapshot_id=request.current_snapshot_id,
+            idempotency_keys=plan_idempotency_keys(plan_doc),
+            partida_id=plan_partida_id(plan_doc),
+        )
+    except ValueError as exc:
+        out.ownership_id = None
+        out.note(CODE_OWNERSHIP_ID_UNAVAILABLE, str(exc))
+
     # 2. El writer. Su gate, sus reglas, su desenlace.
     result = writer.write(plan_doc, request)
     out.write_result = result
@@ -342,6 +392,7 @@ def apply_v3(
                 fragments=list(provenance.fragments),
                 assertion_ids=plan_assertion_ids(plan_doc),
                 apply_id=out.apply_id,
+                ownership_id=out.ownership_id,
             )
             out.note(CODE_PROVENANCE_PERSISTED, "")
             # Lo que el plan cita y el paquete NO trae sigue colgando. Traer
@@ -363,12 +414,20 @@ def apply_v3(
                 [] if out.apply_id else list(provenance.fragment_ids)
             ),
             apply_id=out.apply_id,
+            ownership_id=out.ownership_id,
         )
+    # El documento que el writer emitio nace de `build_rollback` (del view
+    # firmado). Si ese camino no pudo componer la propiedad pero este si --o al
+    # reves-- se deja la que haya: nunca se pisa una marca existente con `None`.
+    if result.rollback is not None and result.rollback.ownership_id is None:
+        result.rollback.ownership_id = out.ownership_id
     return out
 
 
 __all__ = [
     "CODE_APPLY_ID_UNAVAILABLE",
+    "CODE_OWNERSHIP_ID_UNAVAILABLE",
+    "plan_idempotency_keys",
     "CODE_PROVENANCE_FAILED",
     "CODE_PROVENANCE_NOT_PERSISTED",
     "CODE_PROVENANCE_PERSISTED",

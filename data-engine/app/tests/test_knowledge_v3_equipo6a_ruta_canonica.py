@@ -134,7 +134,17 @@ def test_apply_sin_paquete_declara_las_referencias_colgantes():
     assert apply_mod.CODE_PROVENANCE_NOT_PERSISTED in salida.codes
     # NO basta con que haya un codigo: tiene que decir CUALES.
     assert set(salida.dangling_fragment_ids) == {"ef-d4b8", "ef-99aa"}
-    assert "ef-d4b8" in salida.notes[0]["detail"]
+    # La nota se busca POR SU CODIGO, no por posicion. Antes era `notes[0]` y
+    # eso ataba la prueba al ORDEN en que `apply_v3` anota: en cuanto el apply
+    # tuvo algo mas que decir --`PLAN_MINIMO` no declara `idempotency_key`, asi
+    # que no se puede componer propiedad y eso se ANOTA-- la nota buscada dejo
+    # de estar la primera y la prueba fallaba sin que nada se hubiera roto.
+    colgantes = [
+        n for n in salida.notes
+        if n["code"] == apply_mod.CODE_PROVENANCE_NOT_PERSISTED
+    ]
+    assert len(colgantes) == 1, salida.notes
+    assert "ef-d4b8" in colgantes[0]["detail"]
 
 
 def test_paquete_incompleto_sigue_declarando_lo_que_falta():

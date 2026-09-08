@@ -70,6 +70,7 @@ from typing import Any, Iterable, Optional
 
 from . import codes
 from .apply_identity import APPLY_ID_FIELD
+from .ownership_identity import OWNERSHIP_ID_FIELD
 from .cypher import LABEL_ASSERTION, LABEL_ENTITY, Query, safe_props
 from .errors import WriterAbort
 
@@ -180,6 +181,7 @@ def flatten_document(doc: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
 def _node_props(
     doc: dict[str, Any], contract_id: str, workspace: str, partida_id: Optional[str],
     apply_id: Optional[str] = None,
+    ownership_id: Optional[str] = None,
 ) -> tuple[dict[str, Any], list[str]]:
     props, omitted = flatten_document(doc)
     props = safe_props(props)  # misma whitelist de nombres que el resto del writer
@@ -193,6 +195,13 @@ def _node_props(
         # contesta "quien lo creo", que es lo que el rollback necesita saber
         # para no borrar lo que creo otro apply.
         props[APPLY_ID_FIELD] = apply_id
+    if ownership_id is not None:
+        # PROPIEDAD DURABLE, misma asimetria que arriba (solo en el `CREATE`).
+        # A diferencia de `apply_id`, esta marca no lleva reloj: el mismo apply
+        # logico reejecutado tras un restore vuelve a estampar este valor, que
+        # es lo que permite al rollback reconocer lo que creo aunque el intento
+        # sea otro.
+        props[OWNERSHIP_ID_FIELD] = ownership_id
     return props, omitted
 
 
@@ -296,6 +305,7 @@ def _ensure_node(
     tx: Any, out: ProvenanceOutcome, label: str, doc: dict[str, Any],
     contract_id: str, workspace: str, partida_id: Optional[str],
     apply_id: Optional[str] = None,
+    ownership_id: Optional[str] = None,
 ) -> Optional[str]:
     node_id = doc.get(IDENTITY_FIELD[label])
     if not node_id:
@@ -307,7 +317,9 @@ def _ensure_node(
     if _run(tx, _scoped(label, node_id, workspace, partida_id)):
         out._bump(out.nodes_reused, label)
         return node_id
-    props, omitted = _node_props(doc, contract_id, workspace, partida_id, apply_id)
+    props, omitted = _node_props(
+        doc, contract_id, workspace, partida_id, apply_id, ownership_id
+    )
     if omitted:
         conocidos = out.omitted_fields.setdefault(label, [])
         for name in omitted:
@@ -405,6 +417,7 @@ def persist_provenance_tx(
     fragments: Iterable[dict[str, Any]] = (),
     assertion_ids: Iterable[str] = (),
     apply_id: Optional[str] = None,
+    ownership_id: Optional[str] = None,
     out: Optional[ProvenanceOutcome] = None,
 ) -> ProvenanceOutcome:
     """Todo el volcado dentro de UNA transaccion que inyecta quien llama.
@@ -418,16 +431,19 @@ def persist_provenance_tx(
     out = out or ProvenanceOutcome()
     if source_asset:
         _ensure_node(tx, out, LABEL_SOURCE, source_asset,
-                     "source-asset/v3-internal-v1", workspace, partida_id, apply_id)
+                     "source-asset/v3-internal-v1", workspace, partida_id, apply_id,
+                     ownership_id)
     for episode in episodes:
         _ensure_node(tx, out, LABEL_EPISODE, episode,
-                     "source-episode/v3-internal-v1", workspace, partida_id, apply_id)
+                     "source-episode/v3-internal-v1", workspace, partida_id, apply_id,
+                     ownership_id)
         _ensure_relation(tx, out, LABEL_SOURCE, episode.get("source_asset_id"),
                          REL_HAS_EPISODE, LABEL_EPISODE, episode.get("episode_id"),
                          workspace, partida_id)
     for fragment in fragments:
         _ensure_node(tx, out, LABEL_EVIDENCE, fragment,
-                     "evidence-fragment/v3-internal-v1", workspace, partida_id, apply_id)
+                     "evidence-fragment/v3-internal-v1", workspace, partida_id, apply_id,
+                     ownership_id)
         _ensure_relation(tx, out, LABEL_EPISODE, fragment.get("episode_id"),
                          REL_HAS_FRAGMENT, LABEL_EVIDENCE, fragment.get("fragment_id"),
                          workspace, partida_id)
@@ -445,6 +461,7 @@ def persist_provenance(
     fragments: Iterable[dict[str, Any]] = (),
     assertion_ids: Iterable[str] = (),
     apply_id: Optional[str] = None,
+    ownership_id: Optional[str] = None,
 ) -> ProvenanceOutcome:
     """Volcado completo. El driver se INYECTA: aqui no se importa `neo4j`."""
     episodios = list(episodes)
@@ -458,6 +475,7 @@ def persist_provenance(
                     source_asset=source_asset, episodes=episodios,
                     fragments=fragmentos, assertion_ids=aserciones,
                     apply_id=apply_id,
+                    ownership_id=ownership_id,
                 )
             )
         return persist_provenance_tx(  # pragma: no cover - drivers de prueba
@@ -465,6 +483,7 @@ def persist_provenance(
             source_asset=source_asset, episodes=episodios,
             fragments=fragmentos, assertion_ids=aserciones,
             apply_id=apply_id,
+            ownership_id=ownership_id,
         )
 
 
