@@ -212,14 +212,23 @@ jobs:
           # esconde el fallo que deberia explicar es peor que no tenerlo, asi
           # que aqui se captura el codigo aparte y siempre se imprime la salida.
           set +e
-          # Dos ficheros, UNA invocacion: los tres guardas de abajo miran la
+          # Los ficheros van en UNA invocacion: los tres guardas de abajo miran la
           # salida COMBINADA, asi que cubren los dos sin duplicar logica. Si el
           # contrato de paneles se saltara (contenedor caido, variables sin
           # definir), el `grep skipped` lo caza igual que al primero -- que es
           # justo lo que hoy NO pasa: en `test-viewer` estas 43 pruebas salen
           # SKIPPED y el job sale verde (medido en la ejecucion 31916319923).
+          # El TERCER fichero cierra el hueco por el que paso el defecto del
+          # visor vacio: los dos primeros prueban contra una base que siembra EL
+          # PROPIO CONSUMIDOR (`CREATE (n:Entity $props)` a mano, con las claves
+          # ya correctas), asi que no pueden ver si el PRODUCTOR entrega lo que
+          # el consumidor consume. Con 8262 pruebas en verde, /api/entities
+          # devolvia vacio con 29 nodos reales delante.
+          # `test_contrato_writer_a_visor_neo4j.py` puebla la base con el writer
+          # REAL (plan V3 -> ingest_cli / GraphWriter) y lee por la API REAL.
           out="$(python -m pytest viewer/tests/test_neo4j_integration_authz.py \
                                   viewer/tests/test_contrato_paneles_neo4j.py \
+                                  viewer/tests/test_contrato_writer_a_visor_neo4j.py \
                                   -v --no-header 2>&1)"
           rc=$?
           set -e

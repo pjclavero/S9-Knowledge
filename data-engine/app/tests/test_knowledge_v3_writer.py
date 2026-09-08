@@ -1114,7 +1114,13 @@ def test_apply_crea_la_entidad_y_confirma_la_transaccion():
     assert result.outcome == OUTCOME_APPLIED
     assert driver.committed and not driver.rolled_back
     assert result.created_ids == ["entity:daiki"]
-    assert any("CREATE (n:V3Entity:Character" in q for q, _ in driver.writes)
+    # Las DOS etiquetas, y derivadas de las constantes: la publica primero
+    # (`:Entity`, la que resuelve la URL y lee el visor) y la de escritura del
+    # writer (`:V3Entity`, por la que casa todo su Cypher interno). Escribirlas
+    # a mano aqui volveria a permitir que las dos superficies divergieran sin
+    # que nada lo dijera.
+    _etiquetas = f"CREATE (n:{cypher.LABEL_ENTITY_PUBLICA}:{cypher.LABEL_ENTITY}:Character"
+    assert any(_etiquetas in q for q, _ in driver.writes)
 
 
 def test_ninguna_consulta_ejecutada_es_destructiva():
@@ -2529,4 +2535,12 @@ def test_material_none_produce_props_con_partida_id_null_explicito_no_ausente():
     assert "partida_id" in q.params["props"]
     assert q.params["props"]["partida_id"] is None
     # El texto de la consulta, en cambio, es LITERALMENTE el de antes de M3.
-    assert q.cypher == "CREATE (n:V3Entity:Character $props) RETURN n.entity_id AS id"
+    # El texto de la consulta, en cambio, es el de antes de M3 SALVO la
+    # etiqueta publica que se le antepone: el writer materializa `:Entity`
+    # ademas de `:V3Entity` (ver `cypher.LABEL_ENTITY_PUBLICA`), porque es la
+    # etiqueta sobre la que `schema.py` instala la unicidad de
+    # `(workspace, entity_id)` y la unica que el visor lee.
+    assert q.cypher == (
+        f"CREATE (n:{cypher.LABEL_ENTITY_PUBLICA}:{cypher.LABEL_ENTITY}:Character "
+        "$props) RETURN n.entity_id AS id"
+    )

@@ -43,8 +43,43 @@ LIVE_STATUS_VALUES: tuple[str, ...] = tuple(
     sorted(getattr(s, "value", s) for s in _LEDGER_LIVE_STATUSES)
 )
 
-#: Etiqueta base de toda entidad escrita por el writer V3.
+#: Etiqueta base de toda entidad escrita por el writer V3. Es la SUPERFICIE DE
+#: ESCRITURA: todo el Cypher interno del writer (`_scoped_match`, `create_relation`,
+#: `rollback.py`, los indices de `partida_id`) casa por ella y sigue casando.
 LABEL_ENTITY = "V3Entity"
+#: SUPERFICIE PUBLICA. La etiqueta que RESUELVE LA URL durable, y por tanto la
+#: que el consumidor lee.
+#:
+#: NO SE ELIGE AQUI: se DERIVA de dos declaraciones que ya estaban en el arbol.
+#:
+#: 1. `schema.py` (`ENTITY_DURABLE_IDENTITY_CONSTRAINT_CYPHER`) instala la
+#:    unicidad de `(workspace, entity_id)` --la identidad de producto-- sobre
+#:    `:Entity`, y dice literalmente por que: «la restriccion tiene que caer
+#:    sobre la etiqueta que RESUELVE LA URL, y el visor lee `(n:Entity)` en
+#:    todo su Cypher. Una restriccion sobre `:V3Entity` seria correcta y no
+#:    protegeria ni una sola URL durable». Esa restriccion es ademas
+#:    OBLIGATORIA (`REQUIRED_CONSTRAINT_NAMES`) para que `--apply` arranque.
+#: 2. Los otros dos productores de esa superficie (`ingest_rpg.py`,
+#:    `review/ingest_approved.py`) escriben `:Entity` con el vocabulario que el
+#:    proveedor consume.
+#:
+#: Hasta hoy el writer V3 no producia ni la etiqueta ni el vocabulario, de modo
+#: que la restriccion obligatoria protegia CERO nodos y el visor leia una
+#: superficie que el producto ya no alimentaba. No es un fallo del proveedor
+#: (lee la etiqueta que el contrato le manda leer) ni del writer (escribe la
+#: etiqueta que sus propias consultas necesitan): faltaba el punto de union.
+#:
+#: LAS DOS COEXISTEN, y esa es la razon contractual explicita: `schema.py`
+#: declara y EXIGE una barrera de identidad durable sobre CADA UNA, nombrando
+#: el papel de cada cual --`:Entity` la publica, `:V3Entity` «la superficie que
+#: el writer si crea», gemela «para el dia que el visor la lea»--.
+#:
+#: LO QUE ESTO NO ES: no es una ACL, ni una relajacion. La autorizacion del
+#: visor se decide por PROPIEDADES (`scope`, `visibility`, `known_by`,
+#: `partida_id`, `workspace`), que este writer estampa via `stamp_visibility` y
+#: que la etiqueta no toca. Un nodo secreto sigue siendo secreto con las dos
+#: etiquetas puestas.
+LABEL_ENTITY_PUBLICA = "Entity"
 #: Etiqueta base de toda asercion escrita por el writer V3.
 LABEL_ASSERTION = "V3Assertion"
 #: Autoridad transaccional de idempotencia; no representa conocimiento.
@@ -393,6 +428,48 @@ def claim_applied_operation(
 
 
 # --- Escrituras -----------------------------------------------------------
+#: Vocabulario de la SUPERFICIE PUBLICA, con el nombre interno del que se
+#: deriva cada campo. No se inventa ni un dato: cada valor YA esta en el nodo,
+#: escrito por el propio writer, y aqui solo se publica bajo el nombre que el
+#: consumidor lee.
+#:
+#: DE DONDE SALE CADA UNO
+#: ----------------------
+#: `canonical_name`  el proveedor lo lee para ordenar y buscar
+#:                   (`ORDER BY n.canonical_name`, `search()`) y
+#:                   `_node_to_dict` lo usa como etiqueta visible. El writer lo
+#:                   escribe como `name`. Sin la proyeccion la ficha sale sin
+#:                   nombre y la busqueda no encuentra nada.
+#: `source_document` el proveedor agrupa las fuentes por el
+#:                   (`list_sources`, `source_detail`) y es el ASA de la
+#:                   fuente en la URL. Se deriva de `source_asset_id`, NO de
+#:                   la ruta: `test_el_asa_de_una_fuente_es_estable_y_no_es_la_ruta`
+#:                   exige exactamente eso --un asa estable que no publique
+#:                   una ruta de servidor--, y `source_asset_id` es un id
+#:                   derivado del contenido, estable entre corridas.
+#:
+#: NUNCA PISA lo que el plan traiga: si el plan ya declaro el campo publico, se
+#: respeta. La proyeccion RELLENA, no decide.
+PROYECCION_PUBLICA: tuple[tuple[str, str], ...] = (
+    ("canonical_name", "name"),
+    ("source_document", "source_asset_id"),
+)
+
+
+def _proyeccion_publica(props: dict) -> dict:
+    """Campos publicos derivados de los que el writer ya persiste.
+
+    Se aplica ANTES de calcular `state_hash` a proposito: el hash es «el estado
+    REALMENTE PERSISTIDO» (`state.py`), asi que un campo que queda escrito y no
+    entra en el hash haria irrecomputable el hash desde el grafo.
+    """
+    derivados = {}
+    for publico, interno in PROYECCION_PUBLICA:
+        if props.get(publico) is None and props.get(interno) is not None:
+            derivados[publico] = props[interno]
+    return derivados
+
+
 def create_entity(
     entity_id: str,
     workspace: str,
@@ -413,7 +490,7 @@ def create_entity(
     deja el nodo sin visibilidad -- lo deja en `secret`, que es lo que evita
     que un olvido publique un hecho.
     """
-    labels = f":{LABEL_ENTITY}"
+    labels = f":{LABEL_ENTITY_PUBLICA}:{LABEL_ENTITY}"
     if label:
         labels += f":{safe_token(label, 'entity_type')}"
     persistidas = {
@@ -423,6 +500,7 @@ def create_entity(
         "workspace": workspace,
         "partida_id": partida_id,
     }
+    persistidas.update(_proyeccion_publica(persistidas))
     # El `state_hash` se calcula AQUI, sobre el mapa ya completo, y no antes:
     # es el unico punto donde se sabe todo lo que va a quedar escrito -- la
     # visibilidad estampada incluida. Calcularlo en el executor, sobre el
@@ -725,6 +803,8 @@ __all__ = [
     "locate_entity_query",
     "LIVE_STATUS_VALUES",
     "LABEL_ENTITY",
+    "LABEL_ENTITY_PUBLICA",
+    "PROYECCION_PUBLICA",
     "LABEL_ASSERTION",
     "ALLOWED_UPDATE_PROPS",
     "RESERVED_PROPS",
