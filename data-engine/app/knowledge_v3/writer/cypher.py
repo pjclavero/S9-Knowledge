@@ -300,6 +300,7 @@ def claim_applied_operation(
     claim_token: str,
     partida_id: str | None = None,
     apply_id: str | None = None,
+    ownership_id: str | None = None,
 ) -> Query:
     """Reclama la clave dentro de la misma transacción que la mutación.
 
@@ -320,6 +321,15 @@ def claim_applied_operation(
     congelado). Sin el, el executor no tiene con que distinguir "la misma
     operacion logica, repetida" de "otra partida que colisiona en la clave",
     que es justo lo que la nota del contrato dice que el writer debe atajar.
+
+    `ownership_id` se GUARDA junto a `apply_id` y por la misma via (`ON CREATE
+    SET`), pero contesta a otra pregunta. `apply_id` deriva de `plan_hash`, que
+    cubre `created_at`/`expires_at`: identifica el INTENTO, y cambia si el
+    mismo apply logico se reejecuta o se replanifica tras un restore.
+    `ownership_id` se compone de workspace + ambito + snapshot_id + las
+    `idempotency_key` selladas, asi que NO cambia. La marca lleva las dos: la
+    auditoria quiere saber que intento escribio, y el rollback quiere saber a
+    que apply logico pertenece lo escrito.
     """
     return Query(
         f"MERGE (op:{LABEL_APPLIED_OPERATION} "
@@ -327,9 +337,10 @@ def claim_applied_operation(
         "ON CREATE SET op.plan_hash = $plan_hash, "
         "op.operation_id = $operation_id, op.applied_at = $applied_at, "
         "op.claim_token = $claim_token, op.partida_id = $partida_id, "
-        "op.apply_id = $apply_id "
+        "op.apply_id = $apply_id, op.ownership_id = $ownership_id "
         "RETURN op.plan_hash AS plan_hash, op.operation_id AS operation_id, "
         "op.partida_id AS partida_id, op.apply_id AS apply_id, "
+        "op.ownership_id AS ownership_id, "
         "op.claim_token = $claim_token AS created",
         {
             "ws": workspace,
@@ -340,6 +351,7 @@ def claim_applied_operation(
             "claim_token": claim_token,
             "partida_id": partida_id,
             "apply_id": apply_id,
+            "ownership_id": ownership_id,
         },
     )
 

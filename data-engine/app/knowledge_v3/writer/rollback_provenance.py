@@ -1030,9 +1030,14 @@ def residues(runner: Any, doc: RollbackDocument) -> list[dict[str, Any]]:
             clave = fila.get("idempotency_key")
             if not clave:
                 continue
-            # Propiedad de la marca: `V3AppliedOperation` no lleva `apply_id`,
-            # pero SI `plan_hash`, que es la mitad de la identidad del apply y
-            # lo que el documento trae. Se compara eso, no se presume.
+            # Propiedad de la marca. El comentario que habia aqui decia que
+            # `V3AppliedOperation` NO lleva `apply_id`; dejo de ser cierto
+            # cuando `cypher.claim_applied_operation` empezo a estamparlo, y la
+            # marca lleva hoy ademas `ownership_id` (equipo 8B). Se corrige la
+            # prosa, no la comparacion: se sigue comparando `plan_hash` porque
+            # es lo que ESTE camino tiene garantizado en el documento, y una
+            # comparacion se hace contra lo que se ha comprobado que llega, no
+            # contra el campo mas nuevo que exista en el grafo.
             if not doc.plan_hash or fila.get("plan_hash") != doc.plan_hash:
                 continue
             detalle_marca = {
