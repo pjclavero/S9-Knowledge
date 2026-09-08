@@ -254,10 +254,20 @@ def main():
         # NULL, aserciones LEADS@partida:A + MEMBER_OF@partida:B + MEMBER_OF@
         # lore-- y el rollback de B se escribe.
         #
-        # NO SE TOCA LA FRASE NI LA REGLA. Cambiar la frase pondria el escenario
-        # verde ocultando una laguna real del extractor, y anadir la frase a
-        # `RELATION_RULES` es una apuesta de precision que el benchmark de la
-        # puerta 4/6 tiene que pagar: area cerrada, decision del operador.
+        # LA FRASE NO SE TOCA: cambiarla pondria el escenario verde ocultando
+        # una laguna real del extractor.
+        #
+        # RESUELTO (carril 10A): la laguna se cerro donde estaba, en la regla
+        # lexica, con `_close_contraction_gap` en `extraction/deterministic.py`.
+        # No es vocabulario nuevo: la funcion solo genera la contraccion de una
+        # frase cuando la MISMA regla ya declara la contraccion en otra de sus
+        # variantes; una regla que no la declare pasa intacta. Cerro 9 frases en
+        # 3 reglas (MEMBER_OF, ALLY_OF, SERVES) y dejo las 16 restantes iguales.
+        # La apuesta de precision se pago y se midio: puertas 4 y 6 IDENTICAS
+        # antes y despues (G4 dev coverage 0.607143, precisiones 1.0; G6 dev
+        # policy_accuracy 0.8), con la puerta 4 calibrada --una mutacion de las
+        # frases la mueve a 0.553571, asi que la igualdad es una medida, no un
+        # instrumento ciego. Ver `tests/test_carril10a_contraccion.py`.
         f_b = fuente(tmp, "B-s7.md",
                      "# Partida B, sesion 7\n\n"
                      "Sela Marrec es miembro del Consejo de Umbra.\n")
