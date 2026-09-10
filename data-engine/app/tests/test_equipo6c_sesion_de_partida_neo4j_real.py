@@ -210,10 +210,14 @@ def mundo(conexion, tmp_path_factory):
     informes = {
         "A1": _corre_partida(fa1, driver, PARTIDA_A, SESION_A1),
         "B": _corre_partida(fb, driver, PARTIDA_B, SESION_B),
-        # Segunda corrida de A: sus dos entidades YA existen en el grafo, que
-        # es la unica condicion en la que el planificador emite
-        # `PROJECT_RELATION`. Sin ella no habria ni una relacion materializada
-        # que censar, y el criterio 3 se quedaria a medias.
+        # Segunda corrida de A sobre las MISMAS dos entidades. Hasta la tanda
+        # 11A esta era la unica condicion en la que el planificador emitia
+        # `PROJECT_RELATION` --con un extremo `pending_creation` no emitia--,
+        # asi que era la unica arista que llegaba a censarse. Ya no: la
+        # proyeccion se ancla al `CREATE_ENTITY` del propio plan y A1 y B
+        # materializan en su primer apply. Se conserva porque sigue siendo lo
+        # que prueba que una SEGUNDA sesion de la misma partida convive con la
+        # primera sin pisarla.
         "A2": _corre_partida(fa2, driver, PARTIDA_A, SESION_A2),
     }
     return {"driver": driver, "informes": informes, "tmp": tmp}
@@ -272,20 +276,104 @@ def test_censo_aserciones_con_ambito_y_sesion_reales(mundo):
     assert ids_a and ids_b and ids_a.isdisjoint(ids_b)
 
 
-def test_censo_relaciones_materializadas_con_ambito_y_sesion(mundo):
-    """La relacion proyectada tambien lleva su ambito y su sesion."""
-    filas = _filas(
-        mundo["driver"],
-        "MATCH ()-[r]->() WHERE r.workspace = $ws "
+#: El censo EXACTO de relaciones proyectadas, por IDENTIDAD DURABLE:
+#: (tipo, entity_id origen, entity_id destino, partida, sesion). El
+#: `elementId` no aparece --nunca es identidad-- y nada se deriva del grafo:
+#: se escribe aqui lo que las tres fuentes DECLARAN.
+#:
+#: TANDA 11A. Este conjunto tenia DOS entradas de menos. Mientras el
+#: planificador no emitia `PROJECT_RELATION` con un extremo en
+#: `pending_creation`, la relacion solo se materializaba en la SEGUNDA pasada
+#: sobre las mismas entidades: de las tres corridas solo A2 dejaba arista, y
+#: el test de este censo lo habia convertido en su suposicion ("todas son de
+#: A, todas con la sesion de A2"). Con la proyeccion anclada al
+#: `CREATE_ENTITY` del mismo plan, A1 y B materializan YA en su primer apply.
+#: No aparece ninguna arista indebida: aparecen las dos que faltaban.
+RELACIONES_ESPERADAS = {
+    # A1 -- "Sela Marrec es miembro de la Cofradia de Ambar", sesion 3.
+    ("MEMBER_OF", "entity:sela-marrec", "entity:cofradia-ambar", PARTIDA_A, SESION_A1),
+    # B -- "La Casa del Ciervo es aliada del Consejo de Umbra", sesion 7.
+    ("ALLY_OF", "entity:casa-ciervo", "entity:consejo-umbra", PARTIDA_B, SESION_B),
+    # A2 -- "Sela Marrec lidera la Cofradia de Ambar", sesion 5.
+    ("LEADS", "entity:sela-marrec", "entity:cofradia-ambar", PARTIDA_A, SESION_A2),
+}
+
+#: Que sesiones puede llevar cada partida, y NINGUNA otra. Es lo que hace que
+#: "A recibio la sesion de B" sea un rojo y no un detalle.
+SESIONES_POR_PARTIDA = {PARTIDA_A: {SESION_A1, SESION_A2}, PARTIDA_B: {SESION_B}}
+
+
+def _censo_relaciones(driver):
+    """UNA consulta para la unica cosa que se cuenta: la arista y sus extremos.
+
+    Los extremos vienen en la MISMA fila que la arista. Sacarlos con un
+    segundo `MATCH` suelto daria producto cartesiano --y con un lado vacio,
+    cero filas: un verde que no mide nada--.
+    """
+    return _filas(
+        driver,
+        "MATCH (a)-[r]->(b) WHERE r.workspace = $ws "
         "RETURN type(r) AS t, r.scope AS sc, r.partida_id AS pid, "
-        "r.known_from_session AS k ORDER BY t",
+        "r.known_from_session AS k, a.entity_id AS ae, b.entity_id AS be "
+        "ORDER BY t",
         ws=WS,
     )
+
+
+def test_censo_relaciones_materializadas_con_ambito_y_sesion(mundo):
+    """La relacion proyectada tambien lleva su ambito y su sesion.
+
+    El invariante NO cambia respecto de 6C: toda relacion materializada vive
+    en ambito PARTIDA, con su `partida_id` y con la sesion que se DECLARO.
+    Lo que cambia es la suposicion caducada de que solo A podia materializar.
+    Se exige el conjunto EXACTO --ni una de mas, ni una de menos-- comparado
+    por identidad durable, que es bastante mas fuerte que "todas tienen algun
+    `partida_id`": esa formulacion habria seguido verde con la arista de B
+    llevando la sesion de A.
+    """
+    filas = _censo_relaciones(mundo["driver"])
     assert filas, "sin relaciones materializadas este censo no mide nada"
+
+    observado = {(f["t"], f["ae"], f["be"], f["pid"], f["k"]) for f in filas}
+    assert len(observado) == len(filas), f"relacion duplicada en el censo: {filas}"
+    assert observado == RELACIONES_ESPERADAS, {
+        "de_mas": sorted(map(str, observado - RELACIONES_ESPERADAS)),
+        "de_menos": sorted(map(str, RELACIONES_ESPERADAS - observado)),
+    }
+
+
+def test_ninguna_relacion_cae_a_juego_ni_pierde_su_partida(mundo):
+    """Las dos degradaciones que volverian lore lo que es de una partida."""
+    filas = _censo_relaciones(mundo["driver"])
+    assert filas, "censo vacio: este test no podria ponerse rojo"
     for f in filas:
-        assert f["sc"] == "partida", f
-        assert f["pid"] == PARTIDA_A, f
-        assert f["k"] == SESION_A2, f
+        assert f["sc"] == "partida", f"relacion caida a capa juego: {f}"
+        assert f["pid"] in (PARTIDA_A, PARTIDA_B), f"partida_id perdido o ajeno: {f}"
+
+
+def test_ninguna_relacion_recibe_la_sesion_de_la_otra_partida(mundo):
+    """No hay mezcla A<->B: ni de sesion, ni de extremos.
+
+    Es la contaminacion cruzada que 11A podria haber introducido al anclar la
+    proyeccion al `CREATE_ENTITY` del mismo plan, y que ninguna de las dos
+    afirmaciones anteriores detecta por si sola.
+    """
+    filas = _censo_relaciones(mundo["driver"])
+    assert filas, "censo vacio: este test no podria ponerse rojo"
+
+    por_partida = {}
+    extremos = {}
+    for f in filas:
+        por_partida.setdefault(f["pid"], set()).add(f["k"])
+        extremos.setdefault(f["pid"], set()).update((f["ae"], f["be"]))
+
+    # Las DOS partidas materializaron: si una faltase, la disyuncion de abajo
+    # saldria verde por vacio.
+    assert set(por_partida) == {PARTIDA_A, PARTIDA_B}, por_partida
+    assert por_partida == SESIONES_POR_PARTIDA, por_partida
+    assert por_partida[PARTIDA_A].isdisjoint(por_partida[PARTIDA_B]), por_partida
+    # Y ninguna entidad de A aparece en una arista de B, ni al reves.
+    assert extremos[PARTIDA_A].isdisjoint(extremos[PARTIDA_B]), extremos
 
 
 def test_censo_entidades_no_cambia_de_identidad(mundo):

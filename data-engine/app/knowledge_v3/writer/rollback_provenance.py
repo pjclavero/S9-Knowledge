@@ -1309,29 +1309,6 @@ def observations(runner: Any, doc: RollbackDocument) -> list[dict[str, Any]]:
             # solo dejaria la misma marca contada dos veces, una en un campo
             # que manda y otra en uno que no.
             continue
-            detalle_marca = {
-                "idempotency_key": clave,
-                "workspace": ws,
-                "plan_hash": fila.get("plan_hash"),
-            }
-            que_marca = (
-                "marca V3AppliedOperation COLGANTE de OTRO apply: afirma una "
-                "operacion aplicada de la que no queda nada en el grafo"
-            )
-            firma = (
-                que_marca,
-                json.dumps(detalle_marca, sort_keys=True, default=str),
-            )
-            if firma in ya_dicho:
-                continue
-            ya_dicho.add(firma)
-            fuera.append(
-                {
-                    "operation_id": SWEEP_OPERATION_ID,
-                    "what": que_marca,
-                    "detail": detalle_marca,
-                }
-            )
     return fuera
 
 

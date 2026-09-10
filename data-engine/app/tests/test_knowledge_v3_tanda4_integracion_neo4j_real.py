@@ -189,9 +189,31 @@ def _documento_rollback(salida: Any, tmp_path: Path) -> Path:
     return destino
 
 
-def _mando_rollback(driver, doc: Path, capsys, *, execute: bool = True, env=None):
-    """Ejecuta el mando de 4B tal cual, y devuelve `(rc, acta)`."""
-    argv = [str(doc), "--workspace", WORKSPACE, "--operator", "tanda4"]
+def _mando_rollback(driver, doc: Path, capsys, *, execute: bool = True, env=None,
+                    audit_log=None):
+    """Ejecuta el mando de 4B tal cual, y devuelve `(rc, acta)`.
+
+    LA AUDITORIA ES PRECONDICION REAL, NO DECORADO
+    ----------------------------------------------
+    `cli_rollback.authorize` bloquea con `GATE_AUDIT_UNAVAILABLE` cuando no hay
+    un registro utilizable, y lo hace ANTES de abrir sesion contra Neo4j: sin
+    rastro no se borra. Este arnes no declaraba `--audit-log`, asi que TODAS
+    sus reversiones salian `NO_AUDIT` sin llegar nunca al grafo -- incluida la
+    que debia clasificar residuos, que acertaba `rc != 0` por la razon
+    equivocada (`assert 'NO_AUDIT' == 'INCOMPLETE'`).
+
+    Lo que se aporta aqui es lo que el gate PIDE --una ruta escribible, bajo el
+    `tmp_path` del propio documento--, no una rebaja de lo que el gate exige:
+    `JsonlAuditSink.available()` sigue comprobando que el directorio sea
+    creable y el fichero escribible, y sigue bloqueando si no lo es. El
+    negativo explicito de esa precondicion vive, calibrado y con un driver
+    prohibido que mide CERO escrituras, en
+    `test_knowledge_v3_equipo4b_mando_rollback_seguridad.py`
+    (`test_sin_audit_log_no_borra`, `test_audit_log_inservible_no_borra`).
+    """
+    destino_audit = audit_log or (doc.parent / "rollback-audit.jsonl")
+    argv = [str(doc), "--workspace", WORKSPACE, "--operator", "tanda4",
+            "--audit-log", str(destino_audit)]
     if execute:
         argv.append("--execute")
     entorno = {
