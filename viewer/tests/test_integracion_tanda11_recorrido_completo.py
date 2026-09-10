@@ -20,7 +20,8 @@ sistemas de acuerdo en silencio.
 
     Neo4j vacio -> schema init -> fuente real -> review/promocion
        -> UN SOLO apply -> relacion YA presente + procedencia + EL VISOR LA VE
-    repeat apply -> NOOP real -> visor IDENTICO
+    repeat apply -> REJECTED [PLAN_NOT_APPROVED, PLAN_NO_OPERATIONS]
+                 -> cero escrituras -> visor IDENTICO
     rollback     -> el conocimiento desaparece -> EL VISOR LO REFLEJA -> 0 marcas
     re-apply     -> el conocimiento vuelve     -> EL VISOR VUELVE A VERLO
 
@@ -541,7 +542,7 @@ def test_paso1_un_solo_apply_deja_la_relacion_la_procedencia_y_el_visor_la_VE(re
     )
 
 
-def test_paso2_repeat_apply_es_NOOP_real_y_el_visor_queda_IDENTICO(recorrido):
+def test_paso2_repeat_apply_se_RECHAZA_por_plan_vacio_y_el_visor_queda_IDENTICO(recorrido):
     s1 = recorrido["pasos"]["s1_un_apply"]
     s2 = recorrido["pasos"]["s2_repeat"]
 
