@@ -426,11 +426,18 @@ def test_solo_un_desenlace_limpio_del_rollback_sale_con_cero(outcome):
 
 
 def test_un_rollback_con_residuos_no_puede_salir_con_cero(writer, probe, tmp_path, capsys):
-    """4C sobre 4B: si queda algo, ni el rc ni la frase pueden decir que no.
+    """4C sobre 4B: si NO se revirtio entero, ni el rc ni la frase pueden decir que si.
 
-    Se fuerza un residuo de verdad -- se revierte un documento cuya instruccion
-    no es reconstruible -- y se comprueba que el `rc` NO es 0 y que la frase
-    humana lo dice. El desenlace y el texto salen del MISMO informe.
+    OJO AL NOMBRE: la prueba se llama "con_residuos" por historia (se cita asi
+    en `docs/v3/62-integracion-tanda-8.md`), pero el escenario que monta NO
+    produce residuos. Se anade una instruccion que el traductor no sabe
+    convertir, o sea `not_reconstructible = 1` con `residues = 0`: un fallo de
+    PRECONDICION, no de postcondicion. Medido contra Neo4j real por la ruta de
+    producto, la tabla congelada manda `INCOMPLETE` con `rc != 0`.
+
+    Lo que se comprueba, entonces, es que el `rc` NO es 0 y que la frase humana
+    lo dice sin inventarse un residuo inexistente. El desenlace y el texto
+    salen del MISMO informe.
     """
     plan = _plan_ciclo()
     salida = writer.write(plan, apply_request(plan))
@@ -451,14 +458,28 @@ def test_un_rollback_con_residuos_no_puede_salir_con_cero(writer, probe, tmp_pat
     rc, acta = _mando_rollback(probe.driver, destino, capsys)
     assert rc != exit_codes.EXIT_OK, acta
     assert rc == exit_codes.EXIT_OUTCOME_NOT_OK, acta
-    # NOMBRE SUPERSEDED, NO CAPACIDAD PERDIDA. `exit_codes.py:136-137` dice
-    # literal que `UNEXPECTED_RESIDUE` SUSTITUYE a `INCOMPLETE` a secas, que se
-    # conserva como alias historico. El desenlace que el mando publica hoy es
-    # el nombre nuevo (`cli_rollback.py:724`); el `code` y el `rc` no se
+    # `INCOMPLETE` NO ES UN ALIAS HISTORICO: es el desenlace que la tabla
+    # congelada manda para ESTE escenario. Medido por la ruta de producto
+    # contra Neo4j real: `not_reconstructible = 1`, `residues = 0`. La tabla
+    # de `decide_rollback_outcome` dice, en ese orden exacto:
+    #
+    #   residues > 0                             -> UNEXPECTED_RESIDUE
+    #   residues = 0 y not_reconstructible > 0   -> INCOMPLETE
+    #   residues = 0 y not_reconstructible = 0   -> ROLLED_BACK
+    #
+    # Exigir aqui `UNEXPECTED_RESIDUE` era afirmar lo que el grafo NIEGA --no
+    # quedo residuo ninguno-- y es justo el fallo de postcondicion que
+    # `INCOMPLETE` (fallo de PRECONDICION) no es. El `code` y el `rc` no se
     # mueven, y se siguen exigiendo aqui abajo igual que antes.
-    assert acta["outcome"] == cli_rollback.OUTCOME_UNEXPECTED_RESIDUE
+    assert acta["hechos"]["not_reconstructible"] == 1, acta
+    assert acta["hechos"]["residues"] == 0, acta
+    assert acta["outcome"] == cli_rollback.OUTCOME_INCOMPLETE
     assert acta["code"] == "CLI_ROLLBACK_INCOMPLETE"
-    assert "NO es una reversion limpia" in acta["human"]
+    # La frase sigue teniendo que decir que NO se revirtio entero, y ademas no
+    # puede inventarse un residuo que no existe.
+    assert "Reversion INCOMPLETA" in acta["human"]
+    assert "no se revirtio entero" in acta["human"]
+    assert acta["hechos"]["clean"] is False, acta
     assert acta["ok"] is False
 
 

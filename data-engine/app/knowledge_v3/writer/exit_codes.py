@@ -132,14 +132,34 @@ ROLLBACK_NO_OPERATOR = "NO_OPERATOR"
 #: pero no escribible). Sin rastro no se borra.
 ROLLBACK_NO_AUDIT = "NO_AUDIT"
 
-#: La reversion corrio y el grafo NO sostiene lo que un exito afirmaria.
-#: Sustituye a `INCOMPLETE` a secas, que se conserva como alias historico.
+#: La reversion corrio y el grafo NO sostiene lo que un exito afirmaria: algo
+#: que DEBIA desaparecer sigue ahi. Es un fallo de POSTCONDICION.
+#:
+#: NO sustituye a `INCOMPLETE`, y `INCOMPLETE` NO es un alias historico. Los
+#: dos son hechos distintos y los dos estan VIVOS. La tabla vigente la decide
+#: `cli_rollback.decide_rollback_outcome`, en este orden exacto:
+#:
+#:   residues > 0                            -> UNEXPECTED_RESIDUE  (rc != 0)
+#:   residues = 0, not_reconstructible > 0   -> INCOMPLETE          (rc != 0)
+#:   residues = 0, not_reconstructible = 0   -> ROLLED_BACK         (rc = 0)
+#:
+#: `INCOMPLETE` = se supo DE ANTEMANO que partes solicitadas no podian
+#: revertirse (instruccion no reconstruible). Es un fallo de PRECONDICION, y
+#: el grafo puede haber quedado impecable. Cuando ambos hechos coinciden manda
+#: `UNEXPECTED_RESIDUE` por ser el fallo mas fuerte, pero el otro no se
+#: pierde: `not_reconstructible` viaja en el acta y en los `hechos`.
+#:
+#: Este comentario DECIA lo contrario y hay que dejarlo dicho: la version
+#: anterior afirmaba que `INCOMPLETE` era vocabulario muerto, y eso indujo a
+#: una prueba de `tanda4` a invertir su expectativa. Si vuelves a leer aqui
+#: que uno sustituye al otro, es que alguien lo revirtio por error.
 ROLLBACK_UNEXPECTED_RESIDUE = "UNEXPECTED_RESIDUE"
 
 #: Frases de los desenlaces del rollback que NO dependen del informe. Viven
 #: junto a la lista blanca que les da el `rc`, de modo que el nombre, el `rc` y
 #: la frase se dan de alta en UN solo sitio. Los desenlaces cuya frase SI
-#: depende de los hechos medidos (`ROLLED_BACK`/`UNEXPECTED_RESIDUE`) no
+#: depende de los hechos medidos (`ROLLED_BACK`/`UNEXPECTED_RESIDUE`/
+#: `INCOMPLETE` -- los tres salen del informe, no de esta tabla) no
 #: pueden ser una constante: los redacta `cli_rollback.describe` a partir de
 #: `rollback_facts`, que es lo que impide que la frase contradiga al grafo.
 ROLLBACK_PHRASES: dict[str, str] = {
