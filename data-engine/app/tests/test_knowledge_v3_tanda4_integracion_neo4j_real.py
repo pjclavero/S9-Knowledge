@@ -73,6 +73,8 @@ from test_knowledge_v3_writer_neo4j_real import (  # noqa: E402,F401
     create_assertion,
     create_entity,
     make_plan,
+    neo4j_efimero_conexion,
+    writer as make_writer,
 )
 
 APP_DIR = Path(__file__).resolve().parent.parent
@@ -358,20 +360,47 @@ def test_el_state_hash_sigue_describiendo_el_nodo_despues_del_rollback(
     assert _state_hash_describe_el_nodo(probe) == 1
 
 
-def test_el_segundo_apply_en_PROCESO_NUEVO_deja_el_mismo_S1(writer, probe, tmp_path):
+@pytest.fixture()
+def conexion_propia():
+    """Una base efimera EXCLUSIVA de la prueba del proceso nuevo.
+
+    POR QUE NO VALE LA BASE DE LAS DEMAS PRUEBAS
+    --------------------------------------------
+    El subproceso no recibe un driver: recibe una URI. La base de sesion que
+    usan `writer` y `probe` puede ser la efimera de `neo4j_driver_efimero`
+    (que SI tiene URI) o una base declarada por el operador -- y declararla
+    por `S9K_4A_NEO4J_URI` para que esta prueba tuviera URI arrastraria
+    TAMBIEN a `test_knowledge_v3_estado_durable_neo4j_real`, que lee esa misma
+    variable, a compartir base. Aislamiento perdido a cambio de una URI.
+
+    Asi que esta prueba levanta la suya, con el UNICO mecanismo de arranque
+    que ya tiene el repo (`neo4j_efimero_conexion`, el mismo que usa
+    `equipo4b`), que ademas devuelve URI y contrasena precisamente para poder
+    pasarselas a un subproceso. Nadie mas escribe en este contenedor, y muere
+    con la prueba: el `DETACH DELETE` de otros ficheros no la alcanza y el
+    suyo no alcanza a nadie.
+    """
+    with neo4j_efimero_conexion("s9k-t4-proceso-nuevo") as cx:
+        yield cx
+
+
+def test_el_segundo_apply_en_PROCESO_NUEVO_deja_el_mismo_S1(conexion_propia, tmp_path):
     """4A, pero sin poder achacarle el no-op a ninguna memoria del proceso.
 
     Si el `no-op` lo decide una estructura viva del writer y no el grafo, un
-    proceso nuevo no lo reproduce. Aqui el segundo apply corre en un intérprete
-    aparte, contra la MISMA base, y tiene que salir `noop` y dejar `S1` intacto.
+    proceso nuevo no lo reproduce. Aqui el segundo apply corre en un interprete
+    aparte, contra la MISMA base -- la propia y aislada de `conexion_propia` --
+    y tiene que salir `noop` y dejar `S1` intacto.
     """
-    uri = os.environ.get("S9K_4A_NEO4J_URI", "").strip()
-    fichero = os.environ.get("S9K_4A_NEO4J_PASSWORD_FILE", "").strip()
-    if not (uri and fichero):
-        pytest.skip(
-            "el proceso nuevo necesita una base alcanzable por URI: "
-            "declara S9K_4A_NEO4J_URI y S9K_4A_NEO4J_PASSWORD_FILE"
-        )
+    probe = GraphProbe(conexion_propia.driver)
+    probe.clean()
+    writer = make_writer(conexion_propia.driver)
+
+    # El secreto va por fichero privado, nunca por `argv` ni por variable con
+    # el valor dentro.
+    fichero_clave = tmp_path / "neo4j-proceso-nuevo.pass"
+    fichero_clave.write_text(conexion_propia.password, encoding="utf-8")
+    fichero_clave.chmod(0o600)
 
     plan = _plan_ciclo()
     primera = writer.write(plan, apply_request(plan))
@@ -383,8 +412,9 @@ def test_el_segundo_apply_en_PROCESO_NUEVO_deja_el_mismo_S1(writer, probe, tmp_p
 
     entorno = dict(os.environ)
     entorno.update({
-        "S9K_T4_URI": uri,
-        "S9K_T4_PASSWORD_FILE": fichero,
+        "S9K_T4_URI": conexion_propia.uri,
+        "S9K_T4_USER": conexion_propia.user,
+        "S9K_T4_PASSWORD_FILE": str(fichero_clave),
         "PYTHONPATH": str(APP_DIR),
     })
     proc = subprocess.run(
@@ -426,11 +456,18 @@ def test_solo_un_desenlace_limpio_del_rollback_sale_con_cero(outcome):
 
 
 def test_un_rollback_con_residuos_no_puede_salir_con_cero(writer, probe, tmp_path, capsys):
-    """4C sobre 4B: si queda algo, ni el rc ni la frase pueden decir que no.
+    """4C sobre 4B: si NO se revirtio entero, ni el rc ni la frase pueden decir que si.
 
-    Se fuerza un residuo de verdad -- se revierte un documento cuya instruccion
-    no es reconstruible -- y se comprueba que el `rc` NO es 0 y que la frase
-    humana lo dice. El desenlace y el texto salen del MISMO informe.
+    OJO AL NOMBRE: la prueba se llama "con_residuos" por historia (se cita asi
+    en `docs/v3/62-integracion-tanda-8.md`), pero el escenario que monta NO
+    produce residuos. Se anade una instruccion que el traductor no sabe
+    convertir, o sea `not_reconstructible = 1` con `residues = 0`: un fallo de
+    PRECONDICION, no de postcondicion. Medido contra Neo4j real por la ruta de
+    producto, la tabla congelada manda `INCOMPLETE` con `rc != 0`.
+
+    Lo que se comprueba, entonces, es que el `rc` NO es 0 y que la frase humana
+    lo dice sin inventarse un residuo inexistente. El desenlace y el texto
+    salen del MISMO informe.
     """
     plan = _plan_ciclo()
     salida = writer.write(plan, apply_request(plan))
@@ -451,14 +488,28 @@ def test_un_rollback_con_residuos_no_puede_salir_con_cero(writer, probe, tmp_pat
     rc, acta = _mando_rollback(probe.driver, destino, capsys)
     assert rc != exit_codes.EXIT_OK, acta
     assert rc == exit_codes.EXIT_OUTCOME_NOT_OK, acta
-    # NOMBRE SUPERSEDED, NO CAPACIDAD PERDIDA. `exit_codes.py:136-137` dice
-    # literal que `UNEXPECTED_RESIDUE` SUSTITUYE a `INCOMPLETE` a secas, que se
-    # conserva como alias historico. El desenlace que el mando publica hoy es
-    # el nombre nuevo (`cli_rollback.py:724`); el `code` y el `rc` no se
+    # `INCOMPLETE` NO ES UN ALIAS HISTORICO: es el desenlace que la tabla
+    # congelada manda para ESTE escenario. Medido por la ruta de producto
+    # contra Neo4j real: `not_reconstructible = 1`, `residues = 0`. La tabla
+    # de `decide_rollback_outcome` dice, en ese orden exacto:
+    #
+    #   residues > 0                             -> UNEXPECTED_RESIDUE
+    #   residues = 0 y not_reconstructible > 0   -> INCOMPLETE
+    #   residues = 0 y not_reconstructible = 0   -> ROLLED_BACK
+    #
+    # Exigir aqui `UNEXPECTED_RESIDUE` era afirmar lo que el grafo NIEGA --no
+    # quedo residuo ninguno-- y es justo el fallo de postcondicion que
+    # `INCOMPLETE` (fallo de PRECONDICION) no es. El `code` y el `rc` no se
     # mueven, y se siguen exigiendo aqui abajo igual que antes.
-    assert acta["outcome"] == cli_rollback.OUTCOME_UNEXPECTED_RESIDUE
+    assert acta["hechos"]["not_reconstructible"] == 1, acta
+    assert acta["hechos"]["residues"] == 0, acta
+    assert acta["outcome"] == cli_rollback.OUTCOME_INCOMPLETE
     assert acta["code"] == "CLI_ROLLBACK_INCOMPLETE"
-    assert "NO es una reversion limpia" in acta["human"]
+    # La frase sigue teniendo que decir que NO se revirtio entero, y ademas no
+    # puede inventarse un residuo que no existe.
+    assert "Reversion INCOMPLETA" in acta["human"]
+    assert "no se revirtio entero" in acta["human"]
+    assert acta["hechos"]["clean"] is False, acta
     assert acta["ok"] is False
 
 
