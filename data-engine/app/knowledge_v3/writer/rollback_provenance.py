@@ -928,6 +928,17 @@ class RollbackReport:
     #: una `V3Evidence` compartida PUEDE y DEBE sobrevivir. RESIDUE es lo que
     #: deberia haber desaparecido; esto es justo lo contrario.
     retained: list[str] = field(default_factory=list)
+    #: NO RECONSTRUIBLE: instrucciones que se supo DE ANTEMANO que no se podian
+    #: ejecutar, porque el documento no trae identidad durable con la que
+    #: localizar su objetivo (`RollbackNotReconstructible`). Es un canal
+    #: SEPARADO de `unrecoverable` a proposito: `unrecoverable` mezcla dos
+    #: cosas de naturaleza distinta --esto, y la prosa derivada de los
+    #: residuos-- y por eso su longitud no puede decidir un desenlace. Quien
+    #: quiera saber «¿habia partes irreversibles?» mira AQUI; quien quiera
+    #: saber «¿quedo algo que debia desaparecer?» mira `residues`. Distinguir
+    #: por prefijo de texto dentro de `unrecoverable` seria contar texto, que
+    #: es justo lo que este proyecto no hace.
+    not_reconstructible: list[str] = field(default_factory=list)
 
     @property
     def clean(self) -> bool:
@@ -962,6 +973,7 @@ class RollbackReport:
             "purges": [dict(p) for p in self.purges],
             "residues": [dict(r) for r in self.residues],
             "unrecoverable": list(self.unrecoverable),
+            "not_reconstructible": list(self.not_reconstructible),
             "observations": [dict(o) for o in self.observations],
             "retained": list(self.retained),
             "clean": self.clean,
@@ -996,7 +1008,11 @@ def execute_rollback(
         try:
             query = rollback_query_for(instruction)
         except RollbackNotReconstructible as exc:
+            # DOS canales, el mismo hecho. `unrecoverable` se conserva intacto
+            # (es API publicada y hay pruebas que la leen); `not_reconstructible`
+            # es el canal ESTRUCTURADO del que el mando decide `INCOMPLETE`.
             report.unrecoverable.append(str(exc))
+            report.not_reconstructible.append(str(exc))
             continue
         filas = _rows(runner, query)
         report.executed.append(
