@@ -73,6 +73,8 @@ from test_knowledge_v3_writer_neo4j_real import (  # noqa: E402,F401
     create_assertion,
     create_entity,
     make_plan,
+    neo4j_efimero_conexion,
+    writer as make_writer,
 )
 
 APP_DIR = Path(__file__).resolve().parent.parent
@@ -358,20 +360,47 @@ def test_el_state_hash_sigue_describiendo_el_nodo_despues_del_rollback(
     assert _state_hash_describe_el_nodo(probe) == 1
 
 
-def test_el_segundo_apply_en_PROCESO_NUEVO_deja_el_mismo_S1(writer, probe, tmp_path):
+@pytest.fixture()
+def conexion_propia():
+    """Una base efimera EXCLUSIVA de la prueba del proceso nuevo.
+
+    POR QUE NO VALE LA BASE DE LAS DEMAS PRUEBAS
+    --------------------------------------------
+    El subproceso no recibe un driver: recibe una URI. La base de sesion que
+    usan `writer` y `probe` puede ser la efimera de `neo4j_driver_efimero`
+    (que SI tiene URI) o una base declarada por el operador -- y declararla
+    por `S9K_4A_NEO4J_URI` para que esta prueba tuviera URI arrastraria
+    TAMBIEN a `test_knowledge_v3_estado_durable_neo4j_real`, que lee esa misma
+    variable, a compartir base. Aislamiento perdido a cambio de una URI.
+
+    Asi que esta prueba levanta la suya, con el UNICO mecanismo de arranque
+    que ya tiene el repo (`neo4j_efimero_conexion`, el mismo que usa
+    `equipo4b`), que ademas devuelve URI y contrasena precisamente para poder
+    pasarselas a un subproceso. Nadie mas escribe en este contenedor, y muere
+    con la prueba: el `DETACH DELETE` de otros ficheros no la alcanza y el
+    suyo no alcanza a nadie.
+    """
+    with neo4j_efimero_conexion("s9k-t4-proceso-nuevo") as cx:
+        yield cx
+
+
+def test_el_segundo_apply_en_PROCESO_NUEVO_deja_el_mismo_S1(conexion_propia, tmp_path):
     """4A, pero sin poder achacarle el no-op a ninguna memoria del proceso.
 
     Si el `no-op` lo decide una estructura viva del writer y no el grafo, un
-    proceso nuevo no lo reproduce. Aqui el segundo apply corre en un intérprete
-    aparte, contra la MISMA base, y tiene que salir `noop` y dejar `S1` intacto.
+    proceso nuevo no lo reproduce. Aqui el segundo apply corre en un interprete
+    aparte, contra la MISMA base -- la propia y aislada de `conexion_propia` --
+    y tiene que salir `noop` y dejar `S1` intacto.
     """
-    uri = os.environ.get("S9K_4A_NEO4J_URI", "").strip()
-    fichero = os.environ.get("S9K_4A_NEO4J_PASSWORD_FILE", "").strip()
-    if not (uri and fichero):
-        pytest.skip(
-            "el proceso nuevo necesita una base alcanzable por URI: "
-            "declara S9K_4A_NEO4J_URI y S9K_4A_NEO4J_PASSWORD_FILE"
-        )
+    probe = GraphProbe(conexion_propia.driver)
+    probe.clean()
+    writer = make_writer(conexion_propia.driver)
+
+    # El secreto va por fichero privado, nunca por `argv` ni por variable con
+    # el valor dentro.
+    fichero_clave = tmp_path / "neo4j-proceso-nuevo.pass"
+    fichero_clave.write_text(conexion_propia.password, encoding="utf-8")
+    fichero_clave.chmod(0o600)
 
     plan = _plan_ciclo()
     primera = writer.write(plan, apply_request(plan))
@@ -383,8 +412,9 @@ def test_el_segundo_apply_en_PROCESO_NUEVO_deja_el_mismo_S1(writer, probe, tmp_p
 
     entorno = dict(os.environ)
     entorno.update({
-        "S9K_T4_URI": uri,
-        "S9K_T4_PASSWORD_FILE": fichero,
+        "S9K_T4_URI": conexion_propia.uri,
+        "S9K_T4_USER": conexion_propia.user,
+        "S9K_T4_PASSWORD_FILE": str(fichero_clave),
         "PYTHONPATH": str(APP_DIR),
     })
     proc = subprocess.run(
