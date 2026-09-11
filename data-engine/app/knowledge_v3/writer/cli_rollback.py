@@ -337,6 +337,45 @@ def _deletion_counters(report: RollbackReport) -> tuple[int, int, int]:
     return nodos, aristas, marcas
 
 
+def decide_outcome(report: RollbackReport) -> str:
+    """El desenlace de una reversion EJECUTADA, por su semantica, no por un bit.
+
+    LA TABLA, QUE ES EL CONTRATO
+    ----------------------------
+        not_reconstructible > 0 · residues = 0  -> INCOMPLETE
+        not_reconstructible = 0 · residues > 0  -> UNEXPECTED_RESIDUE
+        not_reconstructible > 0 · residues > 0  -> UNEXPECTED_RESIDUE
+        not_reconstructible = 0 · residues = 0  -> ROLLED_BACK
+
+    POR QUE `INCOMPLETE` ERA VOCABULARIO MUERTO
+    -------------------------------------------
+    El nombre existia --se definia aqui, `exit_codes` le daba `rc`, tres
+    ficheros de prueba lo esperaban-- y NINGUNA linea del producto se lo
+    asignaba: la decision era `ROLLED_BACK if report.clean else
+    UNEXPECTED_RESIDUE`, o sea un solo bit con dos salidas. Una reversion con
+    partes irreversibles y CERO residuos salia `UNEXPECTED_RESIDUE`, que
+    afirma lo que el grafo no sostiene: no habia residuo ninguno.
+
+    LOS DOS NO SON EL MISMO HECHO
+    -----------------------------
+    * `UNEXPECTED_RESIDUE` = se intento revertir algo que DEBIA desaparecer y
+      el postestado demuestra que SIGUE AHI. Es un fallo de POSTCONDICION.
+    * `INCOMPLETE` = se supo DE ANTEMANO que una o mas partes solicitadas no
+      podian revertirse (instruccion no reconstruible). Es un fallo de
+      PRECONDICION, y el grafo puede haber quedado impecable.
+
+    Cuando coinciden, manda `UNEXPECTED_RESIDUE`: es el fallo mas fuerte de
+    los dos. Lo otro NO se pierde -- `not_reconstructible` viaja en el acta y
+    en los `hechos`, y la frase humana lo dice. Un desenlace no puede llevar
+    dos nombres; un informe si puede llevar dos hechos.
+    """
+    if report.residues:
+        return OUTCOME_UNEXPECTED_RESIDUE
+    if report.not_reconstructible:
+        return OUTCOME_INCOMPLETE
+    return OUTCOME_ROLLED_BACK
+
+
 def rollback_facts(
     outcome: str, report: Optional[RollbackReport]
 ) -> dict[str, Any]:
@@ -366,6 +405,7 @@ def rollback_facts(
             "clean": False,
             "residues": 0,
             "unrecoverable": 0,
+            "not_reconstructible": 0,
             "observations": 0,
             "retained": 0,
             "executed": 0,
@@ -405,6 +445,9 @@ def rollback_facts(
         "clean": report.clean,
         "residues": len(report.residues),
         "unrecoverable": len(report.unrecoverable),
+        # El hecho que sostiene `INCOMPLETE`, y que se sigue informando
+        # TAMBIEN cuando el desenlace es `UNEXPECTED_RESIDUE`.
+        "not_reconstructible": len(report.not_reconstructible),
         # Rarezas del ambito que este apply NO creo. Se informan; NO deciden
         # `clean` ni el `rc`.
         "observations": len(report.observations),
@@ -451,13 +494,39 @@ def describe(outcome: str, report: Optional[RollbackReport]) -> str:
     if not hechos["deleted_anything"]:
         base += " (no se borro NADA: no quedaba nada que borrar)"
 
-    if not hechos["clean"]:
+    # LA RAMA SE ELIGE POR LOS HECHOS, NO POR EL NOMBRE QUE LLEGA. Es la misma
+    # disciplina que ya tenia este modulo --«la frase se DERIVA del informe»--
+    # y la razon es concreta: si la rama se eligiera por `outcome`, un
+    # `INCOMPLETE` acompanado de un informe CON residuos imprimiria «no queda
+    # ningun residuo» con residuos delante. El orden reproduce la tabla de
+    # `decide_outcome`, asi que frase y desenlace no pueden divergir.
+    if not hechos["residues"] and hechos["not_reconstructible"]:
+        # Decir «NO es una reversion limpia: 0 residuos» era afirmar un fallo
+        # de postcondicion que el grafo no sostiene. Lo que hubo es otra cosa.
         return (
+            f"{base}. Reversion INCOMPLETA: no queda ningun residuo, pero "
+            f"{hechos['not_reconstructible']} partes solicitadas NO se podian "
+            "revertir (el documento no trae identidad durable con la que "
+            "localizarlas). Lo que se pidio revertir no se revirtio entero "
+            "(ver 'not_reconstructible')."
+        )
+
+    if not hechos["clean"]:
+        frase = (
             f"{base}. NO es una reversion limpia: {hechos['residues']} residuos "
             f"de ESTA operacion (creados por ella, no compartidos y todavia "
             f"presentes) y {hechos['unrecoverable']} puntos no revertidos "
             "(ver 'residues' y 'unrecoverable')."
         )
+        # Los dos hechos a la vez: el desenlace es el residuo --el fallo de
+        # postcondicion manda--, pero lo irreversible NO se calla.
+        if hechos["not_reconstructible"]:
+            frase += (
+                f" Ademas, {hechos['not_reconstructible']} partes solicitadas "
+                "no se podian revertir de antemano (ver "
+                "'not_reconstructible')."
+            )
+        return frase
 
     # Unico camino que puede decir «limpia», y solo bajo el booleano `clean`.
     # LA FRASE NO AFIRMA MAS DE LO QUE `clean` SOSTIENE. En particular ya no
@@ -716,12 +785,13 @@ def main(
             encoding="utf-8",
         )
 
-    # El desenlace sale del informe, y de UNA sola propiedad suya. `clean` ya
-    # significa «ni residuos ni puntos no revertidos» (ver `RollbackReport`):
-    # repetir aqui la segunda mitad era tener dos definiciones de «limpio», que
-    # es exactamente como nacio la contradiccion `human` vs `clean`.
+    # `clean` sigue siendo UNA sola definicion de «limpio» --ni residuos ni
+    # puntos no revertidos-- y de ella cuelgan `ok` y el `code`, igual que
+    # antes. Lo que ya NO sale de ese unico bit es el NOMBRE del desenlace: un
+    # booleano no puede nombrar tres situaciones distintas, y por eso
+    # `INCOMPLETE` era inalcanzable. Ver `decide_outcome`.
     limpio = report.clean
-    outcome = OUTCOME_ROLLED_BACK if limpio else OUTCOME_UNEXPECTED_RESIDUE
+    outcome = decide_outcome(report)
     _audit(
         sink,
         outcome=outcome,
@@ -733,6 +803,7 @@ def main(
             "purges": len(report.purges),
             "residues": len(report.residues),
             "unrecoverable": len(report.unrecoverable),
+            "not_reconstructible": len(report.not_reconstructible),
             "clean": limpio,
         },
     )
