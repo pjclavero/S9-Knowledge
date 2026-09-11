@@ -372,6 +372,27 @@ def test_sin_el_barrido_el_rollback_deja_procedencia_huerfana(limpio, tmp_path, 
     Se ejecuta el MISMO documento con la instruccion de barrido retirada. Si
     tras eso no quedase procedencia huerfana, la garantia no estaria sostenida
     por el barrido y esta prueba no mediria nada.
+
+    QUE SE ESPERA DEL DESENLACE, Y POR QUE NO ES `UNEXPECTED_RESIDUE`
+    -----------------------------------------------------------------
+    Esta prueba exigia `UNEXPECTED_RESIDUE` + `rc != 0`. MEDIDO contra Neo4j
+    real sobre esta misma base, el mando da hoy `ROLLED_BACK`, `rc = 0`,
+    `residues: 0` y las seis evidencias huerfanas en `observations`. No es un
+    residuo escondido: es una consecuencia DIRECTA de la propia mutilacion.
+
+    `provenance:sweep` es --medido sobre el documento emitido, 10
+    instrucciones-- la UNICA que declara `apply_id`/`ownership_id`. Retirarla
+    no quita solo la limpieza: quita la unica DECLARACION de propiedad del
+    documento. Y sin ambito declarado `residues` no mide PX a proposito («El
+    ambito NO se inventa: sale del documento»), asi que lo que queda no puede
+    imputarse como residuo de esta operacion y se publica en `observations`.
+
+    Es decir: la mutilacion historica confundia dos cosas --«el barrido
+    limpia» y «el barrido declara el ambito»-- y leia el desenlace como si
+    solo hubiese quitado la primera. Lo que esta prueba SI sostiene, y sigue
+    sosteniendo, es que el barrido es lo que hace desaparecer esa procedencia,
+    y que lo que se queda NO se silencia: el informe lo publica, nombre por
+    nombre, y la prosa lo dice. Eso es lo que se comprueba abajo.
     """
     driver = limpio.driver
     informe = _b_completo(driver)
@@ -385,16 +406,38 @@ def test_sin_el_barrido_el_rollback_deja_procedencia_huerfana(limpio, tmp_path, 
 
     rc, salida = ejecutar_mando(driver, destino, capsys=capsys)
 
+    # --- LO QUE EL BARRIDO SOSTIENE: sin el, esa procedencia SE QUEDA -------
+    # Es la mitad portante de la calibracion y no ha cambiado: si otra
+    # instruccion limpiase esto, `huerfanas` saldria vacia y la prueba de
+    # arriba dejaria de estar sostenida por el barrido.
     huerfanas = _evidencias_huerfanas(driver, WS_B)
     assert huerfanas, "sin barrido NO quedo nada huerfano: el barrido no sostiene nada"
-    # Y el mando NO miente sobre ello: ni desenlace limpio ni rc=0.
-    # INTEGRACION tanda 5: 5B renombro este desenlace a `UNEXPECTED_RESIDUE`
-    # (el nombre dice QUE quedo mal, no solo que quedo algo) y actualizo su
-    # hermano offline, pero no este fichero. Se adopta el nombre nuevo: es el
-    # deliberado, y el `rc` no cambia porque la lista blanca sigue excluyendolo.
-    assert salida["outcome"] == cli_rollback.OUTCOME_UNEXPECTED_RESIDUE, salida
-    assert rc != 0
-    assert any("HUERFANA" in u for u in salida["report"]["unrecoverable"]), salida
+
+    # --- Y NO se silencia: el informe la publica, nombre por nombre ---------
+    # Sin ambito declarado (ver el docstring) no puede imputarse como residuo,
+    # pero TIENE que verse. Comparacion por identidad durable (`fragment_id`),
+    # nunca por `elementId`, y una consulta por cosa contada.
+    observadas = {
+        o["detail"]["id"]
+        for o in salida["report"]["observations"]
+        if o["detail"].get("clase") == "V3Evidence"
+    }
+    assert observadas == set(huerfanas), {
+        "huerfanas_en_el_grafo": sorted(huerfanas),
+        "publicadas_en_observations": sorted(observadas),
+    }
+    # La prosa tampoco la esconde.
+    assert "observaciones sobre elementos" in salida["human"], salida["human"]
+
+    # --- El desenlace, TAL COMO SE MIDIO -----------------------------------
+    # `observations` es canal declarado NO decisorio (defecto D3): no ensucia
+    # el desenlace. Con `residues: 0` y `not_reconstructible: 0`, la tabla
+    # congelada da `ROLLED_BACK` y `rc = 0`. Se fija lo medido, no lo esperado
+    # por el vocabulario anterior.
+    assert salida["report"]["residues"] == [], salida["report"]["residues"]
+    assert salida["report"]["not_reconstructible"] == [], salida
+    assert salida["outcome"] == cli_rollback.OUTCOME_ROLLED_BACK, salida
+    assert rc == 0, salida
 
 
 # ===========================================================================
@@ -453,7 +496,24 @@ def test_casos_A_B_C_D_conservacion_y_limpieza(limpio, tmp_path, capsys):
         )
     }
     assert compartido in quedan, "la evidencia COMPARTIDA se borro"
-    assert any("ROLLBACK_RETAINED_SHARED" in u for u in salida["report"]["unrecoverable"])
+    # El material compartido retenido se declara en `retained`, NO en
+    # `unrecoverable`. Esta prueba lo buscaba en `unrecoverable` --vocabulario
+    # anterior--; MEDIDO, hoy vive en `retained`, que es el canal correcto:
+    # conservar lo que sigue sostenido por estado vivo es el comportamiento
+    # deliberado, no una carencia, y por eso no ensucia el desenlace.
+    retenidas = [r for r in salida["report"]["retained"] if "ROLLBACK_RETAINED_SHARED" in r]
+    assert retenidas, salida["report"]["retained"]
+    assert all(compartido in r for r in retenidas), retenidas
+    # Y NO se cuela por el canal de las carencias: eso es la otra mitad del
+    # contrato y es lo que se pone rojo si alguien lo reclasifica de vuelta.
+    assert not any(
+        "ROLLBACK_RETAINED_SHARED" in u for u in salida["report"]["unrecoverable"]
+    ), salida["report"]["unrecoverable"]
+    # DEFECTO CONOCIDO Y DECLARADO (no se corrige aqui): `retained` cuenta
+    # DECLARACIONES, no elementos distintos. Aqui hay UN solo `fragment_id`
+    # conservado y DOS renglones, uno por cada `operation_id` que lo retuvo.
+    # Se fija tal como se observa.
+    assert len(retenidas) == 2, retenidas
 
     # --- A: la exclusiva desaparecio ---------------------------------------
     assert borradas, "no se borro ninguna evidencia: el caso A no se midio"
