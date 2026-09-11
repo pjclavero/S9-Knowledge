@@ -263,8 +263,26 @@ def test_ciclo_apply_repeat_rollback_apply_vuelve_a_S1(writer, probe, tmp_path, 
     assert rc == exit_codes.EXIT_OK, acta
     assert acta["outcome"] == cli_rollback.OUTCOME_ROLLED_BACK, acta
     assert acta["code"] == "CLI_ROLLBACK_COMPLETE"
-    # La frase humana sale del informe: no puede decir "revertido" sobre residuos.
-    assert acta["human"].endswith("No queda nada de esa operacion en el grafo.")
+    # La frase humana sale del informe: no puede decir "revertido" sobre
+    # residuos, Y NO PUEDE AFIRMAR MAS DE LO QUE `clean` SOSTIENE.
+    #
+    # EXPECTATIVA RETIRADA, NO GARANTIA PERDIDA
+    # -----------------------------------------
+    # Aqui se exigia la frase «No queda nada de esa operacion en el grafo.».
+    # Esa frase derivaba de `bool(report.executed)` --«se intento borrar»-- y
+    # se imprimia IDENTICA habiendo borrado cero, que es justo la clase de
+    # afirmacion que esta tanda existe para impedir. Ademas seria FALSA en
+    # cuanto algo de la operacion se conserve por estar COMPARTIDO, que es
+    # legitimo y se mide en `retained` (`cli_rollback.describe`).
+    #
+    # Lo que la sustituye no afloja nada: se exige lo que `clean` SI sostiene
+    # --que no queda RESIDUO-- y se exige contra el informe, no contra el
+    # texto. La expectativa vieja la contradicen, medidas y por separado,
+    # `equipo6b:636` y `equipo4b:408`.
+    assert "No queda nada de esa operacion en el grafo" not in acta["human"], acta
+    assert acta["report"]["clean"] is True, acta["report"]
+    assert acta["report"]["residues"] == [], acta["report"]["residues"]
+    assert "No queda ningun residuo de esta operacion en el grafo." in acta["human"], acta
 
     # --- S0: contado, y sabiendo que antes NO estaba vacio ----------------
     censo_s0 = _censo(probe)
@@ -433,7 +451,12 @@ def test_un_rollback_con_residuos_no_puede_salir_con_cero(writer, probe, tmp_pat
     rc, acta = _mando_rollback(probe.driver, destino, capsys)
     assert rc != exit_codes.EXIT_OK, acta
     assert rc == exit_codes.EXIT_OUTCOME_NOT_OK, acta
-    assert acta["outcome"] == cli_rollback.OUTCOME_INCOMPLETE
+    # NOMBRE SUPERSEDED, NO CAPACIDAD PERDIDA. `exit_codes.py:136-137` dice
+    # literal que `UNEXPECTED_RESIDUE` SUSTITUYE a `INCOMPLETE` a secas, que se
+    # conserva como alias historico. El desenlace que el mando publica hoy es
+    # el nombre nuevo (`cli_rollback.py:724`); el `code` y el `rc` no se
+    # mueven, y se siguen exigiendo aqui abajo igual que antes.
+    assert acta["outcome"] == cli_rollback.OUTCOME_UNEXPECTED_RESIDUE
     assert acta["code"] == "CLI_ROLLBACK_INCOMPLETE"
     assert "NO es una reversion limpia" in acta["human"]
     assert acta["ok"] is False
