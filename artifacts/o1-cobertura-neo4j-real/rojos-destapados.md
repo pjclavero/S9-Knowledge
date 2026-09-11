@@ -268,3 +268,101 @@ El suelo del verificador sigue en 120 y hoy se coleccionan 142. Se deja en 120 a
 proposito: es un SUELO contra una coleccion ciega, no un recuento exacto que
 haya que actualizar cada vez que crece la clase — eso seria otra lista que
 mantener a mano.
+
+---
+
+# CORRIDA DE CIERRE sobre `e1463c85` (#216, #217)
+
+Medida **por mi**, no heredada: una sola invocacion como la hace CI, maquina en
+reposo (sin pytest ajeno; solo contenedores `mp0-integration-*`, ajenos e
+intactos), `TMPDIR` propio y recien vaciado, `__pycache__` purgado.
+
+```
+15 ficheros descubiertos    DESCUBRIDOR_RC=0
+142 passed, 284 warnings in 1256.53s (0:20:56)
+PYTEST_RC=0
+```
+
+Acreditacion estructural sobre el informe JUnit, no sobre el texto del log:
+
+```
+[neo4j-real] coleccionados=142 ejecutados=142 omitidos=0 fallos=0 errores=0
+[neo4j-real] VERDE: conjunto descubierto ejecutado entero, sin omisiones
+VERIFICADOR_RC=0
+```
+
+| propiedad exigida | valor | veredicto |
+|---|---|---|
+| `collected > 0` | 142 | **SI** |
+| `skipped == 0` | 0 | **SI** |
+| `failures` | 0 | **SI** |
+| `errors` | 0 | **SI** |
+| `PYTEST_RC` | 0 | **SI** |
+
+**Los cinco rojos estan cerrados.** R1/R3/R4 por #212 y #214; R2 por #216; R5
+por #217. Ninguno se cerro maquillando: no hay `xfail` nuevo, ni `skip`, ni
+asercion relajada, y el conjunto obligatorio no ha perdido ningun fichero.
+
+## El conjunto: 15, sin altas ni bajas
+
+`13 -> 15 -> 15`. Los dos que entraron solos fueron los de la tanda 11
+(`..._outcome_incompleto_...` y `..._retained_compartido_...`); desde entonces
+**ninguno ha entrado ni salido**. #216 y #217 cambiaron el CONTENIDO de
+`tanda4` y de `exit_codes.py`, no la pertenencia a la clase.
+
+Gate y descubridor siguen coincidiendo **exactamente**:
+
+```
+gate: 15   descubridor: 15   COINCIDEN: True
+solo gate: []   solo descubridor: []
+GATE_RC=0
+```
+
+Que sigan coincidiendo importa mas que el numero: son dos definiciones
+independientes de «la clase obligatoria», y el dia que se separen habra otra vez
+dos verdades distintas sobre que tiene que correr.
+
+## Coste, ya sobre un arbol verde
+
+**1256,53 s = 20 min 57 s** para 142 tests y 15 ficheros en UNA invocacion. Es
+MENOS que las dos medidas anteriores (23 min 40 s con un rojo; ~24 min sumando
+invocaciones sueltas): un rojo cuesta tiempo, y compartir las fixtures de sesion
+no lo empeora. Viable, y lejos de las ~24 h de la suite completa.
+
+## CORRECCION DE UN ERROR MIO
+
+En la seccion de R5 escribi que declarar `S9K_4A_NEO4J_URI` redirigiria
+«`estado_durable` **y `equipo4b`**» a una base compartida. **La mitad de esa
+frase era falsa**, y la corrijo aqui en vez de reescribirla:
+
+- `estado_durable` **si** lee `S9K_4A_NEO4J_URI` / `S9K_4A_NEO4J_PASSWORD_FILE`
+  (L70-71): con ellas definidas deja de levantar su efimero. Esa parte era
+  correcta.
+- **`equipo4b` NO lee `S9K_4A_*`**: lee la familia `S9K_4B_*`, que es otra. Lo
+  di por hecho por parecido de nombre en vez de parsearlo, que es exactamente el
+  error contra el que avisa el resto de este informe.
+
+En todo el repositorio **solo dos ficheros** nombran `S9K_4A_*`:
+`estado_durable` (que la lee) y `tanda4` (que hoy solo la cita en un comentario
+para explicar por que NO la usa).
+
+El error no cambia la decision que tome —no tocar R5 y dejarlo al dueno del
+fichero— y #217 lo ha resuelto mejor de lo que yo proponia: en vez de una base
+compartida, `neo4j_efimero_conexion` con contenedor y puerto propios y sin leer
+ninguna variable de entorno mas alla del gate de clase. Las tres condiciones del
+operador se cumplen: sigue en la clase, se ejecuta de verdad, y sin estado
+compartido.
+
+## Una nota sobre por que el juicio no es un `grep`
+
+En esta misma corrida, el log contiene la linea:
+
+```
+test_solo_un_desenlace_limpio_del_rollback_sale_con_cero[ERROR] PASSED
+```
+
+Es un test PARAMETRIZADO cuyo caso se llama `ERROR`, y **paso**. Un guarda que
+contara la palabra en el texto lo habria leido como un fallo. El verificador
+parsea el informe JUnit y cuenta `failures`/`errors` como atributos, asi que no
+se equivoca. Es el mismo principio por el que el descubridor usa AST: contar
+texto confunde el nombre de una cosa con la cosa.
