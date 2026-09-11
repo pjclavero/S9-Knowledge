@@ -288,6 +288,36 @@ HERRAMIENTAS = {
         "instalador": ("actions/setup-node",),
         "remedio": f"Anade el job preparado en {FRAGMENTO_NODE.relative_to(REPO)}",
     },
+    # Neo4j real. Esta fila FALTABA, y su ausencia es la que dejaba doce
+    # ficheros `*_neo4j_real*` fuera de la cobertura obligatoria: el paso que
+    # los cubria nombraba DOS a mano, asi que los otros salian `skipped` en el
+    # paso general y el job seguia VERDE. La tabla ya estaba preparada para
+    # esto -«anadir una herramienta nueva es una fila, no un `if` nuevo»-;
+    # simplemente nadie habia escrito la fila.
+    #
+    # La deteccion busca la LECTURA DE ENTORNO, no el nombre del fichero: el
+    # gate y `descubre_neo4j_real.py` tienen que coincidir en QUE es la clase
+    # obligatoria, o volveria a haber dos definiciones que se separan con el
+    # tiempo. `..._equipo5b_...` se gatea con `S9K_5B_NEO4J_URI`, otra familia
+    # de variables, y por eso NO entra aqui: no lo despierta este paso.
+    "Neo4j real (base efimera)": {
+        "deteccion": (
+            r"environ\.get\(\s*[\"']S9K_WRITER_NEO4J_REAL",
+            r"getenv\(\s*[\"']S9K_WRITER_NEO4J_REAL",
+            r"environ\[\s*[\"']S9K_WRITER_NEO4J_REAL",
+        ),
+        # El paso que DE VERDAD levanta la base efimera es el que invoca al
+        # descubridor. Si alguien lo borra en una fusion, esta marca desaparece
+        # y el gate se pone rojo para los trece ficheros a la vez, en vez de
+        # dejarlos omitiendose en silencio.
+        "instalador": (".github/scripts/descubre_neo4j_real.py",),
+        "remedio": (
+            "Ese test exige un Neo4j real. El paso «Cobertura Neo4j REAL» de "
+            "`test-data-engine` lo recoge SOLO si el descubridor lo ve: "
+            "comprueba que el modulo lea `S9K_WRITER_NEO4J_REAL` del entorno "
+            "(`python3 .github/scripts/descubre_neo4j_real.py --informe`)"
+        ),
+    },
     "Chromium/Playwright": {
         "deteccion": (
             r"importorskip\(\s*[\"']playwright",
@@ -1150,7 +1180,8 @@ def main() -> int:
         "sobre el texto), sin `if:` ni `continue-on-error` que apaguen o "
         "desarmen un job, sin `|| true` que haga lo mismo dentro del `run:`, "
         "sin que falte ninguno de los jobs exigidos, sin jobs que puedan "
-        "ejecutar 0 tests en verde y sin tests que se omitan por falta de Node "
+        "ejecutar 0 tests en verde y sin tests que se omitan por falta de Node, "
+        "Neo4j real "
         "o Chromium"
     )
     return 0
