@@ -69,64 +69,94 @@ jobs:
             exit 1
           fi
 
-      - name: Writer y E2E V3 contra Neo4j REAL (dejan de ser opt-in)
+      - name: Cobertura Neo4j REAL (conjunto DESCUBIERTO, no lista de nombres)
         env:
-          # Las 33 pruebas de estos dos ficheros son las UNICAS que ejercen la
-          # pieza que ESCRIBE en el grafo contra una base de verdad. Estaban
-          # tras `S9K_WRITER_NEO4J_REAL`, es decir, fuera de CI: en el paso
-          # anterior salen `skipped` y el job sale verde. Con esa cobertura
-          # apagada, `test_m3_create_entity_de_partida_estampa_partida_id_real`
-          # llevaba ROJA desde T2 sin que nadie lo viera.
+          # ESTE PASO CAMBIA DE UNIDAD DE CONTROL.
           #
-          # Va como PASO de este job, no como job nuevo: no se anade ningun
-          # check requerido, y la base efimera la levanta y destruye la propia
-          # fixture con `docker run --rm` (docker existe en ubuntu-latest), asi
-          # que tampoco hace falta un bloque `services` paralelo.
+          # Antes nombraba DOS ficheros (`writer` + `e2e`). El diagnostico que
+          # justificaba ese paso --«llevaba ROJA desde T2 sin que nadie lo
+          # viera»-- describe un modo de fallo que NO es de esos dos ficheros:
+          # es de todo test que exija Neo4j real y no se ejecute con el. Habia
+          # ONCE mas en esa situacion, y seguian saliendo `skipped` en el paso
+          # anterior (que corre sin esta variable) con el job en VERDE.
+          #
+          # Anadir once nombres mas habria reinstaurado la misma regla N+1 que
+          # acababa de caducar: una lista que hay que acordarse de rellenar. El
+          # conjunto se DESCUBRE en `descubre_neo4j_real.py` por la propiedad
+          # que pytest obedece de verdad --que el modulo LEA esta variable del
+          # entorno--, leida por AST. Un fichero nuevo con este gate entra solo,
+          # el dia que nace, SIN tocar este workflow.
+          #
+          # Por que no un marker y por que no el nombre del fichero: medido y
+          # explicado en la cabecera del descubridor. En corto: no existe
+          # ningun marker `neo4j_real` (`pytest.ini` solo registra `critico`, y
+          # sin `--strict-markers`), y la convencion de nombres tiene un falso
+          # negativo (`test_knowledge_v3_equipo11a_apply_completo.py`, mismo
+          # gate y otro nombre) y un falso positivo
+          # (`..._equipo5b_propiedad_rollback_neo4j_real.py`, que se gatea con
+          # OTRA familia de variables y que esta variable NO despierta).
           S9K_WRITER_NEO4J_REAL: "1"
         run: |
-          # CUATRO ESTADOS, y ninguno puede quedar verde por silencio:
-          #   Neo4j no arranco    -> la fixture hace `skip`  -> grep skipped -> ROJO
-          #   tests no ejecutados -> no hay "N passed"        -> ROJO
-          #   writer fallo        -> rc != 0                  -> ROJO
-          #   writer funciono     -> VERDE
-          # `set +e` y rc aparte: con `bash -e` el paso moriria en la
-          # asignacion y nunca se imprimiria QUE test fallo.
+          # CINCO ESTADOS, y ninguno puede quedar verde por silencio:
+          #   descubridor ciego   -> 0 ficheros             -> ROJO
+          #   Neo4j no arranco    -> la fixture hace `skip` -> ROJO
+          #   tests no ejecutados -> no hay "N passed"      -> ROJO
+          #   algo fallo          -> rc != 0                -> ROJO
+          #   todo ejecutado      -> VERDE
+          # El descubridor DECIDE POR SU CODIGO DE SALIDA, sin `if` que lo
+          # envuelva: descubrir cero ficheros ya es `exit 1` dentro del script
+          # (una raiz renombrada o la variable rebautizada lo dejarian ciego, y
+          # un conjunto vacio devuelto en verde seria el mismo falso verde que
+          # este paso cierra). Con `set -e`, si falla, el paso muere aqui.
+          set -euo pipefail
+          ficheros="$(python3 .github/scripts/descubre_neo4j_real.py --informe)"
+          echo "CONJUNTO DESCUBIERTO:"
+          echo "$ficheros"
           set +e
-          out="$(python -m pytest \
-                   data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py \
-                   data-engine/app/tests/test_knowledge_v3_e2e_neo4j_real.py \
-                   -v --tb=short --no-header 2>&1)"
+          out="$(python3 -m pytest $ficheros \
+                   -v --tb=short --no-header \
+                   --junitxml=informe-neo4j-real.xml 2>&1)"
           rc=$?
           set -e
           echo "$out"
-          if [ "$rc" -ne 0 ]; then
-            echo "::error::el writer V3 ha FALLADO contra Neo4j real"
-            exit 1
-          fi
-          if grep -qi "skipped" <<<"$out"; then
-            echo "::error::las pruebas del writer real se OMITIERON; no hubo Neo4j efimero"
-            exit 1
-          fi
+          # Guardia anti-cero textual (la que `check-ci-config` exige a todo
+          # paso que invoque pytest).
           if ! grep -qE '[0-9]+ passed' <<<"$out"; then
-            echo "::error::las pruebas del writer real no llegaron a ejecutarse"
+            echo "::error::las pruebas contra Neo4j real no llegaron a ejecutarse"
             exit 1
           fi
-          # QUINTO ESTADO: el aislamiento A/B, POR NOMBRE.
+          # Guardia anti-salto textual. Se conserva ADEMAS de la estructural:
+          # cubre el caso en que pytest muera antes de escribir el informe.
+          if grep -qi "skipped" <<<"$out"; then
+            echo "::error::se OMITIERON pruebas de la clase Neo4j-real; sin base efimera esa cobertura no existe"
+            exit 1
+          fi
+          # Y el juicio ESTRUCTURAL, sobre el informe que pytest emite para ser
+          # leido, no sobre el texto del log: coleccionados > 0, omitidos == 0,
+          # fallos == 0, errores == 0. `19 skipped, rc=0` es exactamente el
+          # falso verde que esta comprobacion cierra.
+          # SUELO, no ausencia. Hoy la clase colecciona 132 tests (13 ficheros;
+          # medido con `--collect-only`). El suelo va en 120 y no en 132 para
+          # que anadir o quitar un test no lo rompa por ruido, pero si para que
+          # una coleccion que se queda ciega -un filtro que no casa, un
+          # directorio renombrado- no pueda pasar por buena. El CONJUNTO de
+          # ficheros ya lo garantiza el descubridor; esto es la segunda red.
+          python3 .github/scripts/verifica_neo4j_real.py informe-neo4j-real.xml --minimo 120
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::la cobertura contra Neo4j real ha FALLADO"
+            exit 1
+          fi
+          # QUINTO ESTADO: el aislamiento A/B, POR NOMBRE. SE CONSERVA INTACTO.
           #
-          # Los tres guardas de arriba son de FICHERO: miran el conjunto. Un
-          # `N passed` sin `skipped` sigue siendo verde si la prueba concreta
-          # que sostiene la discriminacion entre partidas se renombra, se
-          # borra o se marca `xfail` -- y esa es justo la garantia que no
-          # tiene otra red: MEDIDO en esta rama, la mutacion que retira la
-          # discriminacion A/B de `cypher.read_entity_state_visible` deja la
-          # suite OFFLINE de carril 9 con su testigo A/B en VERDE (el doble
-          # rederiva la visibilidad en vez de ejecutar el predicado) y solo
-          # enrojece aqui, contra Neo4j de verdad.
-          #
-          # Por eso el nombre se exige explicitamente: si desaparece, este
-          # paso se pone ROJO en vez de dejar la garantia sostenida por una
-          # prueba que ya no corre. No es un gate nuevo ni un check nuevo:
-          # es una condicion mas del paso que ya levanta la base efimera.
+          # Los guardas de arriba son de CONJUNTO: miran totales. Un `N passed`
+          # sin `skipped` sigue siendo verde si la prueba concreta que sostiene
+          # la discriminacion entre partidas se renombra, se borra o se marca
+          # `xfail` -- y esa es justo la garantia que no tiene otra red: MEDIDO,
+          # la mutacion que retira la discriminacion A/B de
+          # `cypher.read_entity_state_visible` deja la suite OFFLINE de carril 9
+          # con su testigo A/B en VERDE (el doble rederiva la visibilidad en vez
+          # de ejecutar el predicado) y solo enrojece aqui, contra Neo4j de
+          # verdad. Por eso el nombre se sigue exigiendo explicitamente.
           if ! grep -qE 'test_carril9_desde_A_una_entidad_de_B_sigue_abortando.*PASSED' <<<"$out"; then
             echo "::error::el test de AISLAMIENTO A/B contra Neo4j real no aparece como PASSED: sin el, la discriminacion entre partidas se queda sin cobertura efectiva (el doble offline NO la detecta)"
             exit 1
