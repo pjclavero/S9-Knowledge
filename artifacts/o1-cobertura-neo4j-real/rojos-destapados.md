@@ -140,3 +140,131 @@ efimeros a la vez, un contenedor puede no aceptar conexiones dentro del plazo y
 dar un rojo que NO es del producto. Los runners de `ubuntu-latest` ejecutan un
 job por maquina, asi que no concurren con otros jobs; el riesgo real es la
 maquina de desarrollo, donde hay que medir en reposo (como aqui).
+
+---
+
+# Re-medicion sobre la base nueva `46549ec9` (PRs #210, #212, #213, #214, #215)
+
+Ejecucion **como la hace CI**: UNA sola invocacion sobre el conjunto descubierto,
+con `S9K_WRITER_NEO4J_REAL=1`, maquina en reposo, `TMPDIR` propio.
+
+```
+15 ficheros descubiertos (eran 13)   142 tests coleccionados (eran 132)
+1 failed, 140 passed, 1 skipped, 286 warnings in 1419.78s (0:23:39)
+PYTEST_RC=1
+```
+
+Acreditacion por el verificador sobre el informe JUnit (no por `grep`):
+
+```
+[neo4j-real] coleccionados=142 ejecutados=141 omitidos=1 fallos=1 errores=0
+VERIFICADOR_RC=1
+```
+
+`collected > 0`: **SI** (142). `skipped == 0`: **NO** (1, el de R5).
+
+## La clase crecio sola: 13 -> 15, sin tocar el workflow
+
+Las dos tandas nuevas trajeron `..._tanda11_outcome_incompleto_neo4j_real.py` y
+`..._tanda11_retained_compartido_neo4j_real.py`, y entraron **solas**. Con la
+unidad de control anterior habrian nacido fuera de la cobertura obligatoria.
+
+## Estado de los 5 rojos, uno a uno
+
+| id | rojo | estado | quien lo cerro |
+|---|---|---|---|
+| R1 | `tanda4:267` `test_ciclo_apply_repeat_rollback_apply_vuelve_a_S1` | **CERRADO** | #210 / #212 |
+| R2 | `tanda4` `test_un_rollback_con_residuos_no_puede_salir_con_cero` | **SIGUE ROJO, POR OTRA CAUSA** | — |
+| R3 | `equipo4b:395` `test_sin_el_barrido_..._procedencia_huerfana` | **CERRADO** | #214 |
+| R4 | `equipo4b:456` `test_casos_A_B_C_D_conservacion_y_limpieza` | **CERRADO** | #214 |
+| R5 | `tanda4` omitido, base por URI | **SIGUE**, causa entorno sin cambios | — |
+
+Mi diagnostico original de R1-R4 (**producto**: `OUTCOME_INCOMPLETE` era
+vocabulario muerto) queda **confirmado y resuelto**: #212 lo hizo alcanzable.
+
+## R2 sigue rojo POR UNA CAUSA DISTINTA de la que diagnostique. Causa: **TEST**
+
+La asercion se ha **invertido**:
+
+```
+base 3d5dadc:  AssertionError: assert 'UNEXPECTED_RESIDUE' == 'INCOMPLETE'
+base 46549ec:  AssertionError: assert 'INCOMPLETE' == 'UNEXPECTED_RESIDUE'
+```
+
+Antes el producto no sabia decir `INCOMPLETE`. Ahora lo dice, y **es el
+producto el que tiene razon**: el test pide lo contrario.
+
+### El producto cumple la tabla congelada de #212
+
+```python
+# cli_rollback.py:372-376
+if report.residues:            return OUTCOME_UNEXPECTED_RESIDUE
+if report.not_reconstructible: return OUTCOME_INCOMPLETE
+return OUTCOME_ROLLED_BACK
+```
+
+El escenario del test —lo dice su propio docstring— es *«se revierte un
+documento cuya instruccion no es reconstruible»*: inyecta una instruccion con
+`idempotency_key: "clave:inexistente"` que el traductor no sabe convertir. Eso
+es `not_reconstructible > 0` con `residues = 0`, y la tabla congelada dice
+**`INCOMPLETE`**. Un fallo de PRECONDICION, no de postcondicion.
+
+### La causa raiz: #210 y #212 se cruzaron
+
+El comentario que #210 dejo sobre la asercion razona asi:
+
+> NOMBRE SUPERSEDED, NO CAPACIDAD PERDIDA. `exit_codes.py:136-137` dice literal
+> que `UNEXPECTED_RESIDUE` SUSTITUYE a `INCOMPLETE` a secas, que se conserva
+> como alias historico.
+
+Esa premisa era cierta cuando #210 se escribio —es justo el defecto que yo
+denuncie— y **#212 la invalido**: `INCOMPLETE` dejo de ser un alias historico y
+paso a ser un desenlace VIVO con significado propio y distinto.
+
+Y el comentario que indujo el error **sigue en el arbol**: `exit_codes.py:136-137`
+todavia dice literalmente *«Sustituye a `INCOMPLETE` a secas, que se conserva
+como alias historico»*, que hoy **es falso**. #212 revivio el desenlace y dejo
+esa nota sin actualizar.
+
+**Sintoma decisivo:** el test se contradice a si mismo. Su docstring describe el
+caso `INCOMPLETE` (instruccion no reconstruible) y su asercion exige
+`UNEXPECTED_RESIDUE`.
+
+### Por que NO lo arreglo
+
+(a) `tanda4` es del micro-PR ajeno: propiedad disjunta. (b) La correccion no es
+mecanica: hay que decidir si se actualiza la expectativa del test a `INCOMPLETE`
+—lo que la tabla congelada implica— y **ademas** corregir el comentario ya falso
+de `exit_codes.py:136-137`, que es la trampa que se llevo por delante a #210 y
+se llevara al siguiente que lo lea. Eso es un encargo de contrato.
+
+**Este rojo NO lo destapo mi PR por accidente: lo destapo porque la cobertura ya
+esta conectada.** Sin este paso, la colision entre #210 y #212 habria entrado en
+`integracion/tanda11` en verde.
+
+## R5: el aislamiento se arregla; el fichero NO sale de la clase
+
+```
+SKIPPED tanda4:371 el proceso nuevo necesita una base alcanzable por URI:
+        declara S9K_4A_NEO4J_URI y S9K_4A_NEO4J_PASSWORD_FILE
+```
+
+Decision del operador registrada: **se arregla el aislamiento**; el fichero
+**no sale de la clase obligatoria** y **no se apunta a una base compartida**.
+Es el siguiente trabajo pequeno, no una exclusion, y no se toca en este PR.
+
+Cuando R2 se cierre, **R5 sera el unico rojo que quede**, y su forma es esa.
+
+## Coste en CI, medido de la forma que CI lo paga
+
+**1419,78 s = 23 min 40 s** en UNA invocacion para 142 tests y 15 ficheros.
+Confirma la estimacion anterior (~24 min sumando invocaciones sueltas) y
+confirma que compartir las fixtures de sesion no lo empeora. **Viable**, y
+lejos de las ~24 h de la suite completa contra Neo4j real.
+
+## Nota: el suelo de coleccion
+
+El suelo del verificador sigue en 120 y hoy se coleccionan 142. Se deja en 120 a
+proposito: es un SUELO contra una coleccion ciega, no un recuento exacto que
+haya que actualizar cada vez que crece la clase — eso seria otra lista que
+mantener a mano.

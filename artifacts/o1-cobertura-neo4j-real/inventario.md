@@ -100,3 +100,82 @@ job `test-neo4j-authz`).
 (`test_relation_v2_b5_parser.py`), git y python3.13 del sistema (`deploy/tests/`).
 Node y Chromium ya tienen su fila en `HERRAMIENTAS`; el resto no forma parte de
 la garantia de CI.
+
+---
+
+# Actualizacion sobre la base nueva `46549ec9` (PRs #210, #212, #213, #214, #215)
+
+## La clase crecio sola de 13 a 15, SIN tocar el workflow
+
+Es la propiedad del PR demostrada por un suceso que no controle. Las dos tandas
+nuevas anadieron dos ficheros con el mismo gate:
+
+```
++ data-engine/app/tests/test_integracion_tanda11_outcome_incompleto_neo4j_real.py
++ data-engine/app/tests/test_knowledge_v3_tanda11_retained_compartido_neo4j_real.py
+```
+
+El descubridor pasa de 13 a **15 ficheros** y la coleccion de 132 a **142
+tests**, sin editar `ci.yml` ni ninguna lista. Con la unidad de control
+anterior —dos nombres a mano— estos dos ficheros habrian nacido fuera de la
+cobertura obligatoria, que es exactamente como nacieron los doce anteriores.
+
+## `equipo5b`: OPTIONAL_EXTERNAL por una razon MAS FUERTE
+
+La razon que tenia era «se gatea con otra familia de variables». La razon real
+es peor y se acredita parseando: **`S9K_5B_NEO4J_URI` y
+`S9K_5B_NEO4J_PASSWORD_FILE` no las define NADA en el repositorio.**
+
+Solo aparecen como LECTURA (el propio test, y mis dos scripts al citarlas). No
+hay job, script, `.env`, compose ni documento de despliegue que las asigne.
+
+No es «una puerta que abre otra llave»: es **una puerta cuya llave no existe**.
+Un condicional cuya condicion nadie define nunca es un apagado permanente con
+aspecto de condicional. Confirmado de forma independiente en
+`docs/v3/63-linea-base-de-silenciamientos.md:120`.
+
+Por eso NO entra en la clase obligatoria: meterlo seria fingir que
+`S9K_WRITER_NEO4J_REAL` lo despierta. Medido: `6 skipped, PYTEST_RC=0` incluso
+con esa variable puesta.
+
+## Mi clase (15) y los 15 modulos condicionales de PR B NO son el mismo conjunto
+
+Coinciden en tamano por casualidad y **difieren en las dos direcciones**.
+Comparado contra `.github/suite-inventario.json` (22 silenciados):
+
+### En la linea base silenciada pero NO en mi clase (8)
+
+| modulo | por que no es de la clase |
+|---|---|
+| `..._equipo5b_propiedad_rollback_neo4j_real.py` | `S9K_5B_*`, que nadie define (arriba) |
+| `viewer/tests/test_neo4j_integration_authz.py` | `NEO4J_TEST_URI`; **ya cubierto** por `test-neo4j-authz` con su guardia anti-salto |
+| `viewer/tests/test_contrato_paneles_neo4j.py` | idem |
+| `viewer/tests/test_contrato_writer_a_visor_neo4j.py` | idem |
+| `viewer/tests/test_integracion_tanda11_recorrido_completo.py` | idem |
+| `tests/wave2b/test_external_nvidia_live.py` | NVIDIA, no Neo4j -> OPTIONAL_EXTERNAL; **ningun job lo invoca** |
+| `tests/wave2b/test_local_llm_ollama_live.py` | Ollama -> OPTIONAL_EXTERNAL; **ningun job lo invoca** |
+| `deploy/tests/test_resolve_release_commit.py` | `git` -> OPTIONAL_EXTERNAL; lo invoca `deployment-validation` |
+
+### En mi clase pero NO silenciado a nivel de modulo (1)
+
+`test_knowledge_v3_equipo11a_apply_completo.py`. Su gate es **por test**
+(`@pytest.mark.skipif` en un solo test, L171), no un `pytestmark` de modulo: 3
+de sus 4 pruebas corren siempre. Un inventario de **modulos silenciados** no
+puede verlo, porque el modulo no esta silenciado. Mi detector si, porque mira
+la **lectura de entorno** con independencia del alcance.
+
+**Conclusion:** un inventario por modulo apagado y un inventario por recurso
+exigido miden poblaciones distintas. El primero pierde los gates por test; el
+segundo no opina sobre lo que se apaga por razones ajenas a Neo4j. **Hacen
+falta los dos**, y ninguno sustituye al otro.
+
+## Que cierra este PR del punto 1 de PR B
+
+De los 15 condicionales de Neo4j real, **este PR abre la condicion de los 15**
+(los 13 que PR B daba por no invocados, mas los 2 que ya estaban). Quedan fuera
+a proposito:
+
+- **`equipo5b`**: sigue a oscuras, y no por descuido de este PR sino porque su
+  llave no existe. Declarado, no maquillado.
+- **NVIDIA y Ollama**: `OPTIONAL_EXTERNAL`, no pertenecen al contrato de CI.
+  Ningun job los invoca, y este PR no cambia eso.
