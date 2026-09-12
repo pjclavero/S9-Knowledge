@@ -897,6 +897,24 @@ jobs:
           S9K_ALLOW_REAL_INGEST: ""
         run: python3 .github/scripts/calibra_base_materializada.py
 
+      # Y la OTRA forma de A2: la que compara contra la LINEA BASE GIT de
+      # verdad, que es la que corre en CI. Los arneses de arriba miden con
+      # `--base-fichero`, y contra un JSON suelto A2 no puede preguntar por el
+      # linaje: se queda -a proposito- en su forma estricta. Asi que la forma
+      # que de verdad certifica no la calibraba nadie.
+      #
+      # Aqui se calibran los ocho casos de la tabla -nacer condicional,
+      # apagarse, endurecerse, desaparecer- y las DOS vias que cierran el
+      # ataque del rename (`--find-renames` y la identidad logica por AST, esta
+      # ultima para el fichero que Git no sigue). Y se comprueba QUE ERROR sale
+      # en cada rojo, no solo que el RC sea 1: un rojo por la razon equivocada
+      # se lee igual que uno legitimo.
+      - name: A2 distingue nacer condicional de apagarse (linaje Git)
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 .github/scripts/calibra_a2_linaje.py
+
       # Y la propiedad que sustituye a cuatro rondas de reconocedores: el
       # binario que CERTIFICA no tiene entrada de desarme. Comprueba por AST que
       # ningun gate lee esas variables, que con las cuatro puestas y la

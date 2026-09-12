@@ -390,6 +390,17 @@ def m_desinvoca_calibra_base() -> None:
     _desinvoca("calibra_base_materializada.py")
 
 
+def m_desinvoca_calibra_a2_linaje() -> None:
+    """El arnes de A2 contra la linea base GIT.
+
+    Es el unico que ejercita la forma de A2 que CERTIFICA -los demas miden con
+    `--base-fichero`, y contra un JSON suelto A2 ni siquiera mira el linaje-.
+    Si deja de invocarse, la distincion entre "nace condicional" y "se apaga"
+    queda sin una sola prueba que pueda ponerse roja.
+    """
+    _desinvoca("calibra_a2_linaje.py")
+
+
 def m_borra_definicion_de_nivel_superior() -> None:
     """Se borra una constante de modulo que una funcion USA.
 
@@ -531,6 +542,7 @@ CASOS = [
     ("des-invocar `calibra_registro_xfail.py`", m_desinvoca_calibra_registro, ROJO),
     ("des-invocar `calibra_base_materializada.py`", m_desinvoca_calibra_base, ROJO),
     ("des-invocar `calibra_desarme.py`", m_desinvoca_calibra_desarme, ROJO),
+    ("des-invocar `calibra_a2_linaje.py`", m_desinvoca_calibra_a2_linaje, ROJO),
     ("borrar una definicion de nivel superior que una funcion usa",
      m_borra_definicion_de_nivel_superior, ROJO),
     ("`paths-ignore` bajo `push`", m_paths_ignore_push, ROJO),

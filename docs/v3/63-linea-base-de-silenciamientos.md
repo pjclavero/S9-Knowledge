@@ -135,3 +135,77 @@ pierdan detrás de una base actualizada.
   corría, el silenciamiento se **quita**; no se mueve la base.
 - Y después de mover la base hay que **volver a calibrar**: si las ablaciones
   dejan de ponerse rojas, la base «arreglada» es peor que el fallo original.
+
+## La corrección: A2 pregunta por el LINAJE, no por la pertenencia
+
+Lo anterior movió la línea base. Eso resolvía el síntoma en el árbol de la
+tanda, pero **no** en el sitio donde CI lo mide: `check_suite_inventory.py`
+compara contra el **`merge-base` con `origin/main`** —hoy `c29dfaa6`—, no
+contra el `suite-inventario.json` que la rama lleve encima. Por eso los dos
+jobs de #218 seguían rojos con los mismos 15 mensajes después de #215 y de
+#219: la base que cuenta es la de `main`, y en `main` no están los 15.
+
+El fallo de fondo no era la base: era que **A2 mezclaba dos estados
+semánticamente distintos**.
+
+```
+MODULO NUEVO      -> nace condicional de forma explicita    -> PERMITIDO
+MODULO EXISTENTE  -> ya era condicional y sigue condicional  -> PERMITIDO
+MODULO OBLIGATORIO-> pasa a condicional / skip / xfail       -> ROJO
+MODULO CONDICIONAL-> pasa a obligatorio                      -> PERMITIDO
+MODULO OBLIGATORIO-> desaparece                              -> ROJO
+```
+
+A2 hacía trinquete sobre la **pertenencia** al conjunto de silenciados, así que
+las dos primeras filas le salían iguales que la tercera. Lo peligroso nunca fue
+que existiera un test condicional: es que **una garantía que ayer se ejecutaba
+hoy deje de ejecutarse sin que nadie lo declare**.
+
+### Las tres preguntas, y de dónde sale cada respuesta
+
+Para cada módulo silenciado que no lo estaba en la base, A2 responde ahora:
+
+| pregunta | fuente |
+|---|---|
+| ¿existía en BASE? | `git ls-tree -r` del commit base; si no, `git diff --find-renames` contra el árbol de trabajo; si tampoco, identidad lógica por AST |
+| ¿era obligatorio en BASE? | inventario **de la base** (`modulos ∪ en_pie ∪ delegados`) menos sus `silenciados` |
+| ¿es condicional AHORA? | `silenciado()` sobre el árbol de trabajo, como siempre |
+
+**No hay whitelist, y no puede haberla.** «Nuevo» es una propiedad que se
+*demuestra* contra el árbol del commit base; no hay ninguna lista de nombres en
+el control, ni de los 15 ni de nada. El día que alguien apague un módulo vivo,
+lo que decide es su linaje, no si alguien se acordó de añadirlo a un fichero.
+
+### El bypass del rename, cerrado por dos vías
+
+```
+test_obligatorio.py -> renombrarlo -> anadirle una condicion -> "es nuevo"
+```
+
+Una sola vía no cubre el árbol entero:
+
+- **`--find-renames` de Git** ve lo que Git sigue. Se compara el commit base
+  contra el **árbol de trabajo** (`diff <sha>` sin segundo commit), que es el
+  sujeto que este gate mide; comparar contra `HEAD` habría sido el sesgo
+  conocido de este carril —«con y sin la mutación» dando lo mismo en los dos
+  lados—.
+- **Identidad lógica por AST** —el conjunto de nombres de test que el módulo
+  define, con un solape mínimo del 50 % contra un obligatorio de la base que ya
+  no está en el árbol— ve además el fichero **sin seguir**, que es como llega
+  una mutación local y como llegaría el ataque.
+
+Los dos caminos están calibrados, y con la baja del módulo viejo **ya
+declarada** en `suite-bajas.txt`, para que el trinquete C quede satisfecho y el
+único rojo posible sea el de A2.
+
+### Qué NO se relaja
+
+- Sin commit base (`--base-fichero`, `--sin-base`) **no se concede nada**: A2
+  se queda en su forma estricta, cualquier silenciado nuevo es rojo. Es la
+  forma que calibra `calibra_suite_inventory.py`, y sigue calibrada.
+- Un antecesor que existía en la base y **no** se puede demostrar condicional
+  entonces sigue siendo rojo.
+- Los trinquetes C (borrado), C-bis (presencia de delegados), D2 (tests en pie)
+  y G (críticos) no se tocan.
+- Lo que A2 **concede** se imprime siempre, con el porqué. Una concesión
+  silenciosa es indistinguible de un control que no mira.
