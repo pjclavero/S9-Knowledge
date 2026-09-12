@@ -125,6 +125,18 @@ EXEC_SCOPE_MISMATCH = "EXEC_SCOPE_MISMATCH"
 #: invalida. Tiene codigo propio porque salir como EXEC_DRIVER_FAILURE es un
 #: diagnostico enganoso: no ha fallado el driver, ha faltado una declaracion.
 EXEC_REVELACION_NO_DECLARADA = "EXEC_REVELACION_NO_DECLARADA"
+#: EQUIPO 5A. Las restricciones que el writer da por instaladas NO estan en el
+#: servidor. Fail-closed ANTES de escribir: sin ellas, la unicidad de
+#: `(workspace, entity_id)` y la de `(workspace, idempotency_key)` son una
+#: creencia de este repo, no una propiedad del grafo -- y sobre esa creencia
+#: descansaban argumentos de seguridad ya escritos. Se comprueba preguntando
+#: al servidor con `SHOW CONSTRAINTS`, no leyendo `schema.py`.
+#:
+#: NO es un gate: no juzga permisos ni intencion del operador. Es una
+#: PRECONDICION FISICA del grafo, del mismo genero que `EXEC_TARGET_MISSING`.
+#: Se sale de ella con el mando de esquema (`writer/schema_cli.py ensure`),
+#: no con una autorizacion.
+EXEC_SCHEMA_CONSTRAINTS_MISSING = "EXEC_SCHEMA_CONSTRAINTS_MISSING"
 #: Tipo de operacion no soportado por este writer.
 EXEC_UNSUPPORTED_OPERATION = "EXEC_UNSUPPORTED_OPERATION"
 #: El payload no permite construir una escritura segura (campos, tipos, tokens).
@@ -169,6 +181,7 @@ EXECUTION_CODES = (
     EXEC_TARGET_MISSING,
     EXEC_TARGET_ALREADY_EXISTS,
     EXEC_SCOPE_MISMATCH,
+    EXEC_SCHEMA_CONSTRAINTS_MISSING,
     EXEC_UNSUPPORTED_OPERATION,
     EXEC_UNSUPPORTED_PAYLOAD,
     EXEC_REASON_CODE_MISSING,
@@ -192,13 +205,89 @@ LOCAL_DIVERGENCE_PENDING_REVIEW = "LOCAL_DIVERGENCE_PENDING_REVIEW"
 
 REVIEW_MARK_CODES = (LOCAL_DIVERGENCE_PENDING_REVIEW,)
 
-ALL_CODES = ADMISSION_CODES + GATE_CODES + AUDIT_CODES + EXECUTION_CODES
+# --- Verdad del desenlace --------------------------------------------------
+#: Una operacion se declaro NO-OP («esta clave ya se aplico») pero en el grafo
+#: no queda NADA con esa `idempotency_key`: la marca de aplicacion sobrevivio a
+#: un borrado del conocimiento que sostenia. Un APPLY que devolviese
+#: APPLIED/rc=0 en ese estado estaria afirmando que el conocimiento esta,
+#: cuando no esta. No es un gate: se mide DESPUES de la transaccion y no impide
+#: ninguna escritura; solo impide MENTIR sobre el resultado.
+EXEC_NOOP_WITHOUT_GRAPH_EVIDENCE = "EXEC_NOOP_WITHOUT_GRAPH_EVIDENCE"
+#: El rollback dejo residuos de la operacion que decia deshacer.
+ROLLBACK_RESIDUE = "ROLLBACK_RESIDUE"
+#: Un nodo de procedencia NO se borro porque sigue sostiendo conocimiento vivo.
+#: Es conservacion deliberada, y se declara: forma parte de lo que ese apply
+#: creo y que este rollback NO revierte.
+ROLLBACK_RETAINED_SHARED = "ROLLBACK_RETAINED_SHARED"
+
+TRUTH_CODES = (
+    EXEC_NOOP_WITHOUT_GRAPH_EVIDENCE,
+    ROLLBACK_RESIDUE,
+    ROLLBACK_RETAINED_SHARED,
+)
+
+# --- Ruta de operador ------------------------------------------------------
+#: El APPLY se pidio sin declarar como llegar al servidor (URI, usuario o el
+#: CAMINO del fichero con la contrasena). Falla CERRADO: no se degrada a
+#: dry-run, que seria decirle "ok" a quien pidio escribir.
+CLI_DRIVER_CONFIG_MISSING = "CLI_DRIVER_CONFIG_MISSING"
+
+#: Un fichero de rollback que YA existia iba a ser pisado por un documento sin
+#: instrucciones (el no-op idempotente devuelve `instructions: []`). Repetir un
+#: apply inocuo destruiria la unica poliza de recuperacion, asi que NO se pisa y
+#: se dice. La poliza vieja queda intacta.
+CLI_ROLLBACK_OUT_PRESERVED = "CLI_ROLLBACK_OUT_PRESERVED"
+#: El operador pidio olvidar claves aplicadas y el almacen las retiro.
+CLI_APPLIED_KEYS_FORGOTTEN = "CLI_APPLIED_KEYS_FORGOTTEN"
+
+# --- Mando de reversion (`cli_rollback`) -----------------------------------
+#: La reversion se pidio sin la declaracion de operador que exige el APPLY
+#: (`S9K_ALLOW_REAL_INGEST=1` y `S9K_WRITER_WORKSPACE`). No se degrada a
+#: dry-run silencioso: se dice que esta BLOQUEADA y el rc no es 0.
+CLI_ROLLBACK_NOT_AUTHORIZED = "CLI_ROLLBACK_NOT_AUTHORIZED"
+#: El `workspace` del documento no es el que el operador declaro en la linea de
+#: mando. Borrar en otro workspace del que se autorizo es exactamente lo que la
+#: doble declaracion existe para impedir.
+CLI_ROLLBACK_WORKSPACE_MISMATCH = "CLI_ROLLBACK_WORKSPACE_MISMATCH"
+#: La reversion se ejecuto y NO quedo nada: ni residuos ni instrucciones sin
+#: revertir. Es el unico desenlace que puede salir con rc=0.
+CLI_ROLLBACK_COMPLETE = "CLI_ROLLBACK_COMPLETE"
+#: La reversion se ejecuto y quedo algo: residuos en el grafo, procedencia
+#: conservada por compartida, o instrucciones no reconstruibles. El desenlace
+#: humano lo dice y el rc NO es 0.
+CLI_ROLLBACK_INCOMPLETE = "CLI_ROLLBACK_INCOMPLETE"
+#: Simulacion: se leyo el documento y se enumero lo que haria. No toco nada.
+CLI_ROLLBACK_DRY_RUN = "CLI_ROLLBACK_DRY_RUN"
+#: El fichero del secreto no se pudo usar: no existe, esta vacio, o es legible
+#: por el grupo u otros (0600 obligatorio). Codigo ESTABLE, para que nadie
+#: tenga que reconocer este fallo leyendo la redaccion del mensaje. El mensaje
+#: nunca lleva el secreto.
+CLI_SECRET_FILE_UNUSABLE = "CLI_SECRET_FILE_UNUSABLE"
+
+CLI_CODES = (
+    CLI_DRIVER_CONFIG_MISSING,
+    CLI_ROLLBACK_OUT_PRESERVED,
+    CLI_APPLIED_KEYS_FORGOTTEN,
+    CLI_ROLLBACK_NOT_AUTHORIZED,
+    CLI_ROLLBACK_WORKSPACE_MISMATCH,
+    CLI_ROLLBACK_COMPLETE,
+    CLI_ROLLBACK_INCOMPLETE,
+    CLI_ROLLBACK_DRY_RUN,
+    CLI_SECRET_FILE_UNUSABLE,
+)
+
+ALL_CODES = (
+    ADMISSION_CODES + GATE_CODES + AUDIT_CODES + EXECUTION_CODES
+    + TRUTH_CODES + CLI_CODES
+)
 
 __all__ = [
     "ADMISSION_CODES",
     "GATE_CODES",
     "AUDIT_CODES",
     "EXECUTION_CODES",
+    "TRUTH_CODES",
+    "CLI_CODES",
     "REVIEW_MARK_CODES",
     "ALL_CODES",
 ] + [c for c in ALL_CODES] + [c for c in REVIEW_MARK_CODES]

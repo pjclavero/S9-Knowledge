@@ -1,0 +1,108 @@
+##########################################################################
+# CASO 1 - el articulo (diferencial del supervisor independiente)
+##########################################################################
+
+=== c1-sin-articulo ===
+  superficie            : 'Marea Negra'   (partida_scope=None)
+  normalized_surfaces   : ('marea negra',)          <-- ESLABON
+  candidatos:
+     entity:faction:marea-negra         raw=1.0300  score=1.0000  ['EXACT_NAME', 'SURFACE_SIMILARITY', 'TYPE_COMPATIBLE']
+  ACTION                : LINK_EXISTING
+  entity_id             : entity:faction:marea-negra
+  confidence            : 1.0
+  reason_codes          : ['STRONG_MATCH', 'EXACT_NAME', 'SURFACE_SIMILARITY', 'TYPE_COMPATIBLE']
+  ESPERADO action       : LINK_EXISTING -> OK
+  ESPERADO entity_id    : entity:faction:marea-negra -> OK
+
+=== c1-con-articulo ===
+  superficie            : 'la Marea Negra'   (partida_scope=None)
+  normalized_surfaces   : ('la marea negra',)          <-- ESLABON
+  candidatos:
+     entity:faction:marea-negra         raw=0.7039  score=0.7039  ['SURFACE_SIMILARITY', 'TYPE_COMPATIBLE']
+  ACTION                : REVIEW
+  entity_id             : None
+  confidence            : 0.703865
+  reason_codes          : ['WEAK_MATCH', 'SURFACE_SIMILARITY', 'TYPE_COMPATIBLE']
+  ESPERADO action       : LINK_EXISTING -> FALLA
+  ESPERADO entity_id    : entity:faction:marea-negra -> FALLA
+
+##########################################################################
+# CASO 2 - objetos EXISTENTES del escenario multipartida
+#   superficies literales del escenario de tanda6, en ambito de partida
+##########################################################################
+
+=== c2-cofradia ===
+  superficie            : 'la Cofradia de Ambar'   (partida_scope=partida:alpha)
+  normalized_surfaces   : ('la cofradia de ambar',)          <-- ESLABON
+  candidatos:
+     entity:cofradia-ambar              raw=0.7632  score=0.7632  ['SURFACE_SIMILARITY', 'TYPE_COMPATIBLE']
+  ACTION                : REVIEW
+  entity_id             : None
+  confidence            : 0.763174
+  reason_codes          : ['WEAK_MATCH', 'SURFACE_SIMILARITY', 'TYPE_COMPATIBLE']
+  ESPERADO action       : LINK_EXISTING -> FALLA
+  ESPERADO entity_id    : entity:cofradia-ambar -> FALLA
+
+=== c2-consejo ===
+  superficie            : 'del Consejo de Umbra'   (partida_scope=partida:alpha)
+  normalized_surfaces   : ('del consejo de umbra',)          <-- ESLABON
+  candidatos:
+     entity:consejo-umbra               raw=0.7280  score=0.7280  ['SURFACE_SIMILARITY', 'TYPE_COMPATIBLE']
+  ACTION                : REVIEW
+  entity_id             : None
+  confidence            : 0.728
+  reason_codes          : ['WEAK_MATCH', 'SURFACE_SIMILARITY', 'TYPE_COMPATIBLE']
+  ESPERADO action       : LINK_EXISTING -> FALLA
+  ESPERADO entity_id    : entity:consejo-umbra -> FALLA
+
+=== c2-sujeto ===
+  superficie            : 'Sela Marrec'   (partida_scope=partida:alpha)
+  normalized_surfaces   : ('sela marrec',)          <-- ESLABON
+  candidatos:
+     entity:sela-marrec                 raw=1.0300  score=1.0000  ['EXACT_NAME', 'SURFACE_SIMILARITY', 'TYPE_COMPATIBLE']
+  ACTION                : LINK_EXISTING
+  entity_id             : entity:sela-marrec
+  confidence            : 1.0
+  reason_codes          : ['STRONG_MATCH', 'EXACT_NAME', 'SURFACE_SIMILARITY', 'TYPE_COMPATIBLE']
+  ESPERADO action       : LINK_EXISTING -> OK
+  ESPERADO entity_id    : entity:sela-marrec -> OK
+
+##########################################################################
+# CASO 3 - ambiguedad GENUINA: DEBE seguir degradando
+#   dos entidades comparten el MISMO alias exacto 'la Marea'
+##########################################################################
+
+=== c3-ambiguo ===
+  superficie            : 'la Marea'   (partida_scope=None)
+  normalized_surfaces   : ('la marea',)          <-- ESLABON
+  candidatos:
+     entity:faction:marea-negra         raw=0.9800  score=0.9800  ['EXACT_ALIAS', 'SURFACE_SIMILARITY', 'TYPE_COMPATIBLE']
+     entity:faction:marea-roja          raw=0.9800  score=0.9800  ['EXACT_ALIAS', 'SURFACE_SIMILARITY', 'TYPE_COMPATIBLE']
+  ACTION                : REVIEW
+  entity_id             : None
+  confidence            : 0.98
+  reason_codes          : ['AMBIGUOUS_CANDIDATES', 'EXACT_ALIAS', 'SURFACE_SIMILARITY', 'TYPE_COMPATIBLE']
+  ESPERADO action       : ('REVIEW', 'CREATE_PROVISIONAL') -> OK
+  NO debe enlazar con   : ['entity:faction:marea-negra', 'entity:faction:marea-roja'] -> OK
+
+=== c3-ambiguo-sin-articulo ===
+  superficie            : 'Marea'   (partida_scope=None)
+  normalized_surfaces   : ('marea',)          <-- ESLABON
+  candidatos:
+     entity:faction:marea-negra         raw=0.5625  score=0.5625  ['SURFACE_SIMILARITY', 'TYPE_COMPATIBLE']
+     entity:faction:marea-roja          raw=0.5625  score=0.5625  ['SURFACE_SIMILARITY', 'TYPE_COMPATIBLE']
+  ACTION                : CREATE_PROVISIONAL
+  entity_id             : entity:prov:8e1463860bdfb8ea
+  confidence            : 0.5
+  reason_codes          : ['LOW_SUPPORT', 'NEAR_MISS_CANDIDATE', 'DERIVED_ID']
+  ESPERADO action       : ('REVIEW', 'CREATE_PROVISIONAL') -> OK
+  NO debe enlazar con   : ['entity:faction:marea-negra', 'entity:faction:marea-roja'] -> OK
+
+==========================================================================
+RESULTADO: 6 expectativa(s) INCUMPLIDA(S)
+   - c1-con-articulo: action=REVIEW, esperado LINK_EXISTING
+   - c1-con-articulo: entity_id=None, esperado entity:faction:marea-negra
+   - c2-cofradia: action=REVIEW, esperado LINK_EXISTING
+   - c2-cofradia: entity_id=None, esperado entity:cofradia-ambar
+   - c2-consejo: action=REVIEW, esperado LINK_EXISTING
+   - c2-consejo: entity_id=None, esperado entity:consejo-umbra

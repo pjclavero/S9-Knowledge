@@ -32,6 +32,27 @@ pinta M filas, y la ablacion ejerce K casos. Y ``_exigir_efimera`` aborta la
 sesion entera si la URI no es local: esta suite BORRA nodos, y apuntarla a
 produccion no puede depender de que nadie se equivoque de variable.
 
+LO QUE ESTE FICHERO NO PUEDE MEDIR -- Y QUIEN LO MIDE
+=====================================================
+La base la siembra ESTE fichero, con `CREATE (n:Entity $props)` escrito a mano
+y con las claves ya correctas (`semilla`, `_sembrar_extra`). Eso es deliberado
+y sigue siendo lo que hace posible la ABLACION: para borrar un campo hay que
+saber exactamente que campo hay. Pero tiene un limite duro que conviene tener
+escrito aqui, porque por el paso el defecto entero:
+
+    un dataset que el CONSUMIDOR se prepara a su medida no demuestra que el
+    PRODUCTOR entregue lo que el consumidor consume.
+
+El writer V3 escribia `:V3Entity` y el proveedor lee `:Entity`. Con 8262
+pruebas en verde --estas incluidas-- `/api/status` devolvia
+`nodes:0, relationships:0, workspaces:[]` sobre un grafo real de 29 nodos.
+Ninguna prueba podia ponerse roja porque ninguna hacia escribir al writer.
+
+Ese recorrido --plan V3 -> writer REAL -> Neo4j -> provider -> authz -> API--
+lo mide `test_contrato_writer_a_visor_neo4j.py`, que corre en el MISMO job de
+CI que este fichero. Los dos hacen falta: aquel prueba que las dos mitades se
+encuentran; este, que los campos que llegan son los que las pantallas pintan.
+
 NUNCA PRODUCCION. Solo contenedor/instancia efimera y local.
 """
 from __future__ import annotations

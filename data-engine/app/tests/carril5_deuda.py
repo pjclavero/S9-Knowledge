@@ -139,13 +139,66 @@ INVENTARIO_BASE_ESTRICTO_MATCH = 127
 INVENTARIO_BASE_ESTRICTO_IN_STR = 50
 
 #: Arbol actual (esta rama). Detector ESTRICTO. La caida es la conversion.
-INVENTARIO_ACTUAL_ESTRICTO = 127
-INVENTARIO_ACTUAL_ESTRICTO_MATCH = 77
-INVENTARIO_ACTUAL_ESTRICTO_IN_STR = 50
+#: EQUIPO 5A: +2 en `in_str` (127 -> 129, 50 -> 52). Son las dos comprobaciones
+#: por subcadena de la ruta de esquema, que miden REDACCION a proposito:
+#: el mensaje de `AltaAprobadaSinTipo` tiene que NOMBRAR el alta que falta y
+#: decir con que mando arreglarla, y el rechazo de esquema tiene que remitir a
+#: `schema_cli ensure`. En los dos casos el texto ES la garantia --el defecto
+#: era precisamente que no habia mensaje ninguno--, asi que comprobarlo por
+#: subcadena es lo correcto, no deuda que convertir. `match=` no se mueve.
+#: EQUIPO 6A (tanda 5): +2 en `match=` (129 -> 131, 77 -> 79). Son las dos
+#: guardas de `test_knowledge_v3_equipo6a_ruta_canonica.py` sobre el documento
+#: de PROMOCIONES: que rechaza otro contrato y que rechaza campos
+#: desconocidos. Llevan `match=` desde el primer dia --no son deuda que
+#: convertir-- porque una promocion es una firma humana que autoriza una
+#: escritura: un rechazo que no distingue POR QUE rechaza dejaria pasar un
+#: documento ajeno como si fuera un fallo de forma. `in_str` no se mueve.
+#: EQUIPO 6C: +3 en `in_str` (52 -> 55). Son las tres guardas de la sesion de
+#: revelacion --`PLAN_SESION_NO_DECLARADA`, `PLAN_SESION_SIN_AMBITO` y
+#: `PLAN_SESION_INVALIDA`--, que se comprueban por subcadena porque el codigo
+#: viaja DENTRO del mensaje del error del motor y de la CLI, que no tienen
+#: registro de codigos propio. `match=` no se mueve.
+#:
+#: INTEGRACION TANDA 6. Los dos carriles suman sobre la MISMA base 129 y son
+#: disjuntos (6A toca solo `match=`, 6C solo `in_str`), asi que el checkpoint
+#: avanza a la union y NO a ninguno de los dos valores de rama:
+#:   ESTRICTO  131 (6A) / 132 (6C) -> 134   = 129 base + 2 (6A) + 3 (6C)
+#:   MATCH      79 (6A) /  77 (6C) ->  79   = 77 base + 2 (6A), 6C no lo mueve
+#:   IN_STR     52 (6A) /  55 (6C) ->  55   = 52 base + 3 (6C), 6A no lo mueve
+#: Ninguna de las tres cifras esta escrita a mano: `test_carril5_exception_codes`
+#: las vuelve a medir con el detector entregado sobre el arbol integrado, de modo
+#: que si esta suma fuese falsa la suite se pone roja.
+INVENTARIO_ACTUAL_ESTRICTO = 134
+INVENTARIO_ACTUAL_ESTRICTO_MATCH = 79
+INVENTARIO_ACTUAL_ESTRICTO_IN_STR = 55
 
 #: Cota superior (detector AMPLIO), base y actual.
 INVENTARIO_BASE_AMPLIO = 345
-INVENTARIO_ACTUAL_AMPLIO = 295
+#: +1 respecto de 295: el mando de reversion (`cli_rollback`) trae una
+#: comprobacion por subcadena en su prueba de honestidad del desenlace
+#: (`"NO es una reversion limpia" in texto`), que mide REDACCION a proposito
+#: --es justo lo que esa garantia afirma-- y por eso entra en la cota AMPLIA
+#: sin tocar la ESTRICTA, que sigue en 127.
+#: EQUIPO 5A: +2, las mismas dos de arriba.
+#: EQUIPO 6A: +4 (298 -> 302). Dos son las guardas `match=` de arriba; las
+#: otras dos son sitios de PRODUCTO nuevos, en `engine/promotion.py`:
+#: `ClaimPromotion.from_dict` y `PromotionLedger.from_dict` levantan
+#: `ValueError` ante un documento de promociones malformado o de otro
+#: contrato. Son fail-closed y NO se convierten a codigo: son la puerta por la
+#: que entra una firma humana, y ahi lo correcto es negarse.
+#: EQUIPO 6A (2): +1 mas (302 -> 303). Es el `pytest.raises(TypeError)` que
+#: comprueba que `entity_decisions.reconcile` ya NO acepta que le falte
+#: `names_by_mention`. Va SIN `match=` a proposito: ese texto lo redacta
+#: CPython al faltar un argumento obligatorio, cambia entre versiones, y
+#: atarlo convertiria una garantia del producto en una prueba de la version
+#: del interprete. Lo que se afirma es la firma, y eso ya se comprueba por
+#: `inspect.signature` en la misma prueba.
+#: EQUIPO 6C: +3, las mismas tres de arriba.
+#:
+#: INTEGRACION TANDA 6: 303 (6A) / 301 (6C) -> 306 = 298 base + 5 (6A) + 3 (6C).
+#: Tambien aqui los dos carriles son disjuntos y la cifra la vuelve a medir el
+#: detector AMPLIO sobre el arbol integrado.
+INVENTARIO_ACTUAL_AMPLIO = 306
 
 #: Guardas `match=` NUEVAS que introduce el carril: las dos de
 #: `test_carril5_exception_codes.py` que protegen al propio instrumento.
@@ -154,6 +207,36 @@ GUARDAS_NUEVAS = 2
 #: Convertidas. NO es un dato independiente: es la diferencia medida.
 #:   177 (base) - 127 (actual) + 2 (guardas nuevas) = 52
 CONVERTIDAS = 52
+
+#: EQUIPO 5A. Sitios NUEVOS, no heredados de la base `aaf9695`.
+#:
+#: La identidad `base - actual + guardas = convertidas` da por supuesto que el
+#: arbol actual solo puede tener MENOS sitios que la base (los que el carril
+#: convirtio). Codigo nuevo la rompe sin que nada este mal: dos sitios de la
+#: ruta de esquema no estaban en la base porque la ruta de esquema no existia.
+#: Se anade el termino en vez de cuadrar la cifra a mano, que habria escondido
+#: exactamente lo que la identidad existe para vigilar.
+#: EQUIPO 6A: +2, los dos de `engine/promotion.py`. La ruta de promocion no
+#: existia en la base, asi que sus sitios no pueden ser deuda heredada. Se
+#: anade el termino en vez de cuadrar la cifra a mano, por el mismo motivo que
+#: la primera vez: cuadrarla a mano esconde justo lo que la identidad vigila.
+#: EQUIPO 6C: +3. Las tres guardas de la sesion de revelacion tampoco estaban
+#: en la base: `known_from_session` no viajaba por ningun sitio.
+#:
+#: INTEGRACION TANDA 6: 4 (6A) / 5 (6C) -> 7 = 2 (base 5A) + 2 (6A) + 3 (6C).
+SITIOS_NUEVOS_POSTERIORES_A_LA_BASE = 7
+
+#: EQUIPO 6A. De los sitios nuevos, los que ya nacen con `match=`.
+#:
+#: La segunda identidad (`BASE_MATCH - CONVERTIDAS + GUARDAS = ACTUAL_MATCH`)
+#: tenia el MISMO hueco que 5A cerro en la primera: da por supuesto que
+#: `ACTUAL_MATCH` solo crece por conversiones. Una guarda NUEVA que nace con
+#: `match=` la rompe sin que haya nada que reprochar -- y la unica salida
+#: habria sido retocar `CONVERTIDAS`, que es justo la cifra que la prueba
+#: protege. Se anade el termino, igual que la primera vez.
+#: Las tres de 6C NO entran aqui: nacen por subcadena (`in_str`), no con
+#: `match=`, asi que este termino se queda en los 2 de 6A.
+SITIOS_NUEVOS_MATCH_POSTERIORES_A_LA_BASE = 2
 
 #: Nombres antiguos, conservados para no romper a quien los importe. Apuntan a
 #: la medida ESTRICTA de la base, que es la unica que un detector reproduce.
@@ -335,7 +418,7 @@ SIN_ANCLA_NOMINAL = (
 
 
 __all__ = [
-    "CONVERTIDAS", "DEUDA_FUERA_DE_ALCANCE", "DEUDA_UNIFICACION_CARRIL3",
+    "CONVERTIDAS", "SITIOS_NUEVOS_POSTERIORES_A_LA_BASE", "DEUDA_FUERA_DE_ALCANCE", "DEUDA_UNIFICACION_CARRIL3",
     "SIN_ANCLA_NOMINAL", "deuda_por_familia",
     "INVENTARIO_IN_STR", "INVENTARIO_MATCH", "INVENTARIO_TOTAL",
     "MODULOS_SELLADOS", "SIN_ANCLA_MEDIDA", "SITIOS_CON_ANCLA",

@@ -43,7 +43,16 @@ from knowledge_v3.writer.writer import (  # noqa: E402
     OUTCOME_REJECTED,
     OUTCOME_SIMULATED,
 )
+from knowledge_v3.writer import schema as _schema  # noqa: E402
 from knowledge_v3.writer import cypher  # noqa: E402
+from knowledge_v3.writer.executor import AppliedOperation  # noqa: E402
+from knowledge_v3.writer.rollback import build_rollback  # noqa: E402
+from knowledge_v3.writer.view import SignedView  # noqa: E402
+
+
+def _vista_minima():
+    """Vista firmada del plan de utillaje: lo minimo que el rollback consulta."""
+    return SignedView.of(seal_plan(make_plan()))
 
 WORKSPACE = "leyenda"
 SNAPSHOT = "snapshot:neo4j:2026-07-27T10:29:00Z"
@@ -268,7 +277,41 @@ class FakeTx:
                 # "partida_id" en params ni "IS NULL" en el texto: ven el
                 # nodo exista en la partida que exista (existencia pura).
                 node_partida = state.get("partida_id")
-                if "partida_id" in params:
+                # CARRIL 9: el doble honra el predicado que el Cypher
+                # DECLARA, no el que el doble supone. Hay tres formas y se
+                # distinguen por el texto, no por adivinacion:
+                #   * `IS NULL OR ... = $partida_id`  -> VISIBILIDAD
+                #     (`read_entity_state_visible`): capa juego + la propia.
+                #   * `{... partida_id: $partida_id}` -> AMBITO EXACTO
+                #     (`_scoped_match`): solo esa partida.
+                #   * `partida_id IS NULL`            -> capa juego.
+                # Sin esta rama el doble aplicaria igualdad exacta tambien a
+                # la lectura de visibilidad y mediria el doble, no el
+                # producto.
+                #
+                # HASTA DONDE LLEGA ESTE DOBLE (MEDIDO, integracion tanda 9).
+                # El doble honra la FORMA que el Cypher declara --elige rama
+                # por el texto-- pero NO ejecuta el predicado: la visibilidad
+                # la vuelve a derivar aqui del estado del nodo. Consecuencia
+                # calibrada con la mutacion que el propio carril 9 declara
+                # (quitar la discriminacion A/B de
+                # `read_entity_state_visible` conservando el marcador de
+                # texto, `WHERE (n.partida_id IS NULL OR true)`):
+                #   * offline (este doble): 8 passed, PYTEST_RC=0  -> CIEGO
+                #   * Neo4j real: RED, `EXEC_SCOPE_MISMATCH` pasa a
+                #     `EXEC_TARGET_MISSING` en
+                #     `test_carril9_desde_A_una_entidad_de_B_sigue_abortando`
+                # Es decir: la discriminacion A/B NO la sostiene ninguna
+                # casilla offline, la sostiene el test de Neo4j real, que esta
+                # SKIPPED salvo con `S9K_WRITER_NEO4J_REAL=1`. Quien cambie el
+                # cuerpo del predicado no puede apoyarse en la suite por
+                # defecto para saber si lo ha roto.
+                visible = "partida_id IS NULL OR" in cypher
+                if visible:
+                    if not (node_partida is None
+                            or node_partida == params.get("partida_id")):
+                        state = None
+                elif "partida_id" in params:
                     if node_partida != params["partida_id"]:
                         state = None
                 elif "partida_id IS NULL" in cypher and node_partida is not None:
@@ -311,11 +354,19 @@ class FakeTx:
                     "plan_hash": params["plan_hash"],
                     "operation_id": params["operation_id"],
                     "claim_token": params["claim_token"],
+                    # `ON CREATE SET` tambien graba el ambito: es el campo que
+                    # la `idempotency_key` deja fuera y con el que el executor
+                    # distingue un reintento de una colision entre partidas.
+                    # Si el doble no lo devolviese, el reintento legitimo
+                    # pareceria una colision -- un rojo del doble, no del
+                    # producto.
+                    "partida_id": params.get("partida_id"),
                 }
                 self.pending_marks[identity] = mark
             return FakeResult({
                 "plan_hash": mark["plan_hash"],
                 "operation_id": mark["operation_id"],
+                "partida_id": mark.get("partida_id"),
                 "created": mark["claim_token"] == params["claim_token"],
             })
         if "CREATE (a)-[r:" in cypher:
@@ -369,6 +420,25 @@ class FakeSession:
     def __exit__(self, *exc):
         return False
 
+    def run(self, cypher: str, params: dict | None = None):
+        """EQUIPO 5A. El doble ahora MODELA EL ESQUEMA del grafo.
+
+        Antes no tenia `run` de sesion siquiera: el esquema no existia para
+        el doble, ni puesto ni ausente. Desde que `--apply` falla cerrado
+        cuando faltan restricciones, "no modela el esquema" y "no tiene
+        esquema" dejan de ser lo mismo, y un doble mudo haria abortar a
+        pruebas que hablan de otra cosa.
+
+        Por defecto responde como un grafo BIEN APROVISIONADO, que es la
+        precondicion que todas estas pruebas ya daban por supuesta.
+        `FakeDriver(constraints=set())` simula el grafo sin esquema.
+        """
+        if "SHOW CONSTRAINTS" in cypher:
+            return [{"name": n} for n in sorted(self.driver.constraints)]
+        if "SHOW INDEXES" in cypher:
+            return [{"name": n} for n in sorted(self.driver.indexes)]
+        raise AssertionError(f"consulta de sesion no modelada por el doble: {cypher}")
+
     def begin_transaction(self):
         tx = FakeTx(self.driver)
         self.driver.transactions.append(tx)
@@ -378,9 +448,18 @@ class FakeSession:
 class FakeDriver:
     """Driver de mentira con estado consultable. Nunca habla con Neo4j."""
 
-    def __init__(self, nodes: dict | None = None, fail_at: int | None = None):
+    def __init__(self, nodes: dict | None = None, fail_at: int | None = None,
+                 constraints: set | None = None, indexes: set | None = None):
         self.nodes = nodes or {}
         self.fail_at = fail_at
+        # EQUIPO 5A: grafo aprovisionado por defecto (ver `FakeSession.run`).
+        self.constraints = (
+            set(_schema.REQUIRED_CONSTRAINT_NAMES) if constraints is None
+            else set(constraints)
+        )
+        self.indexes = (
+            set(_schema.REQUIRED_INDEX_NAMES) if indexes is None else set(indexes)
+        )
         self.queries: list = []
         self.writes: list = []
         self.transactions: list = []
@@ -1035,7 +1114,13 @@ def test_apply_crea_la_entidad_y_confirma_la_transaccion():
     assert result.outcome == OUTCOME_APPLIED
     assert driver.committed and not driver.rolled_back
     assert result.created_ids == ["entity:daiki"]
-    assert any("CREATE (n:V3Entity:Character" in q for q, _ in driver.writes)
+    # Las DOS etiquetas, y derivadas de las constantes: la publica primero
+    # (`:Entity`, la que resuelve la URL y lee el visor) y la de escritura del
+    # writer (`:V3Entity`, por la que casa todo su Cypher interno). Escribirlas
+    # a mano aqui volveria a permitir que las dos superficies divergieran sin
+    # que nada lo dijera.
+    _etiquetas = f"CREATE (n:{cypher.LABEL_ENTITY_PUBLICA}:{cypher.LABEL_ENTITY}:Character"
+    assert any(_etiquetas in q for q, _ in driver.writes)
 
 
 def test_ninguna_consulta_ejecutada_es_destructiva():
@@ -1365,46 +1450,104 @@ def test_reaplicar_el_mismo_plan_no_escribe_dos_veces():
     assert segundo.writes == writes_after_first
 
 
-def test_dos_partidas_con_operacion_identica_comparten_idempotency_key_pero_no_corrompen():
-    """(d) DECISION DE M3, mismo rigor que `decision_hash` (docs/v3/49 §9):
-    `IDEMPOTENCY_KEY_FIELDS`/`compute_idempotency_key` (contracts validator)
-    NO incluyen `partida_id`/`scope` -- solo `workspace`+`snapshot_id`+
-    identidad logica de la operacion (`operation_type`, `decision_id`,
-    `target_entity_id`, `assertion_id`, `payload`). Si dos planes de DOS
-    partidas distintas, mismo workspace y snapshot, calculasen una operacion
-    con identidad logica identica (mismo `decision_id`/`target_entity_id`/
-    `payload`), compartirian idempotency_key.
+def test_dos_partidas_con_operacion_identica_NO_comparten_idempotency_key():
+    """EQUIPO 5A. ESTE TEST FIJABA EL DEFECTO. Se INVIERTE, no se borra.
 
-    NO se cierra este hueco en M3 (igual que `decision_hash` en M0): tocar
-    `IDEMPOTENCY_KEY_FIELDS` es cirugia de contrato congelado (mismo
-    validador que M0 decidio no tocar), y aqui no hace falta -- a diferencia
-    de `decision_hash` (que es un hueco de AUDITABILIDAD silencioso), la
-    colision de idempotency_key es SEGURA por construccion: `execute_plan`
-    reclama la clave con `claim_applied_operation` y, si ya esta tomada por
-    un `plan_hash`/`operation_id` distinto, aborta con
-    `EXEC_IDEMPOTENCY_CONFLICT` -- fail-closed, nunca una fusion silenciosa
-    de dos operaciones de partidas distintas. Este test fija ESE
-    comportamiento (el abort), no un cierre del hueco de la clave."""
+    QUE AFIRMABA ANTES
+    ------------------
+    Que dos planes de DOS partidas distintas con la misma identidad logica de
+    operacion compartian `idempotency_key`, y que eso era SEGURO porque
+    `execute_plan` reclamaba la clave y abortaba con
+    `EXEC_IDEMPOTENCY_CONFLICT`. La decision de M3 (docs/v3/49 §9) se apoyaba
+    en este test para dejar el hueco abierto: "no hay hueco de seguridad que
+    cerrar".
+
+    POR QUE ERA FALSO -- MEDIDO, NO OPINADO
+    ---------------------------------------
+    El guardia comparaba `view.partida_id`... y `view.partida_id` era `None`
+    en las DOS partidas, porque `engine/planner.py` nunca estampaba el ambito
+    en el plan. El guardia era correcto y vigilaba una carretera por la que el
+    `partida_id` no pasaba nunca. Contra Neo4j real, con la misma fuente
+    ingerida en dos partidas del mismo workspace, lo OBSERVADO fue:
+    `V3Entity.partida_id = NULL`, `V3Assertion.partida_id = NULL`,
+    `V3AppliedOperation` sin siquiera la clave `partida_id`, la MISMA
+    `idempotency_key` en ambas, la segunda partida reutilizando en silencio el
+    nodo y la arista de la primera, y el rollback de una borrando la relacion
+    de la otra. La "fusion silenciosa" que este test juraba imposible era
+    exactamente lo que pasaba.
+
+    Este test afirma ahora la propiedad correcta: la clave DISTINGUE ambito.
+    """
     ops_a = [op_create_entity("op:0001", "decision:0001", "entity:mismo-id")]
     ops_b = [op_create_entity("op:0001", "decision:0001", "entity:mismo-id")]
     plan_a = make_plan(operations=ops_a, partida_id="partida:brumal-01", scope=partida_scope())
     plan_b = make_plan(operations=ops_b, partida_id="partida:brumal-02", scope=partida_scope("partida:brumal-02"))
 
-    # Confirmado: la clave derivada es IDENTICA pese a ser partidas distintas
-    # (no lee scope/partida_id -- verificacion, no suposicion).
-    assert plan_a["mutation_operations"][0]["idempotency_key"] == plan_b["mutation_operations"][0]["idempotency_key"]
+    clave_a = plan_a["mutation_operations"][0]["idempotency_key"]
+    clave_b = plan_b["mutation_operations"][0]["idempotency_key"]
+    assert clave_a != clave_b, (
+        "dos partidas distintas comparten idempotency_key: la fuga sigue abierta"
+    )
 
+    # Y la clave sigue siendo DERIVABLE (no inventada): el writer la recomputa
+    # en admision y no rechaza ninguno de los dos planes por firma.
     keys = InMemoryAppliedKeys()
     driver = FakeDriver()
     r1 = make_writer(driver, applied_keys=keys).write(plan_a, apply_request(plan_a))
     assert r1.outcome == OUTCOME_APPLIED
-
-    r2 = make_writer(driver, applied_keys=keys).write(plan_b, apply_request(plan_b))
-    assert r2.outcome == OUTCOME_ABORTED
-    assert codes.EXEC_IDEMPOTENCY_CONFLICT in r2.codes
+    assert codes.PLAN_IDEMPOTENCY_KEY_UNDERIVED not in r1.codes
 
 
-def test_la_misma_clave_con_plan_distinto_falla_cerrado():
+def test_capa_juego_conserva_su_idempotency_key_historica():
+    """EQUIPO 5A. La contrapartida del test de arriba, y la que protege los
+    datasets sellados: un plan SIN ambito produce EXACTAMENTE la clave de
+    siempre. `partida_id` solo entra en el cuerpo cuando NO es nulo (mismo
+    `OMIT_IF_NONE` que ya aplica `contracts/mutation_plan.py`), asi que los
+    264+ documentos congelados de heldout/negation-battery/benchmarks --
+    ninguno de los cuales declara ambito-- no cambian ni un byte.
+    """
+    from knowledge_v3.contracts.base import sha256_hash
+
+    plan = make_plan(operations=[op_create_entity("op:0001", "decision:0001", "entity:lore")])
+    assert "partida_id" not in plan and "scope" not in plan
+    op = plan["mutation_operations"][0]
+    cuerpo_historico = {
+        "workspace": plan["workspace"],
+        "snapshot_id": plan["snapshot_id"],
+        "operation_type": op.get("operation_type"),
+        "decision_id": op.get("decision_id"),
+        "target_entity_id": op.get("target_entity_id"),
+        "assertion_id": op.get("assertion_id"),
+        "payload": op.get("payload"),
+    }
+    assert op["idempotency_key"] == "idem:sha256:" + sha256_hash(cuerpo_historico)["value"]
+
+
+def test_la_misma_clave_en_dos_planes_distintos_es_un_NO_OP_no_un_conflicto():
+    """Lo que el contrato CONGELADO manda, y que antes no se cumplia.
+
+    La descripcion de `idempotency_key` en
+    `contracts/knowledge-v3/v1/graph-mutation-plan-v3.schema.json` dice, con
+    todas las letras, que `operation_id` queda fuera de la clave "para que la
+    misma operacion logica calculada en dos planes distintos produzca la MISMA
+    clave y el segundo apply sea un no-op".
+
+    Esta prueba afirmaba lo CONTRARIO -- que el segundo plan debia abortar --
+    y esa exigencia hacia imposible el no-op que el contrato promete. Medido
+    contra Neo4j real con el mando del operador: la segunda ingesta de la misma
+    fuente produce un plan legitimamente distinto (ya puede proyectar la
+    relacion sobre una entidad que en la primera pasada aun no existia) y
+    abortaba con `EXEC_IDEMPOTENCY_CONFLICT` sobre una `CREATE_ASSERTION`
+    identica -- misma clave, mismo `operation_id`, mismo `snapshot_id`, misma
+    partida. El grafo no volvia a moverse nunca mas.
+
+    El fail-closed que la nota del validador quiere NO se pierde: sigue siendo
+    de partidas distintas que colisionan en la clave, y lo cubren
+    `test_dos_partidas_con_operacion_identica_...` y
+    `test_conflicto_de_idempotencia_entre_partidas_es_diagnosticable_...`.
+    Ademas, que operacion autoriza el operador lo sigue fijando
+    `expected_plan_hash` en la peticion, que no se toca.
+    """
     # Misma identidad logica, distinto plan_id y created_at: la clave se deriva
     # de (workspace, snapshot, identidad de la operacion), no del plan.
     plan_a = make_plan()
@@ -1415,6 +1558,7 @@ def test_la_misma_clave_con_plan_distinto_falla_cerrado():
         plan_a["mutation_operations"][0]["idempotency_key"]
         == plan_b["mutation_operations"][0]["idempotency_key"]
     )
+    assert plan_a["plan_hash"]["value"] != plan_b["plan_hash"]["value"]
     keys = InMemoryAppliedKeys()
     driver = FakeDriver()
     # Neo4j is authoritative. Simulate the committed marker surviving while
@@ -1423,8 +1567,10 @@ def test_la_misma_clave_con_plan_distinto_falla_cerrado():
     make_writer(first_driver, applied_keys=keys).write(plan_a, apply_request(plan_a))
     driver.applied_marks.update(first_driver.applied_marks)
     result = make_writer(driver, applied_keys=keys).write(plan_b, apply_request(plan_b))
-    assert result.outcome == OUTCOME_ABORTED
-    assert codes.EXEC_IDEMPOTENCY_CONFLICT in result.codes
+    assert result.outcome == OUTCOME_APPLIED
+    assert result.noop_operations == 1
+    assert codes.EXEC_IDEMPOTENCY_CONFLICT not in result.codes
+    # Lo que de verdad importa: NO se escribio nada por segunda vez.
     assert driver.writes == []
 
 
@@ -1515,8 +1661,16 @@ def test_el_writer_sabe_generar_las_instrucciones_inversas():
     result = make_writer(driver).write(plan, apply_request(plan))
     assert result.outcome == OUTCOME_APPLIED, result.codes
     acciones = [i.action for i in result.rollback.instructions]
-    # Orden inverso: primero se deshace lo ultimo que se hizo.
-    assert acciones == ["RESTORE_PROPERTIES", "DELETE_RELATIONSHIP", "DELETE_NODE"]
+    # Orden inverso: primero se deshace lo ultimo que se hizo. Y cada operacion
+    # revertida retira ADEMAS su marca de idempotencia del grafo: sin eso, el
+    # grafo seguiria afirmando «ya aplicado» sobre un conocimiento borrado.
+    assert acciones == [
+        "RESTORE_PROPERTIES", "FORGET_APPLIED_OPERATION",
+        "DELETE_RELATIONSHIP", "FORGET_APPLIED_OPERATION",
+        "DELETE_NODE", "FORGET_APPLIED_OPERATION",
+    ]
+    inversas = [a for a in acciones if a != "FORGET_APPLIED_OPERATION"]
+    assert inversas == ["RESTORE_PROPERTIES", "DELETE_RELATIONSHIP", "DELETE_NODE"]
 
 
 def test_el_rollback_declara_lo_que_no_puede_restaurar():
@@ -1877,11 +2031,324 @@ def test_el_paquete_del_writer_no_importa_neo4j_ni_lleva_credenciales():
             assert prohibido not in texto, f"{fichero.name} contiene {prohibido!r}"
 
 
-def test_la_cli_no_abre_ninguna_conexion_por_defecto():
-    from knowledge_v3.writer.cli import no_driver
+def test_la_cli_no_abre_ninguna_conexion_por_defecto(tmp_path, capsys):
+    """El dry-run sigue siendo el modo seguro: ni resuelve conexion ni la abre.
 
-    with pytest.raises(NotImplementedError):
-        no_driver()
+    Antes esto se comprobaba con una fabrica que lanzaba `NotImplementedError`,
+    o sea: se comprobaba que NO habia ruta de operador. Ahora la ruta existe, y
+    lo que hay que sostener es que el dry-run no la usa.
+    """
+    from knowledge_v3.writer import cli
+
+    # Expiracion lejana: la CLI usa el reloj real, y un plan caducado se
+    # rechazaria por admision antes de llegar a lo que aqui se mide.
+    plan = make_plan(expires_at="2099-01-01T00:00:00Z")
+    ruta = tmp_path / "plan.json"
+    ruta.write_text(json.dumps(plan), encoding="utf-8")
+
+    abiertas = []
+
+    def espia():  # pragma: no cover - si se llama, la prueba ya fallo
+        abiertas.append(1)
+        raise AssertionError("el dry-run abrio una conexion")
+
+    rc = cli.main(
+        [
+            str(ruta),
+            "--workspace",
+            WORKSPACE,
+            "--snapshot",
+            SNAPSHOT,
+            "--audit-log",
+            str(tmp_path / "audit.jsonl"),
+            "--applied-keys",
+            str(tmp_path / "keys.jsonl"),
+        ],
+        driver_factory=espia,
+        env={},
+    )
+    salida = json.loads(capsys.readouterr().out)
+    assert abiertas == []
+    assert salida["outcome"] == OUTCOME_SIMULATED
+    assert rc in (0, 2)
+
+
+def test_el_apply_sin_conexion_declarada_falla_cerrado_y_sin_secreto(tmp_path, capsys):
+    """No hay degradacion silenciosa a dry-run: sin URI/usuario/fichero, rc=1."""
+    from knowledge_v3.writer import cli
+
+    # Expiracion lejana: la CLI usa el reloj real, y un plan caducado se
+    # rechazaria por admision antes de llegar a lo que aqui se mide.
+    plan = make_plan(expires_at="2099-01-01T00:00:00Z")
+    ruta = tmp_path / "plan.json"
+    ruta.write_text(json.dumps(plan), encoding="utf-8")
+
+    rc = cli.main(
+        [
+            str(ruta),
+            "--workspace",
+            WORKSPACE,
+            "--snapshot",
+            SNAPSHOT,
+            "--operator",
+            "pjc",
+            "--expect-plan-hash",
+            plan["plan_hash"]["value"],
+            "--apply",
+            "--audit-log",
+            str(tmp_path / "audit.jsonl"),
+            "--applied-keys",
+            str(tmp_path / "keys.jsonl"),
+        ],
+        env={},
+    )
+    salida = json.loads(capsys.readouterr().out)
+    assert rc == 1
+    assert salida["ok"] is False
+    # Codigo, no redaccion: el mensaje puede reescribirse sin romper a nadie.
+    assert salida["code"] == codes.CLI_DRIVER_CONFIG_MISSING
+    assert salida["error"]
+
+
+def test_la_fabrica_de_driver_no_acepta_la_contrasena_por_argv():
+    """Ninguna opcion de la CLI recibe el secreto: solo el CAMINO de un fichero."""
+    from knowledge_v3.writer import cli
+
+    opciones = {
+        opcion
+        for accion in cli.build_parser()._actions
+        for opcion in accion.option_strings
+    }
+    assert "--neo4j-password-file" in opciones
+    assert "--neo4j-password" not in opciones
+
+
+def test_un_fichero_de_contrasena_legible_por_otros_se_rechaza(tmp_path):
+    from knowledge_v3.driver_neo4j import DriverConfigError, read_secret
+
+    fichero = tmp_path / "pass"
+    fichero.write_text("s3cr3t\n", encoding="utf-8")
+    fichero.chmod(0o644)
+    with pytest.raises(DriverConfigError) as exc:
+        read_secret(str(fichero))
+    assert "s3cr3t" not in str(exc.value)
+
+    fichero.chmod(0o600)
+    assert read_secret(str(fichero)) == "s3cr3t"
+
+
+def test_la_fabrica_solo_conecta_cuando_se_la_invoca(tmp_path):
+    """Construirla no gasta credenciales: el secreto se lee al invocarla."""
+    from knowledge_v3.driver_neo4j import build_driver_factory, resolve_config
+
+    fichero = tmp_path / "pass"
+    fichero.write_text("s3cr3t", encoding="utf-8")
+    fichero.chmod(0o600)
+    llamadas = []
+
+    def conectar(uri, auth=None):
+        llamadas.append((uri, auth))
+        return "DRIVER"
+
+    config = resolve_config(
+        uri="neo4j-uri-de-prueba",
+        user="neo4j",
+        password_file=str(fichero),
+        env={},
+    )
+    assert "s3cr3t" not in repr(config)
+    fabrica = build_driver_factory(config, connect=conectar)
+    assert llamadas == []
+    assert fabrica() == "DRIVER"
+    assert llamadas == [("neo4j-uri-de-prueba", ("neo4j", "s3cr3t"))]
+
+
+# --- Identidad durable en el rollback --------------------------------------
+def test_el_rollback_de_relacion_no_depende_del_element_id():
+    """Regresion: `DELETE_RELATIONSHIP` se localizaba por `elementId`.
+
+    El `elementId` lleva el UUID de la base y se regenera al restaurar un dump,
+    asi que un documento guardado dejaba de ser ejecutable — y sin predicado ni
+    objeto en el detalle, tampoco reconstruible.
+    """
+    from knowledge_v3.writer.rollback import (
+        RollbackInstruction,
+        rollback_query,
+    )
+
+    op = AppliedOperation(
+        operation_id="op:0001",
+        operation_type="LINK_EXISTING",
+        idempotency_key="idem:sha256:" + "0" * 64,
+        kind="RELATIONSHIP",
+        created_id="5:3b999953-e45d-4a29-9250-1938f00f801c:0",
+        target_id="entity:origen",
+        subject_id="entity:origen",
+        predicate="MEMBER_OF",
+        object_id="entity:destino",
+    )
+    doc = build_rollback(_vista_minima(), [op])
+    instr = doc.instructions[0]
+    assert instr.action == "DELETE_RELATIONSHIP"
+    assert instr.target_id == "entity:origen"
+    assert instr.detail["predicate"] == "MEMBER_OF"
+    assert instr.detail["object"] == "entity:destino"
+    assert instr.detail["element_id_at_write"] == op.created_id
+
+    query = rollback_query(instr)
+    assert "elementId" not in query.cypher
+    assert op.created_id not in json.dumps(query.params)
+    assert query.params == {
+        "subject": "entity:origen",
+        "object": "entity:destino",
+        "ws": WORKSPACE,
+        "key": op.idempotency_key,
+    }
+    assert "r.partida_id IS NULL" in query.cypher  # capa juego, no comodin
+    assert "idempotency_key" in query.cypher  # acota: no borra vecinos
+
+
+# --- Ambito de partida en el rollback (R2) ---------------------------------
+def _relacion(partida_id, **over):
+    base = dict(
+        operation_id="op:0001",
+        operation_type="LINK_EXISTING",
+        idempotency_key="idem:sha256:" + "0" * 64,
+        kind="RELATIONSHIP",
+        created_id="5:3b999953-e45d-4a29-9250-1938f00f801c:0",
+        target_id="entity:origen",
+        subject_id="entity:origen",
+        predicate="MEMBER_OF",
+        object_id="entity:destino",
+        partida_id=partida_id,
+    )
+    base.update(over)
+    return AppliedOperation(**base)
+
+
+def test_la_consulta_de_relacion_de_capa_juego_exige_partida_nula():
+    """`partida_id: null` es un ambito concreto, no un comodin."""
+    from knowledge_v3.writer.rollback import rollback_query
+
+    query = rollback_query(build_rollback(_vista_minima(), [_relacion(None)]).instructions[0])
+    assert "r.partida_id IS NULL" in query.cypher
+    assert "partida_id" not in query.params
+
+
+def test_la_consulta_de_relacion_de_partida_exige_esa_partida():
+    from knowledge_v3.writer.rollback import rollback_query
+
+    query = rollback_query(
+        build_rollback(_vista_minima(), [_relacion("partida:otra")]).instructions[0]
+    )
+    assert "r.partida_id = $partida_id" in query.cypher
+    assert query.params["partida_id"] == "partida:otra"
+
+
+def test_sin_ambito_declarado_se_deniega_en_vez_de_borrar():
+    """Ambito ausente => DENY. Nunca 'sin ambito, probablemente es global'."""
+    from knowledge_v3.writer.rollback import (
+        RollbackInstruction,
+        RollbackNotReconstructible,
+        rollback_query,
+    )
+
+    instr = build_rollback(_vista_minima(), [_relacion(None)]).instructions[0]
+    detalle = dict(instr.detail)
+    detalle.pop("partida_id")
+    sin_ambito = RollbackInstruction(
+        operation_id=instr.operation_id,
+        action=instr.action,
+        target_id=instr.target_id,
+        detail=detalle,
+    )
+    with pytest.raises(RollbackNotReconstructible):
+        rollback_query(sin_ambito)
+
+
+@pytest.mark.parametrize("malformado", ["", "   ", 7, ["partida:otra"]])
+def test_un_ambito_malformado_se_deniega(malformado):
+    from knowledge_v3.writer.rollback import (
+        RollbackInstruction,
+        RollbackNotReconstructible,
+        rollback_query,
+    )
+
+    instr = build_rollback(_vista_minima(), [_relacion(None)]).instructions[0]
+    with pytest.raises(RollbackNotReconstructible):
+        rollback_query(
+            RollbackInstruction(
+                operation_id=instr.operation_id,
+                action=instr.action,
+                target_id=instr.target_id,
+                detail={**instr.detail, "partida_id": malformado},
+            )
+        )
+
+
+def test_el_borrado_de_nodo_lleva_etiqueta_y_ambito():
+    from knowledge_v3.writer.rollback import rollback_query
+
+    op = AppliedOperation(
+        operation_id="op:0003",
+        operation_type="CREATE_ASSERTION",
+        idempotency_key="idem:sha256:" + "2" * 64,
+        kind="NODE",
+        created_id="assertion:x",
+        target_id="assertion:x",
+        partida_id="partida:brumal-01",
+        node_label="V3Assertion",
+    )
+    query = rollback_query(build_rollback(_vista_minima(), [op]).instructions[0])
+    assert "MATCH (n:V3Assertion {assertion_id: $id" in query.cypher
+    assert "n.partida_id = $partida_id" in query.cypher
+    assert query.params["partida_id"] == "partida:brumal-01"
+
+
+def test_un_nodo_sin_etiqueta_conocida_no_se_borra():
+    """Sin etiqueta, `MATCH (n {ws, key})` alcanza el gemelo de otra partida."""
+    from knowledge_v3.writer.rollback import (
+        RollbackInstruction,
+        RollbackNotReconstructible,
+        rollback_query,
+    )
+
+    for etiqueta in (None, "", "Cualquiera"):
+        with pytest.raises(RollbackNotReconstructible):
+            rollback_query(
+                RollbackInstruction(
+                    operation_id="op:0004",
+                    action="DELETE_NODE",
+                    target_id="assertion:x",
+                    detail={
+                        "created_id": "assertion:x",
+                        "workspace": WORKSPACE,
+                        "label": etiqueta,
+                        "partida_id": None,
+                        "idempotency_key": "idem:sha256:" + "3" * 64,
+                    },
+                )
+            )
+
+
+def test_una_relacion_sin_identidad_de_dominio_se_declara_irrecuperable():
+    op = AppliedOperation(
+        operation_id="op:0002",
+        operation_type="LINK_EXISTING",
+        idempotency_key="idem:sha256:" + "1" * 64,
+        kind="RELATIONSHIP",
+        created_id="5:uuid:0",
+        target_id="entity:origen",
+        subject_id="entity:origen",
+        predicate=None,
+        object_id=None,
+    )
+    doc = build_rollback(_vista_minima(), [op])
+    assert doc.unrecoverable
+    from knowledge_v3.writer.rollback import RollbackNotReconstructible, rollback_query
+
+    with pytest.raises(RollbackNotReconstructible):
+        rollback_query(doc.instructions[0])
 
 
 def test_un_writer_sin_workspace_no_existe():
@@ -2016,29 +2483,41 @@ def test_retry_legitimo_de_la_misma_partida_sigue_siendo_idempotente():
     assert codes.EXEC_IDEMPOTENCY_CONFLICT not in r2.codes
 
 
-def test_conflicto_de_idempotencia_entre_partidas_es_diagnosticable_por_el_operador():
-    """(5) El diagnostico de `EXEC_IDEMPOTENCY_CONFLICT` debe permitir a un
-    operador humano distinguir POR QUE aborto: el detalle de la Rejection
-    lleva `expected_plan_hash`/`actual_plan_hash` y
-    `expected_operation_id`/`actual_operation_id` distintos entre si, no
-    solo el codigo. Sin esto, dos partidas distintas chocando en la misma
-    clave y un reintento corrupto del mismo plan serian indistinguibles
-    para quien lee el informe."""
-    ops_a = [op_create_entity("op:0001", "decision:0001", "entity:mismo-id-2")]
-    ops_b = [op_create_entity("op:0001", "decision:0001", "entity:mismo-id-2")]
+def test_dos_partidas_ya_no_pueden_colisionar_en_la_clave():
+    """EQUIPO 5A. Sustituye a
+    `test_conflicto_de_idempotencia_entre_partidas_es_diagnosticable_por_el_operador`.
+
+    Aquel test comprobaba que el diagnostico de `EXEC_IDEMPOTENCY_CONFLICT`
+    dejaba a un operador distinguir "dos partidas chocando en la clave" de
+    "reintento corrupto del mismo plan". Su PREMISA acaba de desaparecer: dos
+    partidas distintas ya no pueden colisionar en la clave, porque el ambito
+    entra en ella. El escenario que aquel test montaba no es reproducible.
+
+    Borrarlo sin mas habria perdido la propiedad. Lo que se conserva es lo que
+    sigue siendo cierto y comprobable: los dos planes se aplican, cada uno con
+    SU clave, y ninguno declara el otro como no-op --que es la reutilizacion
+    silenciosa que se venia a matar--.
+
+    El `EXEC_IDEMPOTENCY_CONFLICT` NO se toca ni se debilita: sigue vivo para
+    lo que siempre debio cubrir --una clave ya tomada por otra `operation_id`
+    o por otro ambito-- y su diagnostico sigue llevando los cuatro campos.
+    """
+    ops_a = [op_create_entity("op:0001", "decision:0001", "entity:mesa-a")]
+    ops_b = [op_create_entity("op:0001", "decision:0001", "entity:mesa-b")]
     plan_a = make_plan(operations=ops_a, partida_id="partida:mesa-A", scope=partida_scope("partida:mesa-A"))
     plan_b = make_plan(operations=ops_b, partida_id="partida:mesa-B", scope=partida_scope("partida:mesa-B"))
 
     keys = InMemoryAppliedKeys()
     driver = FakeDriver()
-    make_writer(driver, applied_keys=keys).write(plan_a, apply_request(plan_a))
+    r1 = make_writer(driver, applied_keys=keys).write(plan_a, apply_request(plan_a))
     r2 = make_writer(driver, applied_keys=keys).write(plan_b, apply_request(plan_b))
 
-    assert r2.outcome == OUTCOME_ABORTED
-    rejection = next(r for r in r2.rejections if r.code == codes.EXEC_IDEMPOTENCY_CONFLICT)
-    detail = rejection.detail
-    assert detail["expected_plan_hash"] != detail["actual_plan_hash"]
-    assert detail["expected_operation_id"] == detail["actual_operation_id"] == "op:0001"
+    assert r1.outcome == OUTCOME_APPLIED
+    assert r2.outcome == OUTCOME_APPLIED, r2.codes
+    assert codes.EXEC_IDEMPOTENCY_CONFLICT not in r2.codes
+    # LO QUE IMPORTA: la segunda no se ha comido a la primera.
+    assert r2.applied_operations == 1
+    assert r2.noop_operations == 0
 
 
 def test_material_none_produce_props_con_partida_id_null_explicito_no_ausente():
@@ -2056,4 +2535,12 @@ def test_material_none_produce_props_con_partida_id_null_explicito_no_ausente():
     assert "partida_id" in q.params["props"]
     assert q.params["props"]["partida_id"] is None
     # El texto de la consulta, en cambio, es LITERALMENTE el de antes de M3.
-    assert q.cypher == "CREATE (n:V3Entity:Character $props) RETURN n.entity_id AS id"
+    # El texto de la consulta, en cambio, es el de antes de M3 SALVO la
+    # etiqueta publica que se le antepone: el writer materializa `:Entity`
+    # ademas de `:V3Entity` (ver `cypher.LABEL_ENTITY_PUBLICA`), porque es la
+    # etiqueta sobre la que `schema.py` instala la unicidad de
+    # `(workspace, entity_id)` y la unica que el visor lee.
+    assert q.cypher == (
+        f"CREATE (n:{cypher.LABEL_ENTITY_PUBLICA}:{cypher.LABEL_ENTITY}:Character "
+        "$props) RETURN n.entity_id AS id"
+    )

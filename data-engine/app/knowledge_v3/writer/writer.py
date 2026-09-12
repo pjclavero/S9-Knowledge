@@ -33,10 +33,18 @@ from . import codes
 from .admission import AdmissionContext, admit, utc_now
 from .audit import AuditRecord, AuditSink, InMemoryAuditSink
 from .errors import Rejection, WriterAbort, WriterError
-from .executor import ExecutionContext, ExecutionOutcome, execute_plan, simulate_plan
+from .executor import (
+    CLOSING_TYPES,
+    ExecutionContext,
+    ExecutionOutcome,
+    execute_plan,
+    simulate_plan,
+)
 from .gate import DEFAULT_MAX_OPERATIONS, OperatorRequest, evaluate
 from .idempotency import AppliedKeyStore, InMemoryAppliedKeys
 from .rollback import RollbackDocument, build_rollback
+from .rollback_provenance import key_evidence_query
+from . import schema
 from .view import SignedView
 
 #: Resultados posibles de un intento. Entran en el registro de auditoria.
@@ -50,6 +58,12 @@ OUTCOME_SIMULATED = "SIMULATED"
 OUTCOME_REJECTED = "REJECTED"  # la admision dijo que no
 OUTCOME_BLOCKED = "BLOCKED"  # el gate dijo que no
 OUTCOME_ABORTED = "ABORTED"  # empezo y se revirtio entera
+#: La transaccion fue bien, pero el grafo NO sostiene lo que el resultado
+#: afirmaria. Caso medido: tras un rollback quedan marcas de idempotencia sin
+#: el conocimiento que reclamaban, y el siguiente apply se declara no-op limpio
+#: sobre un grafo vacio. No es un gate --se mide DESPUES de la transaccion y no
+#: impide ninguna escritura--: impide MENTIR sobre el desenlace.
+OUTCOME_INCONSISTENT = "INCONSISTENT"
 
 MODE_DRY_RUN = "DRY_RUN"
 MODE_APPLY = "APPLY"
@@ -156,6 +170,11 @@ class GraphWriter:
         self.applied_keys = applied_keys if applied_keys is not None else InMemoryAppliedKeys()
         self.clock = clock
         self.max_operations = max_operations
+        #: El driver que `_resolve_driver` obtuvo DESPUES del gate. Se guarda
+        #: para que la ruta canonica (`writer.apply`) pueda persistir la
+        #: procedencia sobre la MISMA conexion sin abrir otra ni adelantar la
+        #: apertura: sigue siendo `None` hasta que el gate autoriza.
+        self._resolved_driver: Any = driver
 
     # -- Auditoria ---------------------------------------------------------
     def _now_iso(self) -> str:
@@ -325,6 +344,24 @@ class GraphWriter:
         driver, driver_failure = self._resolve_driver()
         if driver_failure is not None:
             return self._finish(OUTCOME_ABORTED, mode, req, plan_doc, [driver_failure])
+
+        # EQUIPO 5A -- FALLO CERRADO SI EL ESQUEMA NO ESTA PUESTO.
+        # -------------------------------------------------------------------
+        # Se pregunta AL SERVIDOR (`SHOW CONSTRAINTS`), no a `schema.py`. Ese
+        # matiz es el defecto entero: las restricciones estaban declaradas en
+        # el modulo y ausentes del grafo, y varias garantias ya escritas --la
+        # unicidad de `(workspace, entity_id)` y el argumento de que
+        # `FORGET_APPLIED` no es una fuga-- las daban por instaladas. Un
+        # writer que escribe sin ellas produce estado que su propio modelo de
+        # identidad declara imposible.
+        #
+        # Va DESPUES del gate y ANTES de la transaccion: no es un permiso que
+        # conceder, es una precondicion del grafo, y comprobarla exige un
+        # driver ya resuelto.
+        schema_failure = self._schema_incompleto(driver)
+        if schema_failure is not None:
+            return self._finish(OUTCOME_ABORTED, mode, req, plan_doc, [schema_failure])
+
         try:
             outcome = execute_plan(driver, view, exec_ctx)
         except WriterError as exc:
@@ -337,6 +374,35 @@ class GraphWriter:
             return self._finish(OUTCOME_ABORTED, mode, req, plan_doc, [rejection])
 
         rollback = build_rollback(view, outcome.applied)
+
+        # Verdad del desenlace. Una operacion declarada no-op afirma que su
+        # efecto YA esta en el grafo; se comprueba, no se presume. Si no esta,
+        # el desenlace no puede ser APPLIED: seria decirle a un runner
+        # desatendido que el conocimiento esta cuando no esta.
+        faltan = self._noop_sin_respaldo(driver, view, outcome.noop_keys)
+        if faltan:
+            rejection = Rejection(
+                code=codes.EXEC_NOOP_WITHOUT_GRAPH_EVIDENCE,
+                message=(
+                    "hay claves declaradas ya aplicadas sin nada en el grafo que "
+                    "las sostenga: el conocimiento que reclaman no esta"
+                ),
+                detail={"idempotency_keys": faltan},
+            )
+            return self._finish(
+                OUTCOME_INCONSISTENT,
+                mode,
+                req,
+                plan_doc,
+                [rejection],
+                applied=len(outcome.applied),
+                noop=len(outcome.noop_keys),
+                created_ids=outcome.created_ids,
+                review_marks=outcome.review_marks,
+                rollback=rollback,
+                detail={"rollback": rollback.to_dict()},
+            )
+
         return self._finish(
             OUTCOME_APPLIED,
             mode,
@@ -350,6 +416,118 @@ class GraphWriter:
             rollback=rollback,
             detail={"rollback": rollback.to_dict()},
         )
+
+    def _schema_incompleto(self, driver: Any) -> Optional[Rejection]:
+        """`None` si el esquema requerido esta puesto; un rechazo si falta algo.
+
+        NO SE TRAGA EL FALLO DE LECTURA. Si `SHOW CONSTRAINTS` no se puede
+        ejecutar, no se sabe si las restricciones estan, y "no se sabe" tiene
+        que comportarse como "no estan": lo contrario convierte una medida que
+        no se pudo tomar en un permiso para escribir.
+        """
+        try:
+            faltan = schema.missing_required_constraints(driver)
+        except Exception as exc:
+            return Rejection(
+                code=codes.EXEC_SCHEMA_CONSTRAINTS_MISSING,
+                message=(
+                    "no se pudo comprobar el esquema del grafo: sin poder "
+                    "observarlo no se escribe"
+                ),
+                detail={"error": str(exc)},
+            )
+        if not faltan:
+            return None
+        return Rejection(
+            code=codes.EXEC_SCHEMA_CONSTRAINTS_MISSING,
+            message=(
+                "faltan restricciones requeridas en el grafo; instalalas con "
+                "`python -m knowledge_v3.writer.schema_cli ensure` y repite"
+            ),
+            detail={
+                "faltantes": faltan,
+                "requeridas": list(schema.REQUIRED_CONSTRAINT_NAMES),
+                "schema_version": schema.SCHEMA_VERSION,
+            },
+        )
+
+    def _noop_sin_respaldo(
+        self, driver: Any, view: SignedView, noop_keys: list[str]
+    ) -> list[str]:
+        """Claves declaradas aplicadas que el grafo NO respalda.
+
+        Solo cuenta lo que sostiene conocimiento --nodos y aristas--: la marca
+        `V3AppliedOperation` esta EXCLUIDA a proposito, porque es justamente la
+        que sobrevive a un borrado y la que hacia que un grafo vaciado pasara
+        por aplicado.
+
+        Un fallo de lectura no inventa un veredicto: devuelve lista vacia y el
+        desenlace no cambia por una medida que no se pudo tomar.
+        """
+        if not noop_keys:
+            return []
+        # INTEGRACION tanda 3 -- DEFECTO REAL, encontrado al correr las tres
+        # ramas juntas. La comprobacion presupone que toda operacion deja algo
+        # LLEVANDO su `idempotency_key`. Es cierto para las que CREAN (nodo o
+        # arista), y falso para las que CIERRAN una vigencia
+        # (`UPDATE_ENTITY`/`SUPERSEDE_ASSERTION`): `close_entity_validity` y
+        # `close_assertion_validity` solo hacen `SET` de las propiedades
+        # cambiadas sobre un nodo que YA existia, y ese nodo conserva la clave
+        # de la operacion que lo creo, nunca la de este cierre.
+        #
+        # Consecuencia medida: al reaplicar un plan de solo cierre, su clave
+        # sale no-op, nada en el grafo la lleva, y el desenlace se declaraba
+        # INCONSISTENT. Falso positivo -- el conocimiento estaba entero. Lo
+        # detecto `test_knowledge_v3_e2e_neo4j_real.py::TestCesacionContra
+        # GrafoReal::test_la_cesacion_cierra_la_vigencia_y_conserva_la_historia`,
+        # una prueba PREEXISTENTE que R1 no tenia en su rama.
+        #
+        # Se excluyen esas claves porque para ellas la medida NO EXISTE, no
+        # porque se prefiera callar: sobre un cierre esta comprobacion no puede
+        # distinguir «revertido» de «nunca estampado». La garantia de R1 queda
+        # intacta donde si se puede medir, que es donde nacio (creaciones).
+        sin_medida = self._claves_sin_huella_propia(view)
+        noop_keys = [k for k in noop_keys if k not in sin_medida]
+        if not noop_keys:
+            return []
+        faltan: list[str] = []
+        try:
+            with driver.session() as session:
+                for key in noop_keys:
+                    query = key_evidence_query(view.workspace, key)
+                    total = 0
+                    for row in session.run(query.cypher, query.params):
+                        fila = dict(row)
+                        if fila.get("clase") == "marca":
+                            continue
+                        total += int(fila.get("cuantos") or 0)
+                    if total == 0:
+                        faltan.append(key)
+        except Exception:  # pragma: no cover - driver roto: no se afirma nada
+            return []
+        return faltan
+
+    @staticmethod
+    def _claves_sin_huella_propia(view: SignedView) -> set[str]:
+        """Claves de operaciones que NUNCA estampan su `idempotency_key`.
+
+        Son las de cierre de vigencia: escriben con `SET` sobre un nodo que ya
+        existia y no le ponen la clave de esta operacion. Preguntarle al grafo
+        «¿queda algo con esta clave?» no mide nada sobre ellas.
+
+        Se deriva del CATALOGO del executor (`CLOSING_TYPES`), no de una lista
+        repetida aqui: una lista paralela que hay que acordarse de actualizar
+        es la clase de proteccion que ya ha fallado antes en este repositorio.
+        """
+        sin_medida: set[str] = set()
+        for operacion in view.mutation_operations or ():
+            if not isinstance(operacion, dict):
+                continue
+            if operacion.get("operation_type") in CLOSING_TYPES:
+                clave = operacion.get("idempotency_key")
+                if clave:
+                    sin_medida.add(clave)
+        return sin_medida
 
     # -- Piezas de `write` -------------------------------------------------
     def _effective_limit(self, requested: Optional[int]) -> Any:
@@ -369,9 +547,19 @@ class GraphWriter:
             return min(requested, self.max_operations)
         return requested  # pragma: no cover - writer mal construido
 
+    @property
+    def resolved_driver(self) -> Any:
+        """El driver realmente usado, o `None` si aun no se abrio ninguno.
+
+        No abre nada: solo publica lo que `_resolve_driver` ya obtuvo. Leerlo
+        antes de un APPLY autorizado devuelve `None`, que es la verdad.
+        """
+        return self._resolved_driver
+
     def _resolve_driver(self) -> tuple[Any, Optional[Rejection]]:
         """Obtiene el driver DESPUES del gate. Antes seria abrir sin permiso."""
         if self.driver is not None:
+            self._resolved_driver = self.driver
             return self.driver, None
         if self.driver_factory is None:
             return None, Rejection(
@@ -390,6 +578,7 @@ class GraphWriter:
                 code=codes.EXEC_DRIVER_FAILURE,
                 message="la fabrica de driver no devolvio ningun driver",
             )
+        self._resolved_driver = driver
         return driver, None
 
     def _finish(
@@ -453,6 +642,7 @@ __all__ = [
     "OUTCOME_REJECTED",
     "OUTCOME_BLOCKED",
     "OUTCOME_ABORTED",
+    "OUTCOME_INCONSISTENT",
     "MODE_APPLY",
     "MODE_DRY_RUN",
 ]

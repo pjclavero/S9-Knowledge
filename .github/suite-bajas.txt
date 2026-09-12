@@ -17,7 +17,35 @@
 # ve en el diff.
 #
 # Formato: una ruta relativa al repositorio por linea. `#` inicia comentario.
-# Vacio a proposito.
+
+# ---------------------------------------------------------------------------
+# 2026-09-12 — CAMBIO DE UNIDAD DE CONTROL, NO PERDIDA DE PRUEBAS (PR #211)
+# ---------------------------------------------------------------------------
+# Los dos modulos de abajo estaban en el inventario de la base (`main`
+# c29dfaa6) porque el `Combined Test Suite` los RECOLECTABA —y los saltaba
+# enteros, que es el falso verde que #211 cerro—. #211 movio la clase Neo4j
+# real a su propia invocacion, con `S9K_WRITER_NEO4J_REAL=1` y una base
+# efimera, y el conjunto lo DESCUBRE `descubre_neo4j_real.py` por AST. Al
+# quedar cubiertos por un job que los ejecuta por nombre y exige `skipped == 0`,
+# `modulos_delegados()` los clasifica DELEGADOS, y el inventario combinado
+# EXCLUYE a los delegados a proposito (su trinquete es de PRESENCIA, C-bis).
+# Por eso el trinquete C los ve salir del inventario: no porque se hayan
+# perdido, sino porque ya no se miden aqui.
+#
+# Los otros 13 modulos de la clase no necesitan linea: NUNCA estuvieron en el
+# inventario de la base (nacieron en esta tanda), asi que C no los mira.
+#
+# ESTOS DOS SIGUEN EJECUTANDOSE, y esta medido, no supuesto:
+#   - conjunto descubierto = 15 ficheros, IDENTICO al del job en CI;
+#   - con `S9K_WRITER_NEO4J_REAL=1`: 142 tests recolectados, PYTEST_RC=0
+#     (writer 31, e2e 11);
+#   - en CI, run 34629746545, paso «Cobertura Neo4j REAL»:
+#     `142 passed`, `[neo4j-real] coleccionados=142 ejecutados=142 omitidos=0
+#     fallos=0 errores=0`, y el suelo estructural de 120 superado.
+# Ninguno es CRITICO (F3/F4), asi que la baja normal es la via correcta; el
+# fichero sigue existiendo en el arbol y el gate lo comprueba.
+data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py
+data-engine/app/tests/test_knowledge_v3_e2e_neo4j_real.py
 
 # ---------------------------------------------------------------------------
 # SEGUNDA SECCION: descritificaciones (`descritificar: <ruta>`)

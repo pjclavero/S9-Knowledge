@@ -1,0 +1,12 @@
+{
+  "workspace": "ws-cofradia",
+  "comentario": "Entidades que YA existen en el grafo del workspace. En produccion esto lo da Neo4j; aqui lo da un fichero porque el dry-run no abre conexiones. `provisional: true` significa que la entidad NO esta todavia en el grafo: entra en el glosario (para que el extractor sepa leer el nombre) pero NO en el catalogo del resolutor, que es exactamente lo que fuerza un CREATE en vez de un enlace.",
+  "entities": [
+    {"entity_id": "entity:sela-marrec", "type": "Character", "name": "Sela Marrec", "aliases": ["Sela"]},
+    {"entity_id": "entity:cofradia-ambar", "type": "Faction", "name": "Cofradia de Ambar", "aliases": ["la Cofradia"]},
+    {"entity_id": "entity:casa-ciervo", "type": "Faction", "name": "Casa del Ciervo", "aliases": ["la Casa"]},
+    {"entity_id": "entity:consejo-umbra", "type": "Faction", "name": "Consejo de Umbra", "aliases": ["el Consejo"]},
+    {"entity_id": "entity:vado-alto", "type": "Location", "name": "Vado Alto", "aliases": []},
+    {"entity_id": "entity:bren-halloway", "type": "Character", "name": "Bren Halloway", "aliases": ["Halloway"], "provisional": true}
+  ]
+}

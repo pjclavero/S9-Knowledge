@@ -194,6 +194,38 @@ def compute_idempotency_key(plan: dict[str, Any], operation: dict[str, Any]) -> 
         "snapshot_id": plan.get("snapshot_id"),
         **{k: operation.get(k) for k in IDEMPOTENCY_KEY_FIELDS},
     }
+    # EQUIPO 5A -- EL AMBITO DE PARTIDA ENTRA EN LA CLAVE, Y ENTRA SIN ROMPER
+    # NADA YA SELLADO.
+    # -----------------------------------------------------------------------
+    # La nota de `IDEMPOTENCY_KEY_FIELDS` (arriba) decidio dejar el ambito
+    # fuera apoyandose en que `claim_applied_operation` atajaria la colision
+    # con `EXEC_IDEMPOTENCY_CONFLICT`. MEDIDO contra Neo4j real: no la ataja,
+    # porque el `partida_id` que ese guardia compara NUNCA LLEGABA -- el
+    # planificador no lo estampaba en el plan, asi que las dos partidas
+    # llegaban con `view.partida_id = None` y la comparacion daba "es la misma
+    # operacion, repetida". El guardia era correcto y protegia una carretera
+    # vacia. Resultado observado: la segunda partida reutilizaba en silencio el
+    # nodo y la arista de la primera, y el rollback de una borraba la de la
+    # otra.
+    #
+    # POR QUE ESTE CAMBIO NO REGENERA NI UN DATASET CONGELADO
+    # -----------------------------------------------------------------------
+    # `partida_id` solo se inyecta en el cuerpo CUANDO NO ES NULO -- el mismo
+    # patron `OMIT_IF_NONE` que `contracts/mutation_plan.py` ya aplica a este
+    # mismo campo. Un plan que no declara ambito (todos los de
+    # `heldout`/`negation-battery`/`benchmarks`, verificado por el propio
+    # diseno con `grep`) produce un cuerpo IDENTICO byte a byte al de antes, y
+    # por tanto la MISMA `idempotency_key`. Lo que la nota temia -- regenerar
+    # 264+ ficheros sellados -- no ocurre: solo cambian de clave los planes que
+    # declaran una partida, que hoy no existen en ningun dataset sellado.
+    #
+    # El ambito efectivo se lee igual que en `writer/admission.py::
+    # _effective_partida_id`: `scope.partida_id` manda sobre la raiz.
+    scope = plan.get("scope")
+    scope_partida = scope.get("partida_id") if isinstance(scope, dict) else None
+    partida_id = scope_partida if scope_partida is not None else plan.get("partida_id")
+    if partida_id is not None:
+        body["partida_id"] = partida_id
     return "idem:sha256:" + sha256_hash(body)["value"]
 
 
@@ -545,6 +577,11 @@ def _check_plan(doc: dict[str, Any]) -> None:
         raise ContractV3Error("operation_id duplicado")
     if _dupes([o["idempotency_key"] for o in ops]):
         raise ContractV3Error("idempotency_key duplicada: el plan no seria idempotente")
+    altas_del_plan = {
+        o.get("target_entity_id")
+        for o in ops
+        if o["operation_type"] == "CREATE_ENTITY"
+    }
     for o in ops:
         expected_key = compute_idempotency_key(doc, o)
         if o["idempotency_key"] != expected_key:
@@ -554,6 +591,23 @@ def _check_plan(doc: dict[str, Any]) -> None:
                 "garantiza idempotencia entre planes"
             )
         creates = o["operation_type"] in ("CREATE_ENTITY", "CREATE_ASSERTION")
+        # Una proyeccion sobre un extremo que ESTE MISMO plan da de alta
+        # tampoco tiene estado previo que declarar: no existe todavia en el
+        # grafo. Su ancla no es una version --no la hay-- sino el
+        # `CREATE_ENTITY` que el plan trae por delante, y se exige aqui que ese
+        # alta este de verdad en el plan. Sin esa alta la operacion vuelve a
+        # ser "modifica algo existente" y sigue necesitando version y hash.
+        #
+        # Sin esto, la unica forma de escribir la arista era dejarla para un
+        # SEGUNDO apply: el primero creaba las entidades y no materializaba
+        # nunca la relacion.
+        if (
+            not creates
+            and o["operation_type"] == "PROJECT_RELATION"
+            and o.get("expected_state") == "WOULD_CREATE"
+            and o.get("target_entity_id") in altas_del_plan
+        ):
+            creates = True
         if not creates and (o["expected_version"] is None or o["expected_hash"] is None):
             raise ContractV3Error(
                 f"{o['operation_id']} modifica algo existente sin expected_version/"

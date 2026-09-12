@@ -28,7 +28,9 @@ from typing import Any, Optional
 
 from ..ledger.entries import LedgerOperation
 from ..ledger.supersession import CANONICAL_REASONS as _LEDGER_CANONICAL_REASONS
-from . import codes, cypher
+from . import codes, cypher, state
+from .apply_identity import apply_id_for_view
+from .ownership_identity import ownership_id_for_view
 from .admission import declares_local_override
 from .errors import WriterAbort
 from .idempotency import AppliedKeyStore
@@ -63,8 +65,28 @@ class AppliedOperation:
     operation_type: str
     idempotency_key: str
     kind: str  # NODE | RELATIONSHIP | PROPERTIES
+    #: Lo que devolvio la escritura. Para nodos y aserciones es el identificador
+    #: DURABLE (`entity_id`/`assertion_id`); para una relacion es el `elementId`
+    #: de Neo4j, que NO es identidad durable: se regenera al restaurar un dump.
+    #: Por eso el rollback de relaciones no lo usa (ver `predicate`/`object_id`).
     created_id: Optional[str] = None
     target_id: Optional[str] = None
+    #: Identidad de dominio de una relacion escrita: sujeto (`target_id`),
+    #: predicado y objeto, mas el ambito. Con esto la relacion se vuelve a
+    #: localizar en cualquier base restaurada.
+    subject_id: Optional[str] = None
+    predicate: Optional[str] = None
+    object_id: Optional[str] = None
+    partida_id: Optional[str] = None
+    #: Referencias de procedencia que ESTA operacion estampo en el nodo escrito
+    #: (`evidence_fragment_ids` de la asercion). No son identidad: son lo que el
+    #: rollback necesita saber para poder mirar la evidencia que sostiene lo que
+    #: va a borrar ANTES de borrarlo, cuando las aristas todavia existen.
+    evidence_fragment_ids: list[str] = field(default_factory=list)
+    #: Etiqueta base del nodo escrito (`V3Entity`/`V3Assertion`). El rollback
+    #: la necesita para no borrar por patron sin etiqueta: sin ella, una
+    #: consulta de borrado alcanza cualquier nodo que comparta clave.
+    node_label: Optional[str] = None
     previous_state: Optional[dict[str, Any]] = None
     changed_props: dict[str, Any] = field(default_factory=dict)
     #: M4 (rework): marcas de revision de ESTA operacion. No son rechazos: la
@@ -81,6 +103,12 @@ class AppliedOperation:
             "kind": self.kind,
             "created_id": self.created_id,
             "target_id": self.target_id,
+            "subject_id": self.subject_id,
+            "predicate": self.predicate,
+            "object_id": self.object_id,
+            "partida_id": self.partida_id,
+            "evidence_fragment_ids": list(self.evidence_fragment_ids),
+            "node_label": self.node_label,
             "previous_state": self.previous_state,
             "changed_props": dict(self.changed_props),
             "review_marks": [dict(m) for m in self.review_marks],
@@ -161,6 +189,9 @@ def _check_expected_state(
     target_id: str,
     is_assertion: bool,
     partida_id: str | None = None,
+    *,
+    solo_referencia: bool = False,
+    ancla_en_plan: bool = False,
 ) -> dict:
     """Concurrencia optimista. Un desajuste aborta el PLAN, no la operacion.
 
@@ -169,8 +200,24 @@ def _check_expected_state(
     consulta, tambien en Cypher -- entre "no existe" (`EXEC_TARGET_MISSING`)
     y "existe, pero en otro ambito" (`EXEC_SCOPE_MISMATCH`, el Invariante 2
     violado en lectura: leer un nodo de otra partida y operarlo).
+
+    `solo_referencia=True` cuando el objetivo NO se muta y solo se
+    REFERENCIA (los extremos de una relacion). El ambito que manda entonces
+    es el de VISIBILIDAD (`cypher.read_entity_state_visible`), el mismo que
+    `cypher.create_relation` ya aplica a sus dos extremos: capa juego + la
+    partida propia. No ensancha nada hacia otra partida -- un nodo de
+    `partida:B` sigue sin ser visible desde `partida:A`, la segunda consulta
+    lo encuentra y el aborto sigue siendo `EXEC_SCOPE_MISMATCH`.
+
+    La distincion no es "mas laxo": es la unica lectura coherente con el
+    modelo (docs/v3/49 §0, §2.3). Exigir igualdad exacta tambien para
+    referenciar hacia el mando dice que una partida hereda el lore y a la vez
+    hace esa herencia imposible de escribir.
     """
-    reader = cypher.read_assertion_state if is_assertion else cypher.read_entity_state
+    if solo_referencia and not is_assertion:
+        reader = cypher.read_entity_state_visible
+    else:
+        reader = cypher.read_assertion_state if is_assertion else cypher.read_entity_state
     record = _single(tx, reader(target_id, workspace, partida_id))
     if record is None:
         any_scope_reader = (
@@ -196,6 +243,18 @@ def _check_expected_state(
         )
     version = _field(record, "version")
     state_hash = _field(record, "state_hash")
+    if ancla_en_plan:
+        # El extremo lo ha creado el `CREATE_ENTITY` de ESTE mismo plan, unas
+        # operaciones mas arriba y dentro de esta misma transaccion. No hay una
+        # version previa contra la que comparar: el ancla es el alta del plan,
+        # ya exigida por el validador `concurrency` del motor y reconfirmada
+        # aqui contra las operaciones del plan firmado.
+        #
+        # Lo que NO se salta: la lectura de arriba. Si el nodo no existe o
+        # pertenece a otro ambito, esta funcion ya ha abortado con
+        # `EXEC_TARGET_MISSING` o `EXEC_SCOPE_MISMATCH`. Se omite la
+        # comparacion optimista, no la comprobacion de que el extremo esta ahi.
+        return {"version": version, "state_hash": state_hash}
     if version != op["expected_version"]:
         raise WriterAbort(
             codes.EXEC_VERSION_MISMATCH,
@@ -208,7 +267,15 @@ def _check_expected_state(
             },
         )
     expected_hash = (op.get("expected_hash") or {}).get("value")
-    if expected_hash is not None and state_hash != expected_hash:
+    # El plan trae el hash como `{algorithm, value}` (asi lo exige el contrato)
+    # y el grafo lo devuelve como hexadecimal. Se comparan los DOS
+    # hexadecimales: sin normalizar, un documento nunca es igual a una cadena y
+    # el control optimista se volveria un rechazo constante, no una
+    # comprobacion. No se relaja nada -- `None` sigue siendo `None` y un
+    # hexadecimal distinto sigue abortando.
+    if expected_hash is not None and state.hash_value(state_hash) != state.hash_value(
+        expected_hash
+    ):
         raise WriterAbort(
             codes.EXEC_HASH_MISMATCH,
             "el hash de estado leido no es el esperado",
@@ -493,6 +560,8 @@ def execute_operation(
             kind="NODE",
             created_id=_field(record, "id") or entity_id,
             target_id=entity_id,
+            partida_id=partida_id,
+            node_label=cypher.LABEL_ENTITY,
         )
 
     if op_type == "CREATE_ASSERTION":
@@ -511,6 +580,11 @@ def execute_operation(
             kind="NODE",
             created_id=_field(record, "id") or assertion_id,
             target_id=assertion_id,
+            subject_id=payload.get("subject_entity_id"),
+            object_id=payload.get("object_entity_id"),
+            partida_id=partida_id,
+            evidence_fragment_ids=list(prov.get("evidence_fragment_ids") or []),
+            node_label=cypher.LABEL_ASSERTION,
             review_marks=marks,
         )
 
@@ -519,7 +593,37 @@ def execute_operation(
         obj = _require(payload.get("object_entity_id"), op, "payload.object_entity_id")
         predicate = _require(payload.get("predicate"), op, "payload.predicate")
         target = op.get("target_entity_id") or subject
-        previous = _check_expected_state(tx, op, ws, target, is_assertion=False, partida_id=partida_id)
+        # El objetivo de una relacion NO se muta: solo se referencia (la
+        # escritura es la arista, que nace con el `partida_id` del plan). Por
+        # eso la precondicion se lee con el ambito de VISIBILIDAD, el mismo
+        # que `create_relation` exige abajo a sus dos extremos. Con el ambito
+        # exacto, un plan de partida no podia enlazar el lore compartido.
+        # Proyeccion anclada al alta del propio plan: `expected_state`
+        # WOULD_CREATE y sin version esperada. Se reconfirma aqui, sobre el
+        # plan FIRMADO, que ese alta existe de verdad: un plan que pidiera
+        # saltarse el control optimista sin traer el `CREATE_ENTITY` del
+        # extremo no es un plan anclado, y aborta.
+        ancla_en_plan = (
+            op.get("expected_state") == "WOULD_CREATE"
+            and op.get("expected_version") is None
+        )
+        if ancla_en_plan:
+            altas = {
+                otra.get("target_entity_id")
+                for otra in view.mutation_operations
+                if otra["operation_type"] == "CREATE_ENTITY"
+            }
+            if target not in altas:
+                raise WriterAbort(
+                    codes.EXEC_TARGET_MISSING,
+                    f"la operacion {op['operation_id']} dice anclarse al alta de "
+                    f"{target!r} en este plan, pero el plan no trae ese CREATE_ENTITY",
+                    {"operation_id": op["operation_id"], "target_id": target},
+                )
+        previous = _check_expected_state(
+            tx, op, ws, target, is_assertion=False, partida_id=partida_id,
+            solo_referencia=True, ancla_en_plan=ancla_en_plan,
+        )
         rel_props = {k: v for k, v in props.items() if k != "predicate"}
         record = _single(
             tx,
@@ -543,6 +647,10 @@ def execute_operation(
             kind="RELATIONSHIP",
             created_id=_field(record, "id"),
             target_id=target,
+            subject_id=subject,
+            predicate=predicate,
+            object_id=obj,
+            partida_id=partida_id,
             previous_state=previous,
         )
 
@@ -561,6 +669,16 @@ def execute_operation(
     changed["reason_code"] = reason
     changed["version"] = int(op["expected_version"]) + 1
     changed["updated_at"] = ctx.written_at
+    if not is_assertion:
+        # El estado cambia, asi que el hash que lo describia deja de hacerlo.
+        # Se recalcula sobre el mapa RESULTANTE (lo leido + lo que se va a
+        # fijar), dentro de la misma transaccion y despues de que
+        # `_check_expected_state` haya comprobado que nadie se movio debajo.
+        # Dejarlo sin tocar seria peor que no tenerlo: un hash que ya no
+        # describe el nodo hace pasar una comprobacion que deberia fallar.
+        actual = _single(tx, cypher.read_entity_props(target, ws, partida_id))
+        previas = dict(_field(actual, "props") or {}) if actual is not None else {}
+        changed["state_hash"] = state.state_hash_value({**previas, **changed})
     writer_fn = (
         cypher.close_assertion_validity if is_assertion else cypher.close_entity_validity
     )
@@ -571,6 +689,8 @@ def execute_operation(
         idempotency_key=op["idempotency_key"],
         kind="PROPERTIES",
         target_id=target,
+        partida_id=partida_id,
+        node_label=cypher.LABEL_ASSERTION if is_assertion else cypher.LABEL_ENTITY,
         previous_state=previous,
         changed_props=changed,
     )
@@ -613,18 +733,49 @@ def execute_plan(driver: Any, view: SignedView, ctx: ExecutionContext) -> Execut
                         op["operation_id"],
                         ctx.written_at,
                         uuid.uuid4().hex,
+                        partida_id=view.partida_id,
+                        # Del propio view FIRMADO, no de un parametro que
+                        # alguna ruta pudiera olvidarse de pasar. `None` si el
+                        # view no permite componerlo, que el camino de
+                        # reversion lee como «propiedad desconocida».
+                        apply_id=apply_id_for_view(view),
+                        # PROPIEDAD durable, del mismo view firmado. `apply_id`
+                        # dice que INTENTO; esto dice a que apply LOGICO
+                        # pertenece la marca, y sobrevive al reloj y al restore.
+                        ownership_id=ownership_id_for_view(view),
                     ),
                 )
                 existing_hash = _field(claimed, "plan_hash")
                 existing_operation = _field(claimed, "operation_id")
+                existing_partida = _field(claimed, "partida_id")
                 created = _field(claimed, "created")
                 # Compatibilidad con drivers falsos antiguos sin retorno tipado.
                 if created is None and existing_hash is None:
                     created = not cached
                 if not created:
+                    # QUE HACE INCOMPATIBLE A UNA RECLAMACION REPETIDA
+                    # ------------------------------------------------
+                    # El esquema congelado deja `operation_id` FUERA de la
+                    # clave a proposito, "para que la misma operacion logica
+                    # calculada en dos planes distintos produzca la MISMA clave
+                    # y el segundo apply sea un no-op". Exigir el mismo
+                    # `plan_hash` hacia ese no-op IMPOSIBLE: medido contra
+                    # Neo4j real, la segunda ingesta de la misma fuente produce
+                    # un plan legitimamente distinto (ya puede proyectar la
+                    # relacion) y abortaba con `EXEC_IDEMPOTENCY_CONFLICT`
+                    # sobre una `CREATE_ASSERTION` identica -- misma clave,
+                    # mismo `operation_id`, mismo `snapshot_id`.
+                    #
+                    # Lo que la nota del validador quiere impedir NO es eso,
+                    # sino que dos PARTIDAS distintas compartan clave y se
+                    # fusionen en silencio. `partida_id` es exactamente el
+                    # campo que la clave omite, asi que se compara EL, que es
+                    # el discriminante real, en lugar de `plan_hash`, que era
+                    # un proxy que rechazaba de mas y no cubria de menos.
+                    # `plan_hash` sigue viajando en el diagnostico.
                     if (
-                        existing_hash != view.plan_hash_value
-                        or existing_operation != op["operation_id"]
+                        existing_operation != op["operation_id"]
+                        or existing_partida != view.partida_id
                     ):
                         raise WriterAbort(
                             codes.EXEC_IDEMPOTENCY_CONFLICT,
@@ -636,6 +787,8 @@ def execute_plan(driver: Any, view: SignedView, ctx: ExecutionContext) -> Execut
                                 "actual_plan_hash": existing_hash,
                                 "expected_operation_id": op["operation_id"],
                                 "actual_operation_id": existing_operation,
+                                "expected_partida_id": view.partida_id,
+                                "actual_partida_id": existing_partida,
                             },
                         )
                     outcome.noop_keys.append(key)

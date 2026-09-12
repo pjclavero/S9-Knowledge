@@ -1,0 +1,347 @@
+
+==========================================================================
+PASO 0 -- el grafo esta VACIO (se cuenta, no se supone)
+==========================================================================
+  cypher> MATCH (n:V3Entity {workspace: $ws}) RETURN count(n) AS entidades
+  filas>  [{"entidades": 0}]
+  cypher> MATCH (n:V3Assertion {workspace: $ws}) RETURN count(n) AS aserciones
+  filas>  [{"aserciones": 0}]
+
+==========================================================================
+PASO 1 -- ingesta con el catalogo LEIDO DEL GRAFO
+==========================================================================
+$ /usr/bin/python3 -m knowledge_v3.pipeline.ingest_cli examples/ingesta-v3/nota-cofradia-de-ambar.md --perfil examples/ingesta-v3/perfil-operador.json --catalogo examples/ingesta-v3/catalogo-workspace.json --desde-grafo --out-dir /tmp/CORRIDA/corrida --ahora 2026-09-06T10:00:00Z --ingerido-en 2026-09-06T10:00:00Z --neo4j-uri bolt://127.0.0.1:PUERTO --neo4j-user neo4j --neo4j-password-file /tmp/CORRIDA/neo4j.pass
+--------------------------------------------------------------------------
+acta:    /tmp/CORRIDA/corrida/acta.md
+informe: /tmp/CORRIDA/corrida/informe.json
+decisiones: /tmp/CORRIDA/corrida/decisiones.json
+{"aprobadas": 0, "create_entity_required": 10, "graph_entities_observed": 0, "link_existing": 0, "pendientes": 10, "review_identity": 0}
+  ALTA PENDIENTE entity:sela-marrec (Character) STRONG_MATCH,EXACT_NAME,SURFACE_SIMILARITY,TYPE_COMPATIBLE,ENLACE_SIN_RESPALDO_EN_GRAFO
+  ALTA PENDIENTE entity:sela-marrec (Character) STRONG_MATCH,EXACT_NAME,HISTORY_SESSION,SURFACE_SIMILARITY,TYPE_COMPATIBLE,ENLACE_SIN_RESPALDO_EN_GRAFO
+  ALTA PENDIENTE entity:consejo-umbra (Faction) STRONG_MATCH,EXACT_NAME,SURFACE_SIMILARITY,TYPE_COMPATIBLE,ENLACE_SIN_RESPALDO_EN_GRAFO
+  ALTA PENDIENTE entity:cofradia-ambar (Faction) STRONG_MATCH,EXACT_NAME,SURFACE_SIMILARITY,TYPE_COMPATIBLE,ENLACE_SIN_RESPALDO_EN_GRAFO
+  ALTA PENDIENTE entity:cofradia-ambar (Faction) STRONG_MATCH,EXACT_NAME,HISTORY_SESSION,SURFACE_SIMILARITY,TYPE_COMPATIBLE,ENLACE_SIN_RESPALDO_EN_GRAFO
+  ALTA PENDIENTE entity:cofradia-ambar (Faction) STRONG_MATCH,EXACT_NAME,HISTORY_SESSION,SURFACE_SIMILARITY,TYPE_COMPATIBLE,ENLACE_SIN_RESPALDO_EN_GRAFO
+  ALTA PENDIENTE entity:vado-alto (Location) STRONG_MATCH,EXACT_NAME,SURFACE_SIMILARITY,TYPE_COMPATIBLE,ENLACE_SIN_RESPALDO_EN_GRAFO
+  ALTA PENDIENTE entity:cofradia-ambar (Faction) STRONG_MATCH,EXACT_NAME,HISTORY_SESSION,SURFACE_SIMILARITY,TYPE_COMPATIBLE,ENLACE_SIN_RESPALDO_EN_GRAFO
+  ALTA PENDIENTE entity:casa-ciervo (Faction) STRONG_MATCH,EXACT_NAME,SURFACE_SIMILARITY,TYPE_COMPATIBLE,ENLACE_SIN_RESPALDO_EN_GRAFO
+  ALTA PENDIENTE entity:new:b6dd95be9b1c6580 (Character) NO_CANDIDATE,DERIVED_ID,AUSENTE_DEL_GRAFO
+[rc=0]
+
+decisiones de identidad (documento completo, sin recortar):
+{
+  "carencias": [
+    {
+      "code": "GRAFO_SIN_ENTIDADES",
+      "detail": "la lectura del grafo no devolvio ninguna entidad para este workspace. Es un dato, no un fallo: en un grafo nuevo TODO es alta. Se declara porque un conjunto vacio tambien se obtiene leyendo el workspace equivocado"
+    }
+  ],
+  "contract": "entity-decisions/carril-b-v1",
+  "decisions": [
+    {
+      "approved_at": null,
+      "approved_by": null,
+      "confidence": 1.0,
+      "decision": "CREATE_ENTITY_REQUIRED",
+      "entity_id": "entity:sela-marrec",
+      "entity_type": "Character",
+      "mention_ids": [
+        "mention:extract.deterministic:188635668a576b55"
+      ],
+      "name": "Sela Marrec",
+      "reason_codes": [
+        "STRONG_MATCH",
+        "EXACT_NAME",
+        "SURFACE_SIMILARITY",
+        "TYPE_COMPATIBLE",
+        "ENLACE_SIN_RESPALDO_EN_GRAFO"
+      ],
+      "resolution_id": "resolution:a8e045a6b3434913",
+      "review": "PENDIENTE"
+    },
+    {
+      "approved_at": null,
+      "approved_by": null,
+      "confidence": 1.0,
+      "decision": "CREATE_ENTITY_REQUIRED",
+      "entity_id": "entity:sela-marrec",
+      "entity_type": "Character",
+      "mention_ids": [
+        "mention:extract.deterministic:2fd8d6debbdbeb0d"
+      ],
+      "name": "Sela Marrec",
+      "reason_codes": [
+        "STRONG_MATCH",
+        "EXACT_NAME",
+        "HISTORY_SESSION",
+        "SURFACE_SIMILARITY",
+        "TYPE_COMPATIBLE",
+        "ENLACE_SIN_RESPALDO_EN_GRAFO"
+      ],
+      "resolution_id": "resolution:9bae8dcc4552d198",
+      "review": "PENDIENTE"
+    },
+    {
+      "approved_at": null,
+      "approved_by": null,
+      "confidence": 1.0,
+      "decision": "CREATE_ENTITY_REQUIRED",
+      "entity_id": "entity:consejo-umbra",
+      "entity_type": "Faction",
+      "mention_ids": [
+        "mention:extract.deterministic:370f74bcf742491c"
+      ],
+      "name": "Consejo de Umbra",
+      "reason_codes": [
+        "STRONG_MATCH",
+        "EXACT_NAME",
+        "SURFACE_SIMILARITY",
+        "TYPE_COMPATIBLE",
+        "ENLACE_SIN_RESPALDO_EN_GRAFO"
+      ],
+      "resolution_id": "resolution:72334b1c8f2c04a3",
+      "review": "PENDIENTE"
+    },
+    {
+      "approved_at": null,
+      "approved_by": null,
+      "confidence": 1.0,
+      "decision": "CREATE_ENTITY_REQUIRED",
+      "entity_id": "entity:cofradia-ambar",
+      "entity_type": "Faction",
+      "mention_ids": [
+        "mention:extract.deterministic:3ce43b3607ff715b"
+      ],
+      "name": "Cofradia de Ambar",
+      "reason_codes": [
+        "STRONG_MATCH",
+        "EXACT_NAME",
+        "SURFACE_SIMILARITY",
+        "TYPE_COMPATIBLE",
+        "ENLACE_SIN_RESPALDO_EN_GRAFO"
+      ],
+      "resolution_id": "resolution:73bef16ed5135f39",
+      "review": "PENDIENTE"
+    },
+    {
+      "approved_at": null,
+      "approved_by": null,
+      "confidence": 1.0,
+      "decision": "CREATE_ENTITY_REQUIRED",
+      "entity_id": "entity:cofradia-ambar",
+      "entity_type": "Faction",
+      "mention_ids": [
+        "mention:extract.deterministic:452c2289a148da59"
+      ],
+      "name": "Cofradia de Ambar",
+      "reason_codes": [
+        "STRONG_MATCH",
+        "EXACT_NAME",
+        "HISTORY_SESSION",
+        "SURFACE_SIMILARITY",
+        "TYPE_COMPATIBLE",
+        "ENLACE_SIN_RESPALDO_EN_GRAFO"
+      ],
+      "resolution_id": "resolution:bc28abf80c2d2903",
+      "review": "PENDIENTE"
+    },
+    {
+      "approved_at": null,
+      "approved_by": null,
+      "confidence": 1.0,
+      "decision": "CREATE_ENTITY_REQUIRED",
+      "entity_id": "entity:cofradia-ambar",
+      "entity_type": "Faction",
+      "mention_ids": [
+        "mention:extract.deterministic:46fff6878efeb241"
+      ],
+      "name": "Cofradia de Ambar",
+      "reason_codes": [
+        "STRONG_MATCH",
+        "EXACT_NAME",
+        "HISTORY_SESSION",
+        "SURFACE_SIMILARITY",
+        "TYPE_COMPATIBLE",
+        "ENLACE_SIN_RESPALDO_EN_GRAFO"
+      ],
+      "resolution_id": "resolution:54f91ca603de7acb",
+      "review": "PENDIENTE"
+    },
+    {
+      "approved_at": null,
+      "approved_by": null,
+      "confidence": 1.0,
+      "decision": "CREATE_ENTITY_REQUIRED",
+      "entity_id": "entity:vado-alto",
+      "entity_type": "Location",
+      "mention_ids": [
+        "mention:extract.deterministic:7085d008f11b69fe"
+      ],
+      "name": "Vado Alto",
+      "reason_codes": [
+        "STRONG_MATCH",
+        "EXACT_NAME",
+        "SURFACE_SIMILARITY",
+        "TYPE_COMPATIBLE",
+        "ENLACE_SIN_RESPALDO_EN_GRAFO"
+      ],
+      "resolution_id": "resolution:a4fd0ea3dac7cda3",
+      "review": "PENDIENTE"
+    },
+    {
+      "approved_at": null,
+      "approved_by": null,
+      "confidence": 1.0,
+      "decision": "CREATE_ENTITY_REQUIRED",
+      "entity_id": "entity:cofradia-ambar",
+      "entity_type": "Faction",
+      "mention_ids": [
+        "mention:extract.deterministic:aef08a46c08a7164"
+      ],
+      "name": "Cofradia de Ambar",
+      "reason_codes": [
+        "STRONG_MATCH",
+        "EXACT_NAME",
+        "HISTORY_SESSION",
+        "SURFACE_SIMILARITY",
+        "TYPE_COMPATIBLE",
+        "ENLACE_SIN_RESPALDO_EN_GRAFO"
+      ],
+      "resolution_id": "resolution:a6ba8779313aeaf8",
+      "review": "PENDIENTE"
+    },
+    {
+      "approved_at": null,
+      "approved_by": null,
+      "confidence": 1.0,
+      "decision": "CREATE_ENTITY_REQUIRED",
+      "entity_id": "entity:casa-ciervo",
+      "entity_type": "Faction",
+      "mention_ids": [
+        "mention:extract.deterministic:bc6211e9d6fb8654"
+      ],
+      "name": "Casa del Ciervo",
+      "reason_codes": [
+        "STRONG_MATCH",
+        "EXACT_NAME",
+        "SURFACE_SIMILARITY",
+        "TYPE_COMPATIBLE",
+        "ENLACE_SIN_RESPALDO_EN_GRAFO"
+      ],
+      "resolution_id": "resolution:5ff358053042a7c0",
+      "review": "PENDIENTE"
+    },
+    {
+      "approved_at": null,
+      "approved_by": null,
+      "confidence": 0.9,
+      "decision": "CREATE_ENTITY_REQUIRED",
+      "entity_id": "entity:new:b6dd95be9b1c6580",
+      "entity_type": "Character",
+      "mention_ids": [
+        "mention:extract.deterministic:b6fbc9c0ac27d2ad"
+      ],
+      "name": "Bren Halloway",
+      "reason_codes": [
+        "NO_CANDIDATE",
+        "DERIVED_ID",
+        "AUSENTE_DEL_GRAFO"
+      ],
+      "resolution_id": "resolution:43e5617ed53c9380",
+      "review": "PENDIENTE"
+    }
+  ],
+  "generated_at": "2026-09-06T10:00:00Z",
+  "graph_entity_ids": [],
+  "partida_id": null,
+  "source_path": "examples/ingesta-v3/nota-cofradia-de-ambar.md",
+  "totals": {
+    "aprobadas": 0,
+    "create_entity_required": 10,
+    "graph_entities_observed": 0,
+    "link_existing": 0,
+    "pendientes": 10,
+    "review_identity": 0
+  },
+  "workspace": "ws-cofradia"
+}
+
+==========================================================================
+PASO 2 -- un APPLY SIN revision se BLOQUEA
+==========================================================================
+$ /usr/bin/python3 -m knowledge_v3.pipeline.ingest_cli examples/ingesta-v3/nota-cofradia-de-ambar.md --perfil examples/ingesta-v3/perfil-operador.json --catalogo examples/ingesta-v3/catalogo-workspace.json --apply --operador pjc --decisiones /tmp/CORRIDA/corrida/decisiones.json --ahora 2026-09-06T10:00:00Z --ingerido-en 2026-09-06T10:00:00Z --neo4j-uri bolt://127.0.0.1:PUERTO --neo4j-user neo4j --neo4j-password-file /tmp/CORRIDA/neo4j.pass
+--------------------------------------------------------------------------
+[stderr] ERROR [altas]: 10 alta(s) de entidad sin aprobacion humana: entity:casa-ciervo, entity:cofradia-ambar, entity:cofradia-ambar, entity:cofradia-ambar, entity:cofradia-ambar, entity:consejo-umbra, entity:new:b6dd95be9b1c6580, entity:sela-marrec, entity:sela-marrec, entity:vado-alto. Aprueba cada una por su id antes de aplicar; no existe forma de convertir un LINK_EXISTING en alta automatica
+[rc=3]
+
+  el grafo NO se ha movido:
+  cypher> MATCH (n:V3Entity {workspace: $ws}) RETURN count(n) AS entidades
+  filas>  [{"entidades": 0}]
+
+==========================================================================
+PASO 3 -- una persona aprueba las altas POR ID
+==========================================================================
+$ /usr/bin/python3 -m knowledge_v3.pipeline.ingest_cli --revisar --decisiones /tmp/CORRIDA/corrida/decisiones.json --revisor pjc --aprobar-alta entity:casa-ciervo --aprobar-alta entity:cofradia-ambar --aprobar-alta entity:consejo-umbra --aprobar-alta entity:new:b6dd95be9b1c6580 --aprobar-alta entity:sela-marrec --aprobar-alta entity:vado-alto
+--------------------------------------------------------------------------
+{
+  "aprobadas_ahora": [
+    "entity:casa-ciervo",
+    "entity:cofradia-ambar",
+    "entity:consejo-umbra",
+    "entity:new:b6dd95be9b1c6580",
+    "entity:sela-marrec",
+    "entity:vado-alto"
+  ],
+  "documento": "/tmp/CORRIDA/corrida/decisiones.json",
+  "pendientes": [],
+  "revisor": "pjc",
+  "totals": {
+    "aprobadas": 10,
+    "create_entity_required": 10,
+    "graph_entities_observed": 0,
+    "link_existing": 0,
+    "pendientes": 0,
+    "review_identity": 0
+  }
+}
+[rc=0]
+
+==========================================================================
+PASO 4 -- APPLY real, con el gate triple del writer
+==========================================================================
+$ /usr/bin/python3 -m knowledge_v3.pipeline.ingest_cli examples/ingesta-v3/nota-cofradia-de-ambar.md --perfil examples/ingesta-v3/perfil-operador.json --catalogo examples/ingesta-v3/catalogo-workspace.json --apply --operador pjc --decisiones /tmp/CORRIDA/corrida/decisiones.json --out-dir /tmp/CORRIDA/corrida --ahora 2026-09-06T10:00:00Z --ingerido-en 2026-09-06T10:00:00Z --neo4j-uri bolt://127.0.0.1:PUERTO --neo4j-user neo4j --neo4j-password-file /tmp/CORRIDA/neo4j.pass
+--------------------------------------------------------------------------
+acta:    /tmp/CORRIDA/corrida/acta.md
+informe: /tmp/CORRIDA/corrida/informe.json
+decisiones: /tmp/CORRIDA/corrida/decisiones.json
+{"aprobadas": 5, "create_entity_required": 5, "graph_entities_observed": 2, "link_existing": 5, "pendientes": 0, "review_identity": 0}
+write: {"applied_operations": 3, "codes": [], "created_ids": ["entity:casa-ciervo", "entity:cofradia-ambar", "assertion:b4b9a50837526e362e53dc9bced236a1"], "mode": "APPLY", "noop_operations": 0, "outcome": "APPLIED"}
+[rc=0]
+
+==========================================================================
+PASO 5 -- que hay AHORA en el grafo
+==========================================================================
+  cypher> MATCH (n:V3Entity {workspace: $ws}) RETURN n.entity_id AS entity_id, n.name AS name, n.entity_type AS tipo, n.version AS version ORDER BY n.entity_id
+  filas>  [{"entity_id": "entity:casa-ciervo", "name": "Casa del Ciervo", "tipo": "Faction", "version": 0}, {"entity_id": "entity:cofradia-ambar", "name": "Cofradia de Ambar", "tipo": "Faction", "version": 0}]
+  cypher> MATCH (n:V3Assertion {workspace: $ws}) RETURN n.assertion_id AS assertion_id, n.predicate AS predicate, n.subject_entity_id AS sujeto, n.object_entity_id AS objeto ORDER BY n.assertion_id
+  filas>  [{"assertion_id": "assertion:b4b9a50837526e362e53dc9bced236a1", "objeto": "entity:casa-ciervo", "predicate": "ALLY_OF", "sujeto": "entity:cofradia-ambar"}]
+
+==========================================================================
+PASO 6 -- procedencia NAVEGABLE, por el CAMINO (una sola consulta)
+==========================================================================
+  cypher> MATCH (n:V3Assertion {workspace: $ws}) RETURN n.assertion_id AS id ORDER BY n.assertion_id
+  filas>  [{"id": "assertion:b4b9a50837526e362e53dc9bced236a1"}]
+
+  assertion assertion:b4b9a50837526e362e53dc9bced236a1 -> 1 fila(s)
+[
+  {
+    "assertion_id": "assertion:b4b9a50837526e362e53dc9bced236a1",
+    "episode_id": "ep-35a91c10f843f2c81f6065c1cea9d71d",
+    "episode_sequence": 5,
+    "fragment_id": "ef-dcac9508aeb6d063682cc7b47009735a",
+    "literal": "La Cofradia de Ambar es aliada de la Casa del Ciervo.",
+    "predicate": "ALLY_OF",
+    "source_asset_id": "sa-1f9c4e8825dd9829ff8cf7d85a9aefd2",
+    "source_name": "nota-cofradia-de-ambar.md"
+  }
+]

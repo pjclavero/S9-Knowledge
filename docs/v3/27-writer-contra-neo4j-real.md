@@ -190,3 +190,59 @@ No se tocaron contratos, `ci.yml`, `pytest.ini` ni datasets.
 - No se escribieron conteos ni estados antes/después de Neo4j como si se hubieran
   ejecutado. Están codificados en los asserts, pero no medidos localmente.
 - No se modificó el writer ni ningún otro subsistema.
+
+---
+
+## Actualización — CARRIL C (2026-09-05): dejan de ser opt-in
+
+Base: `main` en `f725bd8` (BASE RC V3.1, congelada). Rama `carril-c-neo4j-real`.
+
+Las limitaciones de arriba ya no se sostienen: las 33 pruebas de
+`test_knowledge_v3_writer_neo4j_real.py` (22) y
+`test_knowledge_v3_e2e_neo4j_real.py` (11) se han ejecutado contra un Neo4j
+real y efímero, y **ahora las ejecuta CI**.
+
+### Cómo se levanta el Neo4j efímero
+
+No hay camino nuevo: lo levanta la fixture `neo4j_driver` de siempre
+(`docker run --rm --detach`, puerto libre, contraseña aleatoria, `docker rm -f`
+al terminar). Lo único que cambia es que CI pone la variable:
+
+```bash
+S9K_WRITER_NEO4J_REAL=1 python -m pytest \
+  data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py \
+  data-engine/app/tests/test_knowledge_v3_e2e_neo4j_real.py -q
+```
+
+### Dónde corre en CI
+
+Como un **paso más** del job existente `Data Engine Tests`, no como job nuevo:
+no se añade ningún check requerido y no hace falta un bloque `services`
+paralelo, porque la fixture se trae su propio contenedor. El paso distingue
+cuatro estados y ninguno queda verde por silencio:
+
+| situación | resultado |
+| --- | --- |
+| Neo4j no arrancó (la fixture hace `skip`) | ROJO por `grep skipped` |
+| los tests no se ejecutaron | ROJO por ausencia de `N passed` |
+| el writer falló | ROJO por `rc != 0` |
+| el writer funcionó | VERDE |
+
+La guarda de `skipped` no es decorativa: con el contenedor imposible de
+arrancar, pytest sale con **rc=0 y "3 passed, 30 skipped"** —tres pruebas del
+E2E no necesitan base—, así que la guarda anti-cero sola habría dejado el paso
+en VERDE. Comprobado con `artifacts/carril-c/calibracion_rojo.sh`.
+
+### Defecto que el opt-in tapaba
+
+`test_m3_create_entity_de_partida_estampa_partida_id_real` llevaba **roja**
+desde T2: en ámbito de partida el writer exige `known_from_session` por
+operación y aborta con `EXEC_REVELACION_NO_DECLARADA`, pero la prueba se
+escribió antes de T2 y, por ser opt-in, nadie volvió a ejecutarla. Corregida la
+prueba (el comportamiento del writer es el correcto y no se ha tocado).
+
+### Evidencia de producto
+
+`artifacts/carril-c/demostracion_fuente_a_neo4j.py` recorre la cadena V3 entera
+desde bytes, aplica el plan aprobado contra el Neo4j efímero y **consulta el
+grafo después**. Salida completa en `artifacts/carril-c/evidencia-ejecucion.txt`.

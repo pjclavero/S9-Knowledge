@@ -48,8 +48,41 @@ from .gate import (
 )
 from .gate import evaluate as evaluate_gate
 from .idempotency import AppliedKeyStore, InMemoryAppliedKeys, JsonlAppliedKeys
+from .apply_identity import (
+    APPLY_ID_FIELD,
+    apply_id_for_view,
+    compute_apply_id,
+    is_apply_id,
+    require_apply_id,
+)
+from .provenance import (
+    PROVENANCE_LABELS,
+    PROVENANCE_RELATIONS,
+    ProvenanceOutcome,
+    persist_provenance,
+    trace,
+    trace_query,
+)
 from .reads import VisibleAssertion, list_visible_assertions
-from .rollback import RollbackDocument, RollbackInstruction, build_rollback
+from .rollback import (
+    ACTION_FORGET_APPLIED,
+    ACTION_PURGE_PROVENANCE,
+    RollbackDocument,
+    RollbackInstruction,
+    RollbackNotReconstructible,
+    RollbackQuery,
+    add_provenance_sweep,
+    build_rollback,
+    rollback_query,
+)
+from .rollback_provenance import (
+    PurgeReport,
+    RollbackReport,
+    execute_purge,
+    execute_rollback,
+    residues,
+    rollback_query_for,
+)
 from .schema import (
     APPLIED_OPERATION_CONSTRAINT,
     APPLIED_OPERATION_CONSTRAINT_CYPHER,
@@ -114,6 +147,18 @@ __all__ = [
     "AppliedKeyStore",
     "InMemoryAppliedKeys",
     "JsonlAppliedKeys",
+    # procedencia navegable (docs/v3/54)
+    "PROVENANCE_LABELS",
+    "PROVENANCE_RELATIONS",
+    "ProvenanceOutcome",
+    "APPLY_ID_FIELD",
+    "apply_id_for_view",
+    "compute_apply_id",
+    "is_apply_id",
+    "require_apply_id",
+    "persist_provenance",
+    "trace",
+    "trace_query",
     # lecturas (M4: enmascarado de supersesion local)
     "VisibleAssertion",
     "list_visible_assertions",
@@ -125,7 +170,19 @@ __all__ = [
     # rollback
     "RollbackDocument",
     "RollbackInstruction",
+    "RollbackQuery",
+    "RollbackNotReconstructible",
+    "rollback_query",
     "build_rollback",
+    "add_provenance_sweep",
+    "ACTION_PURGE_PROVENANCE",
+    "ACTION_FORGET_APPLIED",
+    "PurgeReport",
+    "RollbackReport",
+    "execute_purge",
+    "execute_rollback",
+    "residues",
+    "rollback_query_for",
     # errores
     "Rejection",
     "WriterError",

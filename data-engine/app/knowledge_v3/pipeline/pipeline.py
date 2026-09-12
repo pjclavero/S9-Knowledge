@@ -64,6 +64,7 @@ from ..multimodal.registry import default_registry
 from ..reconcile import ProposalReconciler
 from ..resolution.resolver import EntityResolver, ResolutionRequest
 from ..writer.gate import OperatorRequest
+from ..writer.apply import ProvenanceBundle, apply_v3
 from ..writer.writer import GraphWriter
 from . import bridge
 from .config import GoldInjection, PipelineConfig
@@ -88,6 +89,18 @@ class SourceRun:
     assertions: list[FactAssertion] = field(default_factory=list)
     ledger_entries: list[Any] = field(default_factory=list)
     write_result: Optional[Any] = None
+    #: Lo que el volcado de PROCEDENCIA escribio de verdad (docs/v3/54).
+    #: `None` = no se intento (dry-run, sin driver o plan no aplicado).
+    provenance_result: Optional[Any] = None
+    #: Identidad durable de PROCEDENCIA DEL APPLY (`writer.apply_identity`).
+    #: Se calcula UNA vez en `write` y la consumen tanto el volcado de
+    #: procedencia --que la estampa en lo que CREA-- como el documento de
+    #: rollback --que acota su barrido por ella--. Calcularla dos veces seria
+    #: tener dos definiciones de propiedad; la que divergiese borraria de mas.
+    apply_id: Optional[str] = None
+    #: Desenlace COMPLETO del apply canonico (`writer.apply.ApplyOutcome`):
+    #: escritura + procedencia + referencias colgantes + notas.
+    apply_outcome: Optional[Any] = None
     #: Diagnosticos del extractor + notas de coordinacion del orquestador.
     diagnostics: list[dict] = field(default_factory=list)
     normalization_report: dict = field(default_factory=dict)
@@ -442,8 +455,13 @@ class KnowledgePipeline:
             snapshot=snapshot,
             collection_id=self.config.collection_id,
             now=self.config.now,
+            partida_id=self.config.partida_id,
+            promotions=self.config.promotions,
+            known_from_session=self.config.known_from_session,
         )
         run.engine_result = result
+        for entrada in result.promotion_report:
+            run.note("promotion", entrada["code"], entrada["detail"])
         run.plan = result.plan
         run.review_plan = result.review_plan
         run.assertions = list(result.assertions)
@@ -483,7 +501,15 @@ class KnowledgePipeline:
                 )
 
     def write(self, run: SourceRun, snapshot_id: str) -> None:
-        """Etapa 7. El plan al writer. DRY-RUN salvo peticion explicita."""
+        """Etapa 7. El plan a LA RUTA CANONICA. DRY-RUN salvo peticion explicita.
+
+        Esta etapa ya no define que es aplicar: lo pide. La secuencia entera
+        --identidad del apply, gate y escritura, volcado de procedencia en su
+        propia transaccion, y barrido acotado del documento de rollback-- vive
+        en `writer.apply.apply_v3`, que es tambien la que usa `writer.cli`.
+        Mientras estuvo aqui dentro, la otra ruta no podia alcanzarla: escribia
+        el conocimiento y dejaba las referencias de evidencia colgando.
+        """
         if not self.config.with_writer or run.plan is None:
             return
         cfg = self.config
@@ -504,7 +530,27 @@ class KnowledgePipeline:
             current_snapshot_id=snapshot_id,
             env=dict(cfg.writer_env),
         )
-        run.write_result = writer.write(run.plan.to_dict(), request)
+        # EL PAQUETE ES LO QUE DISTINGUE LAS DOS RUTAS, y no es codigo: son
+        # datos. La ingesta SI tiene los documentos que los
+        # `evidence_fragment_ids` del plan nombran, asi que los aporta. Un
+        # mando al que solo se le da `plan.json` no los tiene, y por eso la
+        # funcion canonica le contesta con `APPLY_PROVENANCE_NOT_PERSISTED` en
+        # vez de con un `APPLIED` silencioso.
+        paquete = ProvenanceBundle.of(
+            source_asset=run.asset.to_dict() if run.asset else None,
+            episodes=[e.to_dict() for e in run.episodes],
+            fragments=[f.to_dict() for f in run.fragments],
+        )
+        outcome = apply_v3(
+            run.plan.to_dict(), request, writer=writer, provenance=paquete,
+            driver=cfg.writer_driver,
+        )
+        run.apply_id = outcome.apply_id
+        run.write_result = outcome.write_result
+        run.provenance_result = outcome.provenance_result
+        run.apply_outcome = outcome
+        for nota in outcome.notes:
+            run.note("provenance", nota["code"], nota["detail"])
 
     # -- corrida -------------------------------------------------------------
     def run_source(

@@ -28,7 +28,7 @@ laxa). El valor absoluto solo significara algo cuando lo mida el benchmark.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Optional, Sequence
 
 from ..contracts import Provider, SourceEpisode
@@ -139,6 +139,52 @@ OFFICE_TEMPLATES: tuple[str, ...] = (
 )
 
 
+#: Contracciones obligatorias del espanol: `de + el -> del`, `a + el -> al`. El
+#: emparejado de frases es por TOKENS (`phrase_tokens`), de modo que la
+#: contraccion es un TOKEN DISTINTO: ('es','miembro','de') no casa jamas con
+#: ('es','miembro','del'). No es una variante estilistica que el emparejado
+#: pueda absorber, es otra secuencia.
+_CONTRACTIONS: dict = {"de": "del", "a": "al"}
+
+
+def _contract(phrase: str) -> Optional[str]:
+    """`... de` -> `... del`, `... a` -> `... al`. `None` si no termina asi."""
+    parts = phrase.split()
+    if parts and parts[-1] in _CONTRACTIONS:
+        return " ".join([*parts[:-1], _CONTRACTIONS[parts[-1]]])
+    return None
+
+
+def _close_contraction_gap(rule: RelationRule) -> RelationRule:
+    """Cierra la asimetria de contraccion DENTRO de una regla, y solo ahi.
+
+    Esto NO amplia vocabulario. El criterio es estrictamente de coherencia
+    interna: si la regla YA DECLARA la contraccion en alguna de sus variantes
+    (p.ej. MEMBER_OF trae "forma parte del", "pertenece al", "pertenecio al"),
+    entonces la regla afirma cubrir la forma contraida, y que "es miembro del"
+    no case es una laguna de tokenizacion, no una decision de diseno.
+
+    Si la regla no declara NINGUNA contraccion, se devuelve intacta: anadirsela
+    seria una apuesta de precision nueva, que es exactamente lo que el
+    subsistema no hace sin que la pague el benchmark de las puertas 4 y 6.
+    """
+    phrases = rule.phrases
+    existing = set(phrases)
+    # ?la regla declara ya la forma contraida en alguna parte?
+    declara_contraccion = any(
+        p.split()[-1] in _CONTRACTIONS.values() for p in phrases if p.split()
+    )
+    if not declara_contraccion:
+        return rule
+    nuevas = [
+        c for p in phrases
+        if (c := _contract(p)) is not None and c not in existing
+    ]
+    if not nuevas:
+        return rule
+    return replace(rule, phrases=(*phrases, *dict.fromkeys(nuevas)))
+
+
 def _office_phrases() -> tuple[str, ...]:
     return tuple(
         plantilla.format(art=art, cargo=cargo)
@@ -157,7 +203,7 @@ _REVIEW_ONLY_CONFIDENCE = 0.50
 #: precision que el benchmark tendra que pagar. Las familias PRODUCTIVAS
 #: (perifrasis de cesacion, cargos, pasiva con adverbio intercalado) no se
 #: escriben una a una: se generan de los paradigmas de arriba.
-RELATION_RULES: tuple[RelationRule, ...] = (
+_RELATION_RULES_BASE: tuple[RelationRule, ...] = (
     # Las formas en PLURAL entran a proposito: son las que aparecen en frases
     # coordinadas ("Elara y Kael viven en Valdor"), y sin ellas la guarda de
     # coordinacion no llegaria siquiera a evaluarse. Detectar la ambiguedad y
@@ -250,6 +296,18 @@ RELATION_RULES: tuple[RelationRule, ...] = (
                  direction="OBJECT_TO_SUBJECT", confidence=0.7),
     RelationRule("KILLED", ("mato a", "asesino a", "dio muerte a"), confidence=0.75),
     RelationRule("FOUNDED", ("fundo", "fundo la", "fundo el"), confidence=0.7),
+)
+
+#: Reglas efectivas = reglas curadas + cierre de la asimetria de contraccion.
+#:
+#: El cierre es una funcion TOTAL sobre las reglas y su criterio esta en el
+#: codigo, no en una lista escrita a mano: una regla que no declare ya la
+#: contraccion pasa intacta. Aplicarlo a todas es seguro por construccion y,
+#: sobre todo, AUDITABLE: `test_carril10a_contraccion.py` recorre las reglas y
+#: comprueba que no queda ninguna asimetria de esta clase y que ninguna regla
+#: "sin contraccion" ha crecido.
+RELATION_RULES: tuple[RelationRule, ...] = tuple(
+    _close_contraction_gap(r) for r in _RELATION_RULES_BASE
 )
 
 #: Marcas de negacion y epistemicas: viven en `cues.py`, compartidas con la

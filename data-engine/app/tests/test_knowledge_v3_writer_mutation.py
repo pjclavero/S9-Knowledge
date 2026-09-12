@@ -363,7 +363,15 @@ def test_alterar_los_campos_no_firmados_y_resellar_no_cambia_ni_una_escritura():
                     {
                         k: v
                         for k, v in p.get("props", p).items()
-                        if k != "written_by_plan_hash"
+                        # `written_by_plan_hash` ya se excluia: es procedencia,
+                        # cambia con el documento y no es contenido decidido.
+                        # `state_hash` se excluye por lo MISMO y no por comodidad:
+                        # es una funcion de las propiedades que quedan escritas,
+                        # `written_by_plan_hash` incluida, asi que arrastra su
+                        # diferencia. Exigirlo igual seria exigir un hash que NO
+                        # describe el nodo -- justo lo contrario de para lo que
+                        # existe (ver `writer/state.py`).
+                        if k not in ("written_by_plan_hash", "state_hash")
                     },
                 )
                 for q, p in writes

@@ -578,8 +578,28 @@ def test_m0_two_plans_differing_only_in_partida_id_have_different_plan_hash():
     plan_b = seal_plan({**base, "partida_id": "partida:brumal-02"})
 
     assert plan_a["plan_hash"] != plan_b["plan_hash"]
-    # Agujero conocido y documentado, no cerrado en M0 (ver docstring):
-    assert plan_a["local_approval"]["decision_hash"] == plan_b["local_approval"]["decision_hash"]
+    # EQUIPO 5A -- ESTE AGUJERO SE HA CERRADO, Y GRATIS.
+    #
+    # Antes: `decision_hash` NO distinguia ambito, porque
+    # `DECISION_HASH_FIELDS` es una lista curada que M0 decidio no tocar (y
+    # con razon: anadir "partida_id" ahi inserta `None` en el cuerpo de todo
+    # plan ya sellado y obliga a regenerar 264+ ficheros congelados).
+    #
+    # Ahora lo distingue SIN tocar esa lista. `decision_hash` cubre
+    # `mutation_operations`, y cada operacion lleva su `idempotency_key`, que
+    # desde el arreglo del ambito SI depende de `partida_id`. El efecto llega
+    # por dentro de un campo que ya estaba en la lista.
+    #
+    # Y no rompe nada sellado: la clave solo cambia cuando `partida_id` NO es
+    # nulo. VERIFICADO recomputando la clave de los 21 documentos de plan
+    # sellados del repo: los unicos dos que cambian son
+    # `examples/invalid/plan_invented_idempotency_key.json` y
+    # `plan_workspace_changed.json`, fixtures cuyo proposito ES tener la clave
+    # mal. Cero planes validos afectados.
+    assert (
+        plan_a["local_approval"]["decision_hash"]
+        != plan_b["local_approval"]["decision_hash"]
+    )
 
     GraphMutationPlan.from_dict(plan_a)
     GraphMutationPlan.from_dict(plan_b)
@@ -597,7 +617,13 @@ def test_m0_two_plans_differing_only_in_scope_have_different_plan_hash():
     plan_b = seal_plan({**base, "scope": scope_b})
 
     assert plan_a["plan_hash"] != plan_b["plan_hash"]
-    assert plan_a["local_approval"]["decision_hash"] == plan_b["local_approval"]["decision_hash"]
+    # EQUIPO 5A: gemelo del test de `partida_id`. `decision_hash` ya distingue
+    # ambito, por la via de la `idempotency_key` de las operaciones, sin tocar
+    # `DECISION_HASH_FIELDS` ni regenerar nada sellado.
+    assert (
+        plan_a["local_approval"]["decision_hash"]
+        != plan_b["local_approval"]["decision_hash"]
+    )
 
 
 def test_m0_plan_none_partida_id_matches_a_plan_never_declaring_it():
@@ -610,3 +636,66 @@ def test_m0_plan_none_partida_id_matches_a_plan_never_declaring_it():
     with_none = dataclasses.replace(plan_without, partida_id=None)
     assert plan_without.to_dict() == with_none.to_dict()
     assert plan_without.expected_plan_hash() == with_none.expected_plan_hash()
+
+
+# --------------------------------------------------------------------------
+# GATE4-03: la opcionalidad del modelo tiene que ser la del JSON Schema
+# --------------------------------------------------------------------------
+def _schema_optionals() -> dict:
+    """Por `contract_id`, las propiedades que el schema NO declara `required`.
+
+    Se PARSEA el schema (`properties` menos `required`), que es exactamente lo
+    que el validador aplica; no se cuenta texto ni se mantiene una lista a mano.
+    """
+    out: dict = {}
+    for path in sorted(CONTRACTS_DIR.glob("*.schema.json")):
+        schema = json.loads(path.read_text(encoding="utf-8"))
+        props = schema.get("properties", {})
+        const = (props.get("contract_id") or {}).get("const")
+        if not const:
+            continue
+        out[const] = set(props) - set(schema.get("required", [])) - {"contract_id"}
+    return out
+
+
+@pytest.mark.parametrize("contract_id", sorted(CONTRACT_CLASSES))
+def test_todo_campo_opcional_del_schema_tiene_default_en_el_modelo(contract_id):
+    """Defecto GATE4-03: un campo opcional del schema declarado SIN `default`
+    en el dataclass hace que `from_dict` lo EXIJA y rechace documentos que el
+    contrato publicado acepta. Se comprueba para toda la familia, no solo para
+    el episodio donde se detecto."""
+    optionals = _schema_optionals()
+    assert contract_id in optionals, f"{contract_id} no tiene schema publicado"
+    cls = CONTRACT_CLASSES[contract_id]
+    faltan = optionals[contract_id] - cls._optional_names()
+    assert not faltan, (
+        f"{cls.__name__}: opcionales en el schema pero obligatorios en el "
+        f"modelo: {sorted(faltan)}"
+    )
+
+
+def test_gate4_03_un_episodio_de_texto_sin_speaker_turn_ni_table_carga():
+    """El caso concreto que estaba registrado como xfail (GATE4-03)."""
+    documento = dict(doc("source_episode_text"))
+    for clave in ("speaker", "turn", "table"):
+        documento.pop(clave, None)
+    episodio = SourceEpisode.from_dict(documento)
+    assert episodio.speaker is None
+    assert episodio.turn is None
+    assert episodio.table is None
+
+
+def test_gate4_03_un_campo_obligatorio_de_verdad_sigue_siendo_obligatorio():
+    """Negativo critico: la correccion relaja tres claves, no la puerta."""
+    completo = doc("source_episode_text")
+    assert SourceEpisode.from_dict(dict(completo)) is not None  # control positivo
+    documento = {k: v for k, v in completo.items() if k != "quality"}
+    with pytest.raises(V3ContractError):
+        SourceEpisode.from_dict(documento)
+
+
+def test_gate4_03_la_serializacion_no_cambia_al_relajar_la_lectura():
+    """Los tres campos se siguen emitiendo con `null`: el schema los declara
+    nullable, asi que `to_dict()` es el de antes de la correccion."""
+    completo = SourceEpisode.from_dict(dict(doc("source_episode_text")))
+    assert {"speaker", "turn", "table"} <= set(completo.to_dict())

@@ -8,9 +8,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from . import provenance as _provenance
 from .cypher import LABEL_APPLIED_OPERATION, LABEL_ASSERTION, LABEL_ENTITY
 
-SCHEMA_VERSION = "writer-v3-2"
+SCHEMA_VERSION = "writer-v3-3"
 APPLIED_OPERATION_CONSTRAINT = "v3_applied_operation_unique"
 APPLIED_OPERATION_CONSTRAINT_CYPHER = (
     f"CREATE CONSTRAINT {APPLIED_OPERATION_CONSTRAINT} IF NOT EXISTS "
@@ -119,6 +120,26 @@ V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT_CYPHER = (
     "REQUIRE (n.workspace, n.assertion_id) IS UNIQUE"
 )
 
+# --- PROCEDENCIA NAVEGABLE (docs/v3/54) ------------------------------------
+#: La MISMA regla, aplicada a la cadena de procedencia: la identidad de una
+#: fuente, un episodio o un fragmento es `(workspace, <id del contrato>)`, y
+#: el `elementId` de Neo4j no es identidad de nada. Sin estas restricciones,
+#: repetir un volcado tras una restauracion podria dejar dos nodos con el
+#: mismo `fragment_id` y el recorrido devolveria la evidencia por duplicado.
+#: El campo de identidad sale de `provenance.IDENTITY_FIELD`, no de una copia
+#: a mano: una sola fuente normativa.
+PROVENANCE_IDENTITY_CONSTRAINTS: tuple[tuple[str, str, str, str], ...] = tuple(
+    (
+        label,
+        label,
+        _provenance.IDENTITY_FIELD[label],
+        f"CREATE CONSTRAINT v3_{label.lower()}_identidad_durable_unique IF NOT EXISTS "
+        f"FOR (n:{label}) "
+        f"REQUIRE (n.workspace, n.{_provenance.IDENTITY_FIELD[label]}) IS UNIQUE",
+    )
+    for label in _provenance.PROVENANCE_LABELS
+)
+
 #: Las tres, en el orden en que se aplican. Tenerlas en UNA lista es lo que
 #: permite que el arnes de calibracion y la suite las recorran sin copiar la
 #: definicion: una sola fuente normativa, no dos que puedan divergir.
@@ -129,6 +150,72 @@ DURABLE_IDENTITY_CONSTRAINTS: tuple[tuple[str, str, str, str], ...] = (
     (LABEL_ASSERTION, LABEL_ASSERTION, "assertion_id",
      V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT_CYPHER),
 )
+#: DELIBERADAMENTE FUERA de la tupla de arriba. `viewer/tests/
+#: test_neo4j_integration_authz.py::con_constraints` APLICA
+#: `DURABLE_IDENTITY_CONSTRAINTS` entera y luego RETIRA solo las tres por
+#: nombre; anadir aqui las de procedencia las dejaria puestas al salir --
+#: exactamente el "una barrera que se queda puesta" que esa fixture existe
+#: para evitar. Las aplica `bootstrap_writer_schema`, que es quien administra
+#: la base de verdad.
+
+
+# --- LO QUE `--apply` EXIGE ENCONTRAR PUESTO (EQUIPO 5A) -------------------
+#
+# EL DEFECTO QUE ESTE BLOQUE CIERRA
+# --------------------------------------------------------------------------
+# Todo lo de arriba estaba DEFINIDO y no INSTALADO. `SHOW CONSTRAINTS` sobre un
+# grafo con un apply real completo devolvia CERO (solo los dos indices LOOKUP
+# que Neo4j crea solo). `bootstrap_writer_schema` existia, pero ningun camino
+# de operador lo llamaba: se exportaba y se importaba, nada mas. Y sobre esa
+# propiedad PRESUPUESTA descansaba el argumento de que `FORGET_APPLIED` no era
+# una fuga.
+#
+# La leccion, escrita donde se cometio: un fichero que declara una restriccion
+# no es una restriccion. Solo `SHOW CONSTRAINTS` sabe cuales hay, asi que la
+# comprobacion PREGUNTA AL SERVIDOR y no se cree este modulo.
+REQUIRED_CONSTRAINT_NAMES: tuple[str, ...] = (
+    APPLIED_OPERATION_CONSTRAINT,
+    ENTITY_DURABLE_IDENTITY_CONSTRAINT,
+    V3_ENTITY_DURABLE_IDENTITY_CONSTRAINT,
+    V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT,
+) + tuple(
+    f"v3_{label.lower()}_identidad_durable_unique"
+    for label in _provenance.PROVENANCE_LABELS
+)
+
+REQUIRED_INDEX_NAMES: tuple[str, ...] = (
+    ENTITY_PARTIDA_INDEX,
+    ASSERTION_PARTIDA_INDEX,
+)
+
+
+def observed_constraint_names(driver: Any) -> set[str]:
+    """Los nombres que el SERVIDOR dice tener. Observado, no presupuesto."""
+    with driver.session() as session:
+        return {
+            row["name"]
+            for row in session.run("SHOW CONSTRAINTS YIELD name RETURN name")
+            if row.get("name")
+        }
+
+
+def observed_index_names(driver: Any) -> set[str]:
+    with driver.session() as session:
+        return {
+            row["name"]
+            for row in session.run("SHOW INDEXES YIELD name RETURN name")
+            if row.get("name")
+        }
+
+
+def missing_required_constraints(driver: Any) -> list[str]:
+    """Restricciones requeridas que NO estan puestas, en orden estable.
+
+    Un fallo de lectura NO se traga: si no se puede saber que hay, no se
+    puede afirmar que esta todo, y quien llama debe fallar cerrado.
+    """
+    presentes = observed_constraint_names(driver)
+    return [n for n in REQUIRED_CONSTRAINT_NAMES if n not in presentes]
 
 
 def bootstrap_writer_schema(driver: Any) -> None:
@@ -139,11 +226,14 @@ def bootstrap_writer_schema(driver: Any) -> None:
         session.run(ASSERTION_PARTIDA_INDEX_CYPHER).consume()
         for _, _, _, ddl in DURABLE_IDENTITY_CONSTRAINTS:
             session.run(ddl).consume()
+        for _, _, _, ddl in PROVENANCE_IDENTITY_CONSTRAINTS:
+            session.run(ddl).consume()
 
 
 __all__ = [
     "APPLIED_OPERATION_CONSTRAINT",
     "DURABLE_IDENTITY_CONSTRAINTS",
+    "PROVENANCE_IDENTITY_CONSTRAINTS",
     "ENTITY_DURABLE_IDENTITY_CONSTRAINT",
     "ENTITY_DURABLE_IDENTITY_CONSTRAINT_CYPHER",
     "V3_ENTITY_DURABLE_IDENTITY_CONSTRAINT",
@@ -157,4 +247,9 @@ __all__ = [
     "ASSERTION_PARTIDA_INDEX_CYPHER",
     "SCHEMA_VERSION",
     "bootstrap_writer_schema",
+    "REQUIRED_CONSTRAINT_NAMES",
+    "REQUIRED_INDEX_NAMES",
+    "observed_constraint_names",
+    "observed_index_names",
+    "missing_required_constraints",
 ]

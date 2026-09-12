@@ -1,0 +1,36 @@
+Rojo previo: las mismas pruebas contra el CODIGO BASE (22f06606), sin el fix.
+Se retiraron unicamente `rollback.py` y `executor.py` (git stash), dejando las
+pruebas nuevas tal cual, y se ejecutaron contra Neo4j real efimero.
+
+  S9K_WRITER_NEO4J_REAL=1 python3 -m pytest \
+    data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py -q \
+    -k "ataque_b_rollback_de_capa_juego or ataque_a_rollback_de_nodo"
+
+  >       assert borradas == 1, f"borro {borradas}: se llevo por delante otra partida"
+  E       AssertionError: borro 2: se llevo por delante otra partida
+  E       assert 2 == 1
+  data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py:1069: AssertionError
+
+  >       assert instruccion.detail["label"] == "V3Assertion"
+  E       KeyError: 'label'
+  data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py:1128: KeyError
+
+  FAILED ...::test_ataque_b_rollback_de_capa_juego_no_toca_la_relacion_de_otra_partida
+  FAILED ...::test_ataque_a_rollback_de_nodo_no_toca_el_gemelo_de_otra_partida
+  2 failed, 27 deselected in 112.97s
+
+Lectura: (b) es el defecto medido — la consulta de la base borra las DOS
+aristas. (a) no llega ni a poder ejecutarse porque el documento base no lleva
+etiqueta ni ambito en el detalle: el dato que la consulta necesitaria no
+existia.
+
+Sobre (a) hay un matiz que conviene decir: con el esquema del writer puesto,
+la restriccion `(workspace, assertion_id) IS UNIQUE` — que NO incluye el
+ambito — impide hoy crear el nodo gemelo. El preflight de solo lectura midio
+que la base real no tiene ni una restriccion, y ahi el gemelo si cabe; por eso
+la prueba la retira, reproduce esa base y la repone al salir.
+
+Rojo heredado, ajeno a este trabajo:
+`test_m3_create_entity_de_partida_estampa_partida_id_real` falla con
+`EXEC_REVELACION_NO_DECLARADA` tambien sobre la base intacta (comprobado con
+todos los cambios guardados en stash). No lo introduce este cambio.

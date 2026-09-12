@@ -32,6 +32,7 @@ from typing import Any
 from ..ledger.supersession import LIVE_STATUSES as _LEDGER_LIVE_STATUSES
 from . import codes
 from .errors import WriterAbort
+from .state import state_hash_value
 
 #: Estados que una lectura "visible" puede devolver. Es el MISMO catalogo del
 #: ledger (`ledger.supersession.LIVE_STATUSES`), no una copia a mano: quien
@@ -42,8 +43,43 @@ LIVE_STATUS_VALUES: tuple[str, ...] = tuple(
     sorted(getattr(s, "value", s) for s in _LEDGER_LIVE_STATUSES)
 )
 
-#: Etiqueta base de toda entidad escrita por el writer V3.
+#: Etiqueta base de toda entidad escrita por el writer V3. Es la SUPERFICIE DE
+#: ESCRITURA: todo el Cypher interno del writer (`_scoped_match`, `create_relation`,
+#: `rollback.py`, los indices de `partida_id`) casa por ella y sigue casando.
 LABEL_ENTITY = "V3Entity"
+#: SUPERFICIE PUBLICA. La etiqueta que RESUELVE LA URL durable, y por tanto la
+#: que el consumidor lee.
+#:
+#: NO SE ELIGE AQUI: se DERIVA de dos declaraciones que ya estaban en el arbol.
+#:
+#: 1. `schema.py` (`ENTITY_DURABLE_IDENTITY_CONSTRAINT_CYPHER`) instala la
+#:    unicidad de `(workspace, entity_id)` --la identidad de producto-- sobre
+#:    `:Entity`, y dice literalmente por que: «la restriccion tiene que caer
+#:    sobre la etiqueta que RESUELVE LA URL, y el visor lee `(n:Entity)` en
+#:    todo su Cypher. Una restriccion sobre `:V3Entity` seria correcta y no
+#:    protegeria ni una sola URL durable». Esa restriccion es ademas
+#:    OBLIGATORIA (`REQUIRED_CONSTRAINT_NAMES`) para que `--apply` arranque.
+#: 2. Los otros dos productores de esa superficie (`ingest_rpg.py`,
+#:    `review/ingest_approved.py`) escriben `:Entity` con el vocabulario que el
+#:    proveedor consume.
+#:
+#: Hasta hoy el writer V3 no producia ni la etiqueta ni el vocabulario, de modo
+#: que la restriccion obligatoria protegia CERO nodos y el visor leia una
+#: superficie que el producto ya no alimentaba. No es un fallo del proveedor
+#: (lee la etiqueta que el contrato le manda leer) ni del writer (escribe la
+#: etiqueta que sus propias consultas necesitan): faltaba el punto de union.
+#:
+#: LAS DOS COEXISTEN, y esa es la razon contractual explicita: `schema.py`
+#: declara y EXIGE una barrera de identidad durable sobre CADA UNA, nombrando
+#: el papel de cada cual --`:Entity` la publica, `:V3Entity` «la superficie que
+#: el writer si crea», gemela «para el dia que el visor la lea»--.
+#:
+#: LO QUE ESTO NO ES: no es una ACL, ni una relajacion. La autorizacion del
+#: visor se decide por PROPIEDADES (`scope`, `visibility`, `known_by`,
+#: `partida_id`, `workspace`), que este writer estampa via `stamp_visibility` y
+#: que la etiqueta no toca. Un nodo secreto sigue siendo secreto con las dos
+#: etiquetas puestas.
+LABEL_ENTITY_PUBLICA = "Entity"
 #: Etiqueta base de toda asercion escrita por el writer V3.
 LABEL_ASSERTION = "V3Assertion"
 #: Autoridad transaccional de idempotencia; no representa conocimiento.
@@ -254,6 +290,54 @@ def read_assertion_state(
     )
 
 
+def read_entity_props(entity_id: str, workspace: str, partida_id: str | None = None) -> Query:
+    """TODAS las propiedades del nodo. Para recalcular su `state_hash`.
+
+    Un cierre de vigencia cambia el estado, asi que el hash que lo describia
+    deja de describirlo. Recalcularlo exige el mapa COMPLETO -- el que se va a
+    quedar escrito, no el trozo que la operacion toca -- y de ahi esta lectura,
+    que ocurre dentro de la MISMA transaccion que la escritura.
+    """
+    pattern, params = _scoped_match(LABEL_ENTITY, "entity_id", entity_id, workspace, partida_id)
+    return Query(f"{pattern} RETURN properties(n) AS props", params)
+
+
+def read_entity_state_visible(
+    entity_id: str, workspace: str, partida_id: str | None = None
+) -> Query:
+    """Estado de una entidad REFERENCIADA, con el ambito de VISIBILIDAD.
+
+    No es una variante laxa de `read_entity_state`: responde a otra pregunta.
+    `read_entity_state` (via `_scoped_match`) es la precondicion de una
+    operacion que MUTA ese nodo, y por eso exige el ambito exacto -- una
+    partida no cierra la vigencia de un hecho del lore (docs/v3/49 §2.5: "el
+    lore intacto"). Esta lectura es la precondicion de una operacion que
+    solo REFERENCIA el nodo (los extremos de una relacion), y ahi el ambito
+    que manda es el mismo `_visible_predicate` que la propia
+    `create_relation` aplica a sus dos extremos: capa juego + la partida
+    propia, NUNCA otra partida (docs/v3/49 §0 y §2.3).
+
+    Sin esto, la precondicion contradice a la consulta de la que es
+    precondicion: `create_relation` acepta un extremo de capa juego desde un
+    plan de partida y la lectura previa lo rechazaba, haciendo la herencia
+    juego->partida estructuralmente imposible en escritura.
+
+    El ambito ausente NO se convierte en capa juego por defecto:
+    `partida_id=None` es un plan de CAPA JUEGO y `_visible_predicate` lo
+    traduce a `IS NULL`, que es exactamente lo que ya exigia `_scoped_match`
+    para ese caso. La diferencia solo existe cuando el plan declara partida.
+    """
+    params: dict[str, Any] = {"id": entity_id, "ws": workspace}
+    if partida_id is not None:
+        params["partida_id"] = partida_id
+    return Query(
+        f"MATCH (n:{LABEL_ENTITY} {{entity_id: $id, workspace: $ws}}) "
+        f"WHERE {_visible_predicate('n', partida_id)} "
+        "RETURN n.version AS version, n.state_hash AS state_hash",
+        params,
+    )
+
+
 def read_entity_state_any_scope(entity_id: str, workspace: str) -> Query:
     """Existencia SIN filtro de ambito: solo para diagnosticar un drift.
 
@@ -285,15 +369,49 @@ def claim_applied_operation(
     operation_id: str,
     applied_at: str,
     claim_token: str,
+    partida_id: str | None = None,
+    apply_id: str | None = None,
+    ownership_id: str | None = None,
 ) -> Query:
-    """Reclama la clave dentro de la misma transacción que la mutación."""
+    """Reclama la clave dentro de la misma transacción que la mutación.
+
+    `apply_id` se GUARDA en la marca (peticion de 6B, tanda 5). Antes la marca
+    solo traia `plan_hash`, asi que atribuir una `V3AppliedOperation` colgante
+    a su apply habia que hacerlo por ahi -- y eso es MEDIA identidad: dos
+    applies del mismo plan sobre snapshots o ambitos distintos comparten
+    `plan_hash` y se confunden. Con `apply_id` la marca lleva la MISMA
+    identidad que los nodos de procedencia, asi que la clasificacion del
+    rollback atribuye por un solo campo en todo el grafo.
+
+    NO cambia ninguna condicion de borrado: es un campo mas en la marca. Y va
+    en `ON CREATE SET`, como los demas: una marca reclamada antes conserva el
+    `apply_id` de quien la creo, que es la pregunta que el rollback hace.
+
+    `partida_id` se GUARDA en la marca porque es el unico campo de ambito que
+    la `idempotency_key` deja fuera (`IDEMPOTENCY_KEY_FIELDS` en el validador
+    congelado). Sin el, el executor no tiene con que distinguir "la misma
+    operacion logica, repetida" de "otra partida que colisiona en la clave",
+    que es justo lo que la nota del contrato dice que el writer debe atajar.
+
+    `ownership_id` se GUARDA junto a `apply_id` y por la misma via (`ON CREATE
+    SET`), pero contesta a otra pregunta. `apply_id` deriva de `plan_hash`, que
+    cubre `created_at`/`expires_at`: identifica el INTENTO, y cambia si el
+    mismo apply logico se reejecuta o se replanifica tras un restore.
+    `ownership_id` se compone de workspace + ambito + snapshot_id + las
+    `idempotency_key` selladas, asi que NO cambia. La marca lleva las dos: la
+    auditoria quiere saber que intento escribio, y el rollback quiere saber a
+    que apply logico pertenece lo escrito.
+    """
     return Query(
         f"MERGE (op:{LABEL_APPLIED_OPERATION} "
         "{workspace: $ws, idempotency_key: $key}) "
         "ON CREATE SET op.plan_hash = $plan_hash, "
         "op.operation_id = $operation_id, op.applied_at = $applied_at, "
-        "op.claim_token = $claim_token "
+        "op.claim_token = $claim_token, op.partida_id = $partida_id, "
+        "op.apply_id = $apply_id, op.ownership_id = $ownership_id "
         "RETURN op.plan_hash AS plan_hash, op.operation_id AS operation_id, "
+        "op.partida_id AS partida_id, op.apply_id AS apply_id, "
+        "op.ownership_id AS ownership_id, "
         "op.claim_token = $claim_token AS created",
         {
             "ws": workspace,
@@ -302,11 +420,56 @@ def claim_applied_operation(
             "operation_id": operation_id,
             "applied_at": applied_at,
             "claim_token": claim_token,
+            "partida_id": partida_id,
+            "apply_id": apply_id,
+            "ownership_id": ownership_id,
         },
     )
 
 
 # --- Escrituras -----------------------------------------------------------
+#: Vocabulario de la SUPERFICIE PUBLICA, con el nombre interno del que se
+#: deriva cada campo. No se inventa ni un dato: cada valor YA esta en el nodo,
+#: escrito por el propio writer, y aqui solo se publica bajo el nombre que el
+#: consumidor lee.
+#:
+#: DE DONDE SALE CADA UNO
+#: ----------------------
+#: `canonical_name`  el proveedor lo lee para ordenar y buscar
+#:                   (`ORDER BY n.canonical_name`, `search()`) y
+#:                   `_node_to_dict` lo usa como etiqueta visible. El writer lo
+#:                   escribe como `name`. Sin la proyeccion la ficha sale sin
+#:                   nombre y la busqueda no encuentra nada.
+#: `source_document` el proveedor agrupa las fuentes por el
+#:                   (`list_sources`, `source_detail`) y es el ASA de la
+#:                   fuente en la URL. Se deriva de `source_asset_id`, NO de
+#:                   la ruta: `test_el_asa_de_una_fuente_es_estable_y_no_es_la_ruta`
+#:                   exige exactamente eso --un asa estable que no publique
+#:                   una ruta de servidor--, y `source_asset_id` es un id
+#:                   derivado del contenido, estable entre corridas.
+#:
+#: NUNCA PISA lo que el plan traiga: si el plan ya declaro el campo publico, se
+#: respeta. La proyeccion RELLENA, no decide.
+PROYECCION_PUBLICA: tuple[tuple[str, str], ...] = (
+    ("canonical_name", "name"),
+    ("source_document", "source_asset_id"),
+)
+
+
+def _proyeccion_publica(props: dict) -> dict:
+    """Campos publicos derivados de los que el writer ya persiste.
+
+    Se aplica ANTES de calcular `state_hash` a proposito: el hash es «el estado
+    REALMENTE PERSISTIDO» (`state.py`), asi que un campo que queda escrito y no
+    entra en el hash haria irrecomputable el hash desde el grafo.
+    """
+    derivados = {}
+    for publico, interno in PROYECCION_PUBLICA:
+        if props.get(publico) is None and props.get(interno) is not None:
+            derivados[publico] = props[interno]
+    return derivados
+
+
 def create_entity(
     entity_id: str,
     workspace: str,
@@ -327,20 +490,25 @@ def create_entity(
     deja el nodo sin visibilidad -- lo deja en `secret`, que es lo que evita
     que un olvido publique un hecho.
     """
-    labels = f":{LABEL_ENTITY}"
+    labels = f":{LABEL_ENTITY_PUBLICA}:{LABEL_ENTITY}"
     if label:
         labels += f":{safe_token(label, 'entity_type')}"
+    persistidas = {
+        **stamp_visibility(props, visibility, partida_id=partida_id,
+                           known_from_session=known_from_session),
+        "entity_id": entity_id,
+        "workspace": workspace,
+        "partida_id": partida_id,
+    }
+    persistidas.update(_proyeccion_publica(persistidas))
+    # El `state_hash` se calcula AQUI, sobre el mapa ya completo, y no antes:
+    # es el unico punto donde se sabe todo lo que va a quedar escrito -- la
+    # visibilidad estampada incluida. Calcularlo en el executor, sobre el
+    # payload, produciria un hash de algo que no es el nodo.
+    persistidas["state_hash"] = state_hash_value(persistidas)
     return Query(
         f"CREATE (n{labels} $props) RETURN n.entity_id AS id",
-        {
-            "props": {
-                **stamp_visibility(props, visibility, partida_id=partida_id,
-                               known_from_session=known_from_session),
-                "entity_id": entity_id,
-                "workspace": workspace,
-                "partida_id": partida_id,
-            }
-        },
+        {"props": persistidas},
     )
 
 
@@ -558,6 +726,63 @@ def list_visible_assertions_query(
     )
 
 
+def list_entities_query(workspace: str, partida_id: str | None = None) -> Query:
+    """Entidades del workspace VISIBLES en el ambito de lectura declarado.
+
+    Es la consulta que faltaba. Hasta ahora `cypher.py` solo sabia leer UN
+    nodo por id (`read_entity_state`), porque el executor nunca necesita mas:
+    opera sobre un objetivo concreto. Pero "que entidades existen ya" es una
+    pregunta de LISTADO, y sin ella el catalogo del resolutor solo podia salir
+    de un fichero — que es justamente el hueco de este carril: el fichero dice
+    una cosa y el grafo otra, y nada los contrasta.
+
+    AMBITO (misma disciplina que `_visible_predicate`, no una version propia):
+    la capa juego (`partida_id IS NULL`) siempre entra, y una lectura de
+    partida anade ademas las entidades nacidas en ESA partida. Nunca un
+    comodin: sin el `WHERE`, dos `MATCH` sueltos o un filtrado posterior en
+    Python devolverian entidades de otra partida o de otro workspace, que es
+    exactamente el cruce que el aislamiento prohibe.
+
+    SOLO LECTURA: `MATCH` + `RETURN`. Ni `CREATE`, ni `MERGE`, ni `SET`.
+
+    Se devuelven `version` y `state_hash` TAL COMO ESTAN en el nodo, sin
+    sustituirlos por un valor derivado: son lo que el control optimista del
+    plan (`expected_version`/`expected_hash`) tendra que contrastar contra
+    este mismo grafo, y un valor inventado aqui produciria un plan que aborta
+    en el executor. Si el nodo no los trae, la fila los trae a `None` y quien
+    construya el catalogo debera declararlo, no rellenarlo.
+    """
+    where = [_visible_predicate("n", partida_id), "n.workspace = $ws"]
+    params: dict[str, Any] = {"ws": workspace}
+    if partida_id is not None:
+        params["partida_id"] = partida_id
+    return Query(
+        f"MATCH (n:{LABEL_ENTITY}) WHERE {' AND '.join(where)} "
+        "RETURN n.entity_id AS entity_id, n.entity_type AS entity_type, "
+        "n.name AS name, n.aliases AS aliases, "
+        "n.version AS version, n.state_hash AS state_hash, "
+        "n.partida_id AS partida_id, n.status AS status, labels(n) AS labels "
+        "ORDER BY n.entity_id",
+        params,
+    )
+
+
+def locate_entity_query(entity_id: str) -> Query:
+    """En que workspace(s) consta un `entity_id`. Cerradura de aislamiento.
+
+    Sin ambito de partida a proposito: la pregunta es de PROPIEDAD ("de que
+    boveda es esta entidad"), igual que `InMemoryEntityCatalog.get`, y una
+    vista recortada por partida respondera "no me consta" sobre una entidad
+    que si existe — que es la respuesta que abre la puerta, no la que la
+    cierra.
+    """
+    return Query(
+        f"MATCH (n:{LABEL_ENTITY} {{entity_id: $id}}) "
+        "RETURN DISTINCT n.workspace AS workspace ORDER BY workspace",
+        {"id": entity_id},
+    )
+
+
 __all__ = [
     "Query",
     "assert_safe",
@@ -574,8 +799,12 @@ __all__ = [
     "close_assertion_validity",
     "find_local_override",
     "list_visible_assertions_query",
+    "list_entities_query",
+    "locate_entity_query",
     "LIVE_STATUS_VALUES",
     "LABEL_ENTITY",
+    "LABEL_ENTITY_PUBLICA",
+    "PROYECCION_PUBLICA",
     "LABEL_ASSERTION",
     "ALLOWED_UPDATE_PROPS",
     "RESERVED_PROPS",

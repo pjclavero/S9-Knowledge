@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass
-from typing import Optional, Sequence
+from typing import Any, Optional, Sequence
 
 from ..contracts import (
     ClaimProposal,
@@ -41,6 +41,7 @@ from .evidence import EvidenceIndex
 from .identity import ResolutionIndex
 from .ontology import ProfileIndex
 from .planner import PlanContext, build_plan
+from .promotion import apply_promotions
 from .signals import ExternalSignal, signals_by_claim
 from .snapshot import GraphSnapshot
 from .shadow import ShadowDecisionRecord, evaluate_semantic_shadow
@@ -56,6 +57,10 @@ class EngineResult:
     review_plan: Optional[GraphMutationPlan]
     validator_chain: tuple[dict, ...]
     shadow_decisions: tuple[ShadowDecisionRecord, ...] = ()
+    #: Una entrada por promocion humana recibida: aplicada o rechazada, con su
+    #: motivo. Viaja en el RESULTADO y no en el motor: dos corridas del mismo
+    #: motor no pueden pisarse el informe.
+    promotion_report: tuple[dict, ...] = ()
 
     def by_decision(self, decision: str) -> tuple[ClaimDecision, ...]:
         return tuple(d for d in self.decisions if d.decision == decision)
@@ -147,6 +152,9 @@ class LocalKnowledgeEngine:
         collection_id: str,
         now: str,
         signals: Sequence[ExternalSignal] = (),
+        partida_id: Optional[str] = None,
+        promotions: Sequence[Any] = (),
+        known_from_session: Optional[int] = None,
     ) -> EngineResult:
         """Decide sobre el lote y construye los planes. No escribe nada."""
         workspace, asset_id, source_hash = self._check_inputs(
@@ -178,6 +186,14 @@ class LocalKnowledgeEngine:
         # construir ningun plan. `decide_claim` ve un claim y todo el grafo;
         # solo aqui se ven unos claims a otros.
         decisions = apply_batch_contradictions(decisions, self.index)
+        # LA SALIDA DE `REVIEW`. Va AQUI y no antes: una promocion firma sobre
+        # los motivos DEFINITIVOS del claim, y la segunda pasada de
+        # contradiccion todavia puede anadir uno. Firmar antes seria firmar
+        # sobre una situacion que el motor aun no habia terminado de decidir.
+        #
+        # No fija decisiones: retira los hallazgos firmados y RECALCULA. Un
+        # REJECT o un ABSTAIN sobreviven a cualquier promocion.
+        decisions, promotion_report = apply_promotions(decisions, promotions)
         shadow_decisions = (
             evaluate_semantic_shadow(
                 claims,
@@ -199,6 +215,16 @@ class LocalKnowledgeEngine:
             ontology_version=self.ontology_version,
             snapshot=snapshot,
             now=now,
+            # EQUIPO 5A. El ambito se PASA, no se deduce: el motor no tiene
+            # como saber en que partida se esta ingiriendo si no se lo dicen,
+            # y adivinarlo seria exactamente la clase de valor por defecto que
+            # hacia que dos partidas acabasen en el mismo nodo.
+            partida_id=partida_id,
+            # EQUIPO 6C. La sesion de revelacion se PASA igual que el ambito y
+            # por el mismo motivo: el motor no puede saber en que sesion se
+            # jugo lo que hay en la fuente. `PlanContext.__post_init__` falla
+            # cerrado si hay partida y no hay sesion.
+            known_from_session=known_from_session,
             engine_version=self.version,
         )
         proposal_steps = {c.claim_id: c.producing_provider() for c in claims}
@@ -236,4 +262,5 @@ class LocalKnowledgeEngine:
             review_plan=review_build.plan,
             validator_chain=write_build.validator_chain,
             shadow_decisions=shadow_decisions,
+            promotion_report=tuple(promotion_report),
         )

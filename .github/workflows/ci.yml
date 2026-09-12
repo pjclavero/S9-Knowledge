@@ -69,6 +69,99 @@ jobs:
             exit 1
           fi
 
+      - name: Cobertura Neo4j REAL (conjunto DESCUBIERTO, no lista de nombres)
+        env:
+          # ESTE PASO CAMBIA DE UNIDAD DE CONTROL.
+          #
+          # Antes nombraba DOS ficheros (`writer` + `e2e`). El diagnostico que
+          # justificaba ese paso --«llevaba ROJA desde T2 sin que nadie lo
+          # viera»-- describe un modo de fallo que NO es de esos dos ficheros:
+          # es de todo test que exija Neo4j real y no se ejecute con el. Habia
+          # ONCE mas en esa situacion, y seguian saliendo `skipped` en el paso
+          # anterior (que corre sin esta variable) con el job en VERDE.
+          #
+          # Anadir once nombres mas habria reinstaurado la misma regla N+1 que
+          # acababa de caducar: una lista que hay que acordarse de rellenar. El
+          # conjunto se DESCUBRE en `descubre_neo4j_real.py` por la propiedad
+          # que pytest obedece de verdad --que el modulo LEA esta variable del
+          # entorno--, leida por AST. Un fichero nuevo con este gate entra solo,
+          # el dia que nace, SIN tocar este workflow.
+          #
+          # Por que no un marker y por que no el nombre del fichero: medido y
+          # explicado en la cabecera del descubridor. En corto: no existe
+          # ningun marker `neo4j_real` (`pytest.ini` solo registra `critico`, y
+          # sin `--strict-markers`), y la convencion de nombres tiene un falso
+          # negativo (`test_knowledge_v3_equipo11a_apply_completo.py`, mismo
+          # gate y otro nombre) y un falso positivo
+          # (`..._equipo5b_propiedad_rollback_neo4j_real.py`, que se gatea con
+          # OTRA familia de variables y que esta variable NO despierta).
+          S9K_WRITER_NEO4J_REAL: "1"
+        run: |
+          # CINCO ESTADOS, y ninguno puede quedar verde por silencio:
+          #   descubridor ciego   -> 0 ficheros             -> ROJO
+          #   Neo4j no arranco    -> la fixture hace `skip` -> ROJO
+          #   tests no ejecutados -> no hay "N passed"      -> ROJO
+          #   algo fallo          -> rc != 0                -> ROJO
+          #   todo ejecutado      -> VERDE
+          # El descubridor DECIDE POR SU CODIGO DE SALIDA, sin `if` que lo
+          # envuelva: descubrir cero ficheros ya es `exit 1` dentro del script
+          # (una raiz renombrada o la variable rebautizada lo dejarian ciego, y
+          # un conjunto vacio devuelto en verde seria el mismo falso verde que
+          # este paso cierra). Con `set -e`, si falla, el paso muere aqui.
+          set -euo pipefail
+          ficheros="$(python3 .github/scripts/descubre_neo4j_real.py --informe)"
+          echo "CONJUNTO DESCUBIERTO:"
+          echo "$ficheros"
+          set +e
+          out="$(python3 -m pytest $ficheros \
+                   -v --tb=short --no-header \
+                   --junitxml=informe-neo4j-real.xml 2>&1)"
+          rc=$?
+          set -e
+          echo "$out"
+          # Guardia anti-cero textual (la que `check-ci-config` exige a todo
+          # paso que invoque pytest).
+          if ! grep -qE '[0-9]+ passed' <<<"$out"; then
+            echo "::error::las pruebas contra Neo4j real no llegaron a ejecutarse"
+            exit 1
+          fi
+          # Guardia anti-salto textual. Se conserva ADEMAS de la estructural:
+          # cubre el caso en que pytest muera antes de escribir el informe.
+          if grep -qi "skipped" <<<"$out"; then
+            echo "::error::se OMITIERON pruebas de la clase Neo4j-real; sin base efimera esa cobertura no existe"
+            exit 1
+          fi
+          # Y el juicio ESTRUCTURAL, sobre el informe que pytest emite para ser
+          # leido, no sobre el texto del log: coleccionados > 0, omitidos == 0,
+          # fallos == 0, errores == 0. `19 skipped, rc=0` es exactamente el
+          # falso verde que esta comprobacion cierra.
+          # SUELO, no ausencia. Hoy la clase colecciona 132 tests (13 ficheros;
+          # medido con `--collect-only`). El suelo va en 120 y no en 132 para
+          # que anadir o quitar un test no lo rompa por ruido, pero si para que
+          # una coleccion que se queda ciega -un filtro que no casa, un
+          # directorio renombrado- no pueda pasar por buena. El CONJUNTO de
+          # ficheros ya lo garantiza el descubridor; esto es la segunda red.
+          python3 .github/scripts/verifica_neo4j_real.py informe-neo4j-real.xml --minimo 120
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::la cobertura contra Neo4j real ha FALLADO"
+            exit 1
+          fi
+          # QUINTO ESTADO: el aislamiento A/B, POR NOMBRE. SE CONSERVA INTACTO.
+          #
+          # Los guardas de arriba son de CONJUNTO: miran totales. Un `N passed`
+          # sin `skipped` sigue siendo verde si la prueba concreta que sostiene
+          # la discriminacion entre partidas se renombra, se borra o se marca
+          # `xfail` -- y esa es justo la garantia que no tiene otra red: MEDIDO,
+          # la mutacion que retira la discriminacion A/B de
+          # `cypher.read_entity_state_visible` deja la suite OFFLINE de carril 9
+          # con su testigo A/B en VERDE (el doble rederiva la visibilidad en vez
+          # de ejecutar el predicado) y solo enrojece aqui, contra Neo4j de
+          # verdad. Por eso el nombre se sigue exigiendo explicitamente.
+          if ! grep -qE 'test_carril9_desde_A_una_entidad_de_B_sigue_abortando.*PASSED' <<<"$out"; then
+            echo "::error::el test de AISLAMIENTO A/B contra Neo4j real no aparece como PASSED: sin el, la discriminacion entre partidas se queda sin cobertura efectiva (el doble offline NO la detecta)"
+            exit 1
+          fi
+
   test-viewer:
     name: Viewer Tests
     runs-on: ubuntu-latest
@@ -149,14 +242,31 @@ jobs:
           # esconde el fallo que deberia explicar es peor que no tenerlo, asi
           # que aqui se captura el codigo aparte y siempre se imprime la salida.
           set +e
-          # Dos ficheros, UNA invocacion: los tres guardas de abajo miran la
+          # Los ficheros van en UNA invocacion: los tres guardas de abajo miran la
           # salida COMBINADA, asi que cubren los dos sin duplicar logica. Si el
           # contrato de paneles se saltara (contenedor caido, variables sin
           # definir), el `grep skipped` lo caza igual que al primero -- que es
           # justo lo que hoy NO pasa: en `test-viewer` estas 43 pruebas salen
           # SKIPPED y el job sale verde (medido en la ejecucion 31916319923).
+          # El TERCER fichero cierra el hueco por el que paso el defecto del
+          # visor vacio: los dos primeros prueban contra una base que siembra EL
+          # PROPIO CONSUMIDOR (`CREATE (n:Entity $props)` a mano, con las claves
+          # ya correctas), asi que no pueden ver si el PRODUCTOR entrega lo que
+          # el consumidor consume. Con 8262 pruebas en verde, /api/entities
+          # devolvia vacio con 29 nodos reales delante.
+          # `test_contrato_writer_a_visor_neo4j.py` puebla la base con el writer
+          # REAL (plan V3 -> ingest_cli / GraphWriter) y lee por la API REAL.
+          # El CUARTO fichero es el de la integracion de la tanda 11. Los tres
+          # anteriores miden ESTADOS; este mide la HISTORIA completa
+          # (apply -> repeat -> rollback -> re-apply) y, en cada paso, lo que el
+          # visor ve. Va en la MISMA invocacion a proposito: si se quedara
+          # fuera, saldria SKIPPED en `test-viewer` --que no define
+          # NEO4J_TEST_URI-- y un skip verde equivale a no tener la prueba, que
+          # es exactamente el agujero que este paso existe para tapar.
           out="$(python -m pytest viewer/tests/test_neo4j_integration_authz.py \
                                   viewer/tests/test_contrato_paneles_neo4j.py \
+                                  viewer/tests/test_contrato_writer_a_visor_neo4j.py \
+                                  viewer/tests/test_integracion_tanda11_recorrido_completo.py \
                                   -v --no-header 2>&1)"
           rc=$?
           set -e
@@ -786,6 +896,24 @@ jobs:
         env:
           S9K_ALLOW_REAL_INGEST: ""
         run: python3 .github/scripts/calibra_base_materializada.py
+
+      # Y la OTRA forma de A2: la que compara contra la LINEA BASE GIT de
+      # verdad, que es la que corre en CI. Los arneses de arriba miden con
+      # `--base-fichero`, y contra un JSON suelto A2 no puede preguntar por el
+      # linaje: se queda -a proposito- en su forma estricta. Asi que la forma
+      # que de verdad certifica no la calibraba nadie.
+      #
+      # Aqui se calibran los ocho casos de la tabla -nacer condicional,
+      # apagarse, endurecerse, desaparecer- y las DOS vias que cierran el
+      # ataque del rename (`--find-renames` y la identidad logica por AST, esta
+      # ultima para el fichero que Git no sigue). Y se comprueba QUE ERROR sale
+      # en cada rojo, no solo que el RC sea 1: un rojo por la razon equivocada
+      # se lee igual que uno legitimo.
+      - name: A2 distingue nacer condicional de apagarse (linaje Git)
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 .github/scripts/calibra_a2_linaje.py
 
       # Y la propiedad que sustituye a cuatro rondas de reconocedores: el
       # binario que CERTIFICA no tiene entrada de desarme. Comprueba por AST que

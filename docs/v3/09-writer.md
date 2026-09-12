@@ -218,6 +218,36 @@ subsistema tiene prohibido hacer sin plan. Lo que sale es un documento que un
 operador lee, aprueba y aplica, o que el motor local convierte en un plan inverso
 y vuelve a sellar.
 
+### 4.1. Identidad durable: el rollback tiene que sobrevivir a un restore
+
+Un documento de rollback se **guarda para aplicarse después**, y ese "después"
+suele incluir haber restaurado la base. El `elementId` de Neo4j **contiene el
+UUID de la base de datos**: al restaurar un volcado se regenera. Una instrucción
+que dependiese de él dejaría de ser ejecutable justo en el momento en que hace
+falta.
+
+Por eso ninguna instrucción se localiza por `elementId`:
+
+| Acción | Cómo se localiza el objetivo |
+|---|---|
+| `DELETE_NODE` | `(workspace, entity_id \| assertion_id)` + `idempotency_key`. |
+| `DELETE_RELATIONSHIP` | `(workspace, sujeto, predicado, objeto)` + `idempotency_key` de la operación que la escribió. |
+| `RESTORE_PROPERTIES` | `(workspace, target_id)` + el estado previo leído. |
+
+El `elementId` que devolvió la escritura sigue viajando en el detalle, pero con
+el nombre que le corresponde — `element_id_at_write` — y **como dato
+informativo**: `rollback_query()` lo ignora. El `idempotency_key` es lo que
+impide **borrar de más**: acota el borrado a la arista que escribió *ese* plan,
+aunque existan otras entre los mismos extremos y con el mismo predicado.
+
+`rollback_query(instruccion)` traduce una instrucción a Cypher ejecutable. Es
+deliberadamente un tipo distinto de `cypher.Query` (que prohíbe `DELETE`, porque
+el writer no borra): quien la ejecuta está ejercitando el camino de
+recuperación, y eso tiene que verse en el código. Si a una instrucción le falta
+identidad de dominio, la función levanta `RollbackNotReconstructible` en vez de
+producir una consulta que borraría cualquier cosa, y el documento ya lo declara
+en `unrecoverable`.
+
 **Límite dicho sin adornos:** el rollback de un cierre de vigencia solo puede
 restaurar `version` y `state_hash`, que es lo que el writer leyó antes de
 escribir. Las propiedades previas que no leyó no las puede devolver, y el
@@ -226,6 +256,45 @@ documento lo declara en `unrecoverable` en vez de fingir que puede.
 ---
 
 ## 5. Flujo operativo real
+
+### 5.0. Preparar el esquema (una vez por base, y es idempotente)
+
+> **Defecto medido y cerrado (equipo 5A).** Las restricciones de este documento
+> estaban **definidas** en `writer/schema.py` y **no instaladas**.
+> `SHOW CONSTRAINTS` sobre un grafo con un apply real completo detrás devolvía
+> **cero** (solo los dos índices LOOKUP que Neo4j crea solo).
+> `bootstrap_writer_schema` existía, pero **ningún mando de operador lo
+> llamaba**: se exportaba y se importaba. La única forma de arrancar un Neo4j
+> nuevo era teclear Cypher a mano — justo lo que el criterio de producto
+> prohíbe. Y sobre esa propiedad *presupuesta* descansaba el argumento de que
+> `FORGET_APPLIED` no es una fuga.
+
+```bash
+cd data-engine/app
+
+# Solo mirar (no crea nada). rc=0 si está todo, rc=3 si falta algo.
+python -m knowledge_v3.writer.schema_cli verify \
+    --neo4j-uri "$S9K_NEO4J_URI" --neo4j-user neo4j \
+    --neo4j-password-file /etc/s9k/neo4j.pass
+
+# Instalar. Idempotente: la segunda vez crea 0 y sale 0.
+python -m knowledge_v3.writer.schema_cli ensure \
+    --neo4j-uri "$S9K_NEO4J_URI" --neo4j-user neo4j \
+    --neo4j-password-file /etc/s9k/neo4j.pass
+```
+
+`ensure` imprime el censo **antes** y **después**, y cuántas creó en esta
+ejecución. No dice «hecho»: dice **qué hay**, leído del servidor con
+`SHOW CONSTRAINTS`. La diferencia es exactamente el defecto que cierra.
+
+**Esto no es un gate.** Un gate juzga si se permite una operación; esto instala
+lo que el producto necesita para funcionar. Es funcionalidad que faltaba.
+
+Desde ahora, **`--apply` falla cerrado si las restricciones requeridas no están
+presentes**: aborta con `EXEC_SCHEMA_CONSTRAINTS_MISSING` antes de abrir la
+transacción, y el detalle del rechazo lista cuáles faltan y remite a este
+mando. La comprobación **pregunta al servidor**, no a `writer/schema.py`: un
+fichero que declara una restricción no es una restricción.
 
 ### 5.1. Simular (siempre primero)
 
@@ -238,7 +307,8 @@ python -m knowledge_v3.writer.cli /ruta/plan.json \
     --applied-keys /var/lib/s9k/writer_applied_keys.jsonl
 ```
 
-Sin `--apply` no se abre driver alguno. La salida es un JSON con `outcome`
+Sin `--apply` no se resuelve configuración de conexión ninguna: ni URI, ni
+usuario, ni secreto. El dry-run sigue siendo el modo seguro. La salida es un JSON con `outcome`
 (`SIMULATED` o `REJECTED`), los códigos de rechazo y el recuento de operaciones
 que se aplicarían y de las que ya serían no-op.
 
@@ -255,8 +325,27 @@ python -m knowledge_v3.writer.cli /ruta/plan.json \
     --max-operations 50 \
     --audit-log /var/lib/s9k/writer_audit.jsonl \
     --applied-keys /var/lib/s9k/writer_applied_keys.jsonl \
-    --apply
+    --rollback-out /var/lib/s9k/rollback-$(date +%s).json \
+    --apply \
+    --neo4j-uri "$S9K_NEO4J_URI" \
+    --neo4j-user neo4j \
+    --neo4j-password-file /etc/s9k/neo4j.pass
 ```
+
+**La contraseña no se pasa nunca por `argv`**: se declara el *camino* de un
+fichero `0600` (o `-` para leerla de la entrada estándar). Si ese fichero es
+legible por el grupo o por otros, la CLI se niega a leerlo. URI, usuario y
+camino admiten también `S9K_NEO4J_URI`, `S9K_NEO4J_USER` y
+`S9K_NEO4J_PASSWORD_FILE`. Si falta cualquiera de los tres con `--apply`, la
+CLI falla **cerrado** con `CLI_DRIVER_CONFIG_MISSING` y código de salida `1`:
+no se degrada a dry-run silencioso.
+
+La fábrica vive en `knowledge_v3/driver_neo4j.py`, **fuera** del paquete del
+writer, que conserva su higiene comprobada. Se invoca **después del gate**: un
+intento bloqueado no llega a leer el secreto ni a abrir sesión.
+
+`--rollback-out` guarda el documento de rollback del APPLY. Es lo que hay que
+conservar para poder deshacer (§4.1).
 
 El `plan_hash` se teclea a mano. Si el plan cambió desde que se revisó, no
 coincide y no se escribe.
@@ -329,21 +418,24 @@ Quien ya tenga un driver abierto puede seguir pasándolo por `driver=`.
 
 ## 6. Qué queda para el despliegue
 
-Este bloque **no escribe en ningún Neo4j real y no puede hacerlo**: no hay un
-solo `import` del paquete de Neo4j, ni URI, ni credencial, ni conexión por
-defecto en todo el paquete. Hay un test que lo comprueba leyendo los ficheros.
+El **paquete** `knowledge_v3.writer` sigue sin poder conectarse por su cuenta:
+no hay un solo `import` del paquete de Neo4j, ni URI, ni credencial, ni conexión
+por defecto en ninguno de sus módulos, y hay un test que lo comprueba leyendo
+los ficheros. Lo que sí existe ya es la **ruta de operador** (§5.2): la fábrica
+vive en `knowledge_v3/driver_neo4j.py`, fuera del paquete, y sólo se invoca
+cuando el operador pide `--apply` y el gate lo autoriza.
 
 Lo que falta, y a quién le toca:
 
 | Pendiente | Detalle |
 |---|---|
-| **Conexión real** | Una fábrica de driver que lea URI y credenciales del entorno del despliegue (nunca del repositorio) y se pase a `cli.main(driver_factory=...)` o a `GraphWriter(driver_factory=...)`. Hoy la fábrica por defecto lanza `NotImplementedError` con el motivo. Se invoca **después del gate**: un intento bloqueado no llega a pedir credenciales ni a abrir sesión. |
+| ~~**Conexión real**~~ | **Hecho.** `knowledge_v3/driver_neo4j.py` + `--neo4j-uri/--neo4j-user/--neo4j-password-file` (§5.2). Sigue invocándose después del gate. |
 | **Unidad systemd** | Un servicio o timer que garantice **un único proceso escritor por workspace** (R3). El writer comprueba el workspace, pero no toma un bloqueo entre procesos: dos writers simultáneos sobre el mismo workspace entrelazarían el ledger. Un `.service` con `RemainAfterExit=no` más un fichero de bloqueo (`flock`) es lo mínimo. |
 | **Rutas persistentes** | `--audit-log` y `--applied-keys` deben vivir en un volumen persistente y respaldado. Perder el fichero de claves aplicadas **rompe la idempotencia**: un replay volvería a escribir. |
 | **Índices y restricciones** | Restricciones de unicidad sobre `(:V3Entity {entity_id, workspace})` y `(:V3Assertion {assertion_id, workspace})`. El writer ya comprueba la ausencia antes de crear, pero una restricción del motor es la garantía real frente a concurrencia. |
 | **Propiedad `state_hash`** | El writer la lee para la concurrencia optimista y la escribe cuando el plan la trae. Quién la calcula y la mantiene al día en el grafo es una decisión de integración que este bloque no toma. |
 | **Rotación del log** | El JSONL de auditoría crece sin límite. Rotar sin romper el carácter *append-only* (rotar por fichero, nunca truncar el vivo). |
-| **Ejecución del rollback** | Hoy se emite un documento. Convertirlo en un plan inverso sellado por el motor local es trabajo de integración, no del writer. |
+| **Ejecución del rollback** | El documento ya es **reconstruible y ejecutable** sin `elementId`, y `rollback_query()` lo traduce a Cypher (§4.1); lo que sigue sin existir es un mando que lo aplique solo. Ejecutarlo es una decisión de operador, y convertirlo en un plan inverso sellado por el motor local sigue siendo trabajo de integración. |
 
 ---
 
@@ -406,6 +498,7 @@ aflojan. Se dice en vez de fingir que las 32 son igual de alcanzables.
 | `EXEC_TARGET_MISSING` | La operación apunta a algo que no existe. | directo |
 | `EXEC_TARGET_ALREADY_EXISTS` | Una creación apunta a algo que ya existe (CREATE-only estricto). | directo |
 | `EXEC_SCOPE_MISMATCH` | M3 (docs/v3/49 §2.4): el objetivo existe, pero en OTRO ámbito de partida que el declarado por el plan (drift/carrera detectado en lectura, acotada por Cypher). Aborta el plan entero. | directo |
+| `EXEC_SCHEMA_CONSTRAINTS_MISSING` | Equipo 5A: las restricciones requeridas NO estan instaladas en el grafo. Se comprueba preguntando al servidor (`SHOW CONSTRAINTS`), no leyendo `writer/schema.py`. Fail-closed ANTES de abrir la transaccion: sin ellas, la unicidad de `(workspace, entity_id)` y la de `(workspace, idempotency_key)` son una creencia de este repo, no una propiedad del grafo. Se sale con `writer.schema_cli ensure` (ver 5.0), no con una autorizacion: es una precondicion fisica, no un permiso. | directo |
 | `EXEC_UNSUPPORTED_OPERATION` | Tipo de operación no soportado. | defensivo (el `enum` del schema ya los limita a seis, y el writer soporta los seis) |
 | `EXEC_UNSUPPORTED_PAYLOAD` | Payload inejecutable con seguridad: propiedad reservada, nombre inadmisible, etiqueta o predicado con forma sospechosa, valor no escalar. | directo |
 | `EXEC_REASON_CODE_MISSING` | Cierre de vigencia sin `reason_code` válido (R1). | directo |
@@ -417,15 +510,94 @@ aflojan. Se dice en vez de fingir que las 32 son igual de alcanzables.
 | `EXEC_LOCAL_OVERRIDE_REASON_INVALID` | M4: `local_override_of` presente sin el `reason_code` canónico `LOCAL_DIVERGENCE` (R1 del ledger). | directo |
 | `EXEC_LOCAL_OVERRIDE_ALREADY_DECLARED` | M4 (rework): la misma partida ya tiene una divergencia local declarada sobre ese mismo hecho de capa juego. Unicidad estricta `(workspace, partida_id, local_override_of)`: el segundo intento es un conflicto, no una fusión ni una cadena — mismo criterio CREATE-only que `EXEC_TARGET_ALREADY_EXISTS`. | directo |
 
+### 7.5. Ruta de operador (`CLI_*`)
+
+| Código | Motivo | Alcance |
+|---|---|---|
+| `CLI_DRIVER_CONFIG_MISSING` | Se pidió `--apply` sin declarar cómo llegar al servidor (URI, usuario o camino del fichero con la contraseña). Falla cerrado, con código de salida `1`, sin escribir y sin degradarse a dry-run. | directo |
+| `CLI_ROLLBACK_OUT_PRESERVED` | `--rollback-out` apuntaba a una póliza ya existente y el documento nuevo no traía instrucciones (apply repetido = no-op idempotente). **No se pisa**: repetir una orden inocua no puede destruir la única forma de deshacer. Código de salida `2`. | directo |
+| `CLI_APPLIED_KEYS_FORGOTTEN` | El operador pidió `--forget-applied-keys <rollback.json>` y el almacén retiró esas claves (lápida en el JSONL append-only). Habilita volver a aplicar un plan ya revertido. No toca el grafo. | directo |
+| `CLI_ROLLBACK_DRY_RUN` | `cli_rollback` sin `--execute`: enumeró lo que haría y **no tocó nada**. No resuelve conexión ni lee secreto. Código de salida `0`. | directo |
+| `CLI_ROLLBACK_NOT_AUTHORIZED` | Se pidió `--execute` sin la declaración de operador que exige el APPLY (`S9K_ALLOW_REAL_INGEST=1` y `S9K_WRITER_WORKSPACE` coincidiendo con `--workspace`). La operación que **borra** no puede pedir menos que la que escribe. Código de salida `1`. | directo |
+| `CLI_ROLLBACK_WORKSPACE_MISMATCH` | El documento de rollback es de otro `workspace` que el autorizado en la línea de mando. Borrar fuera de lo autorizado es lo que la doble declaración impide. Código de salida `1`. | directo |
+| `CLI_ROLLBACK_COMPLETE` | La reversión se ejecutó y **no quedó nada**: ni residuos, ni procedencia huérfana, ni instrucciones sin revertir. Único desenlace que sale con `0`. | directo |
+| `CLI_ROLLBACK_INCOMPLETE` | La reversión se ejecutó y **queda algo**: residuos con la `idempotency_key`, procedencia huérfana en el grafo, evidencia conservada por compartida, o instrucciones no reconstruibles. La línea humana se deriva del informe, así que no puede decir «revertido». Código de salida `1`. | directo |
+| `CLI_SECRET_FILE_UNUSABLE` | El fichero declarado en `--neo4j-password-file` no sirve: no existe, está vacío, o es legible por el grupo u otros (0600 obligatorio). Código **estable**, para no tener que reconocer el fallo leyendo la redacción; el mensaje nunca lleva el secreto. Código de salida `1`. | directo |
+
+### 7.5.bis. Códigos de salida: una sola tabla para todos los mandos
+
+Los `rc` son **API**: un runner desatendido no lee actas, lee el número. La
+tabla única vive en `knowledge_v3/writer/exit_codes.py` y la usan por igual
+`pipeline.ingest_cli`, `writer.cli` y `writer.cli_rollback`.
+
+| `rc` | significado | desenlaces |
+|---|---|---|
+| `0` | desenlace correcto y limpio | `APPLIED`, `SIMULATED`; en reversión `ROLLED_BACK` (sin residuos) y `DRY_RUN` |
+| `1` | el desenlace **no** es correcto: no se escribió lo que un éxito afirmaría | `BLOCKED`, `REJECTED`, `ABORTED`, `INCONSISTENT`, `ATTEMPTED`; en reversión `INCOMPLETE`, `BLOCKED` y `ERROR` |
+| `2` | error de **uso** o de configuración del mando (`argparse` ya usa 2), o desenlace correcto pero con códigos que un runner no puede leer como limpio (p. ej. `AUDIT_APPEND_FAILED`) | — |
+| `3` | hay altas de entidad sin aprobar: no se escribe | — |
+
+**Cómo se resolvió la colisión.** `cli_rollback` nació antes que esta tabla y
+traía la suya: `INCOMPLETE = 3` y `BLOCKED = 4`. Chocaba de frente, porque aquí
+`3` ya significa «altas sin aprobar» y `4` no significaba nada. El mando
+**importa la tabla** (`exit_codes.exit_code_for_rollback`) y renuncia a sus
+números; no se renumera nada de lo ya publicado. Consecuencia declarada:
+`INCOMPLETE` y `BLOCKED` de la reversión ya **no se distinguen por el `rc`**
+—ambos `1`—; quien los necesite distinguir lee el campo `code` del acta
+(`CLI_ROLLBACK_INCOMPLETE`, `CLI_ROLLBACK_NOT_AUTHORIZED`,
+`CLI_ROLLBACK_WORKSPACE_MISMATCH`), que no ha cambiado. Lo que el `rc`
+garantiza, que es lo que se pedía, es que **sólo un desenlace limpio sale `0`**,
+con el mismo número en todos los mandos.
+
+**Colisión conocida que se conserva sin tocar:** `2` no significa lo mismo en
+`writer.cli` («salió bien pero con códigos») que en `pipeline.ingest_cli`
+(«error de uso»). Ambas son «no lo leas como éxito limpio», así que la regla
+`rc == 0` ⟺ éxito se sostiene. Se documenta en vez de renumerar, porque
+renumerar rompería el histórico de los runners existentes.
+
+### 7.6. Verdad del desenlace (`EXEC_NOOP_*`, `ROLLBACK_*`)
+
+No son gates: **ninguno impide una escritura**. Se miden *después* de la
+transacción y sólo impiden que el resultado afirme algo que el grafo no
+sostiene.
+
+| Código | Motivo | Alcance |
+|---|---|---|
+| `EXEC_NOOP_WITHOUT_GRAPH_EVIDENCE` | Una operación se declaró no-op («esa clave ya se aplicó») pero en el grafo no queda ningún nodo ni arista con esa `idempotency_key`: sólo sobrevivía la marca `V3AppliedOperation`. El desenlace pasa a `INCONSISTENT` y la CLI sale con `1`, en vez de `APPLIED`/`0` sobre un grafo del que ese conocimiento ya no está. | desenlace |
+| `ROLLBACK_RESIDUE` | Tras ejecutar el documento de rollback quedan residuos de esa operación: algo con su `idempotency_key`, o evidencia huérfana que ninguna aserción viva sostiene. Se escribe en `unrecoverable`. | desenlace |
+| `ROLLBACK_RETAINED_SHARED` | Un nodo de procedencia **no** se borró porque otra aserción viva sigue apuntándolo. Es conservación deliberada — la otra dirección del mismo criterio — y se declara en `unrecoverable` en vez de dejar `[]`. | desenlace |
+
+### 7.7. Rollback de la procedencia
+
+`build_rollback` añade dos instrucciones a las tres de siempre:
+
+* `PURGE_PROVENANCE` — se ejecuta **después** del `DELETE_NODE` de la aserción y
+  purga en cascada `V3Evidence → V3Episode → V3Source`, **sólo lo que queda sin
+  ninguna referencia viva**. Los antepasados se leen por el camino *antes* de
+  borrar (después las aristas ya no existen). El `DELETE_NODE` declara además,
+  en `detaches_provenance`, las aristas que su `DETACH DELETE` se va a llevar
+  por delante: `SUPPORTED_BY`, `HAS_SUBJECT` y `HAS_OBJECT`.
+* `FORGET_APPLIED_OPERATION` — retira la marca autoritativa
+  `V3AppliedOperation` de la operación revertida.
+
+La ejecución (`rollback_provenance.execute_rollback`) devuelve lo borrado, lo
+**conservado por estar compartido** y los residuos, y los escribe en
+`unrecoverable` del propio documento.
+
 ---
 
 ## 8. Pruebas
 
-Dos suites, **129 tests**, con el driver de Neo4j **mockeado** en todos los
-casos. Aquí no se abre una conexión, no se lee una credencial y no se escribe en
-ningún grafo real.
+Dos suites de unidad, **172 tests**, con el driver de Neo4j **mockeado** en
+todos los casos: ahí no se abre una conexión, no se lee una credencial y no se
+escribe en ningún grafo real. Aparte, y saltada por defecto,
+**`test_knowledge_v3_writer_neo4j_real.py` (23)** levanta su propio Neo4j
+efímero en Docker (`S9K_WRITER_NEO4J_REAL=1`); entre ellas, la que aplica un
+plan, resiembra el grafo en OTRA base efímera —donde los `elementId` son
+necesariamente distintos, porque llevan el UUID de la base— y comprueba que el
+documento de rollback guardado sigue borrando la relación correcta y sólo esa.
 
-**`test_knowledge_v3_writer.py` (96)** — admisión (cada condición en positivo y
+**`test_knowledge_v3_writer.py` (139)** — admisión (cada condición en positivo y
 negativo, incluidas las defensivas mediante `monkeypatch`), las nueve
 condiciones del gate, dry-run, ejecución, idempotencia, transaccionalidad,
 rollback, auditoría e higiene. Incluye la tanda que salió de la revisión
