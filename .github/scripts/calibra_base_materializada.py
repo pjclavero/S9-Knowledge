@@ -284,12 +284,26 @@ def clon_superficial(profundidad: int = 20) -> Path:
     `file://` no es decorativo: con una ruta de disco git IGNORA `--depth` y
     haria un clon completo, con lo que el caso mediria lo contrario de lo que
     dice.
+
+    Y el `update-ref` tampoco: un clon superficial solo trae la rama de HEAD,
+    asi que SIN el `origin/main` no existiria y la condicion saldria
+    insatisfecha por «no hay historia alcanzable». Saldria el veredicto
+    correcto por el diagnostico equivocado --el caso pasaria aunque la regla
+    que calibra estuviera rota-- y eso no es evidencia de nada. Apuntando
+    `origin/main` al HEAD del propio clon, la condicion se evalua sobre
+    `profundidad` commits REALES que publican todos el inventario, que es
+    exactamente la situacion que el caso quiere ejercitar.
     """
     tmp = Path(tempfile.mkdtemp(prefix="clon-superficial-"))
     destino = tmp / "repo"
     subprocess.run(["git", "clone", "--quiet", "--depth", str(profundidad),
                     f"file://{REPO}", str(destino)],
                    check=True, capture_output=True, timeout=900)
+    cabeza = subprocess.run(["git", "rev-parse", "HEAD"], cwd=destino,
+                            check=True, capture_output=True, text=True,
+                            timeout=120).stdout.strip()
+    subprocess.run(["git", "update-ref", "refs/remotes/origin/main", cabeza],
+                   cwd=destino, check=True, capture_output=True, timeout=120)
     return destino
 
 
@@ -469,11 +483,17 @@ def main() -> int:
     sonda6.anota("sonda: escenario sin base montable en historia corta",
                  "NO EJERCITABLE", "", False,
                  inejercitable=razon_sup, condicion=condicion_superficial)
-    ok6 = (base_sup is None and sonda6.filas[0][3] == NO_EJERCITABLE
+    # Se exige tambien el DIAGNOSTICO, no solo el veredicto: la razon tiene
+    # que ser «todos publican el inventario», nunca «no hay historia». Si no,
+    # el caso saldria verde con la regla rota.
+    por_la_razon_buena = "publican TODOS" in razon_sup
+    ok6 = (base_sup is None and por_la_razon_buena
+           and sonda6.filas[0][3] == NO_EJERCITABLE
            and sonda6.fallos == 0 and len(sonda6.inejercitables) == 1)
     print(f"  condicion en el clon superficial: {razon_sup}")
     print(f"  veredicto={sonda6.filas[0][3]}  desviaciones={sonda6.fallos}  "
-          f"registrados={len(sonda6.inejercitables)}")
+          f"registrados={len(sonda6.inejercitables)}  "
+          f"razon correcta={por_la_razon_buena}")
     tabla.anota("6 inejercitable legitimo (control positivo de la etiqueta)",
                 "NO EJERCITABLE, registrado y sin sumar rojo",
                 f"veredicto={sonda6.filas[0][3]}, desviaciones={sonda6.fallos}",
