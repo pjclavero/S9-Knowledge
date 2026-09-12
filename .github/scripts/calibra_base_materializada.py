@@ -207,6 +207,18 @@ def deriva_base_sin_inventario(raiz: Path = REPO) -> tuple[str | None, str]:
     primera a 103 de HEAD), asi que el caso NUNCA fue inejercitable: la ventana
     era corta. Por eso el arreglo AMPLIA la busqueda antes de contemplar
     siquiera la etiqueta.
+
+    POR QUE NO SE FABRICA UNA BASE SINTETICA. Se considero, y se descarta con
+    motivo: la base ya se fabrica a medias --`clon_con_main_en()` FUERZA
+    `origin/main` al commit elegido, asi que el caso no depende del merge-base
+    real de la rama-- y lo unico que se toma de la historia es la EXISTENCIA de
+    un commit sin inventario, que es un hecho permanente: la historia de git es
+    de solo anadir, `404cf9a` no va a dejar de existir, y la PRECONDICION de
+    este arnes ya exige `fetch-depth: 0`. Un commit sintetico anadiria una base
+    que habria que calibrar aparte para no acabar midiendo el arnes en vez del
+    producto. Si algun dia la derivacion devolviera None de verdad, la fila
+    saldria `NO EJERCITABLE` REGISTRADA --no silenciada-- y eso es justamente
+    la senal de que habria que fabricarla.
     """
     commits = subprocess.run(
         ["git", "rev-list", "origin/main"], cwd=raiz,
@@ -272,14 +284,21 @@ class Tabla:
                            NO_EJERCITABLE))
 
 
-def clon_superficial(profundidad: int = 20) -> Path:
+def clon_superficial(profundidad: int = 1) -> Path:
     """Un clon SUPERFICIAL: historia real, pero corta de verdad.
 
     Sirve para ejercitar la cara BUENA de la etiqueta sin mentir en ninguna
-    parte. En un clon de profundidad 20 los unicos commits que EXISTEN son los
-    20 ultimos, y todos publican el inventario: la condicion estructural sale
-    genuinamente insatisfecha y el escenario es de verdad inejercitable ahi.
-    Es el mismo contexto que tendria un `checkout` sin `fetch-depth: 0`.
+    parte: en un clon superficial los unicos commits que EXISTEN publican todos
+    el inventario, asi que la condicion estructural sale genuinamente
+    insatisfecha y el escenario es de verdad inejercitable ahi. Es el mismo
+    contexto que tendria un `checkout` sin `fetch-depth: 0`, o sea el que
+    motiva la PRECONDICION de este arnes.
+
+    PROFUNDIDAD 1, y medido: `--depth` no cuenta commits, cuenta SALTOS, y los
+    sigue por TODOS los padres de cada merge. A profundidad 20 el clon traia 64
+    commits y entre ellos ya habia uno sin inventario (`404cf9a`), con lo que
+    la condicion SI se satisfacia y el caso salia --correctamente-- en ETIQUETA
+    INDEBIDA. Con profundidad 1 el conjunto alcanzable es el tip y solo el tip.
 
     `file://` no es decorativo: con una ruta de disco git IGNORA `--depth` y
     haria un clon completo, con lo que el caso mediria lo contrario de lo que
