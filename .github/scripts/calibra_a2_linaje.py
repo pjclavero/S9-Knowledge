@@ -195,9 +195,27 @@ def m_renombra_y_apaga(seguido: bool) -> None:
     _declara_baja(OBLIGATORIO.relative_to(REPO).as_posix())
 
 
+def m_renombra_y_apaga_seguido() -> None:
+    m_renombra_y_apaga(True)
+
+
+def m_renombra_y_apaga_sin_seguir() -> None:
+    m_renombra_y_apaga(False)
+
+
 # --------------------------------------------------------------------------
 # Casos
 # --------------------------------------------------------------------------
+# NOTA, y es un DEFECTO AJENO que se declara sin arreglarlo: estas dos no son
+# `lambda` a proposito. `check_ci_config.comprueba_nombres_definidos()` recorre
+# los `.py` de `.github/scripts/` y su `_nodos_propios()` hace
+# `list(nodo.body)`; en un `ast.Lambda` `body` es UNA expresion, no una lista,
+# asi que `list()` revienta con `TypeError: 'Call' object is not iterable`
+# ANTES de llegar a la guardia `if not isinstance(cuerpo, list)` que hay justo
+# debajo y que existe para eso. Medido: con `lambda` aqui, `check_ci_config.py`
+# muere y TODA fila de `calibra_gate_integrity.py` que espera VERDE sale ROJA.
+# No habia ningun `lambda` en ese directorio, asi que el defecto estaba latente.
+# El dueño de ese fichero es otro cambio; aqui solo se evita pisarlo.
 # (titulo, mutacion, ablacion, esperado, fragmento que TIENE que salir)
 CASOS = [
     ("1. fichero nuevo que NACE condicional",
@@ -217,9 +235,9 @@ CASOS = [
     ("6. obligatorio existente ELIMINADO",
      m_borra_obligatorio, "", ROJO, "BORRADO DE SUITE"),
     ("7. obligatorio RENOMBRADO + condicional, con la baja YA declarada",
-     lambda: m_renombra_y_apaga(True), "", ROJO, "GARANTIA APAGADA"),
+     m_renombra_y_apaga_seguido, "", ROJO, "GARANTIA APAGADA"),
     ("7b. lo mismo con el fichero nuevo SIN SEGUIR por Git",
-     lambda: m_renombra_y_apaga(False), "", ROJO, "GARANTIA APAGADA"),
+     m_renombra_y_apaga_sin_seguir, "", ROJO, "GARANTIA APAGADA"),
     ("8. control positivo restaurado", None, "", VERDE, None),
 ]
 
