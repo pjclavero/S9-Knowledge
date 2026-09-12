@@ -1718,6 +1718,21 @@ def _git(*args) -> subprocess.CompletedProcess:
                           text=True, timeout=180)
 
 
+def sha_de_la_base() -> str:
+    """El commit con el que se compara: `merge-base HEAD origin/main`.
+
+    Se extrae de `inventario_base()` porque A2 lo necesita por si mismo: el
+    inventario responde "cuanto habia", y el linaje responde "de que desciende
+    esto". Son dos preguntas distintas sobre el MISMO commit, y tienen que
+    salir de la misma fuente o pueden contradecirse.
+    """
+    base = _git("merge-base", "HEAD", "origin/main").stdout.strip()
+    if not base:
+        _git("fetch", "--no-tags", "origin", "main")
+        base = _git("merge-base", "HEAD", "origin/main").stdout.strip()
+    return base
+
+
 def inventario_base() -> tuple[dict[str, int] | None, str]:
     """Inventario del `merge-base` con `origin/main`, o None si no hay base.
 
@@ -1725,10 +1740,7 @@ def inventario_base() -> tuple[dict[str, int] | None, str]:
     (rama anterior a este gate) el trinquete no puede aplicarse y se dice EN
     VOZ ALTA; no se inventa un cero, que dejaria pasar cualquier borrado.
     """
-    base = _git("merge-base", "HEAD", "origin/main").stdout.strip()
-    if not base:
-        _git("fetch", "--no-tags", "origin", "main")
-        base = _git("merge-base", "HEAD", "origin/main").stdout.strip()
+    base = sha_de_la_base()
     if not base:
         return None, "SIN TRINQUETE: no hay merge-base con origin/main"
     p = _git("show", f"{base}:.github/suite-inventario.json")
@@ -1828,6 +1840,138 @@ def inventario_materializando(base: str) -> tuple[dict | None, str]:
         return None, f"SIN TRINQUETE: fallo al materializar {base[:8]} ({e})"
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+# --------------------------------------------------------------------------
+# A2-linaje: las tres preguntas se responden contra la LINEA BASE GIT
+# --------------------------------------------------------------------------
+#
+# A2 hacia trinquete sobre la PERTENENCIA al conjunto de silenciados y con eso
+# mezclaba dos estados que no son el mismo:
+#
+#     un modulo que NACE condicional en este cambio
+#     un modulo que estaba VIVO y alguien APAGA
+#
+# El segundo es la perdida de garantia que este gate existe para impedir. El
+# primero no retira ninguna garantia: no habia ninguna. Distinguirlos NO se
+# hace con una lista de nombres —eso solo traslada el problema al dia en que
+# alguien anade un nombre mas—: se hace preguntandole al LINAJE GIT, que el
+# gate ya tiene delante, tres cosas por modulo:
+#
+#     existia en BASE?         -> ruta en el arbol del commit base, o su
+#                                 antecesor por rename / identidad logica
+#     era obligatorio en BASE? -> estaba en el inventario de la base y NO
+#                                 estaba en su conjunto de silenciados
+#     es condicional AHORA?    -> lo dice `silenciado()` sobre el arbol de
+#                                 trabajo, que es lo que este gate mide
+#
+# Y el ataque que esto NO puede dejar abierto:
+#
+#     test_obligatorio.py -> renombrar -> anadirle una condicion -> "es nuevo"
+#
+# Se cierra por DOS vias, porque una sola no cubre el arbol de trabajo entero:
+#   * la deteccion de renames de Git (`--find-renames`), que ve los ficheros
+#     SEGUIDOS;
+#   * la IDENTIDAD LOGICA por AST —el conjunto de nombres de test que el
+#     modulo define—, que ve tambien el fichero SIN SEGUIR, que es como llega
+#     una mutacion de calibracion y como llegaria el ataque en local.
+#
+# Esto ESTRECHA la semantica: el unico caso que deja de ser rojo es el que se
+# DEMUESTRA nuevo contra la base. Todo lo demas —incluido "no se pudo
+# establecer el linaje"— sigue siendo rojo.
+
+UMBRAL_IDENTIDAD_LOGICA = 0.5
+
+
+def firma_logica(texto: str) -> frozenset[str]:
+    """Los nombres de test que DEFINE un modulo: su identidad logica.
+
+    Es AST, no texto: un rename que cambie la ruta y retoque comentarios no la
+    mueve, y contar apariciones de una cadena habria dado falsos negativos.
+    """
+    try:
+        arbol = ast.parse(texto)
+    except SyntaxError:
+        return frozenset()
+    return frozenset(nodo.name for nodo in ast.walk(arbol) if _es_test(nodo))
+
+
+def _rutas_del_arbol(sha: str) -> set[str]:
+    p = _git("ls-tree", "-r", "--name-only", "-z", sha)
+    if p.returncode != 0:
+        return set()
+    return {x for x in p.stdout.split("\0") if x}
+
+
+def _renombres_desde(sha: str) -> dict[str, str]:
+    """`ruta nueva -> ruta vieja` segun la deteccion de renames de Git.
+
+    Se compara el commit base contra el ARBOL DE TRABAJO —`diff <sha>` sin
+    segundo commit—, que es exactamente el sujeto que este gate mide. Comparar
+    contra HEAD seria el sesgo con el que ya se ha tropezado aqui: "con y sin
+    la mutacion" daria lo mismo en los dos lados.
+    """
+    p = _git("diff", "--find-renames", "--name-status", "-z", sha)
+    if p.returncode != 0:
+        return {}
+    campos = [x for x in p.stdout.split("\0") if x]
+    renombres: dict[str, str] = {}
+    i = 0
+    while i < len(campos):
+        estado = campos[i]
+        if estado[:1] in ("R", "C") and i + 2 < len(campos):
+            renombres[campos[i + 2]] = campos[i + 1]
+            i += 3
+        else:
+            i += 2
+    return renombres
+
+
+def huerfanos_obligatorios(sha: str,
+                           obligatorios: set[str]) -> dict[str, frozenset[str]]:
+    """Firma logica de cada obligatorio de la base que YA NO esta en el arbol.
+
+    Son los unicos candidatos posibles a "lo renombraron y lo apagaron": un
+    modulo que sigue en su sitio no lo han movido a ninguna parte.
+    """
+    firmas: dict[str, frozenset[str]] = {}
+    for viejo in sorted(obligatorios):
+        if (REPO / viejo).is_file():
+            continue
+        p = _git("show", f"{sha}:{viejo}")
+        if p.returncode == 0:
+            firmas[viejo] = firma_logica(p.stdout)
+    return firmas
+
+
+def antecesor_en_la_base(rel: str, rutas_base: set[str],
+                         renombres: dict[str, str],
+                         huerfanos: dict[str, frozenset[str]],
+                         ) -> tuple[str | None, str]:
+    """El modulo de la BASE del que desciende `rel`, o None si nace aqui."""
+    if rel in rutas_base:
+        return rel, "ya existia en la base con esta misma ruta"
+    viejo = renombres.get(rel)
+    if viejo:
+        return viejo, f"Git lo detecta renombrado desde `{viejo}`"
+    try:
+        ahora = firma_logica((REPO / rel).read_text(encoding="utf-8",
+                                                    errors="replace"))
+    except OSError:
+        ahora = frozenset()
+    if ahora:
+        mejor, solape = None, 0.0
+        for candidato, firma in sorted(huerfanos.items()):
+            if not firma:
+                continue
+            proporcion = len(ahora & firma) / len(firma)
+            if proporcion > solape:
+                mejor, solape = candidato, proporcion
+        if mejor is not None and solape >= UMBRAL_IDENTIDAD_LOGICA:
+            return mejor, (f"identidad logica: define el {solape:.0%} de los "
+                           f"tests de `{mejor}`, que era obligatorio en la "
+                           f"base y ya no esta en el arbol")
+    return None, "no desciende de ningun modulo de la base"
 
 
 def _lineas_de_bajas() -> list[str]:
@@ -2198,6 +2342,12 @@ def main(argv: list[str] | None = None, ablacion: str | None = None,
             )
 
     # --- C y D: trinquete contra la base ----------------------------------
+    # `base_sha` es el COMMIT del que cuelga el linaje de A2, y solo lo hay
+    # cuando la base es la de verdad. Con `--base-fichero` la base es un JSON
+    # suelto que no corresponde a ningun commit: alli no se puede preguntar por
+    # el linaje y A2 se queda en su forma ESTRICTA —cualquier silenciado nuevo
+    # es rojo—, que es la conservadora. Sin linaje no se concede nada.
+    base_sha = ""
     if args.sin_base:
         datos_base, nota = None, "SIN TRINQUETE: --sin-base"
     elif args.base_fichero:
@@ -2206,7 +2356,11 @@ def main(argv: list[str] | None = None, ablacion: str | None = None,
         nota = f"base LOCAL {ruta} (calibracion; en ci.yml esta prohibido)"
     else:
         datos_base, nota = inventario_base()
+        base_sha = sha_de_la_base()
     base = None if datos_base is None else datos_base["modulos"]
+    # Lo que A2 CONCEDE se imprime siempre, aunque no haya errores: una
+    # concesion silenciosa es indistinguible de un control que no mira.
+    autorizados_por_linaje: list[str] = []
     print(f"\n=== F5: {nota}")
     if base is not None:
         bajas = bajas_declaradas()
@@ -2236,25 +2390,95 @@ def main(argv: list[str] | None = None, ablacion: str | None = None,
         if ABLACION != "A":
             silenciados_antes = set(datos_base.get("silenciados") or {})
             condiciones_antes = datos_base.get("condiciones") or {}
+            # OBLIGATORIO EN LA BASE = estaba en el inventario de la base y NO
+            # estaba en su conjunto de silenciados. Sale del inventario de la
+            # BASE, no de una lista escrita a mano: no hay ni puede haber una
+            # whitelist de nombres en este control.
+            obligatorios_antes = (
+                set(base)
+                | set(datos_base.get("en_pie") or {})
+                | set(datos_base.get("delegados") or [])
+            ) - silenciados_antes
+            nuevos_silenciados = sorted(set(silenciados_ahora) - silenciados_antes)
+
+            # LAS TRES PREGUNTAS, una sola vez por modulo.
+            linaje: dict[str, str | None] = {}
+            porques: dict[str, str] = {}
+            if nuevos_silenciados and base_sha:
+                rutas_base = _rutas_del_arbol(base_sha)
+                renombres = _renombres_desde(base_sha)
+                huerfanos = huerfanos_obligatorios(base_sha, obligatorios_antes)
+                for rel in nuevos_silenciados:
+                    linaje[rel], porques[rel] = antecesor_en_la_base(
+                        rel, rutas_base, renombres, huerfanos)
+
+            # La condicion de un modulo silenciado no se puede reescribir por
+            # una que nadie define nunca. Se busca por el ANTECESOR, no por la
+            # ruta: si no, bastaba renombrar el fichero para estrenar condicion.
             for rel, cond in sorted(condiciones_ahora.items()):
-                antes = condiciones_antes.get(rel)
+                clave = linaje.get(rel) or rel
+                antes = condiciones_antes.get(clave)
                 if antes is None or antes == cond:
                     continue
+                comodesde = "" if clave == rel else f" (venia de `{clave}`)"
                 errores.append(
                     f"CONDICION DE SILENCIO REESCRITA: `{rel}` sigue silenciado, "
-                    f"pero su condicion paso de `{antes}` a `{cond}`. A2 hace "
-                    f"trinquete sobre la PERTENENCIA al conjunto, asi que sin esto "
-                    f"se le podia cambiar la condicion por una que nadie define "
+                    f"pero su condicion paso de `{antes}` a `{cond}`{comodesde}. A2 "
+                    f"hace trinquete sobre la PERTENENCIA al conjunto, asi que sin "
+                    f"esto se le podia cambiar la condicion por una que nadie define "
                     f"nunca y el modulo quedaba apagado sin salir del conjunto."
                 )
-            for rel in sorted(set(silenciados_ahora) - silenciados_antes):
+
+            for rel in nuevos_silenciados:
                 etiqueta = "CRITICO " if rel in criticos else ""
+                if not base_sha:
+                    errores.append(
+                        f"SILENCIADO NUEVO: el modulo {etiqueta}`{rel}` no estaba "
+                        f"silenciado en la base y ahora lo esta "
+                        f"({silenciados_ahora[rel]}). El conjunto de suites apagadas "
+                        f"es un trinquete: solo puede encoger. (Sin commit base no "
+                        f"se puede preguntar por el linaje, asi que no se concede "
+                        f"nada.)"
+                    )
+                    continue
+                origen = linaje.get(rel)
+                porque = porques.get(rel, "")
+                if origen is None:
+                    # NACE condicional. No retira ninguna garantia porque no
+                    # habia ninguna: en la base este modulo no existia ni por
+                    # ruta, ni por rename de Git, ni por identidad logica.
+                    autorizados_por_linaje.append(
+                        f"{rel} ({silenciados_ahora[rel]}; {porque})")
+                    continue
+                if origen in silenciados_antes:
+                    # Ya era condicional en la base y sigue siendolo. Su
+                    # condicion la vigila el bloque de arriba.
+                    autorizados_por_linaje.append(
+                        f"{rel} (ya condicional en la base como `{origen}`)")
+                    continue
+                if origen in obligatorios_antes:
+                    errores.append(
+                        f"GARANTIA APAGADA: el modulo {etiqueta}`{rel}` desciende de "
+                        f"`{origen}`, que en la base {base_sha[:8]} se ejecutaba SIN "
+                        f"condicion, y ahora esta silenciado ({silenciados_ahora[rel]}"
+                        f"). {porque.capitalize()}. Nacer condicional esta permitido; "
+                        f"APAGAR lo que ayer corria, no. Renombrar el fichero no lo "
+                        f"convierte en nuevo."
+                    )
+                    continue
                 errores.append(
                     f"SILENCIADO NUEVO: el modulo {etiqueta}`{rel}` no estaba "
                     f"silenciado en la base y ahora lo esta "
-                    f"({silenciados_ahora[rel]}). El conjunto de suites apagadas "
-                    f"es un trinquete: solo puede encoger."
+                    f"({silenciados_ahora[rel]}). Su antecesor `{origen}` existe en "
+                    f"la base {base_sha[:8]} pero no se puede afirmar que naciera "
+                    f"condicional, y lo que no se demuestra nuevo no se concede."
                 )
+            if autorizados_por_linaje:
+                print(f"  A2: {len(autorizados_por_linaje)} modulo(s) silenciado(s) "
+                      f"NUEVOS respecto a {base_sha[:8]}, autorizados por LINAJE "
+                      f"(no por lista):")
+                for linea in autorizados_por_linaje:
+                    print(f"    {linea}")
         if ABLACION != "C":
             for rel in sorted(set(base) - set(inventario)):
                 if rel in criticos:
