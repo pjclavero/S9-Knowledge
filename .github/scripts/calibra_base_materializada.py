@@ -31,6 +31,28 @@ QUE SE COMPRUEBA
   4. El instrumento prestado al temporal esta COMPLETO: se comprueba que la
      medida de la base devuelve inventario y no None.
 
+TRES VEREDICTOS, NO DOS
+=======================
+Un escenario que NO PUEDE MONTARSE en el contexto de la corrida no es una
+violacion del gate. Contarlo como `DESVIACION` es un falso rojo, y un falso
+rojo repetido acaba ensenando a ignorar la tabla. Por eso hay un tercer
+estado, `NO EJERCITABLE`, que se REGISTRA con su razon y no suma desviacion.
+
+El riesgo evidente de un tercer estado es que se convierta en una puerta de
+escape: si un escenario pudiera declararse inejercitable a voluntad, cualquier
+violacion futura se esconderia detras de la etiqueta. Aqui no puede:
+
+  * la inejercitabilidad se DERIVA de una condicion estructural observable
+    --¿existe en la historia de `origin/main` un commit cuyo arbol no publique
+    el inventario?--, nunca de una lista de nombres, ni de una variable de
+    entorno, ni del nombre de la rama;
+  * la etiqueta no se le cree a quien la pone: al anotar la fila se vuelve a
+    derivar la condicion desde cero, y si el escenario SI era montable la fila
+    pasa a DESVIACION POR ETIQUETA INDEBIDA y suma rojo;
+  * los casos 5 y 6 calibran esas dos caras en cada corrida.
+
+Un escenario ejercitable que falla sigue siendo ROJO. Sin excepciones.
+
 NO MUTA NINGUN FICHERO DEL REPOSITORIO. Publica igualmente el SHA-256 de lo que
 podria tocar, porque "no lo toco" tambien hay que medirlo.
 """
@@ -58,6 +80,8 @@ VIGILADOS = (
 )
 
 VERDE, ROJO = "VERDE", "ROJO"
+NO_EJERCITABLE = "NO EJERCITABLE"
+INVENTARIO_REL = ".github/suite-inventario.json"
 
 
 def sha(ruta: Path) -> str:
@@ -159,6 +183,116 @@ def precondicion() -> list[str]:
     return problemas
 
 
+def deriva_base_sin_inventario(raiz: Path = REPO) -> tuple[str | None, str]:
+    """CONDICION ESTRUCTURAL de los casos 1 y 2, derivada del GRAFO DE GIT.
+
+    Los dos casos necesitan una base que NO publique `suite-inventario.json`:
+    es lo UNICO que obliga al gate a MATERIALIZAR el arbol de la base en vez de
+    tomar la via rapida de `git show`. Que esa base exista o no es un hecho
+    OBSERVABLE de la historia de `origin/main` --¿hay algun commit cuyo ARBOL
+    no contenga el fichero?-- y se responde preguntando por el arbol de cada
+    commit, uno a uno.
+
+    NO hay lista de commits, NO hay variable de entorno y NO se mira el nombre
+    de la rama: se pregunta por el CONTENIDO del arbol. Si manana alguien
+    quisiera declarar inejercitable este caso, tendria que hacer que TODOS los
+    commits de `origin/main` publicasen el inventario, que es precisamente la
+    situacion en la que el caso de verdad no puede montarse.
+
+    POR QUE HIZO FALTA TOCARLO. La busqueda estaba capada a los 60 commits mas
+    recientes, asi que dependia del CALENDARIO y no de la estructura: al entrar
+    `integracion/tanda11` en `main`, los 60 ultimos pasaron a publicar todos el
+    inventario, la base desaparecio y el caso se conto como DESVIACION. Medido
+    sobre la historia completa si hay bases sin inventario (610 commits, la
+    primera a 103 de HEAD), asi que el caso NUNCA fue inejercitable: la ventana
+    era corta. Por eso el arreglo AMPLIA la busqueda antes de contemplar
+    siquiera la etiqueta.
+    """
+    commits = subprocess.run(
+        ["git", "rev-list", "origin/main"], cwd=raiz,
+        capture_output=True, text=True, timeout=600).stdout.split()
+    if not commits:
+        return None, "`origin/main` no tiene historia alcanzable en este checkout"
+    consulta = "".join(f"{c}:{INVENTARIO_REL}\n" for c in commits)
+    p = subprocess.run(["git", "cat-file", "--batch-check"], cwd=raiz,
+                       input=consulta, capture_output=True, text=True,
+                       timeout=600)
+    for commit, linea in zip(commits, p.stdout.splitlines()):
+        if linea.strip().endswith("missing"):
+            return commit, (f"el arbol de {commit[:8]} no contiene "
+                            f"`{INVENTARIO_REL}`")
+    return None, (f"los {len(commits)} commits alcanzables desde `origin/main` "
+                  f"publican TODOS `{INVENTARIO_REL}`: no existe base que "
+                  f"obligue a materializar")
+
+
+class Tabla:
+    """Acumula filas con TRES veredictos, no dos.
+
+    `NO EJERCITABLE` no es un `OK` disfrazado ni una `DESVIACION` disfrazada:
+    es un tercer estado que se REGISTRA con su razon y no suma desviacion. Un
+    escenario que no puede MONTARSE en este contexto no es una violacion del
+    gate; contarlo como tal es un falso rojo, y un falso rojo repetido acaba
+    ensenando a ignorar la tabla.
+
+    Y NO es una puerta de escape, que es el riesgo evidente de tener un tercer
+    estado: la etiqueta NO se le cree a quien la pone. Al anotar la fila se
+    vuelve a DERIVAR la condicion estructural desde cero, y si resulta que el
+    escenario SI era montable, la fila pasa a DESVIACION POR ETIQUETA INDEBIDA
+    y suma rojo. O sea que marcar como inejercitable algo que si lo es sale
+    MAS caro que dejarlo fallar: no hay incentivo para esconderse detras.
+    """
+
+    def __init__(self) -> None:
+        self.filas: list[tuple[str, str, str, str]] = []
+        self.fallos = 0
+        self.inejercitables: list[tuple[str, str]] = []
+
+    def anota(self, titulo: str, esperado: str, detalle: str, ok: bool, *,
+              inejercitable: str | None = None, condicion=None) -> None:
+        if inejercitable is None:
+            self.fallos += 0 if ok else 1
+            self.filas.append((titulo, esperado, detalle,
+                               "OK" if ok else "**DESVIACION**"))
+            return
+        if condicion is None:
+            raise AssertionError(
+                "declarar NO EJERCITABLE exige la CONDICION estructural que lo "
+                "demuestra; sin ella la etiqueta seria una opinion")
+        base_real, razon = condicion()
+        if base_real is not None:
+            self.fallos += 1
+            self.filas.append((
+                titulo, esperado,
+                f"se declaro NO EJERCITABLE y SI es ejercitable ({razon})",
+                "**DESVIACION (ETIQUETA INDEBIDA)**"))
+            return
+        self.inejercitables.append((titulo, razon))
+        self.filas.append((titulo, esperado, f"no ejercitable: {razon}",
+                           NO_EJERCITABLE))
+
+
+def clon_superficial(profundidad: int = 20) -> Path:
+    """Un clon SUPERFICIAL: historia real, pero corta de verdad.
+
+    Sirve para ejercitar la cara BUENA de la etiqueta sin mentir en ninguna
+    parte. En un clon de profundidad 20 los unicos commits que EXISTEN son los
+    20 ultimos, y todos publican el inventario: la condicion estructural sale
+    genuinamente insatisfecha y el escenario es de verdad inejercitable ahi.
+    Es el mismo contexto que tendria un `checkout` sin `fetch-depth: 0`.
+
+    `file://` no es decorativo: con una ruta de disco git IGNORA `--depth` y
+    haria un clon completo, con lo que el caso mediria lo contrario de lo que
+    dice.
+    """
+    tmp = Path(tempfile.mkdtemp(prefix="clon-superficial-"))
+    destino = tmp / "repo"
+    subprocess.run(["git", "clone", "--quiet", "--depth", str(profundidad),
+                    f"file://{REPO}", str(destino)],
+                   check=True, capture_output=True, timeout=900)
+    return destino
+
+
 def main() -> int:
     fallos_previos = precondicion()
     for e in fallos_previos:
@@ -171,33 +305,26 @@ def main() -> int:
     for f, h in hashes.items():
         print(f"  {h}  {f.relative_to(REPO)}")
 
-    filas, fallos = [], 0
+    tabla = Tabla()
     temporales = []
 
     # --- 1. via de MATERIALIZACION (base SIN inventario publicado) --------
     print("\n########## 1. via de MATERIALIZACION (base sin inventario)")
-    # `aaf9695` (main de partida) no publica inventario; si algun dia lo
-    # publicara, se busca hacia atras el primer commit que no lo tenga.
-    base_sin = None
-    p = subprocess.run(["git", "rev-list", "-n", "60", "origin/main"], cwd=REPO,
-                       capture_output=True, text=True)
+    # La base se DERIVA de la estructura de la historia, no de una lista de
+    # commits ni de una ventana reciente. Ver `deriva_base_sin_inventario`.
+    #
     # OJO con el nombre: `sha` es la funcion de hash de este modulo. Usarla como
     # variable de bucle la convertia en local de `main()` y reventaba la primera
     # linea con `UnboundLocalError`. Lo caza la EJECUCION, no el AST: el nombre
     # existe a nivel de modulo, asi que el control de nombres definidos no tiene
     # nada que objetar. Otro recordatorio de que los arneses hay que correrlos.
-    for candidato in p.stdout.split():
-        q = subprocess.run(["git", "cat-file", "-e",
-                            f"{candidato}:.github/suite-inventario.json"],
-                           cwd=REPO, capture_output=True)
-        if q.returncode != 0:
-            base_sin = candidato
-            break
+    base_sin, razon_base = deriva_base_sin_inventario()
+    print(f"  condicion estructural: {razon_base}")
     if base_sin is None:
-        print("  (no hay ningun commit reciente SIN inventario: via no ejercitable)")
-        ok = False
-        detalle = "no ejercitable"
-        rc = -1
+        tabla.anota("1 via de MATERIALIZACION (base sin inventario)",
+                    "VERDE y nota MATERIALIZADA", "", False,
+                    inejercitable=razon_base,
+                    condicion=deriva_base_sin_inventario)
     else:
         clon = clon_con_main_en(base_sin)
         temporales.append(clon.parent)
@@ -205,13 +332,11 @@ def main() -> int:
         materializada = "MATERIALIZADA" in salida
         sin_trinquete = "SIN TRINQUETE" in salida
         ok = (rc == 0) and materializada and not sin_trinquete
-        detalle = f"EXIT={rc}, MATERIALIZADA={materializada}"
         print(f"  base sin inventario: {base_sin[:8]}")
         print(f"  EXIT={rc}  MATERIALIZADA={materializada}  SIN TRINQUETE={sin_trinquete}")
-    fallos += 0 if ok else 1
-    filas.append(("1 via de MATERIALIZACION (base sin inventario)",
-                  "VERDE y nota MATERIALIZADA", detalle,
-                  "OK" if ok else "**DESVIACION**"))
+        tabla.anota("1 via de MATERIALIZACION (base sin inventario)",
+                    "VERDE y nota MATERIALIZADA",
+                    f"EXIT={rc}, MATERIALIZADA={materializada}", ok)
 
     # --- 1b. via RAPIDA (base CON inventario publicado) -------------------
     # ESTA es la via que quedara en produccion en cuanto el carril se fusione,
@@ -226,11 +351,9 @@ def main() -> int:
     sin_trinquete1b = "SIN TRINQUETE" in salida1b
     ok1b = (rc1b == 0) and rapida and not sin_trinquete1b
     print(f"  EXIT={rc1b}  via rapida={rapida}  SIN TRINQUETE={sin_trinquete1b}")
-    fallos += 0 if ok1b else 1
-    filas.append(("1b via RAPIDA (base con inventario) = la de post-fusion",
-                  "VERDE con trinquete aplicado",
-                  f"EXIT={rc1b}, via rapida={rapida}",
-                  "OK" if ok1b else "**DESVIACION**"))
+    tabla.anota("1b via RAPIDA (base con inventario) = la de post-fusion",
+                "VERDE con trinquete aplicado",
+                f"EXIT={rc1b}, via rapida={rapida}", ok1b)
 
     # --- 2. materializacion ROTA -> ROJO, no verde con aviso --------------
     #
@@ -247,8 +370,10 @@ def main() -> int:
     entorno = os.environ.copy()
     entorno["PATH"] = f"{tmp}{os.pathsep}{entorno.get('PATH', '')}"
     if base_sin is None:
-        rc2, instrumento = -1, False
-        print("  (sin base sin inventario: no ejercitable)")
+        tabla.anota("2 materializacion rota (en clon con base sin inventario)",
+                    "ROJO (no verde con aviso)", "", False,
+                    inejercitable=razon_base,
+                    condicion=deriva_base_sin_inventario)
     else:
         clon3 = clon_con_main_en(base_sin)
         temporales.append(clon3.parent)
@@ -257,13 +382,11 @@ def main() -> int:
             cwd=clon3, capture_output=True, text=True, timeout=3600, env=entorno)
         rc2 = p2.returncode
         instrumento = "INSTRUMENTO ROTO" in (p2.stdout + p2.stderr)
-    ok2 = (rc2 == 1) and instrumento
-    print(f"  EXIT={rc2}  dice INSTRUMENTO ROTO={instrumento}")
-    fallos += 0 if ok2 else 1
-    filas.append(("2 materializacion rota (en clon con base sin inventario)",
-                  "ROJO (no verde con aviso)",
-                  f"EXIT={rc2}, INSTRUMENTO ROTO={instrumento}",
-                  "OK" if ok2 else "**DESVIACION**"))
+        ok2 = (rc2 == 1) and instrumento
+        print(f"  EXIT={rc2}  dice INSTRUMENTO ROTO={instrumento}")
+        tabla.anota("2 materializacion rota (en clon con base sin inventario)",
+                    "ROJO (no verde con aviso)",
+                    f"EXIT={rc2}, INSTRUMENTO ROTO={instrumento}", ok2)
 
     # --- 3. `--sin-base` PEDIDO -> verde con aviso ------------------------
     #
@@ -277,18 +400,15 @@ def main() -> int:
     aviso = "SIN TRINQUETE" in salida3
     ok3 = (rc3 == 0) and aviso
     print(f"  EXIT={rc3}  avisa={aviso}")
-    fallos += 0 if ok3 else 1
-    filas.append(("3 `--sin-base` en proceso (arnes)", "VERDE con aviso",
-                  f"EXIT={rc3}, avisa={aviso}", "OK" if ok3 else "**DESVIACION**"))
+    tabla.anota("3 `--sin-base` en proceso (arnes)", "VERDE con aviso",
+                f"EXIT={rc3}, avisa={aviso}", ok3)
 
     print("\n########## 3b. `--sin-base` desde la LINEA DE COMANDOS")
     rc3b, _ = corre_gate(["--sin-base"])
     ok3b = rc3b == 1
     print(f"  EXIT={rc3b}")
-    fallos += 0 if ok3b else 1
-    filas.append(("3b `--sin-base` desde linea de comandos",
-                  "ROJO (no certifica nada)", f"EXIT={rc3b}",
-                  "OK" if ok3b else "**DESVIACION**"))
+    tabla.anota("3b `--sin-base` desde linea de comandos",
+                "ROJO (no certifica nada)", f"EXIT={rc3b}", ok3b)
 
     # --- 4. el instrumento prestado esta COMPLETO -------------------------
     print("\n########## 4. la medida de la base devuelve inventario")
@@ -299,9 +419,65 @@ def main() -> int:
     print(f"  nota: {nota}")
     print(f"  modulos en la base: "
           f"{len(datos_base['modulos']) if datos_base else 'NINGUNO'}")
-    fallos += 0 if ok4 else 1
-    filas.append(("4 instrumento prestado completo", "inventario no vacio",
-                  nota[:60], "OK" if ok4 else "**DESVIACION**"))
+    tabla.anota("4 instrumento prestado completo", "inventario no vacio",
+                nota[:60], ok4)
+
+    # --- 5. la etiqueta NO EJERCITABLE, por su cara MALA ------------------
+    #
+    # El control NEGATIVO, y el que decide si el tercer estado vale algo. Se
+    # declara inejercitable un escenario CUYA CONDICION SI SE CUMPLE. Tiene que
+    # salir DESVIACION POR ETIQUETA INDEBIDA: si saliera `NO EJERCITABLE`, la
+    # etiqueta seria una puerta de escape y cualquier violacion futura podria
+    # esconderse detras de ella.
+    print("\n########## 5. NO EJERCITABLE indebido -> DESVIACION (puerta cerrada)")
+    if base_sin is None:
+        tabla.anota("5 etiqueta indebida (control negativo)",
+                    "DESVIACION POR ETIQUETA INDEBIDA", "", False,
+                    inejercitable=razon_base,
+                    condicion=deriva_base_sin_inventario)
+    else:
+        sonda = Tabla()
+        sonda.anota("sonda: escenario ejercitable declarado inejercitable",
+                    "ROJO", "", True,
+                    inejercitable="excusa inventada por la calibracion",
+                    condicion=deriva_base_sin_inventario)
+        indebida = "ETIQUETA INDEBIDA" in sonda.filas[0][3]
+        ok5 = indebida and sonda.fallos == 1 and not sonda.inejercitables
+        print(f"  veredicto de la sonda: {sonda.filas[0][3]}")
+        print(f"  suma desviacion={sonda.fallos}  registrada como "
+              f"inejercitable={bool(sonda.inejercitables)}")
+        tabla.anota("5 etiqueta indebida (control negativo)",
+                    "DESVIACION POR ETIQUETA INDEBIDA",
+                    f"veredicto={sonda.filas[0][3]}, desviaciones="
+                    f"{sonda.fallos}", ok5)
+
+    # --- 6. la etiqueta NO EJERCITABLE, por su cara BUENA ------------------
+    #
+    # El positivo del 5. En un clon SUPERFICIAL la condicion estructural sale
+    # genuinamente insatisfecha --los unicos commits que existen publican todos
+    # el inventario-- y ahi la etiqueta SI procede: fila `NO EJERCITABLE`, cero
+    # desviaciones y registro con su razon. Nada de esto se declara: se mide
+    # sobre una historia real, solo que corta.
+    print("\n########## 6. NO EJERCITABLE legitimo -> registrado, no rojo")
+    superficial = clon_superficial()
+    temporales.append(superficial.parent)
+    def condicion_superficial():
+        return deriva_base_sin_inventario(superficial)
+
+    base_sup, razon_sup = condicion_superficial()
+    sonda6 = Tabla()
+    sonda6.anota("sonda: escenario sin base montable en historia corta",
+                 "NO EJERCITABLE", "", False,
+                 inejercitable=razon_sup, condicion=condicion_superficial)
+    ok6 = (base_sup is None and sonda6.filas[0][3] == NO_EJERCITABLE
+           and sonda6.fallos == 0 and len(sonda6.inejercitables) == 1)
+    print(f"  condicion en el clon superficial: {razon_sup}")
+    print(f"  veredicto={sonda6.filas[0][3]}  desviaciones={sonda6.fallos}  "
+          f"registrados={len(sonda6.inejercitables)}")
+    tabla.anota("6 inejercitable legitimo (control positivo de la etiqueta)",
+                "NO EJERCITABLE, registrado y sin sumar rojo",
+                f"veredicto={sonda6.filas[0][3]}, desviaciones={sonda6.fallos}",
+                ok6)
 
     for t in temporales:
         shutil.rmtree(t, ignore_errors=True)
@@ -310,20 +486,32 @@ def main() -> int:
     for f, esperado in hashes.items():
         real = sha(f)
         marca = "OK" if real == esperado else "**NO COINCIDE**"
-        fallos += 0 if real == esperado else 1
+        tabla.fallos += 0 if real == esperado else 1
         print(f"  {marca}  {real}  {f.relative_to(REPO)}")
 
     print("\n\n===== TABLA (ruta de la base que CI ejecuta) =====\n")
     print("| Caso | Esperado | Obtenido | Veredicto |")
     print("|---|---|---|---|")
-    for fila in filas:
+    for fila in tabla.filas:
         print("| {} | {} | {} | {} |".format(*fila))
 
-    if fallos:
-        print(f"\nCALIBRACION FALLIDA: {fallos} desviacion(es)")
+    # REGISTRO EXPLICITO. Un escenario que no se ha podido montar no se silencia
+    # ni se cuela como OK: se dice cuantos son y POR QUE, para que quien lea la
+    # tabla vea lo que NO se ha ejercitado en esta corrida.
+    print(f"\n===== NO EJERCITABLES EN ESTE CONTEXTO: "
+          f"{len(tabla.inejercitables)} =====")
+    if not tabla.inejercitables:
+        print("  (ninguno: todos los escenarios se han podido montar y evaluar)")
+    for titulo, razon in tabla.inejercitables:
+        print(f"  NO EJERCITABLE  {titulo}\n                  razon: {razon}")
+
+    ejercitados = len(tabla.filas) - len(tabla.inejercitables)
+    if tabla.fallos:
+        print(f"\nCALIBRACION FALLIDA: {tabla.fallos} desviacion(es)")
         return 1
-    print(f"\nCALIBRACION SUPERADA: {len(filas)}/{len(filas)} casos, y ningun "
-          f"fichero del repositorio modificado")
+    print(f"\nCALIBRACION SUPERADA: {ejercitados}/{ejercitados} casos "
+          f"ejercitados ({len(tabla.inejercitables)} no ejercitable(s) "
+          f"registrado(s)), y ningun fichero del repositorio modificado")
     return 0
 
 
