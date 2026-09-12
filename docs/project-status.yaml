@@ -14,6 +14,11 @@
 # Actualizado tras el cierre del carril A (Graph UX V2, PR #158) y del disparo
 # de CI en toda rama (PR #160) — 2026-08-11.
 #
+# Refrescado el 2026-09-12 tras la entrada de `integracion/tanda11` en `main`
+# (PR #218, merge 2c423ad): SÓLO `latest_merged_pr`, que es el único dato que
+# el propio merge volvió falso. `main_commit` se deja donde está a propósito y
+# la razón va escrita junto al campo, no aquí.
+#
 # `main_commit` y `latest_merged_pr` NO se escriben de memoria:
 # scripts/check_docs_consistency.py los contrasta contra `origin/main` y falla
 # si divergen. Editarlos a mano y equivocarse pone el gate en rojo.
@@ -111,8 +116,48 @@ development:
   # hasta ahora: el **#205** se fusionó a las 05:09:05Z del 2026-09-04 y el
   # **#204** a las 22:40:32Z del MISMO día. El último por FECHA es el #204
   # pese a llevar el número MENOR. Ordenar por número habría escrito #205.
+  #
+  # REMEDIDO el 2026-09-12, tras la entrada de `integracion/tanda11` en `main`
+  # (merge 2c423ad, PR #218). Este es el refresco de un dato que SÓLO PODÍA
+  # CADUCAR AL FUSIONAR: mientras el #218 estaba abierto, `#204` era cierto, y
+  # el chequeo autorreferencial de `check_docs_consistency.py` no podía
+  # ponerse rojo antes del merge. No es una regresión.
+  #
+  # MEDIDO contra `origin/main` (2c423adf7566de9eda55b509723ef1afea995af3), con
+  # la MISMA autoridad que usa el gate —`git log --format=%s origin/main`
+  # parseado por asunto de merge/squash—, no con el número que traía el encargo:
+  #   prs[0] = #218  ("Merge pull request #218 from pjclavero/integracion/tanda11")
+  #   ventana siguiente: #220, #219, #211, #217, #216, #215, #214, #213, #212, #210
+  #
+  # Y el aviso de esta línea vuelve a ganarse el sitio, con una trampa NUEVA:
+  # `gh pr list` ordenado por `mergedAt` pone **#208** en cabeza (16:48:59Z)
+  # UN SEGUNDO por delante del #218 (16:48:58Z). Es un ARTEFACTO de la API: el
+  # `mergeCommit` que GitHub atribuye al #208 es `bbb9aba`, un merge INTERNO
+  # del 2026-09-06 hacia `carril-b/…`; el #208 se absorbió en la rama de
+  # integración y GitHub lo marcó «merged» cuando aterrizó el #218. En `main`
+  # no existe ningún asunto «Merge pull request #208». El último merge REAL
+  # sobre `main` es el #218, y su merge commit ES la punta de `main`.
+  # Ordenar por `mergedAt` de la API habría escrito #208 y puesto el gate rojo.
+  #
+  # `main_commit` NO SE MUEVE EN ESTE PR, y se declara por qué (es el AVISO de
+  # 99 commits de desfase, no una contradicción). Moverlo a `2c423ad` obliga a
+  # RE-MEDIR lo que cuelga de él, y lo que cuelga sale falso o efímero:
+  #   - `latest_ci` es la CI DE `main_commit`. MEDIDA la de 2c423ad el
+  #     2026-09-12 (`gh api .../commits/2c423ad/check-runs`, contando
+  #     CONCLUSIONES y no el final de un `--watch`): 14 success, 2 in_progress
+  #     y **2 failure** —`Deployment scripts validation` y `Combined Test
+  #     Suite`—, que son exactamente los dos rojos que este PR corrige. Escribir
+  #     `main_commit: 2c423ad` con `latest_ci: "green"` sería una cifra FALSA;
+  #     escribirlo con `"red"` sería cierto hoy y caduco en cuanto esto se
+  #     fusione. Ninguna de las dos es un refresco honesto.
+  #   - el bloque `tests` ya declara su propio commit de medida y `stale: true`;
+  #     re-medirlo exige una corrida limpia de la suite, que excede un PR de
+  #     documentación.
+  # La cabecera de este fichero ya lo dice: el desfase es ESTRUCTURAL y
+  # refrescar `main_commit` sólo desplaza la brecha al commit siguiente. Se deja
+  # el AVISO en pie, que es honesto, en vez de convertirlo en una cifra falsa.
   main_commit: "84f9cc7596381e1e56ff5a2fc059104b3c5aa063"
-  latest_merged_pr: 204  # por fecha de fusión: el #204 entró DESPUÉS que el #205
+  latest_merged_pr: 218  # medido sobre `origin/main`; ojo: `gh pr list` por `mergedAt` dice #208 y es un artefacto
   # CI DE `main_commit` (84f9cc7), no de este commit — ver la explicación de
   # semántica en la cabecera de este fichero.
   #
