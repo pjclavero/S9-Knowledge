@@ -174,6 +174,23 @@ def _opciones(html: str) -> list[str]:
     return re.findall(r'<option value="([^"]+)"', bloque.group(0))
 
 
+def _csrf_valido(cliente: TestClient) -> str:
+    """Un token CSRF VÁLIDO para la sesión de `cliente`, sin pasar por el panel.
+
+    Existe por una razón concreta y medida: la prueba del rol insuficiente
+    pasaba EN VERDE aunque se degradara la guarda del POST a `viewer`, porque
+    el `reviewer` no podía obtener un token y lo paraba el CSRF, no la
+    autorización. Un verde por la razón equivocada se lee igual que uno
+    legítimo. `base.html` publica el token en todas las páginas, así que se
+    toma de una que el rol SÍ pueda abrir.
+    """
+    r = cliente.get("/")
+    assert r.status_code == 200, f"no se pudo obtener token: {r.status_code}"
+    m = re.search(r'name="csrf_token"[^>]*value="([^"]+)"', r.text)
+    assert m, "base.html no publicó ningún token CSRF"
+    return m.group(1)
+
+
 def _correr_worker(db: Path, limit: int = 1) -> int:
     """El worker REAL, con su despacho real. Devuelve trabajos procesados."""
     from jobs import worker
@@ -656,10 +673,32 @@ def test_un_rol_insuficiente_no_puede_solicitar_ingestas(real_app, panel_on, col
                                                          auth_on):
     """`reviewer` ve otras pantallas del visor, pero esta capacidad es `admin`."""
     cliente = _cliente(real_app, _cookie(auth_on, "revisor_alta", "reviewer"))
-    r = cliente.post("/panel/operations/ingestas", data={"fuente": "x"})
+    # CSRF VÁLIDO a propósito: si el reviewer se parara por falta de token,
+    # esta prueba saldría verde aunque la guarda del POST fuera `viewer`.
+    r = cliente.post("/panel/operations/ingestas",
+                     data={"fuente": "x", "csrf_token": _csrf_valido(cliente)})
     assert r.status_code in (302, 401, 403), r.status_code
     store = jobs_client._load_job_store()
     assert store.list_jobs(db_path=str(cola)) == []
+
+
+def test_la_guarda_del_post_es_la_misma_del_panel(real_app):
+    """La puerta del POST es `require_admin`, COMPROBADO sobre la app real.
+
+    Complementa a las pruebas de comportamiento en vez de repetirlas: degradar
+    la guarda a un rol menor se ve aquí de inmediato y sin depender de que el
+    CSRF no tape el resultado.
+    """
+    from app.chassis import iter_mounted_routes
+
+    ruta = next(
+        r for r in iter_mounted_routes(real_app)
+        if getattr(r, "path", "") == "/panel/operations/ingestas"
+    )
+    guardas = {getattr(d.call, "__name__", str(d.call)) for d in ruta.dependant.dependencies}
+    assert "require_admin" in guardas, (
+        f"la capacidad de escritura no está detrás de require_admin: {guardas}"
+    )
 
 
 def test_sin_csrf_valido_no_se_encola_nada(real_app, panel_on, cola, operador,
