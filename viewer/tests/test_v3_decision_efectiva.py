@@ -218,7 +218,10 @@ def test_la_decision_de_la_ui_cambia_el_comportamiento_del_motor(
     activos = {
         d["proposal"]["proposal_id"]: d for d in reiniciado.store.decisions()
     }
-    assert proposal_id in activos
+    assert proposal_id in activos, (
+        "la decisión NO llegó a la autoridad canónica tras un 303 de éxito: "
+        "el visor la escribió en otro almacén"
+    )
     assert activos[proposal_id]["human_decision"] == human_decision
 
     # DESPUÉS: el motor lee ESA decisión y la propuesta cambia de estado.
@@ -247,6 +250,11 @@ def test_el_motor_no_consulta_el_jsonl_de_auditoria(
         hash_=item["proposal_hash"], human_decision="APPROVE",
     ).status_code == 303
 
+    # Precondición: la decisión está en la AUTORIDAD. Sin esto, el caso se
+    # pondría rojo por falta de persistencia y no por la causa que mide.
+    assert proposal_id in {
+        d["proposal"]["proposal_id"] for d in service.store.decisions()
+    }, "precondición: la decisión debe estar en la autoridad canónica"
     # El JSONL existe (auditoría) pero NO es la autoridad: se destruye.
     assert service.decisions_path.exists()
     service.decisions_path.unlink()
@@ -277,6 +285,10 @@ def test_un_jsonl_que_contradice_a_la_autoridad_no_cambia_nada(
         "human_decision": "APPROVE",
         "proposal": {"proposal_id": otro["proposal_id"]},
     }, ensure_ascii=False) + "\n", encoding="utf-8")
+
+    assert item["proposal_id"] in {
+        d["proposal"]["proposal_id"] for d in service.store.decisions()
+    }, "precondición: la decisión real debe estar en la autoridad canónica"
 
     despues = _engine_rerun(engine_result, tmp_path, service.database_path, "falso")
     ids = _ids(despues)
@@ -345,7 +357,7 @@ def test_deshacer_devuelve_la_propuesta_al_motor(
     ).status_code == 303
     assert proposal_id not in _ids(
         _engine_rerun(engine_result, tmp_path, service.database_path, "u1")
-    )
+    ), "el motor no observó la decisión antes de deshacerla"
 
     html = _open_queue(client)
     token = _CSRF.search(html).group(1)
@@ -440,4 +452,6 @@ def test_el_ambito_de_workspace_se_respeta(
     propias = review_decisions.read_active_decisions(
         service.database_path, workspace=WORKSPACE
     )
-    assert item["proposal_id"] in propias
+    assert item["proposal_id"] in propias, (
+        "el motor no observa en su propio workspace una decisión persistida"
+    )
