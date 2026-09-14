@@ -4,10 +4,15 @@
 Reclama jobs 'pending' de job_store, los despacha a un handler según
 `job_type`, y marca el resultado (complete/failed/skipped). Los handlers
 reales de multimedia (media_probe, audio_extract, transcribe, ...) se
-añadirán en fases futuras; aquí solo hay handlers de prueba (`noop`, `echo`)
-para validar el pipeline de la cola sin tocar datos reales.
+añadirán en fases futuras.
 
-NO escribe en Neo4j. NO procesa PDFs ni fuentes reales.
+Handlers registrados hoy:
+  * `noop`, `echo`  — de prueba, validan la cola sin tocar datos reales;
+  * `ingest_v3`     — REAL: ingesta V3 de una fuente, en dry-run. Reutiliza
+                      `knowledge_v3.pipeline.ingest_cli.run_ingest`, el mismo
+                      núcleo que invoca la CLI.
+
+NO escribe en Neo4j: `ingest_v3` corre con `apply=False` y sin driver.
 
 Ejecución manual:
     python data-engine/app/jobs/worker.py --once --limit 1
@@ -47,10 +52,36 @@ def handle_echo(payload: dict) -> dict:
     return {"echo": payload}
 
 
+# ── Handlers REALES ────────────────────────────────────────────────────────
+# `ingest_v3` es el primer trabajo de produccion que entra en esta cola. Antes
+# solo habia handlers de prueba, y por eso el panel de operaciones pintaba
+# fielmente una cola en la que nada real podia entrar.
+#
+# El import es PEREZOSO y tolerante: el worker de la cola generica tiene que
+# poder arrancar en un despliegue donde `knowledge_v3` no este instalado (el
+# visor y el motor se despliegan por separado). Si no se puede importar, el
+# job_type simplemente no tiene handler y `dispatch` lo marca 'skipped' con su
+# mensaje — que es exactamente el comportamiento correcto y ya existente, no
+# un fallo nuevo que haya que inventar.
+def _cargar_ingest_v3():
+    try:
+        from jobs.handlers.ingest_v3 import handle_ingest_v3
+
+        return handle_ingest_v3
+    except Exception:  # noqa: BLE001 - motor ausente: la cola sigue viva
+        log.warning("handler 'ingest_v3' no disponible en este despliegue",
+                    exc_info=True)
+        return None
+
+
 HANDLERS = {
     "noop": handle_noop,
     "echo": handle_echo,
 }
+
+_INGEST_V3 = _cargar_ingest_v3()
+if _INGEST_V3 is not None:
+    HANDLERS["ingest_v3"] = _INGEST_V3
 
 
 def dispatch(job: dict) -> dict:
@@ -95,8 +126,26 @@ def process_one(worker_id: str, job_types: list | None, workspace: str | None,
         log.warning("Job omitido (%s): %s", job_id, exc)
         return True
     except Exception as exc:  # noqa: BLE001 - cualquier excepción del handler → failed
-        job_store.mark_failed(job_id, error_message=str(exc), retry=True, db_path=db_path)
-        log.exception("Job fallido (%s)", job_id)
+        # UN ERROR PERMANENTE NO SE REINTENTA. `retry=True` devuelve el job a
+        # 'pending' hasta agotar `max_attempts` (3 por defecto), lo cual es
+        # correcto para un fallo transitorio y ABSURDO para uno que no puede
+        # cambiar: una fuente inválida lo seguirá siendo en el segundo intento
+        # y en el tercero.
+        #
+        # Y no es sólo ruido: mientras el job rebota entre 'pending' y
+        # 'running', la consola del operador enseña "sigue en la cola". El
+        # operador no ve ERROR hasta el tercer intento, de modo que el
+        # desenlace que el panel promete ("termina OK o ERROR") llegaba tarde
+        # o no llegaba.
+        #
+        # El handler es quien sabe si su error puede cambiar, así que lo
+        # DECLARA: `retryable = False` en la excepción. Por defecto se
+        # reintenta, que es el comportamiento anterior y el correcto cuando
+        # nadie afirma nada.
+        reintentar = bool(getattr(exc, "retryable", True))
+        job_store.mark_failed(job_id, error_message=str(exc), retry=reintentar,
+                              db_path=db_path)
+        log.exception("Job fallido (%s, reintentable=%s)", job_id, reintentar)
         return True
 
     job_store.mark_complete(job_id, result=result, db_path=db_path)

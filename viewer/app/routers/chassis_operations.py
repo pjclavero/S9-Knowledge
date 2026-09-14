@@ -1,10 +1,43 @@
-"""Hueco B del chasis — Operations Dashboard, SOLO LECTURA.
+"""Hueco B del chasis — Operations Dashboard: CONSOLA DE OPERADOR.
 
-FRONTERA DURA: aquí no hay ningún método que no sea GET, y ninguna lectura con
-efecto lateral. Este panel NO aprueba, NO reintenta, NO cancela, NO reinicia y
-NO purga nada. Tampoco *ejecuta* los healthchecks: lee el ÚLTIMO INFORME YA
-GUARDADO (``app.health.storage.load_last``) en vez de tomar el camino de
-``/admin/health``.
+EL CONTRATO DE ESTE PANEL HA CAMBIADO, Y SE DICE AQUÍ
+-----------------------------------------------------
+Hasta el Slice 2 este módulo era SOLO LECTURA y su cabecera lo declaraba como
+"frontera dura: aquí no hay ningún método que no sea GET". Ya no es cierto, y
+dejar aquella frase habría sido la forma más barata de colar una escritura como
+si nada hubiera cambiado. El contrato nuevo, que vive en ``app/chassis.py``
+(``WRITE_CAPABILITIES``) y está documentado en ``docs/69-chasis-de-montaje.md``:
+
+    GET                 -> observación
+    POST / mutaciones   -> SÓLO capacidades de producto explícitamente
+                           declaradas, autenticadas, autorizadas, protegidas
+                           con CSRF y AUDITABLES.
+
+Este panel aloja HOY exactamente UNA capacidad de escritura, y está declarada
+como dato en el chasis: ``ingesta_de_fuente`` (``POST
+/panel/operations/ingestas``). Cualquier otra escritura que aparezca bajo
+``/panel/operations`` es un defecto, y lo detecta la enumeración
+(``chassis.undeclared_writes``), no una revisión ocular. Los huecos C, F y G no
+declaran ninguna capacidad y por eso siguen siendo de solo lectura POR
+CONSTRUCCIÓN, con la misma comprobación de antes.
+
+LO QUE SIGUE SIENDO CIERTO: este panel NO aprueba, NO reintenta, NO cancela, NO
+reinicia y NO purga nada, y NO aplica nada al grafo. La única mutación que
+ofrece es ENCOLAR un trabajo. Tampoco *ejecuta* los healthchecks: lee el ÚLTIMO
+INFORME YA GUARDADO (``app.health.storage.load_last``) en vez de tomar el
+camino de ``/admin/health``.
+
+LA CAPACIDAD, EN UNA LÍNEA
+--------------------------
+El operador elige una fuente POR SU NOMBRE (``app.sources_catalog``), el
+servidor resuelve fichero, perfil, catálogo y workspace, y se crea un job
+``ingest_v3`` en la cola que YA existe (``jobs.job_store.create_job``). El
+worker lo recoge y llama al mismo núcleo de ingesta que usa la CLI. Aquí no se
+ejecuta ninguna ingesta: este manejador encola y vuelve.
+
+CERO CONOCIMIENTO INTERNO: el formulario no pide ``plan_id``, ni ``workspace``,
+ni ``partida_id``, ni rutas, ni mandos de backend. Lo único que viaja es el
+identificador opaco de la fuente elegida en el desplegable.
 
 PRECISIÓN, porque la frase importa y la primera versión de este docstring
 señalaba al culpable equivocado: ``runner.run_report()`` **no escribe**. Quien
@@ -78,19 +111,30 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+import json
+import logging
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from pathlib import Path
 
-from app import jobs_client
+from app import jobs_client, panel_errors, sources_catalog
+from app.auth.config import get_auth_settings
+from app.auth.csrf import get_csrf_token_for_session, validate_csrf
+from app.auth.models import User
 from app.authz.dependencies import get_visibility_scope
 from app.authz.scope import VisibilityScope
-from app.chassis import FEATURE_SLOTS, slot_enabled
+from app.chassis import FEATURE_SLOTS, capabilities_for_slot, slot_enabled
 from app.health import storage as health_storage
 from app.health.models import HealthStatus
 from app.routers.chassis_slot import slot_context, slot_guard
+
+#: Registro de AUDITORIA de las capacidades de escritura de este panel.
+#: Es la mitad "AUDITABLES" del contrato del chasis: quien, que capacidad, sobre
+#: que fuente y con que resultado. Va al log del SERVIDOR, nunca a la respuesta.
+audit = logging.getLogger("panel.audit")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -251,6 +295,136 @@ def _salud() -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# CSRF — la misma pieza que usa el resto del visor, no una nueva
+# ---------------------------------------------------------------------------
+
+def _csrf(request: Request) -> str:
+    cfg = get_auth_settings()
+    session = getattr(request.state, "session", None)
+    raw = getattr(request.state, "csrf_raw", "")
+    return get_csrf_token_for_session(
+        session.id if session else 0, raw, secret=cfg.S9K_CSRF_SECRET
+    )
+
+
+def _check_csrf(request: Request, token: str) -> None:
+    cfg = get_auth_settings()
+    if not cfg.S9K_AUTH_ENABLED:
+        # Sin auth no hay sesión con la que ligar el token. No es una excepción
+        # a la protección: sin auth la guarda `require_admin` ya ha redirigido a
+        # /login y este manejador no llega a ejecutarse (ver el docstring del
+        # módulo y `test_sin_auth_no_reaparece_el_comportamiento_permisivo`).
+        return
+    session = getattr(request.state, "session", None)
+    raw = getattr(request.state, "csrf_raw", "")
+    if not validate_csrf(token, session.id if session else 0, raw,
+                         secret=cfg.S9K_CSRF_SECRET):
+        raise HTTPException(status_code=403, detail="CSRF inválido")
+
+
+# ---------------------------------------------------------------------------
+# Catálogo de fuentes elegibles. AUSENCIA != LISTA VACÍA
+# ---------------------------------------------------------------------------
+
+def _fuentes() -> dict:
+    """Fuentes que el operador puede elegir, o la declaración de que no se sabe.
+
+    Misma doctrina que el resto del panel: si el catálogo no se puede consultar
+    NO se pinta un desplegable vacío (que se lee como "no hay fuentes"), se
+    dice que el dato no está.
+    """
+    try:
+        fuentes = sources_catalog.listar_fuentes()
+    except sources_catalog.CatalogoNoDisponible as exc:
+        panel_errors.registrar("SOURCE_CATALOG_UNAVAILABLE", exc)
+        return {"available": False, "lista": []}
+    # La clave es `lista` y NO `items`: en Jinja `fuentes.items` resuelve al
+    # METODO `dict.items` antes que a la clave, asi que `{% for f in
+    # fuentes.items %}` iteraba sobre un builtin y reventaba la plantilla.
+    # Medido, no supuesto.
+    return {"available": True, "lista": [f.para_pantalla() for f in fuentes]}
+
+
+def _aviso(codigo: Optional[str], job_id: Optional[str], scope: VisibilityScope) -> Optional[dict]:
+    """Acuse que se pinta tras un POST, RECONSTRUIDO desde la cola.
+
+    NO es un mensaje efímero guardado en sesión: se deriva del trabajo que está
+    en la base de datos. Por eso sobrevive a un refresco Y a un reinicio del
+    servicio, que es condición del corte y no un detalle.
+
+    El código de error, en cambio, sí viaja en la URL; se valida contra el
+    catálogo cerrado (`panel_errors.CATALOGO`) para que nadie pueda inyectar
+    texto arbitrario en la pantalla poniéndolo en el query string.
+    """
+    if codigo:
+        if codigo not in panel_errors.CATALOGO:
+            return None
+        return {"tipo": "error", "code": codigo,
+                "message": panel_errors.CATALOGO[codigo], "trabajo": None}
+    if not job_id:
+        return None
+    # Se lee POR EL CAMINO DE PRODUCCIÓN, con ámbito: un job que el espectador
+    # no puede ver no se convierte en un acuse por haber puesto su id en la URL.
+    job = jobs_client.scoped_job(scope, job_id)
+    if job is None:
+        return None
+    return {
+        "tipo": "ok",
+        "code": "INGEST_REQUESTED",
+        "message": "Se ha solicitado la ingesta. El trabajo ya está en la cola.",
+        "trabajo": {
+            "job_id": job.get("job_id"),
+            "status": job.get("status"),
+            "type": job.get("type"),
+        },
+    }
+
+
+def _resultado_del_trabajo(job: Optional[dict]) -> Optional[dict]:
+    """Lo que el operador lee cuando el trabajo TERMINA. Explica el desenlace.
+
+    Se construye SÓLO con material seguro: el `result` que el handler publicó
+    (que ya viene curado por lista blanca) o, si falló, el código estable que
+    el handler puso en `error_message`. El `error_message` NUNCA se pinta crudo:
+    se parte por el separador y se descarta todo lo que no sea un código
+    conocido, de modo que si algún día un handler dejara ahí una ruta, la
+    pantalla mostraría el mensaje genérico en vez de la ruta.
+    """
+    if not job:
+        return None
+    estado = job.get("status")
+    if estado in {"complete", "completed"}:
+        resultado = job.get("result")
+        if isinstance(resultado, str):
+            try:
+                resultado = json.loads(resultado)
+            except (TypeError, ValueError):
+                resultado = None
+        if not isinstance(resultado, dict):
+            return {"estado": "ok", "code": "INGEST_OK",
+                    "message": "La ingesta ha terminado correctamente.",
+                    "resumen": None}
+        return {
+            "estado": "ok",
+            "code": str(resultado.get("code") or "INGEST_OK"),
+            "message": str(resultado.get("message")
+                           or "La ingesta ha terminado correctamente."),
+            "resumen": resultado.get("resumen")
+            if isinstance(resultado.get("resumen"), dict) else None,
+        }
+    if estado in {"failed", "skipped", "cancelled"}:
+        crudo = job.get("error_message") or ""
+        codigo = str(crudo).split(":", 1)[0].strip()
+        if codigo not in panel_errors.CATALOGO:
+            # Ni el código se reconoce ni se enseña el texto: fallo cerrado.
+            codigo = "INGEST_FAILED"
+        return {"estado": "error", "code": codigo,
+                "message": panel_errors.CATALOGO[codigo], "resumen": None}
+    return {"estado": "en_curso", "code": None,
+            "message": "El trabajo sigue en la cola.", "resumen": None}
+
+
 def _authorize(request: Request, user):
     """Puerta + interruptor, EN ESE ORDEN, igual que el hueco vacío.
 
@@ -285,6 +459,11 @@ def chassis_operations(
     status: Optional[str] = Query(default=None),
     job_type: Optional[str] = Query(default=None),
     limit: int = Query(default=DEFAULT_ROWS, ge=1, le=MAX_ROWS),
+    # Acuse del POST (patrón PRG). `solicitado` es el id del trabajo recién
+    # encolado y `aviso` un código de error del catálogo cerrado. Ninguno de
+    # los dos lleva texto: lo que se pinta se deriva de la cola y del catálogo.
+    solicitado: Optional[str] = Query(default=None),
+    aviso: Optional[str] = Query(default=None),
     user=Depends(slot_guard(SLOT)),
     scope: VisibilityScope = Depends(get_visibility_scope),
 ):
@@ -319,6 +498,8 @@ def chassis_operations(
                     error="No se pudo leer la cola de trabajos.",
                     error_detail=type(exc).__name__,
                     ops={}, filtros={}, salud=None,
+                    fuentes={"available": False, "lista": []},
+                    csrf_token="", aviso=None, resultado=None,
                 ),
                 status_code=503,
             )
@@ -343,5 +524,144 @@ def chassis_operations(
             },
             filtros={"workspace": workspace, "status": status, "job_type": job_type},
             salud=_salud(),
+            # --- capacidad de escritura declarada ---
+            fuentes=_fuentes(),
+            csrf_token=_csrf(request),
+            aviso=_aviso(aviso, solicitado, scope),
+            # El DESENLACE del trabajo que el operador acaba de solicitar. Se
+            # relee de la cola en cada GET, así que refrescar la pantalla es lo
+            # que hace avanzar lo que se ve: pendiente -> en curso -> terminado.
+            resultado=_resultado_del_trabajo(
+                jobs_client.scoped_job(scope, solicitado) if solicitado else None
+            ),
         ),
+    )
+
+
+# ===========================================================================
+# CAPACIDAD DE ESCRITURA DECLARADA: alta de fuente
+# ---------------------------------------------------------------------------
+# Declarada en `app.chassis.WRITE_CAPABILITIES` como `ingesta_de_fuente`. Si
+# esta ruta y aquella declaración dejaran de coincidir, la enumeración del
+# chasis lo ve (`undeclared_writes`) y la suite se pone roja: no hay forma de
+# que este POST exista sin estar declarado.
+#
+# NO EJECUTA LA INGESTA. Crea un job y vuelve. El trabajo real lo hace el
+# worker, en la cola que ya existía.
+#
+# PATRÓN PRG (POST -> Redirect -> GET), y es lo que hace que el estado
+# sobreviva: la confirmación no es un mensaje en memoria sino un trabajo en
+# SQLite, así que recargar no re-envía nada y reiniciar el servicio no pierde
+# nada.
+# ===========================================================================
+
+#: La capacidad tal y como la declara el chasis. Se lee de allí en vez de
+#: repetir la ruta: dos literales acaban divergiendo.
+CAPACIDAD_INGESTA = next(
+    c for c in capabilities_for_slot(SLOT.key) if c.name == "ingesta_de_fuente"
+)
+
+#: Sufijo de la ruta dentro del prefijo del hueco, derivado de la declaración.
+_RUTA_INGESTA = CAPACIDAD_INGESTA.path[len(SLOT.prefix):]
+
+
+def _crear_job(**kwargs) -> str:
+    """Costura de escritura en la cola. Una sola, y va a `job_store.create_job`.
+
+    El puente `jobs_client` es de SOLO LECTURA por diseño y así se queda: esta
+    es la única escritura del visor hacia la cola, vive aquí, y la suite puede
+    sustituirla sin tocar el puente de lectura.
+    """
+    store = jobs_client._load_job_store()
+    if store is None:
+        raise panel_errors.de_codigo("QUEUE_UNAVAILABLE")
+    db_path = store.resolve_db_path(jobs_client._resolve_db_path())
+    store.init_db(db_path)
+    return store.create_job(db_path=db_path, **kwargs)
+
+
+@router.post(_RUTA_INGESTA, name="chassis_operations_ingesta")
+def solicitar_ingesta(
+    request: Request,
+    fuente: str = Form(default=""),
+    csrf_token: str = Form(default=""),
+    user=Depends(slot_guard(SLOT)),
+):
+    # 1. AUTORIZADA: la misma guarda del panel (`require_admin`) y el mismo
+    #    interruptor, en el mismo orden que el GET. Un anónimo no distingue un
+    #    panel apagado de uno encendido.
+    denegado = _authorize(request, user)
+    if denegado is not None:
+        return denegado
+
+    # 2. PROTEGIDA CON CSRF. Antes de mirar siquiera qué se pidió.
+    _check_csrf(request, csrf_token)
+
+    quien = getattr(user, "username", None) if isinstance(user, User) else None
+
+    def _fallo(codigo: str, exc: Optional[BaseException] = None) -> RedirectResponse:
+        """Vuelve al panel con un CÓDIGO. Nunca con una ruta ni una traza."""
+        panel_errors.registrar(codigo, exc, fuente=fuente, operador=quien)
+        audit.warning(
+            "capacidad=%s operador=%s fuente=%s resultado=RECHAZADO codigo=%s",
+            CAPACIDAD_INGESTA.name, quien, fuente, codigo,
+        )
+        return RedirectResponse(
+            url=f"{request.url_for('chassis_operations')}?aviso={codigo}",
+            status_code=303,
+        )
+
+    # 3. La elección del operador se valida contra el catálogo del SERVIDOR.
+    #    `resolver` enumera y compara; no compone ninguna ruta con lo recibido.
+    if not fuente.strip():
+        return _fallo("SOURCE_NOT_SELECTED")
+    try:
+        elegida = sources_catalog.resolver(fuente.strip())
+    except sources_catalog.CatalogoNoDisponible as exc:
+        return _fallo("SOURCE_CATALOG_UNAVAILABLE", exc)
+    if elegida is None:
+        return _fallo("SOURCE_UNKNOWN")
+
+    # 4. Todo lo interno lo pone el SERVIDOR: perfil, catálogo y workspace. El
+    #    operador no los ha escrito ni los ha visto.
+    perfil, catalogo = sources_catalog.perfil_y_catalogo()
+    if not perfil.is_file():
+        return _fallo("SOURCE_PACKAGE_INVALID")
+    try:
+        workspace = json.loads(perfil.read_text(encoding="utf-8")).get("workspace")
+    except (OSError, ValueError, AttributeError) as exc:
+        return _fallo("SOURCE_PACKAGE_INVALID", exc)
+    if not workspace:
+        return _fallo("SOURCE_PACKAGE_INVALID")
+
+    # 5. Se encola en la cola QUE YA EXISTE.
+    try:
+        job_id = _crear_job(
+            workspace=str(workspace),
+            job_type="ingest_v3",
+            payload={
+                "source_path": str(elegida.ruta),
+                "profile_path": str(perfil),
+                "catalog_path": str(catalogo) if catalogo else None,
+                "workspace": str(workspace),
+                "source_title": elegida.titulo,
+                # ATRIBUCIÓN DURABLE: quién pidió esta ingesta queda en el
+                # propio trabajo, no sólo en un log que rota.
+                "requested_by": quien,
+            },
+        )
+    except panel_errors.OperatorError as exc:
+        return _fallo(exc.code)
+    except Exception as exc:  # noqa: BLE001 - la cola no admitió el trabajo
+        return _fallo("INGEST_REQUEST_FAILED", exc)
+
+    # 6. AUDITABLE: queda el rastro de quién ejerció qué capacidad y con qué
+    #    resultado. Es la mitad del contrato que no se puede omitir.
+    audit.info(
+        "capacidad=%s operador=%s fuente=%s resultado=ENCOLADO trabajo=%s",
+        CAPACIDAD_INGESTA.name, quien, elegida.handle, job_id,
+    )
+    return RedirectResponse(
+        url=f"{request.url_for('chassis_operations')}?solicitado={job_id}",
+        status_code=303,
     )

@@ -118,6 +118,41 @@ Plantilla de despliegue: `viewer/.env.example`.
 4. No toca `base.html` ni `main.py`: el montaje y el menú se derivan del
    contrato.
 
+## 2 ter. Escritura: de `panel = sólo lectura` a `panel = consola de operador`
+
+**El contrato de este chasis cambió en el Slice 2** (ver
+`docs/86-consola-de-operador-alta-de-fuente.md`). Antes los cuatro huecos
+servían GET y nada más. Ahora:
+
+```
+GET                  -> observación
+POST / mutaciones    -> SÓLO capacidades de producto explícitamente declaradas,
+                        autenticadas, autorizadas, CSRF protegidas, AUDITABLES
+```
+
+**Lectura por defecto, sin excepciones**: un hueco sin entrada en
+`app.chassis.WRITE_CAPABILITIES` no admite ni un método de escritura en todo su
+espacio de URL. Hoy sólo el hueco **B** declara una capacidad
+(`ingesta_de_fuente`, `POST /panel/operations/ingestas`); **C, F y G** siguen
+siendo de solo lectura por construcción.
+
+Cómo monta un carril una mutación:
+
+1. La declara como dato en `WRITE_CAPABILITIES` (hueco, ruta, métodos, rol,
+   `audited=True`, resumen). El constructor rechaza un rol fuera de `ROLES`,
+   métodos que no escriban, una ruta fuera del espacio de su hueco y
+   `audited=False`.
+2. Monta la ruta en ese path exacto, con la guarda del hueco (`slot_guard`), el
+   interruptor (`slot_enabled`) y validación CSRF.
+3. Deja rastro de auditoría en el servidor.
+
+| Regla | Mecanismo | Prueba |
+| --- | --- | --- |
+| Ninguna mutación sin declarar | `chassis.undeclared_writes(app, slot)` enumera el espacio de URL y falla cerrado ante rutas no enumerables | `test_ninguna_escritura_sin_declarar_bajo_el_espacio_del_panel` |
+| Lo declarado está montado de verdad | Se comparan declaración y montaje en ambos sentidos | `test_la_unica_escritura_montada_es_la_capacidad_declarada` |
+| Un hueco sin capacidades sigue cerrado | `capabilities_for_slot()` vacío ⇒ cualquier escritura es hallazgo | `test_lectura_por_defecto_los_demas_huecos_siguen_cerrados` |
+| «Auditable» no es prosa | `WriteCapability.__post_init__` rechaza `audited=False` | `test_una_capacidad_no_auditable_no_se_puede_declarar` |
+
 ## 3. Las tres reglas y su mecanismo
 
 | Regla | Mecanismo | Prueba |

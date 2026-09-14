@@ -328,18 +328,32 @@ def test_la_plantilla_no_lleva_urls_escritas_a_mano():
     assert "url_for(" in marcado
 
 
-def test_la_plantilla_no_ofrece_ningun_formulario_de_escritura():
-    """Frontera de producto: el único formulario es un GET de filtros.
+def test_la_plantilla_solo_ofrece_los_formularios_de_las_capacidades_declaradas():
+    """Frontera de producto, ACTUALIZADA al contrato de consola de operador.
 
-    Un `method="post"` en la plantilla sería una acción ofrecida al humano
-    aunque el backend la rechazara; y la enumeración de rutas no lo vería.
+    ANTES este test exigía CERO formularios de escritura en la plantilla. El
+    Slice 2 cambió el contrato del chasis (`app.chassis.WRITE_CAPABILITIES`) y
+    este panel aloja ahora UNA capacidad declarada, así que la afirmación se
+    actualiza en vez de silenciarse: se permite exactamente UN `method="post"`,
+    y sólo mientras el chasis declare exactamente una capacidad para este hueco.
+
+    Lo que NO se ha relajado: `put`, `patch` y `delete` siguen prohibidos, el
+    GET de filtros sigue siendo único, y el número de POST se DERIVA de la
+    declaración — añadir un formulario sin declarar la capacidad pone esto rojo.
     """
+    from app.chassis import capabilities_for_slot
+
     ruta = Path(panel.__file__).resolve().parent.parent / "templates" / "chassis" / "operations.html"
     marcado = re.sub(r"\{#.*?#\}", "", ruta.read_text(encoding="utf-8"), flags=re.S)
-    for metodo in ("post", "put", "patch", "delete"):
+    for metodo in ("put", "patch", "delete"):
         assert f'method="{metodo}"' not in marcado.lower(), (
             f"La plantilla ofrece un formulario {metodo.upper()}"
         )
+    declaradas = capabilities_for_slot(SLOT.key)
+    assert marcado.lower().count('method="post"') == len(declaradas), (
+        "El número de formularios POST de la plantilla debe coincidir con las "
+        f"capacidades declaradas en el chasis ({[c.name for c in declaradas]})"
+    )
     assert marcado.lower().count('method="get"') == 1
 
 
@@ -580,38 +594,69 @@ def test_el_gate_si_reclama_lo_que_es_suyo():
     assert caminos == [f"{SLOT.prefix}/purgar"], caminos
 
 
-def test_ninguna_ruta_del_espacio_del_panel_acepta_escritura(real_app):
-    """LA frontera: nadie cuelga escritura bajo `/panel/operations`.
+def test_ninguna_escritura_sin_declarar_bajo_el_espacio_del_panel(real_app):
+    """LA frontera, ACTUALIZADA: nadie cuelga escritura SIN DECLARARLA.
 
-    Se afirma sobre la app real y sobre todo el prefijo, no sobre este módulo:
-    comprobar el propio router deja la puerta abierta a que otro carril monte un
-    POST en tu espacio de URL. La superficie de escritura se pregunta a
-    `app.chassis.write_methods`, que FALLA CERRADO ante una ruta sin `methods`
-    enumerables (un WebSocket, un `Mount` opaco).
+    ANTES esta prueba decía "ninguna ruta de este espacio acepta escritura".
+    El contrato del chasis cambió de `panel = solo lectura` a `panel = consola
+    de operador`, y la frontera se mueve con él: lo que se prohíbe ya no es
+    escribir, es escribir SIN ESTAR EN `app.chassis.WRITE_CAPABILITIES`.
+
+    La fuerza de la prueba no baja, porque la lista blanca no está aquí: está
+    en el chasis, es un dato, y montar un POST nuevo sigue poniendo esto rojo a
+    menos que alguien lo declare explícitamente — que es exactamente el acto
+    que el contrato exige y que una revisión ocular no garantizaba.
+
+    `undeclared_writes` FALLA CERRADO igual que antes: una ruta sin `methods`
+    o sin `path` enumerables cuenta como escritura y nunca como declarada.
     """
-    from app.chassis import route_path, write_methods
+    from app.chassis import undeclared_writes
 
-    culpables = [
-        (route_path(r), list(write_methods(r)))
-        for r in rutas_del_espacio_del_panel(real_app)
-        if write_methods(r)
-    ]
+    culpables = undeclared_writes(real_app, SLOT)
     assert not culpables, (
-        f"Hay escritura montada bajo {SLOT.prefix}: {culpables}. "
-        "Este panel es de solo lectura y su espacio de URL también."
+        f"Hay escritura SIN DECLARAR bajo {SLOT.prefix}: {culpables}. "
+        "Toda mutación de un panel tiene que estar en chassis.WRITE_CAPABILITIES."
     )
 
 
-def test_el_panel_no_monta_ningun_metodo_de_escritura(real_app):
-    """El MÓDULO tampoco, comprobado aparte del espacio de URL.
+def test_la_unica_escritura_montada_es_la_capacidad_declarada(real_app):
+    """El otro lado de la moneda: lo declarado está montado DE VERDAD.
 
-    Redundante con el anterior por construcción, y se conserva porque LOCALIZA
-    el fallo: dice que el POST lo puso ESTE fichero, no otro.
+    Sin esto, `undeclared_writes` se podría satisfacer declarando capacidades
+    que nadie implementa (y quedaría verde con el panel roto), o borrando la
+    ruta y dejando la declaración huérfana.
     """
+    from app.chassis import capabilities_for_slot, route_path, write_methods
+
+    montadas = {
+        (route_path(r), tuple(sorted(write_methods(r))))
+        for r in rutas_del_espacio_del_panel(real_app)
+        if write_methods(r)
+    }
+    esperadas = {
+        (c.path, tuple(sorted(c.methods))) for c in capabilities_for_slot(SLOT.key)
+    }
+    assert montadas == esperadas, (
+        f"Declarado {esperadas} pero montado {montadas}"
+    )
+
+
+def test_el_modulo_no_monta_escrituras_que_el_chasis_no_declare(real_app):
+    """El MÓDULO, comprobado aparte del espacio de URL.
+
+    Se conserva porque LOCALIZA el fallo: dice que el POST lo puso ESTE
+    fichero, no otro. Lo que cambia con el contrato nuevo es el criterio: no
+    "cero escrituras" sino "ninguna escritura que el chasis no declare".
+    """
+    from app.chassis import declared_write
+
     for ruta in panel.router.routes:
-        assert not (set(getattr(ruta, "methods", set())) & METODOS_DE_ESCRITURA), (
-            f"{getattr(ruta, 'path', ruta)} monta métodos de escritura"
-        )
+        escrituras = set(getattr(ruta, "methods", set())) & METODOS_DE_ESCRITURA
+        for metodo in escrituras:
+            assert declared_write(getattr(ruta, "path", ""), metodo) is not None, (
+                f"{getattr(ruta, 'path', ruta)} monta {metodo} sin declararlo "
+                "en chassis.WRITE_CAPABILITIES"
+            )
 
 
 @pytest.mark.parametrize("metodo", ["post", "put", "patch", "delete"])
