@@ -157,11 +157,11 @@ active la escritura.
 
 ## 9. Bloqueantes REGISTRADOS, no arreglados
 
-Se anotan aquí para que no se pierdan. **Ninguno se ha tocado en este corte.**
+Se anotan aquí para que no se pierdan. **Ninguno se tocó en el Corte 1.** B-1 quedó cerrado después, en el Corte 2 (`docs/87`).
 
 | # | Bloqueante | Por qué importa |
 |---|---|---|
-| B-1 | `/v3/review/decide` escribe `viewer/output/reviews-v3/decisions.jsonl`, **que no lee nadie**; el motor lee su propio `decisiones.json`. El puente es de **un solo sentido** | **Falso éxito de producto**: el operador cree que aprobó y eso no se aplicará jamás. Cuando toque, se resuelve eligiendo **una autoridad única** para las decisiones — **no** leyendo dos almacenes |
+| B-1 | ~~`/v3/review/decide` escribe `viewer/output/reviews-v3/decisions.jsonl`, **que no lee nadie**; el motor lee su propio `decisiones.json`. El puente es de **un solo sentido**~~ **CERRADO en el Corte 2** | **Falso éxito de producto**: el operador creía que aprobaba y eso no se aplicaba jamás. Resuelto con **una autoridad única**: la tabla `human_decisions` del SQLite del visor. El motor la lee por un solo camino (`knowledge_v3/review_decisions.py`) y **no** lee `decisions.jsonl`, que es exportación de auditoría. `undo` entra en el mismo contrato. Ver `docs/87` |
 | B-2 | `undo` de `/v3/review` **no es un rollback** del grafo | Se llama como si lo fuera |
 | B-3 | El rollback exige el `rollback.json` de la corrida | Si no se guardó, **el apply es irreversible por la ruta de operador** |
 

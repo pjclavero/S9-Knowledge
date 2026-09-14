@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from .contracts.base import canonical_json, sha256_hash
+from .review_decisions import resolved_proposal_ids
 
 
 EXPORTED_DECISIONS = frozenset({"REVIEW", "ABSTAIN", "REJECT_INVALID"})
@@ -205,10 +206,35 @@ def review_documents(result: Any, *, workspace: str) -> list[dict[str, Any]]:
     return sorted(documents, key=lambda x: (x["source_id"], x["episode_id"], x["proposal_id"]))
 
 
-def export_review_package(result: Any, output_dir: Path, *, workspace: str) -> Path:
-    """Atomically write one content-addressed immutable package; reruns dedup."""
+def export_review_package(
+    result: Any,
+    output_dir: Path,
+    *,
+    workspace: str,
+    decisions_db: "Path | None" = None,
+) -> Path:
+    """Atomically write one content-addressed immutable package; reruns dedup.
+
+    CIERRE DEL LAZO: antes de publicar, se leen las decisiones humanas ACTIVAS
+    de su unica autoridad (la tabla ``human_decisions`` del visor) y toda
+    propuesta ya resuelta por una persona (``APPROVE``/``REJECT``) DEJA de
+    presentarse como reclamacion pendiente. Queda anotada en ``resolved`` con
+    la decision que la resolvio, para que la resolucion se vea y no se
+    adivine. Un ``undo`` la devuelve a pendiente, porque la autoridad dice que
+    ya no hay decision activa.
+
+    No se lee ``decisions.jsonl``: es exportacion de auditoria, no autoridad.
+    """
     documents = review_documents(result, workspace=workspace)
-    package_body = {"workspace": workspace, "items": documents}
+    resolved = resolved_proposal_ids(decisions_db, workspace=workspace)
+    pending = [doc for doc in documents if doc["proposal_id"] not in resolved]
+    consumed = [
+        resolved[doc["proposal_id"]].to_dict()
+        for doc in documents
+        if doc["proposal_id"] in resolved
+    ]
+    documents = pending
+    package_body = {"workspace": workspace, "items": documents, "resolved": consumed}
     package_hash = sha256_hash(package_body)
     digest = package_hash["value"] if isinstance(package_hash, dict) else str(package_hash)
     output_dir.mkdir(parents=True, exist_ok=True)
