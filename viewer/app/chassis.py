@@ -644,7 +644,12 @@ WRITE_CAPABILITIES: tuple[WriteCapability, ...] = (
         audited=True,
         summary=(
             "Encola un trabajo de ingesta (`ingest_v3`) para una fuente elegida "
-            "del catalogo. No escribe en el grafo: deja un trabajo en la cola."
+            "del catalogo. No escribe en el grafo: deja un trabajo en la cola. "
+            "El trabajo, al correr, SI deja una escritura fuera del grafo: la "
+            "cola de revision en el almacen de propuestas "
+            "(`S9K_V3_REVIEW_PROPOSALS_DIR`), que es lo que `/panel/review` "
+            "lee. Se declara aqui porque es una escritura de esta capacidad, "
+            "aunque la haga el worker y no la peticion."
         ),
     ),
 )

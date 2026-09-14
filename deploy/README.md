@@ -51,6 +51,43 @@ No se versionan valores reales. `viewer.env` sigue conteniendo la configuración
 del visor y sus propios secretos; `providers.env`, solo la configuración de
 proveedores.
 
+## Invariante: el almacén de revisión lo comparten escritor y lector
+
+`S9K_V3_REVIEW_PROPOSALS_DIR` **no es configuración de un servicio: es un
+acuerdo entre dos.**
+
+| Lado | Quién | Qué hace |
+|---|---|---|
+| Escritor | el worker que corre `ingest_v3` (data-engine) | deja ahí la cola de revisión de cada ingesta |
+| Lector | el visor, en `/panel/review` | la pinta |
+
+Si cada lado la resuelve a un almacenamiento distinto **no hay ningún error**:
+hay un trabajo `complete`, un informe que dice `REVIEW: 2` y una pantalla que
+dice «Sin propuestas visibles». El operador concluye que no hay nada que
+revisar y da por buena una ingesta cuyas ambigüedades no ha visto. Es el
+defecto que cerró el Slice 2 · Corte 3 (`docs/88`), y la forma de reabrirlo es
+desplegar los dos servicios con valores distintos —o con uno solo declarado.
+
+**Reglas de despliegue:**
+
+1. Si se declara, se declara **en los dos** entornos (el del visor y el del
+   worker) **con el mismo valor**, y apuntando a un almacenamiento que ambos
+   monten con permiso de lectura (visor) y de escritura (worker).
+2. Si no se declara en ninguno, ambos caen al mismo defecto del repositorio
+   (`viewer/output/reviews-v3/proposals`), que sólo es válido cuando los dos
+   corren sobre el mismo árbol.
+3. Declararla **en uno solo** es el peor caso: el defecto del otro lado es una
+   ruta válida, así que todo parece funcionar.
+
+Es la misma exigencia que el Corte 2 ya impuso a `review.sqlite3`
+(`S9K_V3_REVIEW_DATABASE_PATH`): visor y motor tienen que compartir volumen o
+la autoridad de decisión se parte en dos.
+
+La *resolución* de la ruta, en cambio, ya no puede divergir dentro del código:
+existe **un solo resolvedor** (`data-engine/app/knowledge_v3/review_paths.py`)
+y el visor lo importa en vez de derivar la suya. Un caso lo comprueba por
+enumeración del árbol.
+
 ## Actualización V3
 
 El flujo operativo es:

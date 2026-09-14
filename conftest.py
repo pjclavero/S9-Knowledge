@@ -35,3 +35,32 @@ if str(_DATA_ENGINE_APP) not in sys.path:
 # (que no tienen __init__.py en su raíz) no interfieran con 'app'.
 if str(_VIEWER_ROOT) not in sys.path:
     sys.path.append(str(_VIEWER_ROOT))
+
+
+
+# ---------------------------------------------------------------------------
+# Almacén de propuestas de revisión: propio de CADA caso.
+# ---------------------------------------------------------------------------
+# Desde Slice 2 · Corte 3 `run_ingest` exporta la cola de revisión SIEMPRE (era
+# justo el llamador que faltaba). Eso tiene dos consecuencias para la suite, y
+# las dos se arreglan aquí:
+#
+#   1. sin redirigir, cada caso que corre una ingesta dejaría paquetes en
+#      `viewer/output/reviews-v3/proposals`, el almacén REAL del repositorio;
+#   2. con un ÚNICO almacén para toda la sesión tampoco basta —se midió—:
+#      las propuestas de un caso las veía otro. `test_slot_renders_empty_state`
+#      del hueco C pasó a encontrar «1–4 de 4» donde esperaba la pantalla
+#      vacía. Un almacén compartido es contaminación entre casos, y ya fabricó
+#      aquí un rojo que no era del sujeto.
+#
+# Por eso el almacén es de CADA caso. Un test que quiera fijar el suyo —la
+# prueba insignia del Corte 3 lo hace— vuelve a declarar la variable en su
+# propio fixture, que corre después de éste y manda sobre él.
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _almacen_de_propuestas_aislado(tmp_path, monkeypatch):
+    monkeypatch.setenv(
+        "S9K_V3_REVIEW_PROPOSALS_DIR", str(tmp_path / "reviews-v3" / "proposals")
+    )
