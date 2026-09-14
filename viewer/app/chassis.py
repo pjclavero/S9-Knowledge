@@ -38,6 +38,11 @@ __all__ = [
     "NavItem",
     "FEATURE_SLOTS",
     "NAV",
+    "WriteCapability",
+    "WRITE_CAPABILITIES",
+    "capabilities_for_slot",
+    "declared_write",
+    "undeclared_writes",
     "ChassisContractError",
     "iter_mounted_routes",
     "route_index",
@@ -553,3 +558,133 @@ def install_nav_globals(app, envs: Iterable) -> None:
 
     for env in envs:
         env.globals[NAV_GLOBAL] = _nav
+
+
+# ---------------------------------------------------------------------------
+# CAPACIDADES DE ESCRITURA DEL PANEL — el contrato cambia, y cambia AQUI
+# ---------------------------------------------------------------------------
+# HASTA EL SLICE 2 el contrato de este chasis era `panel = solo lectura`: los
+# cuatro huecos servian GET y nada mas, y cada suite de panel lo fijaba con una
+# enumeracion de su espacio de URL.
+#
+# EL CONTRATO NUEVO, escrito entero y sin letra pequena:
+#
+#     GET                 -> observacion
+#     POST / mutaciones   -> SOLO capacidades de producto EXPLICITAMENTE
+#                            declaradas aqui, autenticadas, autorizadas,
+#                            protegidas con CSRF y AUDITABLES.
+#
+# Lo que NO cambia, y es la mitad importante: **lectura por defecto**. Un hueco
+# sin entrada en `WRITE_CAPABILITIES` no admite ni un solo metodo de escritura
+# en todo su espacio de URL, exactamente igual que antes. El chasis no se abre;
+# se le anade una puerta con cerradura declarada.
+#
+# Esto existe para que "este POST es especial" sea IMPOSIBLE de colar: una ruta
+# de escritura que no este en esta tabla es un defecto detectable por
+# enumeracion (`undeclared_writes`), no por revision ocular — la misma doctrina
+# que `FEATURE_SLOTS` aplica a las rutas muertas.
+
+@dataclass(frozen=True)
+class WriteCapability:
+    """Una capacidad de producto que MUTA, declarada como dato.
+
+    `path` es la URL EFECTIVA completa (con el prefijo del hueco ya dentro): es
+    la forma en que la enumeracion ve las rutas, y compararla con un path
+    relativo seria comparar dos cosas distintas.
+    """
+
+    slot_key: str       # hueco al que pertenece; debe existir en FEATURE_SLOTS
+    name: str           # identificador estable de la capacidad
+    title: str          # nombre humano, para el operador
+    path: str           # URL efectiva completa
+    methods: frozenset  # metodos de escritura que ofrece
+    role: str           # rol minimo: uno de ROLES
+    audited: bool       # deja rastro de auditoria en el servidor
+    summary: str        # que hace, en una frase
+
+    def __post_init__(self) -> None:
+        if self.role not in ROLES:
+            raise ChassisContractError(
+                f"capacidad {self.name!r}: rol {self.role!r} fuera de ROLES {ROLES}"
+            )
+        if not self.methods or not (self.methods <= WRITE_METHODS):
+            raise ChassisContractError(
+                f"capacidad {self.name!r}: {sorted(self.methods)} no son metodos "
+                f"de escritura {sorted(WRITE_METHODS)}"
+            )
+        if not self.audited:
+            # No es un aviso: el contrato dice "AUDITABLES". Una capacidad que
+            # no deja rastro no cumple el contrato y no se monta.
+            raise ChassisContractError(
+                f"capacidad {self.name!r}: el contrato exige que sea auditable"
+            )
+        slot = next((s for s in FEATURE_SLOTS if s.key == self.slot_key), None)
+        if slot is None:
+            raise ChassisContractError(
+                f"capacidad {self.name!r}: hueco {self.slot_key!r} no declarado"
+            )
+        if not path_in_prefix(self.path, slot.prefix):
+            raise ChassisContractError(
+                f"capacidad {self.name!r}: {self.path!r} cae fuera del espacio "
+                f"de URL del hueco {self.slot_key} ({slot.prefix})"
+            )
+
+
+#: Las capacidades de escritura que el chasis aloja HOY. Una sola: el alta de
+#: fuente del Slice 2, hueco B. Los huecos C, F y G no aparecen, y por eso
+#: siguen siendo de solo lectura por construccion.
+WRITE_CAPABILITIES: tuple[WriteCapability, ...] = (
+    WriteCapability(
+        slot_key="B",
+        name="ingesta_de_fuente",
+        title="Solicitar la ingesta de una fuente",
+        path="/panel/operations/ingestas",
+        methods=frozenset({"POST"}),
+        role="admin",
+        audited=True,
+        summary=(
+            "Encola un trabajo de ingesta (`ingest_v3`) para una fuente elegida "
+            "del catalogo. No escribe en el grafo: deja un trabajo en la cola."
+        ),
+    ),
+)
+
+
+def capabilities_for_slot(slot_key: str) -> tuple[WriteCapability, ...]:
+    """Capacidades declaradas de un hueco. Vacio = hueco de solo lectura."""
+    return tuple(c for c in WRITE_CAPABILITIES if c.slot_key == slot_key)
+
+
+def declared_write(path: str, method: str) -> Optional[WriteCapability]:
+    """La capacidad que declara ``method path``, o ``None`` si no hay ninguna."""
+    metodo = str(method).upper()
+    for cap in WRITE_CAPABILITIES:
+        if cap.path == path and metodo in cap.methods:
+            return cap
+    return None
+
+
+def undeclared_writes(app, slot: "FeatureSlot") -> list[tuple]:
+    """Escrituras montadas bajo ``slot`` que NADIE ha declarado. FALLA CERRADO.
+
+    Es el sustituto exacto de la vieja enumeracion "ninguna ruta de este panel
+    acepta escritura": para un hueco sin capacidades devuelve lo mismo que
+    aquella (cualquier escritura es un hallazgo), y para un hueco con
+    capacidades solo tolera las que estan en la tabla.
+
+    Una ruta cuyo path o cuyos metodos no se pueden enumerar cae aqui dentro:
+    `route_in_prefix` y `write_methods` ya fallan cerrado, y una ruta que no se
+    sabe que hace NUNCA esta declarada.
+    """
+    hallazgos: list[tuple] = []
+    for route in iter_mounted_routes(app):
+        if not route_in_prefix(route, slot.prefix):
+            continue
+        metodos = write_methods(route)
+        if not metodos:
+            continue
+        camino = route_path(route)
+        sin_declarar = [m for m in metodos if declared_write(camino, m) is None]
+        if sin_declarar:
+            hallazgos.append((camino, sorted(sin_declarar)))
+    return hallazgos

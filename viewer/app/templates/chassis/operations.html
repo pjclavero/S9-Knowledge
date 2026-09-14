@@ -8,8 +8,15 @@
   de ruta con `url_for`. Escribir el prefijo del panel aquí es el fallo nº 2 que
   el chasis existe para impedir: nadie se entera cuando la ruta cambia.
 
-  NINGÚN BOTÓN DE ACCIÓN. No hay `method="post"`, ni reintentos, ni cancelar, ni
-  relanzar: este panel mira, no toca. El único formulario es un GET de filtros.
+  CONSOLA DE OPERADOR, no solo lectura. Este panel aloja UNA capacidad de
+  escritura declarada en `app.chassis.WRITE_CAPABILITIES`: el alta de fuente
+  (`chassis_operations_ingesta`). No hay ninguna otra: no hay reintentar, ni
+  cancelar, ni relanzar, ni purgar. El resto de formularios siguen siendo GET.
+
+  CERO CONOCIMIENTO INTERNO: el formulario de ingesta pide UNA cosa, la fuente,
+  y se elige de una lista por su NOMBRE. No aparece aquí ningún `plan_id`,
+  `workspace`, `partida_id`, ruta de servidor ni mando de backend — ni en un
+  campo, ni en un `value`, ni en un comentario.
 
   AUSENCIA != CERO: cuando un dato no está disponible se dice, y no se pinta un
   0 en su lugar.
@@ -35,8 +42,88 @@
   ahí no existe ni `url_for` ni una fila de verdad.
 #}
 {% if ops is not defined %}{{ super() }}{% else %}
-<main class="container" data-slot="{{ slot.key }}" data-readonly="true">
+<main class="container" data-slot="{{ slot.key }}" data-console="true">
   <h1>{{ slot.title }}</h1>
+
+  {#
+    ACUSE DEL POST. No es un mensaje efímero: se reconstruye leyendo el trabajo
+    de la cola, así que refrescar la pantalla y reiniciar el servicio lo
+    conservan. Los errores se pintan con CÓDIGO + FRASE; el detalle técnico y
+    la ruta concreta se quedan en el log del servidor.
+  #}
+  {% if aviso %}
+    <section class="panel" data-role="aviso" data-aviso-tipo="{{ aviso.tipo }}"
+             data-aviso-code="{{ aviso.code | e }}">
+      <p>{{ aviso.message }}</p>
+      {% if aviso.trabajo %}
+        <p data-trabajo-id="{{ (aviso.trabajo.job_id or '') | e }}">
+          Trabajo <code>{{ aviso.trabajo.job_id | e }}</code> ·
+          estado <span data-trabajo-estado>{{ (aviso.trabajo.status or 'desconocido') | e }}</span>
+        </p>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  {#
+    DESENLACE del trabajo solicitado. Explica el resultado en palabras, que es
+    lo que cierra el recorrido: no basta con que la fila cambie de estado.
+  #}
+  {% if resultado %}
+    <section class="panel" data-role="resultado"
+             data-resultado-estado="{{ resultado.estado }}"
+             data-resultado-code="{{ (resultado.code or '') | e }}">
+      <h2>Resultado de la ingesta solicitada</h2>
+      <p>{{ resultado.message }}</p>
+      {% if resultado.resumen %}
+        <ul data-role="resumen">
+          {% for clave, valor in resultado.resumen.items() %}
+          <li data-resumen="{{ clave | e }}">
+            {{ clave.replace('_', ' ') | e }}:
+            {% if valor is mapping %}
+              {% for k, v in valor.items() %}{{ k | e }}={{ v }}{% if not loop.last %}, {% endif %}{% endfor %}
+            {% elif valor is none %}no disponible
+            {% else %}{{ valor | e }}{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  {#
+    LA CAPACIDAD DECLARADA. Único `method="post"` de todo el panel.
+    AUSENCIA != LISTA VACÍA: si el catálogo no se puede consultar no se pinta un
+    desplegable vacío (que se leería como "no hay fuentes"), se dice que el dato
+    no está y no se ofrece el botón.
+  #}
+  <section class="panel" data-role="alta-de-fuente"
+           data-fuentes-available="{{ 'true' if (fuentes and fuentes.available) else 'false' }}">
+    <h2>Ingerir una fuente</h2>
+    {% if not fuentes or not fuentes.available %}
+      <p data-availability="unavailable">
+        No se puede consultar el catálogo de fuentes en este despliegue. No es
+        que no haya fuentes; es que el dato no está.
+      </p>
+    {% elif not fuentes.lista %}
+      <p data-availability="empty">No hay ninguna fuente disponible para ingerir.</p>
+    {% else %}
+      <form method="post" action="{{ url_for('chassis_operations_ingesta') }}"
+            data-role="form-ingesta">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token | e }}">
+        <label>Fuente
+          <select name="fuente" data-role="selector-fuente" required>
+            <option value="">Elige una fuente…</option>
+            {% for f in fuentes.lista %}
+            <option value="{{ f.handle | e }}">
+              {{ f.titulo | e }} ({{ f.formato | e }}, {{ f.tamano_bytes }} bytes)
+            </option>
+            {% endfor %}
+          </select>
+        </label>
+        <button type="submit" data-role="solicitar-ingesta">Solicitar ingesta</button>
+      </form>
+    {% endif %}
+  </section>
 
   {% if error %}
     {# El motivo, sin ruta y sin traza. `error_detail` es sólo el nombre del tipo. #}
