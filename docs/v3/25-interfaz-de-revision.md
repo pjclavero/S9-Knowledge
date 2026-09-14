@@ -19,7 +19,16 @@ paquetes JSON locales desde:
 S9K_V3_REVIEW_PROPOSALS_DIR
 ```
 
-Si no se configura, usa `output/reviews-v3/proposals/`. Cada fichero puede
+Si no se configura, usa `viewer/output/reviews-v3/proposals/`.
+
+> **Desde el Slice 2 · Corte 3 (`docs/88`)** esa ruta la resuelve UN SOLO sitio,
+> `data-engine/app/knowledge_v3/review_paths.py`, y la consola lo importa en vez
+> de derivarla por su cuenta. La variable es un **invariante de despliegue**
+> compartido con el ESCRITOR (el worker que corre la ingesta): si cada lado
+> apunta a un almacenamiento distinto no hay error, hay una cola de revisión
+> vacía. Las reglas están en `deploy/README.md`.
+
+Cada fichero puede
 contener una propuesta, una lista, o `{"items": [...]}`. Los campos que la vista
 necesita y no estén presentes se muestran como `No disponible`; no se
 reconstruyen ni inventan.

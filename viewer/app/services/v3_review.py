@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sys
 import threading
 import uuid
 from dataclasses import dataclass
@@ -23,14 +24,107 @@ from app.services.v3_review_store import SQLiteReviewStore
 VALID_HUMAN_DECISIONS = frozenset({"APPROVE", "REJECT", "CORRECT"})
 VALID_ENGINE_DECISIONS = frozenset({"ACCEPT", "REVIEW", "ABSTAIN", "REJECT_INVALID"})
 
+# Motivos de revisión EN CASTELLANO, uno por cada código que el motor puede
+# emitir de verdad. La lista de arriba mapeaba 7 códigos y NINGUNO de los
+# reales: el 100 % de los motivos llegaba al operador como código crudo (y
+# duplicado, "CODIGO: CODIGO"). La cobertura la fija un caso que deriva los
+# emitibles del catálogo del motor (`engine.findings.emittable_reason_codes`)
+# y exige que esta tabla y aquél sean el MISMO conjunto, para que no puedan
+# volver a desalinearse en silencio.
 REASON_LABELS = {
-    "AMBIGUOUS_PREDICATE": "Hay más de un predicado plausible.",
-    "AMBIGUOUS_DIRECTION": "La dirección de la relación no es concluyente.",
-    "LOW_CONFIDENCE": "La confianza no alcanza el umbral de aprobación.",
-    "MISSING_EVIDENCE": "La evidencia disponible no basta para aprobar.",
-    "NEGATION_REQUIRES_REVIEW": "La negación necesita revisión humana.",
-    "ONTOLOGY_MISMATCH": "La relación no encaja con la ontología aplicable.",
-    "REVIEW_REQUIRED": "La propuesta requiere confirmación humana.",
+    # -- canónicos del contrato: el motivo de la DECISIÓN -------------------
+    "REVIEW_ENTITY": "Hay dudas sobre a qué entidad se refiere la frase.",
+    "REVIEW_EVIDENCE": "La evidencia del texto no basta para decidir sin una persona.",
+    "REVIEW_PREDICATE": "No está claro qué relación afirma la frase.",
+    "REVIEW_DIRECTION": "No está claro en qué sentido va la relación.",
+    "REVIEW_TEMPORALITY": "No está claro cuándo ocurre o deja de ocurrir.",
+    "CONFLICT_WITH_EXISTING": "Contradice algo que ya está registrado.",
+    "INSUFFICIENT_EVIDENCE": "No hay evidencia suficiente para afirmarlo.",
+    "AMBIGUOUS_SEMANTICS": "La frase admite más de una lectura.",
+    "DEMONSTRABLY_FALSE": "Es falso de forma demostrable y no se admite.",
+    "TYPE_INCOMPATIBLE": "Los tipos de las entidades no admiten esta relación.",
+    "ONTOLOGY_INCOMPATIBLE": "La relación no existe en la ontología aplicable.",
+    "LOW_QUALITY_EPISODE": "El fragmento de origen es de calidad demasiado baja.",
+    # -- veredicto ACCEPT ---------------------------------------------------
+    "LOCAL_APPROVED": "Aprobada por el motor sin reservas.",
+    "LOCAL_APPROVED_WITH_WARNINGS": "Aprobada por el motor, pero con avisos.",
+    # -- existencia / identidad de entidad ----------------------------------
+    "UNRESOLVED_MENTION": "Una mención del texto no se ha podido asociar a ninguna entidad.",
+    "ENTITY_NOT_IN_SNAPSHOT": "La entidad no existe en el grafo con el que se comparó.",
+    "ENTITY_PROVISIONAL": "La entidad es provisional: aún no está dada de alta de verdad.",
+    "ENTITY_RESOLUTION_DEFERRED": "La identificación de la entidad quedó pendiente.",
+    "ENTITY_LOW_CONFIDENCE": "La entidad se identificó con poca confianza.",
+    "ENTITY_ROLE_AMBIGUOUS": "No está claro cuál de las entidades hace cada papel.",
+    "ENTITY_TYPE_UNKNOWN": "No se sabe de qué tipo es la entidad.",
+    "SELF_RELATION": "La relación une una entidad consigo misma.",
+    "CLAIM_ABSTAINED_UPSTREAM": "Un paso anterior de la cadena ya se abstuvo sobre esta afirmación.",
+    # -- evidencia ----------------------------------------------------------
+    "EVIDENCE_FRAGMENT_UNKNOWN": "No se sabe de qué fragmento del texto sale la afirmación.",
+    "EVIDENCE_EPISODE_UNKNOWN": "No se sabe de qué episodio sale la afirmación.",
+    "EVIDENCE_FOREIGN_ASSET": "La evidencia apunta a un material que no es el de esta fuente.",
+    "EVIDENCE_TEXT_MISMATCH": "La cita no coincide con el texto del episodio.",
+    "EVIDENCE_OFFSETS_OUT_OF_RANGE": "La cita señala una parte del texto que no existe.",
+    "EVIDENCE_NOT_VERIFIABLE": "La cita no se ha podido verificar contra el texto.",
+    "EVIDENCE_LOW_CONFIDENCE": "La evidencia se extrajo con poca confianza.",
+    "EVIDENCE_LITERAL_VERIFIED": "La cita coincide literalmente con el texto del episodio.",
+    "EXTRACTOR_REQUESTED_REVIEW": "Quien extrajo la afirmación pidió que la mirase una persona.",
+    "CLAIM_LOW_CONFIDENCE": "La afirmación se extrajo con poca confianza.",
+    "CONFIDENCE_BELOW_HARD_FLOOR": "La confianza está por debajo del mínimo que nunca se aprueba.",
+    # -- estado epistémico --------------------------------------------------
+    "EPISTEMIC_NOT_ASSERTED": "El texto no afirma esto: lo supone, lo pregunta o lo desea.",
+    "EPISTEMIC_UNKNOWN": "No se sabe si el texto afirma esto o sólo lo menciona.",
+    "EPISTEMIC_VISUAL_INFERRED": "Se dedujo de una imagen, no de algo dicho en el texto.",
+    # -- predicado ----------------------------------------------------------
+    "PREDICATE_ABSENT": "No se ha identificado ninguna relación en la frase.",
+    "PREDICATE_AMBIGUOUS": "Hay más de una relación plausible para la frase.",
+    "PREDICATE_LOW_CONFIDENCE": "La relación se identificó con poca confianza.",
+    "PREDICATE_DEMOTED": "Se descartó una relación más específica por falta de apoyo.",
+    "PREDICATE_OUT_OF_ONTOLOGY": "La relación no figura en la ontología aplicable.",
+    "PREDICATE_TYPE_INCOMPATIBLE": "Los tipos de las entidades no admiten esta relación.",
+    # -- dirección ----------------------------------------------------------
+    "DIRECTION_AMBIGUOUS": "La frase admite la relación en los dos sentidos.",
+    "DIRECTION_UNDETERMINED": "No se ha podido determinar el sentido de la relación.",
+    "DIRECTION_LOW_CONFIDENCE": "El sentido de la relación se decidió con poca confianza.",
+    "DIRECTION_TYPE_MISMATCH": "El sentido propuesto no encaja con los tipos de las entidades.",
+    "SYMMETRIC_PREDICATE": "La relación es simétrica: el sentido da igual.",
+    # -- contradicción ------------------------------------------------------
+    "CONTRADICTS_VIGENTE_ASSERTION": "Contradice algo que ahora mismo consta como vigente.",
+    "CONTRADICTS_CLAIM_IN_BATCH": "Contradice otra afirmación de esta misma ingesta.",
+    "DIRECTION_CONFLICT_WITH_VIGENTE": "El sentido contradice el de algo ya registrado.",
+    "DIRECTION_CONFLICT_IN_BATCH": "El sentido contradice el de otra afirmación de esta ingesta.",
+    "FUNCTIONAL_PREDICATE_CONFLICT": "Esta relación sólo admite un valor y ya hay otro registrado.",
+    "FUNCTIONAL_CONFLICT_IN_BATCH": "Esta relación sólo admite un valor y esta ingesta trae dos.",
+    "REAFFIRMS_CONTRADICTED_ASSERTION": "Vuelve a afirmar algo que ya había sido contradicho.",
+    "ALREADY_ASSERTED": "Ya constaba registrado: no añade nada nuevo.",
+    "DUPLICATE_IN_BATCH": "Aparece repetida dentro de esta misma ingesta.",
+    # -- negación -----------------------------------------------------------
+    "NEGATED_CLAIM": "La frase niega la relación en vez de afirmarla.",
+    "NEGATION_ABSOLUTE": "La negación es absoluta: niega que haya ocurrido nunca.",
+    "NEGATION_NOT_YET": "La frase dice que aún no ha ocurrido, no que no vaya a ocurrir.",
+    "NEGATION_SCOPE_AMBIGUOUS": "No está claro qué parte de la frase queda negada.",
+    "NEGATION_NOT_ACCEPTED": "Las negaciones no se aprueban solas en este ámbito.",
+    "NEGATION_POLICY_REVIEW": "La política vigente manda revisar a mano las negaciones.",
+    "UNKNOWN_NEGATION_KIND": "No se reconoce de qué tipo es la negación.",
+    "CESSATION_SHADOW_PLAN": "El cierre de la relación se ha planificado sólo en simulación.",
+    "CESSATION_MULTIPLE_ACTIVE": "Hay varias relaciones vigentes y no se sabe cuál cierra la frase.",
+    # -- temporalidad -------------------------------------------------------
+    "TEMPORAL_UNSPECIFIED": "El texto no dice cuándo ocurre.",
+    "TEMPORAL_BOUND_UNKNOWN": "Falta uno de los dos extremos del periodo.",
+    "TEMPORAL_FRAGMENT_UNKNOWN": "No se sabe de qué parte del texto sale la fecha.",
+    "TEMPORAL_UNRESOLVED_RELATIVE": "Hay una fecha relativa que no se ha podido anclar a una real.",
+    "TEMPORAL_CALENDAR_UNKNOWN": "No se sabe a qué calendario pertenece la fecha.",
+    "TEMPORAL_CALENDAR_MIXED": "Se mezclan fechas de calendarios distintos.",
+    "TEMPORAL_CONFLICTING_EXPRESSIONS": "El texto da fechas que no concuerdan entre sí.",
+    "TEMPORAL_INTERVAL_INVERTED": "El periodo acaba antes de empezar.",
+    "TEMPORAL_SCOPE_MATERIAL": "El alcance temporal cambia lo que la afirmación significa.",
+    "CESSATION_CLOSES_ASSERTION": "La frase cierra una relación que estaba vigente.",
+    "CESSATION_WITHOUT_ACTIVE_ASSERTION": "Cierra una relación que no consta vigente.",
+    "CESSATION_TARGET_UNANCHORED": "No se sabe con certeza qué relación cierra la frase.",
+    # -- autoridad de la propuesta -----------------------------------------
+    "OLLAMA_PROPOSAL": "La propuesta la sugirió un modelo local.",
+    "EXTERNAL_PROPOSAL": "La propuesta la sugirió un modelo externo.",
+    "EXTERNAL_SIGNAL_CONSULTED": "Se consultó a un modelo externo como segunda opinión.",
+    "EXTERNAL_SIGNAL_DISSENTS": "Un modelo externo no está de acuerdo con la propuesta.",
 }
 
 _LOCKS: dict[Path, threading.RLock] = {}
@@ -163,11 +257,43 @@ def reason_label(code: str) -> str:
     return REASON_LABELS.get(code, code)
 
 
+def _engine_review_paths():
+    """Puente hacia el resolvedor CANÓNICO, que vive en el motor.
+
+    Mismo patrón que `app.jobs_client`: se añade `data-engine/app/` a `sys.path`
+    y se importa el paquete top-level, nunca `app.*` (el visor ya publica su
+    propio paquete `app` y la colisión fallaría en silencio).
+
+    La dirección es visor -> motor porque la contraria no existe: el motor no
+    puede importar el visor por esa misma colisión de nombres.
+    """
+    data_engine_app_dir = Path(__file__).resolve().parents[3] / "data-engine" / "app"
+    if str(data_engine_app_dir) not in sys.path:
+        sys.path.insert(0, str(data_engine_app_dir))
+    from knowledge_v3 import review_paths  # type: ignore
+
+    return review_paths
+
+
 def default_proposals_dir() -> Path:
-    configured = os.environ.get("S9K_V3_REVIEW_PROPOSALS_DIR")
-    if configured:
-        return Path(configured)
-    return Path(__file__).resolve().parents[2] / "output" / "reviews-v3" / "proposals"
+    """El almacén de propuestas. NO se resuelve aquí: se delega.
+
+    Esta función existía derivando la ruta por su cuenta mientras el motor
+    derivaba la suya. Dos derivaciones de una ruta son dos verdades, y el
+    síntoma —motor escribiendo en una carpeta, visor mirando otra— se lee como
+    «no hay nada que revisar». Desde el Corte 3 la única derivación del producto
+    está en `knowledge_v3.review_paths.default_proposals_dir`.
+
+    FALLA CERRADO: si el motor no está montado no se inventa una ruta de
+    repuesto, porque una ruta de repuesto es exactamente la segunda verdad.
+    """
+    try:
+        return _engine_review_paths().default_proposals_dir()
+    except ImportError as exc:  # pragma: no cover - entorno sin data-engine
+        raise RuntimeError(
+            "No se puede resolver el almacén de propuestas de revisión: el "
+            "motor (data-engine) no está disponible."
+        ) from exc
 
 
 def default_decisions_path() -> Path:

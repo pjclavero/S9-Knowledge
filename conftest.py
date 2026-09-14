@@ -35,3 +35,23 @@ if str(_DATA_ENGINE_APP) not in sys.path:
 # (que no tienen __init__.py en su raíz) no interfieran con 'app'.
 if str(_VIEWER_ROOT) not in sys.path:
     sys.path.append(str(_VIEWER_ROOT))
+
+
+# ---------------------------------------------------------------------------
+# Almacén de propuestas de revisión: fuera del árbol durante la suite.
+# ---------------------------------------------------------------------------
+# Desde Slice 2 · Corte 3 `run_ingest` exporta la cola de revisión SIEMPRE (era
+# justo el llamador que faltaba). Sin esta redirección, cada caso que corre una
+# ingesta dejaría paquetes en `viewer/output/reviews-v3/proposals`, que es el
+# almacén REAL del repositorio: los casos se contaminarían entre sí y un «hay
+# propuestas» podría ponerse verde por basura de otra corrida.
+#
+# No se impone si la variable ya viene declarada: un caso que quiera fijar su
+# propio almacén —la prueba insignia lo hace— manda sobre esto.
+import os
+import tempfile
+
+if not os.environ.get("S9K_V3_REVIEW_PROPOSALS_DIR"):
+    os.environ["S9K_V3_REVIEW_PROPOSALS_DIR"] = tempfile.mkdtemp(
+        prefix="s9k-proposals-suite-"
+    )

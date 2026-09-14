@@ -263,3 +263,51 @@ def reason_codes_for(findings: Iterable[Finding], decision: str) -> list[str]:
         has_warning = any(f.severity is Severity.WARN for f in findings)
         codes.add("LOCAL_APPROVED_WITH_WARNINGS" if has_warning else "LOCAL_APPROVED")
     return sorted(codes)
+
+
+# --------------------------------------------------------------------------
+# EL UNIVERSO DE CODIGOS EMITIBLES, DERIVADO DEL CATALOGO
+# --------------------------------------------------------------------------
+#: Canonicos que `reason_codes_for` anade por la rama ACCEPT y que, por no
+#: pertenecer a ningun hallazgo, no se pueden derivar del catalogo. Se declaran
+#: aqui, PEGADOS a la funcion que los emite, para no tener que acordarse de
+#: nada en otro fichero.
+ACCEPT_REASON_CODES: frozenset[str] = frozenset(
+    {"LOCAL_APPROVED", "LOCAL_APPROVED_WITH_WARNINGS"}
+)
+
+#: Nombres de este modulo invocables que NO son entradas del catalogo.
+_NOT_CATALOG = frozenset(
+    {"worst", "decision_for", "reason_codes_for", "emittable_reason_codes"}
+)
+
+
+def emittable_reason_codes() -> frozenset[str]:
+    """TODO codigo de motivo que el motor puede llegar a poner en una propuesta.
+
+    Se DERIVA del catalogo de hallazgos, no de una lista copiada a mano: cada
+    entrada es el cierre que devuelve `_f`, asi que invocarla da el `Finding` y
+    con el su `code` descriptivo y su `canonical` (cuando lo tiene). Se le suman
+    los canonicos de ACCEPT, que `reason_codes_for` anade sin hallazgo detras.
+
+    Existe para que la lista de motivos PRESENTABLES del visor pueda compararse
+    contra la verdad del motor y no vuelvan a desalinearse en silencio: hasta el
+    Corte 3, `REASON_LABELS` mapeaba 7 codigos y NINGUNO de los que el motor
+    emite de verdad, de modo que el 100 % de los motivos reales llegaba al
+    operador como codigo crudo.
+    """
+    codes: set[str] = set(ACCEPT_REASON_CODES)
+    for name, value in list(globals().items()):
+        if name.startswith("_") or name in _NOT_CATALOG:
+            continue
+        if not callable(value):
+            continue
+        try:
+            finding = value()
+        except Exception:
+            continue
+        if isinstance(finding, Finding):
+            codes.add(finding.code)
+            if finding.canonical:
+                codes.add(finding.canonical)
+    return frozenset(codes)

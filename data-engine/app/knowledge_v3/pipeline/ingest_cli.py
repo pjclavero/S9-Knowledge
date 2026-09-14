@@ -105,6 +105,7 @@ from .ingest_report import ingest_report, to_markdown
 from .pipeline import KnowledgePipeline, SourceCase
 from . import entity_decisions, graph_catalog
 from ..engine import promotion as promo
+from ..review_paths import default_proposals_dir
 from ..writer.apply import ProvenanceBundle
 
 #: Extension -> `source_kind`, solo para las que este CLI declara soportar de
@@ -292,6 +293,7 @@ def run_ingest(
     apply: bool = False,
     operator_id: Optional[str] = None,
     writer_env: Optional[dict] = None,
+    review_proposals_dir: Optional[Path] = None,
 ) -> dict:
     """Corre la cadena sobre UN fichero y devuelve el informe estructurado.
 
@@ -424,7 +426,28 @@ def run_ingest(
         )
     else:
         snapshot_entities = bridge.entities_from_catalog(entities)
-    result = KnowledgePipeline(config).run([case], catalog_entities=snapshot_entities)
+    # LA COLA DE REVISION SE ESCRIBE AQUI, Y POR ESO EXISTE.
+    #
+    # Hasta el Corte 3 esta llamada no pasaba `review_proposals_dir` y el
+    # exportador de propuestas quedaba SIN LLAMADOR en el camino del producto:
+    # el informe decia `REVIEW=2`, el job quedaba `complete` y `/panel/review`
+    # decia «Sin propuestas visibles». El operador daba por buena una ingesta
+    # cuyas ambiguedades no habia visto nunca.
+    #
+    # La ruta NO se deriva aqui: se pide al unico resolvedor del producto
+    # (`knowledge_v3.review_paths`), que es el mismo que usa el visor para
+    # leerlas. Si este modulo derivara la suya, escritor y lector podrian
+    # apuntar a almacenes distintos sin un solo error.
+    proposals_dir = (
+        review_proposals_dir
+        if review_proposals_dir is not None
+        else default_proposals_dir()
+    )
+    result = KnowledgePipeline(config).run(
+        [case],
+        catalog_entities=snapshot_entities,
+        review_proposals_dir=proposals_dir,
+    )
     report = ingest_report(
         result,
         source_path=path,

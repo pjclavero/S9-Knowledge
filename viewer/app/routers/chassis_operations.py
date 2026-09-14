@@ -346,6 +346,21 @@ def _fuentes() -> dict:
     return {"available": True, "lista": [f.para_pantalla() for f in fuentes]}
 
 
+# Estados con DESENLACE. Se declaran una sola vez porque los usan las dos
+# funciones que componen la pantalla: la que calla el acuse (`_aviso`) y la que
+# explica el final (`_resultado_del_trabajo`). Dos listas separadas volverían a
+# permitir el defecto medido —acuse tranquilizador delante de un fallo— en
+# cuanto una de las dos añadiese un estado y la otra no.
+ESTADOS_OK = frozenset({"complete", "completed"})
+ESTADOS_FALLIDOS = frozenset({"failed", "skipped", "cancelled"})
+ESTADOS_TERMINALES = ESTADOS_OK | ESTADOS_FALLIDOS
+
+
+def _job_terminado(job: Optional[dict]) -> bool:
+    """¿Este trabajo ya tiene desenlace? Sólo entonces deja de estar «en la cola»."""
+    return bool(job) and (job.get("status") in ESTADOS_TERMINALES)
+
+
 def _aviso(codigo: Optional[str], job_id: Optional[str], scope: VisibilityScope) -> Optional[dict]:
     """Acuse que se pinta tras un POST, RECONSTRUIDO desde la cola.
 
@@ -368,6 +383,16 @@ def _aviso(codigo: Optional[str], job_id: Optional[str], scope: VisibilityScope)
     # no puede ver no se convierte en un acuse por haber puesto su id en la URL.
     job = jobs_client.scoped_job(scope, job_id)
     if job is None:
+        return None
+    # UNA SOLA PRESENTACIÓN, Y EL ESTADO MANDA.
+    #
+    # Medido antes del Corte 3: con el trabajo en `failed`, la pantalla decía
+    # PRIMERO «Se ha solicitado la ingesta. El trabajo ya está en la cola.» y
+    # DESPUÉS `estado failed`. El texto tranquilizador iba delante del fallo, y
+    # es el que el operador lee. Un acuse de "encolado" sólo es cierto mientras
+    # el trabajo sigue en la cola: en cuanto tiene desenlace, quien habla es
+    # `_resultado_del_trabajo`, que da estado Y causa juntos.
+    if _job_terminado(job):
         return None
     return {
         "tipo": "ok",
@@ -394,7 +419,7 @@ def _resultado_del_trabajo(job: Optional[dict]) -> Optional[dict]:
     if not job:
         return None
     estado = job.get("status")
-    if estado in {"complete", "completed"}:
+    if estado in ESTADOS_OK:
         resultado = job.get("result")
         if isinstance(resultado, str):
             try:
@@ -413,7 +438,7 @@ def _resultado_del_trabajo(job: Optional[dict]) -> Optional[dict]:
             "resumen": resultado.get("resumen")
             if isinstance(resultado.get("resumen"), dict) else None,
         }
-    if estado in {"failed", "skipped", "cancelled"}:
+    if estado in ESTADOS_FALLIDOS:
         crudo = job.get("error_message") or ""
         codigo = str(crudo).split(":", 1)[0].strip()
         if codigo not in panel_errors.CATALOGO:
