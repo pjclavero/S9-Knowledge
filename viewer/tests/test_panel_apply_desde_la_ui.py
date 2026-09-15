@@ -1319,10 +1319,27 @@ def test_la_pantalla_dice_que_lo_escrito_no_queda_navegable(
     decía «Lo aprobado ya forma parte del conocimiento» a secas. Quien luego
     mirase la afirmación no encontraría la evidencia que cita, y nadie se lo
     habría dicho.
+
+    CÓMO SE ALCANZA AHORA LA CONDICIÓN (B2). El camino feliz ya NO deja la
+    procedencia sin persistir: el sobre publica el paquete y el sellado lo fija
+    con el plan. La propiedad que este caso protege sigue siendo necesaria
+    —cuando el núcleo emita esa nota, la pantalla tiene que decirlo— así que se
+    llega a ella MUTANDO EL PRODUCTO para que el paquete no se publique, en vez
+    de esperarla del camino normal. La guarda del propio caso fue la que avisó
+    de que ya no se alcanzaba: sin ella, esto habría seguido verde midiendo
+    otra cosa.
     """
+    from app.services import v3_apply as servicio
+
+    monkeypatch.setattr(
+        servicio.ReviewApplyService, "_procedencia",
+        lambda self, mod, aprobadas, job_id: None,
+    )
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
     assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
-    assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_APPLIED"
+    # El desenlace ya no es `PLAN_APPLIED`: sin procedencia alcanzable, un
+    # apply no puede anunciarse como éxito completo.
+    assert _aviso_de(_aplicar(operador, job_id)) == "APPLY_INCOMPLETE"
 
     fila = _filas_de_plan(almacenes["base"])[0]
     notas = json.loads(fila["apply_notes_json"] or "[]")
