@@ -6,10 +6,29 @@
   {% if notice == "STALE_REVIEW" %}
   <p role="alert" class="v3r-error">La propuesta cambió desde que la viste. No se registró tu decisión; revisa la versión actual.</p>
   {% endif %}
+  {#
+    AUSENCIA != COLA VACÍA.
+
+    Si el almacén de propuestas no se pudo consultar, esta pantalla ABRE y lo
+    DICE, en vez de pintarse vacía (que se leería como «no hay nada que
+    revisar») o de reventar con un 500 sin texto. Es la misma doctrina que el
+    panel B aplica al catálogo de fuentes: «no es que no haya; es que el dato
+    no está». Ni ruta ni traza: el código estable y la frase accionable.
+  #}
+  {% if almacen %}
+  <section class="v3r-error" role="alert" data-state="unavailable"
+           data-almacen-code="{{ almacen.code | e }}">
+    <h2>La cola de revisión no está disponible</h2>
+    <p>{{ almacen.message }}</p>
+    <p class="muted"><code>{{ almacen.code | e }}</code></p>
+  </section>
+  {% endif %}
   <header class="v3r-header">
     <div>
       <h1>Revisión V3</h1>
-      {% if queue %}
+      {% if almacen %}
+      <p>No se puede decir cuántas propuestas hay pendientes.</p>
+      {% elif queue %}
       <p><strong data-remaining>{{ queue.remaining }}</strong> pendientes de {{ queue.total }}</p>
       {% else %}
       <p>Selecciona un workspace para comenzar.</p>

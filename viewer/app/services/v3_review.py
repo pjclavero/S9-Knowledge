@@ -187,6 +187,43 @@ class ReviewError(ValueError):
             self.code = code
 
 
+#: LO QUE SE LE DICE AL OPERADOR CUANDO EL ALMACÉN NO SE PUDO CONSULTAR.
+#:
+#: Vive en el SERVICIO, no en un router, porque tiene DOS superficies: la
+#: consola del chasis (`/panel/review`) y el visor auxiliar (`/v3/review`).
+#: Ese fue justamente el defecto del primer intento de este corte —una función
+#: con dos consumidores y sólo uno actualizado—, así que el texto no se vuelve
+#: a escribir en cada sitio.
+#:
+#: Ni ruta, ni traza, ni `str(exc)`: el mensaje de la excepción lleva el
+#: directorio dentro y el repositorio es público. Lo que sale es esta frase y
+#: el código estable.
+PROPOSALS_STORE_MESSAGES = {
+    PROPOSALS_STORE_MISSING: (
+        "El almacen de propuestas de revision NO ESTA. Esto no significa que no "
+        "haya nada que revisar: significa que no se sabe. Lo habitual es que el "
+        "worker que ejecuta la ingesta y este visor no esten resolviendo "
+        "S9K_V3_REVIEW_PROPOSALS_DIR al mismo almacenamiento."
+    ),
+    PROPOSALS_STORE_UNREADABLE: (
+        "El almacen de propuestas de revision existe pero NO SE PUEDE LEER. "
+        "Tampoco significa que no haya nada que revisar: revisa los permisos "
+        "del directorio en el servidor."
+    ),
+}
+
+
+def store_unavailable_view(exc: "ReviewError") -> dict[str, str]:
+    """La ausencia del almacén, lista para pintar. Código estable + frase."""
+    code = getattr(exc, "code", PROPOSALS_STORE_MISSING)
+    return {
+        "code": code,
+        "message": PROPOSALS_STORE_MESSAGES.get(
+            code, PROPOSALS_STORE_MESSAGES[PROPOSALS_STORE_MISSING]
+        ),
+    }
+
+
 class ProposalStoreUnavailable(ReviewError):
     """El almacén de propuestas no se pudo CONSULTAR.
 

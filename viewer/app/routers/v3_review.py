@@ -13,7 +13,10 @@ from app.auth.config import get_auth_settings
 from app.auth.csrf import get_csrf_token_for_session, validate_csrf
 from app.authz.dependencies import get_visibility_scope
 from app.authz.scope import VisibilityScope
-from app.services.v3_review import ReviewError, ReviewService, StaleReviewError
+from app.services.v3_review import (
+    ProposalStoreUnavailable, ReviewError, ReviewService, StaleReviewError,
+    store_unavailable_view,
+)
 from app.services.v3_review import default_glossary_root
 from app.services.v3_glossary_candidates import GlossaryCandidateStore
 
@@ -73,14 +76,32 @@ def glossary_candidates(
         return guard
     # El ámbito de la petición (partida activa + capa juego) decide lo que se
     # entrega, con el mismo motor de política que el resto del visor.
-    workspaces = _service().workspaces(scope=scope)
+    # EL ALMACÉN PUEDE NO ESTAR, Y ESO NO ES UN CERO.
+    #
+    # `workspaces()` lee el almacén de propuestas, así que desde el Corte 4
+    # puede levantar `ProposalStoreUnavailable`. Sin este manejo la excepción
+    # llegaba cruda al servidor y el enlace de la nav devolvía **500** — medido
+    # en el contrato de navegador, no deducido.
+    #
+    # NO se arregla devolviendo `[]`: eso reintroduce «ausencia == cero», que
+    # es el defecto que este corte viene a cerrar, y encima en la superficie
+    # que tiene las ÚNICAS escrituras de dominio.
+    try:
+        workspaces = _service().workspaces(scope=scope)
+    except ProposalStoreUnavailable as exc:
+        return templates.TemplateResponse(
+            request, "v3_glossary_candidates.html",
+            {"auth_user": guard, "workspaces": [], "workspace": None, "items": [],
+             "almacen": store_unavailable_view(exc)},
+        )
     selected = workspace or (workspaces[0] if len(workspaces) == 1 else None)
     if selected and selected not in workspaces:
         raise HTTPException(status_code=404, detail="Workspace no encontrado")
     items = _service().glossary_candidates(selected, scope=scope) if selected else []
     return templates.TemplateResponse(
         request, "v3_glossary_candidates.html",
-        {"auth_user": guard, "workspaces": workspaces, "workspace": selected, "items": items},
+        {"auth_user": guard, "workspaces": workspaces, "workspace": selected,
+         "items": items, "almacen": None},
     )
 
 
@@ -98,19 +119,31 @@ def queue(
     if isinstance(guard, (RedirectResponse, HTMLResponse)):
         return guard
     service = _service()
-    workspaces = service.workspaces(scope=scope)
-    selected_workspace = workspace or (workspaces[0] if len(workspaces) == 1 else None)
-    if selected_workspace and selected_workspace not in workspaces:
-        raise HTTPException(status_code=404, detail="Workspace no encontrado")
-    view = (
-        service.queue(
-            selected_workspace,
-            source_id=source_id,
-            engine_decision=engine_decision,
-            scope=scope,
+    # El enlace de la nav apunta aquí. `workspaces()` y `queue()` leen los dos
+    # el almacén de propuestas; ninguno de los dos podía fallar antes del Corte
+    # 4 y por eso no había manejo. Ahora sí, y sin esto la pantalla da 500.
+    try:
+        workspaces = service.workspaces(scope=scope)
+        selected_workspace = workspace or (workspaces[0] if len(workspaces) == 1 else None)
+        if selected_workspace and selected_workspace not in workspaces:
+            raise HTTPException(status_code=404, detail="Workspace no encontrado")
+        view = (
+            service.queue(
+                selected_workspace,
+                source_id=source_id,
+                engine_decision=engine_decision,
+                scope=scope,
+            )
+            if selected_workspace else None
         )
-        if selected_workspace else None
-    )
+        almacen = None
+    except ProposalStoreUnavailable as exc:
+        # La pantalla ABRE y EXPLICA, igual que el panel B hace con el catálogo
+        # de fuentes que no se puede consultar: «no es que no haya; es que el
+        # dato no está». Lo que no hace es presentar la ausencia como una cola
+        # vacía ni echar al operador con un error sin texto.
+        workspaces, selected_workspace, view = [], None, None
+        almacen = store_unavailable_view(exc)
     return templates.TemplateResponse(
         request,
         "v3_review.html",
@@ -122,6 +155,7 @@ def queue(
             "source_id": source_id,
             "engine_decision": engine_decision,
             "queue": view,
+            "almacen": almacen,
             "request_id": str(uuid.uuid4()),
             "notice": notice,
         },
@@ -198,6 +232,19 @@ def decide(
         return RedirectResponse(
             url=f"/v3/review?workspace={workspace}&notice=STALE_REVIEW", status_code=303
         )
+    except ProposalStoreUnavailable as exc:
+        # TERCER CONSUMIDOR de `load_proposals`: `record()`. Se captura ANTES
+        # que `ReviewError` por dos motivos, y los dos importan.
+        #
+        # 1. DESENLACE. Un 400 dice «tu petición está mal». El almacén caído no
+        #    es culpa de quien decide, y mandarle a corregir su formulario le
+        #    hace perder el tiempo: es 503, indisponibilidad del servidor.
+        # 2. FUGA. El `detail=str(exc)` de abajo publica el mensaje de la
+        #    excepción, y el de ésta lleva el DIRECTORIO dentro. Repositorio
+        #    público: sale la frase estable, no la ruta.
+        raise HTTPException(
+            status_code=503, detail=store_unavailable_view(exc)["message"]
+        ) from exc
     except ReviewError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return RedirectResponse(url=f"/v3/review?workspace={workspace}", status_code=303)

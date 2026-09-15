@@ -3,6 +3,21 @@
 {% block body %}
 <main class="v3r-shell">
   <header><h1>Candidatos de glosario</h1><p>Vista de solo lectura. Estos candidatos no se aplican automáticamente.</p></header>
+  {#
+    AUSENCIA != CERO, también aquí. El `{% else %}` del bucle de abajo dice «no
+    hay candidatos en este workspace», que con el almacén caído sería una
+    afirmación falsa sobre el contenido. Con `almacen` presente se dice lo que
+    pasa y no se pinta ni el selector (un desplegable vacío se lee como «no hay
+    workspaces») ni la frase del vacío.
+  #}
+  {% if almacen %}
+  <section class="v3r-error" role="alert" data-state="unavailable"
+           data-almacen-code="{{ almacen.code | e }}">
+    <h2>Los candidatos no están disponibles</h2>
+    <p>{{ almacen.message }}</p>
+    <p class="muted"><code>{{ almacen.code | e }}</code></p>
+  </section>
+  {% else %}
   <form method="get" action="/v3/review/glossary-candidates">
     <label>Workspace
       <select name="workspace" required onchange="this.form.submit()">
@@ -27,5 +42,6 @@
   {% else %}
   <p>No hay candidatos propuestos en este workspace.</p>
   {% endfor %}
+  {% endif %}
 </main>
 {% endblock %}

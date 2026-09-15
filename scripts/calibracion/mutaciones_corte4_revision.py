@@ -38,8 +38,10 @@ REPO = Path(__file__).resolve().parents[2]
 SERVICIO = "viewer/app/services/v3_review.py"
 HANDLER = "data-engine/app/jobs/handlers/ingest_v3.py"
 EXPORTADOR = "data-engine/app/knowledge_v3/review_export.py"
+ROUTER_V3 = "viewer/app/routers/v3_review.py"
 
 SUITE = "viewer/tests/test_panel_review_estado_de_revision.py"
+SUITE_V3 = "viewer/tests/test_v3_review_almacen_no_disponible.py"
 
 
 class Mutacion:
@@ -116,6 +118,23 @@ MUTACIONES = [
             "test_insignia_dos_ingestas_se_distinguen_y_el_almacen_roto_cambia_la_pantalla"
         ),
         esperado="sin atribución a la corrida, A y B no se distinguen",
+    ),
+    # -------------------------------------------------------------------
+    # LA REGRESIÓN QUE SE ESCAPÓ A LA PRIMERA ENTREGA.
+    #
+    # `load_proposals` tiene TRES consumidores y la primera entrega cubrió uno.
+    # El enlace de la nav `/v3/review` daba 500 y lo cazó el contrato de
+    # navegador — un check requerido que en la máquina de trabajo se SALTA por
+    # falta de Chromium. Este control comprueba que ahora hay una prueba
+    # EJECUTABLE aquí que lo ve.
+    # -------------------------------------------------------------------
+    Mutacion(
+        nombre="dejar sin manejar el almacen caido en /v3/review (la regresion de CI)",
+        fichero=ROUTER_V3,
+        viejo="    except ProposalStoreUnavailable as exc:\n        # La pantalla ABRE y EXPLICA",
+        nuevo="    except ZeroDivisionError as exc:\n        # La pantalla ABRE y EXPLICA",
+        prueba=f"{SUITE_V3}::test_ningun_enlace_de_la_nav_revienta_con_el_almacen_ausente",
+        esperado="enlaces de la nav que revientan",
     ),
 ]
 
