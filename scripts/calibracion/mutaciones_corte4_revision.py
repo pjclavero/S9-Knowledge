@@ -140,12 +140,30 @@ MUTACIONES = [
 
 
 def _git_limpio() -> bool:
+    """¿Hay cambios TRACKED sin commitear? Esos son los que importan.
+
+    La mutación se revierte con `git checkout --`, que sólo toca ficheros
+    seguidos: un cambio tracked sin commitear se perdería, y por eso aborta.
+    Un fichero SIN SEGUIR no corre ese riesgo y no se puede revertir por esa
+    vía, así que bloquear por él sólo consigue que la calibración no se pueda
+    correr en un árbol donde otro carril dejó un temporal —que es exactamente
+    lo que pasó aquí—. Se ignoran, pero se AVISA: un intruso en el árbol es
+    dato, no ruido.
+    """
     salida = subprocess.run(
         ["git", "status", "--porcelain"], cwd=REPO,
         capture_output=True, text=True, check=True,
-    ).stdout.strip()
-    if salida:
-        print("ARBOL SUCIO, no se calibra:\n" + salida)
+    ).stdout.splitlines()
+    tracked = [l for l in salida if not l.startswith("??")]
+    ajenos = [l for l in salida if l.startswith("??")]
+    if ajenos:
+        print("AVISO, ficheros sin seguir en el arbol (ignorados, NO son mios):")
+        for l in ajenos:
+            print("   " + l)
+    if tracked:
+        print("ARBOL SUCIO (cambios sin commitear), no se calibra:")
+        for l in tracked:
+            print("   " + l)
         return False
     return True
 
