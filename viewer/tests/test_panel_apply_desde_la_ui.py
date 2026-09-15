@@ -1455,14 +1455,48 @@ def test_desde_el_resultado_se_llega_a_la_evidencia_CORRECTA(
         assert tramo["episode_id"], tramo
         assert tramo["source_asset_id"], tramo
 
-    # 5. Y la marca de propiedad del apply está en el grafo: es la raíz de la
-    #    cadena `apply_id -> operación -> efecto -> evidencia`.
-    assert _cuenta(
-        grafo,
-        "MATCH (o:V3AppliedOperation {workspace: $ws, apply_id: $aid}) "
-        "RETURN count(o) AS c",
-        ws=workspace, aid=fila["apply_id"],
-    ) >= 1, "el apply no dejó ninguna operación marcada con su apply_id"
+    # 5. LA CADENA ENTERA, recorrida hop a hop desde el `apply_id`.
+    #
+    #    apply_id -> V3AppliedOperation -> idempotency_key -> V3Assertion
+    #             -> SUPPORTED_BY -> V3Evidence -> episodio -> fuente
+    #
+    #    MEDIDO, y hay que decirlo: el primer tramo NO es una arista.
+    #    `V3AppliedOperation` se escribe como un `MERGE` de nodo suelto
+    #    (`cypher.claim_applied_operation`) y no tiene ninguna relación hacia
+    #    lo que escribió: la unión es POR VALOR, por la `idempotency_key` que
+    #    el writer estampa en todo lo que crea (`executor._provenance`). La
+    #    cadena EXISTE y se puede recorrer —esto lo demuestra—, pero se
+    #    recorre por valor y no por camino. Está en el informe como deuda; no
+    #    se arregla aquí porque el writer y el esquema son contrato congelado.
+    #
+    #    UNA CONSULTA POR TRAMO, a propósito: encadenar dos `MATCH` sueltos
+    #    daría el producto cartesiano y cero filas, que se leería igual que
+    #    «la cadena está rota» tanto si lo está como si no.
+    with grafo.session() as sesion:
+        claves = [
+            f["clave"] for f in sesion.run(
+                "MATCH (o:V3AppliedOperation {workspace: $ws, apply_id: $aid}) "
+                "RETURN o.idempotency_key AS clave ORDER BY clave",
+                ws=workspace, aid=fila["apply_id"],
+            )
+        ]
+    assert claves, "el apply no dejó ninguna operación marcada con su apply_id"
+    assert sorted(claves) == sorted(
+        op["idempotency_key"] for op in operaciones
+    ), (claves, operaciones)
+
+    for clave in claves:
+        with grafo.session() as sesion:
+            alcanzadas = [
+                f["id"] for f in sesion.run(
+                    "MATCH (a:V3Assertion {workspace: $ws, idempotency_key: $k}) "
+                    "RETURN a.assertion_id AS id",
+                    ws=workspace, k=clave,
+                )
+            ]
+        assert alcanzadas == [afirmacion], (clave, alcanzadas)
+        # Y desde ahí, el recorrido de procedencia ya comprobado arriba.
+        assert _recorrido(grafo, workspace, alcanzadas[0]), clave
 
 
 # ---------------------------------------------------------------------------
