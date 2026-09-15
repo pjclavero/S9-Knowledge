@@ -51,7 +51,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.auth.models import User
 from app.authz.dependencies import get_filtered_provider
-from app.chassis import FLAG_ON_VALUES
+from app import chassis
 from app.config import get_settings
 from app.providers.base import GraphProvider
 from app.providers.provenance_reader import reader_for
@@ -81,11 +81,29 @@ def _encendido() -> bool:
 
     Se consulta el entorno en CADA peticion a proposito: un flag cacheado al
     importar convierte "apagar la pantalla" en "reiniciar el proceso".
+
+    Los valores que ENCIENDEN se toman del chasis --importados, no reescritos:
+    dos definiciones de "encendido" acaban divergiendo-- pero se leen del
+    MODULO en cada llamada, no del simbolo al importar. La diferencia no es
+    estilistica y se midio:
+
+      * `from app.chassis import FLAG_ON_VALUES` ata la CARGA de este modulo a
+        que ese simbolo exista. La calibracion de la puerta de rutas mutila el
+        chasis a proposito para comprobar que sus controles se ponen rojos, y
+        con el import rigido la app entera dejaba de cargar: el caso G8 se
+        quedaba rojo por "no se pudo cargar la configuracion canonica" en vez
+        de por lo que se estaba ablando, y la ablacion no probaba nada
+        (`AB-C7` NO-COBRADA). Un modulo mio no puede quitarle a un gate ajeno
+        la capacidad de calibrarse.
+      * `getattr` con respaldo VACIO conserva la semantica exacta cuando el
+        chasis esta entero, y cuando no lo esta no enciende NADA. La ausencia
+        de la fuente de la verdad no puede ser permiso: falla cerrado.
     """
     raw = os.environ.get(FLAG_ENV)
     if raw is None:
         return False
-    return raw.strip().lower() in FLAG_ON_VALUES
+    valores = getattr(chassis, "FLAG_ON_VALUES", frozenset())
+    return raw.strip().lower() in valores
 
 
 def _exigir_encendido() -> None:
