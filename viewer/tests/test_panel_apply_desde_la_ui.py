@@ -1629,13 +1629,23 @@ def test_matar_el_volcado_deja_estado_PARCIAL_dicho_y_reconciliable(
     _motor_en_ruta()
     from knowledge_v3.writer import apply as apply_mod
 
-    llamadas = {"n": 0}
+    original = apply_mod.persist_provenance
+    estado = {"matar": True, "llamadas": 0}
 
-    def volcado_muerto(*args, **kwargs):
-        llamadas["n"] += 1
-        raise RuntimeError("volcado de procedencia interrumpido (control 5)")
+    def volcado(*args, **kwargs):
+        estado["llamadas"] += 1
+        if estado["matar"]:
+            raise RuntimeError("volcado de procedencia interrumpido (control 5)")
+        return original(*args, **kwargs)
 
-    monkeypatch.setattr(apply_mod, "persist_provenance", volcado_muerto)
+    # LA MUTACIÓN SE LEVANTA CON UN INTERRUPTOR, NO CON `monkeypatch.undo()`.
+    # MEDIDO: `undo()` revierte TODO lo que este `monkeypatch` hizo en el caso
+    # —incluidos los `setenv` de las fixtures que apuntan el servicio al
+    # almacén de `tmp_path`—, y la reconciliación acababa buscando el plan en
+    # el almacén por defecto y contestando `PLAN_NOT_SEALED`. El rojo existía,
+    # pero por la causa equivocada: habría dado por bueno que la
+    # reconciliación no funciona cuando lo que fallaba era el arnés.
+    monkeypatch.setattr(apply_mod, "persist_provenance", volcado)
 
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
     assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
@@ -1646,7 +1656,7 @@ def test_matar_el_volcado_deja_estado_PARCIAL_dicho_y_reconciliable(
     )
 
     assert _aviso_de(_aplicar(operador, job_id)) == "APPLY_INCOMPLETE"
-    assert llamadas["n"] == 1, "el volcado no llegó a intentarse"
+    assert estado["llamadas"] == 1, "el volcado no llegó a intentarse"
 
     # 1+2. L2 ESCRITO y estado PARCIAL con nombre.
     documento = json.loads(_fila_de_plan(almacenes["base"])["plan_json"])
@@ -1667,10 +1677,9 @@ def test_matar_el_volcado_deja_estado_PARCIAL_dicho_y_reconciliable(
     )
 
     # 4. RECONCILIACIÓN: se levanta la mutación y se reaplica EL MISMO plan.
-    monkeypatch.undo()
-    monkeypatch.setenv("S9K_ALLOW_REAL_INGEST", "1")
-    monkeypatch.setenv("S9K_WRITER_WORKSPACE", workspace)
+    estado["matar"] = False
     assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_APPLIED"
+    assert estado["llamadas"] == 2, "la reconciliación no volvió a volcar"
 
     final = _fila_de_plan(almacenes["base"])
     assert final["state"] == "applied", final["state"]
