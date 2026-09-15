@@ -176,10 +176,31 @@ def test_una_entidad_que_el_proveedor_no_devuelve_no_sale():
 
 
 def test_un_workspace_fuera_de_alcance_no_consulta_nada():
-    """El ambito se comprueba ANTES, y con la lista del proveedor filtrado."""
+    """FUGA DE AMBITO. El workspace se comprueba ANTES de mirar nada.
+
+    El proveedor filtrado declara que este lector solo alcanza ``OTRO_WS``; se
+    pide ``WS``. El orden de las aserciones es deliberado: la primera es la que
+    EXPLICA el defecto --que haya salido material de un ambito ajeno-- y no el
+    ``is None`` pelado, cuyo mensaje de fallo es un volcado ilegible que no
+    dice en que capa se rompio.
+    """
     espia = ProveedorEspia(visibles=["entity:daiki"], workspaces=[OTRO_WS])
-    assert _resultado(LectorFalso(), espia) is None
-    assert espia.pedidas == []
+
+    res = _resultado(LectorFalso(), espia)
+
+    entregado = [] if res is None else [f["entity_id"] for f in res.entidades.filas]
+    assert not entregado, (
+        f"se ha entregado material del workspace {WS!r}, que NO esta en los "
+        f"alcanzables por este lector ({[OTRO_WS]}): {entregado}. FUGA DE AMBITO."
+    )
+    assert espia.pedidas == [], (
+        f"se ha consultado el grafo por {espia.pedidas} pese a que el "
+        "workspace no esta autorizado: la comprobacion de ambito llega TARDE."
+    )
+    assert res is None, (
+        "el ambito ajeno no da 404: la pantalla sirve para saber si un apply "
+        "existe en un workspace que no es tuyo."
+    )
 
 
 def test_un_hecho_con_un_extremo_invisible_no_entrega_su_evidencia():

@@ -528,10 +528,34 @@ def test_un_anonimo_no_alcanza_ninguna_de_las_dos_pantallas(
         assert r.status_code != 200, f"{ruta} sirve 200 a un anonimo"
 
 
-def test_la_evidencia_de_otro_workspace_no_se_sirve(admin, apply_real):
-    """FUGA DE AMBITO. Mismo apply, workspace que no es el suyo."""
+def test_el_apply_no_se_sirve_bajo_un_workspace_que_no_es_el_suyo(admin, apply_real):
+    """El apply existe, pero NO en ese workspace: no puede servirse.
+
+    DECLARADO: este caso esta SOBREDETERMINADO y no prueba por si solo la
+    puerta de ambito. El workspace pedido no existe, asi que el 404 podria
+    venir igualmente de que no hay marcas ahi -- "no veo nada" y "no hay nada"
+    otra vez. Lo que si afirma, y es lo que importa aqui, es que el material
+    del workspace bueno NO aparece cuando se pide por otro nombre.
+
+    La puerta de ambito PROPIAMENTE DICHA --que se comprueba ANTES de consultar
+    y contra la lista del proveedor filtrado-- se aisla en la suite sin base,
+    con un proveedor espia: ``test_un_workspace_fuera_de_alcance_no_consulta_nada``.
+    Alli el cero es de POLITICA porque el espia declara material y aun asi no
+    se le pregunta por el.
+    """
+    import re
+
+    bueno = _resultado(admin, apply_real)
+    suyas = set(re.findall(r'data-entity-id="([^"]+)"', bueno.text))
+    assert suyas, "el apply real no ensena nada: este caso no puede medir cruce"
+
     r = admin.get(f"/panel/resultado/{apply_real}",
                   params={"workspace": "workspace-ajeno-inexistente"})
+    coladas = set(re.findall(r'data-entity-id="([^"]+)"', r.text)) & suyas
+    assert not coladas, (
+        f"pedido por OTRO workspace, el apply ensena {len(coladas)} entidad(es) "
+        f"del suyo: {sorted(coladas)[:3]}. El workspace de la URL no acota."
+    )
     assert r.status_code == 404, (
         f"un workspace ajeno devuelve {r.status_code}: la pantalla cruza ambitos"
     )
