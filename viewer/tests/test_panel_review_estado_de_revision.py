@@ -224,11 +224,20 @@ def test_almacen_vacio_legitimo_si_se_presenta_como_vacio(
     assert os.listdir(almacen_de_propuestas) == []
 
     vacia = _pantalla(operador)
-    assert vacia.status_code == 200, vacia.status_code
-    assert VACIO in vacia.text, "un vacío legítimo tiene que decirse vacío"
+    # EL ORDEN DE LAS AFIRMACIONES IMPORTA. La primera que se rompe es la que
+    # da el mensaje del rojo, y el rojo tiene que decir POR QUÉ. Comprobar el
+    # código de estado antes que el estado de la pantalla producía un
+    # «assert 503 == 200» que no nombra la causa: el arnés de calibración lo
+    # detectó como rojo mal atribuido.
     assert 'data-state="error"' not in vacia.text, (
-        "un almacén vacío legítimo se está presentando como un fallo"
+        "un almacén vacío legítimo se está presentando como un FALLO: arreglar "
+        "«ausente» e «ilegible» a lo bruto, alarmando siempre, no vale"
     )
+    assert vacia.status_code == 200, (
+        f"un vacío legítimo responde {vacia.status_code}: se está tratando como "
+        "almacén no disponible"
+    )
+    assert VACIO in vacia.text, "un vacío legítimo tiene que decirse vacío"
     assert "se ha leído correctamente" in vacia.text
 
 
@@ -367,7 +376,9 @@ def test_insignia_dos_ingestas_se_distinguen_y_el_almacen_roto_cambia_la_pantall
     solo_a = _pantalla(operador, workspace=workspace, job_id=job_a)
     assert solo_a.status_code == 200
     assert _ids_en_pantalla(solo_a.text, ids_a) == ids_a, (
-        "la corrida A no enseña exactamente sus propias propuestas"
+        "la corrida A no enseña exactamente sus propias propuestas: sin "
+        "atribución a la corrida, A y B no se distinguen y el operador no "
+        "puede saber qué produjo la ingesta que acaba de lanzar"
     )
 
     # --- INGESTA B, otra fuente del MISMO catálogo y workspace ------------

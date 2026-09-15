@@ -96,7 +96,7 @@ MUTACIONES = [
             )
     except OSError as exc:""",
         prueba=f"{SUITE}::test_almacen_vacio_legitimo_si_se_presenta_como_vacio",
-        esperado="un vacío legítimo tiene que decirse vacío",
+        esperado="se está presentando como un FALLO",
     ),
     Mutacion(
         nombre="resumen sin REVIEW real (vuelve a review_identity)",
@@ -115,7 +115,7 @@ MUTACIONES = [
             f"{SUITE}::"
             "test_insignia_dos_ingestas_se_distinguen_y_el_almacen_roto_cambia_la_pantalla"
         ),
-        esperado="la cola no expone ningún job_id",
+        esperado="sin atribución a la corrida, A y B no se distinguen",
     ),
 ]
 
