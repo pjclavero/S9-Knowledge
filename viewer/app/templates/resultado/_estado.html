@@ -1,13 +1,18 @@
 {#
   AUSENCIA != CERO, en una sola pieza reutilizable.
 
-  Tres estados y TRES frases distintas. La diferencia no es cosmetica:
+  Cuatro estados y CUATRO frases distintas. La diferencia no es cosmetica:
   "no hay nada" es una medida, "no se pudo leer" es la ausencia de medida, y
   pintar un `0` en el segundo caso es afirmar algo que nadie ha comprobado.
   Por eso `total` solo se pinta cuando el bloque trae cifra.
 #}
 {% macro estado(bloque, nada) %}
-  {% if bloque.estado == 'ERROR' %}
+  {% if bloque.estado == 'SIN_PROCEDENCIA' %}
+    <p data-state="sin-procedencia">Esta ejecucion no dejo registrada su
+      procedencia, asi que no hay de donde tirar. No es que este hecho no tenga
+      respaldo: es que la ejecucion no guardo ninguno. Avisa a quien administra
+      el servicio si necesitas poder rastrearlo.</p>
+  {% elif bloque.estado == 'ERROR' %}
     <p data-state="error">No se pudo leer esta parte del resultado. No se
       publica ningun recuento porque no se ha medido ninguno.</p>
   {% elif bloque.estado == 'VACIO' %}

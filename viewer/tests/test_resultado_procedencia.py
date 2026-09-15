@@ -42,7 +42,7 @@ class LectorFalso:
 
     def __init__(self, *, operaciones=None, entidades=None, aristas=None,
                  aserciones=None, fragmentos=None, episodio=None, fuente=None,
-                 revienta=()):
+                 revienta=(), persistio_procedencia=None):
         self._ops = operaciones if operaciones is not None else [
             {"idempotency_key": "k1", "operation_id": "op1",
              "applied_at": "2026-09-15T10:00:00Z", "ownership_id": "own:" + "c" * 32,
@@ -55,6 +55,10 @@ class LectorFalso:
         self._ep = episodio
         self._fu = fuente
         self._revienta = set(revienta)
+        # Por defecto, "el apply SI persistio procedencia": asi un fragmento
+        # ausente se lee como hueco de ESE hecho, que es el caso comun.
+        self._persistio = (
+            bool(self._fr) if persistio_procedencia is None else persistio_procedencia)
 
     def _quizas(self, nombre):
         if nombre in self._revienta:
@@ -75,6 +79,10 @@ class LectorFalso:
     def assertions_for_keys(self, ws, keys):
         self._quizas("assertions_for_keys")
         return list(self._as)
+
+    def apply_persistio_procedencia(self, ws, keys):
+        self._quizas("apply_persistio_procedencia")
+        return self._persistio
 
     def fragments_supporting(self, ws, assertion_id):
         self._quizas("fragments_supporting")
@@ -454,6 +462,7 @@ def test_no_hay_ningun_estado_sin_productor():
     producidos = {
         servicio.Bloque.leido([{"x": 1}]).estado,
         servicio.Bloque.leido([]).estado,
+        servicio.Bloque.sin_procedencia().estado,
         servicio.Bloque.con_error().estado,
     }
     assert producidos == set(servicio.ESTADOS), (
@@ -621,3 +630,101 @@ def test_el_apply_id_de_este_modulo_acepta_lo_que_produce_el_writer():
     assert servicio.es_apply_id(real), (
         f"El validador de forma rechaza un apply_id REAL del writer: {real!r}"
     )
+
+
+# ===========================================================================
+# 7. TRES CEROS QUE SE PARECEN. Solo uno es una carencia del producto.
+# ===========================================================================
+# El Carril B midio que un apply lanzado desde la interfaz va SIN
+# `ProvenanceBundle`: `apply_v3` escribe el conocimiento, anota
+# `APPLY_PROVENANCE_NOT_PERSISTED` y enumera los fragmentos colgantes. En el
+# grafo eso deja aserciones SIN un solo `SUPPORTED_BY`.
+#
+# Sin distinguirlo, esa ejecucion y un hecho que simplemente no tiene cita se
+# pintan con la MISMA frase, y el operador no puede saber cual de las dos le
+# ha tocado.
+
+def _detalle(lec, espia, apply_id=APPLY, assertion_id="assertion:1"):
+    return servicio.detalle_de_asercion(
+        provider=espia, reader=lec, workspace=WS,
+        apply_id=apply_id, assertion_id=assertion_id)
+
+
+_ASERCION = [{
+    "assertion_id": "assertion:1", "subject_entity_id": "entity:a",
+    "object_entity_id": None, "predicate": "MEMBER_OF", "idempotency_key": "k1",
+}]
+
+
+def test_una_ejecucion_que_no_persistio_procedencia_lo_DICE():
+    """El apply escribio el hecho y NINGUNA de sus aserciones tiene soporte."""
+    lec = LectorFalso(aserciones=_ASERCION, fragmentos=[], persistio_procedencia=False)
+    detalle = _detalle(lec, ProveedorEspia(visibles=["entity:a"]))
+
+    assert detalle is not None, (
+        "Se ha devuelto 404: eso dice 'ese hecho no existe', y existe -- lo que "
+        "no existe es su procedencia."
+    )
+    assert detalle.evidencias.estado == servicio.SIN_PROCEDENCIA, (
+        f"estado {detalle.evidencias.estado!r}: una ejecucion que no guardo "
+        "procedencia se esta pintando como un hecho sin evidencia."
+    )
+    assert detalle.evidencias.filas == []
+
+
+def test_un_hecho_sin_cita_en_una_ejecucion_QUE_SI_persistio_dice_VACIO():
+    """El contraste que hace significar al caso anterior.
+
+    Misma pantalla vacia, otra causa: aqui la ejecucion SI dejo procedencia
+    (otras aserciones la tienen), asi que el hueco es de ESTE hecho.
+    """
+    lec = LectorFalso(aserciones=_ASERCION, fragmentos=[], persistio_procedencia=True)
+    detalle = _detalle(lec, ProveedorEspia(visibles=["entity:a"]))
+
+    assert detalle.evidencias.estado == servicio.VACIO, (
+        f"estado {detalle.evidencias.estado!r}: un hueco de ESTE hecho se esta "
+        "presentando como una carencia de la ejecucion entera."
+    )
+
+
+def test_los_tres_ceros_son_TRES_desenlaces_distintos():
+    """Enumerados juntos, que es la unica forma de ver que no se confunden."""
+    sin_proc = _detalle(
+        LectorFalso(aserciones=_ASERCION, fragmentos=[], persistio_procedencia=False),
+        ProveedorEspia(visibles=["entity:a"]))
+    hueco = _detalle(
+        LectorFalso(aserciones=_ASERCION, fragmentos=[], persistio_procedencia=True),
+        ProveedorEspia(visibles=["entity:a"]))
+    # Sin permiso sobre el sujeto: indistinguible de inexistente, y es 404.
+    sin_permiso = _detalle(
+        LectorFalso(aserciones=_ASERCION, fragmentos=[], persistio_procedencia=True),
+        ProveedorEspia(visibles=[]))
+
+    desenlaces = (
+        sin_proc.evidencias.estado,
+        hueco.evidencias.estado,
+        "404" if sin_permiso is None else "SERVIDO",
+    )
+    assert desenlaces == (servicio.SIN_PROCEDENCIA, servicio.VACIO, "404"), (
+        f"Los tres ceros no dan tres desenlaces distintos: {desenlaces}"
+    )
+
+
+def test_no_se_pregunta_por_el_discriminador_cuando_SI_hay_fragmentos():
+    """No se paga una consulta por una pregunta ya contestada."""
+    lec = LectorFalso(
+        aserciones=_ASERCION,
+        fragmentos=[{c: None for c in lector.CAMPOS_FRAGMENTO} | {
+            "fragment_id": "f1", "literal_text": "algo"}],
+        revienta=["apply_persistio_procedencia"],  # si se llamara, reventaria
+    )
+    detalle = _detalle(lec, ProveedorEspia(visibles=["entity:a"]))
+    assert detalle.evidencias.estado == servicio.DISPONIBLE
+
+
+def test_un_fallo_al_discriminar_da_ERROR_y_no_inventa_un_veredicto():
+    lec = LectorFalso(aserciones=_ASERCION, fragmentos=[],
+                      revienta=["apply_persistio_procedencia"])
+    detalle = _detalle(lec, ProveedorEspia(visibles=["entity:a"]))
+    assert detalle.evidencias.estado == servicio.ERROR
+    assert detalle.evidencias.total is None

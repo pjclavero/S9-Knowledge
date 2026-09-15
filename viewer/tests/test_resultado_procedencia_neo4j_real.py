@@ -93,6 +93,10 @@ CATALOGO = EJEMPLOS / "catalogo-workspace.json"
 #: workspace hace que la ingesta trabaje en otro sitio y el plan salga vacio.
 WS = json.loads(PERFIL.read_text())["workspace"]
 OPERADOR = "carril-c-resultado"
+#: Workspace APARTE para el escenario "apply SIN paquete de procedencia". No se
+#: reutiliza el de arriba: aplicar dos veces el mismo plan en el mismo
+#: workspace es un no-op idempotente, asi que no se podria observar nada.
+WS_SIN_PROC = WS + "-sin-procedencia"
 CLAVE_USUARIO = "CarrilCResultado_1234567890!"
 AHORA = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -111,11 +115,13 @@ def driver():
     drv.verify_connectivity()
     # Se lleva SOLO lo suyo, antes y despues: comparte instancia con otras
     # suites de contrato y no puede pisarles el material.
-    with drv.session() as s:
-        s.run("MATCH (n) WHERE n.workspace = $ws DETACH DELETE n", {"ws": WS})
+    for ws in (WS, WS_SIN_PROC):
+        with drv.session() as s:
+            s.run("MATCH (n) WHERE n.workspace = $ws DETACH DELETE n", {"ws": ws})
     yield drv
-    with drv.session() as s:
-        s.run("MATCH (n) WHERE n.workspace = $ws DETACH DELETE n", {"ws": WS})
+    for ws in (WS, WS_SIN_PROC):
+        with drv.session() as s:
+            s.run("MATCH (n) WHERE n.workspace = $ws DETACH DELETE n", {"ws": ws})
     drv.close()
 
 
@@ -634,4 +640,217 @@ def test_el_invariante_congelado_sigue_en_pie(driver, grafo):
     assert sin_visibilidad == 0, (
         "algun nodo de evidencia ha ganado `visibility`: esta superficie no "
         "puede haber creado una ACL nueva sobre la procedencia"
+    )
+
+
+# ===========================================================================
+# 4. LA RUTA DE LA INTERFAZ: apply SIN paquete de procedencia
+# ===========================================================================
+# El Carril B midio que un apply lanzado desde la interfaz va SIN
+# `ProvenanceBundle`. Y el propio producto lo dice en `pipeline.py`:
+#
+#   "EL PAQUETE ES LO QUE DISTINGUE LAS DOS RUTAS, y no es codigo: son datos.
+#    La ingesta SI tiene los documentos [...]. Un mando al que solo se le da
+#    `plan.json` no los tiene, y por eso la funcion canonica le contesta con
+#    APPLY_PROVENANCE_NOT_PERSISTED en vez de con un APPLIED silencioso."
+#
+# Aqui NO se cree eso: se REPRODUCE, llamando a `apply_v3` --la definicion de
+# "aplicar V3", la misma funcion que usa toda ruta de apply-- sin paquete, y
+# se mira que ensena la pantalla. Workspace propio: aplicar dos veces el mismo
+# plan en el mismo sitio es un no-op y no se observaria nada.
+
+@pytest.fixture(scope="module")
+def material_sin_proc(tmp_path_factory):
+    """Perfil y catalogo del workspace APARTE.
+
+    No se le pide a `run_ingest` que reescriba el workspace del perfil: el
+    producto se NIEGA a hacerlo en silencio --"corrige uno de los dos"-- y
+    tiene razon. Se le dan los documentos coherentes, que es lo que haria un
+    operador.
+    """
+    destino = tmp_path_factory.mktemp("sin-procedencia")
+    salida = {}
+    for nombre, origen in (("perfil", PERFIL), ("catalogo", CATALOGO)):
+        doc = json.loads(origen.read_text())
+        doc["workspace"] = WS_SIN_PROC
+        if doc.get("source_asset_id") == f"profile:{WS}":
+            doc["source_asset_id"] = f"profile:{WS_SIN_PROC}"
+        # IDENTIDADES PROPIAS, y no por capricho de la prueba.
+        # -----------------------------------------------------
+        # MEDIDO aqui: con el catalogo copiado tal cual, el MISMO `entity_id`
+        # acaba existiendo en los DOS workspaces. Y `Neo4jGraphProvider.entity`
+        # busca por identificador SIN acotar cuando el lector es admin
+        # (`_scope_workspaces()` devuelve `None` para `admin_full`), encuentra
+        # dos nodos, declara IDENTIDAD DURABLE AMBIGUA y devuelve `None`.
+        # Resultado: el admin no ve NADA de ninguno de los dos workspaces.
+        #
+        # Es comportamiento del producto --fallo cerrado ante identidad
+        # ambigua, correcto-- y esta pantalla lo respeta: `None` es `None`. Lo
+        # que no vale es montar un escenario que lo dispare sin querer y leer
+        # el vacio resultante como si dijera algo de la procedencia. Dos
+        # workspaces de verdad no comparten `entity_id`.
+        for entidad in doc.get("entities") or []:
+            entidad["entity_id"] = entidad["entity_id"] + "-sp"
+        ruta = destino / origen.name
+        ruta.write_text(json.dumps(doc, ensure_ascii=False))
+        salida[nombre] = ruta
+    return salida
+
+
+@pytest.fixture(scope="module")
+def apply_sin_procedencia(driver, material_sin_proc):
+    """UN apply REAL por la ruta que NO aporta procedencia. Su ``apply_id``."""
+    from knowledge_v3.pipeline import entity_decisions, ingest_cli
+    from knowledge_v3.writer import bootstrap_writer_schema
+    from knowledge_v3.writer.apply import apply_v3
+    from knowledge_v3.writer.gate import OperatorRequest
+    from knowledge_v3.writer.writer import GraphWriter
+
+    bootstrap_writer_schema(driver)
+
+    def ingesta(altas=(), apply=False):
+        return ingest_cli.run_ingest(
+            FUENTE, profile_path=material_sin_proc["perfil"],
+            catalog_path=material_sin_proc["catalogo"], driver=driver,
+            workspace=WS_SIN_PROC, now=AHORA, ingested_at=AHORA,
+            approved_altas=list(altas), apply=apply, operator_id=OPERADOR,
+        )
+
+    primera = ingesta()
+    ledger = entity_decisions.reconcile(
+        resolutions=(primera["candidates"]["link_existing"]
+                     + primera["candidates"]["create_entity"]),
+        graph_entity_ids=[], workspace=WS_SIN_PROC, source_path=str(FUENTE),
+        names_by_mention={}, catalog_by_entity={})
+    aprobado = entity_decisions.approve(
+        ledger, [d.entity_id for d in ledger.altas], reviewer=OPERADOR, at=AHORA)
+    altas = entity_decisions.approved_snapshot_entities(aprobado)
+
+    # El plan SELLADO, sin aplicar. De aqui sale lo que la interfaz tendria.
+    informe = ingesta(altas=altas, apply=False)
+    plan = informe["plan"]
+
+    request = OperatorRequest(
+        apply=True, operator_id=OPERADOR, workspace=WS_SIN_PROC,
+        expected_plan_hash=plan["plan_hash"]["value"],
+        current_snapshot_id=plan["snapshot_id"],
+        env={"S9K_ALLOW_REAL_INGEST": "1", "S9K_WRITER_WORKSPACE": WS_SIN_PROC},
+    )
+    # `provenance=None`: LA RUTA DE LA INTERFAZ. No se omite por comodidad de
+    # la prueba, se omite porque es lo que esa ruta hace hoy.
+    outcome = apply_v3(plan, request,
+                       writer=GraphWriter(workspace=WS_SIN_PROC, driver=driver),
+                       provenance=None, driver=driver)
+
+    codigos = {n["code"] for n in outcome.notes}
+    assert "APPLY_PROVENANCE_NOT_PERSISTED" in codigos, (
+        f"el producto NO aviso de que no persistia procedencia: {codigos}. "
+        "Si esto cambia, esta prueba esta midiendo otra cosa."
+    )
+    assert getattr(outcome.write_result, "ok", False), (
+        f"la escritura no fue bien: {outcome.write_result}"
+    )
+    return outcome.apply_id
+
+
+def test_la_ruta_de_la_interfaz_deja_conocimiento_y_CERO_procedencia(
+        driver, apply_sin_procedencia):
+    """El hecho medido, antes de mirar ninguna pantalla. Una consulta por cosa."""
+    def censo(q):
+        with driver.session() as s:
+            return s.run(q, {"ws": WS_SIN_PROC}).single()[0]
+
+    assert censo("MATCH (n:V3Assertion {workspace:$ws}) RETURN count(n)") > 0, (
+        "ni una asercion: este escenario no ha escrito nada y no mide nada"
+    )
+    assert censo("MATCH (n:V3Evidence {workspace:$ws}) RETURN count(n)") == 0, (
+        "hay evidencia: este apply SI persistio procedencia y el escenario no "
+        "reproduce la ruta de la interfaz"
+    )
+    assert censo("MATCH (:V3Assertion {workspace:$ws})-[r:SUPPORTED_BY]->() "
+                 "RETURN count(r)") == 0
+
+
+def test_la_pantalla_DICE_que_la_ejecucion_no_dejo_procedencia_y_no_la_inventa(
+        admin, apply_sin_procedencia, apply_real):
+    """El requisito entero: si no existe procedencia, se DICE. Nunca se inventa.
+
+    Y se afirma contra el OTRO apply --el que si la tiene-- para que quede
+    claro que la pantalla distingue, en vez de decir siempre lo mismo.
+    """
+    import re
+
+    r = admin.get(f"/panel/resultado/{apply_sin_procedencia}",
+                  params={"workspace": WS_SIN_PROC})
+    assert r.status_code == 200, r.text[:300]
+
+    hechos = re.findall(r'data-assertion-id="([^"]+)"', r.text)
+    assert hechos, "la pantalla no ofrece ni un hecho de un apply que SI escribio"
+
+    ev = admin.get(
+        f"/panel/resultado/{apply_sin_procedencia}/hecho/{hechos[0]}",
+        params={"workspace": WS_SIN_PROC})
+    assert ev.status_code == 200, ev.text[:300]
+
+    assert 'data-state="sin-procedencia"' in ev.text, (
+        "La ficha no declara que la EJECUCION no dejo procedencia. O dice que "
+        "el hecho no tiene evidencia --que confunde dos cosas distintas-- o "
+        "no dice nada."
+    )
+    assert 'data-role="fragmento"' not in ev.text, (
+        "Se ha pintado un fragmento donde el grafo no tiene NINGUNO: la "
+        "pantalla se esta inventando la procedencia."
+    )
+
+    # CONTRASTE: el apply que SI la tiene no dice lo mismo. Sin esto, una
+    # pantalla que dijera SIEMPRE "sin procedencia" pasaria el caso de arriba.
+    r2 = admin.get(f"/panel/resultado/{apply_real}", params={"workspace": WS})
+    otro = re.findall(r'data-assertion-id="([^"]+)"', r2.text)[0]
+    ev2 = admin.get(f"/panel/resultado/{apply_real}/hecho/{otro}",
+                    params={"workspace": WS})
+    assert 'data-state="sin-procedencia"' not in ev2.text, (
+        "La pantalla dice 'sin procedencia' TAMBIEN cuando la hay: no "
+        "distingue nada, solo repite una frase."
+    )
+    assert 'data-role="fragmento"' in ev2.text
+
+
+def test_que_deja_un_apply_SIN_paquete_de_procedencia(driver, apply_sin_procedencia):
+    """LO MEDIDO, y con su limite DECLARADO.
+
+    El Carril B informa de que el plan sellado que aplica la interfaz lleva
+    SOLO `CREATE_ASSERTION`, asi que no materializaria la arista. Aqui NO se
+    puede reproducir eso: su rama no esta en `main` y este fichero no la
+    importa. Lo que si se puede aplicar sin paquete de procedencia es el plan
+    que sella la ruta que EXISTE, y eso es lo que se mide.
+
+    MEDIDO sobre ese plan: sus operaciones incluyen `PROJECT_RELATION`, asi que
+    aplicarlo SIN procedencia deja la arista IGUALMENTE. O sea: lo que quita el
+    paquete es la PROCEDENCIA, no la proyeccion -- son dos carencias distintas
+    y este caso impide confundirlas.
+
+    Si el plan de B llega a `main` con solo `CREATE_ASSERTION`, este caso se
+    pondra rojo y habra que revisar la prueba insignia. Eso es lo que se quiere
+    que pase: la afirmacion queda atada a una medida, no a una conversacion.
+    """
+    with driver.session() as s:
+        aristas = s.run(
+            "MATCH (:Entity {workspace:$ws})-[r]->(:Entity {workspace:$ws}) "
+            "RETURN count(r) AS c", {"ws": WS_SIN_PROC}).single()["c"]
+        aserciones = s.run(
+            "MATCH (n:V3Assertion {workspace:$ws}) RETURN count(n) AS c",
+            {"ws": WS_SIN_PROC}).single()["c"]
+        evidencias = s.run(
+            "MATCH (n:V3Evidence {workspace:$ws}) RETURN count(n) AS c",
+            {"ws": WS_SIN_PROC}).single()["c"]
+
+    assert aserciones > 0, "sin aserciones este caso no compara nada"
+    assert evidencias == 0, (
+        "hay evidencia: el apply SI persistio procedencia y este caso no "
+        "esta midiendo la carencia que dice medir"
+    )
+    assert aristas > 0, (
+        "el plan de esta ruta ya NO materializa la arista. Es un cambio real "
+        "del producto: revisar la prueba insignia, que da por hecho que hay "
+        "una relacion que abrir."
     )

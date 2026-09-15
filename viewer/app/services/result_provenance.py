@@ -54,7 +54,7 @@ fuga con una hoja de estilo delante.
 AUSENCIA != CERO
 ----------------
 Cada bloque del resultado lleva su propio ESTADO explicito
-(``DISPONIBLE``/``VACIO``/``ERROR``). Una seccion que no se pudo leer no
+(``DISPONIBLE``/``VACIO``/``SIN_PROCEDENCIA``/``ERROR``). Una seccion que no se pudo leer no
 publica un ``0``: publica ``ERROR`` y ni una cifra. Y cuando lo que falta es
 la DEPENDENCIA entera --no una seccion-- no hay pagina: hay un **503** con
 codigo estable, porque una pantalla llena de huecos no es una respuesta
@@ -79,7 +79,7 @@ from typing import Any, Optional
 from app.providers.provenance_reader import ProvenanceReader
 
 __all__ = [
-    "DISPONIBLE", "VACIO", "ERROR", "ESTADOS",
+    "DISPONIBLE", "VACIO", "SIN_PROCEDENCIA", "ERROR", "ESTADOS",
     "Bloque", "Resultado", "DetalleEvidencia", "ProcedenciaNoDisponible",
     "CODIGOS", "detalle_seguro",
     "RESULT_NOT_FOUND", "PROVENANCE_READER_UNAVAILABLE",
@@ -143,15 +143,21 @@ class ProcedenciaNoDisponible(RuntimeError):
 DISPONIBLE = "DISPONIBLE"
 #: La lectura FUE BIEN y no habia nada. Un cero MEDIDO.
 VACIO = "VACIO"
+#: Esta EJECUCION no persistio procedencia (el apply fue SIN
+#: `ProvenanceBundle`). NO es "este hecho no tiene evidencia": es una carencia
+#: de la ejecucion entera, y el operador tiene que poder distinguirlas.
+#: Se DERIVA del grafo --ninguna asercion del apply tiene `SUPPORTED_BY`--,
+#: no de un informe que esta pantalla no lee.
+SIN_PROCEDENCIA = "SIN_PROCEDENCIA"
 #: La lectura de ESA seccion FALLO. Tampoco es un cero, y no publica cifras.
 #:
-#: No hay un cuarto estado "no disponible": cuando lo que falta es la
+#: No hay un estado "no disponible": cuando lo que falta es la
 #: dependencia entera, la respuesta es un 503 con codigo estable y no una
 #: pagina. Un estado sin productor es vocabulario muerto, y el vocabulario
 #: muerto acaba usandose para otra cosa.
 ERROR = "ERROR"
 
-ESTADOS: tuple[str, ...] = (DISPONIBLE, VACIO, ERROR)
+ESTADOS: tuple[str, ...] = (DISPONIBLE, VACIO, SIN_PROCEDENCIA, ERROR)
 
 #: Forma admisible de un `apply_id` (``writer/apply_identity.py``). Se
 #: comprueba ANTES de tocar la base: una cadena arbitraria en la URL no llega a
@@ -188,6 +194,16 @@ class Bloque:
     def leido(cls, filas: list) -> "Bloque":
         filas = list(filas)
         return cls(estado=DISPONIBLE if filas else VACIO, filas=filas, total=len(filas))
+
+    @classmethod
+    def sin_procedencia(cls) -> "Bloque":
+        """La EJECUCION no dejo procedencia. Cero MEDIDO, y de otra cosa.
+
+        Lleva cifra ``0`` --se ha medido: no hay ni un soporte en todo el
+        apply-- pero con su propio estado, porque la frase que merece el
+        operador no es "este hecho no tiene evidencia".
+        """
+        return cls(estado=SIN_PROCEDENCIA, filas=[], total=0)
 
     @classmethod
     def con_error(cls) -> "Bloque":
@@ -491,15 +507,39 @@ def detalle_de_asercion(
         if objeto is None:
             return None
 
-    try:
-        fragmentos = reader.fragments_supporting(workspace, assertion_id)
-    except Exception:  # noqa: BLE001
+    def _ficha_con(bloque: Bloque) -> DetalleEvidencia:
         return DetalleEvidencia(
             apply_id=apply_id, workspace=workspace, assertion_id=assertion_id,
             predicate=elegida.get("predicate"), sujeto=_ficha(sujeto),
             objeto=_ficha(objeto) if objeto else None,
-            evidencias=Bloque.con_error(),
+            evidencias=bloque,
         )
+
+    try:
+        fragmentos = reader.fragments_supporting(workspace, assertion_id)
+    except Exception:  # noqa: BLE001
+        return _ficha_con(Bloque.con_error())
+
+    # TRES CEROS QUE SE PARECEN Y NO SON LO MISMO
+    # ------------------------------------------
+    # Este hecho no tiene fragmentos. Antes de decir "no consta evidencia" hay
+    # que saber si es que ESTA EJECUCION no persistio ninguna: `apply_v3`
+    # escribe el conocimiento igual cuando le falta el `ProvenanceBundle`, y
+    # entonces NINGUNA asercion del apply tiene soporte. Eso es una carencia de
+    # la ejecucion, no un dato de este hecho, y se DERIVA del grafo.
+    #
+    #   1. la ejecucion no dejo procedencia   -> SIN_PROCEDENCIA (aqui)
+    #   2. este hecho no tiene evidencia      -> VACIO
+    #   3. no puedes ver este hecho           -> None -> 404 (mas arriba)
+    #
+    # Las tres pintarian una pantalla sin fragmentos. Solo la primera es una
+    # carencia del producto que el operador tiene que poder ver como tal.
+    if not fragmentos:
+        try:
+            if not reader.apply_persistio_procedencia(workspace, claves):
+                return _ficha_con(Bloque.sin_procedencia())
+        except Exception:  # noqa: BLE001
+            return _ficha_con(Bloque.con_error())
 
     filas = []
     for fr in fragmentos:
