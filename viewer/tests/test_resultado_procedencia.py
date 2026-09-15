@@ -787,3 +787,106 @@ def test_el_plan_sellado_de_la_interfaz_solo_emite_CREATE_ASSERTION():
         "partir de un apply de la interfaz en vez de uno de ingesta: "
         "revisarla y retirar la dependencia declarada."
     )
+
+
+# ===========================================================================
+# 9. LA GUARDA DE QUE ESTA COBERTURA SE EJERCE DE VERDAD
+# ===========================================================================
+# MEDIDO, y por eso existe este caso: quitando
+# `test_resultado_procedencia_neo4j_real.py` de la lista del paso de Neo4j de
+# `ci.yml`, la puerta de inventario sigue diciendo OK. Ese modulo se declara
+# CONDICIONAL con condicion `(not URI or not PASSWORD)` y en `test-viewer`
+# --que no define esas variables-- sale `skipped` con rc=0 y el job VERDE. O
+# sea: el trinquete de inventario NO caza la desaparicion de esta cobertura.
+#
+# Asi que la guarda vive AQUI, en la suite que corre SIEMPRE. Si alguien quita
+# el modulo de la invocacion, o anade otro de la misma familia sin invocarlo,
+# esto se pone rojo y dice que hay que anadirlo. La regla no es una lista que
+# haya que acordarse de rellenar: el conjunto se DERIVA y la lista se compara.
+
+def _modulos_del_visor_que_exigen_neo4j_de_prueba() -> set:
+    """Modulos de `viewer/tests` que LEEN `NEO4J_TEST_URI` del entorno.
+
+    Por AST y por EFECTO, no por nombre ni por `grep`: la convencion de
+    nombres tiene excepciones medidas en este repo (`descubre_neo4j_real.py`
+    documenta un falso positivo y un falso negativo), y contar apariciones de
+    texto casa dentro de comentarios y docstrings -- este mismo fichero nombra
+    la variable varias veces sin ser uno de ellos.
+    """
+    import ast
+
+    def lee_la_variable(nodo) -> bool:
+        if isinstance(nodo, ast.Call):
+            f = nodo.func
+            if isinstance(f, ast.Attribute) and f.attr in ("get", "getenv"):
+                return any(isinstance(a, ast.Constant) and a.value == "NEO4J_TEST_URI"
+                           for a in nodo.args)
+        if isinstance(nodo, ast.Subscript):
+            s = nodo.slice
+            return isinstance(s, ast.Constant) and s.value == "NEO4J_TEST_URI"
+        return False
+
+    hallados = set()
+    base = RAIZ_REPO / "viewer" / "tests"
+    for py in sorted(base.glob("test_*.py")):
+        try:
+            arbol = ast.parse(py.read_text(encoding="utf-8", errors="replace"))
+        except (OSError, SyntaxError):
+            continue
+        if any(lee_la_variable(n) for n in ast.walk(arbol)):
+            hallados.add(py.relative_to(RAIZ_REPO).as_posix())
+    return hallados
+
+
+def _rutas_invocadas_en_el_paso_de_neo4j() -> set:
+    """Rutas que el paso de CI nombra. Se parsea el YAML, no se hace `grep`.
+
+    Un `grep` sobre el fichero casa igual con una ruta escrita en un
+    comentario; el YAML da el `run` de ESE paso, que es lo que se ejecuta.
+    """
+    import re
+
+    yaml = pytest.importorskip("yaml")
+    doc = yaml.safe_load((RAIZ_REPO / ".github" / "workflows" / "ci.yml").read_text())
+    for job in (doc.get("jobs") or {}).values():
+        for paso in job.get("steps") or []:
+            if paso.get("name") == "Run authz integration tests":
+                cuerpo = paso.get("run") or ""
+                # Solo lineas de invocacion, nunca comentarios.
+                util = "\n".join(l for l in cuerpo.splitlines()
+                                 if not l.lstrip().startswith("#"))
+                return set(re.findall(r"viewer/tests/\S+?\.py", util))
+    raise AssertionError(
+        "no se encontro el paso 'Run authz integration tests' en ci.yml: esta "
+        "guarda no esta mirando lo que cree mirar"
+    )
+
+
+def test_la_cobertura_neo4j_del_visor_se_invoca_entera_en_ci():
+    """Ningun modulo de esta familia puede quedarse fuera del paso que lo ejerce."""
+    derivados = _modulos_del_visor_que_exigen_neo4j_de_prueba()
+    invocados = _rutas_invocadas_en_el_paso_de_neo4j()
+
+    assert derivados, (
+        "el derivador no encontro NINGUN modulo que lea NEO4J_TEST_URI: esta "
+        "guarda no mide nada (cambio la familia de variables?)"
+    )
+    sin_invocar = derivados - invocados
+    assert not sin_invocar, (
+        f"estos modulos exigen NEO4J_TEST_URI y NINGUN job los invoca con esa "
+        f"variable: {sorted(sin_invocar)}. En `test-viewer` saldran SKIPPED "
+        "con rc=0 y el job VERDE, o sea que su cobertura no existe. Anadelos a "
+        "la invocacion del paso 'Run authz integration tests' de ci.yml."
+    )
+
+
+def test_mi_suite_de_neo4j_real_es_de_esa_familia_y_esta_invocada():
+    """Control positivo de la guarda de arriba, sobre el modulo de este carril.
+
+    Sin esto, la guarda pasaria igual el dia que este modulo dejara de leer la
+    variable (y por tanto saliera del conjunto derivado) aunque su cobertura
+    hubiera desaparecido.
+    """
+    mio = "viewer/tests/test_resultado_procedencia_neo4j_real.py"
+    assert mio in _modulos_del_visor_que_exigen_neo4j_de_prueba()
+    assert mio in _rutas_invocadas_en_el_paso_de_neo4j()
