@@ -17,8 +17,13 @@ las llamadas OBSERVADAS, no leyendo el codigo.
 from __future__ import annotations
 
 import os
+import pathlib
 
 import pytest
+
+#: Raiz del repositorio, para exigir que NINGUNA ruta del servidor salga al
+#: cliente. Este repositorio es PUBLICO y ya tuvo un incidente por topologia.
+RAIZ_REPO = pathlib.Path(__file__).resolve().parents[2]
 
 from app.providers import provenance_reader as lector
 from app.services import result_provenance as servicio
@@ -367,20 +372,48 @@ def test_el_recorrido_de_evidencia_no_baja_a_los_hermanos_del_episodio():
 # ===========================================================================
 # 5. AUSENCIA != CERO
 # ===========================================================================
-def test_sin_lector_los_bloques_dicen_NO_DISPONIBLE_y_no_publican_cifra():
-    """"Este despliegue no lee procedencia" NO es "no hay procedencia"."""
-    res = servicio.resultado_de_apply(
-        provider=ProveedorEspia(visibles=[]), reader=None,
-        workspace=WS, apply_id=APPLY,
-    )
-    assert res is not None, "Sin lector se ha devuelto 404: eso dice 'no existe'"
-    for bloque in (res.entidades, res.relaciones, res.hechos):
-        assert bloque.estado == servicio.NO_DISPONIBLE
+def test_sin_lector_se_levanta_indisponibilidad_y_no_un_vacio():
+    """"Este despliegue no lee procedencia" NO es "no hay procedencia".
+
+    Y tampoco es "no existe": devolver `None` --que la ruta traduce a 404--
+    mandaria a quien mira a buscar un identificador que SI era bueno. Es
+    indisponibilidad de una dependencia, y sale por su propia puerta.
+    """
+    with pytest.raises(servicio.ProcedenciaNoDisponible) as exc:
+        servicio.resultado_de_apply(
+            provider=ProveedorEspia(visibles=[]), reader=None,
+            workspace=WS, apply_id=APPLY,
+        )
+    assert exc.value.code == servicio.PROVENANCE_READER_UNAVAILABLE
+
+
+def test_el_orden_es_forma_ambito_y_LUEGO_dependencia():
+    """Un ambito ajeno da 404 AUNQUE la dependencia tampoco este.
+
+    Si la dependencia se comprobara antes, un lector sin derechos distinguiria
+    "ese workspace existe" de "no existe" comparando 503 contra 404.
+    """
+    espia = ProveedorEspia(visibles=[], workspaces=[OTRO_WS])
+    assert servicio.resultado_de_apply(
+        provider=espia, reader=None, workspace=WS, apply_id=APPLY) is None
+    assert servicio.resultado_de_apply(
+        provider=espia, reader=None, workspace=WS, apply_id="mal-formado") is None
+
+
+def test_un_bloque_que_no_se_pudo_leer_no_publica_cifra():
+    """El tri-estado DENTRO de la pagina: fallo parcial, no de la dependencia.
+
+    Aqui la pagina SI existe --las operaciones se leyeron-- y lo que falla es
+    una seccion. Ese es el caso en que `ERROR` vive en la pantalla en vez de
+    en el codigo de estado.
+    """
+    for bloque in (servicio.Bloque.con_error(),):
         assert bloque.total is None, (
             "Un bloque que no se pudo leer publica un recuento: ese 0 no lo ha "
             "medido nadie."
         )
         assert bloque.hay_cifra is False
+        assert bloque.filas == []
 
 
 @pytest.mark.parametrize("revienta", [
@@ -411,9 +444,22 @@ def test_un_apply_inexistente_es_404_y_no_un_resultado_vacio():
                       apply_id=OTRO_APPLY) is None
 
 
-def test_los_cuatro_estados_son_distintos_entre_si():
-    """Suelo de plausibilidad del vocabulario: cuatro nombres, cuatro valores."""
-    assert len(set(servicio.ESTADOS)) == 4
+def test_no_hay_ningun_estado_sin_productor():
+    """Cada estado del vocabulario lo PRODUCE alguien. Se comprueba, no se cree.
+
+    Un estado declarado que nadie emite es vocabulario muerto, y el vocabulario
+    muerto acaba usandose para otra cosa. Aqui se exige que los tres salgan de
+    una llamada real, no de la lista.
+    """
+    producidos = {
+        servicio.Bloque.leido([{"x": 1}]).estado,
+        servicio.Bloque.leido([]).estado,
+        servicio.Bloque.con_error().estado,
+    }
+    assert producidos == set(servicio.ESTADOS), (
+        f"estados declarados {set(servicio.ESTADOS)} != producidos {producidos}"
+    )
+    assert len(set(servicio.ESTADOS)) == len(servicio.ESTADOS)
 
 
 # ===========================================================================
@@ -502,16 +548,23 @@ def test_la_pantalla_no_es_un_oraculo_de_existencia(app_real, monkeypatch):
 
         uno = c.get(f"/panel/resultado/{APPLY}")
         dos = c.get(f"/panel/resultado/{otro}")
-        assert uno.status_code == dos.status_code == 200
-        # Sin lector no se ha consultado ninguna base, asi que las dos paginas
-        # solo pueden diferir en el identificador que el propio cliente pidio.
-        assert uno.text.replace(APPLY, "X") == dos.text.replace(otro, "X"), (
-            "Sin lector de procedencia, dos identificadores distintos producen "
-            "paginas distintas: algo se ha consultado y eso es un oraculo."
+        assert uno.status_code == dos.status_code == 503, (
+            "Sin lector de procedencia el desenlace no es 503: o se degrada a "
+            "un vacio que nadie ha medido, o dice 'no existe' de algo que no "
+            "se ha mirado."
         )
-        assert 'data-state="NO_DISPONIBLE"' in uno.text, (
-            "La pagina sin lector no declara NO_DISPONIBLE: estaria pintando "
-            "un vacio que nadie ha medido."
+        # Sin lector no se ha consultado ninguna base, asi que las dos
+        # respuestas no pueden diferir en NADA: si difieren, algo se consulto.
+        assert uno.text == dos.text, (
+            "Sin lector, dos identificadores distintos producen respuestas "
+            "distintas: algo se ha consultado y eso es un oraculo."
+        )
+        assert servicio.PROVENANCE_READER_UNAVAILABLE in uno.text, (
+            "El 503 no lleva codigo estable: `CODIGO: frase` es la forma "
+            "exigida, y sin el codigo no se puede correlacionar con el log."
+        )
+        assert "Traceback" not in uno.text and str(RAIZ_REPO) not in uno.text, (
+            "El cuerpo del error lleva detalle tecnico o una ruta del servidor"
         )
     finally:
         get_auth_settings.cache_clear()
