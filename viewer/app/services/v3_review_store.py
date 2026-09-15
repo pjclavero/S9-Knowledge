@@ -52,11 +52,91 @@ CREATE TABLE IF NOT EXISTS glossary_candidates (
   candidate_hash TEXT NOT NULL,
   PRIMARY KEY (workspace, candidate_id)
 );
+CREATE TABLE IF NOT EXISTS sealed_plans (
+  plan_id TEXT PRIMARY KEY,
+  workspace TEXT NOT NULL,
+  job_id TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  state TEXT NOT NULL,
+  plan_json TEXT NOT NULL,
+  plan_hash TEXT NOT NULL,
+  decision_ids_json TEXT NOT NULL,
+  proposal_ids_json TEXT NOT NULL,
+  sealed_at TEXT NOT NULL,
+  applied_at TEXT,
+  apply_id TEXT,
+  applied_operations INTEGER,
+  apply_notes_json TEXT,
+  UNIQUE (workspace, job_id, revision)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sealed_plan_vigente
+  ON sealed_plans(workspace, job_id) WHERE state='sealed';
+CREATE INDEX IF NOT EXISTS idx_sealed_plan_por_corrida
+  ON sealed_plans(workspace, job_id, revision);
 CREATE INDEX IF NOT EXISTS idx_review_active
   ON human_decisions(workspace, proposal_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_glossary_pending
   ON glossary_outbox(workspace, processed_at);
 """
+
+
+def active_decision_ids(records: list, workspace: str) -> list[str]:
+    """`decision_id` ACTIVOS de un workspace. LA derivación, sobre registros.
+
+    POR QUÉ ES UNA FUNCIÓN PURA Y NO UN MÉTODO QUE LEE
+    --------------------------------------------------
+    B1. El sellado construía el plan con las decisiones leídas en t1 y pasaba
+    como esperadas una SEGUNDA lectura en t2, en otra conexión. La guarda
+    comparaba t2 contra t3 y NUNCA t1 contra t3, así que un cambio de decisión
+    entre t1 y t2 era INVISIBLE: medido por el camino del producto, registrar
+    un `REJECT` en esa ventana dejaba el plan `sealed` con la afirmación que el
+    operador acababa de RECHAZAR, sin `SEAL_CONFLICT`. Y no hacía falta nada
+    exótico: un admin sellando mientras alguien decide en `/panel/review` es el
+    uso normal.
+
+    Con la derivación aquí, el servicio la aplica a LA MISMA lista de registros
+    con la que construyó el plan, y lo que la transacción compara es t1 contra
+    t3. Que sea una sola definición es lo que impide que las dos lecturas usen
+    semánticas distintas y produzcan conflictos fantasma o, peor, silencios.
+
+    Semántica, idéntica a `_active_decisions` en `v3_review`: la última por
+    propuesta gana, una supersedida no cuenta, y un `undo` devuelve la
+    propuesta a pendiente.
+    """
+    ultima: dict[str, Any] = {}
+    supersedidas: set[str] = set()
+    for record in records:
+        if str(record.get("workspace") or "") != workspace:
+            continue
+        if record.get("supersedes_decision_id"):
+            supersedidas.add(str(record["supersedes_decision_id"]))
+        identificador = str((record.get("proposal") or {}).get("proposal_id") or "")
+        if identificador:
+            ultima[identificador] = record
+    activas = {
+        str(record.get("decision_id") or "")
+        for record in ultima.values()
+        if str(record.get("decision_id") or "") not in supersedidas
+        and not (record.get("correction") or {}).get("undo")
+    }
+    activas.discard("")
+    return sorted(activas)
+
+
+class AuditChainBroken(RuntimeError):
+    """La cadena de auditoría del workspace no verifica.
+
+    FALLA CERRADO: no se sella. Si el registro encadenado que sostiene la
+    procedencia está roto, lo que se escriba encima no es auditable.
+    """
+
+
+class SealConflict(RuntimeError):
+    """Las decisiones cambiaron entre leerlas y sellar el plan.
+
+    FALLA CERRADO: no se sella nada. Sellar de todos modos produciría un plan
+    que dice ser el snapshot de unas decisiones y es el de otras.
+    """
 
 
 class SQLiteReviewStore:
@@ -164,6 +244,14 @@ class SQLiteReviewStore:
                     record_hash,
                 ),
             )
+            # UN PLAN SELLADO NO SOBREVIVE A UN CAMBIO DE DECISIÓN.
+            #
+            # Va DENTRO de esta transacción, la misma que graba la decisión.
+            # Hacerlo después, en otro commit, dejaría una ventana en la que la
+            # decisión ya cambió y el plan todavía se considera aplicable: un
+            # Apply en esa ventana escribiría en el grafo algo que el operador
+            # acababa de rectificar. El plan no se edita nunca; se INVALIDA.
+            self._supersede_sealed(connection, record["workspace"])
             if outbox_payload:
                 connection.execute(
                     """INSERT INTO glossary_outbox
@@ -177,6 +265,337 @@ class SQLiteReviewStore:
                     ),
                 )
         return record, True
+
+
+    # -----------------------------------------------------------------
+    # PLANES SELLADOS. El artefacto que el operador revisó, inmutable.
+    # -----------------------------------------------------------------
+    #
+    # POR QUÉ VIVEN AQUÍ Y NO EN UN FICHERO
+    # -------------------------------------
+    # Esta base YA es la autoridad efectiva de las decisiones (Corte 2).
+    # Guardar el plan aprobado en otro sitio reabriría el problema de las dos
+    # verdades: un fichero y una tabla capaces de contradecirse, con la
+    # semántica dependiendo de que dos procesos vean bien un directorio — que
+    # es exactamente el fallo que el invariante de `proposals/` ya costó.
+    # Los ficheros pueden seguir siendo artefactos DERIVADOS (exportación,
+    # diagnóstico); no determinan qué se aplica.
+    #
+    # LOS ESTADOS, Y QUÉ SIGNIFICA CADA UNO
+    # -------------------------------------
+    #   `sealed`      el plan vigente de esa corrida. Como máximo UNO, y lo
+    #                 impone la BASE: `idx_sealed_plan_vigente` es un índice
+    #                 único PARCIAL sobre (workspace, job_id) WHERE
+    #                 state='sealed'. No es una comprobación en Python que
+    #                 alguien pueda olvidarse de llamar.
+    #   `applying`    RESERVADO y EN VUELO: alguien lo tomó y todavía no consta
+    #                 qué pasó. NO es «aplicado».
+    #   `applied`     se aplicó Y SE CONFIRMÓ. Queda INMUTABLE y ligado a su
+    #                 `apply_id`, para procedencia y auditoría.
+    #   `superseded`  no vale: una decisión cambió, o el apply no llegó a
+    #                 escribir. El plan NO se modifica nunca: se invalida.
+    #
+    # B2. `applying` NACE DE UN FALSO ÉXITO MEDIDO. Antes, `claim_for_apply`
+    # marcaba directamente `applied` con `apply_id` a NULL, y si el proceso
+    # moría entre la reserva y la escritura `record_apply_result` no corría
+    # jamás: la fila quedaba `applied`, la pantalla decía «ya forma parte del
+    # conocimiento», el grafo estaba VACÍO y el camino para reintentarlo estaba
+    # cerrado. El marcador de «en vuelo» existía —`applied` con `apply_id`
+    # nulo— y NADIE LO MIRABA. Ahora es un estado con nombre, y quien lo lee no
+    # puede confundirlo con un éxito.
+
+    ESTADO_SELLADO = "sealed"
+    ESTADO_EN_VUELO = "applying"
+    ESTADO_APLICADO = "applied"
+    ESTADO_SUPERSEDIDO = "superseded"
+
+    def _supersede_sealed(self, connection: sqlite3.Connection, workspace: str) -> int:
+        """Invalida el plan vigente de CADA corrida del workspace. Nunca lo edita.
+
+        Se llama DENTRO de la transacción que registra la decisión, no después:
+        si fuese un segundo commit, entre uno y otro existiría una ventana en
+        la que hay un plan `sealed` que ya no corresponde a las decisiones
+        confirmadas — y aplicar en esa ventana escribiría en el grafo lo que el
+        operador acaba de rectificar.
+
+        Sólo toca `sealed`. Un plan `applied` es historia: ya se escribió en el
+        grafo y su inmutabilidad es lo que sostiene la procedencia.
+        """
+        cursor = connection.execute(
+            """UPDATE sealed_plans SET state=?
+               WHERE workspace=? AND state=?""",
+            (self.ESTADO_SUPERSEDIDO, workspace, self.ESTADO_SELLADO),
+        )
+        return cursor.rowcount or 0
+
+    def _active_decision_ids(
+        self, connection: sqlite3.Connection, workspace: str
+    ) -> list[str]:
+        """Los `decision_id` ACTIVOS del workspace, LEÍDOS EN ESTA CONEXIÓN.
+
+        Lee las filas y delega en `active_decision_ids`, que es LA derivación.
+        Leerlas aquí y no fuera importa: dentro de `BEGIN IMMEDIATE` esto es el
+        instante contra el que se compara.
+        """
+        rows = connection.execute(
+            """SELECT record_json FROM human_decisions
+               ORDER BY created_at, decision_id"""
+        ).fetchall()
+        return active_decision_ids(
+            [json.loads(row["record_json"]) for row in rows], workspace
+        )
+
+    def seal_plan(
+        self,
+        *,
+        workspace: str,
+        job_id: str,
+        plan_id: str,
+        plan_json: str,
+        plan_hash: str,
+        decision_ids: list,
+        proposal_ids: list,
+        sealed_at: str,
+        expected_decision_ids: list,
+    ) -> dict:
+        """Sella un plan en la MISMA transacción que comprueba las decisiones.
+
+        `expected_decision_ids` es el conjunto de decisiones activas que el
+        llamante leyó para construir el plan. Se vuelve a leer AQUÍ, dentro de
+        `BEGIN IMMEDIATE`, y si no coincide NO SE SELLA NADA: entre la lectura
+        y el sellado alguien decidió, deshizo o corrigió, y el plan ya no es el
+        snapshot de las decisiones confirmadas.
+
+        Es la forma concreta de la propiedad que se pide: **no puede existir un
+        plan considerado aplicable que no corresponda a un snapshot confirmado
+        de las decisiones.** La transacción es de SQLite; no hay ventana.
+        """
+        with self.transaction() as connection:
+            # La cadena, VERIFICADA antes de añadirle nada.
+            self.verify_audit_chain(connection, workspace)
+            activas = self._active_decision_ids(connection, workspace)
+            if activas != sorted(set(expected_decision_ids)):
+                raise SealConflict(
+                    "las decisiones cambiaron entre la lectura y el sellado"
+                )
+            # Un sellado nuevo invalida el anterior de esa corrida ANTES de
+            # insertar: el índice único parcial no admite dos vigentes, así que
+            # sin esto el segundo sellado fallaría con un error de base en vez
+            # de con la semántica correcta (el plan v1 queda SUPERSEDED).
+            connection.execute(
+                """UPDATE sealed_plans SET state=?
+                   WHERE workspace=? AND job_id=? AND state=?""",
+                (self.ESTADO_SUPERSEDIDO, workspace, job_id, self.ESTADO_SELLADO),
+            )
+            fila = connection.execute(
+                "SELECT MAX(revision) AS r FROM sealed_plans WHERE workspace=? AND job_id=?",
+                (workspace, job_id),
+            ).fetchone()
+            revision = int(fila["r"] if fila and fila["r"] is not None else 0) + 1
+            connection.execute(
+                """INSERT INTO sealed_plans
+                   (plan_id, workspace, job_id, revision, state, plan_json,
+                    plan_hash, decision_ids_json, proposal_ids_json, sealed_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    plan_id, workspace, job_id, revision, self.ESTADO_SELLADO,
+                    plan_json, plan_hash, canonical(sorted(set(decision_ids))),
+                    canonical(sorted(set(proposal_ids))), sealed_at,
+                ),
+            )
+            self._audit(connection, workspace, {
+                "event": "REVIEW_PLAN_SEALED",
+                "plan_id": plan_id,
+                "job_id": job_id,
+                "revision": revision,
+                "plan_hash": plan_hash,
+            })
+        return self.sealed_plan(workspace=workspace, job_id=job_id)
+
+    def sealed_plan(self, *, workspace: str, job_id: str):
+        """El plan VIGENTE de una corrida, o `None`. Nunca uno supersedido."""
+        with self.connection() as connection:
+            row = connection.execute(
+                """SELECT * FROM sealed_plans
+                   WHERE workspace=? AND job_id=? AND state=?""",
+                (workspace, job_id, self.ESTADO_SELLADO),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def last_plan(self, *, workspace: str, job_id: str):
+        """El último plan de la corrida, sea cual sea su estado.
+
+        Sirve para CONTAR LA VERDAD en pantalla: un plan ya aplicado y uno
+        supersedido no son «no hay plan», y decirle al operador que no hay nada
+        justo después de aplicar sería el mismo falso silencio de siempre.
+        """
+        with self.connection() as connection:
+            row = connection.execute(
+                """SELECT * FROM sealed_plans
+                   WHERE workspace=? AND job_id=?
+                   ORDER BY revision DESC LIMIT 1""",
+                (workspace, job_id),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def claim_for_apply(self, *, plan_id: str, now: str) -> dict:
+        """Toma el plan para aplicarlo. ATÓMICO: dos clics no aplican dos veces.
+
+        El `UPDATE ... WHERE state='sealed'` es la reserva: quien consigue
+        `rowcount == 1` es el único que va a llamar al writer. El segundo clic
+        encuentra el plan ya en `applied` y recibe un desenlace EXPLÍCITO — no
+        un segundo apply silencioso, y tampoco un error genérico.
+
+        Se marca ANTES de escribir en el grafo a propósito: el orden inverso
+        deja una ventana en la que un segundo clic aplicaría de verdad. Pero se
+        marca `applying`, NO `applied`. Si el proceso muere aquí, la fila queda
+        en un estado que NADIE puede leer como éxito, y la pantalla lo dice.
+        """
+        with self.transaction() as connection:
+            cursor = connection.execute(
+                """UPDATE sealed_plans SET state=?, applied_at=?
+                   WHERE plan_id=? AND state=?""",
+                (self.ESTADO_EN_VUELO, now, plan_id, self.ESTADO_SELLADO),
+            )
+            tomado = (cursor.rowcount or 0) == 1
+            row = connection.execute(
+                "SELECT * FROM sealed_plans WHERE plan_id=?", (plan_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(plan_id)
+            if tomado:
+                self._audit(connection, row["workspace"], {
+                    "event": "REVIEW_PLAN_APPLY_CLAIMED",
+                    "plan_id": plan_id,
+                    "job_id": row["job_id"],
+                })
+        return {"claimed": tomado, "plan": dict(row)}
+
+    def record_apply_result(
+        self, *, plan_id: str, apply_id, ok: bool, now: str,
+        applied_operations: int = 0, notes: list | None = None,
+    ) -> None:
+        """Deja el desenlace REAL del apply sobre el plan EN VUELO.
+
+        `applied_operations` es lo que el WRITER dijo haber escrito, y `notes`
+        los códigos que emitió. Se persisten porque la pantalla tiene que poder
+        contar lo que pasó DE VERDAD: derivar el recuento de
+        `len(mutation_operations)` no distingue un apply hecho de uno abortado,
+        y las notas del núcleo (`APPLY_PROVENANCE_NOT_PERSISTED`, entre otras)
+        morían aquí sin llegar a nadie.
+
+        SI EL WRITER NO APLICÓ, EL PLAN SE INVALIDA — no vuelve a `sealed`.
+        Devolverlo a `sealed` con un `WHERE plan_id=?` a secas resucitaba un
+        plan cuyas decisiones pudieron cambiar durante el apply, sin guarda de
+        estado y sin revalidar nada. Preparar de nuevo cuesta un clic y vuelve
+        a leer las decisiones; resucitar a ciegas no tiene arreglo.
+
+        Los dos `UPDATE` llevan `AND state='applying'`: sólo se cierra lo que
+        esta misma petición reservó.
+        """
+        with self.transaction() as connection:
+            row = connection.execute(
+                "SELECT * FROM sealed_plans WHERE plan_id=?", (plan_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(plan_id)
+            if ok:
+                connection.execute(
+                    """UPDATE sealed_plans
+                       SET state=?, apply_id=?, applied_at=?,
+                           applied_operations=?, apply_notes_json=?
+                       WHERE plan_id=? AND state=?""",
+                    (self.ESTADO_APLICADO, apply_id, now, int(applied_operations),
+                     canonical(sorted(set(notes or ()))), plan_id,
+                     self.ESTADO_EN_VUELO),
+                )
+            else:
+                connection.execute(
+                    """UPDATE sealed_plans
+                       SET state=?, applied_at=NULL, apply_id=NULL,
+                           applied_operations=NULL, apply_notes_json=?
+                       WHERE plan_id=? AND state=?""",
+                    (self.ESTADO_SUPERSEDIDO, canonical(sorted(set(notes or ()))),
+                     plan_id, self.ESTADO_EN_VUELO),
+                )
+            self._audit(connection, row["workspace"], {
+                "event": "REVIEW_PLAN_APPLIED" if ok else "REVIEW_PLAN_APPLY_FAILED",
+                "plan_id": plan_id,
+                "job_id": row["job_id"],
+                "apply_id": apply_id or "",
+            })
+
+    def _audit(self, connection: sqlite3.Connection, workspace: str, event: dict) -> None:
+        """Una entrada en la MISMA cadena de auditoría encadenada que ya existe.
+
+        No se crea un registro nuevo: `decision_audit` ya es append-only y
+        encadenada por hash, y meter los eventos de plan en otra tabla haría
+        que la historia de una revisión hubiera que leerla en dos sitios.
+        """
+        previous = connection.execute(
+            """SELECT record_hash FROM decision_audit
+               WHERE workspace=? ORDER BY audit_seq DESC LIMIT 1""",
+            (workspace,),
+        ).fetchone()
+        previous_hash = previous["record_hash"] if previous else None
+        record_hash = digest({"previous_hash": previous_hash, **event})
+        connection.execute(
+            """INSERT INTO decision_audit
+               (workspace, event_type, event_json, previous_hash, record_hash)
+               VALUES (?, ?, ?, ?, ?)""",
+            (workspace, event["event"], canonical(event), previous_hash, record_hash),
+        )
+
+    def audit_events(self, workspace: str) -> list:
+        """La cadena de auditoría del workspace, ENTERA y en orden.
+
+        Es el ÚNICO lector de `decision_audit`. Reusar esa tabla para los
+        eventos de plan fue el argumento para no crear un registro nuevo; si
+        nadie la leyera, ese argumento no sostendría nada y la cadena sería de
+        sólo escritura.
+        """
+        with self.connection() as connection:
+            rows = connection.execute(
+                """SELECT event_type, event_json, previous_hash, record_hash
+                   FROM decision_audit WHERE workspace=? ORDER BY audit_seq""",
+                (workspace,),
+            ).fetchall()
+        return [
+            {
+                "event_type": row["event_type"],
+                "previous_hash": row["previous_hash"],
+                "record_hash": row["record_hash"],
+                **json.loads(row["event_json"]),
+            }
+            for row in rows
+        ]
+
+    def verify_audit_chain(self, connection: sqlite3.Connection, workspace: str) -> None:
+        """RECOMPUTA la cadena encadenada por hash. Levanta si no verifica.
+
+        Se llama DENTRO de la transacción del sellado, y ése es el punto: la
+        cadena deja de ser un adorno que se escribe y nadie mira, y pasa a ser
+        una precondición del acto que más importa. Si está rota, no se sella:
+        lo que se escribiera encima no sería auditable.
+        """
+        rows = connection.execute(
+            """SELECT event_type, event_json, previous_hash, record_hash
+               FROM decision_audit WHERE workspace=? ORDER BY audit_seq""",
+            (workspace,),
+        ).fetchall()
+        anterior = None
+        for indice, row in enumerate(rows):
+            if row["previous_hash"] != anterior:
+                raise AuditChainBroken(
+                    f"cadena rota en la entrada {indice + 1} del registro"
+                )
+            cuerpo = json.loads(row["event_json"])
+            esperado = digest({"previous_hash": anterior, **cuerpo})
+            if row["record_hash"] != esperado:
+                raise AuditChainBroken(
+                    f"hash no corresponde al contenido en la entrada {indice + 1}"
+                )
+            anterior = row["record_hash"]
 
     def audit_stale(self, event: dict[str, Any]) -> None:
         with self.transaction() as connection:

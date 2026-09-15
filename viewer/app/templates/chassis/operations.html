@@ -114,7 +114,155 @@
   {% endif %}
 
   {#
-    LA CAPACIDAD DECLARADA. Único `method="post"` de todo el panel.
+    LO APROBADO DE ESTA CORRIDA: prepararlo y añadirlo al conocimiento.
+
+    EL DEFECTO QUE ESTE BLOQUE CIERRA. `apply_v3(...)` —la única definición de
+    «aplicar V3»— estaba completa y SIN UN SOLO LLAMADOR desde el visor. Desde
+    el producto, aprobar una propuesta no escribía nunca nada, y nada lo decía.
+
+    CERO CONOCIMIENTO INTERNO. Aquí no aparece ningún `plan_id`, ningún
+    `workspace`, ninguna ruta y ningún comando. Lo único que viaja en el
+    formulario es la CORRIDA, que es la identidad que el acuse de la ingesta ya
+    le nombró al operador.
+
+    NI HABILITAR NI FINGIR. Cada botón sólo se pinta cuando la acción puede
+    ocurrir de verdad: sin nada aprobado no hay «preparar», sin plan preparado
+    no hay «añadir», y si el despliegue no tiene habilitada la escritura se
+    dice que no es cosa suya en vez de ofrecer un botón que siempre falla.
+  #}
+  {% if plan %}
+    <section class="panel" data-role="plan-revisado"
+             data-plan-estado="{{ plan.estado }}"
+             data-plan-trabajo="{{ plan.job_id | e }}"
+             data-plan-habilitado="{{ 'true' if plan.habilitado else 'false' }}"
+             data-plan-aprobadas="{{ plan.aprobadas }}"
+             data-plan-pendientes="{{ plan.pendientes }}"
+             data-plan-operaciones="{{ plan.en_el_plan }}">
+      <h2>Lo aprobado de esta ingesta</h2>
+
+      {% if plan.estado == 'no_disponible' %}
+        <p data-availability="unavailable">
+          No se puede consultar la cola de revisión en este despliegue, así que
+          no se sabe qué hay aprobado. No es que no haya nada: es que el dato no
+          está. No se ha aplicado nada.
+        </p>
+      {% else %}
+        <p data-role="recuento-revision">
+          <strong>{{ plan.aprobadas }}</strong>
+          {{ 'propuesta aprobada' if plan.aprobadas == 1 else 'propuestas aprobadas' }}
+          ·
+          <strong>{{ plan.pendientes }}</strong>
+          sin decidir todavía.
+        </p>
+
+        {% if plan.estado == 'applied' %}
+          <p data-plan-desenlace="applied">
+            Lo que se aprobó ya forma parte del conocimiento:
+            <strong>{{ plan.afirmaciones_escritas if plan.afirmaciones_escritas is not none else 'un número no disponible de' }}</strong>
+            {{ 'afirmación añadida' if plan.afirmaciones_escritas == 1 else 'afirmaciones añadidas' }}.
+            No se vuelve a añadir.
+          </p>
+          {#
+            LO QUE EL NÚCLEO DIJO, DICHO. `apply_v3` devuelve
+            `APPLY_PROVENANCE_NOT_PERSISTED` y enumera las referencias de
+            evidencia que quedan colgando; ese código llegaba al servicio y
+            MORÍA ALLÍ, mientras la pantalla decía «ya forma parte del
+            conocimiento» a secas. Eso es falsa completitud: quien luego mire
+            la afirmación no encontrará la evidencia que cita, y nadie se lo
+            habría dicho.
+          #}
+          {% if 'APPLY_PROVENANCE_NOT_PERSISTED' in plan.avisos %}
+            <p data-plan-aviso="APPLY_PROVENANCE_NOT_PERSISTED">
+              Pero no del todo: lo añadido <strong>no queda navegable hasta su
+              evidencia</strong>. La cita del texto que lo sostiene no se ha
+              guardado en esta operación, así que no podrás llegar desde la
+              afirmación al fragmento que la respalda. Avisa a quien administra
+              el servicio antes de darlo por cerrado.
+            </p>
+          {% endif %}
+          {% if 'APPLY_PROVENANCE_FAILED' in plan.avisos %}
+            <p data-plan-aviso="APPLY_PROVENANCE_FAILED">
+              Y la evidencia que lo sostiene <strong>no se pudo guardar</strong>.
+              El conocimiento está escrito; su respaldo, no. Avisa a quien
+              administra el servicio.
+            </p>
+          {% endif %}
+        {% elif plan.estado == 'applying' %}
+          {#
+            EN VUELO. Ni éxito ni fracaso: NO SE SABE. Decir «ya forma parte
+            del conocimiento» aquí era el falso éxito que medía el revisor —
+            proceso muerto entre la reserva y la escritura, grafo vacío y el
+            camino para reintentarlo cerrado.
+          #}
+          <p data-plan-desenlace="applying">
+            Se empezó a añadir lo aprobado y <strong>no consta cómo terminó</strong>.
+            No se reintenta solo: hacerlo podría duplicar conocimiento. Avisa a
+            quien administra el servicio para que compruebe si quedó escrito.
+          </p>
+        {% elif plan.estado == 'superseded' %}
+          <p data-plan-desenlace="superseded">
+            Una decisión cambió después de preparar lo aprobado, así que lo
+            preparado dejó de valer y no se ha aplicado nada. Vuelve a
+            prepararlo para incluir la decisión nueva.
+          </p>
+        {% endif %}
+
+        {% if plan.aplicable %}
+          <p data-plan-desenlace="sealed">
+            Preparado y listo: <strong>{{ plan.en_el_plan }}</strong>
+            {{ 'afirmación' if plan.en_el_plan == 1 else 'afirmaciones' }}
+            esperando a entrar en el conocimiento. Es exactamente lo que
+            revisaste: no se vuelve a calcular nada.
+          </p>
+          {% if plan.habilitado %}
+            <form method="post" action="{{ url_for('chassis_operations_aplicacion') }}"
+                  data-role="form-aplicacion">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token | e }}">
+              <input type="hidden" name="trabajo" value="{{ plan.job_id | e }}">
+              <button type="submit" data-role="aplicar-plan">
+                Añadir al conocimiento
+              </button>
+            </form>
+          {% else %}
+            <p data-plan-bloqueado="no-habilitado">
+              Este despliegue no tiene habilitada la escritura en el
+              conocimiento, así que no se ofrece añadirlo. No es cosa tuya:
+              avisa a quien administra el servicio.
+            </p>
+          {% endif %}
+        {% elif plan.sellable %}
+          <form method="post" action="{{ url_for('chassis_operations_sellado') }}"
+                data-role="form-sellado">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token | e }}">
+            <input type="hidden" name="trabajo" value="{{ plan.job_id | e }}">
+            <button type="submit" data-role="sellar-plan">
+              Preparar lo aprobado
+            </button>
+          </form>
+        {% elif plan.estado != 'applied' %}
+          <p data-plan-desenlace="nada-que-preparar">
+            No hay ninguna propuesta aprobada en esta ingesta, así que no hay
+            nada que preparar.
+          </p>
+        {% endif %}
+
+        {% if plan.excluidas %}
+          <ul data-role="excluidas">
+            {% for e in plan.excluidas %}
+            <li data-excluida-code="{{ e.code | e }}">{{ e.code | e }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endif %}
+    </section>
+  {% endif %}
+
+  {#
+    LA PRIMERA CAPACIDAD DECLARADA (`ingesta_de_fuente`). Ya no es el único
+    `method="post"` del panel: son tres, y las tres están declaradas en
+    `app.chassis.WRITE_CAPABILITIES`. El recuento lo deriva la suite de esa
+    declaración, así que añadir un formulario sin declarar la capacidad —o al
+    revés— pone la prueba roja.
     AUSENCIA != LISTA VACÍA: si el catálogo no se puede consultar no se pinta un
     desplegable vacío (que se leería como "no hay fuentes"), se dice que el dato
     no está y no se ofrece el botón.

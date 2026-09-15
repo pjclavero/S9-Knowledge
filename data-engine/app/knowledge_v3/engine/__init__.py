@@ -36,7 +36,7 @@ from .ontology import (  # noqa: F401
     resolve_direction,
     resolve_predicate,
 )
-from .planner import PlanContext, build_plan  # noqa: F401
+from .planner import PlanContext, assertion_identity, build_plan  # noqa: F401
 from .signals import ExternalSignal  # noqa: F401
 from .shadow import ShadowDecisionRecord, has_semantic_origin  # noqa: F401
 from .snapshot import (  # noqa: F401
@@ -69,6 +69,7 @@ __all__ = [
     "LocalKnowledgeEngine",
     "Neo4jReadOnlyGraphSnapshot",
     "PlanContext",
+    "assertion_identity",
     "PredicateSpec",
     "ProfileIndex",
     "ResolutionIndex",

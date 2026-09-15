@@ -109,9 +109,38 @@ jobs:
           # un conjunto vacio devuelto en verde seria el mismo falso verde que
           # este paso cierra). Con `set -e`, si falla, el paso muere aqui.
           set -euo pipefail
-          ficheros="$(python3 .github/scripts/descubre_neo4j_real.py --informe)"
-          echo "CONJUNTO DESCUBIERTO:"
+          descubierto="$(python3 .github/scripts/descubre_neo4j_real.py --informe)"
+          # EL CONJUNTO SE PARTE POR ENTORNO, NO POR GUSTO. MEDIDO EN CI:
+          # este job instala SOLO `data-engine/requirements.txt`, asi que un
+          # modulo de `viewer/tests` muere aqui en la RECOLECCION con
+          # `ModuleNotFoundError: No module named 'fastapi'` y se lleva por
+          # delante los 142 tests del paso entero. El descubridor tiene razon
+          # al encontrarlo --lee la variable, que es la propiedad correcta--;
+          # lo que no puede es correr donde no estan sus dependencias.
+          #
+          # La particion se DERIVA del propio conjunto por su raiz, no de una
+          # lista de nombres: un fichero nuevo bajo cualquiera de las dos
+          # raices entra solo, en el job que tiene su entorno. Y cada mitad
+          # tiene que ser NO VACIA: una particion que se queda ciega seria el
+          # mismo falso verde que el descubridor cierra.
+          set +e
+          ficheros="$(grep '^data-engine/' <<<"$descubierto")"
+          rc_filtro=$?
+          set -e
+          if [ "$rc_filtro" -gt 1 ]; then
+            echo "::error::el filtro por raiz del conjunto descubierto fallo (rc=$rc_filtro)"
+            exit 1
+          fi
+          echo "CONJUNTO DESCUBIERTO (parte del motor):"
           echo "$ficheros"
+          if [ -z "$ficheros" ]; then
+            echo "::error::la particion por raiz dejo VACIA la parte del motor"
+            exit 1
+          fi
+          if ! grep -q '^viewer/' <<<"$descubierto"; then
+            echo "::error::el descubridor no ve NINGUN modulo de viewer/tests con este gate: la parte del visor (paso «Cobertura Neo4j REAL del recorrido del visor» en el job Viewer Tests) se quedaria sin conjunto y su cobertura no existiria"
+            exit 1
+          fi
           set +e
           out="$(python3 -m pytest $ficheros \
                    -v --tb=short --no-header \
@@ -195,6 +224,72 @@ jobs:
             echo "::error::no se ejecuto ninguna prueba del visor"
             exit 1
           fi
+
+      - name: Cobertura Neo4j REAL del recorrido del visor
+        env:
+          # LA OTRA MITAD del conjunto que `descubre_neo4j_real.py` encuentra.
+          # Vive AQUI y no en `Data Engine Tests` porque aqui es donde estan
+          # instaladas sus dependencias (`viewer/requirements.txt`); alla el
+          # modulo ni siquiera se puede importar.
+          #
+          # Sin esta variable, `viewer/tests/test_panel_apply_desde_la_ui.py`
+          # SE AUTO-OMITE la parte que exige grafo -- es decir, la unica prueba
+          # que mide que aprobar en el panel MATERIALIZA conocimiento en Neo4j.
+          # El paso anterior lo corre sin ella y esos casos salen `skipped` en
+          # verde; este paso es el que hace que esa afirmacion exista.
+          S9K_WRITER_NEO4J_REAL: "1"
+          # El gate del writer NO se abre aqui: cada caso declara su propio
+          # permiso sobre su base efimera. Se deja vacia a proposito, igual que
+          # en el paso anterior.
+          S9K_ALLOW_REAL_INGEST: ""
+        run: |
+          set -euo pipefail
+          descubierto="$(python3 .github/scripts/descubre_neo4j_real.py --informe)"
+          set +e
+          ficheros="$(grep '^viewer/' <<<"$descubierto")"
+          rc_filtro=$?
+          set -e
+          if [ "$rc_filtro" -gt 1 ]; then
+            echo "::error::el filtro por raiz del conjunto descubierto fallo (rc=$rc_filtro)"
+            exit 1
+          fi
+          echo "CONJUNTO DESCUBIERTO (parte del visor):"
+          echo "$ficheros"
+          # AQUI SE NOMBRA EL FICHERO, Y ES DELIBERADO. MEDIDO: invocar
+          # `pytest $ficheros` deja la linea SIN ninguna ruta literal, y
+          # `check_suite_inventory::derivar_invocaciones` no puede resolver la
+          # variable: cae a los `testpaths` de `pytest.ini` y concluye que este
+          # job ejecuta TODO el repositorio -- incluidos `contracts/` y
+          # `deploy/`, que este job no instala. El gate lo dijo con dos
+          # PREFLIGHT, y tenia razon: la invocacion no declaraba su alcance.
+          #
+          # La lista nombrada no puede PUDRIRSE en silencio, que es lo unico
+          # que hace peligrosa a una lista N+1: el descubridor sigue mandando,
+          # y si la parte del visor del conjunto deja de ser EXACTAMENTE este
+          # fichero, el paso se pone ROJO y dice que hay que anadirlo aqui.
+          esperado='viewer/tests/test_panel_apply_desde_la_ui.py'
+          if [ "$ficheros" != "$esperado" ]; then
+            echo "::error::la parte del visor del conjunto descubierto ya no es exactamente '$esperado' (es: $ficheros). Anade el modulo nuevo a la invocacion de este paso: si no, su cobertura contra Neo4j real no existe en ningun job"
+            exit 1
+          fi
+          set +e
+          out="$(python -m pytest viewer/tests/test_panel_apply_desde_la_ui.py -v --tb=short --no-header 2>&1)"
+          rc=$?
+          set -e
+          echo "$out"
+          # Guardia anti-cero textual.
+          if ! grep -qE '[0-9]+ passed' <<<"$out"; then
+            echo "::error::las pruebas del visor contra Neo4j real no llegaron a ejecutarse"
+            exit 1
+          fi
+          # Guardia anti-salto: `N skipped, rc=0` es exactamente el falso verde
+          # que este paso cierra. Si Docker o la imagen fallan, las fixtures
+          # hacen `skip` y esto lo convierte en ROJO.
+          if grep -qi "skipped" <<<"$out"; then
+            echo "::error::se OMITIERON pruebas del visor de la clase Neo4j-real; sin base efimera esa cobertura no existe"
+            exit 1
+          fi
+          [ "$rc" -eq 0 ] || { echo "::error::la cobertura del visor contra Neo4j real ha FALLADO"; exit 1; }
 
   test-neo4j-authz:
     name: Authz integration (Neo4j efímero)
