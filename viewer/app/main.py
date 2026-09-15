@@ -43,6 +43,7 @@ from app.routers import partida as partida_router
 from app.routers import readonly as readonly_router
 from app.routers import reviews_console as reviews_console_router
 from app.routers import v3_review as v3_review_router
+from app.routers import resultado as resultado_router
 from app.serializers import serialize_edge, serialize_node
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -127,6 +128,11 @@ app.include_router(partida_router.router)
 # Panel de revision v1 (Equipo B): consola de revision sin escritura en Neo4j.
 app.include_router(reviews_console_router.router)
 app.include_router(v3_review_router.router)
+# Resultado de una ejecucion y su procedencia: SOLO GET, apagado por defecto
+# (`S9K_PANEL_RESULTADO_ENABLED`). No es un hueco del chasis a proposito: el
+# contrato de huecos declara cuatro y es de otro carril (ver el docstring de
+# `app/routers/resultado.py`).
+app.include_router(resultado_router.router)
 
 
 # ---------------------------------------------------------------------------

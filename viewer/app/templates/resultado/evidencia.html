@@ -1,0 +1,119 @@
+{#
+  DE DONDE SALE UN HECHO: evidencia LITERAL, donde estaba, y de que fuente.
+
+  Lo que aqui se pinta es el FRAGMENTO QUE SOSTIENE este hecho, no la fuente
+  entera: el episodio aparece solo como LOCALIZADOR (pagina, orden, modalidad)
+  y su texto completo no llega ni siquiera a la plantilla -- la lista blanca
+  del lector lo deja fuera en la consulta.
+
+  Si falta una pieza de la procedencia, se DICE que falta. Nunca se rellena
+  con un valor plausible.
+#}
+{% extends "base.html" %}
+{% import "resultado/_estado.html" as e %}
+
+{% block title %}Procedencia de un hecho{% endblock %}
+
+{% block body %}
+<main class="container" data-page="evidencia" data-readonly="true"
+      data-apply-id="{{ detalle.apply_id | e }}"
+      data-assertion-id="{{ detalle.assertion_id | e }}">
+
+  <h1>De donde sale este hecho</h1>
+
+  <p><a href="{{ url_for('resultado_de_ejecucion', apply_id=detalle.apply_id) }}?workspace={{ detalle.workspace | urlencode }}"
+        data-role="volver">Volver al resultado de la ejecucion</a></p>
+
+  <section class="panel" data-role="hecho">
+    <h2>El hecho</h2>
+    <p data-field="frase">
+      {{ detalle.sujeto.nombre | e }}
+      <strong>{{ detalle.predicate | e if detalle.predicate else 'relacionado con' }}</strong>
+      {{ detalle.objeto.nombre | e if detalle.objeto else '' }}
+    </p>
+    <ul>
+      <li data-role="sujeto" data-entity-id="{{ detalle.sujeto.entity_id | e }}">
+        {% if detalle.sujeto.entity_id %}
+        <a href="{{ url_for('chassis_entities_item', entity_id=detalle.sujeto.entity_id) }}">{{ detalle.sujeto.nombre | e }}</a>
+        {% else %}{{ detalle.sujeto.nombre | e }}{% endif %}
+      </li>
+      {% if detalle.objeto %}
+      <li data-role="objeto" data-entity-id="{{ detalle.objeto.entity_id | e }}">
+        {% if detalle.objeto.entity_id %}
+        <a href="{{ url_for('chassis_entities_item', entity_id=detalle.objeto.entity_id) }}">{{ detalle.objeto.nombre | e }}</a>
+        {% else %}{{ detalle.objeto.nombre | e }}{% endif %}
+      </li>
+      {% endif %}
+    </ul>
+  </section>
+
+  <section class="panel" data-role="evidencia" data-state="{{ detalle.evidencias.estado }}">
+    <h2>Evidencia que lo sostiene {{ e.recuento(detalle.evidencias) }}</h2>
+    {{ e.estado(detalle.evidencias, 'No consta ninguna evidencia para este hecho. No se ha inventado ninguna.') }}
+
+    {% for ev in detalle.evidencias.filas %}
+    <article class="panel" data-role="fragmento"
+             data-fragment-id="{{ ev.fragmento.fragment_id | e }}">
+
+      <blockquote data-field="literal">
+        {% if ev.fragmento.literal_text %}{{ ev.fragmento.literal_text | e }}
+        {% else %}<span data-state="empty">El fragmento no guarda texto literal.</span>{% endif %}
+      </blockquote>
+
+      <h3>Donde estaba</h3>
+      <dl data-role="localizador">
+        <dt>Pagina</dt>
+        <dd data-field="pagina">
+          {{ ev.fragmento.page if ev.fragmento.page is not none else 'no consta' }}</dd>
+        <dt>Posicion en el texto</dt>
+        <dd data-field="posicion">
+          {% if ev.fragmento.start is not none and ev.fragmento.end is not none %}
+            {{ ev.fragmento.start }}–{{ ev.fragmento.end }}
+          {% else %}no consta{% endif %}</dd>
+        <dt>Pasaje</dt>
+        <dd data-field="episodio">
+          {% if ev.episodio %}
+            {{ ev.episodio.episode_id | e }}
+            {% if ev.episodio.sequence is not none %}(orden {{ ev.episodio.sequence }}){% endif %}
+            {% if ev.episodio.modality %}· {{ ev.episodio.modality | e }}{% endif %}
+          {% else %}
+            <span data-state="missing">No consta el pasaje de origen.</span>
+          {% endif %}</dd>
+      </dl>
+
+      <h3>De que fuente viene</h3>
+      {% if ev.fuente %}
+      <dl data-role="fuente" data-source-asset-id="{{ ev.fuente.source_asset_id | e }}">
+        <dt>Fuente</dt>
+        <dd data-field="nombre">
+          {{ ev.fuente.original_name | e if ev.fuente.original_name else ev.fuente.source_asset_id | e }}</dd>
+        <dt>Tipo</dt>
+        <dd data-field="source-kind">
+          {{ ev.fuente.source_kind | e if ev.fuente.source_kind else 'no consta' }}</dd>
+        <dt>Incorporada el</dt>
+        <dd data-field="ingested-at">
+          {{ ev.fuente.ingested_at | e if ev.fuente.ingested_at else 'no consta' }}</dd>
+      </dl>
+      {% else %}
+      <p data-state="missing" data-role="fuente">No consta la fuente de este
+        fragmento. No se ha deducido ninguna.</p>
+      {% endif %}
+
+      <details data-role="detalle-tecnico">
+        <summary>Detalle tecnico</summary>
+        <dl>
+          <dt>Fragmento</dt>
+          <dd data-field="fragment-id">{{ ev.fragmento.fragment_id | e }}</dd>
+          <dt>Hecho</dt>
+          <dd data-field="assertion-id">{{ detalle.assertion_id | e }}</dd>
+          <dt>Ejecucion que lo produjo</dt>
+          <dd data-field="apply-id">{{ detalle.apply_id | e }}</dd>
+        </dl>
+      </details>
+
+    </article>
+    {% endfor %}
+  </section>
+
+</main>
+{% endblock %}
