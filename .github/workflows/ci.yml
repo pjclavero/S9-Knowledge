@@ -112,6 +112,21 @@ jobs:
           ficheros="$(python3 .github/scripts/descubre_neo4j_real.py --informe)"
           echo "CONJUNTO DESCUBIERTO:"
           echo "$ficheros"
+          # EL DESCUBRIDOR TAMBIEN MIRA `viewer/tests`, y hace falta que siga
+          # mirandolo. El recorrido de APPLY DESDE LA UI
+          # (`viewer/tests/test_panel_apply_desde_la_ui.py`) es la unica prueba
+          # que mide que aprobar en el panel MATERIALIZA conocimiento en un
+          # grafo real; su parte con grafo se auto-omite sin esta variable, y
+          # una omision aqui se leeria igual que un verde.
+          #
+          # No es una lista N+1 reinstaurada: no se nombran los 16 ficheros,
+          # se comprueba que el conjunto descubierto no se ha quedado ciego
+          # PARA LA RAIZ DEL VISOR, que es la que se anadio al descubridor mas
+          # tarde y la que un cambio de raices perderia primero.
+          if ! grep -q 'viewer/tests/test_panel_apply_desde_la_ui.py' <<<"$ficheros"; then
+            echo "::error::el descubridor no ve el recorrido de apply desde la UI: sin el, «aprobar escribe en el grafo» no se comprueba en ningun sitio"
+            exit 1
+          fi
           set +e
           out="$(python3 -m pytest $ficheros \
                    -v --tb=short --no-header \

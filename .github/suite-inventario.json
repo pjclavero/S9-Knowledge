@@ -412,7 +412,8 @@
     "viewer/tests/browser/test_browser_graph_ux.py",
     "viewer/tests/browser/test_browser_navigation.py",
     "viewer/tests/browser/test_login_browser.py",
-    "viewer/tests/test_graph_ux_v2.py"
+    "viewer/tests/test_graph_ux_v2.py",
+    "viewer/tests/test_panel_apply_desde_la_ui.py"
   ],
   "total": 8437,
   "modulos": {
