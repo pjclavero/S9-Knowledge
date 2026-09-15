@@ -1181,13 +1181,15 @@ def test_si_el_proceso_muere_tras_reservar_no_se_afirma_conocimiento(
     motor_real = servicio._motor
 
     def motor_que_muere():
-        piezas = list(motor_real())
-
-        def apply_que_muere(*args, **kwargs):
-            raise KeyboardInterrupt("el proceso muere aquí")
-
-        piezas[1] = apply_que_muere
-        return tuple(piezas)
+        # Se sustituye LA PIEZA POR SU NOMBRE (`apply_v3`), no por su posición.
+        # Cuando el puente devolvía una tupla, esto era `piezas[1] = ...`: un
+        # índice que seguía siendo válido después de que el puente cambiara de
+        # forma, así que la mutación habría dejado de matar nada sin decirlo.
+        piezas = motor_real()
+        piezas.apply_v3 = lambda *a, **k: (_ for _ in ()).throw(
+            KeyboardInterrupt("el proceso muere aquí")
+        )
+        return piezas
 
     monkeypatch.setattr(servicio, "_motor", motor_que_muere)
     token = _csrf(operador)

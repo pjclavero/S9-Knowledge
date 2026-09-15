@@ -106,14 +106,21 @@ class EfectoAusente:
     code: str
     identity: str
     detail: str = ""
+    #: Identidades durables concretas que faltan --hoy, los fragmentos de
+    #: evidencia que la afirmacion cita y a los que el recorrido no llega--.
+    #: Van APARTE del texto a proposito: `detail` es una frase para un humano
+    #: y quien tenga que DECIDIR sobre esto no puede hacerlo buscando
+    #: subcadenas dentro de una redaccion que manana cambia.
+    missing_ids: tuple = ()
 
-    def to_dict(self) -> dict[str, str]:
+    def to_dict(self) -> dict:
         return {
             "operation_id": self.operation_id,
             "operation_type": self.operation_type,
             "code": self.code,
             "identity": self.identity,
             "detail": self.detail,
+            "missing_ids": list(self.missing_ids),
         }
 
 
@@ -347,6 +354,7 @@ def verify_effects(
                         assertion_id,
                         "la afirmacion cita evidencia a la que el recorrido no "
                         "llega: " + ", ".join(colgando),
+                        missing_ids=tuple(colgando),
                     )
                 )
 

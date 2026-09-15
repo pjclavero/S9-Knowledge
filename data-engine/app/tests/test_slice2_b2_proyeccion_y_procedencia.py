@@ -477,7 +477,8 @@ def test_la_arista_existe_pero_la_procedencia_NO():
     assert [m.code for m in informe.provenance_missing] == [
         effects.CODE_PROVENANCE_UNREACHABLE
     ]
-    assert "ef-b2-1" in informe.provenance_missing[0].detail
+    # Por IDENTIDAD DURABLE, no buscando la subcadena en una frase.
+    assert informe.provenance_missing[0].missing_ids == ("ef-b2-1",)
 
 
 def test_la_arista_la_escribio_OTRA_operacion():
@@ -533,7 +534,8 @@ def test_la_supersesion_sin_cerrar_la_vigencia_no_cuenta_como_efecto():
           "assertion_id": "assert-previa", "idempotency_key": "k"}
     informe = effects.verify_effects(_Driver([viva]), _plan([op]), workspace=WS)
     assert not informe.complete
-    assert "sin su vigencia cerrada" in informe.missing[0].detail
+    assert informe.missing[0].code == effects.CODE_EFFECT_MISSING
+    assert informe.missing[0].identity == "assert-previa"
 
     cerrada = ("V3Assertion", lambda p: [{"id": "assert-previa", "clave": "k",
                                           "status": "SUPERSEDED", "version": 2}])
