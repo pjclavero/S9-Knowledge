@@ -358,10 +358,22 @@ jobs:
           # fuera, saldria SKIPPED en `test-viewer` --que no define
           # NEO4J_TEST_URI-- y un skip verde equivale a no tener la prueba, que
           # es exactamente el agujero que este paso existe para tapar.
+          # El QUINTO es el recorrido resultado->procedencia del Carril C. Va
+          # aqui por la misma razon que el cuarto y con el mismo fundamento
+          # MEDIDO: usa la familia `NEO4J_TEST_URI`/`NEO4J_TEST_PASSWORD`, que
+          # este paso es el unico que define. El descubridor
+          # `descubre_neo4j_real.py` NO lo alcanza --busca la otra familia,
+          # `S9K_WRITER_NEO4J_REAL`, y lo dice de si mismo--, asi que sin esta
+          # linea sus 15 casos salian SKIPPED en `test-viewer` con rc=0 y el
+          # job verde: el unico sitio donde se ejercen el recorrido end-to-end
+          # desde un apply real y el par admin/lector-sin-derechos no se
+          # ejercia NUNCA. El guard `grep -qi skipped` de abajo lo cubre igual
+          # que a los otros cuatro.
           out="$(python -m pytest viewer/tests/test_neo4j_integration_authz.py \
                                   viewer/tests/test_contrato_paneles_neo4j.py \
                                   viewer/tests/test_contrato_writer_a_visor_neo4j.py \
                                   viewer/tests/test_integracion_tanda11_recorrido_completo.py \
+                                  viewer/tests/test_resultado_procedencia_neo4j_real.py \
                                   -v --no-header 2>&1)"
           rc=$?
           set -e

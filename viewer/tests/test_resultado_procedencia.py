@@ -728,3 +728,62 @@ def test_un_fallo_al_discriminar_da_ERROR_y_no_inventa_un_veredicto():
     detalle = _detalle(lec, ProveedorEspia(visibles=["entity:a"]))
     assert detalle.evidencias.estado == servicio.ERROR
     assert detalle.evidencias.total is None
+
+
+# ===========================================================================
+# 8. EL TESTIGO DE LA DEPENDENCIA CON EL APPLY DE LA INTERFAZ
+# ===========================================================================
+# Vive AQUI, en la suite que corre SIEMPRE, y no en la de Neo4j real: es una
+# propiedad del CODIGO, no del grafo, y en aquel modulo el `skipif` de las
+# variables de base lo dejaria en `skipped` -- que es exactamente el falso
+# verde que este carril ya tuvo que cerrar una vez.
+
+def test_el_plan_sellado_de_la_interfaz_solo_emite_CREATE_ASSERTION():
+    """EL TESTIGO QUE MIRA DONDE DICE MIRAR. Sin Neo4j: es una propiedad del codigo.
+
+    El apply de la interfaz consume el plan que sella `seal_review_plan`, y ese
+    plan determina si hay ARISTA que abrir. Hoy emite solo `CREATE_ASSERTION`:
+    por eso la prueba insignia parte de un apply por la ruta de INGESTA, que si
+    proyecta. Esa dependencia queda atada AQUI.
+
+    Se comprueba por AST --un literal unico, ningun `operation_type` calculado--
+    y no contando apariciones en el texto: contar da falsos negativos en cuanto
+    alguien compone el valor. Cuando el Carril B2 haga que el apply proyecte,
+    este caso se pondra ROJO y dira que la insignia puede pasar a partir de un
+    apply de la interfaz. Eso es lo que se quiere que pase.
+    """
+    import ast
+
+    fuente = (RAIZ_REPO / "data-engine" / "app" / "knowledge_v3" / "review_plan.py")
+    arbol = ast.parse(fuente.read_text())
+
+    calculados, literales = [], set()
+    for nodo in ast.walk(arbol):
+        if isinstance(nodo, ast.Dict):
+            for clave, valor in zip(nodo.keys, nodo.values):
+                if isinstance(clave, ast.Constant) and clave.value == "operation_type":
+                    if isinstance(valor, ast.Constant):
+                        literales.add(valor.value)
+                    else:
+                        calculados.append(ast.dump(valor)[:80])
+        if isinstance(nodo, ast.keyword) and nodo.arg == "operation_type":
+            if isinstance(nodo.value, ast.Constant):
+                literales.add(nodo.value.value)
+            else:
+                calculados.append(ast.dump(nodo.value)[:80])
+
+    assert literales, (
+        "no se encontro ningun `operation_type` en review_plan.py: el testigo "
+        "no esta mirando lo que cree mirar (¿se movio el sellado de plan?)"
+    )
+    assert not calculados, (
+        f"hay `operation_type` CALCULADOS ({calculados}): este testigo solo "
+        "sabe leer literales, asi que ya no puede afirmar que el plan de la "
+        "interfaz no proyecta. Hay que medirlo de otra forma."
+    )
+    assert literales == {"CREATE_ASSERTION"}, (
+        f"el plan sellado de la interfaz ya emite {sorted(literales)}. Si "
+        "incluye una proyeccion de relacion, la prueba insignia YA PUEDE "
+        "partir de un apply de la interfaz en vez de uno de ingesta: "
+        "revisarla y retirar la dependencia declarada."
+    )
