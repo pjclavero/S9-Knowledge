@@ -1,0 +1,105 @@
+{#
+  QUE CAMBIO ESTA EJECUCION. Solo lectura.
+
+  Esta plantilla NO oculta nada: pinta exactamente lo que el servicio le
+  entrega, y el servicio solo entrega lo autorizado. Si algo se filtrara aqui,
+  el backend ya lo habria enviado -- y eso es una fuga con una hoja de estilo
+  delante, no un filtro.
+
+  Ninguna URL escrita a mano: todo por `url_for`. Ningun formulario, ningun
+  boton de accion, ningun metodo que no sea GET.
+#}
+{% extends "base.html" %}
+{% import "resultado/_estado.html" as e %}
+
+{% block title %}Resultado de una ejecucion{% endblock %}
+
+{% block body %}
+<main class="container" data-page="resultado" data-readonly="true"
+      data-apply-id="{{ resultado.apply_id | e }}">
+
+  <h1>Resultado de una ejecucion</h1>
+
+  <section class="panel" data-role="cabecera">
+    <dl>
+      <dt>Ejecucion</dt>
+      <dd data-field="apply-id">{{ resultado.apply_id | e }}</dd>
+      <dt>Espacio de trabajo</dt>
+      <dd data-field="workspace">{{ resultado.workspace | e }}</dd>
+      <dt>Aplicado el</dt>
+      <dd data-field="applied-at">
+        {{ resultado.aplicado_en | e if resultado.aplicado_en else 'no consta' }}</dd>
+      <dt>Partida</dt>
+      <dd data-field="partida">
+        {{ resultado.partida_id | e if resultado.partida_id else 'capa de juego (sin partida)' }}</dd>
+    </dl>
+
+    {#
+      DATO TECNICO CRUDO, PLEGADO. El operador no necesita un identificador de
+      propiedad para entender que cambio; quien audita, si. Va cerrado por
+      defecto (requisito: no mostrar datos tecnicos crudos de entrada).
+    #}
+    <details data-role="detalle-tecnico">
+      <summary>Detalle tecnico</summary>
+      <dl>
+        <dt>Operaciones aplicadas</dt>
+        <dd data-field="operaciones">{{ resultado.operaciones }}</dd>
+        <dt>Identificador de propiedad</dt>
+        <dd data-field="ownership-id">
+          {{ resultado.ownership_id | e if resultado.ownership_id else 'no consta' }}</dd>
+      </dl>
+    </details>
+  </section>
+
+  <section class="panel" data-role="entidades" data-state="{{ resultado.entidades.estado }}">
+    <h2>Entidades afectadas {{ e.recuento(resultado.entidades) }}</h2>
+    {{ e.estado(resultado.entidades, 'Esta ejecucion no dejo ninguna entidad que puedas ver.') }}
+    {% if resultado.entidades.filas %}
+    <ul>
+      {% for f in resultado.entidades.filas %}
+      <li data-entity-id="{{ f.entity_id | e }}">
+        {% if f.entity_id %}
+          <a href="{{ url_for('chassis_entities_item', entity_id=f.entity_id) }}">{{ f.nombre | e }}</a>
+        {% else %}{{ f.nombre | e }}{% endif %}
+        <span class="muted" data-entity-type="{{ f.tipo | e }}">{{ f.tipo | e }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+
+  <section class="panel" data-role="relaciones" data-state="{{ resultado.relaciones.estado }}">
+    <h2>Relaciones anadidas {{ e.recuento(resultado.relaciones) }}</h2>
+    {{ e.estado(resultado.relaciones, 'Esta ejecucion no dejo ninguna relacion que puedas ver.') }}
+    {% if resultado.relaciones.filas %}
+    <ul>
+      {% for r in resultado.relaciones.filas %}
+      <li data-relation="{{ r.tipo | e }}">
+        {{ r.desde.nombre | e }} → <strong>{{ r.etiqueta | e }}</strong> → {{ r.hasta.nombre | e }}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+
+  <section class="panel" data-role="hechos" data-state="{{ resultado.hechos.estado }}">
+    <h2>Hechos registrados {{ e.recuento(resultado.hechos) }}</h2>
+    {{ e.estado(resultado.hechos, 'Esta ejecucion no dejo ningun hecho que puedas ver.') }}
+    {% if resultado.hechos.filas %}
+    <ul>
+      {% for h in resultado.hechos.filas %}
+      <li data-assertion-id="{{ h.assertion_id | e }}">
+        {{ h.sujeto.nombre | e }}
+        <strong>{{ h.predicate | e if h.predicate else 'relacionado con' }}</strong>
+        {{ h.objeto.nombre | e if h.objeto else '' }}
+        —
+        <a href="{{ url_for('resultado_evidencia_de_hecho', apply_id=resultado.apply_id, assertion_id=h.assertion_id) }}?workspace={{ resultado.workspace | urlencode }}"
+           data-role="ver-procedencia">ver de donde sale</a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+
+</main>
+{% endblock %}
