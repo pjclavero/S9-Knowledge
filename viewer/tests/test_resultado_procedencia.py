@@ -1,0 +1,549 @@
+# -*- coding: utf-8 -*-
+"""Contrato de la superficie de RESULTADO y PROCEDENCIA. Sin Neo4j.
+
+QUE MIDE ESTE FICHERO Y QUE NO
+==============================
+Aqui se afirma lo que se puede afirmar SIN base de datos: la forma de las
+consultas, la lista blanca de campos, el tri-estado, el orden de las puertas y
+--sobre todo-- que la autorizacion la decide el proveedor filtrado y no este
+carril. La prueba INSIGNIA, la que parte de un apply REAL contra Neo4j, esta en
+``test_resultado_procedencia_neo4j_real.py``: un contrato verde aqui NO
+demuestra que el recorrido exista, y por eso las dos suites son necesarias.
+
+El proveedor de estas pruebas es un ESPIA: registra cada llamada. Asi la
+afirmacion "ni una fila sale sin pasar por `provider.entity`" se comprueba por
+las llamadas OBSERVADAS, no leyendo el codigo.
+"""
+from __future__ import annotations
+
+import os
+
+import pytest
+
+from app.providers import provenance_reader as lector
+from app.services import result_provenance as servicio
+
+WS = "leyenda"
+OTRO_WS = "otro-mundo"
+APPLY = "apply:" + "a" * 32
+OTRO_APPLY = "apply:" + "b" * 32
+
+
+# ===========================================================================
+# Dobles: un lector que devuelve filas fijas y un proveedor que ESPIA
+# ===========================================================================
+class LectorFalso:
+    """Devuelve material fijo. No autoriza nada: ese es justo el punto."""
+
+    def __init__(self, *, operaciones=None, entidades=None, aristas=None,
+                 aserciones=None, fragmentos=None, episodio=None, fuente=None,
+                 revienta=()):
+        self._ops = operaciones if operaciones is not None else [
+            {"idempotency_key": "k1", "operation_id": "op1",
+             "applied_at": "2026-09-15T10:00:00Z", "ownership_id": "own:" + "c" * 32,
+             "partida_id": None},
+        ]
+        self._ent = entidades if entidades is not None else ["entity:daiki"]
+        self._ar = aristas if aristas is not None else []
+        self._as = aserciones if aserciones is not None else []
+        self._fr = fragmentos if fragmentos is not None else []
+        self._ep = episodio
+        self._fu = fuente
+        self._revienta = set(revienta)
+
+    def _quizas(self, nombre):
+        if nombre in self._revienta:
+            raise RuntimeError("la fuente de datos no respondio")
+
+    def operations_of_apply(self, ws, apply_id):
+        self._quizas("operations_of_apply")
+        return list(self._ops) if (ws == WS and apply_id == APPLY) else []
+
+    def entity_ids_for_keys(self, ws, keys):
+        self._quizas("entity_ids_for_keys")
+        return list(self._ent)
+
+    def relation_edges_for_keys(self, ws, keys):
+        self._quizas("relation_edges_for_keys")
+        return list(self._ar)
+
+    def assertions_for_keys(self, ws, keys):
+        self._quizas("assertions_for_keys")
+        return list(self._as)
+
+    def fragments_supporting(self, ws, assertion_id):
+        self._quizas("fragments_supporting")
+        return list(self._fr)
+
+    def episode(self, ws, eid):
+        self._quizas("episode")
+        return self._ep
+
+    def source(self, ws, sid):
+        self._quizas("source")
+        return self._fu
+
+
+class ProveedorEspia:
+    """Lo que el `PolicyFilteredProvider` decidiria, y el registro de lo pedido."""
+
+    def __init__(self, visibles=(), workspaces=(WS,), relaciones=None):
+        self.visibles = {
+            e: {"id": e, "entity_id": e, "label": e.split(":")[-1], "type": "PERSON"}
+            for e in visibles
+        }
+        self._ws = list(workspaces)
+        self._rel = relaciones or {}
+        self.pedidas: list[str] = []
+
+    def workspaces(self):
+        return list(self._ws)
+
+    def entity(self, entity_id, **_):
+        self.pedidas.append(entity_id)
+        return self.visibles.get(entity_id)
+
+    def relations_for_entity(self, entity_id, **_):
+        return (list(self._rel.get(entity_id, [])), [])
+
+
+def _resultado(lector_falso, proveedor, apply_id=APPLY, ws=WS):
+    return servicio.resultado_de_apply(
+        provider=proveedor, reader=lector_falso, workspace=ws, apply_id=apply_id
+    )
+
+
+# ===========================================================================
+# 1. IDENTIDAD DURABLE -- nunca `elementId`, nunca posicion, nunca ruta
+# ===========================================================================
+def test_ninguna_consulta_del_lector_menciona_elementid():
+    """Enumeracion sobre el TEXTO de las consultas, no sobre la memoria.
+
+    Un `elementId` en una consulta acabaria en una URL publica y se romperia en
+    el primer `dump`/`restore`, devolviendo el mismo 404 que un recurso que
+    nunca existio: un fallo SILENCIOSO por diseno.
+    """
+    import inspect
+
+    fuente = inspect.getsource(lector.ProvenanceReader)
+    for prohibido in ("elementId(", "element_id", "id(a)", "id(r)", "id(n)"):
+        assert prohibido not in fuente, (
+            f"El lector de procedencia usa {prohibido!r}: eso es identidad "
+            "FISICA, no durable, y cambia con un restore."
+        )
+
+
+@pytest.mark.parametrize("malo", [
+    "", "apply:", "apply:zz", "a" * 32, "apply:" + "a" * 31, "apply:" + "A" * 32,
+    "apply:" + "g" * 32, "../../etc/passwd", "apply:" + "a" * 33,
+])
+def test_un_apply_id_malformado_no_llega_a_la_base(malo):
+    """La forma se comprueba ANTES de consultar. Se afirma por las llamadas."""
+    espia = ProveedorEspia(visibles=["entity:daiki"])
+    lec = LectorFalso()
+    assert _resultado(lec, espia, apply_id=malo) is None
+    assert espia.pedidas == [], (
+        "Con un identificador malformado se ha consultado igualmente"
+    )
+
+
+def test_el_apply_id_bien_formado_se_acepta():
+    """Control positivo: sin esto, el caso de arriba pasaria por accidente."""
+    assert servicio.es_apply_id(APPLY)
+    assert _resultado(LectorFalso(), ProveedorEspia(visibles=["entity:daiki"])) is not None
+
+
+# ===========================================================================
+# 2. LA AUTORIZACION LA DECIDE EL PROVEEDOR FILTRADO, Y SE OBSERVA
+# ===========================================================================
+def test_una_entidad_que_el_proveedor_no_devuelve_no_sale():
+    """Control negativo del filtro de visibilidad, sobre llamadas medidas."""
+    lec = LectorFalso(entidades=["entity:visible", "entity:oculta"])
+    espia = ProveedorEspia(visibles=["entity:visible"])
+
+    res = _resultado(lec, espia)
+
+    ids = [f["entity_id"] for f in res.entidades.filas]
+    assert "entity:oculta" not in ids, (
+        "Una entidad que el proveedor filtrado NO devuelve ha llegado a la "
+        "salida: el backend esta enviando material no autorizado."
+    )
+    assert ids == ["entity:visible"]
+    assert "entity:oculta" in espia.pedidas, (
+        "Ni siquiera se le pregunto al proveedor por esa entidad: este caso no "
+        "esta midiendo el filtro, esta midiendo que el lector no la trajo."
+    )
+
+
+def test_un_workspace_fuera_de_alcance_no_consulta_nada():
+    """El ambito se comprueba ANTES, y con la lista del proveedor filtrado."""
+    espia = ProveedorEspia(visibles=["entity:daiki"], workspaces=[OTRO_WS])
+    assert _resultado(LectorFalso(), espia) is None
+    assert espia.pedidas == []
+
+
+def test_un_hecho_con_un_extremo_invisible_no_entrega_su_evidencia():
+    """LA PUERTA DE LA EVIDENCIA, que es la politica de procedencia entera.
+
+    El sujeto SI es visible. El objeto NO. Si el hecho saliera, quien mira
+    podria deducir con que se relaciona algo que no puede ver -- y de ahi
+    colgaria el fragmento literal de la fuente.
+    """
+    lec = LectorFalso(aserciones=[{
+        "assertion_id": "assertion:1", "subject_entity_id": "entity:visible",
+        "object_entity_id": "entity:oculta", "predicate": "JURO_LEALTAD",
+        "idempotency_key": "k1",
+    }])
+    espia = ProveedorEspia(visibles=["entity:visible"])
+
+    res = _resultado(lec, espia)
+    assert res.hechos.filas == [], (
+        "Un hecho con un extremo NO visible ha salido: por ese hecho se llega "
+        "al fragmento literal, asi que esto es una fuga de evidencia."
+    )
+
+    detalle = servicio.detalle_de_asercion(
+        provider=espia, reader=lec, workspace=WS,
+        apply_id=APPLY, assertion_id="assertion:1",
+    )
+    assert detalle is None, (
+        "La ficha de procedencia se sirve para un hecho cuyo objeto no es "
+        "visible: el filtro de la lista no cubre la ficha directa."
+    )
+
+
+def test_un_hecho_con_los_dos_extremos_visibles_SI_entrega_su_evidencia():
+    """Control positivo. Sin el, el caso anterior seria verde por vacio."""
+    lec = LectorFalso(
+        aserciones=[{
+            "assertion_id": "assertion:1", "subject_entity_id": "entity:a",
+            "object_entity_id": "entity:b", "predicate": "JURO_LEALTAD",
+            "idempotency_key": "k1",
+        }],
+        fragmentos=[{c: None for c in lector.CAMPOS_FRAGMENTO} | {
+            "fragment_id": "fragment:p1:0", "literal_text": "jamas juro lealtad",
+            "episode_id": "episode:1", "source_asset_id": "asset:1", "page": 12,
+        }],
+        episodio={"episode_id": "episode:1", "page": 12, "sequence": 12,
+                  "modality": "TEXT", "source_asset_id": "asset:1"},
+        fuente={c: None for c in lector.CAMPOS_FUENTE} | {
+            "source_asset_id": "asset:1", "original_name": "nota.md"},
+    )
+    espia = ProveedorEspia(visibles=["entity:a", "entity:b"])
+
+    res = _resultado(lec, espia)
+    assert [h["assertion_id"] for h in res.hechos.filas] == ["assertion:1"]
+
+    detalle = servicio.detalle_de_asercion(
+        provider=espia, reader=lec, workspace=WS,
+        apply_id=APPLY, assertion_id="assertion:1",
+    )
+    assert detalle is not None
+    assert detalle.evidencias.estado == servicio.DISPONIBLE
+    assert detalle.evidencias.filas[0]["fragmento"]["literal_text"] == "jamas juro lealtad"
+
+
+# ===========================================================================
+# 3. ATRIBUCION CRUZADA -- la evidencia de un apply no sale por la URL de otro
+# ===========================================================================
+def test_un_hecho_de_otro_apply_no_se_sirve_bajo_este_apply_id():
+    """El `apply_id` de la URL no es decorativo: acota el conjunto.
+
+    El lector NO conoce ese apply (devuelve cero operaciones), asi que no hay
+    claves, asi que no hay aserciones. Si la ficha se sirviera igual, la
+    pantalla de una ejecucion ensenaria el resultado de otra.
+    """
+    lec = LectorFalso(aserciones=[{
+        "assertion_id": "assertion:1", "subject_entity_id": "entity:a",
+        "object_entity_id": None, "predicate": "P", "idempotency_key": "k1",
+    }])
+    espia = ProveedorEspia(visibles=["entity:a"])
+
+    detalle = servicio.detalle_de_asercion(
+        provider=espia, reader=lec, workspace=WS,
+        apply_id=OTRO_APPLY, assertion_id="assertion:1",
+    )
+    assert detalle is None, (
+        "Se ha servido la procedencia de un hecho bajo el identificador de un "
+        "apply que no lo produjo: ATRIBUCION CRUZADA."
+    )
+    # ...y bajo el suyo SI, o el caso de arriba seria verde por vacio.
+    assert servicio.detalle_de_asercion(
+        provider=espia, reader=lec, workspace=WS,
+        apply_id=APPLY, assertion_id="assertion:1") is not None
+
+
+# ===========================================================================
+# 4. LISTA BLANCA -- lo que no puede salir, por ENUMERACION
+# ===========================================================================
+@pytest.mark.parametrize("blanca", [
+    lector.CAMPOS_FUENTE, lector.CAMPOS_EPISODIO, lector.CAMPOS_FRAGMENTO])
+def test_ninguna_lista_blanca_contiene_un_campo_prohibido(blanca):
+    """`original_location` es una ruta del servidor y `text` es la fuente
+    entera. Ni uno ni otro pueden viajar a un navegador."""
+    colados = set(blanca) & lector.CAMPOS_PROHIBIDOS
+    assert not colados, f"Campos prohibidos en una lista blanca: {sorted(colados)}"
+
+
+def test_el_texto_completo_del_episodio_no_esta_en_la_lista_blanca():
+    """La politica, dicha como una ausencia COMPROBADA y no como una promesa.
+
+    El episodio entero no es "el fragmento que sostiene el hecho". Que su
+    `text` no se pida es lo que impide que ver un hecho entregue el pasaje
+    completo del que salio.
+    """
+    assert "text" not in lector.CAMPOS_EPISODIO
+    assert "text" in lector.CAMPOS_PROHIBIDOS
+
+
+def test_la_consulta_del_episodio_no_selecciona_el_texto():
+    """No basta con la constante: se comprueba la CONSULTA que se emitiria.
+
+    Una lista blanca correcta y una consulta que pide `ep.text` aparte darian
+    verde arriba y fuga aqui.
+    """
+    emitidas = []
+
+    class DriverEspia:
+        def session(self):
+            return self
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def run(self, q, params=None):
+            emitidas.append(q)
+            return []
+
+    lec = lector.ProvenanceReader(DriverEspia())
+    lec.episode(WS, "episode:1")
+    lec.source(WS, "asset:1")
+    lec.fragments_supporting(WS, "assertion:1")
+
+    assert emitidas, "El espia no capturo ni una consulta: no mide nada"
+    for q in emitidas:
+        assert "ep.text" not in q and "src.original_location" not in q, (
+            f"La consulta pide un campo prohibido: {q}"
+        )
+
+
+def test_el_recorrido_de_evidencia_no_baja_a_los_hermanos_del_episodio():
+    """`SUPPORTED_BY` y para. Subir al episodio para bajar a sus fragmentos
+    entregaria la fuente entera a quien solo puede ver un hecho."""
+    import inspect
+
+    fuente = inspect.getsource(lector.ProvenanceReader.fragments_supporting)
+    assert "SUPPORTED_BY" in fuente
+    assert "HAS_FRAGMENT" not in fuente, (
+        "La consulta de evidencia recorre HAS_FRAGMENT: eso alcanza a los "
+        "fragmentos HERMANOS, que este hecho no sostiene."
+    )
+
+
+# ===========================================================================
+# 5. AUSENCIA != CERO
+# ===========================================================================
+def test_sin_lector_los_bloques_dicen_NO_DISPONIBLE_y_no_publican_cifra():
+    """"Este despliegue no lee procedencia" NO es "no hay procedencia"."""
+    res = servicio.resultado_de_apply(
+        provider=ProveedorEspia(visibles=[]), reader=None,
+        workspace=WS, apply_id=APPLY,
+    )
+    assert res is not None, "Sin lector se ha devuelto 404: eso dice 'no existe'"
+    for bloque in (res.entidades, res.relaciones, res.hechos):
+        assert bloque.estado == servicio.NO_DISPONIBLE
+        assert bloque.total is None, (
+            "Un bloque que no se pudo leer publica un recuento: ese 0 no lo ha "
+            "medido nadie."
+        )
+        assert bloque.hay_cifra is False
+
+
+@pytest.mark.parametrize("revienta", [
+    "entity_ids_for_keys", "relation_edges_for_keys", "assertions_for_keys"])
+def test_un_fallo_de_lectura_da_ERROR_y_no_un_cero(revienta):
+    """ERROR y VACIO son estados distintos. Confundirlos es el defecto exacto
+    que el Carril A acaba de cerrar en otra pantalla."""
+    lec = LectorFalso(revienta=[revienta])
+    res = _resultado(lec, ProveedorEspia(visibles=["entity:daiki"]))
+    bloques = {"entity_ids_for_keys": res.entidades,
+               "relation_edges_for_keys": res.relaciones,
+               "assertions_for_keys": res.hechos}
+    afectado = bloques[revienta]
+    assert afectado.estado == servicio.ERROR
+    assert afectado.total is None
+
+
+def test_un_apply_sin_material_visible_dice_VACIO_con_cifra_medida():
+    """El cero que SI se ha medido lleva su cifra: es una medida, no un hueco."""
+    res = _resultado(LectorFalso(entidades=[]), ProveedorEspia(visibles=[]))
+    assert res.entidades.estado == servicio.VACIO
+    assert res.entidades.total == 0
+
+
+def test_un_apply_inexistente_es_404_y_no_un_resultado_vacio():
+    """Un resultado vacio AFIRMARIA que el apply existe y no cambio nada."""
+    assert _resultado(LectorFalso(), ProveedorEspia(visibles=[]),
+                      apply_id=OTRO_APPLY) is None
+
+
+def test_los_cuatro_estados_son_distintos_entre_si():
+    """Suelo de plausibilidad del vocabulario: cuatro nombres, cuatro valores."""
+    assert len(set(servicio.ESTADOS)) == 4
+
+
+# ===========================================================================
+# 6. LA SUPERFICIE: solo GET, apagada por defecto, 404 indistinguible
+# ===========================================================================
+@pytest.fixture
+def app_real():
+    from app.main import app
+    return app
+
+
+def _rutas_del_prefijo(app):
+    from app.chassis import iter_mounted_routes, route_in_prefix
+    return [r for r in iter_mounted_routes(app)
+            if route_in_prefix(r, "/panel/resultado")]
+
+
+def test_ninguna_ruta_del_prefijo_acepta_escritura(app_real):
+    """Por ENUMERACION del espacio de URL, no por revision ocular."""
+    from app.chassis import write_methods
+
+    rutas = _rutas_del_prefijo(app_real)
+    assert rutas, "El censo no ve ni una ruta del prefijo: no mide nada"
+    culpables = [(r.path, write_methods(r)) for r in rutas if write_methods(r)]
+    assert not culpables, f"Rutas capaces de escribir: {culpables}"
+
+
+def test_el_interruptor_falla_cerrado(app_real, monkeypatch):
+    """Ausente, vacio o ininteligible -> apagado. Nunca permiso maximo."""
+    from app.routers import resultado as router_mod
+
+    for crudo in (None, "", "   ", "false", "quizas", "0", "TRUE-ish"):
+        if crudo is None:
+            monkeypatch.delenv(router_mod.FLAG_ENV, raising=False)
+        else:
+            monkeypatch.setenv(router_mod.FLAG_ENV, crudo)
+        assert router_mod._encendido() is False, f"{crudo!r} ha encendido la pantalla"
+
+    for crudo in ("true", "TRUE", " 1 ", "1"):
+        monkeypatch.setenv(router_mod.FLAG_ENV, crudo)
+        assert router_mod._encendido() is True, f"{crudo!r} no la ha encendido"
+
+
+def test_la_pantalla_no_es_un_oraculo_de_existencia(app_real, monkeypatch):
+    """Ninguna respuesta puede depender de si ESE apply existe.
+
+    Tres situaciones, y ninguna puede distinguirse de otra por un dato que el
+    lector no deba tener:
+
+    * APAGADA -> 404, con el cuerpo UNICO;
+    * ENCENDIDA y workspace fuera de alcance -> el MISMO 404, mismo cuerpo
+      (es la via por la que un curioso intentaria enumerar applies ajenos);
+    * ENCENDIDA sobre un despliegue que no lee procedencia -> la MISMA pagina
+      sea cual sea el identificador, porque no se ha mirado ninguna base.
+
+    Esta suite corre con el proveedor por defecto, que NO es Neo4j: por eso el
+    tercer caso es observable aqui. El 404 de "ese apply no existe en una base
+    REAL" se afirma en la suite de Neo4j real, que es donde hay base.
+    """
+    from fastapi.testclient import TestClient
+
+    from app.auth.config import get_auth_settings
+    from app.routers import resultado as router_mod
+
+    otro = "apply:" + "9" * 32
+    monkeypatch.setenv("S9K_AUTH_ENABLED", "false")
+    get_auth_settings.cache_clear()
+    try:
+        c = TestClient(app_real, raise_server_exceptions=False, follow_redirects=False)
+
+        monkeypatch.delenv(router_mod.FLAG_ENV, raising=False)
+        apagada = c.get(f"/panel/resultado/{APPLY}")
+        assert apagada.status_code == 404
+        assert router_mod.NO_ENCONTRADO in apagada.text
+
+        monkeypatch.setenv(router_mod.FLAG_ENV, "true")
+        ajeno = c.get(f"/panel/resultado/{APPLY}",
+                      params={"workspace": "workspace-que-no-es-tuyo"})
+        assert ajeno.status_code == 404, (
+            "Un workspace fuera de alcance no da 404: la pantalla sirve para "
+            "enumerar ejecuciones ajenas."
+        )
+        assert ajeno.json() == apagada.json(), (
+            "El cuerpo del 404 distingue 'pantalla apagada' de 'no es tuyo'."
+        )
+
+        uno = c.get(f"/panel/resultado/{APPLY}")
+        dos = c.get(f"/panel/resultado/{otro}")
+        assert uno.status_code == dos.status_code == 200
+        # Sin lector no se ha consultado ninguna base, asi que las dos paginas
+        # solo pueden diferir en el identificador que el propio cliente pidio.
+        assert uno.text.replace(APPLY, "X") == dos.text.replace(otro, "X"), (
+            "Sin lector de procedencia, dos identificadores distintos producen "
+            "paginas distintas: algo se ha consultado y eso es un oraculo."
+        )
+        assert 'data-state="NO_DISPONIBLE"' in uno.text, (
+            "La pagina sin lector no declara NO_DISPONIBLE: estaria pintando "
+            "un vacio que nadie ha medido."
+        )
+    finally:
+        get_auth_settings.cache_clear()
+
+
+def test_el_lector_no_es_un_GraphProvider(app_real):
+    """No se puede inyectar donde va el proveedor filtrado.
+
+    Si `ProvenanceReader` heredara de `GraphProvider`, alguien lo pondria en un
+    `Depends(get_filtered_provider)` y la pantalla quedaria sin politica.
+    """
+    from app.providers.base import GraphProvider
+
+    assert not issubclass(lector.ProvenanceReader, GraphProvider)
+
+
+def test_reader_for_devuelve_None_cuando_la_fuente_no_es_neo4j():
+    """Y `None` lo lee el servicio como NO DISPONIBLE, nunca como cero."""
+    class SinDriver:
+        pass
+
+    assert lector.reader_for(SinDriver()) is None
+
+
+def test_los_literales_del_writer_coinciden_con_los_del_motor():
+    """Dos arboles de `sys.path` que no pueden importarse entre si: las
+    etiquetas estan DUPLICADAS a la fuerza. Que no DIVERJAN se comprueba.
+
+    Sin esto, el dia que el writer renombre una etiqueta esta pantalla se
+    quedaria en blanco y el verde de las demas pruebas no se enteraria.
+    """
+    from knowledge_v3.writer import cypher as writer_cypher
+    from knowledge_v3.writer import provenance as writer_prov
+    from knowledge_v3.writer.apply_identity import APPLY_ID_FIELD
+    from knowledge_v3.writer.ownership_identity import OWNERSHIP_ID_FIELD
+
+    assert lector.LABEL_APPLIED_OPERATION == writer_cypher.LABEL_APPLIED_OPERATION
+    assert lector.LABEL_ASSERTION == writer_cypher.LABEL_ASSERTION
+    assert lector.LABEL_SOURCE == writer_prov.LABEL_SOURCE
+    assert lector.LABEL_EPISODE == writer_prov.LABEL_EPISODE
+    assert lector.LABEL_EVIDENCE == writer_prov.LABEL_EVIDENCE
+    assert lector.APPLY_ID_FIELD == APPLY_ID_FIELD
+    assert lector.OWNERSHIP_ID_FIELD == OWNERSHIP_ID_FIELD
+    assert "SUPPORTED_BY" == writer_prov.REL_SUPPORTED_BY
+
+
+def test_el_apply_id_de_este_modulo_acepta_lo_que_produce_el_writer():
+    """La forma no se copia de memoria: se genera con el productor real."""
+    from knowledge_v3.writer.apply_identity import compute_apply_id
+
+    real = compute_apply_id(
+        workspace=WS, snapshot_id="snapshot:neo4j:x", plan_hash="deadbeef",
+    )
+    assert servicio.es_apply_id(real), (
+        f"El validador de forma rechaza un apply_id REAL del writer: {real!r}"
+    )
