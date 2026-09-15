@@ -223,21 +223,41 @@ def test_el_worker_conoce_ingest_v3():
 # 1. EL CONTRATO DEL CHASIS CAMBIA, Y ES EXPLÍCITO
 # ===========================================================================
 
+#: Lo que el hueco B declara HOY, campo a campo. La tabla está aquí, en la
+#: prueba, y no derivada del chasis: derivarla la haría verde por construcción
+#: y dejaría de decir nada. Añadir una capacidad al chasis pone esto rojo hasta
+#: que alguien la escriba también aquí — que es el acto de declararla.
+#:
+#: Las dos últimas son del corte de APPLY. La segunda escribe en el almacén de
+#: revisión (el snapshot del plan) y la tercera escribe EN EL GRAFO.
+CAPACIDADES_DECLARADAS = {
+    "ingesta_de_fuente": ("/panel/operations/ingestas", frozenset({"POST"}), "admin"),
+    "sellado_del_plan_revisado": (
+        "/panel/operations/planes", frozenset({"POST"}), "admin",
+    ),
+    "aplicacion_del_plan_revisado": (
+        "/panel/operations/aplicaciones", frozenset({"POST"}), "admin",
+    ),
+}
+
+
 def test_la_escritura_del_panel_esta_declarada_en_el_chasis():
     """"Este POST es especial" tiene que ser IMPOSIBLE de colar.
 
-    La capacidad existe como DATO en el chasis, con rol, métodos y auditoría.
+    Cada capacidad existe como DATO en el chasis, con rol, métodos y auditoría.
     """
     from app.chassis import capabilities_for_slot
 
-    caps = capabilities_for_slot("B")
-    assert len(caps) == 1
-    cap = caps[0]
-    assert cap.name == "ingesta_de_fuente"
-    assert cap.path == "/panel/operations/ingestas"
-    assert cap.methods == frozenset({"POST"})
-    assert cap.role == "admin"
-    assert cap.audited is True
+    caps = {c.name: c for c in capabilities_for_slot("B")}
+    assert sorted(caps) == sorted(CAPACIDADES_DECLARADAS), (
+        "el hueco B declara capacidades que esta prueba no conoce (o al revés)"
+    )
+    for nombre, (ruta, metodos, rol) in CAPACIDADES_DECLARADAS.items():
+        cap = caps[nombre]
+        assert cap.path == ruta
+        assert cap.methods == metodos
+        assert cap.role == rol
+        assert cap.audited is True
 
 
 def test_lectura_por_defecto_los_demas_huecos_siguen_cerrados(real_app):

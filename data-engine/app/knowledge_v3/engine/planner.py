@@ -131,6 +131,45 @@ class PlanContext:
         return (moment + timedelta(seconds=ttl_seconds)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def assertion_identity(
+    *,
+    workspace: str,
+    collection_id: str,
+    subject_entity_id: Optional[str],
+    object_entity_id: Optional[str],
+    predicate: Optional[str],
+    direction: Optional[str],
+    negated: bool,
+    partida_id: Optional[str] = None,
+) -> str:
+    """LA derivacion del `assertion_id`, sobre campos y no sobre un contexto.
+
+    Se extrae de `derive_assertion_id` SIN cambiar ni un campo ni el orden del
+    cuerpo (el `assertion_id` de todo lo ya sellado sigue siendo el mismo,
+    verificado por la suite del motor). El motivo de la extraccion es que hay
+    un SEGUNDO productor legitimo de afirmaciones -- el plan sellado desde la
+    revision humana (`knowledge_v3.review_plan`) -- que no tiene un
+    `PlanContext` ni un `ClaimDecision` porque no esta corriendo el pipeline:
+    trabaja sobre propuestas y decisiones ya persistidas.
+
+    Se extrae en vez de copiarse porque copiarla seria tener DOS definiciones
+    de la identidad de una afirmacion: el dia que una de las dos cambiase, el
+    mismo hecho tendria dos ids y el grafo lo duplicaria sin que nada fallara.
+    """
+    body = {
+        "workspace": workspace,
+        "collection_id": collection_id,
+        "subject_entity_id": subject_entity_id,
+        "object_entity_id": object_entity_id,
+        "predicate": predicate,
+        "direction": direction,
+        "negated": negated,
+    }
+    if partida_id is not None:
+        body["partida_id"] = partida_id
+    return "assertion:" + sha256_hash(body)["value"][:32]
+
+
 def derive_assertion_id(context: PlanContext, decision: ClaimDecision) -> str:
     """Identificador DERIVADO de la identidad logica de la afirmacion.
 
@@ -138,15 +177,6 @@ def derive_assertion_id(context: PlanContext, decision: ClaimDecision) -> str:
     hora, ni el claim, ni el orden del lote: si entrasen, dos ejecuciones del
     mismo corpus crearian dos afirmaciones distintas para el mismo hecho.
     """
-    body = {
-        "workspace": context.workspace,
-        "collection_id": context.collection_id,
-        "subject_entity_id": decision.subject_entity_id,
-        "object_entity_id": decision.object_entity_id,
-        "predicate": decision.predicate,
-        "direction": decision.direction,
-        "negated": decision.negated,
-    }
     # EQUIPO 5A. La ASERCION esta acotada por partida; la ENTIDAD no.
     # ---------------------------------------------------------------------
     # No es una intuicion: es lo que exige `writer/executor.py::
@@ -167,9 +197,16 @@ def derive_assertion_id(context: PlanContext, decision: ClaimDecision) -> str:
     # Omitido cuando es nulo: un plan de capa juego produce el cuerpo de
     # siempre y, por tanto, el MISMO `assertion_id` que antes de este cambio.
     # Retrocompatibilidad byte a byte con todo lo ya sellado.
-    if context.partida_id is not None:
-        body["partida_id"] = context.partida_id
-    return "assertion:" + sha256_hash(body)["value"][:32]
+    return assertion_identity(
+        workspace=context.workspace,
+        collection_id=context.collection_id,
+        subject_entity_id=decision.subject_entity_id,
+        object_entity_id=decision.object_entity_id,
+        predicate=decision.predicate,
+        direction=decision.direction,
+        negated=decision.negated,
+        partida_id=context.partida_id,
+    )
 
 
 def assertion_for(

@@ -361,6 +361,24 @@ def _job_terminado(job: Optional[dict]) -> bool:
     return bool(job) and (job.get("status") in ESTADOS_TERMINALES)
 
 
+#: Acuses de ÉXITO de las capacidades de plan. No van en `panel_errors.CATALOGO`
+#: a propósito: aquel catálogo es el de lo que salió mal, y meter ahí un éxito
+#: haría que «código conocido» dejara de significar «fallo conocido».
+#:
+#: Ninguno dice cuántas cosas se escribieron: eso se lee del estado del plan,
+#: que se recalcula en el GET. Un número en la URL sería un número que el
+#: operador puede editar.
+ACUSES_DE_EXITO = {
+    "PLAN_SEALED": (
+        "Lo aprobado de esta ingesta ya está preparado. Revísalo abajo y, si "
+        "es lo que quieres, añádelo al conocimiento."
+    ),
+    "PLAN_APPLIED": (
+        "Lo aprobado ya forma parte del conocimiento."
+    ),
+}
+
+
 def _aviso(codigo: Optional[str], job_id: Optional[str], scope: VisibilityScope) -> Optional[dict]:
     """Acuse que se pinta tras un POST, RECONSTRUIDO desde la cola.
 
@@ -373,6 +391,9 @@ def _aviso(codigo: Optional[str], job_id: Optional[str], scope: VisibilityScope)
     texto arbitrario en la pantalla poniéndolo en el query string.
     """
     if codigo:
+        if codigo in ACUSES_DE_EXITO:
+            return {"tipo": "ok", "code": codigo,
+                    "message": ACUSES_DE_EXITO[codigo], "trabajo": None}
         if codigo not in panel_errors.CATALOGO:
             return None
         return {"tipo": "error", "code": codigo,
@@ -477,6 +498,46 @@ def _resultado_del_trabajo(job: Optional[dict]) -> Optional[dict]:
             "message": "El trabajo sigue en la cola.", "resumen": None}
 
 
+def _plan_de_la_corrida(resultado: Optional[dict]) -> Optional[dict]:
+    """El estado de LO APROBADO de esta corrida. Sin conocimiento interno.
+
+    Se deriva de la atribución de corrida que el acuse de la ingesta ya
+    publica (`revision`: `job_id` + `workspace`), que es la identidad que el
+    Carril A dejó fijada y que el operador ya conoce. No se inventa ninguna
+    identidad paralela y no se pide ninguna al operador: `plan_id` es interno y
+    no sale de aquí.
+
+    `None` cuando la corrida no atribuyó revisión: sin corrida no hay nada
+    sobre lo que sellar, y pintar un botón que no puede funcionar sería fingir
+    la acción (requisito 8).
+    """
+    if not resultado:
+        return None
+    revision = resultado.get("revision")
+    if not isinstance(revision, dict) or not revision.get("job_id"):
+        return None
+    workspace = str(revision.get("workspace") or "")
+    if not workspace:
+        return None
+    try:
+        from app.services.v3_apply import ReviewApplyService  # noqa: PLC0415
+
+        estado = ReviewApplyService().estado(
+            workspace=workspace, job_id=str(revision["job_id"])
+        )
+    except Exception as exc:  # noqa: BLE001 - la pantalla no se cae por esto
+        panel_errors.registrar("REVIEW_STORE_UNAVAILABLE", exc)
+        return {"estado": "no_disponible", "avisos": ["REVIEW_STORE_UNAVAILABLE"],
+                "sellable": False, "aplicable": False, "aprobadas": 0,
+                "pendientes": 0, "en_el_plan": 0, "excluidas": [],
+                "afirmaciones_escritas": None, "habilitado": False}
+    vista = estado.to_dict()
+    # La corrida viaja en el formulario, no en el cuerpo del estado: es la
+    # única identidad que el POST necesita y ya es pública para el operador.
+    vista["job_id"] = str(revision["job_id"])
+    return vista
+
+
 def _authorize(request: Request, user):
     """Puerta + interruptor, EN ESE ORDEN, igual que el hueco vacío.
 
@@ -551,7 +612,7 @@ def chassis_operations(
                     error_detail=type(exc).__name__,
                     ops={}, filtros={}, salud=None,
                     fuentes={"available": False, "lista": []},
-                    csrf_token="", aviso=None, resultado=None,
+                    csrf_token="", aviso=None, resultado=None, plan=None,
                 ),
                 status_code=503,
             )
@@ -561,6 +622,12 @@ def chassis_operations(
         # que este total no revela nada que el espectador no pueda ver.
         total_visible = sum(c["count"] for c in conteos)
 
+    # El DESENLACE del trabajo que el operador acaba de solicitar. Se relee de
+    # la cola en cada GET, así que refrescar la pantalla es lo que hace avanzar
+    # lo que se ve: pendiente -> en curso -> terminado.
+    desenlace = _resultado_del_trabajo(
+        jobs_client.scoped_job(scope, solicitado) if solicitado else None
+    )
     return templates.TemplateResponse(
         request, SLOT.template,
         _context(
@@ -580,12 +647,12 @@ def chassis_operations(
             fuentes=_fuentes(),
             csrf_token=_csrf(request),
             aviso=_aviso(aviso, solicitado, scope),
-            # El DESENLACE del trabajo que el operador acaba de solicitar. Se
-            # relee de la cola en cada GET, así que refrescar la pantalla es lo
-            # que hace avanzar lo que se ve: pendiente -> en curso -> terminado.
-            resultado=_resultado_del_trabajo(
-                jobs_client.scoped_job(scope, solicitado) if solicitado else None
-            ),
+            resultado=desenlace,
+            # EL ESTADO DE LO APROBADO. Va aquí y no en un panel aparte porque
+            # es la continuación del mismo recorrido: el acuse de la ingesta ya
+            # enlaza a SU revisión, y aquí se dice qué se puede hacer con lo
+            # que se aprobó allí.
+            plan=_plan_de_la_corrida(desenlace),
         ),
     )
 
@@ -717,3 +784,148 @@ def solicitar_ingesta(
         url=f"{request.url_for('chassis_operations')}?solicitado={job_id}",
         status_code=303,
     )
+
+
+# ===========================================================================
+# CAPACIDAD DE ESCRITURA DECLARADA: sellar lo aprobado de una corrida
+# ---------------------------------------------------------------------------
+# Declarada como `sellado_del_plan_revisado`. NO escribe en el grafo: deja en
+# el almacén de revisión el SNAPSHOT INMUTABLE de lo que el operador aprobó.
+# Se declara igualmente porque es una escritura durable de esta capacidad, y la
+# enumeración del chasis no distingue «escribe poco».
+# ===========================================================================
+
+CAPACIDAD_SELLADO = next(
+    c for c in capabilities_for_slot(SLOT.key) if c.name == "sellado_del_plan_revisado"
+)
+_RUTA_SELLADO = CAPACIDAD_SELLADO.path[len(SLOT.prefix):]
+
+CAPACIDAD_APLICACION = next(
+    c for c in capabilities_for_slot(SLOT.key)
+    if c.name == "aplicacion_del_plan_revisado"
+)
+_RUTA_APLICACION = CAPACIDAD_APLICACION.path[len(SLOT.prefix):]
+
+
+def _corrida_visible(scope: VisibilityScope, job_id: str) -> Optional[dict]:
+    """La corrida, LEÍDA POR EL CAMINO DE PRODUCCIÓN y con ámbito.
+
+    Un trabajo que el llamante no puede ver no se convierte en una corrida
+    sobre la que sellar o aplicar por haber puesto su id en el formulario. El
+    `workspace` sale de AQUÍ, del trabajo, no de lo que se recibió: aceptarlo
+    del formulario permitiría dirigir la escritura a otro ámbito.
+    """
+    if not job_id.strip():
+        return None
+    return jobs_client.scoped_job(scope, job_id.strip())
+
+
+def _accion(
+    request: Request,
+    user,
+    capacidad,
+    job_id: str,
+    csrf_token: str,
+    scope: VisibilityScope,
+    ejecutar,
+):
+    """El esqueleto COMÚN de las dos acciones. Mismo orden, siempre.
+
+    1. autorización (la guarda del hueco: `require_admin`);
+    2. CSRF, antes de mirar siquiera qué se pidió;
+    3. la corrida, resuelta y ACOTADA por ámbito en el servidor;
+    4. la acción;
+    5. auditoría del intento, con su desenlace;
+    6. 303 con un código estable.
+
+    Los pasos 1 y 2 están SEPARADOS y cada uno tiene su control negativo: en el
+    Corte 1, una prueba de rol pasaba aunque se degradara la guarda porque al
+    `reviewer` lo paraba el CSRF.
+    """
+    denegado = _authorize(request, user)
+    if denegado is not None:
+        return denegado
+    _check_csrf(request, csrf_token)
+
+    quien = getattr(user, "username", None) if isinstance(user, User) else None
+
+    def _fallo(codigo: str, exc: Optional[BaseException] = None) -> RedirectResponse:
+        panel_errors.registrar(codigo, exc, trabajo=job_id, operador=quien)
+        audit.warning(
+            "capacidad=%s operador=%s trabajo=%s resultado=RECHAZADO codigo=%s",
+            capacidad.name, quien, job_id, codigo,
+        )
+        return RedirectResponse(
+            url=f"{request.url_for('chassis_operations')}"
+                f"?solicitado={job_id}&aviso={codigo}",
+            status_code=303,
+        )
+
+    corrida = _corrida_visible(scope, job_id)
+    if corrida is None:
+        return _fallo("SOURCE_UNKNOWN")
+    workspace = str(corrida.get("workspace") or "")
+    if not workspace:
+        return _fallo("SOURCE_PACKAGE_INVALID")
+
+    from app.services.v3_apply import ApplyError  # noqa: PLC0415
+
+    try:
+        hecho = ejecutar(workspace, job_id.strip(), quien)
+    except ApplyError as exc:
+        return _fallo(exc.code)
+    except Exception as exc:  # noqa: BLE001 - nada técnico llega al operador
+        return _fallo("APPLY_FAILED", exc)
+
+    # AUDITORÍA DEL ÉXITO, con el desenlace REAL ya confirmado.
+    audit.info(
+        "capacidad=%s operador=%s trabajo=%s workspace=%s resultado=OK detalle=%s",
+        capacidad.name, quien, job_id, workspace, hecho,
+    )
+    return RedirectResponse(
+        url=f"{request.url_for('chassis_operations')}"
+            f"?solicitado={job_id}&aviso={hecho['aviso']}",
+        status_code=303,
+    )
+
+
+@router.post(_RUTA_SELLADO, name="chassis_operations_sellado")
+def sellar_plan(
+    request: Request,
+    trabajo: str = Form(default=""),
+    csrf_token: str = Form(default=""),
+    user=Depends(slot_guard(SLOT)),
+    scope: VisibilityScope = Depends(get_visibility_scope),
+):
+    def _ejecutar(workspace: str, job_id: str, quien):
+        from app.services.v3_apply import ReviewApplyService  # noqa: PLC0415
+
+        salida = ReviewApplyService().sellar(workspace=workspace, job_id=job_id)
+        return {"aviso": "PLAN_SEALED", **salida}
+
+    return _accion(request, user, CAPACIDAD_SELLADO, trabajo, csrf_token, scope,
+                   _ejecutar)
+
+
+@router.post(_RUTA_APLICACION, name="chassis_operations_aplicacion")
+def aplicar_plan(
+    request: Request,
+    trabajo: str = Form(default=""),
+    csrf_token: str = Form(default=""),
+    user=Depends(slot_guard(SLOT)),
+    scope: VisibilityScope = Depends(get_visibility_scope),
+):
+    def _ejecutar(workspace: str, job_id: str, quien):
+        from app.services.v3_apply import ReviewApplyService  # noqa: PLC0415
+
+        # `operator_id` es QUIÉN aplica, y el gate del writer lo exige con una
+        # forma concreta. Se deriva del usuario autenticado; no se acepta del
+        # formulario, o el rastro de auditoría lo escribiría el atacante.
+        salida = ReviewApplyService().aplicar(
+            workspace=workspace, job_id=job_id,
+            operator_id=f"panel:{quien}" if quien else "panel:anonimo",
+        )
+        return {"aviso": "PLAN_APPLIED", **salida}
+
+    return _accion(request, user, CAPACIDAD_APLICACION, trabajo, csrf_token, scope,
+                   _ejecutar)

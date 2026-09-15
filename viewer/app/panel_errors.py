@@ -97,6 +97,43 @@ CATALOGO: dict[str, str] = {
     "INGEST_REQUEST_FAILED":
         "No se ha podido registrar la solicitud de ingesta. No se ha empezado "
         "nada; puedes volver a intentarlo.",
+    # --- sellado y aplicacion del plan revisado (Slice 2 - Apply) ---
+    "REVIEW_STORE_UNAVAILABLE":
+        "No se puede consultar la cola de revision en este despliegue, asi que "
+        "no se sabe que hay aprobado. No se ha aplicado nada. Avisa a quien "
+        "administra el servicio.",
+    "NO_APPROVED_PROPOSALS":
+        "No hay ninguna propuesta aprobada en esta ingesta, asi que no hay nada "
+        "que preparar. Aprueba primero en la pantalla de revision.",
+    "NO_APPLICABLE_PROPOSALS":
+        "Ninguna de las propuestas aprobadas se puede llevar al conocimiento tal "
+        "como esta. No se ha preparado nada; el detalle de cada una aparece en "
+        "esta misma pantalla.",
+    "SEAL_CONFLICT":
+        "Las decisiones han cambiado mientras se preparaba lo aprobado, asi que "
+        "no se ha preparado nada. Vuelve a cargar la pantalla e intentalo otra vez.",
+    "PLAN_NOT_SEALED":
+        "No hay nada preparado para esta ingesta. Prepara primero lo aprobado.",
+    "PLAN_ALREADY_APPLIED":
+        "Lo aprobado de esta ingesta ya se anadio al conocimiento. No se ha "
+        "vuelto a anadir: no se duplica nada.",
+    "PLAN_SUPERSEDED":
+        "Una decision cambio despues de preparar lo aprobado, asi que lo "
+        "preparado ha dejado de valer y no se ha aplicado nada. Vuelve a "
+        "prepararlo para incluir la decision nueva.",
+    "APPLY_NOT_ENABLED":
+        "Este despliegue no tiene habilitada la escritura en el conocimiento, "
+        "asi que no se ha aplicado nada. No es cosa tuya: avisa a quien "
+        "administra el servicio.",
+    "GRAPH_UNAVAILABLE":
+        "No se puede alcanzar el conocimiento en este despliegue, asi que no se "
+        "ha aplicado nada. Avisa a quien administra el servicio.",
+    "APPLY_REJECTED":
+        "Lo preparado no se ha podido anadir al conocimiento y no se ha escrito "
+        "nada. El motivo queda registrado en el servidor para quien lo administra.",
+    "APPLY_FAILED":
+        "La operacion no ha terminado correctamente. El detalle queda registrado "
+        "en el servidor para quien lo administra.",
     # --- ejecucion (las produce el worker, las pinta el panel) ---
     "INGEST_FAILED":
         "La ingesta no ha terminado correctamente. El detalle queda registrado "

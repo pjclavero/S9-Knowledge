@@ -416,6 +416,23 @@ def _candidate_views(
     return views
 
 
+def _package_plan_context(raw: Any) -> dict[str, Any] | None:
+    """El bloque `plan_context` del SOBRE del paquete, si la corrida lo dejo.
+
+    Es lo que convierte una aprobacion en un plan aplicable: el ancla de
+    estado, la procedencia de la fuente y la decision de motor de cada
+    propuesta. Los paquetes anteriores al corte de Apply no lo traen, y
+    entonces sus propuestas no se pueden sellar — lo que se DICE con un codigo,
+    en vez de producir un plan a medias.
+
+    No se deriva nada aqui: o esta en el sobre, o no esta.
+    """
+    if not isinstance(raw, dict):
+        return None
+    contexto = raw.get("plan_context")
+    return contexto if isinstance(contexto, dict) and contexto else None
+
+
 def _package_run_id(raw: Any) -> str | None:
     """`job_id` de la corrida que escribió el paquete, si lo declara.
 
@@ -468,6 +485,12 @@ def load_proposals(directory: Path) -> list[dict[str, Any]]:
             f"almacén de propuestas ilegible: {directory}", PROPOSALS_STORE_UNREADABLE
         ) from exc
     versions: dict[tuple[str, str], dict[str, dict[str, Any]]] = {}
+    #: `contexts_by_proposal`: el `plan_context` de CADA corrida que produjo la
+    #: propuesta, indexado por `job_id`. Se acumula al lado de `package_runs` y
+    #: por la misma razón: una propuesta puede venir de varias corridas, y
+    #: sellar el plan de la corrida A con el ancla de estado de la B sería
+    #: aplicar sobre un snapshot que nadie observó en esa corrida.
+    contexts_by_proposal: dict[tuple[str, str], dict[str, dict[str, Any]]] = {}
     #: `package_runs`: las corridas que produjeron cada versión. Se acumula
     #: junto a `package_origins` y por la misma razón — una propuesta puede
     #: venir de varias corridas y ninguna debe perderse.
@@ -485,6 +508,7 @@ def load_proposals(directory: Path) -> list[dict[str, Any]]:
                 f"paquete de propuestas ilegible: {path}", PROPOSALS_STORE_UNREADABLE
             ) from exc
         package_run = _package_run_id(raw)
+        package_context = _package_plan_context(raw)
         documents = raw if isinstance(raw, list) else raw.get("items", [raw])
         if not isinstance(documents, list):
             raise ReviewError(f"paquete inválido: {path}", PACKAGE_INVALID)
@@ -503,6 +527,20 @@ def load_proposals(directory: Path) -> list[dict[str, Any]]:
             normalized = json.loads(_canonical(proposal))
             normalized["proposal_hash"] = actual_hash
             by_hash = versions.setdefault((workspace, identifier), {})
+            if package_run and package_context:
+                # El bloque se recorta a ESTA propuesta: el sobre trae las
+                # decisiones de todas las del paquete, y arrastrarlas enteras
+                # a cada una multiplicaría el mismo dato por N.
+                propias = (package_context.get("decisions") or {}).get(identifier)
+                recorte = {
+                    clave: valor
+                    for clave, valor in package_context.items()
+                    if clave != "decisions"
+                }
+                recorte["decisions"] = {identifier: propias} if propias else {}
+                contexts_by_proposal.setdefault(
+                    (workspace, identifier), {}
+                )[package_run] = recorte
             if package_run:
                 runs_by_version.setdefault(
                     (workspace, identifier, actual_hash), set()
@@ -541,6 +579,12 @@ def load_proposals(directory: Path) -> list[dict[str, Any]]:
             for digest in by_hash
             for run in runs_by_version.get((workspace_key, identifier, digest), ())
         })
+        # EL CONTEXTO DE PLAN, POR CORRIDA. No se funde en uno solo: cada
+        # corrida observó su propio snapshot, y mezclarlos daría un plan
+        # anclado a un estado que ninguna de las dos vio.
+        active["plan_context_by_run"] = dict(
+            contexts_by_proposal.get((workspace_key, identifier), {})
+        )
         proposals.append(active)
     return proposals
 
@@ -728,7 +772,7 @@ class ReviewService:
             reconciliation.get("direction_candidate_origins", []),
             "direction",
         )
-        return {
+        vista = {
             **proposal,
             "proposal_id": _proposal_id(proposal),
             "proposal_hash": proposal_hash(proposal),
@@ -743,6 +787,14 @@ class ReviewService:
             "direction_alternatives": direction_alternatives,
             "active_decision": active_decision,
         }
+        # CERO CONOCIMIENTO INTERNO. `plan_context_by_run` es el ancla de
+        # estado del grafo y la procedencia de la fuente: material del
+        # servidor. Entra en la propuesta porque el sellado lo necesita, y sale
+        # AQUÍ porque esto es lo que se pinta y lo que serializa la API. Que se
+        # retire en un solo punto es lo que hace que no pueda escaparse por
+        # una vista nueva.
+        vista.pop("plan_context_by_run", None)
+        return vista
 
     def record(
         self,

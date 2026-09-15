@@ -20,6 +20,7 @@ from typing import Any
 
 from .contracts.base import canonical_json, sha256_hash
 from .review_decisions import resolved_proposal_ids
+from .review_plan import PLAN_CONTEXT_KEY, plan_context_from_run
 
 
 EXPORTED_DECISIONS = frozenset({"REVIEW", "ABSTAIN", "REJECT_INVALID"})
@@ -84,6 +85,39 @@ def _resolved_entity_id(resolution: dict[str, Any]) -> Any:
         or resolution.get("assigned_entity_id")
         or "not_available"
     )
+
+
+def run_plan_material(result: Any) -> tuple[Any, dict[str, Any]]:
+    """El plan de la corrida y sus decisiones de motor, INDEXADAS por claim.
+
+    Es lo que `knowledge_v3.review_plan` necesita y una propuesta no contiene:
+    el ancla de estado (`snapshot_id`), la procedencia de la fuente
+    (`source_hash`, `source_asset_id`) y las versiones. Hasta este corte la
+    corrida lo calculaba y lo TIRABA -- vive en `run.plan`/`run.review_plan`,
+    que mueren con el proceso -- y por eso no existia ningun plan aprobado
+    durable que aplicar.
+
+    Se prefiere `review_plan` a `plan` porque es el de las reclamaciones que
+    van a revision, que son justamente las que el operador puede aprobar; el
+    de escritura sirve de respaldo cuando aquel no existe. Los dos comparten
+    contexto: el `PlanContext` de la corrida es uno solo.
+
+    Las decisiones se toman de `run.decisions` --TODAS-- y no de las del plan:
+    el paquete tambien exporta `ABSTAIN` y `REJECT_INVALID`, y si esas se
+    quedasen sin decision, aprobarlas mas tarde no produciria nada.
+    """
+    for run in getattr(result, "runs", ()):
+        plan = getattr(run, "review_plan", None) or getattr(run, "plan", None)
+        if plan is None:
+            continue
+        decisiones = {}
+        for decision_value in getattr(run, "decisions", ()):
+            bruto = _dict(decision_value)
+            claim_id = bruto.get("claim_id")
+            if claim_id:
+                decisiones[str(claim_id)] = bruto
+        return plan.to_dict(), decisiones
+    return None, {}
 
 
 def review_documents(result: Any, *, workspace: str) -> list[dict[str, Any]]:
@@ -254,6 +288,7 @@ def export_review_package(
     No se lee ``decisions.jsonl``: es exportacion de auditoria, no autoridad.
     """
     documents = review_documents(result, workspace=workspace)
+    plan_doc, decisions_by_claim = run_plan_material(result)
     resolved = resolved_proposal_ids(decisions_db, workspace=workspace)
     pending = [doc for doc in documents if doc["proposal_id"] not in resolved]
     consumed = [
@@ -283,6 +318,16 @@ def export_review_package(
     # conserva su digest historico.
     if run:
         package_body["run"] = {k: v for k, v in sorted(run.items()) if v is not None}
+        # EL RESTO DEL ARTEFACTO, que hasta ahora se tiraba (Slice 2 · Apply).
+        #
+        # Va junto a `run` y bajo la MISMA condicion, y eso no es casualidad:
+        # el bloque solo tiene sentido atado a una corrida identificada, que es
+        # la unidad sobre la que el operador sella y aplica. Sin `run` (CLI,
+        # arneses) el cuerpo del paquete sigue siendo byte a byte el de antes y
+        # conserva su digest historico.
+        contexto = plan_context_from_run(plan_doc, decisions_by_claim, documents)
+        if contexto is not None:
+            package_body[PLAN_CONTEXT_KEY] = contexto
     package_hash = sha256_hash(package_body)
     digest = package_hash["value"] if isinstance(package_hash, dict) else str(package_hash)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -310,5 +355,5 @@ def export_review_package(
 
 __all__ = [
     "EXPORTED_DECISIONS", "ReviewPackageExport", "export_review_package",
-    "review_documents",
+    "review_documents", "run_plan_material",
 ]

@@ -630,9 +630,20 @@ class WriteCapability:
             )
 
 
-#: Las capacidades de escritura que el chasis aloja HOY. Una sola: el alta de
-#: fuente del Slice 2, hueco B. Los huecos C, F y G no aparecen, y por eso
-#: siguen siendo de solo lectura por construccion.
+#: Las capacidades de escritura que el chasis aloja HOY. TRES, y las tres del
+#: hueco B (Operaciones): el alta de fuente, y las dos de la cadena de apply.
+#: Los huecos C, F y G no aparecen, y por eso siguen siendo de solo lectura
+#: por construccion.
+#:
+#: EL APPLY VIVE EN `B`, NO EN `C`, Y NO ES UN DETALLE DE COLOCACION.
+#: `/panel/review` (hueco C) declara una FRONTERA DURA -- "aqui no hay ningun
+#: metodo que no sea GET" -- que se verifica por enumeracion. Colgar alli un
+#: POST habria sido cambiar el contrato de un fichero que ya es de `main`, y
+#: el encargo obliga a declararlo explicitamente si se hace. No se hace: la
+#: alternativa legitima es que el apply viva sobre la CORRIDA, en
+#: `/panel/operations`, que es donde el operador ya tiene su acuse de ingesta
+#: y donde ya hay escritura declarada. `/panel/review` sigue siendo solo
+#: lectura, byte a byte.
 WRITE_CAPABILITIES: tuple[WriteCapability, ...] = (
     WriteCapability(
         slot_key="B",
@@ -650,6 +661,41 @@ WRITE_CAPABILITIES: tuple[WriteCapability, ...] = (
             "(`S9K_V3_REVIEW_PROPOSALS_DIR`), que es lo que `/panel/review` "
             "lee. Se declara aqui porque es una escritura de esta capacidad, "
             "aunque la haga el worker y no la peticion."
+        ),
+    ),
+    WriteCapability(
+        slot_key="B",
+        name="sellado_del_plan_revisado",
+        title="Preparar lo aprobado de una ingesta",
+        path="/panel/operations/planes",
+        methods=frozenset({"POST"}),
+        role="admin",
+        audited=True,
+        summary=(
+            "Sella, como SNAPSHOT INMUTABLE en el almacen de revision, el plan "
+            "derivado de las propuestas persistidas de una corrida y de las "
+            "decisiones humanas efectivas ya persistidas. NO reejecuta el "
+            "pipeline y NO escribe en el grafo: deja el artefacto que el "
+            "operador reviso, para que aplicar consuma exactamente eso y no "
+            "algo recalculado. Un cambio posterior de decisiones no lo modifica: "
+            "lo invalida."
+        ),
+    ),
+    WriteCapability(
+        slot_key="B",
+        name="aplicacion_del_plan_revisado",
+        title="Anadir al conocimiento lo aprobado",
+        path="/panel/operations/aplicaciones",
+        methods=frozenset({"POST"}),
+        role="admin",
+        audited=True,
+        summary=(
+            "Aplica el plan sellado vigente de una corrida por la UNICA ruta "
+            "canonica de aplicacion (`knowledge_v3.writer.apply.apply_v3`). SI "
+            "escribe en el grafo, y por eso exige la doble declaracion del gate "
+            "del writer (`S9K_ALLOW_REAL_INGEST` y `S9K_WRITER_WORKSPACE`). El "
+            "plan se resuelve INTERNAMENTE desde la corrida: `plan_id` jamas es "
+            "entrada del operador."
         ),
     ),
 )
