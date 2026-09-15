@@ -343,6 +343,16 @@ def _filas_de_plan(base: Path) -> list:
     return [dict(f) for f in filas]
 
 
+def _aprobar_una(operador, cola, almacenes, monkeypatch):
+    job_id = _ingerir(operador, cola, monkeypatch)
+    propuesta = _aplicable(_propuestas(almacenes["propuestas"]), job_id)
+    assert propuesta is not None, (
+        "el corpus del arnés ya no produce ninguna propuesta aplicable"
+    )
+    _decidir(propuesta, "APPROVE")
+    return job_id, propuesta
+
+
 # ===========================================================================
 # 0. La frontera que NO se mueve: `/panel/review` sigue siendo solo lectura
 # ===========================================================================
@@ -440,36 +450,94 @@ def test_rechazar_no_habilita_la_accion(
 # VÁLIDO y el de CSRF lo lanza un ADMIN legítimo: cada uno sólo puede ponerse
 # verde por su propia razón.
 
-@pytest.mark.parametrize("ruta", ["/panel/operations/planes",
-                                  "/panel/operations/aplicaciones"])
-def test_un_revisor_no_puede_aplicar_aunque_su_csrf_sea_valido(
-    real_app, paneles_on, cola, revisor, almacenes, ruta
+def test_un_revisor_no_puede_sellar_aunque_su_csrf_sea_valido(
+    real_app, paneles_on, cola, operador, revisor, almacenes, monkeypatch
 ):
-    """ROJO POR AUTORIZACIÓN, y por nada más."""
+    """ROJO POR AUTORIZACIÓN, y por nada más.
+
+    EL CASO ESTÁ MONTADO PARA QUE PUEDA FALLAR. Dos cosas, medidas:
+
+    * el revisor manda un CSRF **válido para su sesión**, así que lo que le
+      pare no puede ser el CSRF. En el Corte 1 una prueba de rol pasaba
+      aunque se degradara la guarda precisamente porque al `reviewer` lo
+      paraba el CSRF;
+    * y hay algo REAL que sellar (una propuesta ya aprobada por el admin). Una
+      primera versión de este caso mandaba un `job_id` inexistente y quedaba
+      VERDE con la guarda degradada, porque el handler contestaba
+      `SOURCE_UNKNOWN`: el revisor no llegaba a nada, pero tampoco lo paraba el
+      rol. Medido y corregido.
+    """
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _filas_de_plan(almacenes["base"]) == []
+
     token = _csrf(revisor)
     assert token, "el revisor no tiene sesión: el caso no probaría el rol"
-    respuesta = revisor.post(ruta, data={"trabajo": "j-cualquiera",
-                                         "csrf_token": token})
-    # `require_admin` redirige a /login; lo que NO puede pasar es un 303 al
-    # panel, que sería la respuesta de una acción ATENDIDA.
+    respuesta = revisor.post("/panel/operations/planes",
+                             data={"trabajo": job_id, "csrf_token": token})
+
     assert respuesta.status_code in (302, 303, 403, 404), respuesta.status_code
     destino = respuesta.headers.get("location", "")
-    assert "/panel/operations?" not in destino, (
-        "la acción se atendió para un revisor: la guarda de rol no mordió"
+    assert "aviso=" not in destino, (
+        f"la acción se ATENDIÓ para un revisor ({destino}): la guarda de rol no mordió"
     )
-    assert _filas_de_plan(almacenes["base"]) == []
+    # Y el efecto: no se ha sellado nada.
+    assert _filas_de_plan(almacenes["base"]) == [], (
+        "un revisor selló un plan"
+    )
 
 
-@pytest.mark.parametrize("ruta", ["/panel/operations/planes",
-                                  "/panel/operations/aplicaciones"])
-def test_un_csrf_invalido_para_la_accion_aunque_el_rol_sea_admin(
-    real_app, paneles_on, cola, operador, almacenes, ruta
+def test_un_revisor_no_puede_aplicar_aunque_su_csrf_sea_valido(
+    real_app, paneles_on, cola, operador, revisor, almacenes, monkeypatch
 ):
-    """ROJO POR CSRF, y por nada más: quien lo manda es un admin legítimo."""
-    respuesta = operador.post(ruta, data={"trabajo": "j-cualquiera",
-                                          "csrf_token": "token-falsificado"})
+    """El mismo control sobre la acción que SÍ escribe en el grafo.
+
+    El admin deja un plan sellado y listo; el revisor intenta aplicarlo con su
+    CSRF válido. Si la guarda de rol se degradara, el plan pasaría a `applied`.
+    """
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    assert _filas_de_plan(almacenes["base"])[0]["state"] == "sealed"
+
+    token = _csrf(revisor)
+    respuesta = revisor.post("/panel/operations/aplicaciones",
+                             data={"trabajo": job_id, "csrf_token": token})
+
+    assert respuesta.status_code in (302, 303, 403, 404), respuesta.status_code
+    assert "aviso=" not in respuesta.headers.get("location", "")
+    assert _filas_de_plan(almacenes["base"])[0]["state"] == "sealed", (
+        "un revisor movió el estado del plan"
+    )
+
+
+def test_un_csrf_invalido_para_el_sellado_aunque_el_rol_sea_admin(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch
+):
+    """ROJO POR CSRF, y por nada más: quien lo manda es un admin legítimo.
+
+    Y hay algo real que sellar, para que quitar la comprobación de CSRF
+    produzca un efecto observable en vez de un `SOURCE_UNKNOWN` inocuo.
+    """
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    respuesta = operador.post("/panel/operations/planes",
+                              data={"trabajo": job_id,
+                                    "csrf_token": "token-falsificado"})
     assert respuesta.status_code == 403, respuesta.status_code
-    assert _filas_de_plan(almacenes["base"]) == []
+    assert _filas_de_plan(almacenes["base"]) == [], "se selló sin CSRF válido"
+
+
+def test_un_csrf_invalido_para_la_aplicacion_aunque_el_rol_sea_admin(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch
+):
+    """El mismo control sobre la acción que escribe en el grafo."""
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    respuesta = operador.post("/panel/operations/aplicaciones",
+                              data={"trabajo": job_id,
+                                    "csrf_token": "token-falsificado"})
+    assert respuesta.status_code == 403, respuesta.status_code
+    assert _filas_de_plan(almacenes["base"])[0]["state"] == "sealed", (
+        "se aplicó sin CSRF válido"
+    )
 
 
 def test_una_corrida_de_otro_no_se_puede_sellar(
@@ -488,16 +556,6 @@ def test_una_corrida_de_otro_no_se_puede_sellar(
 # ===========================================================================
 # 3. SELLADO: el snapshot existe, es inmutable y no lo genera el pipeline
 # ===========================================================================
-
-def _aprobar_una(operador, cola, almacenes, monkeypatch):
-    job_id = _ingerir(operador, cola, monkeypatch)
-    propuesta = _aplicable(_propuestas(almacenes["propuestas"]), job_id)
-    assert propuesta is not None, (
-        "el corpus del arnés ya no produce ninguna propuesta aplicable"
-    )
-    _decidir(propuesta, "APPROVE")
-    return job_id, propuesta
-
 
 def test_sellar_deja_un_snapshot_vigente_y_la_pantalla_lo_dice(
     real_app, paneles_on, cola, operador, almacenes, monkeypatch
