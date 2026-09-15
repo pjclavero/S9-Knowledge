@@ -846,7 +846,11 @@ def _rutas_invocadas_en_el_paso_de_neo4j() -> set:
     """
     import re
 
-    yaml = pytest.importorskip("yaml")
+    # `import` PELADO, nunca `importorskip`: si `yaml` faltara, esta guarda se
+    # auto-omitiria y volveria a ser un skip VERDE -- exactamente el defecto
+    # que existe para cerrar. Sin `yaml` este caso ERRORA, que es rojo y se ve.
+    # Lo dijo la puerta de inventario con un PREFLIGHT, y tenia razon.
+    import yaml
     doc = yaml.safe_load((RAIZ_REPO / ".github" / "workflows" / "ci.yml").read_text())
     for job in (doc.get("jobs") or {}).values():
         for paso in job.get("steps") or []:
