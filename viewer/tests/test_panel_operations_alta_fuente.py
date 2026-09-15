@@ -404,7 +404,14 @@ def test_el_recorrido_completo_del_operador(real_app, panel_on, cola, operador,
     despues = operador.get(destino)
     assert despues.status_code == 200
     assert 'data-resultado-estado="ok"' in despues.text
-    assert "La ingesta ha terminado correctamente." in despues.text
+    # Corte 4: el acuse ya no es la frase pelada. Sigue diciendo que terminó
+    # bien, pero AÑADE el desenlace de revisión —«ha dejado N decisiones en
+    # REVIEW» o «no ha dejado nada en revisión»— porque «terminado
+    # correctamente» a secas, con REVIEW>0, hacía que el operador cerrase la
+    # pantalla sin abrir la consola de revisión. Se afirma el invariante, no
+    # el literal exacto.
+    assert "La ingesta ha terminado correctamente" in despues.text
+    assert "revision" in despues.text.lower() or "revisión" in despues.text.lower()
     # Y explica QUÉ se ha obtenido, no sólo que fue bien.
     assert 'data-role="resumen"' in despues.text
     assert 'data-resumen="afirmaciones"' in despues.text

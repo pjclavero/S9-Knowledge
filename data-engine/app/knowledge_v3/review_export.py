@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -206,13 +207,40 @@ def review_documents(result: Any, *, workspace: str) -> list[dict[str, Any]]:
     return sorted(documents, key=lambda x: (x["source_id"], x["episode_id"], x["proposal_id"]))
 
 
+@dataclass(frozen=True)
+class ReviewPackageExport:
+    """Lo que UNA corrida dejó de verdad en el almacen de revision.
+
+    Se devuelve en vez de la ruta a secas porque el resumen de la ingesta
+    tiene que poder decir CUANTAS propuestas revisables produjo esta corrida y
+    a que corrida pertenecen. Derivarlo mas tarde volviendo a leer la carpeta
+    seria una segunda derivacion del mismo hecho, y dos derivaciones de un
+    hecho son dos verdades.
+    """
+
+    path: Path
+    workspace: str
+    proposal_ids: tuple[str, ...]
+    job_id: "str | None" = None
+
+    @property
+    def count(self) -> int:
+        return len(self.proposal_ids)
+
+    def __fspath__(self) -> str:
+        # Compatibilidad: este valor se usaba como `Path`. Sigue sirviendo
+        # como ruta para `open()` y para `os.path`.
+        return str(self.path)
+
+
 def export_review_package(
     result: Any,
     output_dir: Path,
     *,
     workspace: str,
     decisions_db: "Path | None" = None,
-) -> Path:
+    run: "dict[str, Any] | None" = None,
+) -> ReviewPackageExport:
     """Atomically write one content-addressed immutable package; reruns dedup.
 
     CIERRE DEL LAZO: antes de publicar, se leen las decisiones humanas ACTIVAS
@@ -234,13 +262,39 @@ def export_review_package(
         if doc["proposal_id"] in resolved
     ]
     documents = pending
-    package_body = {"workspace": workspace, "items": documents, "resolved": consumed}
+    package_body: dict[str, Any] = {
+        "workspace": workspace, "items": documents, "resolved": consumed,
+    }
+    # ATRIBUCION A LA CORRIDA (Slice 2 · Corte 4).
+    #
+    # Va en el SOBRE, no dentro de cada documento. La diferencia importa: el
+    # `proposal_hash` es el hash SEMANTICO de la propuesta, y meterle el
+    # `job_id` convertiria cada reejecucion en una "version distinta" de la
+    # misma reclamacion, que es mentira — la reclamacion no ha cambiado, la ha
+    # vuelto a producir otra corrida.
+    #
+    # En el sobre, en cambio, el digest del paquete SI cambia, asi que la
+    # corrida B escribe su propio fichero; y al cargarlo, el visor pliega las
+    # dos copias en UNA propuesta cuya lista de corridas es [A, B]. El
+    # operador ve una sola reclamacion y las dos corridas que la produjeron.
+    #
+    # `run=None` (CLI, arneses, cualquier llamador que no venga de la cola) no
+    # anade la clave: el cuerpo es byte a byte el de antes y el paquete
+    # conserva su digest historico.
+    if run:
+        package_body["run"] = {k: v for k, v in sorted(run.items()) if v is not None}
     package_hash = sha256_hash(package_body)
     digest = package_hash["value"] if isinstance(package_hash, dict) else str(package_hash)
     output_dir.mkdir(parents=True, exist_ok=True)
     target = output_dir / f"{workspace}--{digest}.json"
+    exported = ReviewPackageExport(
+        path=target,
+        workspace=workspace,
+        proposal_ids=tuple(doc["proposal_id"] for doc in documents),
+        job_id=(run or {}).get("job_id"),
+    )
     if target.exists():
-        return target
+        return exported
     fd, temporary = tempfile.mkstemp(prefix=".review-", suffix=".tmp", dir=output_dir)
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
@@ -251,7 +305,10 @@ def export_review_package(
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
-    return target
+    return exported
 
 
-__all__ = ["EXPORTED_DECISIONS", "export_review_package", "review_documents"]
+__all__ = [
+    "EXPORTED_DECISIONS", "ReviewPackageExport", "export_review_package",
+    "review_documents",
+]

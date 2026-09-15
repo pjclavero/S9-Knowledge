@@ -294,6 +294,7 @@ def run_ingest(
     operator_id: Optional[str] = None,
     writer_env: Optional[dict] = None,
     review_proposals_dir: Optional[Path] = None,
+    job_id: Optional[str] = None,
 ) -> dict:
     """Corre la cadena sobre UN fichero y devuelve el informe estructurado.
 
@@ -443,10 +444,21 @@ def run_ingest(
         if review_proposals_dir is not None
         else default_proposals_dir()
     )
+    # ATRIBUCION DE LA CORRIDA (Corte 4). `job_id` viene de la cola, no se
+    # deriva aqui: es la MISMA identidad que el operador ve en `/panel/
+    # operations`, y por eso el enlace desde el acuse a su revision puede
+    # existir. Sin `job_id` (CLI a mano) no se atribuye nada y el paquete
+    # conserva su forma anterior.
+    review_run = {
+        "job_id": job_id,
+        "source_id": case.source_id,
+        "exported_at": _utc_now(),
+    } if job_id else None
     result = KnowledgePipeline(config).run(
         [case],
         catalog_entities=snapshot_entities,
         review_proposals_dir=proposals_dir,
+        review_run=review_run,
     )
     report = ingest_report(
         result,
@@ -478,6 +490,20 @@ def run_ingest(
             "pendientes": promo.pending_rows(run.engine_result.decisions),
             "promociones": [dict(e) for e in run.engine_result.promotion_report],
         }
+    # LA COLA DE REVISION DE ESTA CORRIDA, PUBLICADA EN EL INFORME.
+    #
+    # `None` cuando no se exporto: "no se exporto" y "se exporto y no habia
+    # nada" son hechos distintos y el resumen del panel los dice distinto. La
+    # ruta del paquete NO entra: es del servidor. Entra el NOMBRE del fichero,
+    # que es content-addressed y no revela donde vive.
+    exportacion = getattr(result, "review_export", None)
+    report["cola_de_revision"] = None if exportacion is None else {
+        "job_id": exportacion.job_id,
+        "propuestas": exportacion.count,
+        "proposal_ids": list(exportacion.proposal_ids),
+        "paquete": exportacion.path.name,
+        "workspace": exportacion.workspace,
+    }
     report["procedencia_paquete"] = ProvenanceBundle.of(
         source_asset=run.asset.to_dict() if run.asset else None,
         episodes=[e.to_dict() for e in run.episodes],

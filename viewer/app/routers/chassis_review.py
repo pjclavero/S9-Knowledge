@@ -43,7 +43,46 @@ from app.authz.scope import VisibilityScope
 from app.chassis import FEATURE_SLOTS, slot_enabled
 from app.routers.chassis_slot import slot_context, slot_guard
 from app.services import review_console_v2 as console
-from app.services.v3_review import ReviewError, ReviewService
+from app.services.v3_review import (
+    PROPOSALS_STORE_MISSING, PROPOSALS_STORE_UNREADABLE, ReviewError, ReviewService,
+)
+
+#: LOS TRES DESENLACES DEL ALMACEN, DICHOS DISTINTO.
+#:
+#: Antes del Corte 4 esta pantalla tenia dos respuestas para tres hechos:
+#: «no hay propuestas» (para almacen ausente, ilegible Y vacio) y un 503
+#: generico para paquete corrupto. El texto del caso ausente era ademas FALSO
+#: Y TRANQUILIZADOR — «no hay ningun workspace de revision visible PARA TU
+#: AMBITO ACTUAL» atribuia al ambito lo que causaba un almacen que no estaba.
+#:
+#: Cada entrada es (frase accionable, codigo HTTP). Ni ruta, ni traza, ni el
+#: mensaje de la excepcion: repo publico.
+ALMACEN_NO_DISPONIBLE = {
+    PROPOSALS_STORE_MISSING: (
+        "El almacen de propuestas de revision NO ESTA. Esto no significa que no "
+        "haya nada que revisar: significa que no se sabe. Lo habitual es que el "
+        "worker que ejecuta la ingesta y este visor no esten resolviendo "
+        "S9K_V3_REVIEW_PROPOSALS_DIR al mismo almacenamiento.",
+        503,
+    ),
+    PROPOSALS_STORE_UNREADABLE: (
+        "El almacen de propuestas de revision existe pero NO SE PUEDE LEER. "
+        "Tampoco significa que no haya nada que revisar: revisa los permisos "
+        "del directorio en el servidor.",
+        503,
+    ),
+}
+
+#: El de siempre, para paquete corrupto o invalido: ahi el almacen SI se leyo.
+PAQUETE_ILEGIBLE = (
+    "No se pudo leer el paquete de propuestas: revisa la exportacion del motor.",
+    503,
+)
+
+
+def _desenlace(exc: ReviewError) -> tuple[str, int]:
+    """Que se le dice al operador, segun el codigo ESTABLE de la excepcion."""
+    return ALMACEN_NO_DISPONIBLE.get(getattr(exc, "code", None), PAQUETE_ILEGIBLE)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -138,6 +177,7 @@ def chassis_review(
     reason_code: Optional[str] = Query(default=None),
     provider: Optional[str] = Query(default=None),
     extractor: Optional[str] = Query(default=None),
+    job_id: Optional[str] = Query(default=None),
     q: Optional[str] = Query(default=None),
     disagreements_only: bool = Query(default=False),
     low_confidence_only: bool = Query(default=False),
@@ -158,26 +198,27 @@ def chassis_review(
         raise HTTPException(status_code=400, detail="Orden no soportado")
     spec = _spec(
         decision=decision, reason_code=reason_code, provider=provider, extractor=extractor,
-        query=q, disagreements_only=disagreements_only, low_confidence_only=low_confidence_only,
+        job_id=job_id, query=q, disagreements_only=disagreements_only, low_confidence_only=low_confidence_only,
         low_confidence_threshold=low_confidence_threshold, min_confidence=min_confidence,
         max_confidence=max_confidence, include_decided=include_decided,
     )
     try:
         workspaces, selected, items = _load(workspace, scope)
     except ReviewError as exc:
-        # Paquete de propuestas ilegible: se dice QUÉ pasa y nada más. Ni la
-        # ruta del paquete, ni la traza, ni el mensaje de la excepción (que
-        # puede contener una ruta): sólo el nombre del tipo.
+        # Se dice QUÉ pasa y nada más. Ni la ruta del paquete, ni la traza, ni
+        # el mensaje de la excepción (que puede contener una ruta): sólo el
+        # código estable y una frase accionable.
+        mensaje, estado = _desenlace(exc)
         return templates.TemplateResponse(
             request, SLOT.template,
             _context(
                 request, user,
-                error="No se pudo leer el paquete de propuestas: revisa la exportación del motor.",
-                error_detail=type(exc).__name__,
+                error=mensaje,
+                error_detail=getattr(exc, "code", type(exc).__name__),
                 workspaces=[], workspace=None, view=None, spec=spec, sort=sort,
                 page_sizes=console.PAGE_SIZES, sorts=tuple(console.SORTS),
             ),
-            status_code=503,
+            status_code=estado,
         )
     # build_view FILTRA, ordena y SÓLO ENTONCES pagina. Los contadores salen
     # del conjunto filtrado, no de la página.
@@ -202,6 +243,7 @@ def chassis_review_item(
     reason_code: Optional[str] = Query(default=None),
     provider: Optional[str] = Query(default=None),
     extractor: Optional[str] = Query(default=None),
+    job_id: Optional[str] = Query(default=None),
     q: Optional[str] = Query(default=None),
     disagreements_only: bool = Query(default=False),
     low_confidence_only: bool = Query(default=False),
@@ -227,23 +269,24 @@ def chassis_review_item(
         raise HTTPException(status_code=400, detail="Orden no soportado")
     spec = _spec(
         decision=decision, reason_code=reason_code, provider=provider, extractor=extractor,
-        query=q, disagreements_only=disagreements_only, low_confidence_only=low_confidence_only,
+        job_id=job_id, query=q, disagreements_only=disagreements_only, low_confidence_only=low_confidence_only,
         low_confidence_threshold=low_confidence_threshold, min_confidence=min_confidence,
         max_confidence=max_confidence, include_decided=include_decided,
     )
     try:
         workspaces, selected, items = _load(workspace, scope)
     except ReviewError as exc:
+        mensaje, estado = _desenlace(exc)
         return templates.TemplateResponse(
             request, SLOT.template,
             _context(
                 request, user,
-                error="No se pudo leer el paquete de propuestas: revisa la exportación del motor.",
-                error_detail=type(exc).__name__,
+                error=mensaje,
+                error_detail=getattr(exc, "code", type(exc).__name__),
                 workspaces=[], workspace=None, view=None, spec=spec, sort=sort,
                 page_sizes=console.PAGE_SIZES, sorts=tuple(console.SORTS),
             ),
-            status_code=503,
+            status_code=estado,
         )
     view = console.build_view(items, spec, sort=sort, page=1, page_size=max(1, len(items)))
     previous, current, following, position = console.neighbours(view.rows_all, proposal_id)

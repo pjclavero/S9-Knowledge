@@ -20,6 +20,7 @@ Ejecución manual:
 """
 from __future__ import annotations
 
+import inspect
 import argparse
 import logging
 import sys
@@ -102,6 +103,19 @@ def dispatch(job: dict) -> dict:
         except (TypeError, ValueError) as exc:
             raise JobHandlerError(f"payload_json inválido: {exc}") from exc
 
+    # LA IDENTIDAD DE LA CORRIDA LA PONE LA COLA, NO EL PAYLOAD.
+    #
+    # El payload lo construye el panel al encolar y es dato del operador; el
+    # `job_id` es dato del almacen de jobs. Por eso NO se mete dentro del
+    # payload: hacerlo se lo cuela a TODOS los handlers como si fuera un campo
+    # que el operador envio (medido: el handler `echo` lo devolvia en su eco),
+    # y ademas dejaria que un payload con `job_id` propio atribuyera una
+    # propuesta a una corrida que no la produjo.
+    #
+    # Se entrega como ARGUMENTO, y solo a quien lo DECLARA en su firma. Un
+    # handler que no lo pide se sigue llamando exactamente igual que antes.
+    if "job_id" in inspect.signature(handler).parameters:
+        return handler(payload, job_id=job.get("job_id"))
     return handler(payload)
 
 
