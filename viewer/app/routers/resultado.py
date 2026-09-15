@@ -66,10 +66,12 @@ FLAG_ENV = "S9K_PANEL_RESULTADO_ENABLED"
 RUTA_RESULTADO = "resultado_de_ejecucion"
 RUTA_EVIDENCIA = "resultado_evidencia_de_hecho"
 
-#: Cuerpo UNICO del 404. Se nombra una sola vez a proposito: la
-#: indistinguibilidad entre "no existe" y "no es tuyo" se rompe el dia que
-#: alguien escribe dos mensajes parecidos en dos sitios distintos.
-NO_ENCONTRADO = "No hay ningun resultado con ese identificador."
+#: Cuerpo UNICO del 404, en la forma `CODIGO: frase` que fijo el Corte 1. Se
+#: nombra UNA sola vez a proposito: la indistinguibilidad entre "no existe" y
+#: "no es tuyo" se rompe el dia que alguien escribe dos mensajes parecidos en
+#: dos sitios distintos. Nunca `str(exc)`, nunca el nombre de la clase, nunca
+#: una ruta del servidor -- este repositorio es PUBLICO.
+NO_ENCONTRADO = servicio.detalle_seguro(servicio.RESULT_NOT_FOUND)
 
 router = APIRouter(prefix=PREFIJO, tags=["resultado"])
 
@@ -132,12 +134,19 @@ def resultado_de_ejecucion(
     _exigir_encendido()
 
     ws = workspace or get_settings().S9K_DEFAULT_WORKSPACE
-    resultado = servicio.resultado_de_apply(
-        provider=provider,
-        reader=reader_for(provider),
-        workspace=ws,
-        apply_id=apply_id,
-    )
+    try:
+        resultado = servicio.resultado_de_apply(
+            provider=provider,
+            reader=reader_for(provider),
+            workspace=ws,
+            apply_id=apply_id,
+        )
+    except servicio.ProcedenciaNoDisponible as exc:
+        # 503 y no 404: la dependencia caida no es culpa de quien mira, y un
+        # 404 le haria perder el tiempo buscando un identificador que si era
+        # bueno. Misma resolucion que el Corte 4 para el almacen de propuestas.
+        raise HTTPException(
+            status_code=503, detail=servicio.detalle_seguro(exc.code)) from exc
     if resultado is None:
         raise HTTPException(status_code=404, detail=NO_ENCONTRADO)
 
@@ -177,13 +186,17 @@ def resultado_evidencia_de_hecho(
     _exigir_encendido()
 
     ws = workspace or get_settings().S9K_DEFAULT_WORKSPACE
-    detalle = servicio.detalle_de_asercion(
-        provider=provider,
-        reader=reader_for(provider),
-        workspace=ws,
-        apply_id=apply_id,
-        assertion_id=assertion_id,
-    )
+    try:
+        detalle = servicio.detalle_de_asercion(
+            provider=provider,
+            reader=reader_for(provider),
+            workspace=ws,
+            apply_id=apply_id,
+            assertion_id=assertion_id,
+        )
+    except servicio.ProcedenciaNoDisponible as exc:
+        raise HTTPException(
+            status_code=503, detail=servicio.detalle_seguro(exc.code)) from exc
     if detalle is None:
         raise HTTPException(status_code=404, detail=NO_ENCONTRADO)
 

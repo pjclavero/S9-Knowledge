@@ -54,12 +54,18 @@ fuga con una hoja de estilo delante.
 AUSENCIA != CERO
 ----------------
 Cada bloque del resultado lleva su propio ESTADO explicito
-(``DISPONIBLE``/``VACIO``/``NO_DISPONIBLE``/``ERROR``). Una pantalla que no
-pudo leer no publica un ``0``: publica ``NO_DISPONIBLE`` o ``ERROR`` y ni una
-cifra. Es el mismo defecto que el Carril A acaba de cerrar en la pantalla de
-revision; aqui se evita desde el principio y no se comparte su modulo porque
-en esta BASE todavia no existe (deuda declarada en el PR: unificar vocabulario
-cuando ese carril entre en ``main``).
+(``DISPONIBLE``/``VACIO``/``ERROR``). Una seccion que no se pudo leer no
+publica un ``0``: publica ``ERROR`` y ni una cifra. Y cuando lo que falta es
+la DEPENDENCIA entera --no una seccion-- no hay pagina: hay un **503** con
+codigo estable, porque una pantalla llena de huecos no es una respuesta
+honesta y un **404** mandaria a quien mira a buscar un identificador que si
+era bueno.
+
+Es la misma doctrina que el Corte 4 fijo para el almacen de propuestas
+(``services/v3_review.py``: codigo estable, ``CODIGO: frase`` en el
+``detail``, 503 para la dependencia ausente), aplicada aqui desde el
+principio. El catalogo de codigos es PROPIO --ver mas abajo por que-- y
+unificar los dos es deuda declarada, no tarea de este carril.
 
 CERO ESCRITURAS. Ni un ``CREATE``, ni un ``MERGE``, ni un ``SET``. Ninguna
 funcion de aqui abre una transaccion de escritura y ninguna ruta que la use
@@ -73,21 +79,79 @@ from typing import Any, Optional
 from app.providers.provenance_reader import ProvenanceReader
 
 __all__ = [
-    "DISPONIBLE", "VACIO", "NO_DISPONIBLE", "ERROR", "ESTADOS",
-    "Bloque", "Resultado", "DetalleEvidencia",
+    "DISPONIBLE", "VACIO", "ERROR", "ESTADOS",
+    "Bloque", "Resultado", "DetalleEvidencia", "ProcedenciaNoDisponible",
+    "CODIGOS", "detalle_seguro",
+    "RESULT_NOT_FOUND", "PROVENANCE_READER_UNAVAILABLE",
     "resultado_de_apply", "detalle_de_asercion", "es_apply_id",
 ]
+
+# --------------------------------------------------------------------------
+# Codigos estables + frase accionable, la forma que fijo el Corte 1
+# --------------------------------------------------------------------------
+# Misma doctrina que `app/panel_errors.py` y que el Corte 4: el CODIGO es API
+# --estable, buscable, correlacionable con el log-- y la FRASE es para una
+# persona. Nunca sale `str(exc)`, nunca sale el nombre de la clase de la
+# excepcion y nunca sale una ruta del servidor: este repositorio es PUBLICO y
+# ya tuvo un incidente por topologia interna.
+#
+# El catalogo es PROPIO y no se anade al de `panel_errors`: aquel declara su
+# alcance --"el CAMINO NUEVO del Corte 1"-- y ampliarlo desde aqui seria
+# apropiarse de una superficie ajena. Unificar los dos catalogos es deuda
+# declarada, no una tarea de este carril.
+
+#: No hay ningun resultado con ese identificador para este lector. Cubre a la
+#: vez "no existe", "no es tuyo" y "el identificador esta mal formado": los
+#: tres dan el MISMO codigo y la MISMA frase, que es lo que impide usar la
+#: pantalla como oraculo de existencia.
+RESULT_NOT_FOUND = "RESULT_NOT_FOUND"
+
+#: Este despliegue no puede leer la procedencia. NO es "no hay procedencia", y
+#: no se degrada a una pantalla vacia: es indisponibilidad de una DEPENDENCIA,
+#: y el desenlace correcto es 503 --la dependencia caida no es culpa de quien
+#: mira--. Misma resolucion que tomo el Corte 4 para el almacen de propuestas.
+PROVENANCE_READER_UNAVAILABLE = "PROVENANCE_READER_UNAVAILABLE"
+
+CODIGOS: dict[str, str] = {
+    RESULT_NOT_FOUND:
+        "No hay ningun resultado con ese identificador.",
+    PROVENANCE_READER_UNAVAILABLE:
+        "Este despliegue no puede consultar la procedencia, asi que no se "
+        "sabe que cambio esta ejecucion. Avisa a quien administra el servicio.",
+}
+
+
+def detalle_seguro(code: str) -> str:
+    """`CODIGO: frase`, y nada mas. FALLA RUIDOSAMENTE si el codigo no existe.
+
+    Un codigo inventado no se degrada a un mensaje generico: eso convertiria
+    una errata en un mensaje mudo en produccion.
+    """
+    return f"{code}: {CODIGOS[code]}"
+
+
+class ProcedenciaNoDisponible(RuntimeError):
+    """La dependencia de procedencia no esta. La ruta lo traduce a 503.
+
+    No lleva --ni puede llevar-- ningun campo con detalle tecnico: si no existe
+    el sitio donde meter la ruta del servidor, nadie la mete "solo esta vez".
+    """
+
+    code = PROVENANCE_READER_UNAVAILABLE
 
 #: Hay MATERIAL y se pinta.
 DISPONIBLE = "DISPONIBLE"
 #: La lectura FUE BIEN y no habia nada. Un cero MEDIDO.
 VACIO = "VACIO"
-#: Este despliegue no sabe leer procedencia. NO es un cero.
-NO_DISPONIBLE = "NO_DISPONIBLE"
-#: La lectura FALLO. Tampoco es un cero, y no publica cifras.
+#: La lectura de ESA seccion FALLO. Tampoco es un cero, y no publica cifras.
+#:
+#: No hay un cuarto estado "no disponible": cuando lo que falta es la
+#: dependencia entera, la respuesta es un 503 con codigo estable y no una
+#: pagina. Un estado sin productor es vocabulario muerto, y el vocabulario
+#: muerto acaba usandose para otra cosa.
 ERROR = "ERROR"
 
-ESTADOS: tuple[str, ...] = (DISPONIBLE, VACIO, NO_DISPONIBLE, ERROR)
+ESTADOS: tuple[str, ...] = (DISPONIBLE, VACIO, ERROR)
 
 #: Forma admisible de un `apply_id` (``writer/apply_identity.py``). Se
 #: comprueba ANTES de tocar la base: una cadena arbitraria en la URL no llega a
@@ -111,7 +175,7 @@ class Bloque:
     """Una seccion del resultado, CON SU ESTADO. Nunca una lista pelada.
 
     ``filas`` solo tiene sentido en ``DISPONIBLE`` y ``VACIO``. En
-    ``NO_DISPONIBLE`` y ``ERROR`` se queda vacia y ``total`` vale ``None``: una
+    ``ERROR`` se queda vacia y ``total`` vale ``None``: una
     seccion que no se pudo leer no publica un recuento, porque un ``0`` ahi es
     una afirmacion que nadie ha medido.
     """
@@ -124,10 +188,6 @@ class Bloque:
     def leido(cls, filas: list) -> "Bloque":
         filas = list(filas)
         return cls(estado=DISPONIBLE if filas else VACIO, filas=filas, total=len(filas))
-
-    @classmethod
-    def no_disponible(cls) -> "Bloque":
-        return cls(estado=NO_DISPONIBLE, filas=[], total=None)
 
     @classmethod
     def con_error(cls) -> "Bloque":
@@ -228,9 +288,16 @@ def resultado_de_apply(
     identificador en el. Los tres dan el MISMO ``None`` y la ruta el MISMO 404,
     para que la pantalla no sirva de oraculo de existencia.
 
-    ``reader`` a ``None`` NO es ``None``: es un resultado con todos los bloques
-    en ``NO_DISPONIBLE``, porque "este despliegue no lee procedencia" y "ese
-    apply no existe" son cosas distintas y el operador necesita distinguirlas.
+    ``reader`` a ``None`` NO devuelve ``None``: levanta
+    ``ProcedenciaNoDisponible``, que la ruta traduce a **503**. "Este despliegue
+    no lee procedencia" y "ese apply no existe" son cosas distintas, y un 404
+    ahi haria perder el tiempo a quien mira buscando un identificador que si
+    era bueno. La dependencia caida no es culpa del lector.
+
+    El ORDEN importa y no es cosmetico: la forma del identificador y el ambito
+    se comprueban ANTES que la dependencia. Al reves, un lector sin derechos
+    sobre un workspace podria distinguir "ese workspace existe" de "no existe"
+    comparando 503 contra 404.
     """
     if not es_apply_id(apply_id):
         return None
@@ -238,13 +305,7 @@ def resultado_de_apply(
         return None
 
     if reader is None:
-        return Resultado(
-            apply_id=apply_id, workspace=workspace, ownership_id=None,
-            partida_id=None, aplicado_en=None, operaciones=0,
-            entidades=Bloque.no_disponible(),
-            relaciones=Bloque.no_disponible(),
-            hechos=Bloque.no_disponible(),
-        )
+        raise ProcedenciaNoDisponible(PROVENANCE_READER_UNAVAILABLE)
 
     try:
         operaciones = reader.operations_of_apply(workspace, apply_id)
@@ -398,15 +459,16 @@ def detalle_de_asercion(
     2. el workspace esta autorizado para este lector;
     3. los extremos de entidad del hecho son visibles para este lector.
 
-    ``reader`` a ``None`` da un detalle con la evidencia en ``NO_DISPONIBLE``,
-    no un ``None``, por la misma razon que en ``resultado_de_apply``.
+    ``reader`` a ``None`` levanta ``ProcedenciaNoDisponible`` -> **503**, igual
+    que en ``resultado_de_apply`` y por la misma razon: un 404 diria "ese hecho
+    no existe", que es una afirmacion que nadie ha comprobado.
     """
     if not es_apply_id(apply_id) or not assertion_id:
         return None
     if not _workspace_autorizado(provider, workspace):
         return None
     if reader is None:
-        return None
+        raise ProcedenciaNoDisponible(PROVENANCE_READER_UNAVAILABLE)
 
     try:
         operaciones = reader.operations_of_apply(workspace, apply_id)

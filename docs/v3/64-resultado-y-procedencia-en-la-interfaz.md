@@ -75,15 +75,32 @@ que escribió. El único vínculo es **por valor**, `idempotency_key`. No hay no
 que represente la ejecución en sí. Funciona, pero es una unión por valor y
 conviene saberlo.
 
-## 4. Ausencia ≠ cero
+## 4. Ausencia ≠ cero, y dónde vive cada desenlace
 
-Cada bloque lleva su estado: `DISPONIBLE` · `VACIO` · `NO_DISPONIBLE` · `ERROR`.
-Una pantalla que no pudo leer **no publica un `0`** —`total` vale `None`—,
-porque ese cero no lo ha medido nadie.
+Dentro de la página, cada bloque lleva su estado: `DISPONIBLE` · `VACIO` ·
+`ERROR`. Una sección que no se pudo leer **no publica un `0`** —`total` vale
+`None`—, porque ese cero no lo ha medido nadie.
 
-`NO_DISPONIBLE` (este despliegue no lee procedencia) y «ese apply no existe»
-son cosas distintas: el primero es una página uniforme para cualquier
-identificador, el segundo es un 404.
+**No hay un cuarto estado «no disponible».** Cuando lo que falta no es una
+sección sino la **dependencia entera**, no hay página: hay un **503** con
+código estable. Una pantalla llena de huecos no es una respuesta honesta, y un
+**404** mandaría a quien mira a buscar un identificador que sí era bueno —la
+dependencia caída no es culpa del lector—. Un estado declarado que nadie emite
+es vocabulario muerto, y hay una prueba que exige que los tres tengan
+productor real.
+
+| situación | desenlace |
+|---|---|
+| no existe / no es tuyo / identificador mal formado | `404` · `RESULT_NOT_FOUND` |
+| este despliegue no lee procedencia | `503` · `PROVENANCE_READER_UNAVAILABLE` |
+| una sección falla, el resto es real | `200` con esa sección en `ERROR` |
+
+El `detail` es siempre `CODIGO: frase`. **Nunca `str(exc)`, nunca el nombre de
+la clase, nunca una ruta del servidor** — este repositorio es público y ya tuvo
+un incidente por topología interna. Es la doctrina que fijó el Corte 1 y
+confirmó el Corte 4; el catálogo de códigos es propio porque `panel_errors`
+declara su alcance («el camino nuevo del Corte 1») y ampliarlo desde aquí sería
+apropiarse de una superficie ajena. **Unificarlos es deuda declarada.**
 
 ## 5. Montaje
 
@@ -120,12 +137,33 @@ y el grafo se queda a cero. Un `apply_id` perfectamente válido para un apply qu
 
 ## 7. Lo que sigue faltando
 
-* **Carril B.** Hoy no hay apply lanzado desde la interfaz: en `main` no existe
-  un plan aprobado durable. Esta superficie parte del `apply_id` que produce la
-  ruta que sí existe (CLI/pipeline) y **no depende de cómo se lanzó el apply**:
-  cuando B entre, sigue valiendo sin cambios.
-* **Vocabulario de estados.** El Carril A introduce
-  `AVAILABLE/EMPTY/UNAVAILABLE/ERROR` en la pantalla de revisión; en esta base
-  todavía no existe. Cuando entre, unificar los dos vocabularios en un módulo.
+* **Carril B — dependencia declarada.** El operador ya decidió que el plan
+  aprobado se persiste como **snapshot canónico e inmutable en
+  `review.sqlite3`**, ligado a la corrida, y que el apply consume *ese*
+  snapshot. El eje pasa a ser
+  `run → sealed approved plan → apply_id → cambios → entidades/relaciones → evidencia`.
+
+  Esta superficie **entra por `apply_id` y no inventa ninguna identidad
+  propia**: consume la que produce el writer (`compute_apply_id`). Así que el
+  tramo `apply_id → cambios → evidencia` —que es el que implementa este
+  bloque— **no cambia** cuando B fije el sellado; lo que se añadirá entonces es
+  el tramo de *arriba* (`run → plan sellado → apply_id`), que **no se
+  implementa aquí**.
+
+  Mientras tanto **sigue sin haber un apply lanzado desde la interfaz**: la
+  prueba insignia parte de un apply real por la ruta que sí existe
+  (`ingest_cli --apply`). Declarado, no disimulado.
+
+* **Un plan `superseded` no es un error.** Un cambio de decisión posterior no
+  modifica un plan sellado: lo invalida y exige revisión nueva. Una procedencia
+  puede por tanto apuntar a un plan superseded, y eso es **historia legítima**.
+  Esta pantalla no lo presentará como inconsistencia — de hecho **hoy no lee
+  planes en absoluto**: va de `apply_id` a las marcas del writer, así que no
+  tiene ninguna forma de contradecir ese estado.
+* **Vocabulario de estados y catálogo de códigos duplicados.** El Corte 4 (ya
+  en `main`) tiene su propio vocabulario en la pantalla de revisión y su propio
+  catálogo (`PROPOSALS_STORE_MISSING`, …). Aquí se sigue la misma *doctrina*
+  con catálogo propio. Unificar ambos en un módulo compartido es deuda
+  declarada; hacerlo desde este carril sería tocar una superficie ajena.
 * **Sin entrada de menú.** Se llega por el `apply_id`. Una lista de ejecuciones
   exigiría un nodo que represente la ejecución (§3), que no existe.
