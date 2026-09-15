@@ -86,17 +86,14 @@ def _encendido() -> bool:
     return raw.strip().lower() in FLAG_ON_VALUES
 
 
-def _authorize(user):
-    """Puerta de ROL y luego interruptor, EN ESE ORDEN.
+def _exigir_encendido() -> None:
+    """El interruptor, DESPUES de la puerta de rol.
 
     El orden no es cosmetico: si el interruptor se evaluara antes, un anonimo
     podria averiguar si la pantalla esta encendida comparando 404 contra 302.
     """
-    if isinstance(user, (RedirectResponse, HTMLResponse)):
-        return user
     if not _encendido():
         raise HTTPException(status_code=404, detail=NO_ENCONTRADO)
-    return None
 
 
 def _contexto(user, **extra) -> dict:
@@ -122,9 +119,17 @@ def resultado_de_ejecucion(
     (``apply:<32hex>``, derivada de workspace+ambito+snapshot+plan_hash). No es
     una posicion, ni un nombre de fichero, ni un ``elementId``.
     """
-    denegado = _authorize(user)
-    if denegado is not None:
-        return denegado
+    # `html_role_guard` es un guardian PASIVO: no deniega por si solo, DEVUELVE
+    # la respuesta de denegacion y es el handler quien tiene que devolverla. Si
+    # esto no estuviera, la ruta declararia guardian y serviria 200 a un
+    # anonimo. Va escrito AQUI, a la vista de la ruta, y no delegado a un
+    # ayudante: el censo de rutas (`scripts/route_map`) comprueba por AST que
+    # el handler devuelve la salida de SU parametro de guardia, y un ayudante
+    # lo esconde -- que es, de hecho, como los cuatro huecos del chasis se
+    # libran hoy de esta comprobacion (deuda anotada, no arreglada aqui).
+    if isinstance(user, (RedirectResponse, HTMLResponse)):
+        return user
+    _exigir_encendido()
 
     ws = workspace or get_settings().S9K_DEFAULT_WORKSPACE
     resultado = servicio.resultado_de_apply(
@@ -159,9 +164,17 @@ def resultado_evidencia_de_hecho(
     la pantalla de una ejecucion ensenaria la evidencia de otra --atribucion
     cruzada-- y las dos se verian igual de bien.
     """
-    denegado = _authorize(user)
-    if denegado is not None:
-        return denegado
+    # `html_role_guard` es un guardian PASIVO: no deniega por si solo, DEVUELVE
+    # la respuesta de denegacion y es el handler quien tiene que devolverla. Si
+    # esto no estuviera, la ruta declararia guardian y serviria 200 a un
+    # anonimo. Va escrito AQUI, a la vista de la ruta, y no delegado a un
+    # ayudante: el censo de rutas (`scripts/route_map`) comprueba por AST que
+    # el handler devuelve la salida de SU parametro de guardia, y un ayudante
+    # lo esconde -- que es, de hecho, como los cuatro huecos del chasis se
+    # libran hoy de esta comprobacion (deuda anotada, no arreglada aqui).
+    if isinstance(user, (RedirectResponse, HTMLResponse)):
+        return user
+    _exigir_encendido()
 
     ws = workspace or get_settings().S9K_DEFAULT_WORKSPACE
     detalle = servicio.detalle_de_asercion(
