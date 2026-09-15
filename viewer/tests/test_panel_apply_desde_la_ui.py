@@ -667,3 +667,265 @@ def test_la_pantalla_no_publica_conocimiento_interno(
     assert not filtradas, f"la pantalla publica material interno: {filtradas}"
     for palabra in ("Traceback", "sqlite3", "neo4j://", "bolt://"):
         assert palabra not in html, f"la pantalla publica «{palabra}»"
+
+
+# ===========================================================================
+# 7. EL GRAFO DE VERDAD. Contenedor propio, prefijo propio, limpieza una a una
+# ===========================================================================
+
+def _docker(*args, **kwargs):
+    return subprocess.run(["docker", *args], capture_output=True, text=True, **kwargs)
+
+
+def _puerto_libre() -> int:
+    import socket
+
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+@pytest.fixture(scope="session")
+def grafo_real():
+    """Un Neo4j EFÍMERO Y PROPIO. Se borra por NOMBRE, nunca con `prune`.
+
+    Un `docker prune` global se llevaría por delante material de otro carril
+    que esté corriendo a la vez en esta misma máquina. Aquí se arranca un
+    contenedor con prefijo propio y se retira ese, uno.
+    """
+    if not WRITER_REAL:
+        pytest.skip("sin S9K_WRITER_NEO4J_REAL=1")
+    import time
+
+    import neo4j
+
+    imagen = os.environ.get("S9K_WRITER_NEO4J_IMAGE", "neo4j:5.26-community")
+    nombre = f"{PREFIJO_CONTENEDOR}-{uuid.uuid4().hex[:10]}"
+    puerto = _puerto_libre()
+    clave = "s9k-apply-ui-" + uuid.uuid4().hex[:12]
+    arranque = _docker(
+        "run", "--rm", "--detach", "--name", nombre,
+        "--publish", f"127.0.0.1:{puerto}:7687",
+        "--env", f"NEO4J_AUTH=neo4j/{clave}",
+        "--env", "NEO4J_server_memory_heap_max__size=512m",
+        imagen,
+    )
+    if arranque.returncode != 0:
+        pytest.skip(f"no se pudo arrancar Neo4j: {arranque.stderr[:200]}")
+    uri = f"bolt://127.0.0.1:{puerto}"
+    driver = None
+    try:
+        limite = time.time() + 180
+        ultimo = None
+        while time.time() < limite:
+            try:
+                driver = neo4j.GraphDatabase.driver(uri, auth=("neo4j", clave))
+                driver.verify_connectivity()
+                break
+            except Exception as exc:  # noqa: BLE001
+                ultimo = exc
+                if driver is not None:
+                    driver.close()
+                    driver = None
+                time.sleep(2)
+        if driver is None:
+            pytest.skip(f"Neo4j no llegó a estar listo: {ultimo}")
+        import sys
+        raiz = str(REPO / "data-engine" / "app")
+        if raiz not in sys.path:
+            sys.path.insert(0, raiz)
+        from knowledge_v3.writer.schema import bootstrap_writer_schema
+        bootstrap_writer_schema(driver)
+        yield {"driver": driver, "uri": uri, "user": "neo4j", "password": clave}
+    finally:
+        if driver is not None:
+            driver.close()
+        _docker("rm", "-f", nombre)
+
+
+@pytest.fixture
+def grafo(grafo_real, monkeypatch):
+    """Grafo LIMPIO por caso, y el visor apuntando a él con permiso declarado."""
+    from app.config import get_settings
+
+    with grafo_real["driver"].session() as sesion:
+        sesion.run("MATCH (n) DETACH DELETE n")
+    monkeypatch.setenv("S9K_NEO4J_URI", grafo_real["uri"])
+    monkeypatch.setenv("S9K_NEO4J_USER", grafo_real["user"])
+    monkeypatch.setenv("S9K_NEO4J_PASSWORD", grafo_real["password"])
+    monkeypatch.setenv("S9K_ALLOW_REAL_INGEST", "1")
+    monkeypatch.setenv("S9K_WRITER_WORKSPACE", "ws-cofradia")
+    get_settings.cache_clear()
+    yield grafo_real["driver"]
+    with grafo_real["driver"].session() as sesion:
+        sesion.run("MATCH (n) DETACH DELETE n")
+    get_settings.cache_clear()
+
+
+def _afirmaciones(driver, workspace: str) -> list:
+    """Las afirmaciones del grafo, por IDENTIDAD DURABLE.
+
+    Una consulta por cosa contada y comparación por `assertion_id`, nunca por
+    `elementId`: el `elementId` se regenera al restaurar un dump y no
+    identifica nada durable.
+    """
+    with driver.session() as sesion:
+        filas = sesion.run(
+            "MATCH (a:V3Assertion {workspace: $ws}) "
+            "RETURN a.assertion_id AS id, a.predicate AS predicate, "
+            "       a.subject_entity_id AS sujeto, a.object_entity_id AS objeto "
+            "ORDER BY a.assertion_id",
+            ws=workspace,
+        ).data()
+    return filas
+
+
+# ---------------------------------------------------------------------------
+# LA PRUEBA INSIGNIA
+# ---------------------------------------------------------------------------
+
+@neo4j_real
+def test_de_la_fuente_al_conocimiento_materializado_desde_la_ui(
+    real_app, paneles_on, cola, operador, almacenes, grafo, monkeypatch
+):
+    """fuente -> ingest -> REVIEW -> aprobar -> botón -> apply REAL -> grafo.
+
+    Todo el recorrido por el panel. Lo que se afirma al final no es «hay algo
+    escrito» sino que el `assertion_id` que está en Neo4j es EXACTAMENTE el que
+    el plan sellado declaró: identidad durable contra identidad durable.
+    """
+    workspace = "ws-cofradia"
+    assert _afirmaciones(grafo, workspace) == [], "el grafo tiene que empezar vacío"
+
+    job_id, propuesta = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+
+    fila = _filas_de_plan(almacenes["base"])[0]
+    documento = json.loads(fila["plan_json"])
+    esperadas = sorted(op["assertion_id"] for op in documento["mutation_operations"])
+    assert esperadas, "el plan sellado no declara ninguna afirmación"
+
+    # La pantalla OFRECE la acción, y es la pantalla la que la ejerce.
+    bloque = _bloque_plan(_panel(operador, job_id))
+    assert bloque["atributos"]["habilitado"] == "true"
+    assert bloque["form_aplicacion"], "no se ofrece el botón de aplicar"
+
+    assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_APPLIED"
+
+    # MATERIALIZADO, y comprobado por identidad durable.
+    escritas = _afirmaciones(grafo, workspace)
+    assert sorted(f["id"] for f in escritas) == esperadas, escritas
+    for f in escritas:
+        assert f["predicate"], "una afirmación sin predicado no es conocimiento"
+        assert f["sujeto"] and f["objeto"]
+
+    # Y el estado durable lo dice: aplicado, con su `apply_id`.
+    despues = _filas_de_plan(almacenes["base"])[0]
+    assert despues["state"] == "applied"
+    assert despues["apply_id"], "un apply sin identidad durable no es auditable"
+    assert despues["plan_json"] == fila["plan_json"], (
+        "el plan aplicado se modificó: tiene que quedar inmutable"
+    )
+
+    # La pantalla cuenta el desenlace y ya no ofrece repetirlo.
+    final = _bloque_plan(_panel(operador, job_id))
+    assert final["atributos"]["estado"] == "applied"
+    assert not final["form_aplicacion"]
+    assert "applied" in final["desenlace"]
+
+
+@neo4j_real
+def test_aplicar_dos_veces_no_duplica_conocimiento(
+    real_app, paneles_on, cola, operador, almacenes, grafo, monkeypatch
+):
+    """Doble clic: CERO duplicación semántica, y comportamiento EXPLÍCITO.
+
+    No basta con que el segundo intento «no rompa»: tiene que decir qué pasó.
+    """
+    workspace = "ws-cofradia"
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_APPLIED"
+
+    primera = _afirmaciones(grafo, workspace)
+    assert primera, "el primer apply no escribió nada: el caso no mide nada"
+
+    # Segundo clic, exactamente igual que el primero.
+    assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_ALREADY_APPLIED"
+
+    segunda = _afirmaciones(grafo, workspace)
+    assert segunda == primera, "el segundo apply duplicó conocimiento"
+    assert len(_filas_de_plan(almacenes["base"])) == 1
+
+
+@neo4j_real
+def test_apply_consume_el_snapshot_y_no_lo_que_el_pipeline_diria_ahora(
+    real_app, paneles_on, cola, operador, almacenes, grafo, monkeypatch
+):
+    """EL CONTROL MÁS IMPORTANTE DEL CARRIL, ejercido de verdad.
+
+    Se sella el plan y DESPUÉS se cambia el almacén de propuestas para que una
+    derivación nueva produjera un plan DISTINTO: se reescribe el paquete
+    cambiando el predicado, lo que cambia el `assertion_id` derivado.
+
+    La afirmación es que lo que acaba en el grafo sigue siendo lo del SNAPSHOT
+    --el `assertion_id` sellado-- y no lo que saldría de derivar otra vez. La
+    mutación del producto que sustituye la carga del snapshot por una
+    regeneración pone esto rojo: el grafo traería el `assertion_id` del
+    predicado nuevo, que aquí se comprueba que NO está.
+    """
+    workspace = "ws-cofradia"
+    job_id, propuesta = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+
+    documento = json.loads(_filas_de_plan(almacenes["base"])[0]["plan_json"])
+    sellado = sorted(op["assertion_id"] for op in documento["mutation_operations"])
+    predicado_sellado = documento["mutation_operations"][0]["payload"]["predicate"]
+
+    # --- se cambia el material del que se derivaría un plan nuevo -----------
+    predicado_nuevo = "ALLIED_WITH" if predicado_sellado != "ALLIED_WITH" else "LEADS"
+    tocados = 0
+    for fichero in sorted(almacenes["propuestas"].glob("*.json")):
+        paquete = json.loads(fichero.read_text(encoding="utf-8"))
+        for item in paquete.get("items", []):
+            if item.get("proposal_id") == propuesta["proposal_id"]:
+                item["proposal"]["predicate"] = predicado_nuevo
+                tocados += 1
+        contexto = paquete.get("plan_context") or {}
+        decision = (contexto.get("decisions") or {}).get(propuesta["proposal_id"])
+        if decision:
+            decision["predicate"] = predicado_nuevo
+        fichero.write_text(json.dumps(paquete, ensure_ascii=False, sort_keys=True),
+                           encoding="utf-8")
+    assert tocados == 1, "el cambio no llegó a la propuesta: el control no mide nada"
+
+    # CALIBRACIÓN: el cambio produce de verdad OTRA identidad. Sin esto, el
+    # caso podría estar verde porque la derivación nueva coincide con la vieja.
+    import sys
+    raiz = str(REPO / "data-engine" / "app")
+    if raiz not in sys.path:
+        sys.path.insert(0, raiz)
+    from knowledge_v3.engine.planner import assertion_identity
+    otra = assertion_identity(
+        workspace=workspace,
+        collection_id=documento["collection_id"],
+        subject_entity_id=documento["mutation_operations"][0]["payload"]["subject_entity_id"],
+        object_entity_id=documento["mutation_operations"][0]["payload"]["object_entity_id"],
+        predicate=predicado_nuevo,
+        direction=documento["mutation_operations"][0]["payload"]["direction"],
+        negated=documento["mutation_operations"][0]["payload"]["negated"],
+    )
+    assert otra not in sellado, (
+        "la derivación nueva daría el MISMO id: el control no distinguiría nada"
+    )
+
+    assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_APPLIED"
+
+    escritas = sorted(f["id"] for f in _afirmaciones(grafo, workspace))
+    assert escritas == sellado, (
+        "el apply NO consumió el snapshot sellado"
+    )
+    assert otra not in escritas, (
+        "en el grafo está la afirmación que saldría de RECALCULAR el plan: "
+        "el apply regeneró en vez de consumir lo que el operador revisó"
+    )
