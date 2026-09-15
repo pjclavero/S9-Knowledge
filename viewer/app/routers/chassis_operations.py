@@ -109,7 +109,7 @@ autorizado.
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 import json
 import logging
@@ -406,6 +406,27 @@ def _aviso(codigo: Optional[str], job_id: Optional[str], scope: VisibilityScope)
     }
 
 
+def _revision_del_resultado(bruto: Any) -> Optional[dict]:
+    """La atribución de la corrida, curada para la plantilla.
+
+    `None` cuando el handler no la publicó (corridas anteriores al Corte 4, o
+    una ingesta que no exportó cola). La plantilla no pinta entonces ningún
+    enlace: ofrecer uno a la cola entera diciendo que son «sus» propuestas
+    sería otra vez presentar una cosa por otra.
+    """
+    if not isinstance(bruto, dict):
+        return None
+    job_id = bruto.get("job_id")
+    if not job_id:
+        return None
+    propuestas = bruto.get("propuestas")
+    return {
+        "job_id": str(job_id),
+        "workspace": str(bruto.get("workspace") or ""),
+        "propuestas": propuestas if isinstance(propuestas, int) else None,
+    }
+
+
 def _resultado_del_trabajo(job: Optional[dict]) -> Optional[dict]:
     """Lo que el operador lee cuando el trabajo TERMINA. Explica el desenlace.
 
@@ -437,6 +458,12 @@ def _resultado_del_trabajo(job: Optional[dict]) -> Optional[dict]:
                            or "La ingesta ha terminado correctamente."),
             "resumen": resultado.get("resumen")
             if isinstance(resultado.get("resumen"), dict) else None,
+            # ENLACE A SU REVISIÓN. Por LISTA BLANCA, igual que el resumen: de
+            # todo el bloque `revision` del handler sólo pasan las tres piezas
+            # con las que se arma el enlace. Nada de rutas ni de nombres de
+            # paquete: el `job_id` ya lo conoce el operador, el `workspace`
+            # también, y el recuento es el que la corrida declaró.
+            "revision": _revision_del_resultado(resultado.get("revision")),
         }
     if estado in ESTADOS_FALLIDOS:
         crudo = job.get("error_message") or ""

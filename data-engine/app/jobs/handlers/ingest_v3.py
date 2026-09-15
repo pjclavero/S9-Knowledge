@@ -112,6 +112,8 @@ def _resumen(report: dict) -> dict:
     """
     totales = report.get("totals") or {}
     corrida = report.get("run") or {}
+    por_veredicto = totales.get("decisions_by_outcome") or {}
+    cola = report.get("cola_de_revision")
     return {
         "episodios": totales.get("episodes"),
         "menciones": totales.get("mentions"),
@@ -119,8 +121,19 @@ def _resumen(report: dict) -> dict:
         "claims": totales.get("claims"),
         "enlaces_a_entidades_existentes": totales.get("link_existing"),
         "altas_de_entidad_pendientes": totales.get("create_entity"),
-        "en_revision": totales.get("review_identity"),
-        "por_veredicto": totales.get("decisions_by_outcome") or {},
+        # EL VEREDICTO `REVIEW` REAL, no otra cosa que se le parece.
+        #
+        # Hasta el Corte 4 `en_revision` mapeaba `review_identity`, que es la
+        # revision DE IDENTIDAD de una mencion: otro hecho, otro numero. El
+        # operador leia «terminado correctamente · en revision: 0» con
+        # `REVIEW=2` y cuatro propuestas escritas, y no abria la consola de
+        # revision. El dato de identidad no se pierde: se nombra por lo que es.
+        "en_revision": int(por_veredicto.get("REVIEW") or 0),
+        "revision_de_identidad": totales.get("review_identity"),
+        # CUANTAS PROPUESTAS REVISABLES DEJO ESTA CORRIDA. `None` es "no se
+        # exporto cola", que no es lo mismo que cero.
+        "propuestas_de_revision": None if cola is None else cola.get("propuestas"),
+        "por_veredicto": por_veredicto,
         "operaciones_planificadas": totales.get("plan_operations"),
         # Senal, no ruta: si la cadena se paro antes de tiempo el operador tiene
         # que saberlo, pero el motivo interno se queda en el log.
@@ -130,7 +143,7 @@ def _resumen(report: dict) -> dict:
     }
 
 
-def handle_ingest_v3(payload: dict) -> dict:
+def handle_ingest_v3(payload: dict, *, job_id: Optional[str] = None) -> dict:
     """Ejecuta una ingesta V3 en dry-run y devuelve el resultado, ya resumido.
 
     `payload` lo construye el panel al encolar, no el operador:
@@ -169,6 +182,9 @@ def handle_ingest_v3(payload: dict) -> dict:
             # cambiar esta linea, que es donde se mira.
             apply=False,
             driver=None,
+            # La identidad de la corrida, tal y como la puso la cola (NO el
+            # payload). Es lo que ata las propuestas exportadas a ESTE job.
+            job_id=job_id or None,
         )
     except Exception as exc:
         # TODA excepcion del nucleo se traduce. `PipelineError` en particular
@@ -188,11 +204,37 @@ def handle_ingest_v3(payload: dict) -> dict:
         "ingesta completada: %s claims=%s assertions=%s",
         fuente, resumen.get("claims"), resumen.get("afirmaciones"),
     )
+    # EL DESENLACE SE DICE ENTERO, Y CONDUCE.
+    #
+    # «La ingesta ha terminado correctamente» con `REVIEW=2` es cierto y
+    # ENGANOSO: el operador cierra la pantalla. Cuando hay revision real, el
+    # acuse lo dice en la misma frase y ofrece el enlace a SU revision — no a
+    # la cola entera, sino a las propuestas de ESTA corrida.
+    pendientes = resumen["en_revision"]
+    propuestas = resumen["propuestas_de_revision"]
+    if pendientes:
+        mensaje = (
+            f"La ingesta ha terminado correctamente y ha dejado {pendientes} "
+            f"{'decision' if pendientes == 1 else 'decisiones'} en REVIEW. "
+            "No esta todo resuelto: hay que revisarlas."
+        )
+    else:
+        mensaje = "La ingesta ha terminado correctamente y no ha dejado nada en revision."
+    cola = report.get("cola_de_revision")
     return {
         "ok": True,
         "handler": JOB_TYPE,
         "code": "INGEST_OK",
-        "message": "La ingesta ha terminado correctamente.",
+        "message": mensaje,
         "source_title": payload.get("source_title") or None,
         "resumen": resumen,
+        # El enlace se construye con la identidad de ESTA corrida. Sin
+        # `job_id` no se ofrece enlace filtrado: mandar al operador a la cola
+        # entera diciendole que son "sus" propuestas seria otra vez lo mismo.
+        "revision": None if not cola else {
+            "job_id": cola.get("job_id"),
+            "workspace": cola.get("workspace"),
+            "propuestas": cola.get("propuestas"),
+            "proposal_ids": cola.get("proposal_ids") or [],
+        },
     }

@@ -11,11 +11,28 @@
 {% extends "chassis/_slot.html" %}
 
 {% block empty_title %}Sin propuestas visibles{% endblock %}
+{#
+  VACÍO LEGÍTIMO, Y SÓLO ÉL.
+
+  A esta pantalla ya no se llega con el almacén ausente ni ilegible: esos dos
+  casos levantan `ProposalStoreUnavailable` y salen por el bloque de error, que
+  dice que el dato NO ESTÁ. Aquí, por tanto, el almacén se leyó de verdad y de
+  verdad no hay nada — que es lo único que autoriza a decirlo.
+
+  El texto anterior («no hay ningún workspace visible PARA TU ÁMBITO ACTUAL»)
+  se servía también con el almacén borrado, atribuyendo al ámbito lo que
+  causaba una carpeta que no existía.
+#}
 {% block empty_body %}
-  {% if workspaces %}
+  {% if spec and spec.job_id %}
+    La corrida <code>{{ spec.job_id | e }}</code> no dejó ninguna propuesta
+    visible en tu ámbito. El almacén se ha leído correctamente: está vacío para
+    esta corrida, no ausente.
+  {% elif workspaces %}
     No hay propuestas en tu ámbito actual para los filtros aplicados.
   {% else %}
-    No hay ningún workspace de revisión visible para tu ámbito actual.
+    El almacén de propuestas se ha leído correctamente y no contiene ninguna
+    propuesta visible en tu ámbito actual.
   {% endif %}
 {% endblock %}
 
@@ -66,6 +83,15 @@
           {% endfor %}
         </select>
       </label>
+      {#
+        FILTRO POR CORRIDA. Es lo que convierte «¿son estas las propuestas de
+        la ingesta que acabo de lanzar?» en una pregunta contestable. El acuse
+        de la ingesta enlaza aquí ya relleno.
+      #}
+      <label>Corrida (job)
+        <input type="search" name="job_id" data-role="filtro-corrida"
+               value="{{ (spec.job_id if spec and spec.job_id else '') | e }}">
+      </label>
       <label>Buscar <input type="search" name="q" value="{{ (spec.query if spec else '') | e }}"></label>
       <label><input type="checkbox" name="disagreements_only" value="true"
              {% if spec and spec.disagreements_only %}checked{% endif %}> Sólo desacuerdos</label>
@@ -115,7 +141,7 @@
         <table>
           <thead>
             <tr><th>Propuesta</th><th>Decisión</th><th>Confianza</th>
-                <th>Acuerdo</th><th>Fuente</th><th>Candidato</th></tr>
+                <th>Acuerdo</th><th>Fuente</th><th>Corrida</th><th>Candidato</th></tr>
           </thead>
           <tbody>
           {% for row in items %}
@@ -145,6 +171,21 @@
                 {% if row.agreement %}{{ row.agreement | e }}{% else %}sin sombra{% endif %}
               </td>
               <td>{{ row.source_id | e if row.source_id else 'no disponible' }}</td>
+              {#
+                ATRIBUCIÓN. Dos ingestas de la misma fuente dejaban la pantalla
+                IDÉNTICA: la columna «Fuente» da el fichero, no la corrida.
+
+                AUSENCIA != VACÍO también aquí: un paquete anterior al Corte 4
+                no declara corrida, y eso se dice — no se deja en blanco, que
+                se leería como «no vino de ninguna».
+              #}
+              <td data-runs="{{ row.package_runs | join(' ') | e }}">
+                {% if row.package_runs %}
+                  {% for corrida in row.package_runs %}
+                  <a href="{{ url_for(slot.route_name) }}?workspace={{ (workspace or '') | urlencode }}&amp;job_id={{ corrida | urlencode }}"><code>{{ corrida | e }}</code></a>{% if not loop.last %} · {% endif %}
+                  {% endfor %}
+                {% else %}sin corrida declarada{% endif %}
+              </td>
               <td>
                 {{ row.subject | e if row.subject else 'no disponible' }} ·
                 {{ row.predicate | e if row.predicate else 'no disponible' }} ·

@@ -163,6 +163,11 @@ class PipelineResult:
     ledger: Optional[TemporalLedger] = None
     latency_ms: float = 0.0
     provider_calls: int = 0
+    #: `ReviewPackageExport` de ESTA corrida, o `None` si no se exporto cola de
+    #: revision. `None` significa "no se exporto", NO "no habia nada": quien lo
+    #: lea tiene que distinguirlo, igual que el visor distingue almacen ausente
+    #: de almacen vacio.
+    review_export: object | None = None
 
     def _flat(self, attr: str) -> list:
         out: list = []
@@ -596,6 +601,7 @@ class KnowledgePipeline:
         *,
         catalog_entities: Sequence[SnapshotEntity] = (),
         review_proposals_dir: Path | None = None,
+        review_run: dict | None = None,
     ) -> PipelineResult:
         """La cadena sobre varias fuentes, en orden y compartiendo ledger.
 
@@ -618,8 +624,15 @@ class KnowledgePipeline:
             # Explicit boundary export. No viewer service is imported or called.
             from ..review_export import export_review_package
 
-            export_review_package(
-                result, review_proposals_dir, workspace=self.config.workspace
+            # El resultado de la exportacion se GUARDA en el PipelineResult.
+            # Es la unica forma de que el resumen de la ingesta pueda decir
+            # cuantas propuestas revisables dejo ESTA corrida sin volver a
+            # leer la carpeta —que ademas contendria las de corridas
+            # anteriores, y las contaria como propias.
+            result.review_export = export_review_package(
+                result, review_proposals_dir,
+                workspace=self.config.workspace,
+                run=review_run,
             )
         return result
 

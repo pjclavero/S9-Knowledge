@@ -74,6 +74,29 @@
              data-resultado-code="{{ (resultado.code or '') | e }}">
       <h2>Resultado de la ingesta solicitada</h2>
       <p>{{ resultado.message }}</p>
+      {#
+        EL ENLACE A SU REVISIÓN.
+
+        Antes del Corte 4 este acuse decía «La ingesta ha terminado
+        correctamente · en revisión: 0» con REVIEW=2 y cuatro propuestas
+        escritas, y NO mencionaba ni enlazaba `/panel/review`. El operador
+        cerraba la pantalla. Un desenlace que no conduce al siguiente paso
+        deja el recorrido sin terminar aunque cada pieza funcione.
+
+        El enlace lleva el `job_id` de ESTA corrida: manda a SUS propuestas,
+        no a la cola entera. Sin `job_id` no se ofrece enlace filtrado.
+      #}
+      {% if resultado.revision and resultado.revision.job_id %}
+        <p data-role="enlace-revision"
+           data-revision-job="{{ resultado.revision.job_id | e }}"
+           data-revision-propuestas="{{ resultado.revision.propuestas if resultado.revision.propuestas is not none else '' }}">
+          Esta corrida dejó
+          <strong>{{ resultado.revision.propuestas if resultado.revision.propuestas is not none else 'un número no disponible de' }}</strong>
+          propuestas revisables.
+          <a href="{{ url_for('chassis_review') }}?workspace={{ (resultado.revision.workspace or '') | urlencode }}&amp;job_id={{ resultado.revision.job_id | urlencode }}">
+            Revisar las propuestas de esta corrida</a>.
+        </p>
+      {% endif %}
       {% if resultado.resumen %}
         <ul data-role="resumen">
           {% for clave, valor in resultado.resumen.items() %}

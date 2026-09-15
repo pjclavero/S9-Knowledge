@@ -181,7 +181,11 @@ def _engine_rerun(engine_result, tmp_path, db_path, name="rerun"):
     package = export_review_package(
         result, out, workspace=WORKSPACE, decisions_db=db_path
     )
-    return json.loads(package.read_text(encoding="utf-8"))
+    # `export_review_package` devuelve desde el Corte 4 un `ReviewPackageExport`
+    # (ruta + propuestas + corrida), no la ruta pelada: el resumen de la ingesta
+    # necesita saber CUÁNTAS propuestas dejó la corrida sin volver a leer la
+    # carpeta. Aquí sólo interesa el cuerpo del paquete.
+    return json.loads(package.path.read_text(encoding="utf-8"))
 
 
 def _ids(package_body):

@@ -201,6 +201,11 @@ def row_view(item: dict[str, Any]) -> dict[str, Any]:
         "profile_version": _clean(item.get("profile_version")),
         "proposal_hash": _clean(item.get("proposal_hash")),
         "package_origins": _list(item.get("package_origins")),
+        # ATRIBUCION (Corte 4): las corridas que produjeron esta propuesta.
+        # Lista VACIA = paquete anterior al corte, que no declara corrida. No
+        # es "ninguna corrida la produjo": es que el dato no esta, y la
+        # plantilla lo dice con esas palabras.
+        "package_runs": _list(item.get("package_runs")),
         # Estado de revisión (solo informativo: esta consola no decide)
         "human_decision": _clean((item.get("active_decision") or {}).get("human_decision")),
         "decided_at": _clean((item.get("active_decision") or {}).get("timestamp")),
@@ -259,6 +264,10 @@ class FilterSpec:
     min_confidence: Optional[float] = None
     max_confidence: Optional[float] = None
     include_decided: bool = False
+    #: Corrida (``job_id``) a la que acotar la cola. Es lo que hace que «estas
+    #: son las propuestas de la ingesta que acabo de lanzar» sea una pregunta
+    #: contestable y no una suposicion por fecha o por fuente.
+    job_id: Optional[str] = None
 
     @property
     def active(self) -> bool:
@@ -266,6 +275,7 @@ class FilterSpec:
             self.decision or self.reason_code or self.provider or self.extractor
             or self.query.strip() or self.disagreements_only or self.low_confidence_only
             or self.min_confidence is not None or self.max_confidence is not None
+            or self.job_id
         )
 
 
@@ -282,6 +292,7 @@ def parse_filters(
     min_confidence: Optional[float] = None,
     max_confidence: Optional[float] = None,
     include_decided: bool = False,
+    job_id: Optional[str] = None,
 ) -> FilterSpec:
     threshold = DEFAULT_LOW_CONFIDENCE if low_confidence_threshold is None else low_confidence_threshold
     for name, value in (("low_confidence_threshold", threshold),
@@ -304,6 +315,7 @@ def parse_filters(
         min_confidence=None if min_confidence is None else float(min_confidence),
         max_confidence=None if max_confidence is None else float(max_confidence),
         include_decided=bool(include_decided),
+        job_id=_clean(job_id),
     )
 
 
@@ -344,6 +356,12 @@ def matches(row: dict[str, Any], spec: FilterSpec) -> bool:
     if spec.max_confidence is not None and (confidence is None or confidence > spec.max_confidence):
         return False
     if not spec.include_decided and row.get("human_decision"):
+        return False
+    if spec.job_id and spec.job_id not in set(row.get("package_runs", [])):
+        # SIN MEZCLA. Una propuesta que esta corrida no produjo no se presenta
+        # como suya, ni siquiera cuando viene de la misma fuente. Y una
+        # propuesta anterior al Corte 4 (sin corrida declarada) tampoco se
+        # cuela: `package_runs` vacio no contiene ningun `job_id`.
         return False
     if spec.query and not _matches_query(row, spec.query):
         return False

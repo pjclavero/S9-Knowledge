@@ -142,6 +142,20 @@ EVIDENCE_OFFSETS_OUT_OF_RANGE = "EVIDENCE_OFFSETS_OUT_OF_RANGE"
 EVIDENCE_LITERAL_MISMATCH = "EVIDENCE_LITERAL_MISMATCH"
 PACKAGE_CORRUPT = "PACKAGE_CORRUPT"
 PACKAGE_INVALID = "PACKAGE_INVALID"
+#: AUSENCIA != CERO. El almacén de propuestas puede estar en TRES estados que
+#: no son el mismo hecho, y hasta el Corte 4 los tres se presentaban como
+#: «no hay propuestas»:
+#:
+#:   - NO ESTÁ           -> `PROPOSALS_STORE_MISSING`     (no se sabe nada)
+#:   - ESTÁ Y NO SE LEE  -> `PROPOSALS_STORE_UNREADABLE`  (no se sabe nada)
+#:   - ESTÁ, SE LEE, 0   -> lista vacía                   (SÍ se sabe: no hay)
+#:
+#: Sólo el tercero es una respuesta. Los dos primeros son ausencia de dato, y
+#: decirle al operador «no hay nada que revisar» cuando el almacén no está es
+#: una afirmación falsa y tranquilizadora: le hace dar por buena una ingesta
+#: cuyas ambigüedades no ha visto.
+PROPOSALS_STORE_MISSING = "PROPOSALS_STORE_MISSING"
+PROPOSALS_STORE_UNREADABLE = "PROPOSALS_STORE_UNREADABLE"
 PROPOSAL_INVALID = "PROPOSAL_INVALID"
 INVALID_HUMAN_DECISION = "INVALID_HUMAN_DECISION"
 REQUEST_ID_REUSED = "REQUEST_ID_REUSED"
@@ -171,6 +185,20 @@ class ReviewError(ValueError):
         super().__init__(message)
         if code is not None:
             self.code = code
+
+
+class ProposalStoreUnavailable(ReviewError):
+    """El almacén de propuestas no se pudo CONSULTAR.
+
+    Se distingue de `ReviewError` a secas porque el desenlace del operador es
+    otro: un paquete corrupto es un fallo de exportación del motor; un almacén
+    que no está —o que no se puede leer— es, casi siempre, que escritor y
+    lector no comparten `S9K_V3_REVIEW_PROPOSALS_DIR`, o un permiso mal puesto
+    en el servidor. Lo que NO es, en ninguno de los dos casos, es «no hay nada
+    que revisar».
+    """
+
+    code = PROPOSALS_STORE_MISSING
 
 
 class HistoryIntegrityError(ReviewError):
@@ -351,6 +379,23 @@ def _candidate_views(
     return views
 
 
+def _package_run_id(raw: Any) -> str | None:
+    """`job_id` de la corrida que escribió el paquete, si lo declara.
+
+    Los paquetes anteriores al Corte 4 no traen bloque `run`. Se devuelve
+    `None` y la propuesta queda SIN corrida atribuida, que es la verdad: no
+    se inventa una. La pantalla lo dice con «sin corrida declarada», no con un
+    hueco en blanco que se lea como si no hubiera pasado nada.
+    """
+    if not isinstance(raw, dict):
+        return None
+    run = raw.get("run")
+    if not isinstance(run, dict):
+        return None
+    job_id = run.get("job_id")
+    return str(job_id) if job_id else None
+
+
 def load_proposals(directory: Path) -> list[dict[str, Any]]:
     """Load and deterministically fold immutable proposal packages.
 
@@ -358,14 +403,51 @@ def load_proposals(directory: Path) -> list[dict[str, Any]]:
     Different hashes for one logical id remain versions; the deterministic
     package order selects one active version without depending on load order.
     """
+    # --- LOS TRES DESENLACES, SEPARADOS EN EL ORIGEN -----------------------
+    #
+    # Antes del Corte 4 esto era `if not directory.exists(): return []`, es
+    # decir AUSENCIA == LISTA VACÍA: exactamente la doctrina que el panel B
+    # declara prohibida, incumplida en este módulo. El caso ILEGIBLE era peor,
+    # porque no hacía falta ni esa línea: `exists()` devuelve True y
+    # `Path.glob` SE TRAGA EL `PermissionError` EN SILENCIO, de modo que un
+    # directorio con permisos rotos producía, sin un solo error, la misma
+    # lista vacía que un almacén legítimamente vacío.
+    #
+    # Por eso la lectura ya no se hace con `glob`: se hace con `os.listdir`,
+    # que SÍ levanta. Un listado que no puede fallar no puede distinguir.
     if not directory.exists():
-        return []
+        raise ProposalStoreUnavailable(
+            f"almacén de propuestas ausente: {directory}", PROPOSALS_STORE_MISSING
+        )
+    if not directory.is_dir():
+        raise ProposalStoreUnavailable(
+            f"la ruta del almacén de propuestas no es un directorio: {directory}",
+            PROPOSALS_STORE_UNREADABLE,
+        )
+    try:
+        entries = sorted(os.listdir(directory))
+    except OSError as exc:
+        raise ProposalStoreUnavailable(
+            f"almacén de propuestas ilegible: {directory}", PROPOSALS_STORE_UNREADABLE
+        ) from exc
     versions: dict[tuple[str, str], dict[str, dict[str, Any]]] = {}
-    for path in sorted(directory.glob("*.json")):
+    #: `package_runs`: las corridas que produjeron cada versión. Se acumula
+    #: junto a `package_origins` y por la misma razón — una propuesta puede
+    #: venir de varias corridas y ninguna debe perderse.
+    runs_by_version: dict[tuple[str, str, str], set[str]] = {}
+    for path in [directory / name for name in entries if name.endswith(".json")]:
         try:
             raw = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
+        except json.JSONDecodeError as exc:
             raise ReviewError(f"paquete corrupto: {path}", PACKAGE_CORRUPT) from exc
+        except OSError as exc:
+            # Un paquete que no se puede ABRIR no es un paquete corrupto: es
+            # almacén ilegible. Confundirlos manda al operador a revisar la
+            # exportación del motor cuando lo que hay es un permiso.
+            raise ProposalStoreUnavailable(
+                f"paquete de propuestas ilegible: {path}", PROPOSALS_STORE_UNREADABLE
+            ) from exc
+        package_run = _package_run_id(raw)
         documents = raw if isinstance(raw, list) else raw.get("items", [raw])
         if not isinstance(documents, list):
             raise ReviewError(f"paquete inválido: {path}", PACKAGE_INVALID)
@@ -384,6 +466,10 @@ def load_proposals(directory: Path) -> list[dict[str, Any]]:
             normalized = json.loads(_canonical(proposal))
             normalized["proposal_hash"] = actual_hash
             by_hash = versions.setdefault((workspace, identifier), {})
+            if package_run:
+                runs_by_version.setdefault(
+                    (workspace, identifier, actual_hash), set()
+                ).add(package_run)
             existing = by_hash.get(actual_hash)
             if existing is None:
                 normalized["package_origins"] = [path.name]
@@ -408,6 +494,16 @@ def load_proposals(directory: Path) -> list[dict[str, Any]]:
         )
         active = by_hash[active_hash]
         active["available_version_hashes"] = sorted(by_hash)
+        # ATRIBUCIÓN. Las corridas de TODAS las versiones de esta propuesta,
+        # no sólo las de la activa: si la corrida B reexportó sin cambios,
+        # el paquete es otro fichero pero la propuesta es la misma, y el
+        # operador tiene que poder ver que B también la produjo.
+        workspace_key, identifier = key
+        active["package_runs"] = sorted({
+            run
+            for digest in by_hash
+            for run in runs_by_version.get((workspace_key, identifier, digest), ())
+        })
         proposals.append(active)
     return proposals
 

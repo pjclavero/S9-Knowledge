@@ -58,6 +58,38 @@ def _reset_auth_settings():
 
 
 @pytest.fixture(autouse=True)
+def _almacen_de_propuestas_presente_y_vacio(tmp_path):
+    """Monta la premisa del hueco C en vez de darla por supuesta.
+
+    Esta suite mide MONTAJE: prefijo, rol, interruptor y los tres estados de la
+    pantalla. No mide la disponibilidad del almacén de propuestas. Hasta el
+    Corte 4 no hacía falta decirlo porque `load_proposals` devolvía lista vacía
+    cuando el directorio no existía —AUSENCIA == CERO, el defecto que el corte
+    cierra—, de modo que «no hay almacén» y «el almacén está vacío» entraban
+    por el mismo sitio y estos tests salían verdes sin premisa.
+
+    Ahora un almacén ausente es 503 «no disponible», que es lo correcto y NO es
+    lo que estos tests quieren ejercer: sin esta fixture se pondrían rojos por
+    una razón que no es la suya —el rol correcto recibiría 503 y se leería como
+    un fallo de autorización—. Es el mismo razonamiento, y las mismas palabras,
+    que `_sin_datos_de_grafo` ya aplica al proveedor del grafo.
+
+    Se monta el caso que la suite nombra: almacén PRESENTE, LEGIBLE y VACÍO. Y
+    vacío de verdad, creado aquí: `tmp_path` siempre existe, así que un almacén
+    roto nunca se simula por accidente. La afirmación no se toca ni se debilita.
+    """
+    almacen = tmp_path / "reviews-v3" / "proposals"
+    almacen.mkdir(parents=True, exist_ok=True)
+    previo = os.environ.get("S9K_V3_REVIEW_PROPOSALS_DIR")
+    os.environ["S9K_V3_REVIEW_PROPOSALS_DIR"] = str(almacen)
+    yield almacen
+    if previo is None:
+        os.environ.pop("S9K_V3_REVIEW_PROPOSALS_DIR", None)
+    else:
+        os.environ["S9K_V3_REVIEW_PROPOSALS_DIR"] = previo
+
+
+@pytest.fixture(autouse=True)
 def _panels_on():
     """Enciende los cuatro huecos para el resto de la suite.
 

@@ -351,6 +351,7 @@
     "viewer/tests/test_panel_operations_alta_fuente.py": 29,
     "viewer/tests/test_panel_review_cola_desde_ingesta.py": 8,
     "viewer/tests/test_panel_review_console.py": 43,
+    "viewer/tests/test_panel_review_estado_de_revision.py": 10,
     "viewer/tests/test_panel_sources.py": 52,
     "viewer/tests/test_parcialidad_declarada.py": 25,
     "viewer/tests/test_productor_de_cada_campo_de_autorizacion.py": 9,
@@ -410,7 +411,7 @@
     "viewer/tests/browser/test_login_browser.py",
     "viewer/tests/test_graph_ux_v2.py"
   ],
-  "total": 8415,
+  "total": 8425,
   "modulos": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 526,
     "contracts/review-ingest/v1/tests/test_contracts_v1.py": 38,
@@ -673,6 +674,7 @@
     "viewer/tests/test_panel_operations_alta_fuente.py": 29,
     "viewer/tests/test_panel_review_cola_desde_ingesta.py": 8,
     "viewer/tests/test_panel_review_console.py": 51,
+    "viewer/tests/test_panel_review_estado_de_revision.py": 10,
     "viewer/tests/test_panel_sources.py": 83,
     "viewer/tests/test_parcialidad_declarada.py": 36,
     "viewer/tests/test_productor_de_cada_campo_de_autorizacion.py": 9,
