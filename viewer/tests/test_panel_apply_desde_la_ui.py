@@ -507,33 +507,51 @@ def test_el_revisor_ve_la_corrida_pero_no_puede_sellarla(
     respuesta = revisor.post("/panel/operations/planes",
                              data={"trabajo": job_id, "csrf_token": token})
 
+    # EL EFECTO PRIMERO, porque es la afirmación que importa y la que tiene que
+    # poder ponerse roja. Con la guarda degradada el revisor SELLA de verdad:
+    # medido, la fila aparece y esta línea cae antes que ninguna otra.
+    assert _filas_de_plan(almacenes["base"]) == [], "un revisor selló un plan"
     assert respuesta.status_code in (302, 303, 403, 404), respuesta.status_code
     destino = respuesta.headers.get("location", "")
     assert "aviso=" not in destino, (
         f"la acción se ATENDIÓ para un revisor ({destino}): la guarda de rol no mordió"
     )
-    # Y EL EFECTO, que ahora SÍ puede ponerse rojo.
-    assert _filas_de_plan(almacenes["base"]) == [], "un revisor selló un plan"
 
 
 def test_el_revisor_ve_la_corrida_pero_no_puede_aplicarla(
     real_app, paneles_on, cola, operador, revisor, almacenes,
     corrida_visible_para_todos, monkeypatch
 ):
-    """El mismo control sobre la acción que SÍ escribe en el grafo."""
+    """El mismo control sobre la acción que SÍ escribe en el grafo.
+
+    La escritura se declara HABILITADA a propósito (y el grafo se deja fuera de
+    alcance). Sin habilitarla, al revisor lo paraba `APPLY_NOT_ENABLED` --otra
+    vez algo que no es el rol-- y la aserción de efecto no podía ponerse roja.
+    Con ella habilitada, un revisor que pasara la guarda MOVERÍA el plan: el
+    apply se intenta, no alcanza el grafo y la fila queda invalidada. Eso es lo
+    que aquí se comprueba que NO ocurre.
+    """
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
     assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
     assert _filas_de_plan(almacenes["base"])[0]["state"] == "sealed"
+
+    from app.config import get_settings
+    monkeypatch.setenv("S9K_ALLOW_REAL_INGEST", "1")
+    monkeypatch.setenv("S9K_WRITER_WORKSPACE", "ws-cofradia")
+    monkeypatch.setenv("S9K_NEO4J_URI", "bolt://127.0.0.1:1")
+    monkeypatch.setenv("S9K_NEO4J_PASSWORD", "no-importa")
+    get_settings.cache_clear()
 
     token = _csrf(revisor)
     respuesta = revisor.post("/panel/operations/aplicaciones",
                              data={"trabajo": job_id, "csrf_token": token})
 
-    assert respuesta.status_code in (302, 303, 403, 404), respuesta.status_code
-    assert "aviso=" not in respuesta.headers.get("location", "")
+    # EL EFECTO PRIMERO, por la misma razón.
     assert _filas_de_plan(almacenes["base"])[0]["state"] == "sealed", (
         "un revisor movió el estado del plan"
     )
+    assert respuesta.status_code in (302, 303, 403, 404), respuesta.status_code
+    assert "aviso=" not in respuesta.headers.get("location", "")
 
 
 def test_un_csrf_invalido_para_el_sellado_aunque_el_rol_sea_admin(
