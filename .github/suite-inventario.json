@@ -267,6 +267,7 @@
     "data-engine/app/tests/test_review_pipeline.py": 10,
     "data-engine/app/tests/test_safe_writer.py": 37,
     "data-engine/app/tests/test_schemas.py": 8,
+    "data-engine/app/tests/test_slice2_b2_proyeccion_y_procedencia.py": 17,
     "data-engine/app/tests/test_supersede_review.py": 26,
     "data-engine/app/tests/test_transcript_normalizer.py": 5,
     "data-engine/app/tests/test_use_existing.py": 16,
@@ -415,7 +416,7 @@
     "viewer/tests/test_graph_ux_v2.py",
     "viewer/tests/test_panel_apply_desde_la_ui.py"
   ],
-  "total": 8437,
+  "total": 8457,
   "modulos": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 526,
     "contracts/review-ingest/v1/tests/test_contracts_v1.py": 38,
@@ -592,6 +593,7 @@
     "data-engine/app/tests/test_review_pipeline.py": 10,
     "data-engine/app/tests/test_safe_writer.py": 37,
     "data-engine/app/tests/test_schemas.py": 8,
+    "data-engine/app/tests/test_slice2_b2_proyeccion_y_procedencia.py": 20,
     "data-engine/app/tests/test_supersede_review.py": 26,
     "data-engine/app/tests/test_transcript_normalizer.py": 5,
     "data-engine/app/tests/test_use_existing.py": 16,
