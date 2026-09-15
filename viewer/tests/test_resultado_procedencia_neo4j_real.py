@@ -540,13 +540,51 @@ def test_la_evidencia_de_otro_workspace_no_se_sirve(admin, apply_real):
 # ===========================================================================
 # 3. ATRIBUCION -- un apply no ensena el resultado de otro
 # ===========================================================================
-def test_un_apply_id_inexistente_da_404_y_no_una_pantalla_vacia(admin):
-    """Con base REAL detras: aqui el 404 SI significa "no existe ese apply"."""
-    r = _resultado(admin, "apply:" + "0" * 32)
-    assert r.status_code == 404, (
-        f"un apply que no existe devuelve {r.status_code}: una pantalla vacia "
-        "afirmaria que ese apply existe y no cambio nada"
+def test_un_apply_id_ajeno_no_ensena_el_material_de_otro_apply(admin, apply_real):
+    """ATRIBUCION CRUZADA, con base REAL detras.
+
+    El workspace tiene UN apply con material. Se pide OTRO identificador, bien
+    formado y sin marcas. El orden de las aserciones es deliberado: primero la
+    que explica el defecto --que no salga el material del apply de al lado--,
+    porque un 404 puede darse por mil motivos y solo esa dice cual importa.
+    """
+    import re
+
+    verdadero = _resultado(admin, apply_real)
+    suyas = set(re.findall(r'data-entity-id="([^"]+)"', verdadero.text))
+    assert suyas, "el apply real no ensena nada: este caso no puede medir cruce"
+
+    ajeno = _resultado(admin, "apply:" + "0" * 32)
+    coladas = set(re.findall(r'data-entity-id="([^"]+)"', ajeno.text)) & suyas
+    assert not coladas, (
+        f"la pantalla de un apply SIN marcas ensena {len(coladas)} entidad(es) "
+        f"del apply de al lado: {sorted(coladas)[:3]}. ATRIBUCION CRUZADA: el "
+        "apply_id de la URL no esta acotando nada."
     )
+    assert ajeno.status_code == 404, (
+        f"un apply que no existe devuelve {ajeno.status_code}: una pantalla "
+        "vacia afirmaria que ese apply existe y no cambio nada"
+    )
+
+
+def test_la_ficha_de_evidencia_exige_que_el_hecho_sea_de_ESE_apply(admin, apply_real):
+    """La misma atribucion, en la ficha directa: la URL es adivinable."""
+    import re
+
+    r = _resultado(admin, apply_real)
+    assertion_id = re.findall(r'data-assertion-id="([^"]+)"', r.text)[0]
+
+    suya = admin.get(f"/panel/resultado/{apply_real}/hecho/{assertion_id}",
+                     params={"workspace": WS})
+    assert suya.status_code == 200, "ni por su propio apply se sirve: no mide nada"
+
+    ajena = admin.get(f"/panel/resultado/apply:{'0' * 32}/hecho/{assertion_id}",
+                      params={"workspace": WS})
+    assert 'data-role="fragmento"' not in ajena.text, (
+        "la evidencia de un hecho se sirve bajo el identificador de un apply "
+        "que NO lo produjo: ATRIBUCION CRUZADA de procedencia."
+    )
+    assert ajena.status_code == 404
 
 
 def test_el_invariante_congelado_sigue_en_pie(driver, grafo):
