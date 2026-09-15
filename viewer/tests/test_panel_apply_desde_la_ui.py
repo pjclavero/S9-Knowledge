@@ -1336,3 +1336,352 @@ def test_la_pantalla_dice_que_lo_escrito_no_queda_navegable(
         "la pantalla no dice que lo escrito no queda navegable hasta su evidencia"
     )
     assert "no queda navegable" in bloque["texto"]
+
+
+# ===========================================================================
+# 10. SLICE 2 · B2 — PROCEDENCIA PERSISTIDA Y EFECTO OBSERVADO
+#
+# Lo que este bloque cierra, medido sobre la base de este carril: aplicar desde
+# la UI escribía la afirmación, dejaba `APPLY_PROVENANCE_NOT_PERSISTED` y la
+# pantalla decía «ya forma parte del conocimiento». Desde el operador eso es
+# FALSO ÉXITO: la afirmación citaba fragmentos que no existían y no había forma
+# de llegar desde lo escrito hasta el texto que lo sostiene.
+#
+# La regla que se comprueba aquí no es «siempre tiene que haber arista» —no
+# toda afirmación produce una— sino: TODA OPERACIÓN PRODUCE EL EFECTO QUE
+# DECLARA SU TIPO, Y ESE EFECTO ES TRAZABLE. Y se comprueba MIRANDO EL GRAFO,
+# porque lo que el writer dijo haber hecho no contesta a si está hecho.
+# ===========================================================================
+
+def _fila_de_plan(base: Path) -> dict:
+    filas = _filas_de_plan(base)
+    assert filas, "no hay ningún plan sellado: el caso no mide nada"
+    return filas[-1]
+
+
+def _notas_de(base: Path) -> list:
+    crudo = _fila_de_plan(base)["apply_notes_json"]
+    try:
+        return list(json.loads(crudo or "[]"))
+    except (TypeError, ValueError):  # pragma: no cover - fila corrupta
+        return []
+
+
+def _motor_en_ruta():
+    import sys
+    raiz = str(REPO / "data-engine" / "app")
+    if raiz not in sys.path:
+        sys.path.insert(0, raiz)
+
+
+def _recorrido(driver, workspace: str, assertion_id: str) -> list:
+    """La procedencia POR EL CAMINO, con la consulta del propio producto.
+
+    Se usa `provenance.trace_query`, que encadena
+    afirmación -> evidencia -> episodio -> fuente en UN patrón sobre la misma
+    fila. Escribir aquí dos `MATCH` sueltos daría el producto cartesiano y
+    cero filas, que se leería como «no hay procedencia» tanto si la hay como
+    si no.
+    """
+    _motor_en_ruta()
+    from knowledge_v3.writer.provenance import trace_query
+
+    consulta = trace_query(workspace, assertion_id)
+    with driver.session() as sesion:
+        return [dict(f) for f in sesion.run(consulta.cypher, **consulta.params)]
+
+
+def _cuenta(driver, cypher: str, **params) -> int:
+    """UNA consulta por UNA cosa contada. Nunca dos `MATCH` sueltos."""
+    with driver.session() as sesion:
+        return sesion.run(cypher, **params).single()["c"]
+
+
+# ---------------------------------------------------------------------------
+# LA PRUEBA INSIGNIA DE B2
+# ---------------------------------------------------------------------------
+
+@neo4j_real
+def test_desde_el_resultado_se_llega_a_la_evidencia_CORRECTA(
+    real_app, paneles_on, cola, operador, almacenes, grafo, monkeypatch
+):
+    """fuente -> ingest -> REVIEW -> aprobar -> sellar -> APPLY DESDE LA UI
+    -> grafo real -> seguir la procedencia -> llegar a la evidencia CORRECTA.
+
+    Lo que se afirma al final NO es «hay procedencia» —un recorrido que
+    llegase a cualquier fragmento pondría eso verde— sino que el literal al
+    que se llega es EXACTAMENTE el que la propuesta que el operador aprobó
+    citaba. Identidad durable contra identidad durable, y además el texto.
+    """
+    workspace = "ws-cofradia"
+    job_id, propuesta = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+
+    documento = json.loads(_fila_de_plan(almacenes["base"])["plan_json"])
+    operaciones = documento["mutation_operations"]
+    afirmacion = operaciones[0]["assertion_id"]
+    citados = sorted(operaciones[0]["evidence_fragment_ids"])
+    assert citados, "la operación no cita evidencia: el caso no mide procedencia"
+
+    assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_APPLIED"
+
+    # 1. El estado durable dice APLICADO, no PARCIAL, y lo dice porque se MIRÓ.
+    fila = _fila_de_plan(almacenes["base"])
+    assert fila["state"] == "applied", fila["state"]
+    assert fila["apply_id"], "un apply sin identidad durable no es auditable"
+    assert "APPLY_PROVENANCE_PERSISTED" in _notas_de(almacenes["base"])
+
+    # 2. El recorrido llega, y llega A LO QUE SE CITÓ.
+    recorrido = _recorrido(grafo, workspace, afirmacion)
+    assert recorrido, (
+        "no se llega desde la afirmación a ninguna evidencia: lo escrito no es "
+        "navegable"
+    )
+    alcanzados = sorted({f["fragment_id"] for f in recorrido})
+    assert alcanzados == citados, (recorrido, citados)
+
+    # 3. Y el literal es el de la propuesta que se aprobó, no otro cualquiera.
+    esperado = (propuesta.get("evidence") or {}).get("literal_text")
+    assert esperado, "la propuesta del arnés ya no trae literal: no se puede medir"
+    literales = {f["literal"] for f in recorrido}
+    assert esperado in literales, (esperado, literales)
+
+    # 4. La cadena completa está: evidencia, episodio y fuente, no sólo el
+    #    primer tramo. Un `SUPPORTED_BY` suelto diría que hay procedencia con
+    #    el recorrido roto más arriba.
+    for tramo in recorrido:
+        assert tramo["episode_id"], tramo
+        assert tramo["source_asset_id"], tramo
+
+    # 5. Y la marca de propiedad del apply está en el grafo: es la raíz de la
+    #    cadena `apply_id -> operación -> efecto -> evidencia`.
+    assert _cuenta(
+        grafo,
+        "MATCH (o:V3AppliedOperation {workspace: $ws, apply_id: $aid}) "
+        "RETURN count(o) AS c",
+        ws=workspace, aid=fila["apply_id"],
+    ) >= 1, "el apply no dejó ninguna operación marcada con su apply_id"
+
+
+# ---------------------------------------------------------------------------
+# CONTROL 2 — la afirmación se escribe y la PROCEDENCIA no: NO es éxito
+# ---------------------------------------------------------------------------
+
+@neo4j_real
+def test_sin_paquete_de_procedencia_el_apply_NO_termina_como_exito(
+    real_app, paneles_on, cola, operador, almacenes, grafo, monkeypatch
+):
+    """MUTACIÓN EN EL PRODUCTO: el sellado deja de publicar el paquete.
+
+    Es exactamente el estado en el que estaba la base: L2 escrito, evidencia
+    colgando. Antes de este carril eso salía `PLAN_APPLIED` y la pantalla
+    decía «ya forma parte del conocimiento». Ahora tiene que salir ROJO, y el
+    rojo tiene que ser POR ESTA CAUSA.
+    """
+    workspace = "ws-cofradia"
+    from app.services import v3_apply as servicio
+
+    monkeypatch.setattr(
+        servicio.ReviewApplyService, "_procedencia",
+        lambda self, mod, aprobadas, job_id: None,
+    )
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+
+    # CALIBRACIÓN DE LA MUTACIÓN: si el paquete siguiera publicándose, este
+    # caso mediría otra cosa y saldría verde por el motivo equivocado.
+    assert _fila_de_plan(almacenes["base"])["provenance_json"] is None, (
+        "la mutación no llegó al sellado: el control no mide nada"
+    )
+
+    assert _aviso_de(_aplicar(operador, job_id)) == "APPLY_INCOMPLETE"
+
+    # L2 SÍ se escribió: decir «no se ha escrito nada» también sería falso.
+    documento = json.loads(_fila_de_plan(almacenes["base"])["plan_json"])
+    afirmacion = documento["mutation_operations"][0]["assertion_id"]
+    assert _afirmaciones(grafo, workspace), "el control no llegó a escribir L2"
+
+    # Y el estado es PARCIAL, con nombre, y con la causa EXACTA.
+    fila = _fila_de_plan(almacenes["base"])
+    assert fila["state"] == "partial", fila["state"]
+    notas = _notas_de(almacenes["base"])
+    assert "APPLY_PROVENANCE_NOT_PERSISTED" in notas, notas
+    assert "PROVENANCE_UNREACHABLE" in notas, notas
+    assert _recorrido(grafo, workspace, afirmacion) == [], (
+        "hay recorrido de procedencia sin paquete: el control no distingue nada"
+    )
+
+    # LA PANTALLA LO DICE. No basta con que la fila lo sepa.
+    bloque = _bloque_plan(_panel(operador, job_id))
+    assert bloque["atributos"]["estado"] == "partial"
+    assert "partial" in bloque["desenlace"]
+    assert "PROVENANCE_UNREACHABLE" in bloque["texto"]
+    assert "ya forma parte del conocimiento" not in bloque["texto"]
+
+
+# ---------------------------------------------------------------------------
+# CONTROL 3 — la procedencia apunta a OTRA cosa: rojo por ATRIBUCIÓN
+# ---------------------------------------------------------------------------
+
+@neo4j_real
+def test_procedencia_de_otro_material_no_pone_verde_esta_afirmacion(
+    real_app, paneles_on, cola, operador, almacenes, grafo, monkeypatch
+):
+    """Se persiste evidencia REAL, pero de OTROS fragmentos.
+
+    El grafo acaba con nodos `V3Evidence` de verdad colgando de la fuente. Lo
+    único que falla es que no es LA de esta afirmación. Un verificador que
+    contase nodos de evidencia saldría verde aquí; el rojo tiene que decir
+    `PROVENANCE_UNREACHABLE` y el fragmento citado NO puede estar.
+    """
+    workspace = "ws-cofradia"
+    from app.services import v3_apply as servicio
+
+    original = servicio.ReviewApplyService._procedencia
+
+    def ajena(self, mod, aprobadas, job_id):
+        paquete = original(self, mod, aprobadas, job_id)
+        assert paquete, "sin paquete original el control no mide atribución"
+        # Mismo material, OTRAS identidades durables.
+        for fragmento in paquete["fragments"]:
+            fragmento["fragment_id"] = "ef-de-otra-corrida-" + fragmento["fragment_id"][-8:]
+        return paquete
+
+    monkeypatch.setattr(servicio.ReviewApplyService, "_procedencia", ajena)
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    assert _aviso_de(_aplicar(operador, job_id)) == "APPLY_INCOMPLETE"
+
+    documento = json.loads(_fila_de_plan(almacenes["base"])["plan_json"])
+    operacion = documento["mutation_operations"][0]
+    citados = sorted(operacion["evidence_fragment_ids"])
+
+    # HAY evidencia en el grafo, y de verdad: el rojo NO es por un grafo vacío.
+    assert _cuenta(grafo, "MATCH (e:V3Evidence {workspace: $ws}) RETURN count(e) AS c",
+                   ws=workspace) > 0
+    # Pero ninguna es la que esta afirmación cita.
+    assert _recorrido(grafo, workspace, operacion["assertion_id"]) == []
+    assert _fila_de_plan(almacenes["base"])["state"] == "partial"
+    notas = _notas_de(almacenes["base"])
+    assert "PROVENANCE_UNREACHABLE" in notas, notas
+    for fragmento in citados:
+        assert _cuenta(
+            grafo,
+            "MATCH (e:V3Evidence {workspace: $ws, fragment_id: $fid}) RETURN count(e) AS c",
+            ws=workspace, fid=fragmento,
+        ) == 0, "el fragmento citado SÍ está: la mutación no cambió la identidad"
+
+
+# ---------------------------------------------------------------------------
+# CONTROL 4 — repetir el apply no duplica NI conocimiento NI procedencia
+# ---------------------------------------------------------------------------
+
+@neo4j_real
+def test_repetir_el_apply_no_duplica_la_procedencia(
+    real_app, paneles_on, cola, operador, almacenes, grafo, monkeypatch
+):
+    """La idempotencia se mide también en el volcado, no sólo en el plan."""
+    workspace = "ws-cofradia"
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_APPLIED"
+
+    def foto() -> tuple:
+        return (
+            _cuenta(grafo, "MATCH (e:V3Evidence {workspace: $ws}) RETURN count(e) AS c", ws=workspace),
+            _cuenta(grafo, "MATCH (e:V3Episode {workspace: $ws}) RETURN count(e) AS c", ws=workspace),
+            _cuenta(grafo, "MATCH (s:V3Source {workspace: $ws}) RETURN count(s) AS c", ws=workspace),
+            _cuenta(grafo, "MATCH ()-[r:SUPPORTED_BY]->() RETURN count(r) AS c"),
+        )
+
+    primera = foto()
+    assert primera[0] > 0 and primera[3] > 0, (
+        "el primer apply no dejó procedencia: el control no mide nada"
+    )
+
+    assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_ALREADY_APPLIED"
+    assert foto() == primera, "el segundo apply duplicó procedencia"
+    assert len(_filas_de_plan(almacenes["base"])) == 1
+
+
+# ---------------------------------------------------------------------------
+# CONTROL 5 — EL DECISIVO: se mata el volcado con L2 ya escrito
+# ---------------------------------------------------------------------------
+
+@neo4j_real
+def test_matar_el_volcado_deja_estado_PARCIAL_dicho_y_reconciliable(
+    real_app, paneles_on, cola, operador, almacenes, grafo, monkeypatch
+):
+    """Aquí se ve si hay ATOMICIDAD FINGIDA.
+
+    El plan se ejecuta en su transacción y la procedencia en OTRA, después. No
+    hay ACID entre las dos. Se mata la segunda con L2 ya escrito y se exige:
+
+      1. que NO se anuncie éxito;
+      2. que el estado tenga NOMBRE (`partial`) y no se disfrace de `applied`
+         ni de `superseded` —volver a `sealed` diría que el grafo está
+         intacto, y no lo está—;
+      3. que la pantalla lo diga;
+      4. y que la RECONCILIACIÓN lo termine: el mismo plan, reaplicado, sin
+         duplicar nada.
+    """
+    workspace = "ws-cofradia"
+    _motor_en_ruta()
+    from knowledge_v3.writer import apply as apply_mod
+
+    llamadas = {"n": 0}
+
+    def volcado_muerto(*args, **kwargs):
+        llamadas["n"] += 1
+        raise RuntimeError("volcado de procedencia interrumpido (control 5)")
+
+    monkeypatch.setattr(apply_mod, "persist_provenance", volcado_muerto)
+
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    # CALIBRACIÓN: el paquete SÍ se selló. Lo que se mata es el volcado, no el
+    # material; si no, este control sería el 2 otra vez.
+    assert _fila_de_plan(almacenes["base"])["provenance_json"], (
+        "el paquete no se selló: este control mediría la ausencia de material"
+    )
+
+    assert _aviso_de(_aplicar(operador, job_id)) == "APPLY_INCOMPLETE"
+    assert llamadas["n"] == 1, "el volcado no llegó a intentarse"
+
+    # 1+2. L2 ESCRITO y estado PARCIAL con nombre.
+    documento = json.loads(_fila_de_plan(almacenes["base"])["plan_json"])
+    afirmacion = documento["mutation_operations"][0]["assertion_id"]
+    assert [f["id"] for f in _afirmaciones(grafo, workspace)] == [afirmacion]
+    fila = _fila_de_plan(almacenes["base"])
+    assert fila["state"] == "partial", fila["state"]
+    notas = _notas_de(almacenes["base"])
+    assert "APPLY_PROVENANCE_FAILED" in notas, notas
+    assert "PROVENANCE_UNREACHABLE" in notas, notas
+    assert _cuenta(grafo, "MATCH (e:V3Evidence) RETURN count(e) AS c") == 0
+
+    # 3. LA PANTALLA LO DICE, y sigue ofreciendo terminarlo.
+    bloque = _bloque_plan(_panel(operador, job_id))
+    assert "partial" in bloque["desenlace"]
+    assert bloque["form_aplicacion"], (
+        "sin botón, la única salida sería volver a sellar y abandonar lo escrito"
+    )
+
+    # 4. RECONCILIACIÓN: se levanta la mutación y se reaplica EL MISMO plan.
+    monkeypatch.undo()
+    monkeypatch.setenv("S9K_ALLOW_REAL_INGEST", "1")
+    monkeypatch.setenv("S9K_WRITER_WORKSPACE", workspace)
+    assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_APPLIED"
+
+    final = _fila_de_plan(almacenes["base"])
+    assert final["state"] == "applied", final["state"]
+    assert final["plan_json"] == fila["plan_json"], (
+        "la reconciliación cambió el plan: tenía que reaplicar EL MISMO"
+    )
+    # Sin duplicar el conocimiento que ya estaba...
+    assert [f["id"] for f in _afirmaciones(grafo, workspace)] == [afirmacion]
+    # ...y con la procedencia ya alcanzable.
+    recorrido = _recorrido(grafo, workspace, afirmacion)
+    assert recorrido, "la reconciliación no completó la procedencia"
+    assert sorted({f["fragment_id"] for f in recorrido}) == sorted(
+        documento["mutation_operations"][0]["evidence_fragment_ids"]
+    )
