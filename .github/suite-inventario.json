@@ -29,13 +29,15 @@
     "viewer/tests/test_panel_entities.py",
     "viewer/tests/test_panel_operations.py",
     "viewer/tests/test_panel_review_console.py",
+    "viewer/tests/test_panel_review_estado_de_revision.py",
     "viewer/tests/test_panel_sources.py",
     "viewer/tests/test_parcialidad_declarada.py",
     "viewer/tests/test_productor_de_cada_campo_de_autorizacion.py",
     "viewer/tests/test_provider_authz_fields_contract.py",
     "viewer/tests/test_registro_de_autorizacion.py",
     "viewer/tests/test_registro_es_especificacion_ejecutable.py",
-    "viewer/tests/test_serializers.py"
+    "viewer/tests/test_serializers.py",
+    "viewer/tests/test_v3_review_almacen_no_disponible.py"
   ],
   "silenciados": {
     "data-engine/app/tests/test_equipo5a_partida_y_esquema_neo4j_real.py": "CONDICIONAL",
@@ -375,6 +377,7 @@
     "viewer/tests/test_v3_decision_controles.py": 3,
     "viewer/tests/test_v3_decision_efectiva.py": 10,
     "viewer/tests/test_v3_review.py": 15,
+    "viewer/tests/test_v3_review_almacen_no_disponible.py": 9,
     "viewer/tests/test_v3_review_e2e.py": 37,
     "viewer/tests/test_v3_review_storage.py": 7,
     "viewer/tests/test_view_as_character.py": 3,
@@ -411,7 +414,7 @@
     "viewer/tests/browser/test_login_browser.py",
     "viewer/tests/test_graph_ux_v2.py"
   ],
-  "total": 8425,
+  "total": 8437,
   "modulos": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 526,
     "contracts/review-ingest/v1/tests/test_contracts_v1.py": 38,
@@ -698,6 +701,7 @@
     "viewer/tests/test_v3_decision_controles.py": 3,
     "viewer/tests/test_v3_decision_efectiva.py": 11,
     "viewer/tests/test_v3_review.py": 15,
+    "viewer/tests/test_v3_review_almacen_no_disponible.py": 12,
     "viewer/tests/test_v3_review_e2e.py": 37,
     "viewer/tests/test_v3_review_storage.py": 7,
     "viewer/tests/test_view_as_character.py": 3,

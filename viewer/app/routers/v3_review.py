@@ -30,6 +30,26 @@ def _service() -> ReviewService:
     return ReviewService()
 
 
+def _detalle_seguro(exc: ProposalStoreUnavailable) -> str:
+    """Lo que SÍ puede cruzar al cliente: código estable + frase accionable.
+
+    Nunca `str(exc)`. El mensaje de esta excepción lleva el DIRECTORIO del
+    almacén dentro y este repositorio es público:
+
+        {"detail": "almacen de propuestas ausente: /.../reviews-v3/proposals"}
+
+    La fuga preexistía para el paquete corrupto; lo que hizo el Corte 4 fue
+    ensancharla del caso raro al que el propio panel llama «lo habitual», y
+    justo en la única superficie de ESCRITURA de dominio del producto.
+
+    El formato `CODIGO: frase` es el del resto del producto —`panel_errors`
+    recupera el código con `split(":", 1)[0]`—, así que un cliente puede
+    ramificar por código sin que nadie tenga que parsear prosa.
+    """
+    vista = store_unavailable_view(exc)
+    return f"{vista['code']}: {vista['message']}"
+
+
 def _guard(request: Request):
     if not get_auth_settings().S9K_AUTH_ENABLED:
         return None
@@ -242,9 +262,7 @@ def decide(
         # 2. FUGA. El `detail=str(exc)` de abajo publica el mensaje de la
         #    excepción, y el de ésta lleva el DIRECTORIO dentro. Repositorio
         #    público: sale la frase estable, no la ruta.
-        raise HTTPException(
-            status_code=503, detail=store_unavailable_view(exc)["message"]
-        ) from exc
+        raise HTTPException(status_code=503, detail=_detalle_seguro(exc)) from exc
     except ReviewError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return RedirectResponse(url=f"/v3/review?workspace={workspace}", status_code=303)
@@ -269,6 +287,16 @@ def undo(
             request_id=request_id,
             scope=scope,
         )
+    except ProposalStoreUnavailable as exc:
+        # MISMO DESENLACE QUE `decide`, y por las mismas dos razones: 503 en vez
+        # de culpar al revisor, y código estable en vez de `str(exc)`.
+        #
+        # Hoy `undo_last` NO es consumidor de `load_proposals` —el censo por AST
+        # da exactamente tres: `workspaces`, `queue` y `record`—, así que esta
+        # rama no es alcanzable todavía. Se pone igualmente porque la que sí
+        # está debajo publica `str(exc)`, y el día que `undo_last` necesite leer
+        # el almacén la fuga aparecería aquí sin que nadie la buscara.
+        raise HTTPException(status_code=503, detail=_detalle_seguro(exc)) from exc
     except ReviewError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return RedirectResponse(url=f"/v3/review?workspace={workspace}", status_code=303)

@@ -281,6 +281,14 @@ def test_decidir_con_el_almacen_caido_no_culpa_al_revisor_ni_filtra_la_ruta(
         "la respuesta publica la RUTA del almacén: `detail=str(exc)` filtra el "
         "mensaje de la excepción y el repositorio es público"
     )
+    # El cuerpo EXACTO que encontró la revisión, fijado para que no vuelva:
+    #   {"detail":"almacen de propuestas ausente: /.../reviews-v3/proposals"}
+    assert "almacen de propuestas ausente" not in r.text, (
+        "vuelve a publicarse el mensaje crudo de la excepción"
+    )
+    # Y lo que SÍ tiene que llevar: el código estable, para poder ramificar
+    # por código sin parsear prosa.
+    assert "PROPOSALS_STORE_MISSING" in r.text, r.text[:300]
     assert "Traceback" not in r.text
 
 
