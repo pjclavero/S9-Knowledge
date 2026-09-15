@@ -50,7 +50,11 @@ from app.services.v3_review import (
     _proposal_id,
     load_proposals,
 )
-from app.services.v3_review_store import SealConflict
+from app.services.v3_review_store import (
+    AuditChainBroken,
+    SealConflict,
+    active_decision_ids,
+)
 
 log = logging.getLogger("panel.apply")
 
@@ -78,6 +82,8 @@ CODIGOS = (
     "SEAL_CONFLICT",
     "PLAN_NOT_SEALED",
     "PLAN_ALREADY_APPLIED",
+    "PLAN_APPLY_IN_FLIGHT",
+    "AUDIT_CHAIN_BROKEN",
     "PLAN_SUPERSEDED",
     "APPLY_NOT_ENABLED",
     "GRAPH_UNAVAILABLE",
@@ -201,8 +207,15 @@ class ReviewApplyService:
 
     # -- lectura -----------------------------------------------------------
 
-    def _aprobadas(self, workspace: str, job_id: str) -> tuple[list, dict, int]:
+    def _aprobadas(self, workspace: str, job_id: str) -> tuple[list, dict, int, list]:
         """Propuestas de ESTA corrida con decisión humana activa `APPROVE`.
+
+        Devuelve ADEMÁS las `decision_id` activas del workspace DERIVADAS DE LA
+        MISMA LECTURA (B1). No es un extra de comodidad: es lo único que hace
+        cierta la garantía. Volver a leerlas después, en otra conexión, hacía
+        que la guarda del sellado comparase la segunda lectura contra la
+        tercera y NUNCA la primera contra la tercera — y un cambio de decisión
+        en esa ventana quedaba invisible.
 
         `load_proposals` LEVANTA ante almacén ausente o ilegible (Corte 4). Se
         llama desde aquí, así que este consumidor lo cubre: la excepción se
@@ -213,7 +226,10 @@ class ReviewApplyService:
             todas = load_proposals(self.review.proposals_dir)
         except ReviewError as exc:
             raise ApplyError("REVIEW_STORE_UNAVAILABLE", str(exc)) from exc
-        activas = _active_decisions(self.store.decisions())
+        # UNA SOLA LECTURA. De aquí salen las dos cosas.
+        registros = self.store.decisions()
+        esperadas = active_decision_ids(registros, workspace)
+        activas = _active_decisions(registros)
         de_la_corrida = [
             p for p in todas
             if p.get("workspace") == workspace and job_id in (p.get("package_runs") or ())
@@ -230,13 +246,13 @@ class ReviewApplyService:
             if decision.get("human_decision") == "APPROVE":
                 aprobadas.append(propuesta)
                 decision_ids[identificador] = str(decision.get("decision_id") or "")
-        return aprobadas, decision_ids, pendientes
+        return aprobadas, decision_ids, pendientes, esperadas
 
     def estado(self, *, workspace: str, job_id: str) -> EstadoDelPlan:
         """El estado de la corrida, para pintar la pantalla. Nunca sella nada."""
         habilitado = self._habilitado(workspace)
         try:
-            aprobadas, _, pendientes = self._aprobadas(workspace, job_id)
+            aprobadas, _, pendientes, _ = self._aprobadas(workspace, job_id)
         except ApplyError as exc:
             return EstadoDelPlan(estado="no_disponible", habilitado=habilitado,
                                  avisos=(exc.code,))
@@ -252,13 +268,23 @@ class ReviewApplyService:
         except (TypeError, ValueError):  # pragma: no cover - fila corrupta
             operaciones = 0
         estado = ultimo["state"]
+        # LO ESCRITO SE LEE DE LO QUE EL WRITER DIJO, NO DEL PLAN (B2).
+        # Derivarlo de `len(mutation_operations)` no distingue un apply hecho
+        # de uno abortado: una fila marcada y un proceso muerto producían
+        # «1 afirmación añadida» con el grafo vacío.
+        escritas = ultimo["applied_operations"] if estado == "applied" else None
+        try:
+            notas = tuple(json.loads(ultimo["apply_notes_json"] or "[]"))
+        except (TypeError, ValueError):  # pragma: no cover - fila corrupta
+            notas = ()
         return EstadoDelPlan(
             estado=estado,
             aprobadas=len(aprobadas),
             pendientes=pendientes,
             en_el_plan=operaciones,
-            afirmaciones_escritas=operaciones if estado == "applied" else None,
+            afirmaciones_escritas=escritas,
             habilitado=habilitado,
+            avisos=notas,
         )
 
     def _habilitado(self, workspace: str) -> bool:
@@ -284,7 +310,7 @@ class ReviewApplyService:
         está guardado.
         """
         review_plan_mod = _motor()[0]
-        aprobadas, decision_ids, _ = self._aprobadas(workspace, job_id)
+        aprobadas, decision_ids, _, esperadas = self._aprobadas(workspace, job_id)
         if not aprobadas:
             raise ApplyError("NO_APPROVED_PROPOSALS")
         ahora = _ahora()
@@ -301,12 +327,16 @@ class ReviewApplyService:
             raise ApplyError("NO_APPLICABLE_PROPOSALS", str(exc)) from exc
 
         documento = construido.plan_doc
-        # LA COMPROBACIÓN DE LAS DECISIONES SE REHACE DENTRO DE LA TRANSACCIÓN.
-        # Lo que se pasa aquí es lo que se leyó; el almacén lo vuelve a leer con
-        # `BEGIN IMMEDIATE` y se niega a sellar si ha cambiado.
-        esperadas = self.store._active_decision_ids  # noqa: SLF001 - misma capa
-        with self.store.connection() as conexion:
-            activas_ahora = esperadas(conexion, workspace)
+        # LO QUE SE PASA AQUÍ ES, LITERALMENTE, LO QUE SE LEYÓ (B1).
+        #
+        # `esperadas` viene de la MISMA lectura con la que se construyó el plan.
+        # El almacén la vuelve a derivar dentro de `BEGIN IMMEDIATE` y compara;
+        # si alguien decidió, deshizo o corrigió en cualquier momento desde que
+        # empezamos a componer este plan, no se sella nada.
+        #
+        # Antes había aquí una SEGUNDA lectura, en otra conexión, y era la que
+        # se pasaba: la guarda comparaba esa segunda contra la tercera, así que
+        # la ventana entre la primera y la segunda no la vigilaba nadie.
         try:
             fila = self.store.seal_plan(
                 workspace=workspace,
@@ -318,10 +348,24 @@ class ReviewApplyService:
                 decision_ids=list(construido.decision_ids),
                 proposal_ids=list(construido.included_proposal_ids),
                 sealed_at=ahora,
-                expected_decision_ids=activas_ahora,
+                expected_decision_ids=esperadas,
             )
         except SealConflict as exc:
             raise ApplyError("SEAL_CONFLICT", str(exc)) from exc
+        except AuditChainBroken as exc:
+            raise ApplyError("AUDIT_CHAIN_BROKEN", str(exc)) from exc
+        if construido.excluded:
+            # NINGUNA EXCLUSIÓN EN SILENCIO. El código se traduce con la tabla
+            # cerrada del motor (`SEAL_CODES`), que es también quien impide que
+            # se emita un motivo que nadie declaró.
+            log.warning(
+                "sellado con exclusiones (%s): %s",
+                job_id,
+                "; ".join(
+                    f"{e.code}: {review_plan_mod.SEAL_CODES.get(e.code, '')}"
+                    for e in construido.excluded
+                ),
+            )
         return {
             "en_el_plan": len(documento["mutation_operations"]),
             "excluidas": tuple(e.to_dict() for e in construido.excluded),
@@ -349,8 +393,13 @@ class ReviewApplyService:
             ultimo = self.store.last_plan(workspace=workspace, job_id=job_id)
             if ultimo is None:
                 raise ApplyError("PLAN_NOT_SEALED")
-            if ultimo["state"] == "applied":
+            if ultimo["state"] == self.store.ESTADO_APLICADO:
                 raise ApplyError("PLAN_ALREADY_APPLIED")
+            if ultimo["state"] == self.store.ESTADO_EN_VUELO:
+                # NO SE REINTENTA A CIEGAS. Se tomó y no consta el desenlace:
+                # puede haber escrito. Reaplicar sería arriesgar la duplicación
+                # que esta capacidad existe para impedir.
+                raise ApplyError("PLAN_APPLY_IN_FLIGHT")
             raise ApplyError("PLAN_SUPERSEDED")
 
         if not self._habilitado(workspace):
@@ -403,15 +452,19 @@ class ReviewApplyService:
             rechazos = [r.code for r in (getattr(resultado, "rejections", None) or [])]
         except Exception as exc:  # noqa: BLE001 - se traduce, no se propaga
             self.store.record_apply_result(
-                plan_id=plan_id, apply_id=None, ok=False, now=_ahora()
+                plan_id=plan_id, apply_id=None, ok=False, now=_ahora(),
+                notes=["APPLY_FAILED"],
             )
             log.exception("apply fallido para la corrida %s", job_id)
             raise ApplyError("APPLY_FAILED", type(exc).__name__) from exc
 
         # SÓLO AHORA se sabe qué pasó. El estado se corrige con el desenlace
-        # REAL antes de contestar nada al operador.
+        # REAL —recuento del writer y sus códigos incluidos— antes de contestar
+        # nada al operador.
+        notas = [n["code"] for n in salida.notes]
         self.store.record_apply_result(
-            plan_id=plan_id, apply_id=apply_id, ok=aplicado, now=_ahora()
+            plan_id=plan_id, apply_id=apply_id, ok=aplicado, now=_ahora(),
+            applied_operations=escritas, notes=notas,
         )
         if not aplicado:
             log.error("apply rechazado para %s: %s", job_id, rechazos)
@@ -419,7 +472,7 @@ class ReviewApplyService:
         return {
             "afirmaciones_escritas": escritas,
             "sin_cambios": noop,
-            "notas": [n["code"] for n in salida.notes],
+            "notas": notas,
         }
 
     def _driver_factory(self):

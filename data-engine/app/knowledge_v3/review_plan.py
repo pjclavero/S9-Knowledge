@@ -182,11 +182,22 @@ class ExcludedProposal:
 
     Existe para que «se aprobaron 3 y el plan trae 1» sea una frase que el
     producto puede decir, y no una diferencia que nadie nota.
+
+    EL MOTIVO SE VALIDA CONTRA `SEAL_CODES` AL CONSTRUIRLO. Esa tabla estaba
+    exportada y sin un solo llamador, es decir, era prosa: nada impedia emitir
+    un motivo que no estuviera en ella, y un motivo que la pantalla no sabe
+    traducir es una exclusion muda. Ahora la enumeracion esta CERRADA por
+    construccion y el fallo es inmediato, no un hueco en la pantalla.
     """
 
     __slots__ = ("proposal_id", "code")
 
     def __init__(self, proposal_id: str, code: str):
+        if code not in SEAL_CODES:
+            raise ReviewPlanError(
+                "SEAL_CODE_NOT_DECLARED",
+                f"motivo de exclusion no declarado en SEAL_CODES: {code}",
+            )
         self.proposal_id = proposal_id
         self.code = code
 

@@ -65,6 +65,8 @@ CREATE TABLE IF NOT EXISTS sealed_plans (
   sealed_at TEXT NOT NULL,
   applied_at TEXT,
   apply_id TEXT,
+  applied_operations INTEGER,
+  apply_notes_json TEXT,
   UNIQUE (workspace, job_id, revision)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_sealed_plan_vigente
@@ -76,6 +78,57 @@ CREATE INDEX IF NOT EXISTS idx_review_active
 CREATE INDEX IF NOT EXISTS idx_glossary_pending
   ON glossary_outbox(workspace, processed_at);
 """
+
+
+def active_decision_ids(records: list, workspace: str) -> list[str]:
+    """`decision_id` ACTIVOS de un workspace. LA derivación, sobre registros.
+
+    POR QUÉ ES UNA FUNCIÓN PURA Y NO UN MÉTODO QUE LEE
+    --------------------------------------------------
+    B1. El sellado construía el plan con las decisiones leídas en t1 y pasaba
+    como esperadas una SEGUNDA lectura en t2, en otra conexión. La guarda
+    comparaba t2 contra t3 y NUNCA t1 contra t3, así que un cambio de decisión
+    entre t1 y t2 era INVISIBLE: medido por el camino del producto, registrar
+    un `REJECT` en esa ventana dejaba el plan `sealed` con la afirmación que el
+    operador acababa de RECHAZAR, sin `SEAL_CONFLICT`. Y no hacía falta nada
+    exótico: un admin sellando mientras alguien decide en `/panel/review` es el
+    uso normal.
+
+    Con la derivación aquí, el servicio la aplica a LA MISMA lista de registros
+    con la que construyó el plan, y lo que la transacción compara es t1 contra
+    t3. Que sea una sola definición es lo que impide que las dos lecturas usen
+    semánticas distintas y produzcan conflictos fantasma o, peor, silencios.
+
+    Semántica, idéntica a `_active_decisions` en `v3_review`: la última por
+    propuesta gana, una supersedida no cuenta, y un `undo` devuelve la
+    propuesta a pendiente.
+    """
+    ultima: dict[str, Any] = {}
+    supersedidas: set[str] = set()
+    for record in records:
+        if str(record.get("workspace") or "") != workspace:
+            continue
+        if record.get("supersedes_decision_id"):
+            supersedidas.add(str(record["supersedes_decision_id"]))
+        identificador = str((record.get("proposal") or {}).get("proposal_id") or "")
+        if identificador:
+            ultima[identificador] = record
+    activas = {
+        str(record.get("decision_id") or "")
+        for record in ultima.values()
+        if str(record.get("decision_id") or "") not in supersedidas
+        and not (record.get("correction") or {}).get("undo")
+    }
+    activas.discard("")
+    return sorted(activas)
+
+
+class AuditChainBroken(RuntimeError):
+    """La cadena de auditoría del workspace no verifica.
+
+    FALLA CERRADO: no se sella. Si el registro encadenado que sostiene la
+    procedencia está roto, lo que se escriba encima no es auditable.
+    """
 
 
 class SealConflict(RuntimeError):
@@ -235,12 +288,24 @@ class SQLiteReviewStore:
     #                 único PARCIAL sobre (workspace, job_id) WHERE
     #                 state='sealed'. No es una comprobación en Python que
     #                 alguien pueda olvidarse de llamar.
-    #   `applied`     se aplicó. Queda INMUTABLE y ligado a su `apply_id`,
-    #                 para procedencia y auditoría.
-    #   `superseded`  una decisión cambió después de sellarlo. El plan NO se
-    #                 modifica: se invalida y exige una revisión nueva.
+    #   `applying`    RESERVADO y EN VUELO: alguien lo tomó y todavía no consta
+    #                 qué pasó. NO es «aplicado».
+    #   `applied`     se aplicó Y SE CONFIRMÓ. Queda INMUTABLE y ligado a su
+    #                 `apply_id`, para procedencia y auditoría.
+    #   `superseded`  no vale: una decisión cambió, o el apply no llegó a
+    #                 escribir. El plan NO se modifica nunca: se invalida.
+    #
+    # B2. `applying` NACE DE UN FALSO ÉXITO MEDIDO. Antes, `claim_for_apply`
+    # marcaba directamente `applied` con `apply_id` a NULL, y si el proceso
+    # moría entre la reserva y la escritura `record_apply_result` no corría
+    # jamás: la fila quedaba `applied`, la pantalla decía «ya forma parte del
+    # conocimiento», el grafo estaba VACÍO y el camino para reintentarlo estaba
+    # cerrado. El marcador de «en vuelo» existía —`applied` con `apply_id`
+    # nulo— y NADIE LO MIRABA. Ahora es un estado con nombre, y quien lo lee no
+    # puede confundirlo con un éxito.
 
     ESTADO_SELLADO = "sealed"
+    ESTADO_EN_VUELO = "applying"
     ESTADO_APLICADO = "applied"
     ESTADO_SUPERSEDIDO = "superseded"
 
@@ -266,35 +331,19 @@ class SQLiteReviewStore:
     def _active_decision_ids(
         self, connection: sqlite3.Connection, workspace: str
     ) -> list[str]:
-        """Los `decision_id` ACTIVOS del workspace, con la semántica del visor.
+        """Los `decision_id` ACTIVOS del workspace, LEÍDOS EN ESTA CONEXIÓN.
 
-        Misma regla que `_active_decisions` en `v3_review`: la última por
-        propuesta gana, una supersedida no cuenta y un `undo` devuelve la
-        propuesta a pendiente. Se recalcula aquí, sobre la conexión de la
-        transacción, porque leerlo fuera sería leer OTRO instante.
+        Lee las filas y delega en `active_decision_ids`, que es LA derivación.
+        Leerlas aquí y no fuera importa: dentro de `BEGIN IMMEDIATE` esto es el
+        instante contra el que se compara.
         """
         rows = connection.execute(
             """SELECT record_json FROM human_decisions
-               WHERE workspace=? ORDER BY created_at, decision_id""",
-            (workspace,),
+               ORDER BY created_at, decision_id"""
         ).fetchall()
-        ultima: dict[str, dict[str, Any]] = {}
-        supersedidas: set[str] = set()
-        for row in rows:
-            record = json.loads(row["record_json"])
-            if record.get("supersedes_decision_id"):
-                supersedidas.add(str(record["supersedes_decision_id"]))
-            identificador = str((record.get("proposal") or {}).get("proposal_id") or "")
-            if identificador:
-                ultima[identificador] = record
-        activas = {
-            str(record.get("decision_id") or "")
-            for record in ultima.values()
-            if str(record.get("decision_id") or "") not in supersedidas
-            and not (record.get("correction") or {}).get("undo")
-        }
-        activas.discard("")
-        return sorted(activas)
+        return active_decision_ids(
+            [json.loads(row["record_json"]) for row in rows], workspace
+        )
 
     def seal_plan(
         self,
@@ -322,6 +371,8 @@ class SQLiteReviewStore:
         de las decisiones.** La transacción es de SQLite; no hay ventana.
         """
         with self.transaction() as connection:
+            # La cadena, VERIFICADA antes de añadirle nada.
+            self.verify_audit_chain(connection, workspace)
             activas = self._active_decision_ids(connection, workspace)
             if activas != sorted(set(expected_decision_ids)):
                 raise SealConflict(
@@ -387,13 +438,6 @@ class SQLiteReviewStore:
             ).fetchone()
         return dict(row) if row else None
 
-    def plan_by_id(self, plan_id: str):
-        with self.connection() as connection:
-            row = connection.execute(
-                "SELECT * FROM sealed_plans WHERE plan_id=?", (plan_id,)
-            ).fetchone()
-        return dict(row) if row else None
-
     def claim_for_apply(self, *, plan_id: str, now: str) -> dict:
         """Toma el plan para aplicarlo. ATÓMICO: dos clics no aplican dos veces.
 
@@ -402,17 +446,16 @@ class SQLiteReviewStore:
         encuentra el plan ya en `applied` y recibe un desenlace EXPLÍCITO — no
         un segundo apply silencioso, y tampoco un error genérico.
 
-        Se marca ANTES de escribir en el grafo a propósito. El orden inverso
-        (escribir y luego marcar) deja una ventana en la que un segundo clic
-        aplicaría de verdad. Este orden, en el peor caso, deja un plan marcado
-        cuyo writer falló — y eso no se queda así: `record_apply_result` lo
-        devuelve a `sealed` en cuanto se confirma el desenlace real.
+        Se marca ANTES de escribir en el grafo a propósito: el orden inverso
+        deja una ventana en la que un segundo clic aplicaría de verdad. Pero se
+        marca `applying`, NO `applied`. Si el proceso muere aquí, la fila queda
+        en un estado que NADIE puede leer como éxito, y la pantalla lo dice.
         """
         with self.transaction() as connection:
             cursor = connection.execute(
                 """UPDATE sealed_plans SET state=?, applied_at=?
                    WHERE plan_id=? AND state=?""",
-                (self.ESTADO_APLICADO, now, plan_id, self.ESTADO_SELLADO),
+                (self.ESTADO_EN_VUELO, now, plan_id, self.ESTADO_SELLADO),
             )
             tomado = (cursor.rowcount or 0) == 1
             row = connection.execute(
@@ -429,13 +472,26 @@ class SQLiteReviewStore:
         return {"claimed": tomado, "plan": dict(row)}
 
     def record_apply_result(
-        self, *, plan_id: str, apply_id, ok: bool, now: str
+        self, *, plan_id: str, apply_id, ok: bool, now: str,
+        applied_operations: int = 0, notes: list | None = None,
     ) -> None:
-        """Deja el desenlace REAL del apply sobre el plan tomado.
+        """Deja el desenlace REAL del apply sobre el plan EN VUELO.
 
-        Si el writer NO aplicó, el plan vuelve a `sealed`: no se ha escrito
-        nada, así que dejarlo marcado como aplicado sería mentir y además
-        impediría reintentar lo que nunca llegó a ocurrir.
+        `applied_operations` es lo que el WRITER dijo haber escrito, y `notes`
+        los códigos que emitió. Se persisten porque la pantalla tiene que poder
+        contar lo que pasó DE VERDAD: derivar el recuento de
+        `len(mutation_operations)` no distingue un apply hecho de uno abortado,
+        y las notas del núcleo (`APPLY_PROVENANCE_NOT_PERSISTED`, entre otras)
+        morían aquí sin llegar a nadie.
+
+        SI EL WRITER NO APLICÓ, EL PLAN SE INVALIDA — no vuelve a `sealed`.
+        Devolverlo a `sealed` con un `WHERE plan_id=?` a secas resucitaba un
+        plan cuyas decisiones pudieron cambiar durante el apply, sin guarda de
+        estado y sin revalidar nada. Preparar de nuevo cuesta un clic y vuelve
+        a leer las decisiones; resucitar a ciegas no tiene arreglo.
+
+        Los dos `UPDATE` llevan `AND state='applying'`: sólo se cierra lo que
+        esta misma petición reservó.
         """
         with self.transaction() as connection:
             row = connection.execute(
@@ -445,14 +501,22 @@ class SQLiteReviewStore:
                 raise KeyError(plan_id)
             if ok:
                 connection.execute(
-                    "UPDATE sealed_plans SET apply_id=?, applied_at=? WHERE plan_id=?",
-                    (apply_id, now, plan_id),
+                    """UPDATE sealed_plans
+                       SET state=?, apply_id=?, applied_at=?,
+                           applied_operations=?, apply_notes_json=?
+                       WHERE plan_id=? AND state=?""",
+                    (self.ESTADO_APLICADO, apply_id, now, int(applied_operations),
+                     canonical(sorted(set(notes or ()))), plan_id,
+                     self.ESTADO_EN_VUELO),
                 )
             else:
                 connection.execute(
-                    """UPDATE sealed_plans SET state=?, applied_at=NULL, apply_id=NULL
-                       WHERE plan_id=?""",
-                    (self.ESTADO_SELLADO, plan_id),
+                    """UPDATE sealed_plans
+                       SET state=?, applied_at=NULL, apply_id=NULL,
+                           applied_operations=NULL, apply_notes_json=?
+                       WHERE plan_id=? AND state=?""",
+                    (self.ESTADO_SUPERSEDIDO, canonical(sorted(set(notes or ()))),
+                     plan_id, self.ESTADO_EN_VUELO),
                 )
             self._audit(connection, row["workspace"], {
                 "event": "REVIEW_PLAN_APPLIED" if ok else "REVIEW_PLAN_APPLY_FAILED",
@@ -483,17 +547,55 @@ class SQLiteReviewStore:
         )
 
     def audit_events(self, workspace: str) -> list:
-        """La cadena de auditoría del workspace, para poder COMPROBARLA."""
+        """La cadena de auditoría del workspace, ENTERA y en orden.
+
+        Es el ÚNICO lector de `decision_audit`. Reusar esa tabla para los
+        eventos de plan fue el argumento para no crear un registro nuevo; si
+        nadie la leyera, ese argumento no sostendría nada y la cadena sería de
+        sólo escritura.
+        """
         with self.connection() as connection:
             rows = connection.execute(
-                """SELECT event_type, event_json FROM decision_audit
-                   WHERE workspace=? ORDER BY audit_seq""",
+                """SELECT event_type, event_json, previous_hash, record_hash
+                   FROM decision_audit WHERE workspace=? ORDER BY audit_seq""",
                 (workspace,),
             ).fetchall()
         return [
-            {"event_type": row["event_type"], **json.loads(row["event_json"])}
+            {
+                "event_type": row["event_type"],
+                "previous_hash": row["previous_hash"],
+                "record_hash": row["record_hash"],
+                **json.loads(row["event_json"]),
+            }
             for row in rows
         ]
+
+    def verify_audit_chain(self, connection: sqlite3.Connection, workspace: str) -> None:
+        """RECOMPUTA la cadena encadenada por hash. Levanta si no verifica.
+
+        Se llama DENTRO de la transacción del sellado, y ése es el punto: la
+        cadena deja de ser un adorno que se escribe y nadie mira, y pasa a ser
+        una precondición del acto que más importa. Si está rota, no se sella:
+        lo que se escribiera encima no sería auditable.
+        """
+        rows = connection.execute(
+            """SELECT event_type, event_json, previous_hash, record_hash
+               FROM decision_audit WHERE workspace=? ORDER BY audit_seq""",
+            (workspace,),
+        ).fetchall()
+        anterior = None
+        for indice, row in enumerate(rows):
+            if row["previous_hash"] != anterior:
+                raise AuditChainBroken(
+                    f"cadena rota en la entrada {indice + 1} del registro"
+                )
+            cuerpo = json.loads(row["event_json"])
+            esperado = digest({"previous_hash": anterior, **cuerpo})
+            if row["record_hash"] != esperado:
+                raise AuditChainBroken(
+                    f"hash no corresponde al contenido en la entrada {indice + 1}"
+                )
+            anterior = row["record_hash"]
 
     def audit_stale(self, event: dict[str, Any]) -> None:
         with self.transaction() as connection:

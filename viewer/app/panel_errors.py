@@ -117,6 +117,13 @@ CATALOGO: dict[str, str] = {
     "PLAN_ALREADY_APPLIED":
         "Lo aprobado de esta ingesta ya se anadio al conocimiento. No se ha "
         "vuelto a anadir: no se duplica nada.",
+    "PLAN_APPLY_IN_FLIGHT":
+        "Se empezo a anadir lo aprobado y no consta como termino, asi que no se "
+        "reintenta solo: hacerlo podria duplicar conocimiento. Avisa a quien "
+        "administra el servicio para que compruebe que quedo escrito.",
+    "AUDIT_CHAIN_BROKEN":
+        "El registro de auditoria de esta revision no verifica, asi que no se "
+        "ha preparado nada. Avisa a quien administra el servicio.",
     "PLAN_SUPERSEDED":
         "Una decision cambio despues de preparar lo aprobado, asi que lo "
         "preparado ha dejado de valer y no se ha aplicado nada. Vuelve a "

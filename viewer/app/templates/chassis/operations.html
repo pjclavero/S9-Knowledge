@@ -158,9 +158,46 @@
         {% if plan.estado == 'applied' %}
           <p data-plan-desenlace="applied">
             Lo que se aprobó ya forma parte del conocimiento:
-            <strong>{{ plan.afirmaciones_escritas }}</strong>
+            <strong>{{ plan.afirmaciones_escritas if plan.afirmaciones_escritas is not none else 'un número no disponible de' }}</strong>
             {{ 'afirmación añadida' if plan.afirmaciones_escritas == 1 else 'afirmaciones añadidas' }}.
             No se vuelve a añadir.
+          </p>
+          {#
+            LO QUE EL NÚCLEO DIJO, DICHO. `apply_v3` devuelve
+            `APPLY_PROVENANCE_NOT_PERSISTED` y enumera las referencias de
+            evidencia que quedan colgando; ese código llegaba al servicio y
+            MORÍA ALLÍ, mientras la pantalla decía «ya forma parte del
+            conocimiento» a secas. Eso es falsa completitud: quien luego mire
+            la afirmación no encontrará la evidencia que cita, y nadie se lo
+            habría dicho.
+          #}
+          {% if 'APPLY_PROVENANCE_NOT_PERSISTED' in plan.avisos %}
+            <p data-plan-aviso="APPLY_PROVENANCE_NOT_PERSISTED">
+              Pero no del todo: lo añadido <strong>no queda navegable hasta su
+              evidencia</strong>. La cita del texto que lo sostiene no se ha
+              guardado en esta operación, así que no podrás llegar desde la
+              afirmación al fragmento que la respalda. Avisa a quien administra
+              el servicio antes de darlo por cerrado.
+            </p>
+          {% endif %}
+          {% if 'APPLY_PROVENANCE_FAILED' in plan.avisos %}
+            <p data-plan-aviso="APPLY_PROVENANCE_FAILED">
+              Y la evidencia que lo sostiene <strong>no se pudo guardar</strong>.
+              El conocimiento está escrito; su respaldo, no. Avisa a quien
+              administra el servicio.
+            </p>
+          {% endif %}
+        {% elif plan.estado == 'applying' %}
+          {#
+            EN VUELO. Ni éxito ni fracaso: NO SE SABE. Decir «ya forma parte
+            del conocimiento» aquí era el falso éxito que medía el revisor —
+            proceso muerto entre la reserva y la escritura, grafo vacío y el
+            camino para reintentarlo cerrado.
+          #}
+          <p data-plan-desenlace="applying">
+            Se empezó a añadir lo aprobado y <strong>no consta cómo terminó</strong>.
+            No se reintenta solo: hacerlo podría duplicar conocimiento. Avisa a
+            quien administra el servicio para que compruebe si quedó escrito.
           </p>
         {% elif plan.estado == 'superseded' %}
           <p data-plan-desenlace="superseded">

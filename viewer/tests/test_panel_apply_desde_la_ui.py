@@ -450,25 +450,57 @@ def test_rechazar_no_habilita_la_accion(
 # VÁLIDO y el de CSRF lo lanza un ADMIN legítimo: cada uno sólo puede ponerse
 # verde por su propia razón.
 
-def test_un_revisor_no_puede_sellar_aunque_su_csrf_sea_valido(
-    real_app, paneles_on, cola, operador, revisor, almacenes, monkeypatch
+@pytest.fixture
+def corrida_visible_para_todos(monkeypatch):
+    """El workspace de la corrida ES el ámbito por defecto del despliegue.
+
+    SIN ESTO, EL CONTROL DE ROL NO PUEDE MORDER, y está medido: el ámbito por
+    defecto es `leyenda` y la corrida del arnés es de `ws-cofradia`, así que a
+    un revisor lo tapaba `scoped_job` —NO el rol— y el handler contestaba
+    `SOURCE_UNKNOWN` antes de llegar a ninguna guarda. La aserción de efecto
+    («no se selló nada») era entonces incapaz de ponerse roja con la guarda
+    degradada: verde por la razón equivocada.
+
+    Alineando el ámbito, lo ÚNICO que puede parar al revisor es su rol.
+    """
+    from app.config import get_settings
+
+    monkeypatch.setenv("S9K_DEFAULT_WORKSPACE", "ws-cofradia")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+def test_el_revisor_ve_la_corrida_pero_no_puede_sellarla(
+    real_app, paneles_on, cola, operador, revisor, almacenes,
+    corrida_visible_para_todos, monkeypatch
 ):
     """ROJO POR AUTORIZACIÓN, y por nada más.
 
-    EL CASO ESTÁ MONTADO PARA QUE PUEDA FALLAR. Dos cosas, medidas:
+    EL CASO ESTÁ MONTADO PARA QUE PUEDA FALLAR. Tres cosas, las tres medidas:
 
     * el revisor manda un CSRF **válido para su sesión**, así que lo que le
-      pare no puede ser el CSRF. En el Corte 1 una prueba de rol pasaba
-      aunque se degradara la guarda precisamente porque al `reviewer` lo
-      paraba el CSRF;
-    * y hay algo REAL que sellar (una propuesta ya aprobada por el admin). Una
-      primera versión de este caso mandaba un `job_id` inexistente y quedaba
-      VERDE con la guarda degradada, porque el handler contestaba
-      `SOURCE_UNKNOWN`: el revisor no llegaba a nada, pero tampoco lo paraba el
-      rol. Medido y corregido.
+      pare no puede ser el CSRF. En el Corte 1 una prueba de rol pasaba aunque
+      se degradara la guarda precisamente porque al `reviewer` lo paraba el
+      CSRF;
+    * hay algo REAL que sellar: una propuesta ya aprobada por el admin;
+    * y el revisor VE la corrida — se comprueba aquí mismo, antes de nada. Sin
+      esa comprobación el caso quedaba verde porque `scoped_job` lo tapaba
+      antes de llegar al rol.
     """
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
     assert _filas_de_plan(almacenes["base"]) == []
+
+    # CALIBRACIÓN DEL PROPIO CASO: la corrida es visible para el revisor. Si no
+    # lo fuera, lo que sigue no probaría nada sobre el rol.
+    from app import jobs_client
+    from app.authz.context import build_viewer_context
+    from app.authz.scope import VisibilityScope
+    ambito = VisibilityScope(build_viewer_context(
+        role="reviewer", auth_enabled=True, default_workspace="ws-cofradia"))
+    assert jobs_client.scoped_job(ambito, job_id) is not None, (
+        "la corrida no es visible para un revisor: lo que lo pare no sería el rol"
+    )
 
     token = _csrf(revisor)
     assert token, "el revisor no tiene sesión: el caso no probaría el rol"
@@ -480,20 +512,15 @@ def test_un_revisor_no_puede_sellar_aunque_su_csrf_sea_valido(
     assert "aviso=" not in destino, (
         f"la acción se ATENDIÓ para un revisor ({destino}): la guarda de rol no mordió"
     )
-    # Y el efecto: no se ha sellado nada.
-    assert _filas_de_plan(almacenes["base"]) == [], (
-        "un revisor selló un plan"
-    )
+    # Y EL EFECTO, que ahora SÍ puede ponerse rojo.
+    assert _filas_de_plan(almacenes["base"]) == [], "un revisor selló un plan"
 
 
-def test_un_revisor_no_puede_aplicar_aunque_su_csrf_sea_valido(
-    real_app, paneles_on, cola, operador, revisor, almacenes, monkeypatch
+def test_el_revisor_ve_la_corrida_pero_no_puede_aplicarla(
+    real_app, paneles_on, cola, operador, revisor, almacenes,
+    corrida_visible_para_todos, monkeypatch
 ):
-    """El mismo control sobre la acción que SÍ escribe en el grafo.
-
-    El admin deja un plan sellado y listo; el revisor intenta aplicarlo con su
-    CSRF válido. Si la guarda de rol se degradara, el plan pasaría a `applied`.
-    """
+    """El mismo control sobre la acción que SÍ escribe en el grafo."""
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
     assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
     assert _filas_de_plan(almacenes["base"])[0]["state"] == "sealed"
@@ -1039,4 +1066,255 @@ def test_dos_llamantes_simultaneos_solo_uno_toma_el_plan(tmp_path):
     assert len(ganados) == 1, (
         f"{len(ganados)} llamantes creyeron tomar el plan: se aplicaría varias veces"
     )
-    assert store.plan_by_id("plan:carrera")["state"] == "applied"
+    # Y el plan queda EN VUELO, no aplicado: quien lo tomó todavía no ha dicho
+    # qué pasó. `applied` sólo lo pone `record_apply_result` con el desenlace
+    # real del writer delante.
+    assert store.last_plan(workspace="ws", job_id="job-1")["state"] == "applying"
+
+
+# ===========================================================================
+# 9. B1 · LA VENTANA. Una decisión que cambia MIENTRAS se compone el plan
+# ===========================================================================
+
+def test_una_decision_que_cambia_mientras_se_sella_no_puede_colarse(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch
+):
+    """LA GARANTÍA CENTRAL, ejercida donde estaba el agujero.
+
+    EL DEFECTO, MEDIDO POR EL CAMINO DEL PRODUCTO. El sellado construía el plan
+    con las decisiones leídas en t1 y pasaba como esperadas una SEGUNDA lectura
+    en t2, en otra conexión. La guarda comparaba t2 contra t3 y nunca t1 contra
+    t3: un `REJECT` registrado entre t1 y t2 era INVISIBLE, el panel contestaba
+    `PLAN_SEALED`, y la fila quedaba `sealed` con una afirmación cuya decisión
+    efectiva era RECHAZO. Pulsar Aplicar la habría escrito en el grafo.
+
+    No hace falta nada exótico para caer en esa ventana: un admin sellando
+    mientras cualquier revisor decide en `/panel/review` es el uso normal del
+    producto. Aquí se reproduce insertando la decisión ajena en el instante en
+    que el plan acaba de componerse — que es exactamente la ventana.
+    """
+    job_id, propuesta = _aprobar_una(operador, cola, almacenes, monkeypatch)
+
+    import sys
+    raiz = str(REPO / "data-engine" / "app")
+    if raiz not in sys.path:
+        sys.path.insert(0, raiz)
+    from knowledge_v3 import review_plan as review_plan_mod
+
+    original = review_plan_mod.seal_review_plan
+    carreras: list = []
+
+    def con_carrera(*args, **kwargs):
+        construido = original(*args, **kwargs)
+        # OTRA PERSONA DECIDE AHORA, por la autoridad real de decisiones.
+        if not carreras:
+            carreras.append(_decidir(propuesta, "REJECT", reviewer="otra_persona"))
+        return construido
+
+    monkeypatch.setattr(review_plan_mod, "seal_review_plan", con_carrera)
+
+    assert _aviso_de(_sellar(operador, job_id)) == "SEAL_CONFLICT", (
+        "se selló un plan cuyas decisiones habían cambiado mientras se componía"
+    )
+    assert carreras, "la carrera no llegó a ocurrir: el caso no mide nada"
+    # CERO ESCRITURA: ni una fila. Y menos aún una con la afirmación rechazada.
+    assert _filas_de_plan(almacenes["base"]) == []
+
+
+def test_tras_el_conflicto_la_decision_efectiva_manda(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch
+):
+    """Y al reintentar, lo que sale es lo que la persona decidió DE VERDAD."""
+    job_id, propuesta = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    _decidir(propuesta, "REJECT", reviewer="otra_persona")
+
+    assert _aviso_de(_sellar(operador, job_id)) == "NO_APPROVED_PROPOSALS"
+    assert _filas_de_plan(almacenes["base"]) == []
+
+
+# ===========================================================================
+# 10. B2 · EL PROCESO MUERE ENTRE LA RESERVA Y LA ESCRITURA
+# ===========================================================================
+
+def test_si_el_proceso_muere_tras_reservar_no_se_afirma_conocimiento(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch
+):
+    """NADIE puede leer «aplicado» de algo que no consta que se escribiera.
+
+    EL DEFECTO, MEDIDO. `claim_for_apply` marcaba `applied` ANTES de escribir.
+    Si el proceso moría ahí, `record_apply_result` no corría nunca y no había
+    barrendero: la fila quedaba `applied` con `apply_id` NULO, la pantalla
+    decía «ya forma parte del conocimiento: 1 afirmación añadida», el grafo
+    estaba VACÍO y el botón de aplicar desaparecía. El marcador de «en vuelo»
+    existía y NADIE LO MIRABA.
+
+    La muerte se simula con una `BaseException` que NO es `Exception`: escapa
+    del `except` del servicio igual que escaparía un `SIGKILL` del proceso, así
+    que `record_apply_result` no llega a correr. Es la reproducción fiel del
+    modo de fallo, no una excepción de conveniencia.
+    """
+    monkeypatch.setenv("S9K_ALLOW_REAL_INGEST", "1")
+    monkeypatch.setenv("S9K_WRITER_WORKSPACE", "ws-cofradia")
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+
+    from app.services import v3_apply as servicio
+
+    motor_real = servicio._motor
+
+    def motor_que_muere():
+        piezas = list(motor_real())
+
+        def apply_que_muere(*args, **kwargs):
+            raise KeyboardInterrupt("el proceso muere aquí")
+
+        piezas[1] = apply_que_muere
+        return tuple(piezas)
+
+    monkeypatch.setattr(servicio, "_motor", motor_que_muere)
+    token = _csrf(operador)
+    try:
+        operador.post("/panel/operations/aplicaciones",
+                      data={"trabajo": job_id, "csrf_token": token})
+    except BaseException as exc:  # noqa: BLE001 - la muerte puede propagarse
+        assert isinstance(exc, KeyboardInterrupt), exc
+    # Se restaura SÓLO el motor. `monkeypatch.undo()` revertiría también los
+    # `setenv` de las fixtures —medido: dejaba el servicio apuntando al almacén
+    # por defecto y la pantalla decía «sin_plan»—, y entonces lo que se estaría
+    # midiendo sería el arnés, no el producto.
+    monkeypatch.setattr(servicio, "_motor", motor_real)
+
+    fila = _filas_de_plan(almacenes["base"])[0]
+    assert fila["state"] == "applying", "la fila quedó legible como un éxito"
+    assert fila["apply_id"] is None
+    assert fila["applied_operations"] is None, (
+        "se contabilizaron afirmaciones que nadie confirmó haber escrito"
+    )
+
+    # LA PANTALLA NO AFIRMA CONOCIMIENTO.
+    bloque = _bloque_plan(_panel(operador, job_id))
+    assert bloque["atributos"]["estado"] == "applying"
+    assert "applying" in bloque["desenlace"]
+    assert "applied" not in bloque["desenlace"]
+    assert "forma parte del conocimiento" not in bloque["texto"], (
+        "la pantalla afirma conocimiento que no consta escrito"
+    )
+    assert not bloque["form_aplicacion"]
+
+    # Y no se reintenta a ciegas: se dice qué pasa, con su código.
+    assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_APPLY_IN_FLIGHT"
+
+
+def test_un_apply_que_no_escribe_invalida_el_plan_en_vez_de_resucitarlo(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch
+):
+    """Un plan que no llegó a escribir NO vuelve a estar vigente.
+
+    Devolverlo a `sealed` resucitaba un plan cuyas decisiones pudieron cambiar
+    durante el apply, sin guarda de estado y sin revalidar nada. Se invalida:
+    preparar de nuevo cuesta un clic y vuelve a leer las decisiones.
+    """
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+
+    monkeypatch.setenv("S9K_ALLOW_REAL_INGEST", "1")
+    monkeypatch.setenv("S9K_WRITER_WORKSPACE", "ws-cofradia")
+    # Sin Neo4j alcanzable el writer no aplica: desenlace real, no simulado.
+    monkeypatch.setenv("S9K_NEO4J_URI", "bolt://127.0.0.1:1")
+    monkeypatch.setenv("S9K_NEO4J_PASSWORD", "no-importa")
+    from app.config import get_settings
+    get_settings.cache_clear()
+
+    codigo = _aviso_de(_aplicar(operador, job_id))
+    assert codigo in ("APPLY_REJECTED", "APPLY_FAILED"), codigo
+
+    fila = _filas_de_plan(almacenes["base"])[0]
+    assert fila["state"] == "superseded", (
+        "un plan que no escribió volvió a estar vigente"
+    )
+    assert fila["apply_id"] is None
+    get_settings.cache_clear()
+
+
+# ===========================================================================
+# 11. La cadena de auditoría DEJA DE SER DE SÓLO ESCRITURA
+# ===========================================================================
+
+def test_el_sellado_queda_en_la_cadena_y_la_cadena_se_lee(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch
+):
+    """Reusar `decision_audit` sólo vale si alguien la LEE."""
+    from app.services.v3_review_store import SQLiteReviewStore
+
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+
+    eventos = SQLiteReviewStore(almacenes["base"]).audit_events("ws-cofradia")
+    tipos = [e["event_type"] for e in eventos]
+    assert "HUMAN_DECISION_RECORDED" in tipos
+    assert "REVIEW_PLAN_SEALED" in tipos, tipos
+    sellado = next(e for e in eventos if e["event_type"] == "REVIEW_PLAN_SEALED")
+    assert sellado["job_id"] == job_id
+    assert sellado["plan_hash"] == _filas_de_plan(almacenes["base"])[0]["plan_hash"]
+
+
+def test_con_la_cadena_rota_no_se_sella_nada(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch
+):
+    """La verificación es una PRECONDICIÓN del sellado, no un adorno.
+
+    Se altera un `record_hash` del registro encadenado; a partir de ahí lo que
+    se escribiera encima no sería auditable, y el producto se niega.
+    """
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+
+    conexion = sqlite3.connect(almacenes["base"])
+    try:
+        conexion.execute(
+            "UPDATE decision_audit SET record_hash=? WHERE audit_seq=("
+            "  SELECT MIN(audit_seq) FROM decision_audit)",
+            ("0" * 64,),
+        )
+        conexion.commit()
+    finally:
+        conexion.close()
+
+    assert _aviso_de(_sellar(operador, job_id)) == "AUDIT_CHAIN_BROKEN"
+    assert _filas_de_plan(almacenes["base"]) == []
+
+
+# ===========================================================================
+# 12. B3 · LO QUE EL NÚCLEO DICE, LLEGA AL OPERADOR
+# ===========================================================================
+
+@neo4j_real
+def test_la_pantalla_dice_que_lo_escrito_no_queda_navegable(
+    real_app, paneles_on, cola, operador, almacenes, grafo, monkeypatch
+):
+    """FALSA COMPLETITUD, cerrada.
+
+    `apply_v3` devuelve `APPLY_PROVENANCE_NOT_PERSISTED` y ENUMERA las
+    referencias de evidencia que quedan colgando. Ese código llegaba al
+    servicio y moría allí: el router sólo usaba el aviso del 303, y la pantalla
+    decía «Lo aprobado ya forma parte del conocimiento» a secas. Quien luego
+    mirase la afirmación no encontraría la evidencia que cita, y nadie se lo
+    habría dicho.
+    """
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_APPLIED"
+
+    fila = _filas_de_plan(almacenes["base"])[0]
+    notas = json.loads(fila["apply_notes_json"] or "[]")
+    assert "APPLY_PROVENANCE_NOT_PERSISTED" in notas, (
+        f"el núcleo ya no emite esa nota; el caso mediría otra cosa: {notas}"
+    )
+    # El recuento sale de lo que el WRITER dijo, no de len(operaciones).
+    assert fila["applied_operations"] is not None and fila["applied_operations"] >= 1
+
+    bloque = _bloque_plan(_panel(operador, job_id))
+    assert "APPLY_PROVENANCE_NOT_PERSISTED" in bloque["atributos"].get("aviso", "") \
+        or 'data-plan-aviso="APPLY_PROVENANCE_NOT_PERSISTED"' in bloque["texto"], (
+        "la pantalla no dice que lo escrito no queda navegable hasta su evidencia"
+    )
+    assert "no queda navegable" in bloque["texto"]
