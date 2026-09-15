@@ -203,6 +203,35 @@ class ProvenanceReader:
         with self._driver.session() as s:
             return [dict(r) for r in s.run(q, {"ws": workspace, "keys": keys})]
 
+    def apply_persistio_procedencia(self, workspace: str, keys: list[str]) -> bool:
+        """¿Dejó ESTE apply alguna cadena de procedencia, aunque sea una?
+
+        DISCRIMINADOR, y hace falta uno. ``apply_v3`` persiste la procedencia
+        **solo si recibe un `ProvenanceBundle`**; sin el escribe el
+        conocimiento, anota ``APPLY_PROVENANCE_NOT_PERSISTED`` y enumera los
+        fragmentos colgantes. El resultado en el grafo es que las aserciones
+        existen y NO tienen ni un ``SUPPORTED_BY``.
+
+        Sin esta consulta, ese caso es INDISTINGUIBLE de "este hecho concreto
+        no tiene evidencia", y las dos cosas se pintarian con la misma frase.
+        Una es una carencia de la ejecucion --que el operador tiene que saber--
+        y la otra un dato de ese hecho.
+
+        Se pregunta por el APPLY entero, no por un hecho: basta con que UNA
+        asercion suya tenga soporte para saber que la procedencia SI se
+        persistio y que un hueco concreto es un hueco concreto.
+        """
+        if not keys:
+            return False
+        q = (
+            f"MATCH (a:{LABEL_ASSERTION})-[:SUPPORTED_BY]->(:{LABEL_EVIDENCE}) "
+            "WHERE a.workspace = $ws AND a.idempotency_key IN $keys "
+            "RETURN count(*) AS soportes"
+        )
+        with self._driver.session() as s:
+            fila = s.run(q, {"ws": workspace, "keys": keys}).single()
+        return bool(fila and fila["soportes"] > 0)
+
     def fragments_supporting(self, workspace: str, assertion_id: str) -> list[dict[str, Any]]:
         """SOLO los fragmentos que SOSTIENEN esa asercion.
 
