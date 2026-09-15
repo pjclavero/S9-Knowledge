@@ -929,3 +929,56 @@ def test_apply_consume_el_snapshot_y_no_lo_que_el_pipeline_diria_ahora(
         "en el grafo está la afirmación que saldría de RECALCULAR el plan: "
         "el apply regeneró en vez de consumir lo que el operador revisó"
     )
+
+
+# ===========================================================================
+# 8. La RESERVA del apply, calibrada. Sin esto, `claim_for_apply` es adorno
+# ===========================================================================
+
+def test_dos_llamantes_simultaneos_solo_uno_toma_el_plan(tmp_path):
+    """La carrera REAL: dos hilos tomando el mismo plan a la vez.
+
+    POR QUÉ ESTE CASO EXISTE, MEDIDO. Se mutó `claim_for_apply` para que
+    siempre dijera «lo tomo yo» y la suite entera siguió VERDE: la guarda de
+    estado de `aplicar` atrapa el segundo clic secuencial antes de llegar
+    aquí, así que la reserva atómica no tenía ninguna prueba capaz de ponerse
+    roja. Una garantía sin prueba calibrada no es una garantía.
+
+    Lo que aquí se ejerce es lo que aquella guarda NO puede cubrir: dos
+    peticiones que leen el estado a la vez. `UPDATE ... WHERE state='sealed'`
+    en SQLite sólo puede tener un ganador; una comprobación en Python, no.
+    """
+    import threading
+
+    from app.services.v3_review_store import SQLiteReviewStore
+
+    store = SQLiteReviewStore(tmp_path / "review.sqlite3")
+    store.seal_plan(
+        workspace="ws", job_id="job-1", plan_id="plan:carrera",
+        plan_json='{"mutation_operations": []}', plan_hash="a" * 64,
+        decision_ids=[], proposal_ids=[], sealed_at="2026-01-01T00:00:00Z",
+        expected_decision_ids=[],
+    )
+
+    listos = threading.Barrier(8)
+    ganados: list = []
+    cerrojo = threading.Lock()
+
+    def intentar():
+        listos.wait()
+        salida = store.claim_for_apply(plan_id="plan:carrera",
+                                       now="2026-01-01T00:00:01Z")
+        if salida["claimed"]:
+            with cerrojo:
+                ganados.append(1)
+
+    hilos = [threading.Thread(target=intentar) for _ in range(8)]
+    for h in hilos:
+        h.start()
+    for h in hilos:
+        h.join()
+
+    assert len(ganados) == 1, (
+        f"{len(ganados)} llamantes creyeron tomar el plan: se aplicaría varias veces"
+    )
+    assert store.plan_by_id("plan:carrera")["state"] == "applied"
