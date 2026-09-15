@@ -47,26 +47,54 @@ propuesta --el par de entidades que se le enseno en pantalla-- y no de la
 decision del motor, que para una propuesta en REVIEW puede traerlas a `null`
 (`ENTITY_RESOLUTION_DEFERRED`) precisamente porque decidio no resolverlas.
 
-QUE NO SE EMITE, Y POR QUE NO ES UN OLVIDO
--------------------------------------------
-Solo se emiten operaciones `CREATE_ASSERTION`. NO se emite `PROJECT_RELATION`
-ni `CREATE_ENTITY`, y la razon es una propiedad observada del writer, no una
-preferencia:
+QUE SE EMITE, Y BAJO QUE CONDICION OBSERVADA
+---------------------------------------------
+Este modulo emitia SOLO `CREATE_ASSERTION`. La razon declarada era que
+`PROJECT_RELATION` compara `expected_version`/`expected_hash` contra el estado
+observado y que ese estado "no esta en lo que el operador reviso". La primera
+mitad es cierta; la segunda era una carencia de PLOMERIA, no una imposibilidad:
+esos dos valores salen del SNAPSHOT DE LA CORRIDA --`engine/planner.py` los
+copia de `context.snapshot.entity(...)`-- que es EXACTAMENTE la misma
+procedencia que `snapshot_id` y `source_hash`, ya publicados en el sobre. El
+snapshot se construia en `run_source`, se usaba y se tiraba. Ahora se conserva
+(`SourceRun.snapshot`) y sus anclas viajan en el sobre, igual que el resto.
 
-  * `PROJECT_RELATION` exige que los DOS extremos existan ya en el grafo y, sin
-    ancla en el propio plan, compara `expected_version`/`expected_hash` contra
-    el estado observado (`writer/executor.py`, `_check_expected_state`). Ese
-    estado NO esta en lo que el operador reviso: ni la propuesta ni la decision
-    lo contienen. Rellenarlo con un valor plausible seria presumir una version
-    del grafo en vez de observarla, y el writer tiene razon en rechazarlo.
-  * `CREATE_ENTITY` solo lo autoriza un alta aprobada (`pending_creation` en el
-    snapshot, `pipeline/entity_decisions.py`). Aprobar una propuesta de
-    revision NO es aprobar el alta de una entidad: son dos decisiones
-    distintas y la frontera la cruza una persona.
+Con eso, la regla pasa a ser una PROPIEDAD OBSERVADA por propuesta, no una
+renuncia global:
 
-Consecuencia honesta y declarada: aplicar desde la UI MATERIALIZA LA
-AFIRMACION (el nodo `V3Assertion`, que es donde vive la verdad de V3), no la
-arista proyectada. La proyeccion queda como deuda REGISTRADA, no disimulada.
+  * se emite `PROJECT_RELATION` cuando el sobre trae ancla para los DOS
+    extremos y ninguno esta `pending_creation`, es decir, cuando los dos
+    existen de verdad en el grafo que el operador reviso. La version y el hash
+    se COPIAN de esa ancla: no se rellenan con un valor plausible.
+  * NO se emite --y se dice, con codigo enumerable de `PROJECTION_CODES`--
+    cuando falta ancla, cuando un extremo esta `pending_creation` o cuando el
+    hecho es NEGATIVO. Un extremo `pending_creation` exige un `CREATE_ENTITY`,
+    y eso solo lo autoriza un alta aprobada (`pipeline/entity_decisions.py`):
+    aprobar una propuesta de revision NO es aprobar el alta de una entidad, y
+    esa frontera la cruza una persona, no este modulo.
+
+La omision de una proyeccion NO es un silencio: viaja en `projections_omitted`
+y el apply la cuenta. Lo que NO puede pasar --y es lo que este carril cierra--
+es que un apply anuncie exito completo habiendo declarado una arista que no
+materializo.
+
+LA IDENTIDAD DEL PLAN NO CAMBIA
+-------------------------------
+`_plan_id` se compone de workspace, corrida, revision, `snapshot_id` y
+decisiones: ninguno de sus insumos cambia por emitir mas operaciones. El
+`plan_hash` es un hash de CONTENIDO y por tanto distingue --como debe-- un plan
+con proyeccion de uno sin ella; el algoritmo (`contracts.base.seal_plan`) no se
+toca. No se altera ningun esquema de identidad durable.
+
+LA PROCEDENCIA VIAJA EN EL SOBRE
+--------------------------------
+`apply_v3` solo persiste procedencia si se le da el PAQUETE (los documentos de
+fuente, episodios y fragmentos). Ese paquete lo produce la corrida y moria con
+ella: por la ruta de la UI, aplicar dejaba siempre
+`APPLY_PROVENANCE_NOT_PERSISTED` y aserciones citando fragmentos inexistentes.
+Ahora el sobre publica ese material --acotado a los fragmentos que las
+propuestas exportadas CITAN, no la corrida entera-- y `provenance_from_context`
+lo devuelve en la forma que `ProvenanceBundle.from_dict` admite.
 """
 from __future__ import annotations
 
@@ -84,18 +112,32 @@ from .contracts.mutation_plan import GraphMutationPlan
 from .engine.planner import PAYLOAD_FIELDS, assertion_identity
 
 __all__ = [
+    "ANCHORS_KEY",
     "PLAN_CONTEXT_KEY",
+    "PROVENANCE_KEY",
+    "PROJECTION_CODES",
     "SEAL_CODES",
     "ReviewPlanError",
     "SealedPlanBuild",
     "ExcludedProposal",
+    "OmittedProjection",
     "plan_context_from_run",
+    "provenance_from_context",
     "seal_review_plan",
 ]
 
 #: Nombre del bloque del SOBRE del paquete de propuestas donde la corrida deja
 #: lo que un plan necesita y una propuesta no contiene. Se nombra una sola vez.
 PLAN_CONTEXT_KEY = "plan_context"
+
+#: Anclas de estado POR ENTIDAD dentro de `plan_context`. Es lo que
+#: `engine/planner.py` copia a `expected_version`/`expected_hash`, con la misma
+#: procedencia que `snapshot_id`: el snapshot de la corrida.
+ANCHORS_KEY = "entity_anchors"
+
+#: Los DOCUMENTOS de procedencia dentro de `plan_context`: lo que el plan NO
+#: lleva dentro y sin lo cual `apply_v3` no puede persistir procedencia.
+PROVENANCE_KEY = "provenance"
 
 #: Paso declarado como productor del plan sellado. NO es `engine.plan`: no lo
 #: produjo el planificador del motor sobre una corrida, lo produjo la revision
@@ -159,6 +201,60 @@ SEAL_CODES = {
     ),
 }
 
+#: Motivos ENUMERABLES por los que una propuesta INCLUIDA en el plan no trae
+#: ademas su arista proyectada. No es lo mismo que `SEAL_CODES`: alli la
+#: propuesta queda FUERA del plan; aqui su afirmacion entra y lo que falta es
+#: la proyeccion. Confundirlos diria que no se escribio nada cuando si se
+#: escribio la afirmacion.
+PROJECTION_CODES = {
+    "PROJECTION_NO_ANCHOR": (
+        "la corrida no dejo ancla de estado para los extremos de este hecho "
+        "(paquete anterior a este corte)"
+    ),
+    "PROJECTION_ANCHOR_NOT_OBSERVED": (
+        "el estado de los extremos viene de un catalogo declarado en fichero, "
+        "no leido del grafo: no hay con que anclar la arista sin presumir una "
+        "version que nadie ha observado"
+    ),
+    "PROJECTION_ENTITY_NOT_IN_GRAPH": (
+        "alguno de los dos extremos no existe todavia en el grafo: su alta es "
+        "una decision aparte que nadie ha aprobado"
+    ),
+    "PROJECTION_NEGATED_FACT": (
+        "el hecho es negativo: el grafo no aprende una relacion que el texto "
+        "niega"
+    ),
+}
+
+
+class OmittedProjection:
+    """Una afirmacion que SI entra en el plan y cuya arista NO. Y por que.
+
+    Existe por la misma razon que `ExcludedProposal`: para que la diferencia
+    entre "se escribio la afirmacion" y "se escribio ademas la arista" sea una
+    frase que el producto pueda decir, y no una ausencia que nadie nota. El
+    motivo se valida contra `PROJECTION_CODES` al construirlo, asi que la
+    enumeracion esta CERRADA por construccion.
+    """
+
+    __slots__ = ("proposal_id", "code")
+
+    def __init__(self, proposal_id: str, code: str):
+        if code not in PROJECTION_CODES:
+            raise ReviewPlanError(
+                "PROJECTION_CODE_NOT_DECLARED",
+                f"motivo de omision no declarado en PROJECTION_CODES: {code}",
+            )
+        self.proposal_id = proposal_id
+        self.code = code
+
+    def to_dict(self) -> dict[str, str]:
+        return {"proposal_id": self.proposal_id, "code": self.code}
+
+    def __repr__(self) -> str:  # pragma: no cover - diagnostico
+        return f"OmittedProjection({self.proposal_id!r}, {self.code!r})"
+
+
 #: Valor centinela que el exportador de propuestas usa cuando NO sabe algo. No
 #: es un identificador: es la declaracion de una ausencia, y tratarlo como id
 #: escribiria en el grafo un nodo llamado «not_available».
@@ -211,7 +307,10 @@ class ExcludedProposal:
 class SealedPlanBuild:
     """El plan sellado y la cuenta completa de lo que entro y lo que no."""
 
-    __slots__ = ("plan_doc", "included_proposal_ids", "excluded", "decision_ids")
+    __slots__ = (
+        "plan_doc", "included_proposal_ids", "excluded", "decision_ids",
+        "projections_omitted",
+    )
 
     def __init__(
         self,
@@ -219,11 +318,15 @@ class SealedPlanBuild:
         included_proposal_ids: tuple[str, ...],
         excluded: tuple[ExcludedProposal, ...],
         decision_ids: tuple[str, ...],
+        projections_omitted: tuple = (),
     ):
         self.plan_doc = plan_doc
         self.included_proposal_ids = included_proposal_ids
         self.excluded = excluded
         self.decision_ids = decision_ids
+        #: Afirmaciones INCLUIDAS cuya arista no se emitio, con su motivo.
+        #: Distinto de `excluded`: alli la propuesta no entra en el plan.
+        self.projections_omitted = projections_omitted
 
 
 # ---------------------------------------------------------------------------
@@ -251,6 +354,9 @@ def plan_context_from_run(
     plan_doc: Optional[Mapping[str, Any]],
     decisions_by_claim: Mapping[str, Mapping[str, Any]],
     documents: Sequence[Mapping[str, Any]],
+    *,
+    entity_anchors: Optional[Mapping[str, Mapping[str, Any]]] = None,
+    provenance: Optional[Mapping[str, Any]] = None,
 ) -> Optional[dict[str, Any]]:
     """El bloque `plan_context` del sobre, o `None` si la corrida no lo tiene.
 
@@ -284,7 +390,48 @@ def plan_context_from_run(
         if identificador and decision:
             por_propuesta[str(identificador)] = dict(decision)
     contexto["decisions"] = por_propuesta
+    # LAS ANCLAS Y LOS DOCUMENTOS DE PROCEDENCIA, si la corrida los trae.
+    # Se publican por SEPARADO de `decisions` y solo si no estan vacios: un
+    # bloque vacio diria "la corrida no tenia entidades" cuando lo que pasa es
+    # que no se le paso el material, y esas dos cosas se distinguen.
+    if entity_anchors:
+        contexto[ANCHORS_KEY] = {
+            str(k): dict(v) for k, v in entity_anchors.items() if isinstance(v, Mapping)
+        }
+    if provenance and (
+        provenance.get("source_asset")
+        or provenance.get("episodes")
+        or provenance.get("fragments")
+    ):
+        contexto[PROVENANCE_KEY] = {
+            "source_asset": provenance.get("source_asset"),
+            "episodes": [dict(e) for e in (provenance.get("episodes") or ())],
+            "fragments": [dict(f) for f in (provenance.get("fragments") or ())],
+        }
     return contexto
+
+
+def provenance_from_context(contexto: Optional[Mapping[str, Any]]) -> Optional[dict[str, Any]]:
+    """El paquete de procedencia del sobre, en la forma que `apply_v3` admite.
+
+    Devuelve EXACTAMENTE las tres claves que `ProvenanceBundle.from_dict`
+    acepta --que rechaza cualquier otra-- o `None` si el sobre no trae
+    material. `None` no es "no hay procedencia": es "esta corrida no publico
+    ninguna", y quien llama tiene que decirlo, no taparlo.
+    """
+    if not isinstance(contexto, Mapping):
+        return None
+    bloque = contexto.get(PROVENANCE_KEY)
+    if not isinstance(bloque, Mapping):
+        return None
+    paquete = {
+        "source_asset": bloque.get("source_asset") or None,
+        "episodes": [dict(e) for e in (bloque.get("episodes") or ())],
+        "fragments": [dict(f) for f in (bloque.get("fragments") or ())],
+    }
+    if not (paquete["source_asset"] or paquete["episodes"] or paquete["fragments"]):
+        return None
+    return paquete
 
 
 # ---------------------------------------------------------------------------
@@ -412,6 +559,86 @@ def _afirmacion(
     return documento
 
 
+def _ancla(contexto: Mapping[str, Any], entity_id: str) -> Optional[Mapping[str, Any]]:
+    """El ancla de estado de UNA entidad, o `None`. Nunca se fabrica una.
+
+    Sin ancla no se proyecta: rellenar `expected_version` con un valor
+    plausible seria presumir una version del grafo en vez de copiarla del
+    snapshot, y el writer tiene razon en rechazar eso.
+    """
+    anclas = contexto.get(ANCHORS_KEY)
+    if not isinstance(anclas, Mapping):
+        return None
+    ancla = anclas.get(entity_id)
+    return ancla if isinstance(ancla, Mapping) else None
+
+
+def _proyeccion(
+    contexto: Mapping[str, Any],
+    afirmacion: Any,
+    decision: Mapping[str, Any],
+    documento: Mapping[str, Any],
+) -> tuple[Optional[dict[str, Any]], Optional[str]]:
+    """La arista de un hecho aprobado, o el CODIGO por el que no la hay.
+
+    Mismas dos reglas que `engine/planner.py`, no unas propias:
+
+    * un hecho NEGADO no proyecta --el grafo no aprende una relacion que el
+      texto niega--;
+    * una entidad `pending_creation` no se proyecta sin el `CREATE_ENTITY`
+      que la ancla, y ese alta es una decision humana distinta de aprobar la
+      propuesta. Sin ella, emitir la arista solo conseguiria que el executor
+      abortase con `EXEC_TARGET_MISSING` -- es decir, cambiar un efecto que
+      falta por un apply entero que revienta.
+
+    La version y el hash se COPIAN del ancla del snapshot. Es la misma
+    procedencia que `snapshot_id`, que este mismo sobre ya publicaba.
+    """
+    if documento.get("negated"):
+        return None, "PROJECTION_NEGATED_FACT"
+    sujeto = documento["subject_entity_id"]
+    objeto = documento["object_entity_id"]
+    ancla_sujeto = _ancla(contexto, sujeto)
+    ancla_objeto = _ancla(contexto, objeto)
+    if ancla_sujeto is None or ancla_objeto is None:
+        return None, "PROJECTION_NO_ANCHOR"
+    if ancla_sujeto.get("pending_creation") or ancla_objeto.get("pending_creation"):
+        return None, "PROJECTION_ENTITY_NOT_IN_GRAPH"
+    # OBSERVADA, no declarada. Un catalogo en fichero da `version` por defecto
+    # y un `state_hash` DERIVADO del propio id (`bridge.entities_from_catalog`),
+    # que es plausible y falso: copiarlo a `expected_hash` seria presumir el
+    # estado del grafo, y contra un nodo real da `EXEC_HASH_MISMATCH` --es
+    # decir, cambiaria "falta una arista" por "el apply entero aborta".
+    if not (ancla_sujeto.get("observed") and ancla_objeto.get("observed")):
+        return None, "PROJECTION_ANCHOR_NOT_OBSERVED"
+    version = ancla_sujeto.get("version")
+    state_hash = ancla_sujeto.get("state_hash")
+    if version is None or not isinstance(state_hash, Mapping) or not state_hash.get("value"):
+        return None, "PROJECTION_NO_ANCHOR"
+    return (
+        {
+            "operation_id": f"op:{decision['claim_id']}:project",
+            "operation_type": "PROJECT_RELATION",
+            "decision_id": decision["decision_id"],
+            "target_entity_id": sujeto,
+            "assertion_id": afirmacion.assertion_id,
+            "payload": {
+                "predicate": documento["predicate"],
+                "direction": documento["direction"],
+                "subject_entity_id": sujeto,
+                "object_entity_id": objeto,
+                "negated": documento["negated"],
+            },
+            "evidence_fragment_ids": documento["evidence_fragment_ids"],
+            "idempotency_key": "",  # la deriva `seal_plan`
+            "expected_state": "WOULD_UPDATE",
+            "expected_version": version,
+            "expected_hash": dict(state_hash),
+        },
+        None,
+    )
+
+
 def _plan_id(
     contexto: Mapping[str, Any],
     job_id: str,
@@ -496,6 +723,7 @@ def seal_review_plan(
     incluidas: list[str] = []
     excluidas: list[ExcludedProposal] = []
     operaciones: list[dict[str, Any]] = []
+    omitidas: list[OmittedProjection] = []
     decisiones: list[dict[str, Any]] = []
     usadas: list[str] = []
 
@@ -567,6 +795,14 @@ def seal_review_plan(
             "expected_version": None,
             "expected_hash": None,
         })
+        # LA PROYECCION, si el sobre trae con que anclarla. Reutiliza el tipo
+        # de operacion que el writer YA sabe ejecutar: aqui no hay proyector
+        # nuevo ni segundo grafo, solo una operacion mas en el mismo plan.
+        proyeccion, motivo = _proyeccion(contexto, afirmacion, decision, documento)
+        if proyeccion is not None:
+            operaciones.append(proyeccion)
+        else:
+            omitidas.append(OmittedProjection(identificador, motivo or ""))
         incluidas.append(identificador)
         usadas.append(decision_ids.get(identificador, ""))
 
@@ -638,4 +874,5 @@ def seal_review_plan(
         included_proposal_ids=tuple(incluidas),
         excluded=tuple(excluidas),
         decision_ids=tuple(sorted({d for d in usadas if d})),
+        projections_omitted=tuple(omitidas),
     )

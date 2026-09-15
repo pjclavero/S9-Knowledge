@@ -141,6 +141,16 @@ CATALOGO: dict[str, str] = {
     "APPLY_FAILED":
         "La operacion no ha terminado correctamente. El detalle queda registrado "
         "en el servidor para quien lo administra.",
+    # PARCIAL, y se dice. Lo aprobado SI se escribio, asi que decir "no se ha
+    # anadido nada" seria falso; y algo de lo que se declaro NO llego a
+    # materializarse, asi que decir "ya forma parte del conocimiento" tambien.
+    # Se cuenta lo uno y lo otro, y se ofrece terminarlo.
+    "APPLY_INCOMPLETE":
+        "Lo aprobado se ha escrito, pero algo de lo que iba con ello no ha "
+        "llegado a quedar registrado, asi que todavia no esta completo. No "
+        "hace falta volver a prepararlo: vuelve a anadirlo y se terminara lo "
+        "que falta. El detalle queda registrado en el servidor para quien lo "
+        "administra.",
     # --- ejecucion (las produce el worker, las pinta el panel) ---
     "INGEST_FAILED":
         "La ingesta no ha terminado correctamente. El detalle queda registrado "

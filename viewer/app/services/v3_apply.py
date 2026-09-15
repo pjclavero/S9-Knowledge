@@ -89,6 +89,10 @@ CODIGOS = (
     "GRAPH_UNAVAILABLE",
     "APPLY_REJECTED",
     "APPLY_FAILED",
+    #: L2 ESCRITO y algo declarado SIN materializar. No es un fallo del apply
+    #: --el conocimiento esta-- y no es un exito: es el estado PARCIAL dicho en
+    #: voz alta. El operador puede reintentar; la reconciliacion es idempotente.
+    "APPLY_INCOMPLETE",
 )
 
 
@@ -152,7 +156,15 @@ class EstadoDelPlan:
 
     @property
     def aplicable(self) -> bool:
-        return self.estado == "sealed" and self.en_el_plan > 0
+        """Se puede aplicar: sellado sin tocar, o PARCIAL por terminar.
+
+        `partial` vuelve a ofrecer la accion a proposito. Es el unico estado
+        desde el que reintentar es correcto: el plan es el mismo, la
+        reejecucion es idempotente y lo que falta es justo lo que el reintento
+        materializa. Dejarlo sin boton obligaria a volver a sellar, que
+        abandonaria conocimiento ya escrito.
+        """
+        return self.estado in ("sealed", "partial") and self.en_el_plan > 0
 
     def to_dict(self) -> dict:
         return {
@@ -184,11 +196,39 @@ def _motor():
         if raiz.is_dir() and str(raiz) not in sys.path:
             sys.path.insert(0, str(raiz))
     from knowledge_v3 import review_plan as review_plan_mod  # noqa: PLC0415
-    from knowledge_v3.writer.apply import apply_v3  # noqa: PLC0415
+    from knowledge_v3.writer.apply import ProvenanceBundle, apply_v3  # noqa: PLC0415
+    from knowledge_v3.writer.effects import verify_effects  # noqa: PLC0415
     from knowledge_v3.writer.gate import OperatorRequest  # noqa: PLC0415
     from knowledge_v3.writer.writer import GraphWriter, MODE_APPLY  # noqa: PLC0415
 
-    return review_plan_mod, apply_v3, OperatorRequest, GraphWriter, MODE_APPLY
+    return _Motor(
+        review_plan=review_plan_mod,
+        apply_v3=apply_v3,
+        ProvenanceBundle=ProvenanceBundle,
+        verify_effects=verify_effects,
+        OperatorRequest=OperatorRequest,
+        GraphWriter=GraphWriter,
+        MODE_APPLY=MODE_APPLY,
+    )
+
+
+class _Motor:
+    """Lo que el visor toma prestado del motor, con NOMBRE.
+
+    Antes esto era una tupla y quien la consumia la desempaquetaba por
+    posicion. Anadir un simbolo obligaba a tocar todos los llamantes y, peor,
+    un desempaquetado mal alineado no falla: ata el nombre equivocado al
+    objeto equivocado y el fallo aparece lejos.
+    """
+
+    __slots__ = (
+        "review_plan", "apply_v3", "ProvenanceBundle", "verify_effects",
+        "OperatorRequest", "GraphWriter", "MODE_APPLY",
+    )
+
+    def __init__(self, **piezas):
+        for nombre, valor in piezas.items():
+            setattr(self, nombre, valor)
 
 
 def _ahora() -> str:
@@ -272,7 +312,9 @@ class ReviewApplyService:
         # Derivarlo de `len(mutation_operations)` no distingue un apply hecho
         # de uno abortado: una fila marcada y un proceso muerto producían
         # «1 afirmación añadida» con el grafo vacío.
-        escritas = ultimo["applied_operations"] if estado == "applied" else None
+        escritas = (
+            ultimo["applied_operations"] if estado in ("applied", "partial") else None
+        )
         try:
             notas = tuple(json.loads(ultimo["apply_notes_json"] or "[]"))
         except (TypeError, ValueError):  # pragma: no cover - fila corrupta
@@ -309,7 +351,7 @@ class ReviewApplyService:
         No se ejecuta ni un paso del pipeline. Lo único que entra es lo que ya
         está guardado.
         """
-        review_plan_mod = _motor()[0]
+        review_plan_mod = _motor().review_plan
         aprobadas, decision_ids, _, esperadas = self._aprobadas(workspace, job_id)
         if not aprobadas:
             raise ApplyError("NO_APPROVED_PROPOSALS")
@@ -327,6 +369,13 @@ class ReviewApplyService:
             raise ApplyError("NO_APPLICABLE_PROPOSALS", str(exc)) from exc
 
         documento = construido.plan_doc
+        # EL PAQUETE DE PROCEDENCIA SE SELLA CON EL PLAN, no se busca al
+        # aplicar. Sale de las MISMAS propuestas que acaban de componer el
+        # plan, asi que es el material que sostiene exactamente estas
+        # afirmaciones. Ir a buscarlo al almacen en el momento del apply seria
+        # una SEGUNDA lectura: el almacen puede haber cambiado, y entonces la
+        # evidencia persistida no seria la que el operador reviso.
+        paquete = self._procedencia(review_plan_mod, aprobadas, job_id)
         # LO QUE SE PASA AQUÍ ES, LITERALMENTE, LO QUE SE LEYÓ (B1).
         #
         # `esperadas` viene de la MISMA lectura con la que se construyó el plan.
@@ -349,6 +398,11 @@ class ReviewApplyService:
                 proposal_ids=list(construido.included_proposal_ids),
                 sealed_at=ahora,
                 expected_decision_ids=esperadas,
+                provenance_json=(
+                    json.dumps(paquete, ensure_ascii=False, sort_keys=True,
+                               separators=(",", ":"))
+                    if paquete else None
+                ),
             )
         except SealConflict as exc:
             raise ApplyError("SEAL_CONFLICT", str(exc)) from exc
@@ -366,10 +420,63 @@ class ReviewApplyService:
                     for e in construido.excluded
                 ),
             )
+        if construido.projections_omitted:
+            # NI ESTA EN SILENCIO NI SE DISFRAZA DE EXCLUSION. La afirmacion
+            # entra en el plan; lo que no entra es su arista, y el motivo esta
+            # enumerado en `PROJECTION_CODES`.
+            log.warning(
+                "sellado sin proyeccion para %s operacion(es) (%s): %s",
+                len(construido.projections_omitted), job_id,
+                "; ".join(
+                    f"{o.code}: {review_plan_mod.PROJECTION_CODES.get(o.code, '')}"
+                    for o in construido.projections_omitted
+                ),
+            )
         return {
             "en_el_plan": len(documento["mutation_operations"]),
             "excluidas": tuple(e.to_dict() for e in construido.excluded),
+            "sin_proyeccion": tuple(
+                o.to_dict() for o in construido.projections_omitted
+            ),
             "revision": fila["revision"] if fila else None,
+        }
+
+    def _procedencia(self, review_plan_mod, aprobadas: list, job_id: str):
+        """Los documentos de procedencia que el sobre de ESTA corrida publica.
+
+        Se unen los de todas las propuestas aprobadas por su identidad durable
+        --`source_asset_id`, `episode_id`, `fragment_id`-- y NO por posicion:
+        varias propuestas comparten episodio y fuente, y concatenar listas
+        dejaria duplicados que el volcado tendria que deshacer.
+
+        Devuelve `None` cuando ninguna propuesta trae material. `None` no es
+        "no hay procedencia": es "esta corrida no publico ninguna", y el apply
+        lo DICE con `APPLY_PROVENANCE_NOT_PERSISTED` en vez de callarlo.
+        """
+        fuente = None
+        episodios: dict = {}
+        fragmentos: dict = {}
+        for propuesta in aprobadas:
+            bloque = (propuesta.get("plan_context_by_run") or {}).get(job_id)
+            material = review_plan_mod.provenance_from_context(bloque)
+            if not material:
+                continue
+            if fuente is None:
+                fuente = material.get("source_asset")
+            for episodio in material.get("episodes") or ():
+                clave = str(episodio.get("episode_id") or "")
+                if clave:
+                    episodios.setdefault(clave, episodio)
+            for fragmento in material.get("fragments") or ():
+                clave = str(fragmento.get("fragment_id") or "")
+                if clave:
+                    fragmentos.setdefault(clave, fragmento)
+        if not (fuente or episodios or fragmentos):
+            return None
+        return {
+            "source_asset": fuente,
+            "episodes": [episodios[k] for k in sorted(episodios)],
+            "fragments": [fragmentos[k] for k in sorted(fragmentos)],
         }
 
     def _siguiente_revision(self, workspace: str, job_id: str) -> int:
@@ -385,22 +492,30 @@ class ReviewApplyService:
         fue un éxito es `write_result.mode == APPLY` y `ok`, no que la llamada
         no reventara.
         """
-        review_plan_mod, apply_v3, OperatorRequest, GraphWriter, MODE_APPLY = _motor()
-        del review_plan_mod
+        motor = _motor()
 
         vigente = self.store.sealed_plan(workspace=workspace, job_id=job_id)
         if vigente is None:
             ultimo = self.store.last_plan(workspace=workspace, job_id=job_id)
             if ultimo is None:
                 raise ApplyError("PLAN_NOT_SEALED")
-            if ultimo["state"] == self.store.ESTADO_APLICADO:
+            if ultimo["state"] == self.store.ESTADO_PARCIAL:
+                # RECONCILIACION. El plan escribio L2 y dejo algo sin
+                # materializar. Se vuelve a aplicar EL MISMO snapshot: las
+                # operaciones ya aplicadas salen NOOP por `idempotency_key` y
+                # el volcado de procedencia comprueba la ausencia antes de
+                # crear, asi que repetirlo no duplica nada. Es lo contrario de
+                # fingir atomicidad: el estado se dijo, y se termina.
+                vigente = ultimo
+            elif ultimo["state"] == self.store.ESTADO_APLICADO:
                 raise ApplyError("PLAN_ALREADY_APPLIED")
-            if ultimo["state"] == self.store.ESTADO_EN_VUELO:
+            elif ultimo["state"] == self.store.ESTADO_EN_VUELO:
                 # NO SE REINTENTA A CIEGAS. Se tomó y no consta el desenlace:
                 # puede haber escrito. Reaplicar sería arriesgar la duplicación
                 # que esta capacidad existe para impedir.
                 raise ApplyError("PLAN_APPLY_IN_FLIGHT")
-            raise ApplyError("PLAN_SUPERSEDED")
+            else:
+                raise ApplyError("PLAN_SUPERSEDED")
 
         if not self._habilitado(workspace):
             # NO ES CULPA DEL OPERADOR: el despliegue no declara permiso de
@@ -419,15 +534,31 @@ class ReviewApplyService:
         # sería el defecto: lo que se aplica es lo que se leyó de la fila.
         documento = json.loads(tomado["plan"]["plan_json"])
 
+        # EL PAQUETE, TAL CUAL SE SELLO. Viene de la fila, no del almacen de
+        # propuestas: es la evidencia que sostiene ESTAS afirmaciones, fijada
+        # en el mismo acto que las fijo a ellas.
+        paquete = None
+        crudo = tomado["plan"]["provenance_json"] if (
+            "provenance_json" in tomado["plan"].keys()
+        ) else None
+        if crudo:
+            try:
+                paquete = motor.ProvenanceBundle.from_dict(json.loads(crudo))
+            except (TypeError, ValueError) as exc:
+                # NO se aplica con un paquete que no se entiende: persistir
+                # media procedencia es peor que decir que no hay.
+                log.error("paquete de procedencia ilegible en %s: %s", plan_id, exc)
+                paquete = None
+
         aplicado = False
         apply_id = None
         try:
-            writer = GraphWriter(
+            writer = motor.GraphWriter(
                 workspace=workspace,
                 driver_factory=self._driver_factory(),
                 max_operations=len(documento["mutation_operations"]),
             )
-            peticion = OperatorRequest(
+            peticion = motor.OperatorRequest(
                 apply=True,
                 operator_id=operator_id,
                 workspace=workspace,
@@ -440,16 +571,29 @@ class ReviewApplyService:
                 current_snapshot_id=documento["snapshot_id"],
                 env=dict(os.environ),
             )
-            salida = apply_v3(documento, peticion, writer=writer)
+            salida = motor.apply_v3(
+                documento, peticion, writer=writer, provenance=paquete
+            )
             resultado = salida.write_result
             aplicado = bool(
                 getattr(resultado, "ok", False)
-                and getattr(resultado, "mode", None) == MODE_APPLY
+                and getattr(resultado, "mode", None) == motor.MODE_APPLY
             )
             apply_id = salida.apply_id
             escritas = int(getattr(resultado, "applied_operations", 0) or 0)
             noop = int(getattr(resultado, "noop_operations", 0) or 0)
             rechazos = [r.code for r in (getattr(resultado, "rejections", None) or [])]
+            # SE MIRA EL GRAFO. Hasta aqui todo lo que sabemos es lo que el
+            # writer DIJO haber hecho, y eso no contesta a "¿esta escrito?".
+            # Se usa el driver que el writer ya resolvio DESPUES del gate: no
+            # se abre una segunda conexion ni se adelanta ninguna.
+            informe = None
+            if aplicado:
+                conexion = getattr(writer, "resolved_driver", None)
+                if conexion is not None:
+                    informe = motor.verify_effects(
+                        conexion, documento, workspace=workspace
+                    )
         except Exception as exc:  # noqa: BLE001 - se traduce, no se propaga
             self.store.record_apply_result(
                 plan_id=plan_id, apply_id=None, ok=False, now=_ahora(),
@@ -462,13 +606,36 @@ class ReviewApplyService:
         # REAL —recuento del writer y sus códigos incluidos— antes de contestar
         # nada al operador.
         notas = [n["code"] for n in salida.notes]
+        # COMPLETO = se OBSERVO todo lo declarado. Sin informe no se afirma que
+        # si: no haber podido mirar no es haber visto. `AUSENCIA != CERO`.
+        completo = bool(informe is not None and informe.complete)
+        if informe is None and aplicado:
+            notas.append("APPLY_EFFECTS_UNVERIFIED")
+        elif informe is not None:
+            notas.extend(informe.codes)
         self.store.record_apply_result(
             plan_id=plan_id, apply_id=apply_id, ok=aplicado, now=_ahora(),
-            applied_operations=escritas, notes=notas,
+            applied_operations=escritas, notes=notas, complete=completo,
         )
         if not aplicado:
             log.error("apply rechazado para %s: %s", job_id, rechazos)
             raise ApplyError("APPLY_REJECTED", ",".join(rechazos))
+        if not completo:
+            # 200 «Aplicado correctamente» con la arista o la procedencia sin
+            # materializar es FALSO EXITO desde la perspectiva del operador.
+            # Aqui se dice, con su codigo, y la fila queda en `partial`.
+            detalle = (
+                "; ".join(
+                    f"{m.operation_type}/{m.code}: {m.detail}"
+                    for m in (
+                        tuple(informe.missing) + tuple(informe.provenance_missing)
+                    )
+                )
+                if informe is not None
+                else "no se pudo observar el grafo tras aplicar"
+            )
+            log.error("apply PARCIAL para %s: %s", job_id, detalle)
+            raise ApplyError("APPLY_INCOMPLETE", detalle)
         return {
             "afirmaciones_escritas": escritas,
             "sin_cambios": noop,

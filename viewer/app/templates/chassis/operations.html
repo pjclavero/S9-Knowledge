@@ -199,6 +199,44 @@
             No se reintenta solo: hacerlo podría duplicar conocimiento. Avisa a
             quien administra el servicio para que compruebe si quedó escrito.
           </p>
+        {% elif plan.estado == 'partial' %}
+          {#
+            PARCIAL. Ni «ya forma parte del conocimiento» ni «no se ha escrito
+            nada»: las dos frases serían falsas. Se escribió L2 y algo de lo
+            que el plan declaraba NO llegó a materializarse —una arista, la
+            evidencia navegable—, y eso se OBSERVÓ mirando el grafo, no se
+            dedujo de lo que el writer dijo. No hay transacción única entre el
+            grafo y este almacén; en vez de fingirla, el estado tiene nombre y
+            la acción de terminarlo se sigue ofreciendo abajo.
+          #}
+          <p data-plan-desenlace="partial">
+            Lo aprobado <strong>sí se escribió</strong>
+            ({{ plan.afirmaciones_escritas if plan.afirmaciones_escritas is not none else 'un número no disponible de' }}
+            {{ 'afirmación' if plan.afirmaciones_escritas == 1 else 'afirmaciones' }}),
+            pero <strong>algo de lo que iba con ello no llegó a quedar
+            registrado</strong>, así que todavía no está completo. No hace falta
+            volver a prepararlo: vuelve a añadirlo y se terminará lo que falta.
+          </p>
+          {% for aviso in plan.avisos %}
+            {% if aviso in ('EFFECT_MISSING', 'EFFECT_NOT_ATTRIBUTED', 'PROVENANCE_UNREACHABLE', 'APPLY_EFFECTS_UNVERIFIED') %}
+              <p data-plan-aviso="{{ aviso | e }}">
+                {% if aviso == 'EFFECT_MISSING' %}
+                  Falta en el conocimiento algo que lo preparado declaraba
+                  añadir.
+                {% elif aviso == 'EFFECT_NOT_ATTRIBUTED' %}
+                  Algo de lo que lo preparado declaraba ya estaba en el
+                  conocimiento, pero puesto por otra operación distinta de
+                  ésta.
+                {% elif aviso == 'PROVENANCE_UNREACHABLE' %}
+                  No se puede llegar desde lo añadido hasta el texto que lo
+                  respalda.
+                {% else %}
+                  No se ha podido comprobar en el conocimiento qué quedó
+                  escrito de verdad.
+                {% endif %}
+              </p>
+            {% endif %}
+          {% endfor %}
         {% elif plan.estado == 'superseded' %}
           <p data-plan-desenlace="superseded">
             Una decisión cambió después de preparar lo aprobado, así que lo
@@ -208,12 +246,14 @@
         {% endif %}
 
         {% if plan.aplicable %}
+          {% if plan.estado != 'partial' %}
           <p data-plan-desenlace="sealed">
             Preparado y listo: <strong>{{ plan.en_el_plan }}</strong>
             {{ 'afirmación' if plan.en_el_plan == 1 else 'afirmaciones' }}
             esperando a entrar en el conocimiento. Es exactamente lo que
             revisaste: no se vuelve a calcular nada.
           </p>
+          {% endif %}
           {% if plan.habilitado %}
             <form method="post" action="{{ url_for('chassis_operations_aplicacion') }}"
                   data-role="form-aplicacion">
@@ -239,7 +279,7 @@
               Preparar lo aprobado
             </button>
           </form>
-        {% elif plan.estado != 'applied' %}
+        {% elif plan.estado not in ('applied', 'partial') %}
           <p data-plan-desenlace="nada-que-preparar">
             No hay ninguna propuesta aprobada en esta ingesta, así que no hay
             nada que preparar.
