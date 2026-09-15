@@ -144,9 +144,11 @@ def resultado_de_ejecucion(
     # esto no estuviera, la ruta declararia guardian y serviria 200 a un
     # anonimo. Va escrito AQUI, a la vista de la ruta, y no delegado a un
     # ayudante: el censo de rutas (`scripts/route_map`) comprueba por AST que
-    # el handler devuelve la salida de SU parametro de guardia, y un ayudante
-    # lo esconde -- que es, de hecho, como los cuatro huecos del chasis se
-    # libran hoy de esta comprobacion (deuda anotada, no arreglada aqui).
+    # el handler devuelve la salida de SU parametro de guardia, y para eso
+    # `_passive_guard_params` tiene que poder IDENTIFICAR ese parametro leyendo
+    # el `Depends(...)` de la firma. Escrito aqui, lo identifica. MEDIDO sobre
+    # el censo real para estos dos endpoints: `params_guardia_pasivo={'user'}`,
+    # o sea la comprobacion se ejerce de verdad sobre esta ruta.
     if isinstance(user, (RedirectResponse, HTMLResponse)):
         return user
     _exigir_encendido()
@@ -196,9 +198,11 @@ def resultado_evidencia_de_hecho(
     # esto no estuviera, la ruta declararia guardian y serviria 200 a un
     # anonimo. Va escrito AQUI, a la vista de la ruta, y no delegado a un
     # ayudante: el censo de rutas (`scripts/route_map`) comprueba por AST que
-    # el handler devuelve la salida de SU parametro de guardia, y un ayudante
-    # lo esconde -- que es, de hecho, como los cuatro huecos del chasis se
-    # libran hoy de esta comprobacion (deuda anotada, no arreglada aqui).
+    # el handler devuelve la salida de SU parametro de guardia, y para eso
+    # `_passive_guard_params` tiene que poder IDENTIFICAR ese parametro leyendo
+    # el `Depends(...)` de la firma. Escrito aqui, lo identifica. MEDIDO sobre
+    # el censo real para estos dos endpoints: `params_guardia_pasivo={'user'}`,
+    # o sea la comprobacion se ejerce de verdad sobre esta ruta.
     if isinstance(user, (RedirectResponse, HTMLResponse)):
         return user
     _exigir_encendido()

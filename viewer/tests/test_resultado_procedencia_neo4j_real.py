@@ -816,22 +816,18 @@ def test_la_pantalla_DICE_que_la_ejecucion_no_dejo_procedencia_y_no_la_inventa(
 
 
 def test_que_deja_un_apply_SIN_paquete_de_procedencia(driver, apply_sin_procedencia):
-    """LO MEDIDO, y con su limite DECLARADO.
+    """Lo que quita el paquete es la PROCEDENCIA, no la proyeccion.
 
-    El Carril B informa de que el plan sellado que aplica la interfaz lleva
-    SOLO `CREATE_ASSERTION`, asi que no materializaria la arista. Aqui NO se
-    puede reproducir eso: su rama no esta en `main` y este fichero no la
-    importa. Lo que si se puede aplicar sin paquete de procedencia es el plan
-    que sella la ruta que EXISTE, y eso es lo que se mide.
+    Sobre el plan que sella la ruta de ingesta --cuyas operaciones incluyen
+    `PROJECT_RELATION`-- aplicar SIN paquete deja la arista IGUALMENTE y deja
+    la evidencia a cero. Son dos carencias distintas y este caso impide
+    confundirlas.
 
-    MEDIDO sobre ese plan: sus operaciones incluyen `PROJECT_RELATION`, asi que
-    aplicarlo SIN procedencia deja la arista IGUALMENTE. O sea: lo que quita el
-    paquete es la PROCEDENCIA, no la proyeccion -- son dos carencias distintas
-    y este caso impide confundirlas.
-
-    Si el plan de B llega a `main` con solo `CREATE_ASSERTION`, este caso se
-    pondra rojo y habra que revisar la prueba insignia. Eso es lo que se quiere
-    que pase: la afirmacion queda atada a una medida, no a una conversacion.
+    OJO CON LO QUE ESTE CASO **NO** VIGILA: el plan de la INTERFAZ es otro, y
+    lo vigila `test_el_plan_sellado_de_la_interfaz_solo_emite_CREATE_ASSERTION`.
+    Este fichero tuvo ese testigo apuntando aqui, y era mirar al otro lado: el
+    plan de la interfaz ya llevaba solo `CREATE_ASSERTION` y este caso seguia
+    verde, porque mide el plan de ingesta.
     """
     with driver.session() as s:
         aristas = s.run(
@@ -850,7 +846,7 @@ def test_que_deja_un_apply_SIN_paquete_de_procedencia(driver, apply_sin_proceden
         "esta midiendo la carencia que dice medir"
     )
     assert aristas > 0, (
-        "el plan de esta ruta ya NO materializa la arista. Es un cambio real "
-        "del producto: revisar la prueba insignia, que da por hecho que hay "
-        "una relacion que abrir."
+        "el plan DE INGESTA ya NO materializa la arista. Es un cambio real del "
+        "producto: revisar la prueba insignia, que da por hecho que hay una "
+        "relacion que abrir."
     )
