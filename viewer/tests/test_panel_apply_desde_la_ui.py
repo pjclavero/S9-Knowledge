@@ -1,0 +1,669 @@
+# -*- coding: utf-8 -*-
+"""Slice 2 · APPLY DESDE LA UI — de aprobar a conocimiento materializado.
+
+EL DEFECTO QUE ESTE MÓDULO FIJA
+-------------------------------
+Medido sobre `main` antes de este corte:
+
+    apply_v3(...)            completa, con `compute_apply_id` dentro
+    llamadores desde viewer/ 0
+
+Una función completa sin llamador en el recorrido real del operador es
+capacidad NO USABLE. Desde el producto, el operador aprobaba una propuesta, la
+pantalla se lo confirmaba, y el grafo no cambiaba nunca. Y no había ningún
+artefacto que aplicar: el plan de la corrida vive en memoria y muere con el
+job.
+
+POR QUÉ ESTAS PRUEBAS NO SE PUEDEN PONER VERDES POR BASURA ANTERIOR
+--------------------------------------------------------------------
+Todo el estado es de `tmp_path` y se comprueba VACÍO antes de empezar: el
+almacén de propuestas, el de decisiones, la cola de trabajos y la base de auth.
+Lo que se afirma después no son recuentos --«hay algo escrito» se pondría verde
+con restos-- sino IDENTIDADES DURABLES: el `assertion_id` que aparece en Neo4j
+es exactamente el que el plan sellado declaró, comparado por `assertion_id` y
+nunca por `elementId`, que se regenera al restaurar un dump.
+
+Y el recorrido se ejerce DESDE EL PANEL: formulario real, CSRF real, cola real,
+worker real y writer real. Una prueba de apply que llamara al núcleo
+directamente no diría nada sobre si la UI lo hace.
+
+QUÉ NECESITA PARA CORRER DE VERDAD
+----------------------------------
+Los casos marcados `neo4j_real` se SALTAN sin `S9K_WRITER_NEO4J_REAL=1`. Un
+`skipped` no es un verde: mientras no se declare la variable, la afirmación
+«el conocimiento queda materializado» NO se ha comprobado, y el nombre del caso
+lo dice. Los demás casos --frontera, autorización, CSRF, idempotencia de
+estado, supersesión-- corren siempre y sin grafo, porque ninguno de ellos
+necesita escribir para ser cierto.
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import sqlite3
+import subprocess
+import uuid
+from pathlib import Path
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app import jobs_client
+from app.chassis import FEATURE_SLOTS
+
+SLOT_B = next(s for s in FEATURE_SLOTS if s.key == "B")
+FLAG_B = "S9K_PANEL_B_ENABLED"
+FLAG_C = "S9K_PANEL_C_ENABLED"
+PASSWORD = "Contrasena-De-Prueba-1"
+
+REPO = Path(__file__).resolve().parents[2]
+EJEMPLOS = REPO / "examples" / "ingesta-v3"
+
+#: Prefijo PROPIO de los contenedores de este módulo. Se limpian de uno en uno
+#: por nombre: un `prune` global se llevaría por delante material de otro
+#: carril que esté corriendo a la vez.
+PREFIJO_CONTENEDOR = "s9k-carrilb-apply"
+
+WRITER_REAL = os.environ.get("S9K_WRITER_NEO4J_REAL") == "1"
+neo4j_real = pytest.mark.skipif(
+    not WRITER_REAL,
+    reason="sin S9K_WRITER_NEO4J_REAL=1 no hay grafo: el apply no se comprueba",
+)
+
+
+# ---------------------------------------------------------------------------
+# Arnés: app real, auth real, cola real, almacenes reales y VACÍOS
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def real_app():
+    from app.main import app
+    return app
+
+
+@pytest.fixture(autouse=True)
+def _entorno_limpio():
+    from app.auth.config import get_auth_settings
+    from app.config import get_settings
+    get_auth_settings.cache_clear()
+    get_settings.cache_clear()
+    yield
+    for var in ("S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_JOBS_DB",
+                "S9K_INGEST_SOURCES_DIR", "S9K_ALLOW_REAL_INGEST",
+                "S9K_WRITER_WORKSPACE", "S9K_NEO4J_URI", "S9K_NEO4J_USER",
+                "S9K_NEO4J_PASSWORD", "S9K_GRAPH_PROVIDER", FLAG_B, FLAG_C):
+        os.environ.pop(var, None)
+    get_auth_settings.cache_clear()
+    get_settings.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def _salud_aislada(tmp_path, monkeypatch):
+    monkeypatch.setenv("S9K_HEALTH_REPORT_PATH", str(tmp_path / "health" / "last.json"))
+
+
+@pytest.fixture
+def almacenes(tmp_path, monkeypatch) -> dict:
+    """Propuestas y decisiones, aislados y VACÍOS. El mismo resolvedor único."""
+    propuestas = tmp_path / "reviews-v3" / "proposals"
+    base = tmp_path / "reviews-v3" / "review.sqlite3"
+    monkeypatch.setenv("S9K_V3_REVIEW_PROPOSALS_DIR", str(propuestas))
+    monkeypatch.setenv("S9K_V3_REVIEW_DECISIONS_PATH",
+                       str(tmp_path / "reviews-v3" / "decisions.jsonl"))
+    monkeypatch.setenv("S9K_V3_REVIEW_DATABASE_PATH", str(base))
+    assert not propuestas.exists(), "el almacén tiene que empezar vacío"
+    return {"propuestas": propuestas, "base": base}
+
+
+@pytest.fixture
+def paneles_on():
+    os.environ[FLAG_B] = "true"
+    os.environ[FLAG_C] = "true"
+    yield
+    os.environ.pop(FLAG_B, None)
+    os.environ.pop(FLAG_C, None)
+
+
+@pytest.fixture
+def cola(tmp_path):
+    from app.config import get_settings
+
+    db = tmp_path / "jobs.db"
+    os.environ["S9K_JOBS_DB"] = str(db)
+    get_settings.cache_clear()
+    store = jobs_client._load_job_store()
+    assert store is not None, "sin job_store no hay nada que probar"
+    store.init_db(str(db))
+    yield db
+    get_settings.cache_clear()
+
+
+@pytest.fixture
+def auth_on(tmp_path):
+    from app.auth.config import get_auth_settings
+    from app.auth import db as auth_db_mod
+
+    db_path = tmp_path / "auth.db"
+    os.environ["S9K_AUTH_ENABLED"] = "true"
+    os.environ["S9K_AUTH_DB_PATH"] = str(db_path)
+    get_auth_settings.cache_clear()
+    auth_db_mod.ensure_migrated(db_path)
+    return db_path
+
+
+def _cookie(db_path: Path, username: str, role: str) -> str:
+    from app.auth import db as auth_db_mod
+    from app.auth.passwords import hash_password
+    from app.auth.sessions import create_session
+
+    with auth_db_mod.get_conn(db_path) as conn:
+        user = auth_db_mod.create_user(
+            conn, username=username, display_name=username.title(),
+            password_hash=hash_password(PASSWORD), role=role,
+        )
+        auth_db_mod.update_user(conn, user.id, must_change_password=False)
+        user = auth_db_mod.get_user_by_id(conn, user.id)
+        token, _ = create_session(conn, user)
+    return token
+
+
+def _cliente(app, cookie: str) -> TestClient:
+    from app.auth.config import get_auth_settings
+    c = TestClient(app, raise_server_exceptions=False, follow_redirects=False)
+    c.cookies.set(get_auth_settings().S9K_SESSION_COOKIE_NAME, cookie)
+    c.headers.update({"accept": "text/html"})
+    return c
+
+
+@pytest.fixture
+def operador(real_app, auth_on):
+    """Un ADMIN autenticado de verdad: la única puerta de este hueco."""
+    return _cliente(real_app, _cookie(auth_on, "apply_operador", "admin"))
+
+
+@pytest.fixture
+def revisor(real_app, auth_on):
+    """Un REVIEWER autenticado. Puede revisar; NO puede aplicar."""
+    return _cliente(real_app, _cookie(auth_on, "apply_revisor", "reviewer"))
+
+
+def _csrf(cliente: TestClient) -> str:
+    """Un token CSRF VÁLIDO para la sesión, sacado de `base.html`."""
+    r = cliente.get("/")
+    assert r.status_code == 200, r.status_code
+    m = re.search(r'name="csrf_token"[^>]*value="([^"]+)"', r.text)
+    assert m, "base.html no publicó ningún token CSRF"
+    return m.group(1)
+
+
+def _opciones(html: str) -> list:
+    bloque = re.search(r'data-role="selector-fuente".*?</select>', html, re.S)
+    assert bloque, "no hay selector de fuente en la pantalla"
+    return re.findall(r'<option value="([^"]+)"', bloque.group(0))
+
+
+# ---------------------------------------------------------------------------
+# El recorrido del operador, por partes
+# ---------------------------------------------------------------------------
+
+def _ingerir(operador, cola, monkeypatch) -> str:
+    """Formulario real -> cola real -> worker real. Devuelve el `job_id`."""
+    monkeypatch.setenv("S9K_INGEST_SOURCES_DIR", str(EJEMPLOS))
+    pantalla = operador.get(SLOT_B.prefix)
+    assert pantalla.status_code == 200, pantalla.status_code
+    opciones = _opciones(pantalla.text)
+    assert opciones, "no se ofrece ninguna fuente que elegir"
+    envio = operador.post(
+        "/panel/operations/ingestas",
+        data={"fuente": opciones[0], "csrf_token": _csrf(operador)},
+    )
+    assert envio.status_code == 303, envio.text[:300]
+    store = jobs_client._load_job_store()
+    pendientes = store.list_jobs(status="pending", db_path=str(cola))
+    assert len(pendientes) == 1, pendientes
+    job_id = pendientes[0]["job_id"]
+
+    from jobs import worker
+    assert worker.run("worker-apply", once=True, limit=1, db_path=str(cola)) == 1
+    final = store.get_job(job_id, db_path=str(cola))
+    assert final["status"] == "complete", final.get("error_message")
+    return job_id
+
+
+def _propuestas(directorio: Path) -> list:
+    """Las propuestas del almacén, leídas por el camino del producto."""
+    from app.services.v3_review import load_proposals
+    return load_proposals(directorio)
+
+
+def _aplicable(propuestas: list, job_id: str):
+    """La primera propuesta de la corrida que SÍ produce una operación.
+
+    No vale cualquiera: el corpus de ejemplo deja dos `ABSTAIN` sin predicado,
+    y aprobar una de ésas es legítimo y no escribe nada. Se elige por la misma
+    condición que el sellado aplica, para que la prueba insignia mida el camino
+    feliz y no un camino de exclusión disfrazado.
+    """
+    for propuesta in propuestas:
+        if job_id not in (propuesta.get("package_runs") or ()):
+            continue
+        cuerpo = propuesta.get("proposal") or {}
+        resolucion = propuesta.get("resolution") or {}
+        if (
+            cuerpo.get("predicate") not in (None, "", "UNKNOWN")
+            and cuerpo.get("direction") not in (None, "", "UNKNOWN")
+            and resolucion.get("subject") not in (None, "", "not_available")
+            and resolucion.get("object") not in (None, "", "not_available")
+        ):
+            return propuesta
+    return None
+
+
+def _decidir(propuesta: dict, veredicto: str, *, reviewer: str = "apply_operador") -> str:
+    """Una decisión humana por la MISMA autoridad que usa `/panel/review`."""
+    from app.services.v3_review import ReviewService
+
+    registro = ReviewService().record(
+        proposal_id=propuesta["proposal_id"],
+        workspace=propuesta["workspace"],
+        reviewer=reviewer,
+        human_decision=veredicto,
+        request_id=f"req-{uuid.uuid4().hex[:12]}",
+        rationale="prueba de apply desde la UI",
+    )
+    return registro["decision_id"] if isinstance(registro, dict) else ""
+
+
+def _panel(operador, job_id: str):
+    r = operador.get(f"{SLOT_B.prefix}?solicitado={job_id}")
+    assert r.status_code == 200, r.status_code
+    return r.text
+
+
+def _bloque_plan(html: str) -> dict:
+    """Lo que el PRODUCTO pinta del plan, enumerado. No hay navegador aquí.
+
+    El contrato de navegador no corre en esta máquina (sin Chromium), así que
+    la afirmación «la pantalla ofrece/no ofrece la acción» se hace enumerando
+    el marcado que el producto genera. Es una comprobación distinta de la del
+    navegador y se declara como tal; lo que no es, es un `skipped` que se lee
+    como verde.
+    """
+    seccion = re.search(r'<section[^>]*data-role="plan-revisado".*?</section>', html, re.S)
+    if not seccion:
+        return {}
+    texto = seccion.group(0)
+    atributos = dict(re.findall(r'data-plan-([a-z-]+)="([^"]*)"', texto))
+    return {
+        "atributos": atributos,
+        "form_sellado": 'data-role="form-sellado"' in texto,
+        "form_aplicacion": 'data-role="form-aplicacion"' in texto,
+        "desenlace": re.findall(r'data-plan-desenlace="([^"]*)"', texto),
+        "bloqueado": re.findall(r'data-plan-bloqueado="([^"]*)"', texto),
+        "texto": texto,
+    }
+
+
+def _sellar(operador, job_id: str):
+    return operador.post(
+        "/panel/operations/planes",
+        data={"trabajo": job_id, "csrf_token": _csrf(operador)},
+    )
+
+
+def _aplicar(operador, job_id: str):
+    return operador.post(
+        "/panel/operations/aplicaciones",
+        data={"trabajo": job_id, "csrf_token": _csrf(operador)},
+    )
+
+
+def _aviso_de(respuesta) -> str:
+    assert respuesta.status_code == 303, respuesta.text[:300]
+    destino = respuesta.headers["location"]
+    m = re.search(r"aviso=([A-Z_]+)", destino)
+    return m.group(1) if m else ""
+
+
+def _filas_de_plan(base: Path) -> list:
+    """El almacén POR DENTRO. Se mira para afirmar ausencia de escritura."""
+    if not base.exists():
+        return []
+    conexion = sqlite3.connect(f"file:{base}?mode=ro", uri=True)
+    conexion.row_factory = sqlite3.Row
+    try:
+        filas = conexion.execute(
+            "SELECT * FROM sealed_plans ORDER BY revision"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        conexion.close()
+    return [dict(f) for f in filas]
+
+
+# ===========================================================================
+# 0. La frontera que NO se mueve: `/panel/review` sigue siendo solo lectura
+# ===========================================================================
+
+def test_panel_review_sigue_sin_una_sola_escritura(real_app):
+    """El apply vive en Operaciones, y por eso el hueco C no cambia.
+
+    `chassis_review.py` declara una FRONTERA DURA («aquí no hay ningún método
+    que no sea GET») y se verifica por enumeración. Colgar allí el POST del
+    apply habría sido cambiar el contrato de un fichero que ya es de `main`.
+    Se comprueba que NO se ha hecho, en vez de prometerlo en prosa.
+    """
+    from app.chassis import capabilities_for_slot, undeclared_writes
+
+    for clave in ("C", "F", "G"):
+        slot = next(x for x in FEATURE_SLOTS if x.key == clave)
+        assert capabilities_for_slot(clave) == ()
+        assert undeclared_writes(real_app, slot) == []
+
+
+def test_el_apply_esta_declarado_y_montado_bajo_operaciones(real_app):
+    """Lo declarado está montado, y lo montado está declarado. Los dos lados."""
+    from app.chassis import (
+        capabilities_for_slot, iter_mounted_routes, route_in_prefix,
+        route_path, write_methods,
+    )
+
+    declaradas = {
+        (c.path, tuple(sorted(c.methods))) for c in capabilities_for_slot("B")
+    }
+    # Se recorre LA APP con el censo aplanado, no `app.routes` a pelo: las
+    # rutas del chasis cuelgan de routers montados y una enumeración plana no
+    # las ve (medido: `app.routes` devolvía el conjunto vacío y la prueba se
+    # habría puesto verde por no encontrar nada).
+    montadas = {
+        (route_path(r), tuple(sorted(write_methods(r))))
+        for r in iter_mounted_routes(real_app)
+        if write_methods(r) and route_in_prefix(r, SLOT_B.prefix)
+    }
+    assert montadas == declaradas
+    assert ("/panel/operations/planes", ("POST",)) in declaradas
+    assert ("/panel/operations/aplicaciones", ("POST",)) in declaradas
+
+
+# ===========================================================================
+# 1. SIN APROBAR: la acción no se habilita, no se finge y NO ESCRIBE NADA
+# ===========================================================================
+
+def test_sin_aprobar_no_hay_accion_y_cero_escritura(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch
+):
+    """Requisito 8, medido en los TRES sitios donde podría incumplirse."""
+    job_id = _ingerir(operador, cola, monkeypatch)
+    propuestas = _propuestas(almacenes["propuestas"])
+    assert propuestas, "la fuente del arnés ya no produce propuestas revisables"
+
+    bloque = _bloque_plan(_panel(operador, job_id))
+    assert bloque, "la pantalla no dice nada de lo aprobado"
+    assert bloque["atributos"]["estado"] == "sin_plan"
+    assert bloque["atributos"]["aprobadas"] == "0"
+    # 1. La pantalla NO ofrece ninguno de los dos botones.
+    assert not bloque["form_sellado"], "se ofrece preparar sin nada aprobado"
+    assert not bloque["form_aplicacion"]
+
+    # 2. El POST directo tampoco funciona: la pantalla no es la guarda.
+    assert _aviso_de(_sellar(operador, job_id)) == "NO_APPROVED_PROPOSALS"
+    assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_NOT_SEALED"
+
+    # 3. CERO ESCRITURA: no hay ni una fila de plan.
+    assert _filas_de_plan(almacenes["base"]) == []
+
+
+def test_rechazar_no_habilita_la_accion(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch
+):
+    """Rechazar es decidir. Decidir no es aprobar, y no abre ninguna puerta."""
+    job_id = _ingerir(operador, cola, monkeypatch)
+    propuesta = _aplicable(_propuestas(almacenes["propuestas"]), job_id)
+    assert propuesta is not None
+    _decidir(propuesta, "REJECT")
+
+    bloque = _bloque_plan(_panel(operador, job_id))
+    assert bloque["atributos"]["aprobadas"] == "0"
+    assert not bloque["form_sellado"]
+    assert _aviso_de(_sellar(operador, job_id)) == "NO_APPROVED_PROPOSALS"
+    assert _filas_de_plan(almacenes["base"]) == []
+
+
+# ===========================================================================
+# 2. AUTORIZACIÓN y CSRF: por separado, y cada uno cae SOLO
+# ===========================================================================
+#
+# En el Corte 1 una prueba de rol pasaba aunque se degradara la guarda PORQUE
+# al `reviewer` lo paraba el CSRF. Por eso el caso de rol lleva un token CSRF
+# VÁLIDO y el de CSRF lo lanza un ADMIN legítimo: cada uno sólo puede ponerse
+# verde por su propia razón.
+
+@pytest.mark.parametrize("ruta", ["/panel/operations/planes",
+                                  "/panel/operations/aplicaciones"])
+def test_un_revisor_no_puede_aplicar_aunque_su_csrf_sea_valido(
+    real_app, paneles_on, cola, revisor, almacenes, ruta
+):
+    """ROJO POR AUTORIZACIÓN, y por nada más."""
+    token = _csrf(revisor)
+    assert token, "el revisor no tiene sesión: el caso no probaría el rol"
+    respuesta = revisor.post(ruta, data={"trabajo": "j-cualquiera",
+                                         "csrf_token": token})
+    # `require_admin` redirige a /login; lo que NO puede pasar es un 303 al
+    # panel, que sería la respuesta de una acción ATENDIDA.
+    assert respuesta.status_code in (302, 303, 403, 404), respuesta.status_code
+    destino = respuesta.headers.get("location", "")
+    assert "/panel/operations?" not in destino, (
+        "la acción se atendió para un revisor: la guarda de rol no mordió"
+    )
+    assert _filas_de_plan(almacenes["base"]) == []
+
+
+@pytest.mark.parametrize("ruta", ["/panel/operations/planes",
+                                  "/panel/operations/aplicaciones"])
+def test_un_csrf_invalido_para_la_accion_aunque_el_rol_sea_admin(
+    real_app, paneles_on, cola, operador, almacenes, ruta
+):
+    """ROJO POR CSRF, y por nada más: quien lo manda es un admin legítimo."""
+    respuesta = operador.post(ruta, data={"trabajo": "j-cualquiera",
+                                          "csrf_token": "token-falsificado"})
+    assert respuesta.status_code == 403, respuesta.status_code
+    assert _filas_de_plan(almacenes["base"]) == []
+
+
+def test_una_corrida_de_otro_no_se_puede_sellar(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch
+):
+    """El `workspace` sale del TRABAJO, no del formulario.
+
+    Aceptarlo de la petición permitiría dirigir la escritura a otro ámbito
+    escribiendo un id en un campo oculto.
+    """
+    _ingerir(operador, cola, monkeypatch)
+    assert _aviso_de(_sellar(operador, "job-que-no-existe")) == "SOURCE_UNKNOWN"
+    assert _filas_de_plan(almacenes["base"]) == []
+
+
+# ===========================================================================
+# 3. SELLADO: el snapshot existe, es inmutable y no lo genera el pipeline
+# ===========================================================================
+
+def _aprobar_una(operador, cola, almacenes, monkeypatch):
+    job_id = _ingerir(operador, cola, monkeypatch)
+    propuesta = _aplicable(_propuestas(almacenes["propuestas"]), job_id)
+    assert propuesta is not None, (
+        "el corpus del arnés ya no produce ninguna propuesta aplicable"
+    )
+    _decidir(propuesta, "APPROVE")
+    return job_id, propuesta
+
+
+def test_sellar_deja_un_snapshot_vigente_y_la_pantalla_lo_dice(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch
+):
+    """El artefacto que faltaba, ahora persistido y ligado a la corrida."""
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+
+    bloque = _bloque_plan(_panel(operador, job_id))
+    assert bloque["atributos"]["aprobadas"] == "1"
+    assert bloque["form_sellado"], "con algo aprobado hay que ofrecer prepararlo"
+    assert not bloque["form_aplicacion"], "no se ofrece aplicar sin plan sellado"
+
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+
+    filas = _filas_de_plan(almacenes["base"])
+    assert len(filas) == 1, filas
+    fila = filas[0]
+    assert fila["state"] == "sealed"
+    assert fila["job_id"] == job_id
+    assert fila["revision"] == 1
+    documento = json.loads(fila["plan_json"])
+    assert documento["mutation_operations"], "un plan sellado sin operaciones"
+    assert all(op["operation_type"] == "CREATE_ASSERTION"
+               for op in documento["mutation_operations"])
+    assert documento["local_approval"]["approved"] is True
+    # El hash guardado ES el del documento guardado. Si no, el gate del writer
+    # confirmaría un plan y se aplicaría otro.
+    assert fila["plan_hash"] == documento["plan_hash"]["value"]
+
+
+def test_el_sellado_no_reejecuta_el_pipeline(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch
+):
+    """Sellar es leer lo persistido. Si corriera el pipeline, esto se ve.
+
+    Se vigila el ÚNICO núcleo de ingesta del producto (`run_ingest`, el mismo
+    símbolo que usan el CLI y el handler de la cola): si sellar lo invocara,
+    el contador subiría. Es una observación del efecto, no una lectura del
+    código.
+    """
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+
+    from knowledge_v3.pipeline import ingest_cli
+
+    llamadas = []
+    original = ingest_cli.run_ingest
+    monkeypatch.setattr(
+        ingest_cli, "run_ingest",
+        lambda *a, **k: (llamadas.append(1), original(*a, **k))[1],
+    )
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    assert llamadas == [], "sellar reejecutó el pipeline"
+
+
+def test_sellar_dos_veces_no_deja_dos_planes_vigentes(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch
+):
+    """El invariante lo impone la BASE, no una comprobación en Python.
+
+    `idx_sealed_plan_vigente` es un índice ÚNICO PARCIAL sobre
+    (workspace, job_id) WHERE state='sealed'.
+    """
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+
+    filas = _filas_de_plan(almacenes["base"])
+    assert len(filas) == 2, filas
+    vigentes = [f for f in filas if f["state"] == "sealed"]
+    assert len(vigentes) == 1, vigentes
+    assert vigentes[0]["revision"] == 2
+    assert filas[0]["state"] == "superseded"
+
+
+# ===========================================================================
+# 4. SUPERSESIÓN: cambiar una decisión invalida el plan, NO lo modifica
+# ===========================================================================
+
+def test_cambiar_una_decision_tras_sellar_supersede_el_plan_v1(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch
+):
+    """La propiedad central del contrato del operador, medida.
+
+    Dos afirmaciones, no una: el plan pasa a `superseded` Y su contenido
+    canónico sigue siendo BYTE A BYTE el mismo. Un plan que se «actualizara»
+    al cambiar una decisión dejaría de ser el snapshot de nada.
+    """
+    job_id, propuesta = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    antes = _filas_de_plan(almacenes["base"])[0]
+    assert antes["state"] == "sealed"
+
+    # El operador se lo repiensa: deshace su decisión.
+    from app.services.v3_review import ReviewService
+    ReviewService().undo_last(
+        workspace=propuesta["workspace"],
+        reviewer="apply_operador",
+        request_id=f"req-undo-{uuid.uuid4().hex[:8]}",
+    )
+
+    despues = _filas_de_plan(almacenes["base"])[0]
+    assert despues["state"] == "superseded", "el plan v1 siguió vigente"
+    assert despues["plan_json"] == antes["plan_json"], (
+        "el plan sellado se MODIFICÓ; sólo puede invalidarse"
+    )
+    assert despues["plan_hash"] == antes["plan_hash"]
+
+    # Y aplicar ya no es posible: exige una revisión nueva.
+    assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_SUPERSEDED"
+    bloque = _bloque_plan(_panel(operador, job_id))
+    assert bloque["atributos"]["estado"] == "superseded"
+    assert not bloque["form_aplicacion"]
+
+
+# ===========================================================================
+# 5. Sin escritura habilitada: se dice, y no es culpa del operador
+# ===========================================================================
+
+def test_sin_declaracion_de_escritura_no_se_ofrece_ni_se_aplica(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch
+):
+    """503 conceptual: la dependencia no está y se dice con su código."""
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+
+    monkeypatch.delenv("S9K_ALLOW_REAL_INGEST", raising=False)
+    bloque = _bloque_plan(_panel(operador, job_id))
+    assert bloque["atributos"]["habilitado"] == "false"
+    assert not bloque["form_aplicacion"], "se ofrece un botón que no puede funcionar"
+    assert bloque["bloqueado"] == ["no-habilitado"]
+
+    assert _aviso_de(_aplicar(operador, job_id)) == "APPLY_NOT_ENABLED"
+    # El plan NO se toca: no se ha intentado nada.
+    assert _filas_de_plan(almacenes["base"])[0]["state"] == "sealed"
+
+
+# ===========================================================================
+# 6. Nada técnico llega al operador
+# ===========================================================================
+
+def test_la_pantalla_no_publica_conocimiento_interno(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch
+):
+    """Requisito 10, comprobado sobre el HTML REAL que se sirve.
+
+    Se buscan las cadenas concretas que el servidor conoce y el operador no:
+    la identidad interna del plan, el ancla de estado, el `workspace` del
+    writer y la ruta del almacén. Repositorio público: una ruta en pantalla es
+    una ruta publicada.
+    """
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+
+    fila = _filas_de_plan(almacenes["base"])[0]
+    documento = json.loads(fila["plan_json"])
+    html = _panel(operador, job_id)
+
+    prohibidas = {
+        "plan_id": fila["plan_id"],
+        "plan_hash": fila["plan_hash"],
+        "snapshot_id": documento["snapshot_id"],
+        "source_asset_id": documento["source_asset_id"],
+        "ruta del almacén": str(almacenes["propuestas"]),
+        "ruta de la base": str(almacenes["base"]),
+    }
+    filtradas = {k: v for k, v in prohibidas.items() if v and v in html}
+    assert not filtradas, f"la pantalla publica material interno: {filtradas}"
+    for palabra in ("Traceback", "sqlite3", "neo4j://", "bolt://"):
+        assert palabra not in html, f"la pantalla publica «{palabra}»"

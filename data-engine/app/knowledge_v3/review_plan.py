@@ -113,6 +113,21 @@ SEALER_VERSION = "1"
 #: aprobo. Cumple el patron `reason_code` del contrato congelado.
 REASON_HUMAN_APPROVED = "HUMAN_APPROVED"
 
+#: Razones CANONICAS de un `ACCEPT` segun el contrato congelado
+#: (`contracts/knowledge-v3/v1/validator.py::CANONICAL_REASON_CODES`). El
+#: validador rechaza un `ACCEPT` que no lleve una de las dos: sin ella la
+#: decision del dosier 11.7 no es reconstruible.
+#:
+#: Cual de las dos se emite NO es cosmetico. Si el motor habia mandado la
+#: reclamacion a revision -- que es el caso normal aqui, porque es justamente lo
+#: que el operador revisa -- sus reservas siguen siendo ciertas y viajan en
+#: `reason_codes`: entonces la aprobacion es CON ADVERTENCIAS, y decir
+#: `LOCAL_APPROVED` a secas ocultaria que se aprobo algo que el motor no daba
+#: por bueno. `LOCAL_APPROVED` limpio solo cuando el motor tampoco tenia nada
+#: que objetar.
+REASON_LOCAL_APPROVED = "LOCAL_APPROVED"
+REASON_LOCAL_APPROVED_WITH_WARNINGS = "LOCAL_APPROVED_WITH_WARNINGS"
+
 #: Vida del plan sellado, en segundos. Es el mismo valor que el motor usa para
 #: sus planes (`EngineConfig.plan_ttl_seconds`): un plan sellado no es mas
 #: eterno que uno del pipeline, y si caduca el writer lo rechaza con su propio
@@ -292,10 +307,20 @@ def _fragmentos(decision: Mapping[str, Any]) -> list[str]:
 
 
 def _razones(decision: Mapping[str, Any]) -> list[str]:
-    codigos = [str(c) for c in (decision.get("reason_codes") or []) if c]
-    if REASON_HUMAN_APPROVED not in codigos:
-        codigos.append(REASON_HUMAN_APPROVED)
-    return sorted(set(codigos))
+    """Los motivos del motor, CONSERVADOS, mas los de la aprobacion humana.
+
+    No se limpian los `REVIEW_*`: son ciertos --el motor si tuvo esa duda-- y
+    borrarlos convertiria el plan en un documento que no permite reconstruir
+    por que existio la revision. Lo que se anade es lo que el contrato exige y
+    lo que la aprobacion aporta.
+    """
+    codigos = {str(c) for c in (decision.get("reason_codes") or []) if c}
+    codigos.add(REASON_HUMAN_APPROVED)
+    if str(decision.get("decision") or "") == "ACCEPT":
+        codigos.add(REASON_LOCAL_APPROVED)
+    else:
+        codigos.add(REASON_LOCAL_APPROVED_WITH_WARNINGS)
+    return sorted(codigos)
 
 
 def _afirmacion(
