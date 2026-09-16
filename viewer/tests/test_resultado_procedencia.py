@@ -737,55 +737,156 @@ def test_un_fallo_al_discriminar_da_ERROR_y_no_inventa_un_veredicto():
 # propiedad del CODIGO, no del grafo, y en aquel modulo el `skipif` de las
 # variables de base lo dejaria en `skipped` -- que es exactamente el falso
 # verde que este carril ya tuvo que cerrar una vez.
+#
+# HISTORIA DE ESTE TESTIGO, porque explica por que esta escrito asi.
+# Su primera version afirmaba que el plan de la interfaz emitia SOLO
+# `CREATE_ASSERTION`. B2 hizo que tambien emitiera `PROJECT_RELATION` y el
+# testigo se puso ROJO con su propio mensaje --"la prueba insignia YA PUEDE
+# partir de un apply de la interfaz: revisarla y retirar la dependencia
+# declarada"--. Al ir a hacerle caso, la dependencia resulto NO poder
+# retirarse, y la razon esta MEDIDA abajo. El testigo cambia de pregunta, no
+# de oficio.
 
-def test_el_plan_sellado_de_la_interfaz_solo_emite_CREATE_ASSERTION():
-    """EL TESTIGO QUE MIRA DONDE DICE MIRAR. Sin Neo4j: es una propiedad del codigo.
 
-    El apply de la interfaz consume el plan que sella `seal_review_plan`, y ese
-    plan determina si hay ARISTA que abrir. Hoy emite solo `CREATE_ASSERTION`:
-    por eso la prueba insignia parte de un apply por la ruta de INGESTA, que si
-    proyecta. Esa dependencia queda atada AQUI.
+def _literales_de(nombre_campo: str, ruta):
+    """Valores LITERALES que el modulo asigna a `nombre_campo`, y los calculados.
 
-    Se comprueba por AST --un literal unico, ningun `operation_type` calculado--
-    y no contando apariciones en el texto: contar da falsos negativos en cuanto
-    alguien compone el valor. Cuando el Carril B2 haga que el apply proyecte,
-    este caso se pondra ROJO y dira que la insignia puede pasar a partir de un
-    apply de la interfaz. Eso es lo que se quiere que pase.
+    Por AST. Contar apariciones en el texto casaria dentro de un comentario o
+    de un docstring, y este repo tiene medido que eso da falsos negativos.
     """
     import ast
 
-    fuente = (RAIZ_REPO / "data-engine" / "app" / "knowledge_v3" / "review_plan.py")
-    arbol = ast.parse(fuente.read_text())
-
-    calculados, literales = [], set()
+    arbol = ast.parse(ruta.read_text(encoding="utf-8", errors="replace"))
+    literales, calculados = set(), []
     for nodo in ast.walk(arbol):
         if isinstance(nodo, ast.Dict):
             for clave, valor in zip(nodo.keys, nodo.values):
-                if isinstance(clave, ast.Constant) and clave.value == "operation_type":
+                if isinstance(clave, ast.Constant) and clave.value == nombre_campo:
                     if isinstance(valor, ast.Constant):
                         literales.add(valor.value)
                     else:
                         calculados.append(ast.dump(valor)[:80])
-        if isinstance(nodo, ast.keyword) and nodo.arg == "operation_type":
+        if isinstance(nodo, ast.keyword) and nodo.arg == nombre_campo:
             if isinstance(nodo.value, ast.Constant):
                 literales.add(nodo.value.value)
             else:
                 calculados.append(ast.dump(nodo.value)[:80])
+    return literales, calculados
 
-    assert literales, (
-        "no se encontro ningun `operation_type` en review_plan.py: el testigo "
-        "no esta mirando lo que cree mirar (¿se movio el sellado de plan?)"
-    )
+
+def test_el_plan_de_la_interfaz_YA_PUEDE_proyectar_una_relacion():
+    """Lo que B2 aporto, fijado: el sellado emite tambien `PROJECT_RELATION`.
+
+    Este caso NO es decorativo. Es el control POSITIVO del de abajo: sin el,
+    "la interfaz no proyecta" podria estar contandose por dos motivos muy
+    distintos --que la capacidad no exista, o que exista y no se alcance-- y
+    son cosas opuestas de arreglar.
+    """
+    fuente = RAIZ_REPO / "data-engine" / "app" / "knowledge_v3" / "review_plan.py"
+    literales, calculados = _literales_de("operation_type", fuente)
+
     assert not calculados, (
         f"hay `operation_type` CALCULADOS ({calculados}): este testigo solo "
-        "sabe leer literales, asi que ya no puede afirmar que el plan de la "
-        "interfaz no proyecta. Hay que medirlo de otra forma."
+        "sabe leer literales, asi que ya no puede afirmar nada sobre el plan "
+        "de la interfaz. Hay que medirlo de otra forma."
     )
-    assert literales == {"CREATE_ASSERTION"}, (
-        f"el plan sellado de la interfaz ya emite {sorted(literales)}. Si "
-        "incluye una proyeccion de relacion, la prueba insignia YA PUEDE "
-        "partir de un apply de la interfaz en vez de uno de ingesta: "
-        "revisarla y retirar la dependencia declarada."
+    assert "PROJECT_RELATION" in literales, (
+        f"el plan sellado de la interfaz ya NO sabe proyectar (emite "
+        f"{sorted(literales)}). Si esto se cayo, se cayo la capacidad que B2 "
+        "aporto, y el caso de abajo dejaria de significar lo que dice."
+    )
+
+
+def test_la_ingesta_DEL_PANEL_no_observa_el_ancla_asi_que_no_proyecta():
+    """POR QUE LA INSIGNIA SIGUE PARTIENDO DE LA INGESTA Y NO DE LA INTERFAZ.
+
+    La proyeccion solo se emite si el ancla esta OBSERVADA
+    (`review_plan.py`: `PROJECTION_ANCHOR_NOT_OBSERVED`), y `observed=True` lo
+    pone UN SOLO SITIO en todo el motor: `graph_catalog.snapshot_entities`,
+    al que `run_ingest` solo llega cuando recibe un `driver`.
+
+    MEDIDO sobre este arbol: el manejador de ingesta del panel
+    --`jobs/handlers/ingest_v3.py`, el unico camino por el que la interfaz
+    produce propuestas-- llama a `run_ingest` con `driver=None` LITERAL. Asi
+    que por la interfaz el ancla nunca se observa y la proyeccion se omite
+    siempre. Comprobado tambien end-to-end, fuera de esta prueba: las cuatro
+    anclas del sobre que produce ese camino salen con `observed: false`.
+
+    LA CAPACIDAD EXISTE Y NO SE ALCANZA. No es un defecto de B2 --su motor
+    hace lo correcto, y negarse a proyectar sobre un `state_hash` reconstruible
+    sin haber mirado el grafo es justo lo que protege la integridad-- sino una
+    COSTURA entre el motor y el manejador que lo invoca.
+
+    CUANDO ESTE CASO SE PONGA ROJO --porque alguien le pase un `driver` a esa
+    llamada-- la insignia de este carril YA PODRA partir de un apply de la
+    interfaz CON proyeccion, y habra que moverla. Ese es el dia, y esta es la
+    nota que lo dice.
+    """
+    import ast
+
+    handler = (RAIZ_REPO / "data-engine" / "app" / "jobs" / "handlers"
+               / "ingest_v3.py")
+    arbol = ast.parse(handler.read_text(encoding="utf-8", errors="replace"))
+
+    llamadas = []
+    for nodo in ast.walk(arbol):
+        if isinstance(nodo, ast.Call):
+            nombre = getattr(nodo.func, "attr", None) or getattr(nodo.func, "id", None)
+            if nombre == "run_ingest":
+                pasado = {k.arg: k.value for k in nodo.keywords}
+                if "driver" not in pasado:
+                    llamadas.append((nodo.lineno, "AUSENTE (por defecto None)"))
+                elif isinstance(pasado["driver"], ast.Constant):
+                    llamadas.append((nodo.lineno, repr(pasado["driver"].value)))
+                else:
+                    llamadas.append((nodo.lineno, f"<expresion: {ast.unparse(pasado['driver'])}>"))
+
+    assert llamadas, (
+        "no se encontro ninguna llamada a `run_ingest` en el manejador de "
+        "ingesta del panel: este testigo no esta mirando lo que cree mirar "
+        "(se movio el manejador?)"
+    )
+    sin_grafo = [(l, d) for l, d in llamadas if d in ("None", "AUSENTE (por defecto None)")]
+    assert sin_grafo == llamadas, (
+        f"la ingesta del panel YA abre el grafo en alguna llamada ({llamadas}). "
+        "Entonces el ancla puede salir OBSERVADA y el plan de la interfaz "
+        "puede proyectar de verdad: la prueba insignia de este carril ya puede "
+        "partir de un apply de la INTERFAZ con proyeccion, en vez de uno de "
+        "ingesta. Moverla y retirar esta nota."
+    )
+
+
+def test_solo_el_catalogo_LEIDO_DEL_GRAFO_marca_un_ancla_como_observada():
+    """El otro extremo de la costura, para que no se pueda mover en silencio.
+
+    Si manana `observed=True` se pusiera tambien en otro sitio --por ejemplo
+    derivandolo de un fichero-- el caso de arriba seguiria verde y sin embargo
+    la afirmacion "por la interfaz no se observa" habria dejado de ser cierta.
+    Este caso ata el UNICO productor legitimo.
+    """
+    import ast
+
+    motor = RAIZ_REPO / "data-engine" / "app"
+    productores = []
+    for py in sorted(motor.rglob("*.py")):
+        if "tests" in py.parts:
+            continue
+        try:
+            arbol = ast.parse(py.read_text(encoding="utf-8", errors="replace"))
+        except SyntaxError:
+            continue
+        for nodo in ast.walk(arbol):
+            if isinstance(nodo, ast.keyword) and nodo.arg == "observed":
+                if isinstance(nodo.value, ast.Constant) and nodo.value.value is True:
+                    productores.append(py.relative_to(RAIZ_REPO).as_posix())
+
+    assert productores == [
+        "data-engine/app/knowledge_v3/pipeline/graph_catalog.py"
+    ], (
+        f"cambio quien puede declarar un ancla OBSERVADA: {sorted(set(productores))}. "
+        "Mientras el unico productor fuera el catalogo leido del grafo, "
+        "'la interfaz no observa' se seguia de que su ingesta no abre driver. "
+        "Con otro productor esa deduccion ya no vale y hay que rehacerla."
     )
 
 
