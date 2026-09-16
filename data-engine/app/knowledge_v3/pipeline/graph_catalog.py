@@ -108,6 +108,10 @@ def snapshot_entities(
                 {"algorithm": "sha256", "value": state_hash}
                 if isinstance(state_hash, str) else None
             ),
+            # OBSERVADA: esta fila salio de un nodo `V3Entity` leido, no de un
+            # fichero que declara lo que hay. Es el unico sitio del producto
+            # que puede afirmarlo, y por eso es el unico que lo marca.
+            observed=True,
         ))
     for alta in altas:
         out.append(SnapshotEntity(

@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS sealed_plans (
   apply_id TEXT,
   applied_operations INTEGER,
   apply_notes_json TEXT,
+  provenance_json TEXT,
   UNIQUE (workspace, job_id, revision)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_sealed_plan_vigente
@@ -150,11 +151,36 @@ class SQLiteReviewStore:
                 with self.connection() as connection:
                     connection.execute("PRAGMA journal_mode=WAL")
                     connection.executescript(SCHEMA)
+                    self._migrar(connection)
                 break
             except sqlite3.OperationalError as exc:
                 if "locked" not in str(exc).lower() or attempt == 59:
                     raise
                 time.sleep(0.05)
+
+    #: Columnas que se ANADEN a una base ya creada. `CREATE TABLE IF NOT
+    #: EXISTS` no las pone en una tabla que ya existe: sin esto, un despliegue
+    #: con almacen previo arrancaba sin la columna y el primer `INSERT` la
+    #: reventaba en produccion, no aqui. Es una lista, no un `try/except`
+    #: suelto, para que anadir la siguiente no sea inventarse el patron otra
+    #: vez.
+    _COLUMNAS_ANADIDAS = (("sealed_plans", "provenance_json", "TEXT"),)
+
+    def _migrar(self, connection: sqlite3.Connection) -> None:
+        """Pone al dia una base anterior a este corte. Idempotente.
+
+        Se comprueba lo que la tabla TIENE (`PRAGMA table_info`) en vez de
+        intentar el `ALTER` y tragarse el error: un `OperationalError` tapado
+        esconderia tambien los que no son "la columna ya existe".
+        """
+        for tabla, columna, tipo in self._COLUMNAS_ANADIDAS:
+            presentes = {
+                fila["name"]
+                for fila in connection.execute(f"PRAGMA table_info({tabla})")
+            }
+            if not presentes or columna in presentes:
+                continue
+            connection.execute(f"ALTER TABLE {tabla} ADD COLUMN {columna} {tipo}")
 
     def connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.path, timeout=30, isolation_level=None)
@@ -307,6 +333,13 @@ class SQLiteReviewStore:
     ESTADO_SELLADO = "sealed"
     ESTADO_EN_VUELO = "applying"
     ESTADO_APLICADO = "applied"
+    #: L2 ESCRITO, pero ALGO de lo que el plan declaraba NO se materializo:
+    #: una arista que no esta, una procedencia que no llego. NO es `applied`
+    #: --anunciarlo como exito completo seria el falso exito que este carril
+    #: cierra-- y NO es `superseded` --el conocimiento SI se escribio y volver
+    #: a sellar no lo desharia--. Es un estado con NOMBRE, como `applying`, y
+    #: es el unico desde el que la reconciliacion vuelve a intentarlo.
+    ESTADO_PARCIAL = "partial"
     ESTADO_SUPERSEDIDO = "superseded"
 
     def _supersede_sealed(self, connection: sqlite3.Connection, workspace: str) -> int:
@@ -357,6 +390,7 @@ class SQLiteReviewStore:
         proposal_ids: list,
         sealed_at: str,
         expected_decision_ids: list,
+        provenance_json: str | None = None,
     ) -> dict:
         """Sella un plan en la MISMA transacción que comprueba las decisiones.
 
@@ -395,12 +429,14 @@ class SQLiteReviewStore:
             connection.execute(
                 """INSERT INTO sealed_plans
                    (plan_id, workspace, job_id, revision, state, plan_json,
-                    plan_hash, decision_ids_json, proposal_ids_json, sealed_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    plan_hash, decision_ids_json, proposal_ids_json, sealed_at,
+                    provenance_json)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     plan_id, workspace, job_id, revision, self.ESTADO_SELLADO,
                     plan_json, plan_hash, canonical(sorted(set(decision_ids))),
                     canonical(sorted(set(proposal_ids))), sealed_at,
+                    provenance_json,
                 ),
             )
             self._audit(connection, workspace, {
@@ -452,10 +488,20 @@ class SQLiteReviewStore:
         en un estado que NADIE puede leer como éxito, y la pantalla lo dice.
         """
         with self.transaction() as connection:
+            # Se toma desde `sealed` Y desde `partial`. Lo segundo es la
+            # RECONCILIACION: un apply que dejo L2 escrito y la proyeccion o
+            # la procedencia sin materializar no se resuelve solo, y el unico
+            # camino honesto para terminarlo es reejecutar EL MISMO plan
+            # sellado -- que es idempotente por `idempotency_key` (las
+            # operaciones ya aplicadas salen NOOP) y cuyo volcado de
+            # procedencia comprueba la ausencia antes de crear. Volver a
+            # `sealed` no serviria: `sealed` significa "todavia no se toco el
+            # grafo", y aqui SI se toco.
             cursor = connection.execute(
                 """UPDATE sealed_plans SET state=?, applied_at=?
-                   WHERE plan_id=? AND state=?""",
-                (self.ESTADO_EN_VUELO, now, plan_id, self.ESTADO_SELLADO),
+                   WHERE plan_id=? AND state IN (?, ?)""",
+                (self.ESTADO_EN_VUELO, now, plan_id,
+                 self.ESTADO_SELLADO, self.ESTADO_PARCIAL),
             )
             tomado = (cursor.rowcount or 0) == 1
             row = connection.execute(
@@ -474,6 +520,7 @@ class SQLiteReviewStore:
     def record_apply_result(
         self, *, plan_id: str, apply_id, ok: bool, now: str,
         applied_operations: int = 0, notes: list | None = None,
+        complete: bool = True,
     ) -> None:
         """Deja el desenlace REAL del apply sobre el plan EN VUELO.
 
@@ -500,12 +547,19 @@ class SQLiteReviewStore:
             if row is None:
                 raise KeyError(plan_id)
             if ok:
+                # `ok` dice que el WRITER escribio. `complete` dice que lo
+                # DECLARADO esta materializado y es trazable, y eso lo
+                # contesta haber MIRADO el grafo, no el writer. Solo con las
+                # dos cosas la fila puede decir `applied`.
+                estado = (
+                    self.ESTADO_APLICADO if complete else self.ESTADO_PARCIAL
+                )
                 connection.execute(
                     """UPDATE sealed_plans
                        SET state=?, apply_id=?, applied_at=?,
                            applied_operations=?, apply_notes_json=?
                        WHERE plan_id=? AND state=?""",
-                    (self.ESTADO_APLICADO, apply_id, now, int(applied_operations),
+                    (estado, apply_id, now, int(applied_operations),
                      canonical(sorted(set(notes or ()))), plan_id,
                      self.ESTADO_EN_VUELO),
                 )
@@ -519,7 +573,10 @@ class SQLiteReviewStore:
                      plan_id, self.ESTADO_EN_VUELO),
                 )
             self._audit(connection, row["workspace"], {
-                "event": "REVIEW_PLAN_APPLIED" if ok else "REVIEW_PLAN_APPLY_FAILED",
+                "event": (
+                    ("REVIEW_PLAN_APPLIED" if complete else "REVIEW_PLAN_APPLY_PARTIAL")
+                    if ok else "REVIEW_PLAN_APPLY_FAILED"
+                ),
                 "plan_id": plan_id,
                 "job_id": row["job_id"],
                 "apply_id": apply_id or "",

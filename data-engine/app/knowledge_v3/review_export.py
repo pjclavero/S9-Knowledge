@@ -16,7 +16,7 @@ import os
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping, Sequence
 
 from .contracts.base import canonical_json, sha256_hash
 from .review_decisions import resolved_proposal_ids
@@ -241,6 +241,109 @@ def review_documents(result: Any, *, workspace: str) -> list[dict[str, Any]]:
     return sorted(documents, key=lambda x: (x["source_id"], x["episode_id"], x["proposal_id"]))
 
 
+def run_entity_anchors(
+    result: Any, documents: Sequence[Mapping[str, Any]]
+) -> dict[str, dict[str, Any]]:
+    """El ancla de estado de cada entidad que las propuestas resuelven.
+
+    DE DONDE SALE, Y POR QUE NO ES UNA SEGUNDA AUTORIDAD: del MISMO
+    `GraphSnapshot` del que `engine/planner.py` copia `expected_version` y
+    `expected_hash` (`context.snapshot.entity(...)`), que es tambien de donde
+    sale el `snapshot_id` que este sobre ya publicaba. No se lee el grafo, no
+    se deduce nada y no se inventa ninguna version: se copia la foto sobre la
+    que se decidio.
+
+    Se acota a las entidades que las propuestas EXPORTADAS nombran. Publicar
+    el snapshot entero engordaria el paquete con estado que nadie va a usar,
+    y el almacen de propuestas ya crece sin cota.
+    """
+    interesan: set[str] = set()
+    for documento in documents:
+        for bloque in (documento.get("resolution") or {}, documento.get("proposal") or {}):
+            for campo in ("subject", "object"):
+                valor = bloque.get(campo)
+                if isinstance(valor, str) and valor and valor != "not_available":
+                    interesan.add(valor)
+    anclas: dict[str, dict[str, Any]] = {}
+    if not interesan:
+        return anclas
+    for run in getattr(result, "runs", ()):
+        snapshot = getattr(run, "snapshot", None)
+        if snapshot is None:
+            continue
+        for entity_id in sorted(interesan):
+            if entity_id in anclas:
+                continue
+            nodo = None
+            try:
+                nodo = snapshot.entity(entity_id)
+            except Exception:  # noqa: BLE001 - un snapshot raro no rompe el export
+                nodo = None
+            if nodo is None:
+                continue
+            anclas[entity_id] = {
+                "version": getattr(nodo, "version", None),
+                "state_hash": dict(getattr(nodo, "state_hash", None) or {}),
+                "pending_creation": bool(getattr(nodo, "pending_creation", False)),
+                # OBSERVADA o DECLARADA. Se publica el dato, no una conclusion:
+                # quien sella decide con el, y el sobre deja constancia de cual
+                # de las dos cosas era.
+                "observed": bool(getattr(nodo, "observed", False)),
+            }
+    return anclas
+
+
+def run_provenance_material(
+    result: Any,
+    documents: Sequence[Mapping[str, Any]],
+    decisions_by_claim: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Los DOCUMENTOS de procedencia que las propuestas exportadas citan.
+
+    Es el material que `apply_v3` necesita para persistir procedencia y que el
+    plan NO puede contener: el plan CITA `evidence_fragment_ids`; los
+    documentos que esos ids nombran viven en la corrida. Por la ruta del CLI
+    se los pasa `pipeline.write` desde el `SourceRun` vivo; por la ruta de la
+    UI la corrida ya ha muerto cuando el operador aprueba, asi que el material
+    tiene que viajar.
+
+    ACOTADO A LO CITADO, no a la corrida entera: solo los fragmentos que las
+    propuestas exportadas nombran, los episodios de esos fragmentos y la
+    fuente. Un paquete que arrastrase toda la corrida crecerria sin relacion
+    con lo que hay que revisar.
+    """
+    citados: set[str] = set()
+    for documento in documents:
+        decision = decisions_by_claim.get(str(documento.get("claim_id") or "")) or {}
+        for fid in decision.get("evidence_fragment_ids") or ():
+            if fid:
+                citados.add(str(fid))
+    material: dict[str, Any] = {"source_asset": None, "episodes": [], "fragments": []}
+    if not citados:
+        return material
+    episodios_vistos: set[str] = set()
+    for run in getattr(result, "runs", ()):
+        fragmentos = [
+            _dict(f) for f in getattr(run, "fragments", ())
+            if str(_dict(f).get("fragment_id") or "") in citados
+        ]
+        if not fragmentos:
+            continue
+        if material["source_asset"] is None and getattr(run, "asset", None) is not None:
+            material["source_asset"] = _dict(run.asset)
+        material["fragments"].extend(fragmentos)
+        necesarios = {str(f.get("episode_id") or "") for f in fragmentos}
+        for episodio in getattr(run, "episodes", ()):
+            doc = _dict(episodio)
+            eid = str(doc.get("episode_id") or "")
+            if eid in necesarios and eid not in episodios_vistos:
+                episodios_vistos.add(eid)
+                material["episodes"].append(doc)
+    material["fragments"].sort(key=lambda f: str(f.get("fragment_id") or ""))
+    material["episodes"].sort(key=lambda e: str(e.get("episode_id") or ""))
+    return material
+
+
 @dataclass(frozen=True)
 class ReviewPackageExport:
     """Lo que UNA corrida dejó de verdad en el almacen de revision.
@@ -325,7 +428,13 @@ def export_review_package(
         # la unidad sobre la que el operador sella y aplica. Sin `run` (CLI,
         # arneses) el cuerpo del paquete sigue siendo byte a byte el de antes y
         # conserva su digest historico.
-        contexto = plan_context_from_run(plan_doc, decisions_by_claim, documents)
+        contexto = plan_context_from_run(
+            plan_doc,
+            decisions_by_claim,
+            documents,
+            entity_anchors=run_entity_anchors(result, documents),
+            provenance=run_provenance_material(result, documents, decisions_by_claim),
+        )
         if contexto is not None:
             package_body[PLAN_CONTEXT_KEY] = contexto
     package_hash = sha256_hash(package_body)

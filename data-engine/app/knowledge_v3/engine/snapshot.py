@@ -52,6 +52,23 @@ class SnapshotEntity:
     #: un alta la enciende. `LINK_EXISTING` y `CREATE_ENTITY` siguen siendo
     #: dos cosas distintas, y este campo es la frontera entre ambas.
     pending_creation: bool = False
+    #: `True` = esta fila se OBSERVO en el grafo (`graph_catalog.
+    #: snapshot_entities`), asi que su `version` y su `state_hash` son los del
+    #: nodo. `False` = viene de un catalogo DECLARADO en fichero
+    #: (`bridge.entities_from_catalog`), donde `version` arranca en 1 y el
+    #: `state_hash` se DERIVA del propio id -- un valor plausible y falso.
+    #:
+    #: La distincion no es cosmetica: anclar un control optimista sobre un
+    #: hash derivado es presumir el estado del grafo en vez de observarlo, y
+    #: contra un nodo real produce `EXEC_HASH_MISMATCH`. Por eso
+    #: `review_plan._proyeccion` solo proyecta sobre anclas observadas, que es
+    #: lo que `graph_catalog.carencias` ya decia con palabras
+    #: ("ninguna relacion podra proyectarse sobre ellas hasta que lo tengan")
+    #: y que hasta ahora nadie podia comprobar por no estar en el dato.
+    #:
+    #: El defecto por omision es `False`: NO observado. Una duda no se resuelve
+    #: a favor de proyectar.
+    observed: bool = False
     #: Nombre canonico declarado en el alta aprobada. Solo lo consume el
     #: `payload` del `CREATE_ENTITY`; para una entidad ya existente sobra.
     canonical_name: Optional[str] = None

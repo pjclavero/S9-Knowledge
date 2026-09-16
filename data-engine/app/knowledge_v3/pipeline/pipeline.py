@@ -84,6 +84,15 @@ class SourceRun:
     claims: list[ClaimProposal] = field(default_factory=list)
     resolutions: list[EntityResolution] = field(default_factory=list)
     engine_result: Optional[EngineResult] = None
+    #: LA FOTO sobre la que se decidio, conservada. De aqui --y solo de aqui--
+    #: salen `expected_version` / `expected_hash` de cada operacion del plan
+    #: (`engine/planner.py`), exactamente la misma procedencia que
+    #: `snapshot_id`. Antes se construia en `run_source`, se pasaba a `decide`
+    #: y se DESCARTABA: el unico superviviente era el `snapshot_id` escalar, y
+    #: por eso el sellado desde la revision no tenia con que anclar una
+    #: proyeccion aunque las entidades ya existieran en el grafo. Conservarla
+    #: no cambia ninguna decision: es el mismo objeto que ya se usaba.
+    snapshot: Optional[GraphSnapshot] = None
     plan: Optional[GraphMutationPlan] = None
     review_plan: Optional[GraphMutationPlan] = None
     assertions: list[FactAssertion] = field(default_factory=list)
@@ -580,6 +589,7 @@ class KnowledgePipeline:
             run.stage_latency_ms[name] = (time.perf_counter() - started) * 1000.0
 
         snap = snapshot or bridge.engine_snapshot(self.ledger, entities=catalog_entities)
+        run.snapshot = snap
         started = time.perf_counter()
         self.decide(run, snap, case.gold)
         run.stage_latency_ms["engine"] = (time.perf_counter() - started) * 1000.0
