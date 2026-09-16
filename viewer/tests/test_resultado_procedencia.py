@@ -995,3 +995,73 @@ def test_mi_suite_de_neo4j_real_es_de_esa_familia_y_esta_invocada():
     mio = "viewer/tests/test_resultado_procedencia_neo4j_real.py"
     assert mio in _modulos_del_visor_que_exigen_neo4j_de_prueba()
     assert mio in _rutas_invocadas_en_el_paso_de_neo4j()
+
+
+# ===========================================================================
+# 10. EL LIMITE MEDIDO: UN `partial` SE LEE COMO UN VACIO LEGITIMO
+# ===========================================================================
+# B2 introdujo un desenlace nuevo: `partial`, cuando el writer escribio pero
+# algo DECLARADO no quedo materializado. Esta superficie NO SABE DISTINGUIRLO,
+# y eso no es una sospecha: esta MEDIDO sobre Neo4j real, en esta rama.
+#
+#   Apply completo .......... tres bloques DISPONIBLE, `operaciones: 4`
+#   Se retira del grafo UNA asercion de las declaradas (inyeccion de fallo):
+#   Apply incompleto ........ DISPONIBLE, DISPONIBLE, **VACIO**
+#                             y `operaciones` SIGUE DICIENDO **4**
+#                             pistas de incompletitud en la pagina: NINGUNA
+#
+# O sea: el recuento de operaciones viene de las marcas `V3AppliedOperation`,
+# que sobreviven, mientras el contenido que sostienen ya no esta. La pantalla
+# pinta "4 operaciones" y "aqui no hay nada", que es EXACTAMENTE la frase de un
+# vacio legitimo. El operador no tiene como saber que falta algo declarado.
+#
+# POR QUE NO SE ARREGLA AQUI: lo declarado vive en el plan sellado, en el
+# almacen de revision, y esta superficie no lo lee A PROPOSITO -- entra por
+# `apply_id` contra el grafo y esa es toda su autoridad. Darle acceso al
+# almacen es una decision de diseno, no un retoque: cambia de que responde
+# esta pantalla. Se DECLARA como limite conocido y se ata con este caso.
+#
+# El dia que alguien le de acceso al estado del plan, esto se pone rojo y toca
+# revisar los estados de la pantalla para que `partial` tenga su propia frase,
+# distinta de la de "no hay nada".
+
+def test_LIMITE_esta_superficie_no_puede_ver_el_estado_del_plan():
+    """Ata el limite de arriba a una propiedad comprobable del codigo.
+
+    Se mira por AST que ninguna pieza de esta superficie importe el almacen de
+    revision ni el servicio de apply. Mientras eso sea cierto, la pantalla no
+    puede saber que operaciones se DECLARARON, y por tanto no puede distinguir
+    un `partial` de un vacio legitimo.
+    """
+    import ast
+
+    piezas = (
+        "viewer/app/services/result_provenance.py",
+        "viewer/app/providers/provenance_reader.py",
+        "viewer/app/routers/resultado.py",
+    )
+    con_acceso = {}
+    for rel in piezas:
+        ruta = RAIZ_REPO / rel
+        arbol = ast.parse(ruta.read_text(encoding="utf-8", errors="replace"))
+        modulos = set()
+        for nodo in ast.walk(arbol):
+            if isinstance(nodo, ast.Import):
+                modulos |= {a.name for a in nodo.names}
+            elif isinstance(nodo, ast.ImportFrom):
+                modulos.add(nodo.module or "")
+        tocados = sorted(
+            m for m in modulos
+            if any(k in (m or "") for k in
+                   ("review_store", "v3_apply", "v3_review", "sealed_plan"))
+        )
+        if tocados:
+            con_acceso[rel] = tocados
+
+    assert not con_acceso, (
+        f"esta superficie ya alcanza el estado del plan ({con_acceso}). "
+        "Entonces YA PUEDE distinguir un apply `partial` de un vacio legitimo, "
+        "y el limite declarado en la seccion 10 ha dejado de ser cierto: dale "
+        "a `partial` su propia frase en la pantalla --ni exito ni 'no hay "
+        "nada'-- y retira esta nota."
+    )
