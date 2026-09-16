@@ -1049,7 +1049,13 @@ def test_LIMITE_esta_superficie_no_puede_ver_el_estado_del_plan():
             if isinstance(nodo, ast.Import):
                 modulos |= {a.name for a in nodo.names}
             elif isinstance(nodo, ast.ImportFrom):
+                # EL MODULO Y LOS NOMBRES. Mirar solo `nodo.module` deja pasar
+                # `from app.services import v3_review_store`, que es la forma
+                # MAS natural de importarlo -- calibrado: con esa mutacion este
+                # caso se quedaba VERDE.
                 modulos.add(nodo.module or "")
+                for alias in nodo.names:
+                    modulos.add(f"{nodo.module or ''}.{alias.name}")
         tocados = sorted(
             m for m in modulos
             if any(k in (m or "") for k in
