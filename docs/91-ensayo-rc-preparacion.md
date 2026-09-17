@@ -149,7 +149,10 @@ El ensayo no vale si el aislamiento no se **observa**:
 2. **Ámbito / partida.** Dos ingestas de la misma fuente en dos partidas
    distintas producen resultados que **no se mezclan**: cada pantalla de
    resultado muestra lo de su partida, y la procedencia de cada afirmación
-   apunta a la evidencia de **esa** ingesta.
+   apunta a la evidencia de **esa** ingesta. Cuando cierre **MULTIPARTIDA-READ**
+   se añade una garantía más, y también por pantalla: una divergencia local de
+   una partida se ve **sólo desde ella**, y el lore que supersede sigue intacto
+   para las demás.
 3. **Escritura acotada.** Con `S9K_WRITER_WORKSPACE` en otro workspace, el
    botón **no aparece** y el POST contesta `APPLY_NOT_ENABLED`. Es la
    observación negativa: si apareciera, el aislamiento es decorativo.
@@ -178,9 +181,11 @@ Browser, no está demostrado por el producto.
 | --- | --- | --- |
 | **A · Neo4j product path** | camino de producto hasta el driver real | **bloqueante**: `worker.observa_grafo` sale PENDIENTE hasta que cierre |
 | **B · M1 (bóvedas / Nextcloud)** | el escáner que detecta el fichero subido y el mapping a workspace/ámbito/partida | **bloqueante para el paso 1**: sin él, el ensayo arranca desde el catálogo de fuentes, no desde «subir fichero» |
+| **MULTIPARTIDA-READ** | el enmascarado de divergencias locales (`local_override_of`) en el camino de lectura del visor | **bloqueante para el punto 2 del aislamiento**: sin él no se puede afirmar que la parte multi-partida sea usable de extremo a extremo |
 
-Mientras cualquiera de las dos esté abierta, el ensayo es **parcial y hay que
-declararlo como parcial**.
+Mientras cualquiera de las tres esté abierta, el ensayo es **parcial y hay que
+declararlo como parcial**. El nombre `S9K_SCANNER_STATE_PATH` es **propuesto**:
+si el carril B elige otro, se renombra aquí y en el guion.
 
 ## Pendiente de autorización del operador
 
