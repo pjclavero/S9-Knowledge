@@ -773,11 +773,20 @@ def test_los_proveedores_reales_implementan_list_assertions():
     for info in pkgutil.iter_modules(paquete.__path__):
         importlib.import_module(f"app.providers.{info.name}")
 
+    # Acotado a los proveedores de PRODUCCION, por su modulo de origen. El
+    # criterio no es el nombre de la clase --que se puede elegir para esquivar
+    # un filtro-- sino DONDE vive: `app.providers.*`. Hizo falta medirlo: la
+    # primera version recorria `__subclasses__()` a secas y enrojecia por
+    # `CountingProvider`, un doble de otra suite de pruebas que hereda de
+    # `GraphProvider`. Un doble no tiene por que leer hechos, asi que exigirselo
+    # habria sido un rojo por la causa equivocada -- y un rojo por la causa
+    # equivocada se lee igual que uno legitimo.
     concretos = [
         c for c in GraphProvider.__subclasses__()
+        if c.__module__.startswith("app.providers.")
         # `PolicyFilteredProvider` es un ENVOLTORIO, no una fuente: su trabajo
         # es delegar y filtrar, no leer del almacen.
-        if c.__name__ != "PolicyFilteredProvider"
+        and c.__name__ != "PolicyFilteredProvider"
     ]
     assert concretos, "la sonda no descubrio ningun proveedor: no mide"
 

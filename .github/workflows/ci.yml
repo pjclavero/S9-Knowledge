@@ -373,11 +373,21 @@ jobs:
           # desde un apply real y el par admin/lector-sin-derechos no se
           # ejercia NUNCA. El guard `grep -qi skipped` de abajo lo cubre igual
           # que a los otros cuatro.
+          # El SEXTO es el enmascarado de divergencias locales del Carril M
+          # (`local_override_of`, docs/v3/49 §2.5/§12). Va aqui por el mismo
+          # fundamento y no por simetria: el resto de ese carril se demuestra
+          # con un proveedor falso, asi que este modulo es el UNICO sitio donde
+          # el Cypher de `list_assertions` llega a ejecutarse y donde se observa
+          # que `local_override_of` viaja de verdad desde el grafo. Fuera de
+          # esta linea saldria SKIPPED en `test-viewer` con rc=0 y el job verde,
+          # y entonces la unica evidencia sobre Neo4j real seria un skip -- que
+          # es, literalmente, ninguna.
           out="$(python -m pytest viewer/tests/test_neo4j_integration_authz.py \
                                   viewer/tests/test_contrato_paneles_neo4j.py \
                                   viewer/tests/test_contrato_writer_a_visor_neo4j.py \
                                   viewer/tests/test_integracion_tanda11_recorrido_completo.py \
                                   viewer/tests/test_resultado_procedencia_neo4j_real.py \
+                                  viewer/tests/test_multipartida_divergencia_local_neo4j.py \
                                   -v --no-header 2>&1)"
           rc=$?
           set -e
