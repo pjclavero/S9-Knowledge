@@ -116,6 +116,59 @@ def _node_to_dict(record_node) -> dict[str, Any]:
     }
 
 
+#: Estados VIGENTES de una asercion. Espejo de
+#: `knowledge_v3/engine/config.py::LIVE_STATUSES`, y se repite aqui a
+#: proposito en vez de importarse: el visor no depende en tiempo de
+#: ejecucion del paquete del motor. La red que impide que las dos listas
+#: se separen es una prueba de contrato, no un import.
+_ESTADOS_VIGENTES = ("PROVISIONAL", "ASSERTED", "CONFIRMED", "LIMITED")
+
+
+def _assertion_to_dict(record_node) -> dict[str, Any]:
+    """Proyeccion de una `:V3Assertion` hacia el visor.
+
+    MISMA disciplina que `_node_to_dict`: lista explicita, y los campos de
+    AUTORIZACION no son decorado. Si esta proyeccion pierde uno, la barrera
+    correspondiente deja de evaluarse sobre datos reales aunque sus pruebas
+    unitarias sigan verdes -- el defecto H1, que ya ocurrio en este fichero
+    con `partida_id` y `known_by`.
+
+    `local_override_of` viaja aqui y NO es un campo de autorizacion: no
+    concede ni retira permisos, y el motor de politica no lo consulta jamas.
+    Decide "cual de dos versiones se enseña", que es presentacion, y por eso
+    lo consume `PolicyFilteredProvider` DESPUES de la cascada y no
+    `VisibilityPolicy` dentro de ella (docs/v3/49 §2.5 punto 4).
+    """
+    props = dict(record_node)
+    return {
+        "id": props.get("assertion_id"),
+        "assertion_id": props.get("assertion_id"),
+        "predicate": props.get("predicate"),
+        "subject_entity_id": props.get("subject_entity_id"),
+        "object_entity_id": props.get("object_entity_id"),
+        "status": props.get("status"),
+        # --- Divergencia local (M4, docs/v3/49 §2.5). Sin este campo aqui, el
+        # enmascarado del provider filtrado no tiene con que enmascarar y se
+        # vuelve decorativo EN SILENCIO: la pantalla enseñaria el lore comun y
+        # su divergencia a la vez, que es justo lo que el requisito prohibe.
+        "local_override_of": props.get("local_override_of"),
+        "reason_code": props.get("reason_code"),
+        # --- Campos de AUTORIZACION (ver `_node_to_dict`).
+        "workspace": props.get("workspace"),
+        "scope": props.get("scope"),
+        "partida_id": props.get("partida_id"),
+        "known_by": props.get("known_by"),
+        "known_by_characters": props.get("known_by_characters"),
+        "party": props.get("party"),
+        "is_public": props.get("is_public"),
+        "known_from_session": props.get("known_from_session"),
+        "session_index": props.get("session_index"),
+        "visibility": props.get("visibility"),
+        "confidence": props.get("confidence"),
+        "review_status": props.get("review_status"),
+    }
+
+
 def _extremo_durable(nodo) -> str | None:
     """`entity_id` de un extremo de arista. JAMAS su `elementId`.
 
@@ -719,3 +772,43 @@ class Neo4jGraphProvider(GraphProvider):
                 "no_entity_type": no_type,
             },
         }
+
+    def list_assertions(
+        self, workspace: str, *, subject_entity_id: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Hechos vigentes cuyo SUJETO es esa entidad, en TODOS los ambitos.
+
+        Acota por `workspace` y por vigencia, y nada mas. El ambito de lectura
+        (capa juego + la partida propia) y el enmascarado de divergencias
+        locales los aplica `PolicyFilteredProvider`, que es por donde pasa toda
+        lectura de la aplicacion. Aqui se entrega el conjunto candidato porque
+        el enmascarado necesita ver A LA VEZ el hecho de capa juego y la
+        divergencia que lo sustituye: si esta consulta ya hubiera descartado
+        uno de los dos, no habria con que decidir.
+
+        No se filtra por `partida_id` en Cypher a proposito, y conviene que
+        quede dicho: NO es un relajamiento de la barrera de partida. Esa
+        barrera la sigue aplicando entera `VisibilityPolicy.can_view` (regla
+        2b) sobre cada fila, antes de que nada salga de
+        `PolicyFilteredProvider`. Lo que se deja pasar aqui es material
+        candidato dentro de un unico workspace, nunca material entregado.
+        """
+        where = [
+            "a.workspace = $workspace",
+            "a.assertion_id IS NOT NULL",
+            "a.status IN $estados",
+        ]
+        params: dict[str, Any] = {
+            "workspace": workspace,
+            "estados": list(_ESTADOS_VIGENTES),
+        }
+        if subject_entity_id is not None:
+            where.append("a.subject_entity_id = $subject")
+            params["subject"] = subject_entity_id
+        query = (
+            "MATCH (a:V3Assertion) WHERE "
+            + " AND ".join(where)
+            + " RETURN a ORDER BY a.assertion_id"
+        )
+        with self._driver.session() as session:
+            return [_assertion_to_dict(r["a"]) for r in session.run(query, params)]

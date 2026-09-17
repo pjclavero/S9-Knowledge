@@ -47,6 +47,38 @@
       </dl>
     </section>
 
+    {#
+      Hechos de la entidad. Lo que llega en `hechos` YA viene enmascarado por
+      `PolicyFilteredProvider`: si la partida activa diverge de un hecho del
+      lore comun, aqui llega su version y no la de capa juego. Esta plantilla
+      NO filtra: no hay ni un `if` sobre partida, ambito ni visibilidad, y no
+      puede haberlo. Filtrar en la plantilla no es filtrar -- si el backend
+      mandase el hecho de capa juego, ocultarlo con Jinja lo dejaria igual de
+      enviado, y eso es exactamente lo que el contrato prohibe.
+    #}
+    <section class="panel" data-role="hechos">
+      <h3>Hechos ({{ hechos | length }})</h3>
+      {% if not hechos %}
+        <p data-state="empty">Sin hechos visibles.</p>
+      {% else %}
+      <ul>
+        {% for h in hechos %}
+        <li data-assertion-id="{{ h.assertion_id | e }}"
+            data-divergencia-local="{{ 'true' if h.es_divergencia_local else 'false' }}">
+          <span data-field="predicado">{{ h.label | e }}</span>
+          {% if h.es_divergencia_local %}
+            {# La "indicacion de que es una divergencia local" que pide
+               docs/v3/49 §2.5 punto 4. Sin esto, la partida veria su version
+               sin saber que se aparta del lore comun. #}
+            <span data-role="marca-divergencia" class="badge">divergencia local de esta partida</span>
+          {% endif %}
+          <span data-field="estado">{{ h.review_status_label | e if h.review_status_label else h.status | e }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </section>
+
     <section class="panel" data-role="relaciones">
       <h3>Relaciones salientes ({{ outgoing | length }})</h3>
       {% if not outgoing %}

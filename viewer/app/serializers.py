@@ -115,6 +115,45 @@ def serialize_edge(edge: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def serialize_assertion(assertion: dict[str, Any]) -> dict[str, Any]:
+    """Convierte un hecho (`:V3Assertion`) crudo en la forma humana de la UI.
+
+    Lista EXPLICITA, como sus dos hermanas: lo que no esta aqui no sale.
+
+    `local_override_of` NO se publica. Lo que se publica es un booleano
+    derivado, `es_divergencia_local`, y la diferencia importa: el campo crudo
+    es el `assertion_id` del hecho de capa juego que esta divergencia
+    sustituye, y la pantalla no necesita ese identificador para decir lo unico
+    que el requisito pide decir --"esto es una divergencia local de tu
+    partida"--. Publicar el puntero seria entregar la identidad de un objeto
+    que esta lectura acaba precisamente de RETIRAR de la vista.
+
+    El booleano tampoco sustituye al enmascarado ni lo repite: para cuando un
+    hecho llega aqui, `PolicyFilteredProvider` ya decidio que se enseña. Esto
+    es la ETIQUETA de lo que se enseña, no la decision de si se enseña.
+    """
+    assertion = dict(assertion)
+    confidence = assertion.get("confidence")
+    destino = assertion.get("local_override_of")
+    return {
+        "assertion_id": assertion.get("assertion_id") or assertion.get("id") or "",
+        "predicate": assertion.get("predicate") or "",
+        "label": relation_label(
+            assertion.get("predicate") or "", assertion.get("predicate_label_es")
+        ),
+        "subject_entity_id": assertion.get("subject_entity_id") or "",
+        "object_entity_id": assertion.get("object_entity_id") or "",
+        "status": assertion.get("status") or "",
+        "es_divergencia_local": isinstance(destino, str) and bool(destino),
+        "confidence": confidence,
+        "confidence_label": _confidence_label(confidence),
+        "visibility": assertion.get("visibility") or "",
+        "visibility_label": visibility_label(assertion.get("visibility")),
+        "review_status": assertion.get("review_status") or "",
+        "review_status_label": review_status_label(assertion.get("review_status")),
+    }
+
+
 def serialize_graph(
     workspace: str,
     nodes: list[dict],

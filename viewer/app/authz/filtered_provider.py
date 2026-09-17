@@ -284,3 +284,113 @@ class PolicyFilteredProvider(GraphProvider):
                 "no_entity_type": no_type,
             },
         }
+
+    # -- Hechos de una entidad, con el enmascarado de divergencia local (M4) --
+    #
+    # DONDE ENCHUFA Y POR QUE: docs/v3/49-multipartida-diseno.md §2.5 punto 4 lo
+    # decidio antes que este carril, textualmente: "logica nueva en
+    # `PolicyFilteredProvider` o en la capa de provider base, no en
+    # `VisibilityPolicy` (que decide visible/no visible, no 'cual de dos
+    # versiones mostrar')". Aqui esta, y por esa razon: enmascarar no es una
+    # decision de AUTORIZACION --no concede ni retira permisos-- sino de
+    # PRESENTACION sobre un conjunto ya autorizado. Por eso ocurre DESPUES de
+    # `filter_nodes` y nunca dentro de la cascada de `can_view`.
+    #
+    # La cascada (vocabulario -> admin_full -> workspace -> PARTIDA -> lore
+    # anonimo -> known_by -> nivel -> sesion) no se reordena, no se puentea y
+    # no se sustituye: se ejecuta entera y ANTES, y el enmascarado solo puede
+    # QUITAR elementos del conjunto que ella ya aprobo. Un enmascarado no puede
+    # hacer visible nada: es una resta, nunca una suma.
+
+    @staticmethod
+    def _identidad_de_hecho(item: dict[str, Any]) -> str | None:
+        """Identidad durable de una asercion. `assertion_id`, o `id` si no viaja."""
+        for clave in ("assertion_id", "id"):
+            valor = item.get(clave)
+            if isinstance(valor, str) and valor:
+                return valor
+        return None
+
+    def _enmascarar_divergencias_locales(
+        self, items: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Sustituye en la lectura de ESTA partida el lore que ella ha divergido.
+
+        Enmascarar NO es añadir: es SUSTITUIR. Si la partida activa declara una
+        divergencia local sobre un hecho de capa juego, esta lectura entrega la
+        version de la partida y RETIRA la de capa juego. No las dos. Ver el
+        mismo criterio, en Cypher, en `writer/cypher.py::
+        list_visible_assertions_query`.
+
+        Lo que NO hace, y es la mitad del requisito (docs/v3/49 §2.5 punto 4):
+        el nodo de capa juego no se toca en absoluto. Sigue existiendo, intacto
+        y con su contenido original, y sigue saliendo en cualquier OTRA lectura
+        --la de capa juego y la de cualquier otra partida--. El enmascarado
+        vive en la respuesta a ESTA peticion, no en el dato.
+
+        DOS DECISIONES EXPLICITAS, para que nadie tenga que deducirlas:
+
+        1. El puntero manda, no el estado del override. Igual que en el writer:
+           una divergencia SUPERSEDED sigue enmascarando el hecho de lore al
+           que apunta. Si dependiera del estado, supersedir la divergencia haria
+           REAPARECER el lore junto a su sustituta --dos versiones del mismo
+           hecho en la misma pantalla-- y la unicidad estricta de
+           `find_local_override` impediria volver a ocultarlo.
+
+        2. Solo enmascara una divergencia que este lector PUEDE VER. Esta es
+           una diferencia DELIBERADA con la consulta del writer, y existe
+           porque el writer no tiene niveles de visibilidad y el visor si. Si
+           se enmascarase con una divergencia que el lector no puede ver, el
+           lector se quedaria sin el lore Y sin su sustituta: un hueco que no
+           dice nada, y que ademas delata por ausencia que ahi hay una
+           divergencia que no le corresponde ver. Con este criterio, quien no
+           ve la divergencia sigue viendo el lore comun, que es exactamente lo
+           que ve quien no tiene divergencia ninguna.
+        """
+        partida = self._ctx.active_partida
+        # Sin partida activa no hay nada que enmascarar: la lectura es de capa
+        # juego. Misma guarda que `if partida_id is not None` en el Cypher del
+        # writer -- la capa juego nunca enmascara nada.
+        if not isinstance(partida, str) or not partida:
+            return items
+
+        # Objetivos declarados por LA PARTIDA ACTIVA, y solo por ella. Una
+        # divergencia de otra partida no puede enmascarar nada aqui: ese es el
+        # cruce cross-partida que el Invariante 2 prohibe.
+        objetivos: set[str] = set()
+        for item in items:
+            if item.get("partida_id") != partida:
+                continue
+            destino = item.get("local_override_of")
+            if isinstance(destino, str) and destino:
+                objetivos.add(destino)
+
+        if not objetivos:
+            return items
+
+        salida: list[dict[str, Any]] = []
+        for item in items:
+            # Solo se enmascara CAPA JUEGO. Una divergencia no puede retirar
+            # material de la propia partida ni, por construccion, de otra.
+            if item.get("partida_id") is None:
+                identidad = self._identidad_de_hecho(item)
+                if identidad is not None and identidad in objetivos:
+                    continue
+            salida.append(item)
+        return salida
+
+    def list_assertions(
+        self, workspace: str, *, subject_entity_id: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Hechos VISIBLES de una entidad, ya enmascarados para la partida activa.
+
+        Orden no negociable: primero la cascada de autorizacion COMPLETA sobre
+        todo el conjunto (`filter_nodes`), y solo despues el enmascarado. Si se
+        invirtiera, una divergencia que el lector no puede ver podria retirar
+        lore que si puede ver.
+        """
+        crudos = self._base.list_assertions(
+            workspace, subject_entity_id=subject_entity_id
+        )
+        visibles = self._policy.filter_nodes(crudos, self._ctx)
+        return self._enmascarar_divergencias_locales(visibles)
