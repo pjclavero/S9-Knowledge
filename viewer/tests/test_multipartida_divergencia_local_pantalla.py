@@ -636,6 +636,115 @@ def _estados_vigentes_del_motor():
     return None
 
 
+def test_el_aviso_de_alcance_del_enmascarado_esta_en_la_pantalla(
+    real_app, con_proveedor, panel_on, auth_on
+):
+    """La ficha AVISA de que las relaciones no reflejan la divergencia local.
+
+    Deuda §12.4 hecha visible. El enmascarado opera sobre aserciones y no
+    sobre las aristas proyectadas (no llevan `assertion_id`), asi que la ficha
+    puede enseñar en "Hechos" la version de la partida y en "Relaciones" la
+    version de lore que esa divergencia sustituyo. Es incoherencia, no fuga.
+
+    Mientras la deuda siga abierta, el producto lo DICE en la pantalla. Esta
+    prueba pide la pagina: si alguien retira el aviso sin cerrar la deuda,
+    enrojece.
+    """
+    con_proveedor()
+    r = _ficha(real_app, _cookie(auth_on, "m_aviso_b", partida_id=PARTIDA_B))
+    assert r.status_code == 200
+    assert 'data-role="aviso-alcance-enmascarado"' in r.text
+    assert "no reflejan las divergencias locales" in r.text
+    # Y va DENTRO del bloque de relaciones, que es donde esta la incoherencia.
+    bloque = r.text.split('data-role="relaciones"', 1)[1]
+    assert 'data-role="aviso-alcance-enmascarado"' in bloque
+
+
+def test_el_proveedor_crudo_de_neo4j_solo_es_alcanzable_por_el_filtrado(real_app):
+    """INVARIANTE ESTRUCTURAL: nadie lee hechos sin pasar por la politica.
+
+    POR QUE ESTO ES UNA BARRERA Y NO HIGIENE. `Neo4jGraphProvider.
+    list_assertions` entrega a proposito material CANDIDATO de todas las
+    partidas del workspace: el enmascarado necesita ver a la vez el hecho de
+    capa juego y la divergencia que lo sustituye, asi que no puede acotar por
+    partida en Cypher. La consecuencia es que **toda** la seguridad de esa
+    lectura descansa en que su unico llamador sea `PolicyFilteredProvider`.
+
+    Ese es justo el tipo de invariante que se rompe sin que nadie lo note: un
+    router futuro que pida `Depends(get_provider)` en vez de
+    `Depends(get_filtered_provider)` y llame a `list_assertions` entregaria
+    material cross-partida en crudo, sin cascada y sin enmascarado, y ninguna
+    prueba de comportamiento lo veria porque cada pieza por separado seguiria
+    estando bien.
+
+    Se comprueba por AST --no por `grep`--: lo que importa es una LLAMADA
+    real, no que la cadena aparezca en un comentario o en un docstring.
+    """
+    import ast
+
+    raiz = Path(__file__).resolve().parents[1] / "app"
+    infractores: list[str] = []
+    llamadas_totales = 0
+
+    for ruta in raiz.rglob("*.py"):
+        arbol = ast.parse(ruta.read_text(encoding="utf-8"))
+        # Nombres ligados a un proveedor SIN filtrar en este modulo.
+        crudos = {"get_provider"}
+        for n in ast.walk(arbol):
+            if isinstance(n, ast.Call) and getattr(n.func, "attr", None) == "list_assertions":
+                llamadas_totales += 1
+                receptor = n.func.value
+                # `self._base.list_assertions(...)` dentro del provider
+                # filtrado es EL llamador legitimo.
+                if ruta.name == "filtered_provider.py":
+                    continue
+                nombre = getattr(receptor, "id", None) or getattr(receptor, "attr", None)
+                if nombre in crudos:
+                    infractores.append(f"{ruta}:{n.lineno} ({nombre})")
+
+    # Control positivo: si la sonda no encuentra NINGUNA llamada, no esta
+    # midiendo nada y su cero seria inerte.
+    assert llamadas_totales > 0, "la sonda no encontro ninguna llamada: no mide"
+    assert not infractores, (
+        "alguien lee hechos de un proveedor SIN filtrar: se salta la cascada "
+        f"y el enmascarado -> {infractores}"
+    )
+
+
+def test_ningun_router_pide_el_proveedor_crudo_en_vez_del_filtrado():
+    """La otra mitad del invariante anterior: la DEPENDENCIA de los routers.
+
+    La prueba de arriba mira quien llama; esta mira quien se hace inyectar. Un
+    router que declare `Depends(get_provider)` tiene en la mano el proveedor
+    sin politica, y a partir de ahi cualquier lectura que añada mañana nace
+    sin cascada. La linea se traza aqui, donde se puede ver roja.
+    """
+    import ast
+
+    routers = Path(__file__).resolve().parents[1] / "app" / "routers"
+    infractores: list[str] = []
+    vistos = 0
+
+    for ruta in routers.rglob("*.py"):
+        arbol = ast.parse(ruta.read_text(encoding="utf-8"))
+        for n in ast.walk(arbol):
+            if not isinstance(n, ast.Call):
+                continue
+            if getattr(n.func, "id", None) != "Depends":
+                continue
+            vistos += 1
+            for a in n.args[:1]:
+                nombre = getattr(a, "id", None) or getattr(a, "attr", None)
+                if nombre == "get_provider":
+                    infractores.append(f"{ruta.name}:{n.lineno}")
+
+    assert vistos > 0, "la sonda no encontro ningun Depends(): no mide"
+    assert not infractores, (
+        "un router se inyecta el proveedor SIN filtrar en vez del filtrado: "
+        f"{infractores}"
+    )
+
+
 def test_los_proveedores_reales_implementan_list_assertions():
     """Red contra la degradacion silenciosa del `getattr` del provider filtrado.
 
@@ -649,17 +758,37 @@ def test_los_proveedores_reales_implementan_list_assertions():
     Asi que los proveedores reales tienen que implementarlo DE VERDAD, no
     heredar el defecto de la clase base.
     """
-    from app.providers.base import GraphProvider
-    from app.providers.mock_provider import MockGraphProvider
-    from app.providers.neo4j_provider import Neo4jGraphProvider
+    import importlib
+    import pkgutil
 
-    for clase in (MockGraphProvider, Neo4jGraphProvider):
-        assert "list_assertions" in vars(clase), (
-            f"{clase.__name__} no implementa list_assertions: heredaria el "
-            "defecto vacio de GraphProvider y su pantalla de hechos estaria "
-            "vacia en produccion sin dar ningun error"
+    from app.providers.base import GraphProvider
+
+    # DESCUBIERTOS, no enumerados. Una lista blanca escrita a mano dejaria
+    # pasar en silencio a un tercer proveedor de produccion el dia que exista
+    # -- y "el dia que exista" es exactamente cuando nadie se acuerda de venir
+    # a tocar esta prueba. Se importa el paquete entero y se pregunta por las
+    # subclases concretas.
+    import app.providers as paquete
+
+    for info in pkgutil.iter_modules(paquete.__path__):
+        importlib.import_module(f"app.providers.{info.name}")
+
+    concretos = [
+        c for c in GraphProvider.__subclasses__()
+        # `PolicyFilteredProvider` es un ENVOLTORIO, no una fuente: su trabajo
+        # es delegar y filtrar, no leer del almacen.
+        if c.__name__ != "PolicyFilteredProvider"
+    ]
+    assert concretos, "la sonda no descubrio ningun proveedor: no mide"
+
+    defecto = vars(GraphProvider)["list_assertions"]
+    for clase in concretos:
+        propio = getattr(clase, "list_assertions", None)
+        assert propio is not None and propio is not defecto, (
+            f"{clase.__name__} hereda el defecto vacio de GraphProvider: su "
+            "pantalla de hechos estaria vacia en produccion sin dar ningun "
+            "error, y el enmascarado volveria a ser decorativo"
         )
-        assert vars(clase)["list_assertions"] is not vars(GraphProvider)["list_assertions"]
 
 
 def test_los_estados_vigentes_del_visor_no_se_separan_de_los_del_motor():
