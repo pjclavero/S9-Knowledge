@@ -283,6 +283,7 @@
     "deploy/tests/test_resolve_release_commit.py": 18,
     "deploy/tests/test_retention.py": 36,
     "deploy/tests/test_state_continuity.py": 37,
+    "deploy/tests/test_worker_env_validacion.py": 8,
     "tests/e2e/test_permissions_e2e.py": 4,
     "tests/e2e/test_review_flow_e2e.py": 6,
     "tests/integration/test_contract_cases.py": 22,
@@ -421,7 +422,7 @@
     "viewer/tests/test_graph_ux_v2.py",
     "viewer/tests/test_panel_apply_desde_la_ui.py"
   ],
-  "total": 8530,
+  "total": 8540,
   "modulos": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 526,
     "contracts/review-ingest/v1/tests/test_contracts_v1.py": 38,
@@ -612,6 +613,7 @@
     "deploy/tests/test_resolve_release_commit.py": 18,
     "deploy/tests/test_retention.py": 36,
     "deploy/tests/test_state_continuity.py": 37,
+    "deploy/tests/test_worker_env_validacion.py": 10,
     "tests/e2e/test_permissions_e2e.py": 4,
     "tests/e2e/test_review_flow_e2e.py": 6,
     "tests/integration/test_contract_cases.py": 26,
