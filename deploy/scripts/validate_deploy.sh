@@ -122,6 +122,54 @@ validate_viewer_secrets() {
 }
 
 # ---------------------------------------------------------------------------
+# validate_worker_env <worker.env>
+#   Slice 2 · Corte 5. El worker que corre `ingest_v3` OBSERVA el grafo, y sin
+#   conexion declarada falla cerrado con GRAPH_OBSERVATION_UNCONFIGURED.
+#
+#   POR QUE ESTA VALIDACION ES PROPIA Y NO SE ANADE S9K_NEO4J_PASSWORD_FILE A
+#   `CRITICAL_ENV_VARS`: aquella lista gobierna `viewer.env`, y el VISOR admite
+#   a proposito las dos formas (`S9K_NEO4J_PASSWORD_FILE` o
+#   `S9K_NEO4J_PASSWORD`, ver `viewer/app/config.py`). Hacerla critica alli
+#   romperia una configuracion soportada del visor por un requisito que es del
+#   MOTOR. El motor (`knowledge_v3/driver_neo4j.py`) solo lee la forma *_FILE.
+#
+#   AUSENTE != INVALIDO. Si el fichero no existe, el despliegue NO se bloquea:
+#   hoy no hay ninguna unidad de worker instalada y exigirlo romperia todos los
+#   despliegues actuales. Se AVISA, que es lo que convierte una condicion de
+#   papel en algo que alguien ve. Si el fichero existe, se valida DURO.
+#
+#   rc=0 ok (o ausente), rc=1 declarado y mal.
+# ---------------------------------------------------------------------------
+validate_worker_env() {
+    local env_file="${1}" rc=0 var val pwfile
+    if [ ! -f "${env_file}" ]; then
+        echo "AVISO: no hay ${env_file}; si este despliegue ejecuta el worker de" >&2
+        echo "       jobs, 'ingest_v3' terminara en ERROR con" >&2
+        echo "       GRAPH_OBSERVATION_UNCONFIGURED (ver deploy/README.md)." >&2
+        return 0
+    fi
+    for var in S9K_NEO4J_URI S9K_NEO4J_USER S9K_NEO4J_PASSWORD_FILE; do
+        val="$(_env_value "${env_file}" "${var}")"
+        if [ -z "${val}" ]; then
+            echo "ERROR: ${env_file}: falta ${var} (el worker no podra observar el grafo)" >&2
+            rc=1
+        fi
+    done
+    # EL SECRETO NO VIAJA EN UNA VARIABLE. El motor ignora esta forma, asi que
+    # el worker funcionaria igual y nadie se enteraria de que el secreto esta
+    # expuesto de mas. Es el error facil: copiar `viewer.env` tal cual.
+    if [ -n "$(_env_value "${env_file}" S9K_NEO4J_PASSWORD)" ]; then
+        echo "ERROR: ${env_file}: define S9K_NEO4J_PASSWORD. El motor solo lee" >&2
+        echo "       S9K_NEO4J_PASSWORD_FILE, asi que el secreto quedaria en una" >&2
+        echo "       variable de entorno sin que nada lo use ni lo avise." >&2
+        rc=1
+    fi
+    pwfile="$(_env_value "${env_file}" S9K_NEO4J_PASSWORD_FILE)"
+    validate_secret_file "${pwfile}" || rc=1
+    return "${rc}"
+}
+
+# ---------------------------------------------------------------------------
 # validate_viewer_env <viewer.env>
 #   Falla (rc=1) si el fichero no existe o si falta/está vacía una variable crítica.
 #   No imprime valores; solo el NOMBRE de las variables ausentes.

@@ -211,8 +211,27 @@ que no lo haga: hoy, en este repositorio,
 | 4. Entorno del worker | **el operador, a mano** | `/etc/s9-knowledge/worker.env`, `root:root`, `0600`, con `S9K_NEO4J_URI`, `S9K_NEO4J_USER` y `S9K_NEO4J_PASSWORD_FILE` — **y sin `S9K_NEO4J_PASSWORD`** |
 | 5. Lanzador | ya lo hace | `scripts/run-jobs-worker.sh` carga `worker.env` si existe |
 
+Hay una **plantilla literal** en `deploy/config/worker.env.example`, con las
+tres variables obligatorias y la lista de lo que **no** debe ir ahí.
+
 No hay `ansible-vault` en este repositorio: el secreto lo deposita una persona
 en el host y ninguna herramienta lo genera.
+
+**Y ahora hay una puerta, no sólo un párrafo.**
+`deploy/scripts/validate_deploy.sh::validate_worker_env` —invocada desde
+`deploy.sh`— bloquea el despliegue si `worker.env` existe y le falta cualquiera
+de las tres variables, si el fichero del secreto no es `0600` o no existe, o si
+alguien ha puesto `S9K_NEO4J_PASSWORD`. Si el fichero **no** existe no bloquea
+—hoy no hay unidad de worker instalada y exigirlo rompería todos los
+despliegues actuales— pero **avisa nombrando el código** con el que el operador
+se lo encontraría. Su tabla de calibración está en
+`deploy/tests/test_worker_env_validacion.py`: cada fila rompe una cosa y exige
+rojo.
+
+No se ha añadido `S9K_NEO4J_PASSWORD_FILE` a `CRITICAL_ENV_VARS`, y es
+deliberado: esa lista gobierna `viewer.env`, y el **visor** admite a propósito
+las dos formas (`viewer/app/config.py`). Hacerla crítica allí rompería una
+configuración soportada del visor por un requisito que es del **motor**.
 
 ### CONDICIÓN PREVIA AL DESPLIEGUE: nodos sin `state_hash`
 

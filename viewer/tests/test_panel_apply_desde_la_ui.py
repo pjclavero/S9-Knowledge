@@ -323,25 +323,25 @@ def _bloque_plan(html: str) -> dict:
     }
 
 
-#: Los dos acuses con los que el sellado puede terminar BIEN. El plan queda
-#: sellado en los dos casos; se diferencian en si alguna relacion aprobada se
-#: ha quedado sin proyectar, y eso el operador tiene que verlo (Corte 5).
-SELLADO_OK = {"PLAN_SEALED", "PLAN_SEALED_SIN_PROYECCION"}
-
-
-def _sellado_ok(respuesta) -> str:
-    """El acuse del sellado, exigiendo que sea UNO DE LOS DOS de exito.
-
-    Los casos que usan esto no vienen a medir la proyeccion: miden supersesion,
-    cadena de auditoria, CSRF o permisos. Lo que necesitan es que el sellado
-    haya ido bien, no CUAL de los dos desenlaces salio.
-
-    Y sigue siendo una asercion, no un comodin: un `PLAN_NOT_SEALED`, un
-    `SEAL_CONFLICT` o cualquier codigo de error enrojece aqui igual que antes.
-    """
-    aviso = _aviso_de(respuesta)
-    assert aviso in SELLADO_OK, f"el sellado no termino bien: {aviso!r}"
-    return aviso
+#: EL ACUSE QUE PRODUCE EL CORPUS DE ESTE ARNES, medido y determinista.
+#:
+#: Los casos que usan esta constante no vienen a medir la proyeccion --miden
+#: supersesion, cadena de auditoria, CSRF, permisos o procedencia-- pero eso no
+#: es motivo para aflojar su asercion: todos aprueban una propuesta del corpus
+#: de ejemplo que NO puede proyectar (o es un hecho negado, o su sujeto es un
+#: `entity:new:` que el grafo no tiene), asi que el sellado deja siempre alguna
+#: relacion fuera y el acuse es siempre el mismo.
+#:
+#: MEDIDO sobre los 21 sitios de llamada, CON grafo real: los 21 dan
+#: `PLAN_SEALED_SIN_PROYECCION` y ninguno da otra cosa. Por eso se afirma el
+#: valor EXACTO en vez de "uno de los dos acuses de exito": una comprobacion
+#: laxa aqui seria regalar cobertura, y el dia que uno de estos escenarios
+#: empezara a sellar limpio nadie se enteraria.
+#:
+#: OJO AL MEDIRLO: sin `S9K_WRITER_NEO4J_REAL=1` solo fallan 11 de los 21,
+#: porque los otros 9 son `neo4j_real` y se OMITEN. Medirlo sin la variable
+#: puesta da 11 y hace pensar que sobran 10 sitios. No sobran.
+SELLADO_DEL_ARNES = "PLAN_SEALED_SIN_PROYECCION"
 
 
 def _sellar(operador, job_id: str):
@@ -571,7 +571,7 @@ def test_el_revisor_ve_la_corrida_pero_no_puede_aplicarla(
     que aquí se comprueba que NO ocurre.
     """
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    _sellado_ok(_sellar(operador, job_id))
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
     assert _filas_de_plan(almacenes["base"])[0]["state"] == "sealed"
 
     from app.config import get_settings
@@ -614,7 +614,7 @@ def test_un_csrf_invalido_para_la_aplicacion_aunque_el_rol_sea_admin(
 ):
     """El mismo control sobre la acción que escribe en el grafo."""
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    _sellado_ok(_sellar(operador, job_id))
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
     respuesta = operador.post("/panel/operations/aplicaciones",
                               data={"trabajo": job_id,
                                     "csrf_token": "token-falsificado"})
@@ -652,7 +652,7 @@ def test_sellar_deja_un_snapshot_vigente_y_la_pantalla_lo_dice(
     assert bloque["form_sellado"], "con algo aprobado hay que ofrecer prepararlo"
     assert not bloque["form_aplicacion"], "no se ofrece aplicar sin plan sellado"
 
-    _sellado_ok(_sellar(operador, job_id))
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
 
     filas = _filas_de_plan(almacenes["base"])
     assert len(filas) == 1, filas
@@ -690,7 +690,7 @@ def test_el_sellado_no_reejecuta_el_pipeline(
         ingest_cli, "run_ingest",
         lambda *a, **k: (llamadas.append(1), original(*a, **k))[1],
     )
-    _sellado_ok(_sellar(operador, job_id))
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
     assert llamadas == [], "sellar reejecutó el pipeline"
 
 
@@ -703,8 +703,8 @@ def test_sellar_dos_veces_no_deja_dos_planes_vigentes(
     (workspace, job_id) WHERE state='sealed'.
     """
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    _sellado_ok(_sellar(operador, job_id))
-    _sellado_ok(_sellar(operador, job_id))
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
 
     filas = _filas_de_plan(almacenes["base"])
     assert len(filas) == 2, filas
@@ -728,7 +728,7 @@ def test_cambiar_una_decision_tras_sellar_supersede_el_plan_v1(
     al cambiar una decisión dejaría de ser el snapshot de nada.
     """
     job_id, propuesta = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    _sellado_ok(_sellar(operador, job_id))
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
     antes = _filas_de_plan(almacenes["base"])[0]
     assert antes["state"] == "sealed"
 
@@ -763,7 +763,7 @@ def test_sin_declaracion_de_escritura_no_se_ofrece_ni_se_aplica(
 ):
     """503 conceptual: la dependencia no está y se dice con su código."""
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    _sellado_ok(_sellar(operador, job_id))
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
 
     monkeypatch.delenv("S9K_ALLOW_REAL_INGEST", raising=False)
     bloque = _bloque_plan(_panel(operador, job_id))
@@ -791,7 +791,7 @@ def test_la_pantalla_no_publica_conocimiento_interno(
     una ruta publicada.
     """
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    _sellado_ok(_sellar(operador, job_id))
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
 
     fila = _filas_de_plan(almacenes["base"])[0]
     documento = json.loads(fila["plan_json"])
@@ -836,6 +836,10 @@ def grafo_real():
     contenedor con prefijo propio y se retira ese, uno.
     """
     if not WRITER_REAL:
+        # ESTE `skip` SI SE QUEDA, y es el unico. No es un fallo tapado: es la
+        # declaracion explicita de que este despliegue no ha pedido grafo. Los
+        # dos de abajo eran otra cosa --infraestructura que falla-- y ya no lo
+        # son.
         pytest.skip("sin S9K_WRITER_NEO4J_REAL=1")
     import time
 
@@ -853,7 +857,15 @@ def grafo_real():
         imagen,
     )
     if arranque.returncode != 0:
-        pytest.skip(f"no se pudo arrancar Neo4j: {arranque.stderr[:200]}")
+        # ASSERT, NO SKIP. Un `skip` aqui convierte "Docker no arranco" en
+        # verde, y lo unico que hoy lo impide es el guarda anti-skip del paso
+        # de CI --una defensa que vive fuera de este fichero y que no protege a
+        # quien corra esto a mano--. El modulo de la credencial de solo lectura
+        # ya usa este patron; aqui se unifica.
+        raise AssertionError(
+            "no se pudo arrancar Neo4j y sin el la materializacion NO se "
+            f"comprueba; eso no puede pasar como verde: {arranque.stderr[:200]}"
+        )
     uri = f"bolt://127.0.0.1:{puerto}"
     driver = None
     try:
@@ -871,7 +883,10 @@ def grafo_real():
                     driver = None
                 time.sleep(2)
         if driver is None:
-            pytest.skip(f"Neo4j no llegó a estar listo: {ultimo}")
+            raise AssertionError(
+                f"Neo4j no llego a estar listo: {ultimo}. Un `skip` aqui seria "
+                "un verde sin haber escrito ni leido nada."
+            )
         import sys
         raiz = str(REPO / "data-engine" / "app")
         if raiz not in sys.path:
@@ -953,7 +968,7 @@ def test_de_la_fuente_al_conocimiento_materializado_desde_la_ui(
     assert _afirmaciones(grafo, workspace) == [], "el grafo tiene que empezar vacío"
 
     job_id, propuesta = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    _sellado_ok(_sellar(operador, job_id))
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
 
     fila = _filas_de_plan(almacenes["base"])[0]
     documento = json.loads(fila["plan_json"])
@@ -999,7 +1014,7 @@ def test_aplicar_dos_veces_no_duplica_conocimiento(
     """
     workspace = "ws-cofradia"
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    _sellado_ok(_sellar(operador, job_id))
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
     assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_APPLIED"
 
     primera = _afirmaciones(grafo, workspace)
@@ -1031,7 +1046,7 @@ def test_apply_consume_el_snapshot_y_no_lo_que_el_pipeline_diria_ahora(
     """
     workspace = "ws-cofradia"
     job_id, propuesta = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    _sellado_ok(_sellar(operador, job_id))
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
 
     documento = json.loads(_filas_de_plan(almacenes["base"])[0]["plan_json"])
     sellado = sorted(op["assertion_id"] for op in documento["mutation_operations"])
@@ -1226,7 +1241,7 @@ def test_si_el_proceso_muere_tras_reservar_no_se_afirma_conocimiento(
     monkeypatch.setenv("S9K_ALLOW_REAL_INGEST", "1")
     monkeypatch.setenv("S9K_WRITER_WORKSPACE", "ws-cofradia")
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    _sellado_ok(_sellar(operador, job_id))
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
 
     from app.services import v3_apply as servicio
 
@@ -1287,7 +1302,7 @@ def test_un_apply_que_no_escribe_invalida_el_plan_en_vez_de_resucitarlo(
     preparar de nuevo cuesta un clic y vuelve a leer las decisiones.
     """
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    _sellado_ok(_sellar(operador, job_id))
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
 
     monkeypatch.setenv("S9K_ALLOW_REAL_INGEST", "1")
     monkeypatch.setenv("S9K_WRITER_WORKSPACE", "ws-cofradia")
@@ -1319,7 +1334,7 @@ def test_el_sellado_queda_en_la_cadena_y_la_cadena_se_lee(
     from app.services.v3_review_store import SQLiteReviewStore
 
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    _sellado_ok(_sellar(operador, job_id))
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
 
     eventos = SQLiteReviewStore(almacenes["base"]).audit_events("ws-cofradia")
     tipos = [e["event_type"] for e in eventos]
@@ -1388,7 +1403,7 @@ def test_la_pantalla_dice_que_lo_escrito_no_queda_navegable(
         lambda self, mod, aprobadas, job_id: None,
     )
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    _sellado_ok(_sellar(operador, job_id))
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
     # El desenlace ya no es `PLAN_APPLIED`: sin procedencia alcanzable, un
     # apply no puede anunciarse como éxito completo.
     assert _aviso_de(_aplicar(operador, job_id)) == "APPLY_INCOMPLETE"
@@ -1486,7 +1501,7 @@ def test_desde_el_resultado_se_llega_a_la_evidencia_CORRECTA(
     """
     workspace = "ws-cofradia"
     job_id, propuesta = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    _sellado_ok(_sellar(operador, job_id))
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
 
     documento = json.loads(_fila_de_plan(almacenes["base"])["plan_json"])
     operaciones = documento["mutation_operations"]
@@ -1591,7 +1606,7 @@ def test_sin_paquete_de_procedencia_el_apply_NO_termina_como_exito(
         lambda self, mod, aprobadas, job_id: None,
     )
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    _sellado_ok(_sellar(operador, job_id))
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
 
     # CALIBRACIÓN DE LA MUTACIÓN: si el paquete siguiera publicándose, este
     # caso mediría otra cosa y saldría verde por el motivo equivocado.
@@ -1654,7 +1669,7 @@ def test_procedencia_de_otro_material_no_pone_verde_esta_afirmacion(
 
     monkeypatch.setattr(servicio.ReviewApplyService, "_procedencia", ajena)
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    _sellado_ok(_sellar(operador, job_id))
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
     assert _aviso_de(_aplicar(operador, job_id)) == "APPLY_INCOMPLETE"
 
     documento = json.loads(_fila_de_plan(almacenes["base"])["plan_json"])
@@ -1688,7 +1703,7 @@ def test_repetir_el_apply_no_duplica_la_procedencia(
     """La idempotencia se mide también en el volcado, no sólo en el plan."""
     workspace = "ws-cofradia"
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    _sellado_ok(_sellar(operador, job_id))
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
     assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_APPLIED"
 
     def foto() -> tuple:
@@ -1753,7 +1768,7 @@ def test_matar_el_volcado_deja_estado_PARCIAL_dicho_y_reconciliable(
     monkeypatch.setattr(apply_mod, "persist_provenance", volcado)
 
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    _sellado_ok(_sellar(operador, job_id))
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
     # CALIBRACIÓN: el paquete SÍ se selló. Lo que se mata es el volcado, no el
     # material; si no, este control sería el 2 otra vez.
     assert _fila_de_plan(almacenes["base"])["provenance_json"], (
@@ -2442,3 +2457,104 @@ def test_una_credencial_rechazada_por_el_servidor_es_PERMANENTE(monkeypatch):
         "GRAPH_OBSERVATION_UNAVAILABLE"
     assert ingest_v3._clasificar(RuntimeError("cualquier otra cosa")) == \
         "GRAPH_OBSERVATION_UNAVAILABLE"
+
+
+# ===========================================================================
+# EL AVISO DE LA OMISIÓN, PINTADO — la mitad de (d) que mira al operador
+# ===========================================================================
+#
+# POR QUÉ ESTE BLOQUE EXISTE, Y POR QUÉ ES EL MISMO ERROR DOS VECES.
+#
+# El Corte 5 hace que el sellado con relaciones omitidas responda
+# `PLAN_SEALED_SIN_PROYECCION` en vez de `PLAN_SEALED`. Todos los casos de
+# arriba comprueban ese código **en el parámetro de la redirección**, y ni uno
+# pide la página. Medido: retirando `PLAN_SEALED_SIN_PROYECCION` de
+# `ACUSES_DE_EXITO`, `_aviso()` devuelve `None` --el código deja de estar en el
+# catálogo de éxitos y tampoco está en `panel_errors.CATALOGO`--, **el bloque
+# del aviso desaparece entero de la pantalla**, el operador vuelve al éxito
+# mudo exacto que este corte viene a cerrar, y la suite del visor seguía en
+# VERDE e idéntica al baseline.
+#
+# Es la misma forma de falso verde que ya se cerró en la pantalla de resultado
+# (`test_resultado_procedencia.py`): afirmar la PROPIEDAD y no el HTML. Aquí se
+# cierra en la superficie que de verdad avisa al operador.
+
+def _pantalla_operaciones(operador, job_id: str, aviso: str) -> str:
+    """La pantalla de Operaciones tal y como la deja el 303 del sellado.
+
+    Se pide el MISMO GET al que el POST redirige --mismo `solicitado`, mismo
+    `aviso`-- en vez de seguir la redirección, porque el cliente del arnés no
+    la sigue. Lo que se mira es el HTML servido, no el destino del `Location`.
+    """
+    r = operador.get(f"{SLOT_B.prefix}?solicitado={job_id}&aviso={aviso}")
+    assert r.status_code == 200, r.status_code
+    return r.text
+
+
+def _bloque_aviso(html: str) -> str:
+    """El bloque del acuse, o cadena vacía si la pantalla no pinta ninguno."""
+    hallazgo = re.search(r'<section[^>]*data-role="aviso".*?</section>', html, re.S)
+    return hallazgo.group(0) if hallazgo else ""
+
+
+def test_la_pantalla_AVISA_de_que_alguna_relacion_no_se_anadira(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch,
+    _grafo_de_mentira
+):
+    """EL TESTIGO QUE FALTABA. El aviso tiene que estar en el HTML.
+
+    Recorrido real: se ingiere desde el panel, se aprueba una propuesta que no
+    puede proyectar, se sella con el formulario real, y **se pide la pantalla**
+    con el acuse que el sellado dejó en la URL.
+
+    Lo que se afirma no es el código en el `Location` --eso ya lo miden los
+    casos de arriba-- sino que el operador **lee una advertencia**: el bloque
+    del acuse existe, lleva ese código, y su texto dice que algo aprobado no se
+    va a añadir.
+    """
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    respuesta = _sellar(operador, job_id)
+    aviso = _aviso_de(respuesta)
+    assert aviso == SELLADO_DEL_ARNES, aviso
+
+    bloque = _bloque_aviso(_pantalla_operaciones(operador, job_id, aviso))
+
+    assert bloque, (
+        "la pantalla no pinta NINGÚN bloque de acuse para "
+        f"{SELLADO_DEL_ARNES}. El operador recibe un éxito mudo: sellado, cero "
+        "relaciones añadidas y ni una palabra. Es EL defecto que este corte "
+        "cierra."
+    )
+    assert f'data-aviso-code="{SELLADO_DEL_ARNES}"' in bloque, bloque[:300]
+    # Y DICE LO QUE HA PASADO, no sólo que algo pasó. Se comprueba el fondo del
+    # mensaje --que algo aprobado NO se va a añadir-- y no la frase literal,
+    # que se puede reescribir sin que el defecto vuelva.
+    assert "no se va a añadir" in bloque, bloque[:400]
+    assert "relaciones" in bloque, bloque[:400]
+
+
+def test_el_sellado_limpio_NO_asusta_al_operador(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch,
+    _grafo_de_mentira
+):
+    """CONTROL POSITIVO del anterior: la pantalla sabe decir las dos cosas.
+
+    Sin éste, pintar SIEMPRE la advertencia --incluso cuando no falta nada--
+    pasaría igual de verde, y el aviso se volvería ruido que el operador
+    aprende a ignorar. Que es otra forma de no avisar.
+
+    `PLAN_SEALED` se pide directamente: es un acuse del catálogo cerrado y la
+    pantalla lo valida contra él, así que no hace falta fabricar una corrida
+    que selle limpio para comprobar qué pinta con ese código.
+    """
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    _sellar(operador, job_id)
+
+    bloque = _bloque_aviso(_pantalla_operaciones(operador, job_id, "PLAN_SEALED"))
+
+    assert bloque, "la pantalla tampoco pinta el acuse limpio"
+    assert 'data-aviso-code="PLAN_SEALED"' in bloque, bloque[:300]
+    assert "no se va a añadir" not in bloque, (
+        "el sellado LIMPIO está avisando de relaciones que no se añaden: un "
+        "aviso que sale siempre es un aviso que nadie lee"
+    )

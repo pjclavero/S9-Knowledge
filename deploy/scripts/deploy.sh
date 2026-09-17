@@ -222,6 +222,12 @@ set -e
 log "--- 6. validar viewer.env"
 validate_viewer_env "${VIEWER_ENV}" || die "viewer.env inválido/incompleto"
 validate_viewer_secrets "${VIEWER_ENV}" || die "viewer.env: secretos inválidos (CSRF/fichero)"
+# Slice 2 · Corte 5: el entorno del WORKER, si este despliegue lo declara. No
+# bloquea por estar ausente --hoy no hay unidad de worker instalada-- pero si
+# existe y esta mal, bloquea: un worker sin conexion declarada deja la ingesta
+# en GRAPH_OBSERVATION_UNCONFIGURED y el operador lo descubre en la pantalla.
+WORKER_ENV="${S9K_WORKER_ENV:-${S9K_CONFIG_ROOT}/worker.env}"
+validate_worker_env "${WORKER_ENV}" || die "worker.env declarado pero inválido"
 
 # Paso 7: validar unidad nueva (antes de instalarla)
 log "--- 7. validar unidad systemd nueva"
