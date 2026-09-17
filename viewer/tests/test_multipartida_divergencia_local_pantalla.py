@@ -745,6 +745,51 @@ def test_ningun_router_pide_el_proveedor_crudo_en_vez_del_filtrado():
     )
 
 
+def test_mi_suite_de_neo4j_real_es_de_esa_familia_y_esta_invocada():
+    """CONTROL POSITIVO de la guarda de cobertura, sobre el modulo de ESTE carril.
+
+    La guarda `test_la_cobertura_neo4j_del_visor_se_invoca_entera_en_ci` compara
+    DERIVADOS (por AST, los modulos que leen `NEO4J_TEST_URI`) contra INVOCADOS
+    (por YAML, las rutas del paso de CI). Esa comparacion cierra una direccion:
+    si alguien quita mi modulo de `ci.yml`, enrojece nombrandolo --medido--.
+
+    Pero NO cierra la otra. Si mi modulo dejara de leer la variable --por
+    ejemplo porque alguien fija la URI a pelo-- saldria del conjunto DERIVADO,
+    la resta `derivados - invocados` seguiria vacia, la guarda pasaria en verde
+    y la cobertura habria desaparecido igual. Un conjunto que se encoge no
+    dispara una guarda que solo mira lo que sobra.
+
+    Por eso este modulo, que se ejecuta SIEMPRE (no depende de que haya Neo4j),
+    ancla su suite por NOMBRE en las dos vias. Es la misma red que el repo ya
+    tiene para `test_resultado_procedencia_neo4j_real.py`, y existe para que la
+    lista y el descubrimiento no puedan convertirse en dos verdades distintas.
+
+    Se vive con la ironia a proposito: aqui SI hay un nombre escrito a mano,
+    porque el punto es precisamente afirmar algo sobre ESTE modulo concreto.
+    """
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from test_resultado_procedencia import (  # noqa: E402
+        _modulos_del_visor_que_exigen_neo4j_de_prueba,
+        _rutas_invocadas_en_el_paso_de_neo4j,
+    )
+
+    mio = "viewer/tests/test_multipartida_divergencia_local_neo4j.py"
+    derivados = _modulos_del_visor_que_exigen_neo4j_de_prueba()
+    invocados = _rutas_invocadas_en_el_paso_de_neo4j()
+
+    assert mio in derivados, (
+        f"{mio} ya no lee NEO4J_TEST_URI, asi que ha salido del conjunto que "
+        "la guarda de cobertura deriva: la guarda seguira VERDE y su cobertura "
+        "contra Neo4j real habra desaparecido sin que nadie lo vea"
+    )
+    assert mio in invocados, (
+        f"{mio} no esta en el paso 'Run authz integration tests' de ci.yml: "
+        "en `test-viewer` saldra SKIPPED con rc=0 y el job verde"
+    )
+
+
 def test_los_proveedores_reales_implementan_list_assertions():
     """Red contra la degradacion silenciosa del `getattr` del provider filtrado.
 
