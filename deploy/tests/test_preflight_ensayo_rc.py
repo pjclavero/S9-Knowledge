@@ -64,6 +64,9 @@ def entorno(tmp_path: Path) -> dict:
     secreto.write_text("no-se-lee-nunca\n", encoding="utf-8")
     secreto.chmod(0o600)
     return {
+        # El commit que ESTE arbol tiene desplegado: el entorno correcto es el
+        # que declara el arbol sobre el que va a correr el ensayo.
+        "S9K_ENSAYO_COMMIT": pf._head_del_arbol() or "",
         "S9K_STATE_ROOT": str(raiz),
         "S9K_INGEST_SOURCES_DIR": str(fuentes),
         "S9K_V3_REVIEW_PROPOSALS_DIR": str(propuestas),
@@ -484,6 +487,34 @@ def test_el_guion_no_lee_el_contenido_de_la_credencial():
         if nombre in LECTURAS_DE_CONTENIDO:
             lecturas.append(nombre)
     assert lecturas == [], lecturas
+
+
+def test_otro_arbol_da_rojo(entorno):
+    """Un agente reanudado perdio su worktree y siguio en otro 30 ficheros
+    por detras de `main`, creyendo que era el suyo. Un ensayo sobre el arbol
+    equivocado juzga un producto que no es el que se va a desplegar, y no se
+    distingue de uno bueno.
+    """
+    entorno["S9K_ENSAYO_COMMIT"] = "0" * 40
+    assert _correr(entorno)["arbol.declarado"].estado == pf.ROJO
+
+
+def test_arbol_sin_declarar_queda_pendiente(entorno):
+    del entorno["S9K_ENSAYO_COMMIT"]
+    assert _correr(entorno)["arbol.declarado"].estado == pf.PENDIENTE
+
+
+def test_arbol_ilegible_queda_pendiente(entorno, monkeypatch):
+    """No poder mirar el arbol no es que el arbol este bien."""
+    monkeypatch.setattr(pf, "_head_del_arbol", lambda *a, **k: None)
+    assert _correr(entorno)["arbol.declarado"].estado == pf.PENDIENTE
+
+
+def test_el_head_se_lee_sin_invocar_git(entorno):
+    """Se resuelve leyendo `.git` (incluido el de un worktree enlazado)."""
+    cabeza = pf._head_del_arbol()
+    assert cabeza and len(cabeza) == 40 and all(c in "0123456789abcdef" for c in cabeza)
+    assert _correr(entorno)["arbol.declarado"].estado == pf.VERDE
 
 
 def test_la_declaracion_de_apply_es_la_del_producto():

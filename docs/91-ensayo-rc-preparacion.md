@@ -55,6 +55,7 @@ python3 deploy/scripts/preflight_ensayo_rc.py --workspace <ws>
 | Punto | Cómo se observa | Calibrado |
 | --- | --- | --- |
 | `canario` | sondeo con respuesta conocida: **tiene que dar ROJO**; si no, el guion aborta sin juzgar nada | sí |
+| `arbol.declarado` | el `HEAD` real del árbol (leído de `.git`, sin invocar `git`) contra `S9K_ENSAYO_COMMIT` | sí (otro commit, sin declarar, HEAD ilegible) |
 | `fuentes.pobladas` | se pide el catálogo **del producto** (`sources_catalog.listar_fuentes`) y se cuenta | sí |
 | `paneles.por_letra` | B, C, F, G con un valor que el chasis acepta (`true`/`1`, nada más) | sí (una por letra + valor inválido) |
 | `paneles.sin_nombres` | ninguna `S9K_PANEL_*_ENABLED` fuera del contrato por letra | sí |
@@ -81,6 +82,18 @@ El guion **no usa instrumental externo** —solo biblioteca estándar— y eso e
 comprobado **parseando sus imports**, no contando texto: `jq` no está instalado
 en las máquinas de trabajo y un vigía que lo usaba giró en vacío sin emitir
 nada.
+
+### El árbol desde el que se ejecuta
+
+Se añadió tras un incidente **real**: un agente reanudado perdió su árbol de
+trabajo y siguió operando sobre otro, treinta ficheros por detrás de `main`,
+creyendo que era el suyo. «El proceso ejecuta el árbol que cree» es una
+propiedad **observable**, y nadie la miraba. Un ensayo sobre el árbol
+equivocado emite un veredicto sobre **un producto que no es el que se va a
+desplegar**, y desde fuera no se distingue de uno bueno. `arbol.declarado`
+compara el `HEAD` real —leído de `.git`, también el de un *worktree* enlazado,
+**sin invocar `git`**— con `S9K_ENSAYO_COMMIT`. Sin declarar, PENDIENTE; y
+PENDIENTE bloquea.
 
 ### La comprobación que hoy bloquea
 

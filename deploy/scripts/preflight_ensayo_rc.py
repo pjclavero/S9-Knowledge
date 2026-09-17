@@ -572,6 +572,72 @@ def worker_observa_el_grafo(ctx: Contexto) -> Resultado:
 # 7. Aislamiento por workspace / ambito / partida
 # ---------------------------------------------------------------------------
 
+def _head_del_arbol(raiz: Path = REPO_ROOT) -> Optional[str]:
+    """El commit que ESTE arbol tiene desplegado, leido de `.git`.
+
+    Sin `subprocess`: invocar `git` metería una herramienta externa en un guion
+    que se apoya en no tener ninguna (y el test que lo garantiza se pondria
+    rojo). Devuelve ``None`` cuando no se puede resolver: eso es PENDIENTE
+    arriba, nunca un verde.
+    """
+    punto = raiz / ".git"
+    try:
+        if punto.is_file():
+            # Arbol de trabajo enlazado (`git worktree`): apunta a su gitdir.
+            crudo = punto.read_text(encoding="utf-8").strip()
+            if not crudo.startswith("gitdir:"):
+                return None
+            gitdir = Path(crudo.split(":", 1)[1].strip())
+        else:
+            gitdir = punto
+        cabeza = (gitdir / "HEAD").read_text(encoding="utf-8").strip()
+        if not cabeza.startswith("ref:"):
+            return cabeza or None
+        referencia = cabeza.split(":", 1)[1].strip()
+        comun = gitdir
+        enlace = gitdir / "commondir"
+        if enlace.is_file():
+            comun = (gitdir / enlace.read_text(encoding="utf-8").strip()).resolve()
+        for candidato in (gitdir / referencia, comun / referencia):
+            if candidato.is_file():
+                return candidato.read_text(encoding="utf-8").strip() or None
+        empaquetadas = comun / "packed-refs"
+        if empaquetadas.is_file():
+            for linea in empaquetadas.read_text(encoding="utf-8").splitlines():
+                if linea.endswith(" " + referencia):
+                    return linea.split(" ", 1)[0]
+    except OSError:
+        return None
+    return None
+
+
+def arbol_declarado(ctx: Contexto) -> Resultado:
+    """El ensayo corre sobre el arbol que dice, no sobre el que se supone.
+
+    Se anade despues de un incidente REAL: un agente reanudado perdio su arbol
+    de trabajo y siguio operando en otro que estaba 30 ficheros por detras de
+    `main`, creyendo que era el suyo. "El proceso ejecuta el arbol que cree" es
+    una propiedad OBSERVABLE, y hasta ahora nadie la miraba; un ensayo sobre el
+    arbol equivocado da un veredicto sobre un producto que no es el que se va a
+    desplegar, y no se distingue de uno bueno.
+    """
+    esperado = (ctx.env.get("S9K_ENSAYO_COMMIT") or "").strip()
+    if not esperado:
+        return Resultado("arbol.declarado", PENDIENTE,
+                         "S9K_ENSAYO_COMMIT sin declarar: no hay contra que "
+                         "comparar el arbol desde el que se ejecuta")
+    obtenido = _head_del_arbol()
+    if obtenido is None:
+        return Resultado("arbol.declarado", PENDIENTE,
+                         "no se pudo leer el HEAD de este arbol")
+    if not obtenido.startswith(esperado):
+        return Resultado("arbol.declarado", ROJO,
+                         f"el arbol esta en {obtenido[:12]} y el ensayo declara "
+                         f"{esperado[:12]}: se juzgaria otro producto")
+    return Resultado("arbol.declarado", VERDE,
+                     f"el arbol ejecuta el commit declarado ({obtenido[:12]})")
+
+
 def aislamiento_workspace(ctx: Contexto) -> Resultado:
     por_defecto = ctx.env.get("S9K_DEFAULT_WORKSPACE")
     escritor = ctx.env.get("S9K_WRITER_WORKSPACE")
@@ -608,6 +674,7 @@ def _bajo(ruta: Path, raiz: Path) -> bool:
 
 #: El orden es el del recorrido, no el de importancia: se lee como el ensayo.
 COMPROBACIONES: tuple[tuple[str, Callable[[Contexto], Resultado]], ...] = (
+    ("arbol.declarado", arbol_declarado),
     ("fuentes.pobladas", fuentes_pobladas),
     ("paneles.por_letra", paneles_por_letra),
     ("paneles.sin_nombres", paneles_sin_nombres),
