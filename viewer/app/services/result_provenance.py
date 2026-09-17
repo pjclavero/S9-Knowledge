@@ -80,6 +80,8 @@ from app.providers.provenance_reader import ProvenanceReader
 
 __all__ = [
     "DISPONIBLE", "VACIO", "SIN_PROCEDENCIA", "ERROR", "ESTADOS",
+    "COMPLETO", "PARCIAL", "NO_DISPONIBLE", "MATERIALIZACION",
+    "FRASE_MATERIALIZACION",
     "Bloque", "Resultado", "DetalleEvidencia", "ProcedenciaNoDisponible",
     "CODIGOS", "detalle_seguro",
     "RESULT_NOT_FOUND", "PROVENANCE_READER_UNAVAILABLE",
