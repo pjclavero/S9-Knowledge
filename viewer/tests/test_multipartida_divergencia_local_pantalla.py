@@ -636,6 +636,32 @@ def _estados_vigentes_del_motor():
     return None
 
 
+def test_los_proveedores_reales_implementan_list_assertions():
+    """Red contra la degradacion silenciosa del `getattr` del provider filtrado.
+
+    `PolicyFilteredProvider` tolera un proveedor base sin `list_assertions` y
+    devuelve lista vacia, porque varios dobles de prueba son duck-typed y sin
+    esa tolerancia tumbaban pantallas ajenas con un 503. Pero esa tolerancia,
+    aplicada a un proveedor de PRODUCCION, seria una pantalla de hechos vacia
+    para siempre y sin un solo error: el enmascarado entero volveria a ser
+    decorativo, que es el estado que este carril viene a cerrar.
+
+    Asi que los proveedores reales tienen que implementarlo DE VERDAD, no
+    heredar el defecto de la clase base.
+    """
+    from app.providers.base import GraphProvider
+    from app.providers.mock_provider import MockGraphProvider
+    from app.providers.neo4j_provider import Neo4jGraphProvider
+
+    for clase in (MockGraphProvider, Neo4jGraphProvider):
+        assert "list_assertions" in vars(clase), (
+            f"{clase.__name__} no implementa list_assertions: heredaria el "
+            "defecto vacio de GraphProvider y su pantalla de hechos estaria "
+            "vacia en produccion sin dar ningun error"
+        )
+        assert vars(clase)["list_assertions"] is not vars(GraphProvider)["list_assertions"]
+
+
 def test_los_estados_vigentes_del_visor_no_se_separan_de_los_del_motor():
     """`_ESTADOS_VIGENTES` es un espejo de `LIVE_STATUSES`. Si divergen, rojo.
 

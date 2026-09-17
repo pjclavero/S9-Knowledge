@@ -389,8 +389,22 @@ class PolicyFilteredProvider(GraphProvider):
         invirtiera, una divergencia que el lector no puede ver podria retirar
         lore que si puede ver.
         """
-        crudos = self._base.list_assertions(
-            workspace, subject_entity_id=subject_entity_id
-        )
+        # El proveedor base NO siempre es un `GraphProvider` de verdad: varios
+        # dobles de prueba son objetos duck-typed que no heredan de la clase
+        # base, asi que el defecto de la interfaz no les llega. Sin este
+        # `getattr`, esos dobles levantaban `AttributeError` y la ficha entera
+        # respondia 503 -- es decir, un campo nuevo tumbaba pantallas que no
+        # tenian nada que ver con el.
+        #
+        # La degradacion va en la direccion SEGURA (sin hechos, nunca "todos"),
+        # pero es silenciosa, y una degradacion silenciosa es justo lo que
+        # convierte una barrera en decoracion. La red contra eso no esta aqui
+        # sino en `test_los_proveedores_reales_implementan_list_assertions`:
+        # si un proveedor de PRODUCCION pierde el metodo, esa prueba enrojece
+        # en vez de dejar la pantalla vacia sin que nadie se entere.
+        leer = getattr(self._base, "list_assertions", None)
+        if leer is None:
+            return []
+        crudos = leer(workspace, subject_entity_id=subject_entity_id)
         visibles = self._policy.filter_nodes(crudos, self._ctx)
         return self._enmascarar_divergencias_locales(visibles)
