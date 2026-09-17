@@ -60,10 +60,10 @@ python3 deploy/scripts/preflight_ensayo_rc.py --workspace <ws>
 | `paneles.sin_nombres` | ninguna `S9K_PANEL_*_ENABLED` fuera del contrato por letra | sí |
 | `resultado.navegable` | `S9K_PANEL_RESULTADO_ENABLED` encendido | sí |
 | `propuestas.declarada` | declarada, absoluta y **fuera del árbol de la release** | sí |
-| `propuestas.utilizable` | existe, `R\|X`, y **se escribe un testigo** | sí (inexistente y solo-lectura) |
+| `propuestas.utilizable` | existe, `R\|X`, y **se escribe un testigo** que se retira *siempre* | sí (inexistente, solo-lectura, testigo residual) |
 | `propuestas.derivacion_unica` | el resolvedor **canónico** (`review_paths.default_proposals_dir`) devuelve esa misma ruta | sí |
 | `review_db.compartida` | el lector del motor (`review_decisions.default_decisions_db`) resuelve **el mismo fichero** que declara el visor | sí |
-| `estado.persistente` | propuestas y `review.sqlite3` bajo **un** `S9K_STATE_ROOT` | sí |
+| `estado.persistente` | propuestas y `review.sqlite3` bajo **un** `S9K_STATE_ROOT` que no sea la raíz del sistema | sí (dos volúmenes, sin raíz, `S9K_STATE_ROOT=/`) |
 | `reinicio.no_reprocesa` | estado durable del escáner declarado y fuera de la release | sí (hoy **PENDIENTE**: no hay escáner) |
 | `auth.activa` | `S9K_AUTH_ENABLED=true` | sí |
 | `apply.habilitado` | la **misma** declaración que lee `v3_apply._habilitado` (`=="1"` y workspace) | sí |
@@ -129,7 +129,12 @@ repositorio es público.
   efímera. `S9K_NEO4J_PASSWORD` **en el entorno del proceso es un defecto**, y
   el preflight lo marca ROJO. Ningún secreto en `argv`, logs, tests, UI ni
   errores HTTP; del fichero se observan existencia, modo y tamaño, **nunca el
-  valor**.
+  valor**. Esa garantía está cerrada **por los dos lados**: una prueba ejecuta
+  `main()` entero y mira `stdout` y `stderr` —mirar sólo el texto de cada
+  resultado dejaba pasar una fuga por `print()`—, y otra **parsea** la
+  comprobación de la credencial para exigir que ahí no haya ni una lectura de
+  contenido. La segunda convierte la disciplina en estructura: aunque mañana se
+  añada una traza, no tendrá el valor que filtrar.
 - **Fail closed** en todo: los cuatro huecos apagados por defecto, el botón de
   aplicar inexistente sin declaración explícita.
 

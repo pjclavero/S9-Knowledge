@@ -381,3 +381,127 @@ def test_una_comprobacion_que_revienta_es_rojo(entorno, monkeypatch):
     monkeypatch.setattr(pf, "COMPROBACIONES", (("x.revienta", revienta),))
     resultados = pf.ejecutar(pf.Contexto(env=entorno, workspace=WS))
     assert [r.estado for r in resultados] == [pf.ROJO]
+
+
+# ---------------------------------------------------------------------------
+# Arreglos de la revision independiente
+# ---------------------------------------------------------------------------
+
+def test_el_testigo_no_queda_en_el_almacen(entorno, monkeypatch):
+    """Un guion de SOLO LECTURA no deja basura donde mira el operador.
+
+    Medido en la revision: sin `finally`, un fallo en el `unlink` dejaba
+    `.s9k-preflight-testigo` residual en el almacen de propuestas. El desenlace
+    era ROJO --no un falso verde-- pero el fichero se quedaba.
+    """
+    almacen = Path(entorno["S9K_V3_REVIEW_PROPOSALS_DIR"])
+    original = Path.is_file
+
+    def revienta_tras_escribir(self, *a, **k):
+        if self.name == ".s9k-preflight-testigo":
+            raise OSError("fallo DESPUES de escribir el testigo")
+        return original(self, *a, **k)
+
+    monkeypatch.setattr(Path, "is_file", revienta_tras_escribir)
+    resultado = _correr(entorno)["propuestas.utilizable"]
+    monkeypatch.undo()
+
+    assert resultado.estado == pf.ROJO
+    residuales = [p.name for p in almacen.iterdir()]
+    assert residuales == [], residuales
+
+
+def test_un_testigo_irretirable_se_dice(entorno, monkeypatch):
+    """Si ni siquiera se puede borrar, el operador se entera: no se tapa."""
+    original = Path.unlink
+
+    def unlink_que_falla(self, *a, **k):
+        if self.name == ".s9k-preflight-testigo":
+            raise OSError("no se pudo retirar")
+        return original(self, *a, **k)
+
+    monkeypatch.setattr(Path, "unlink", unlink_que_falla)
+    resultado = _correr(entorno)["propuestas.utilizable"]
+    monkeypatch.undo()
+    Path(entorno["S9K_V3_REVIEW_PROPOSALS_DIR"], ".s9k-preflight-testigo").unlink()
+
+    assert resultado.estado == pf.ROJO
+    assert "testigo" in resultado.detalle
+
+
+def test_el_testigo_se_retira_en_el_camino_feliz(entorno):
+    almacen = Path(entorno["S9K_V3_REVIEW_PROPOSALS_DIR"])
+    assert _correr(entorno)["propuestas.utilizable"].estado == pf.VERDE
+    assert list(almacen.iterdir()) == []
+
+
+def test_state_root_degenerado_da_rojo(entorno):
+    """`S9K_STATE_ROOT=/` hace que TODO caiga dentro: puerta que no cierra."""
+    entorno["S9K_STATE_ROOT"] = "/"
+    assert _correr(entorno)["estado.persistente"].estado == pf.ROJO
+
+
+# ---------------------------------------------------------------------------
+# El secreto no sale por NINGUNA superficie -- cerrado por los dos lados
+# ---------------------------------------------------------------------------
+# El test de `detalle` no miraba `stdout`/`stderr`: calibrado por mutacion, una
+# fuga por `print()` en `main()` dejaba toda la suite en verde. Se cierra (a)
+# ejecutando `main()` y mirando la salida, y (b) afirmando por AST que el guion
+# no LEE el contenido de la credencial. Lo segundo es lo que convierte la
+# disciplina en estructura: aunque manana alguien anada una traza, no tendra
+# el valor que filtrar.
+
+#: Lo que NO se puede hacer con el fichero de credencial: leer su contenido.
+LECTURAS_DE_CONTENIDO = {"read_text", "read_bytes", "read", "readline",
+                         "readlines", "open"}
+
+
+def test_main_no_imprime_el_secreto(entorno, monkeypatch, capsys):
+    """`main()` entero, con la salida capturada. Incluye el veredicto."""
+    for clave, valor in entorno.items():
+        monkeypatch.setenv(clave, valor)
+    codigo = pf.main(["--workspace", WS])
+    salida = capsys.readouterr()
+    assert codigo == 1  # PENDIENTE del carril A: no autoriza
+    assert "no-se-lee-nunca" not in salida.out
+    assert "no-se-lee-nunca" not in salida.err
+
+
+def test_el_guion_no_lee_el_contenido_de_la_credencial():
+    """Se PARSEA la funcion: de la credencial se miran metadatos, no el valor."""
+    arbol = ast.parse(GUION.read_text(encoding="utf-8"))
+    funcion = next(
+        n for n in ast.walk(arbol)
+        if isinstance(n, ast.FunctionDef) and n.name == "credencial_por_fichero"
+    )
+    lecturas = []
+    for nodo in ast.walk(funcion):
+        if not isinstance(nodo, ast.Call):
+            continue
+        objetivo = nodo.func
+        nombre = (objetivo.attr if isinstance(objetivo, ast.Attribute)
+                  else objetivo.id if isinstance(objetivo, ast.Name) else None)
+        if nombre in LECTURAS_DE_CONTENIDO:
+            lecturas.append(nombre)
+    assert lecturas == [], lecturas
+
+
+def test_la_declaracion_de_apply_es_la_del_producto():
+    """Los nombres que lee `apply.habilitado` son los que exige el writer.
+
+    El guion los escribe como literales (importar el visor arrastraria FastAPI
+    a una comprobacion de solo lectura). Esta prueba ata esa segunda copia a la
+    ORIGINAL: si el producto renombra una variable, el preflight diria "boton
+    disponible" sobre un despliegue que contesta APPLY_NOT_ENABLED.
+    """
+    fuente = (REPO_ROOT / "viewer" / "app" / "services" / "v3_apply.py").read_text(
+        encoding="utf-8")
+    arbol = ast.parse(fuente)
+    constantes = {}
+    for nodo in ast.walk(arbol):
+        if isinstance(nodo, ast.Assign) and isinstance(nodo.value, ast.Constant):
+            for destino in nodo.targets:
+                if isinstance(destino, ast.Name):
+                    constantes[destino.id] = nodo.value.value
+    assert constantes.get("ENV_ALLOW_REAL_INGEST") == "S9K_ALLOW_REAL_INGEST"
+    assert constantes.get("ENV_WRITER_WORKSPACE") == "S9K_WRITER_WORKSPACE"

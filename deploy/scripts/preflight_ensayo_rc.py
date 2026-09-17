@@ -202,13 +202,37 @@ def propuestas_utilizable(ctx: Contexto) -> Resultado:
     if not os.access(ruta, os.R_OK | os.X_OK):
         return Resultado("propuestas.utilizable", ROJO,
                          "existe pero el visor no podria leerlo")
+    # EL TESTIGO SE BORRA SIEMPRE. Sin `finally`, un fallo a mitad (medido:
+    # un `OSError` en el `unlink`) deja `.s9k-preflight-testigo` residual en el
+    # almacen que el operador va a mirar. El estado resultante es ROJO, asi que
+    # no es un falso verde -- pero un guion de SOLO LECTURA no puede dejar
+    # basura detras, y menos ahi.
     testigo = ruta / ".s9k-preflight-testigo"
+    quedo = False
     try:
         testigo.write_text("", encoding="utf-8")
-        testigo.unlink()
+        # Se comprueba el EFECTO, no que la llamada no levantara: un montaje de
+        # solo lectura con cache puede aceptar el `write` y no dejar nada.
+        if not testigo.is_file():
+            return Resultado("propuestas.utilizable", ROJO,
+                             "la escritura no dejo el fichero: el almacen no es "
+                             "escribible de verdad")
     except OSError as exc:
         return Resultado("propuestas.utilizable", ROJO,
                          f"el escritor no podria escribir: {exc.strerror}")
+    finally:
+        # SIEMPRE. Sin esto, cualquier salida entre el `write` y el borrado deja
+        # `.s9k-preflight-testigo` residual en el almacen que el operador va a
+        # mirar; el desenlace era ROJO --no un falso verde-- pero un guion de
+        # solo lectura no deja basura, y menos ahi.
+        try:
+            testigo.unlink(missing_ok=True)
+        except OSError:
+            quedo = True
+    if quedo:
+        # No se pudo retirar: se dice, no se tapa.
+        return Resultado("propuestas.utilizable", ROJO,
+                         "quedo un fichero testigo en el almacen de propuestas")
     return Resultado("propuestas.utilizable", VERDE,
                      "existe, legible y escribible (comprobado escribiendo)")
 
@@ -312,6 +336,15 @@ def estado_persistente_sobrevive(ctx: Contexto) -> Resultado:
         return Resultado("estado.persistente", ROJO,
                          "S9K_STATE_ROOT sin declarar: no hay un solo sitio del que "
                          "hablar al reiniciar ni al hacer copia")
+    # PUERTA DEGENERADA. `S9K_STATE_ROOT=/` hace que TODO caiga "bajo el state
+    # root" y la comprobacion salga verde sin comprobar nada: cualquier reparto
+    # de rutas la satisface. Un state root es un directorio propio del
+    # despliegue, no el sistema de ficheros entero.
+    raiz_abs = Path(raiz)
+    if not raiz_abs.is_absolute() or len(raiz_abs.resolve().parts) < 3:
+        return Resultado("estado.persistente", ROJO,
+                         "S9K_STATE_ROOT degenerado: tiene que ser un directorio "
+                         "propio del despliegue, no la raiz del sistema")
     fuera = [n for n, p in (("propuestas", propuestas), ("review.sqlite3", base))
              if not _bajo(Path(p), Path(raiz))]
     if fuera:
