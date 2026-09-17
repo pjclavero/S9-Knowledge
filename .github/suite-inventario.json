@@ -365,7 +365,7 @@
     "viewer/tests/test_readonly.py": 46,
     "viewer/tests/test_registro_de_autorizacion.py": 7,
     "viewer/tests/test_registro_es_especificacion_ejecutable.py": 8,
-    "viewer/tests/test_resultado_procedencia.py": 37,
+    "viewer/tests/test_resultado_procedencia.py": 43,
     "viewer/tests/test_resultado_procedencia_neo4j_real.py": 15,
     "viewer/tests/test_review_ids_workspace_separador.py": 11,
     "viewer/tests/test_reviews.py": 13,
@@ -420,7 +420,7 @@
     "viewer/tests/test_graph_ux_v2.py",
     "viewer/tests/test_panel_apply_desde_la_ui.py"
   ],
-  "total": 8521,
+  "total": 8527,
   "modulos": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 526,
     "contracts/review-ingest/v1/tests/test_contracts_v1.py": 38,
@@ -693,7 +693,7 @@
     "viewer/tests/test_readonly.py": 46,
     "viewer/tests/test_registro_de_autorizacion.py": 64,
     "viewer/tests/test_registro_es_especificacion_ejecutable.py": 55,
-    "viewer/tests/test_resultado_procedencia.py": 49,
+    "viewer/tests/test_resultado_procedencia.py": 55,
     "viewer/tests/test_resultado_procedencia_neo4j_real.py": 15,
     "viewer/tests/test_review_ids_workspace_separador.py": 13,
     "viewer/tests/test_reviews.py": 13,

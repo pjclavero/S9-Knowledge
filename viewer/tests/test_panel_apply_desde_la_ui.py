@@ -41,6 +41,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import sqlite3
 import subprocess
 import uuid
@@ -101,6 +102,23 @@ def _entorno_limpio():
 @pytest.fixture(autouse=True)
 def _salud_aislada(tmp_path, monkeypatch):
     monkeypatch.setenv("S9K_HEALTH_REPORT_PATH", str(tmp_path / "health" / "last.json"))
+
+
+# GRAFO DE MENTIRA PARA LOS CASOS QUE NO TRAEN GRAFO.
+#
+# Desde el Corte 5 la ingesta del panel abre una conexión de sólo lectura y
+# falla cerrado sin ella. Los casos de frontera, autorización, CSRF y estado de
+# este módulo no vienen a medir eso y corren sin Docker.
+#
+# CEDE EL PASO: en cuanto la fixture `grafo` declara una credencial, el doble
+# se aparta y el abridor REAL toma el control. La decisión se toma cuando el
+# manejador llama, no cuando pytest monta las fixtures, así que el orden entre
+# esta fixture y `grafo` no puede cambiarla en silencio.
+@pytest.fixture(autouse=True)
+def _grafo_de_mentira(monkeypatch):
+    import grafo_doble
+
+    return grafo_doble.instalar(monkeypatch)
 
 
 @pytest.fixture
@@ -847,7 +865,7 @@ def grafo_real():
 
 
 @pytest.fixture
-def grafo(grafo_real, monkeypatch):
+def grafo(grafo_real, monkeypatch, tmp_path):
     """Grafo LIMPIO por caso, y el visor apuntando a él con permiso declarado."""
     from app.config import get_settings
 
@@ -856,6 +874,19 @@ def grafo(grafo_real, monkeypatch):
     monkeypatch.setenv("S9K_NEO4J_URI", grafo_real["uri"])
     monkeypatch.setenv("S9K_NEO4J_USER", grafo_real["user"])
     monkeypatch.setenv("S9K_NEO4J_PASSWORD", grafo_real["password"])
+    # LA CREDENCIAL DEL WORKER, POR SU CAMINO DE PRODUCCIÓN (Corte 5).
+    #
+    # El visor admite la contraseña en una variable; `knowledge_v3.driver_neo4j`
+    # --el único módulo del motor que abre conexiones-- NO: exige el camino de
+    # un fichero privado. Escribirlo aquí no es un apaño de la prueba: es lo
+    # que hace que el worker de estos casos se conecte por el mismo sitio y con
+    # las mismas reglas que en el despliegue, permisos `0600` incluidos. Si se
+    # relajaran, el handler fallaría con `GRAPH_OBSERVATION_UNCONFIGURED` y
+    # este módulo se enteraría.
+    fichero = tmp_path / "neo4j-password"
+    fichero.write_text(grafo_real["password"], encoding="utf-8")
+    fichero.chmod(0o600)
+    monkeypatch.setenv("S9K_NEO4J_PASSWORD_FILE", str(fichero))
     monkeypatch.setenv("S9K_ALLOW_REAL_INGEST", "1")
     monkeypatch.setenv("S9K_WRITER_WORKSPACE", "ws-cofradia")
     get_settings.cache_clear()
@@ -1747,3 +1778,582 @@ def test_matar_el_volcado_deja_estado_PARCIAL_dicho_y_reconciliable(
     assert sorted({f["fragment_id"] for f in recorrido}) == sorted(
         documento["mutation_operations"][0]["evidence_fragment_ids"]
     )
+
+
+# ===========================================================================
+# SLICE 2 · CORTE 5 — LA PROYECCIÓN, DESDE LA UI Y CONTRA EL GRAFO DE VERDAD
+# ===========================================================================
+#
+# EL DEFECTO QUE ESTA SECCIÓN FIJA. Medido antes del corte, de punta a punta:
+# el manejador de ingesta del panel llamaba a `run_ingest` con `driver=None`
+# LITERAL, y `observed=True` se pone en UN SOLO SITIO de todo el motor
+# (`graph_catalog.snapshot_entities`), alcanzable sólo con driver. Resultado:
+# las cuatro anclas del sobre que produce ese camino salían con
+# `observed: false` y el sellado omitía TODA proyección con
+# `PROJECTION_ANCHOR_NOT_OBSERVED`. La capacidad de proyectar existía, era
+# correcta, y el producto no la alcanzaba.
+#
+# POR QUÉ ESTOS CASOS NO SE PUEDEN PONER VERDES SIN LEER EL GRAFO. El plan
+# sellado se compara contra la `version` y el `state_hash` REALES del nodo, y
+# los dos se siembran con valores que ningún catálogo en fichero produce: la
+# versión no es el `0` por defecto de `bridge.entities_from_catalog`, y el hash
+# es el que el propio writer computa sobre las propiedades del nodo, no el
+# derivado de `{entity_id, entity_type, version}`.
+
+VERSION_SEMBRADA = 7
+
+
+def _sembrar_entidades(driver, workspace: str, entidades: list) -> dict:
+    """Mete entidades REALES en el grafo y devuelve su ancla observable.
+
+    El `state_hash` no se inventa: se crea el nodo, se leen sus propiedades tal
+    y como quedaron, y se computa con la MISMA función que usa el writer
+    (`writer/state.state_hash_value`). Un hash inventado aquí produciría un
+    plan que aborta en el executor con `EXEC_HASH_MISMATCH`, es decir, un rojo
+    por la causa equivocada.
+    """
+    from knowledge_v3.writer.state import state_hash_value
+
+    anclas = {}
+    with driver.session() as sesion:
+        for entidad in entidades:
+            props = {
+                "entity_id": entidad["entity_id"],
+                "entity_type": entidad["type"],
+                "name": entidad["name"],
+                "aliases": list(entidad.get("aliases") or ()),
+                "workspace": workspace,
+                "version": VERSION_SEMBRADA,
+                "status": "ACTIVE",
+            }
+            fila = sesion.run(
+                "CREATE (n:V3Entity) SET n = $props RETURN properties(n) AS p",
+                props=props,
+            ).single()
+            digest = state_hash_value(fila["p"])
+            sesion.run(
+                "MATCH (n:V3Entity {entity_id: $id, workspace: $ws}) "
+                "SET n.state_hash = $h",
+                id=entidad["entity_id"], ws=workspace, h=digest,
+            )
+            anclas[entidad["entity_id"]] = {
+                "version": VERSION_SEMBRADA, "state_hash": digest,
+            }
+    return anclas
+
+
+def _catalogo_del_ejemplo() -> list:
+    """Las entidades NO provisionales del catálogo del ejemplo."""
+    documento = json.loads(
+        (EJEMPLOS / "catalogo-workspace.json").read_text(encoding="utf-8")
+    )
+    return [e for e in documento["entities"] if not e.get("provisional")]
+
+
+def _operaciones_del_plan(base: Path) -> list:
+    fila = _filas_de_plan(base)[0]
+    return json.loads(fila["plan_json"])["mutation_operations"]
+
+
+def _proyecciones(operaciones: list) -> list:
+    return [o for o in operaciones if o.get("operation_type") == "PROJECT_RELATION"]
+
+
+#: NOTA PROPIA DE ESTOS DOS CASOS, y por que no vale la del arnes.
+#:
+#: MEDIDO sobre `examples/ingesta-v3/`: de las cuatro propuestas que esa fuente
+#: deja en la cola de revision, NINGUNA puede proyectar.
+#:
+#:   * dos traen `predicate: UNKNOWN`, que el sellado excluye;
+#:   * una es un hecho NEGADO --el grafo no aprende una relacion que el texto
+#:     niega-- y sale con `PROJECTION_NEGATED_FACT`;
+#:   * y la cuarta tiene por sujeto un `entity:new:...` que el grafo no tiene,
+#:     asi que sale con `PROJECTION_NO_ANCHOR`.
+#:
+#: Los dos ultimos codigos se leen igual de rojos que el que este carril mide, y
+#: usando esa fuente el control negativo enrojecia por ellos. Por eso estos dos
+#: casos traen su propia nota: una relacion AFIRMATIVA, con predicado conocido y
+#: entre dos entidades que SI estan sembradas en el grafo. Es el unico montaje en
+#: el que "no hay proyeccion" solo puede significar "no se observo el ancla".
+NOTA_PROYECTABLE = """# Nota de sesion — relacion proyectable
+
+Sela Marrec se rumorea que pertenece al Consejo de Umbra.
+
+Parece que la Cofradia de Ambar es aliada del Consejo de Umbra.
+
+Quiza Sela Marrec vive en Vado Alto.
+
+La Casa del Ciervo podria ser aliada del Consejo de Umbra.
+
+Se dice que Sela Marrec lidera la Casa del Ciervo.
+"""
+
+
+@pytest.fixture
+def fuente_proyectable(tmp_path) -> Path:
+    """Un directorio de fuentes propio, con el MISMO perfil y catalogo.
+
+    Se copian los del ejemplo en vez de escribir otros: el workspace, el perfil
+    y el catalogo tienen que seguir siendo los que el resto del arnes usa, o
+    las entidades sembradas no serian las que la corrida resuelve.
+    """
+    directorio = tmp_path / "fuentes-proyeccion"
+    directorio.mkdir()
+    for nombre in ("perfil-operador.json", "catalogo-workspace.json"):
+        shutil.copy(EJEMPLOS / nombre, directorio / nombre)
+    (directorio / "nota-relacion-proyectable.md").write_text(
+        NOTA_PROYECTABLE, encoding="utf-8"
+    )
+    return directorio
+
+
+def _ingerir_desde(operador, cola, monkeypatch, directorio: Path) -> str:
+    """Como `_ingerir`, pero sobre el catalogo de fuentes que se le diga."""
+    monkeypatch.setenv("S9K_INGEST_SOURCES_DIR", str(directorio))
+    pantalla = operador.get(SLOT_B.prefix)
+    assert pantalla.status_code == 200, pantalla.status_code
+    opciones = _opciones(pantalla.text)
+    assert opciones, "no se ofrece ninguna fuente que elegir"
+    envio = operador.post(
+        "/panel/operations/ingestas",
+        data={"fuente": opciones[0], "csrf_token": _csrf(operador)},
+    )
+    assert envio.status_code == 303, envio.text[:300]
+    store = jobs_client._load_job_store()
+    pendientes = store.list_jobs(status="pending", db_path=str(cola))
+    assert len(pendientes) == 1, pendientes
+    job_id = pendientes[0]["job_id"]
+
+    from jobs import worker
+    assert worker.run("worker-proyeccion", once=True, limit=1, db_path=str(cola)) == 1
+    final = store.get_job(job_id, db_path=str(cola))
+    assert final["status"] == "complete", final.get("error_message")
+    return job_id
+
+
+def _proyectable(propuestas: list, job_id: str, existentes: set):
+    """La propuesta de la corrida que PUEDE llegar a proyectar. Tres filtros.
+
+    Los tres corresponden a los tres motivos de omision que NO son el de este
+    carril, y estan aqui para que ninguno de ellos pueda explicar un rojo:
+
+      * predicado y direccion conocidos --si no, el sellado la excluye antes;
+      * hecho NO negado --`PROJECTION_NEGATED_FACT`--;
+      * y sujeto y objeto que EXISTEN en el grafo --`PROJECTION_NO_ANCHOR` y
+        `PROJECTION_ENTITY_NOT_IN_GRAPH`--.
+
+    Lo que queda despues de los tres solo puede caerse por no haber observado.
+    """
+    for propuesta in propuestas:
+        if job_id not in (propuesta.get("package_runs") or ()):
+            continue
+        cuerpo = propuesta.get("proposal") or {}
+        resolucion = propuesta.get("resolution") or {}
+        if cuerpo.get("negated"):
+            continue
+        if cuerpo.get("predicate") in (None, "", "UNKNOWN"):
+            continue
+        if cuerpo.get("direction") in (None, "", "UNKNOWN"):
+            continue
+        if resolucion.get("subject") not in existentes:
+            continue
+        if resolucion.get("object") not in existentes:
+            continue
+        return propuesta
+    return None
+
+
+def _aprobar_proyectable(operador, cola, almacenes, monkeypatch, directorio,
+                         existentes):
+    job_id = _ingerir_desde(operador, cola, monkeypatch, directorio)
+    propuesta = _proyectable(_propuestas(almacenes["propuestas"]), job_id, existentes)
+    assert propuesta is not None, (
+        "la nota de estos casos ya no produce ninguna propuesta que pueda "
+        "proyectar (sin negar, con predicado y direccion, y entre entidades "
+        "sembradas). Sin una, ni la insignia ni su control negativo miden nada."
+    )
+    _decidir(propuesta, "APPROVE")
+    return job_id, propuesta
+
+
+@neo4j_real
+def test_insignia_la_ui_proyecta_una_relacion_anclada_en_lo_OBSERVADO(
+    real_app, paneles_on, cola, operador, almacenes, grafo, monkeypatch,
+    fuente_proyectable
+):
+    """/panel -> apply -> worker REAL -> Neo4j -> observación -> proyección.
+
+    LA RELACIÓN QUE SÓLO PUEDE PROYECTARSE SI SE LEYÓ EL GRAFO. El ancla de la
+    operación `PROJECT_RELATION` lleva `expected_version = 7` y un
+    `expected_hash` computado sobre las propiedades REALES del nodo sembrado.
+    Ninguna de las dos cosas es derivable de un fichero:
+
+      * `bridge.entities_from_catalog` pone `version = 0`, no 7;
+      * y su `state_hash` sale de `sha256({entity_id, entity_type, version})`,
+        que es reconstruible sin haber mirado el grafo -- plausible y falso.
+
+    Por eso la comparación final no es «hay una proyección» (eso se pondría
+    verde con un ancla inventada) sino que el ancla del plan es IGUAL a la del
+    nodo que está en Neo4j.
+    """
+    workspace = "ws-cofradia"
+    anclas = _sembrar_entidades(grafo, workspace, _catalogo_del_ejemplo())
+    assert anclas, "sin entidades sembradas este caso no mide nada"
+
+    job_id, _ = _aprobar_proyectable(
+        operador, cola, almacenes, monkeypatch, fuente_proyectable, set(anclas)
+    )
+    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+
+    operaciones = _operaciones_del_plan(almacenes["base"])
+    proyecciones = _proyecciones(operaciones)
+    assert proyecciones, (
+        "el plan sellado desde la UI no trae ni una `PROJECT_RELATION` pese a "
+        "haber leído el grafo. Operaciones: "
+        f"{sorted({o.get('operation_type') for o in operaciones})}"
+    )
+
+    # EL ANCLA ES LA DEL NODO OBSERVADO, no una plausible.
+    for operacion in proyecciones:
+        objetivo = operacion["target_entity_id"]
+        assert objetivo in anclas, (
+            f"la proyección se ancló en {objetivo}, que no está sembrada en el "
+            "grafo: el ancla no puede venir de una observación"
+        )
+        esperada = anclas[objetivo]
+        assert operacion["expected_version"] == esperada["version"], operacion
+        assert operacion["expected_hash"]["value"] == esperada["state_hash"], (
+            "el `expected_hash` del plan no es el del nodo real: el ancla se "
+            "derivó en vez de observarse"
+        )
+
+    # Y LA RELACIÓN QUEDA NAVEGABLE EN EL GRAFO, con procedencia.
+    assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_APPLIED"
+    esperadas = {
+        (o["payload"]["subject_entity_id"], o["payload"]["object_entity_id"])
+        for o in proyecciones
+    }
+    with grafo.session() as sesion:
+        aristas = sesion.run(
+            "MATCH (a:V3Entity {workspace: $ws})-[r]->(b:V3Entity {workspace: $ws}) "
+            "RETURN a.entity_id AS sujeto, b.entity_id AS objeto, type(r) AS tipo "
+            "ORDER BY a.entity_id, b.entity_id",
+            ws=workspace,
+        ).data()
+    assert aristas, "el apply no dejó ninguna arista entre entidades"
+    observadas = {(f["sujeto"], f["objeto"]) for f in aristas}
+    assert esperadas <= observadas, (
+        f"lo proyectado por el plan no está en el grafo: plan={sorted(esperadas)} "
+        f"grafo={sorted(observadas)}"
+    )
+
+    # LA PROCEDENCIA SIGUE INTACTA: el apply se completó entero, no a medias.
+    fila = _filas_de_plan(almacenes["base"])[0]
+    assert fila["state"] == "applied", fila["state"]
+    assert fila["apply_id"], "un apply sin identidad durable no es auditable"
+
+
+@neo4j_real
+def test_control_con_driver_None_la_relacion_se_cae_POR_NO_OBSERVAR(
+    real_app, paneles_on, cola, operador, almacenes, grafo, monkeypatch, caplog,
+    fuente_proyectable
+):
+    """EL CONTROL QUE DECIDE EL CARRIL: el rojo, y POR QUÉ es rojo.
+
+    Mismo montaje exacto que la insignia --mismas entidades sembradas, misma
+    fuente, mismo operador, mismo grafo-- y UNA sola mutación: la llamada al
+    núcleo vuelve a recibir `driver=None`, que es literalmente el estado del
+    producto antes de este corte.
+
+    Lo que se comprueba no es «se puso rojo». Un rojo por credenciales, por el
+    gate, por `PLAN_NOT_SEALED` o por una excepción se leería igual y no
+    probaría nada. Se comprueba que:
+
+      1. TODO LO DEMÁS SIGUE FUNCIONANDO: la ingesta termina `complete`, la
+         propuesta aparece, la aprobación se registra y el sellado responde
+         `PLAN_SEALED`. No hay ningún otro fallo que pudiera explicar la
+         ausencia.
+      2. Lo ÚNICO que desaparece del plan es la `PROJECT_RELATION`.
+      3. Y el motivo que el producto declara es EXACTAMENTE
+         `PROJECTION_ANCHOR_NOT_OBSERVED`, sin ningún otro código mezclado.
+    """
+    workspace = "ws-cofradia"
+    anclas = _sembrar_entidades(grafo, workspace, _catalogo_del_ejemplo())
+
+    # LA MUTACIÓN. Se envuelve la llamada al núcleo en vez de devolver `None`
+    # desde el abridor: así el resto del manejador --incluido el `close()` del
+    # bloque `finally`-- se ejerce igual, y lo único que cambia es el argumento
+    # bajo estudio. Devolver `None` del abridor rompería el cierre y el caso se
+    # pondría rojo por un `AttributeError`, que es el rojo equivocado.
+    from jobs.handlers import ingest_v3 as handler_mod
+
+    nucleo = handler_mod.run_ingest
+
+    def sin_observar(*args, **kwargs):
+        kwargs["driver"] = None
+        return nucleo(*args, **kwargs)
+
+    monkeypatch.setattr(handler_mod, "run_ingest", sin_observar)
+
+    with caplog.at_level("WARNING", logger="panel.v3_apply"):
+        job_id, _ = _aprobar_proyectable(
+            operador, cola, almacenes, monkeypatch, fuente_proyectable,
+            set(anclas),
+        )
+        # (1) NADA MÁS SE HA ROTO.
+        assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+
+    operaciones = _operaciones_del_plan(almacenes["base"])
+    assert operaciones, (
+        "el plan sellado salió vacío: entonces la ausencia de proyección no se "
+        "distingue de «no había nada que planificar» y el control no mide nada"
+    )
+
+    # (2) LO ÚNICO QUE FALTA ES LA PROYECCIÓN.
+    assert _proyecciones(operaciones) == [], (
+        "con `driver=None` el plan trae una proyección: entonces el ancla se "
+        "está dando por observada sin haber mirado el grafo, que es justo lo "
+        "que la integridad del apply prohíbe"
+    )
+
+    # (3) Y EL MOTIVO ES EL QUE TIENE QUE SER, no otro.
+    avisos = [r.getMessage() for r in caplog.records
+              if "sin proyeccion" in r.getMessage()]
+    assert avisos, (
+        "el producto omitió la proyección SIN DECIRLO. Una omisión en silencio "
+        f"es el defecto original. Avisos: {[r.getMessage() for r in caplog.records]}"
+    )
+    codigos = set()
+    for aviso in avisos:
+        for codigo in ("PROJECTION_ANCHOR_NOT_OBSERVED", "PROJECTION_NO_ANCHOR",
+                       "PROJECTION_NEGATED_FACT", "PROJECTION_ENTITY_NOT_IN_GRAPH"):
+            if codigo in aviso:
+                codigos.add(codigo)
+    assert codigos == {"PROJECTION_ANCHOR_NOT_OBSERVED"}, (
+        f"el rojo llegó por otro motivo: {sorted(codigos)}. Con las entidades "
+        "sembradas en el grafo y el hecho sin negar, el ÚNICO motivo legítimo "
+        "de omisión es no haber observado el ancla. Si aparece otro código, "
+        "este control no está midiendo lo que dice."
+    )
+
+
+@neo4j_real
+def test_el_worker_observa_pero_NO_escribe_durante_la_ingesta(
+    real_app, paneles_on, cola, operador, almacenes, grafo, monkeypatch
+):
+    """LA FRONTERA NUEVA, MEDIDA POR EFECTO: la ingesta lee y no toca nada.
+
+    El worker gana capacidad de LEER el grafo. Que no gane la de escribir no se
+    afirma leyendo un comentario ni contando apariciones de `apply=False`: se
+    mide comparando el grafo ANTES y DESPUÉS de la ingesta, por identidad
+    durable y con una consulta por cosa contada.
+
+    CALIBRACIÓN. El testigo sabe ponerse rojo: sembrar una entidad más entre
+    las dos fotos cambia el conjunto y la comparación falla. Por eso la
+    afirmación es de igualdad de conjuntos y no «no hubo excepciones».
+    """
+    workspace = "ws-cofradia"
+    _sembrar_entidades(grafo, workspace, _catalogo_del_ejemplo())
+
+    def foto() -> dict:
+        with grafo.session() as sesion:
+            entidades = sesion.run(
+                "MATCH (n:V3Entity {workspace: $ws}) "
+                "RETURN n.entity_id AS id, n.version AS v, n.state_hash AS h "
+                "ORDER BY n.entity_id", ws=workspace,
+            ).data()
+            afirmaciones = sesion.run(
+                "MATCH (a:V3Assertion {workspace: $ws}) "
+                "RETURN a.assertion_id AS id ORDER BY a.assertion_id", ws=workspace,
+            ).data()
+            aristas = sesion.run(
+                "MATCH (:V3Entity {workspace: $ws})-[r]->(:V3Entity {workspace: $ws}) "
+                "RETURN count(r) AS n", ws=workspace,
+            ).single()["n"]
+        return {"entidades": entidades, "afirmaciones": afirmaciones, "aristas": aristas}
+
+    antes = foto()
+    assert antes["entidades"], "sin entidades sembradas la foto no compara nada"
+
+    job_id = _ingerir(operador, cola, monkeypatch)
+    assert job_id, "la ingesta no llegó a correr"
+
+    despues = foto()
+    assert despues == antes, (
+        "la ingesta modificó el grafo. La conexión que el Corte 5 abre es de "
+        f"SOLO LECTURA. antes={antes} despues={despues}"
+    )
+
+
+# ===========================================================================
+# SLICE 2 · CORTE 5 — FALLO CERRADO: SIN GRAFO NO HAY INGESTA
+# ===========================================================================
+#
+# LA REGLA. Desde el Corte 5 la ingesta del panel necesita OBSERVAR el grafo:
+# sin driver, el ancla del plan sale con `observed: false` y el sellado omite
+# toda proyección. Si el grafo no se puede mirar, el job no se completa en
+# silencio con una corrida que parece buena: falla, y dice por qué.
+#
+# LO QUE ESTOS CASOS IMPIDEN QUE VUELVA. Una «ruta de repuesto» que degradase a
+# `driver=None` produciría exactamente el defecto original —una ingesta que
+# termina `complete` y cuyo plan no puede proyectar nada— sin un solo error por
+# el camino. Aquí se comprueba que no existe.
+
+def _sin_doble(monkeypatch, doble):
+    """Devuelve el abridor DE VERDAD a su sitio.
+
+    El módulo instala un grafo de mentira para todos sus casos; estos tres
+    vienen precisamente a medir qué pasa cuando no hay grafo, así que con el
+    doble puesto no medirían nada.
+    """
+    from jobs.handlers import ingest_v3 as handler_mod
+
+    monkeypatch.setattr(handler_mod, "_driver_de_observacion", doble.real)
+
+
+def _ingesta_fallida(operador, cola, monkeypatch) -> dict:
+    """Encola desde el panel, corre el worker, y devuelve el job resultante."""
+    monkeypatch.setenv("S9K_INGEST_SOURCES_DIR", str(EJEMPLOS))
+    pantalla = operador.get(SLOT_B.prefix)
+    assert pantalla.status_code == 200, pantalla.status_code
+    opciones = _opciones(pantalla.text)
+    assert opciones, "no se ofrece ninguna fuente que elegir"
+    envio = operador.post(
+        "/panel/operations/ingestas",
+        data={"fuente": opciones[0], "csrf_token": _csrf(operador)},
+    )
+    assert envio.status_code == 303, envio.text[:300]
+    store = jobs_client._load_job_store()
+    job_id = store.list_jobs(status="pending", db_path=str(cola))[0]["job_id"]
+
+    from jobs import worker
+    worker.run("worker-fallo-cerrado", once=True, limit=1, db_path=str(cola))
+    return store.get_job(job_id, db_path=str(cola))
+
+
+def test_sin_conexion_declarada_la_ingesta_NO_se_completa(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch, _grafo_de_mentira
+):
+    """No hay grafo declarado -> ERROR con código estable, y NADA ingerido.
+
+    Lo que se mide no es sólo que falle: que el desenlace sea PERMANENTE (el
+    worker no lo devuelve a la cola, porque nadie va a declarar la conexión
+    entre el primer intento y el tercero) y que el almacén de propuestas se
+    quede VACÍO. Una ingesta a medias que dejara propuestas sin observar sería
+    el defecto original con otro nombre.
+    """
+    _sin_doble(monkeypatch, _grafo_de_mentira)
+    for variable in ("S9K_NEO4J_URI", "S9K_NEO4J_USER", "S9K_NEO4J_PASSWORD_FILE"):
+        monkeypatch.delenv(variable, raising=False)
+
+    job = _ingesta_fallida(operador, cola, monkeypatch)
+
+    assert job["status"] == "failed", job
+    assert job["error_message"].startswith("GRAPH_OBSERVATION_UNCONFIGURED:"), (
+        f"el operador lee otro motivo: {job['error_message']!r}"
+    )
+    # NI UNA RUTA NI UN DETALLE TÉCNICO EN LO QUE EL PANEL ENSEÑA.
+    assert "/" not in job["error_message"], job["error_message"]
+    # NI UNA PROPUESTA. `tmp_path` siempre existe, así que «no hay fichero» se
+    # comprueba enumerando el directorio, no preguntando si está.
+    escritas = (
+        sorted(almacenes["propuestas"].glob("*.json"))
+        if almacenes["propuestas"].exists() else []
+    )
+    assert escritas == [], (
+        f"la ingesta falló y aun así dejó propuestas sin observar: {escritas}"
+    )
+
+
+def test_el_codigo_de_grafo_ausente_NO_se_reintenta(monkeypatch):
+    """PERMANENTE, y declarado por el handler, no adivinado por el worker.
+
+    `worker.process_one` decide si devuelve el job a la cola consultando
+    `exc.retryable`. Aquí se comprueba la declaración de los dos códigos, que
+    es lo único que el worker no puede saber por su cuenta: una conexión que
+    nadie ha declarado no aparece entre dos intentos; un grafo que no responde
+    ahora sí puede responder luego.
+    """
+    from jobs.handlers.ingest_v3 import IngestV3Error
+
+    assert IngestV3Error("GRAPH_OBSERVATION_UNCONFIGURED").retryable is False
+    assert IngestV3Error("GRAPH_OBSERVATION_UNAVAILABLE").retryable is True
+
+
+def test_una_credencial_legible_por_todos_no_se_usa(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch, tmp_path,
+    _grafo_de_mentira
+):
+    """Un secreto legible por la máquina entera no es un secreto.
+
+    `knowledge_v3.driver_neo4j` rechaza el fichero antes de leerlo, y el
+    handler lo trata como defecto de DECLARACIÓN (permanente), no como
+    indisponibilidad: unos permisos flojos no se arreglan reintentando.
+    """
+    _sin_doble(monkeypatch, _grafo_de_mentira)
+    fichero = tmp_path / "clave-abierta"
+    fichero.write_text("lo-que-sea", encoding="utf-8")
+    fichero.chmod(0o644)
+    monkeypatch.setenv("S9K_NEO4J_URI", "bolt://127.0.0.1:7687")
+    monkeypatch.setenv("S9K_NEO4J_USER", "neo4j")
+    monkeypatch.setenv("S9K_NEO4J_PASSWORD_FILE", str(fichero))
+
+    job = _ingesta_fallida(operador, cola, monkeypatch)
+
+    assert job["status"] == "failed", job
+    assert job["error_message"].startswith("GRAPH_OBSERVATION_UNCONFIGURED:"), (
+        f"un fichero de credencial abierto se está tratando como otra cosa: "
+        f"{job['error_message']!r}"
+    )
+
+
+def test_un_grafo_que_no_responde_se_distingue_de_uno_no_declarado(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch, tmp_path,
+    _grafo_de_mentira
+):
+    """DECLARADO pero CAÍDO: otro código, y reintentable.
+
+    Los dos desenlaces acaban en ERROR y para el operador no son lo mismo: uno
+    lo arregla quien administra el despliegue y el otro se pasa solo. Un único
+    código para los dos convertiría «vuelve a intentarlo» en un consejo falso
+    la mitad de las veces.
+
+    La conexión apunta a un puerto libre de loopback: se rechaza de inmediato,
+    sin esperas ni red externa.
+    """
+    _sin_doble(monkeypatch, _grafo_de_mentira)
+    import socket
+
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        puerto = s.getsockname()[1]
+
+    fichero = tmp_path / "clave-cerrada"
+    fichero.write_text("lo-que-sea", encoding="utf-8")
+    fichero.chmod(0o600)
+    monkeypatch.setenv("S9K_NEO4J_URI", f"bolt://127.0.0.1:{puerto}")
+    monkeypatch.setenv("S9K_NEO4J_USER", "neo4j")
+    monkeypatch.setenv("S9K_NEO4J_PASSWORD_FILE", str(fichero))
+
+    job = _ingesta_fallida(operador, cola, monkeypatch)
+
+    assert job["error_message"].startswith("GRAPH_OBSERVATION_UNAVAILABLE:"), (
+        f"un grafo declarado y caído no se distingue de uno sin declarar: "
+        f"{job['error_message']!r}"
+    )
+
+
+def test_los_codigos_nuevos_los_sabe_pintar_el_panel():
+    """Un código que el panel no sabe pintar es un mensaje mudo.
+
+    Misma comprobación cruzada que ya existía para el resto del vocabulario del
+    handler, extendida a los dos códigos del Corte 5.
+    """
+    from app import panel_errors
+    from jobs.handlers.ingest_v3 import CODIGOS
+
+    for codigo in ("GRAPH_OBSERVATION_UNCONFIGURED", "GRAPH_OBSERVATION_UNAVAILABLE"):
+        assert codigo in CODIGOS, codigo
+        assert codigo in panel_errors.CATALOGO, (
+            f"{codigo} sale del worker y el panel no tiene frase para él"
+        )

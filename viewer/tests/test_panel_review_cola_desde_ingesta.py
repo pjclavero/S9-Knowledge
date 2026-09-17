@@ -48,6 +48,22 @@ FLAG_C = "S9K_PANEL_C_ENABLED"
 PASSWORD = "Contrasena-De-Prueba-1"
 
 REPO = Path(__file__).resolve().parents[2]
+
+
+# ---------------------------------------------------------------------------
+# GRAFO DE MENTIRA: este modulo no viene a medir la observacion del grafo
+# ---------------------------------------------------------------------------
+# Desde el Slice 2 · Corte 5 la ingesta del panel abre una conexion de solo
+# lectura a Neo4j y falla cerrado sin ella. Los casos de este modulo miden la
+# cola de revision y corren sin Docker, asi que se les da un doble. Ninguno de
+# ellos puede afirmar por eso que el producto observe el grafo de verdad: eso
+# se mide con Neo4j real.
+@pytest.fixture(autouse=True)
+def _grafo_de_mentira(monkeypatch):
+    import grafo_doble
+
+    return grafo_doble.instalar(monkeypatch)
+
 EJEMPLOS = REPO / "examples" / "ingesta-v3"
 
 

@@ -88,6 +88,59 @@ existe **un solo resolvedor** (`data-engine/app/knowledge_v3/review_paths.py`)
 y el visor lo importa en vez de derivar la suya. Un caso lo comprueba por
 enumeración del árbol.
 
+## Invariante: el worker tiene que poder OBSERVAR el grafo
+
+**Slice 2 · Corte 5.** Hasta este corte el worker no tenía ni una referencia a
+Neo4j y el propio `worker.py` lo declaraba por escrito. Ya no es cierto: el
+handler `ingest_v3` abre una conexión de **sólo lectura** al grafo.
+
+**Por qué no es opcional.** El motor marca un ancla del plan como `observed`
+en un único sitio (`pipeline/graph_catalog.snapshot_entities`), alcanzable sólo
+con driver. Sin driver, las anclas salen con `observed: false` y el sellado
+omite **toda** proyección con `PROJECTION_ANCHOR_NOT_OBSERVED`: el operador
+aprueba una relación, el plan se sella, el apply se ejecuta y la arista no
+aparece nunca. No hay ningún error por el camino.
+
+Y no vale copiar el `state_hash` del catálogo en fichero: ese hash está
+**derivado** de `{entity_id, entity_type, version}`, o sea, es reconstruible
+sin haber mirado el grafo. Es un valor plausible y falso. La observación real
+no se puede sustituir.
+
+**Leer no es escribir.** La escritura la gobierna `apply`, por separado, y el
+worker sigue corriendo con `apply=False`. El driver que abre el worker se usa
+para una sola consulta: el catálogo de entidades del workspace.
+
+**Lo que el worker necesita, y sin lo cual falla cerrado:**
+
+| Requisito | Variable | Si falta |
+|---|---|---|
+| Conectividad al servidor | `S9K_NEO4J_URI` (`bolt://…`), sin valor por defecto | `GRAPH_OBSERVATION_UNCONFIGURED` |
+| Usuario | `S9K_NEO4J_USER` | `GRAPH_OBSERVATION_UNCONFIGURED` |
+| Credencial **mínima**: basta permiso de LECTURA sobre la base del workspace. El worker no escribe. | `S9K_NEO4J_PASSWORD_FILE` — **el camino de un fichero `0600`**, nunca la contraseña en una variable ni en `argv` | `GRAPH_OBSERVATION_UNCONFIGURED` |
+| Base/contexto correcto, si el despliegue no usa la de por defecto | `S9K_NEO4J_DATABASE` | consulta contra la base equivocada: catálogo vacío y plan sin proyección |
+| Workspace del perfil de la fuente coherente con el del grafo | perfil de ingesta | catálogo vacío; ninguna ancla observada |
+| CA/TLS, si la URI es `bolt+s`/`neo4j+s` | truststore del sistema en la imagen del worker | `GRAPH_OBSERVATION_UNAVAILABLE` |
+
+**Fail closed, y sin ruta de repuesto.** Si algo de lo anterior falta, el job
+**no** se completa con una corrida sin observar: termina en ERROR con uno de
+los dos códigos. Se distinguen por si tiene sentido reintentar:
+
+* `GRAPH_OBSERVATION_UNCONFIGURED` — **permanente**. Nadie va a declarar la
+  conexión entre el primer intento y el tercero. También cubre el fichero de
+  credencial ausente, vacío o legible por el grupo.
+* `GRAPH_OBSERVATION_UNAVAILABLE` — **reintentable**. El grafo no responde
+  ahora y puede responder luego.
+
+Degradar a `driver=None` sería una ruta de repuesto silenciosa: produciría una
+ingesta que parece correcta y cuyo plan no puede proyectar nada.
+
+**Consecuencia para el ensayo RC.** El próximo ensayo ya **no puede validar
+sólo que el visor y el worker comparten volúmenes**. Tiene que validar además
+la **capacidad real del worker de observar el grafo**: desde el entorno del
+worker, con sus variables y su credencial, una ingesta desde el panel tiene que
+terminar `complete`. Si termina con `GRAPH_OBSERVATION_*`, el despliegue está
+incompleto aunque todos los volúmenes estén bien montados.
+
 ## Actualización V3
 
 El flujo operativo es:

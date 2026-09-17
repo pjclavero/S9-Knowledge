@@ -12,7 +12,21 @@ Handlers registrados hoy:
                       `knowledge_v3.pipeline.ingest_cli.run_ingest`, el mismo
                       núcleo que invoca la CLI.
 
-NO escribe en Neo4j: `ingest_v3` corre con `apply=False` y sin driver.
+LEE Neo4j, PERO NO ESCRIBE (Slice 2 · Corte 5). La distinción es del código,
+no de la buena voluntad: `ingest_v3` corre con `apply=False` --que es lo único
+que gobierna la escritura, porque `run_ingest` pasa
+`writer_driver=driver if apply else None`-- y abre un driver que usa para UNA
+cosa: la consulta de sólo lectura del catálogo del workspace. Esa observación
+es lo que marca las anclas del plan como `observed`, y sin ella el sellado
+omite toda proyección con `PROJECTION_ANCHOR_NOT_OBSERVED`.
+
+Hasta este corte esta línea decía «NO escribe en Neo4j: [...] y sin driver», y
+la segunda mitad dejó de ser cierta. Se corrige aquí porque un comentario que
+afirma lo contrario de lo que hace el código manda a perseguir un fantasma.
+
+La frontera de confianza del worker se ensancha, por tanto, a LECTURA del
+grafo: necesita conectividad, credencial y contexto, y falla cerrado si le
+falta cualquiera (ver `deploy/README.md`).
 
 Ejecución manual:
     python data-engine/app/jobs/worker.py --once --limit 1
@@ -214,8 +228,8 @@ def run(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Worker genérico de la cola de jobs S9 Knowledge. "
-                    "No escribe en Neo4j; solo procesa handlers de prueba (noop/echo) "
-                    "por ahora."
+                    "No escribe en Neo4j; `ingest_v3` sí lo LEE (sólo lectura) "
+                    "para observar el catálogo del workspace."
     )
     parser.add_argument("--once", action="store_true",
                         help="Procesar hasta --limit jobs y salir (por defecto).")

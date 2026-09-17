@@ -159,6 +159,25 @@ ERROR = "ERROR"
 
 ESTADOS: tuple[str, ...] = (DISPONIBLE, VACIO, SIN_PROCEDENCIA, ERROR)
 
+#: Grado de materializacion de lo que las marcas del apply sostienen. Es
+#: vocabulario de ESTA pantalla y de nadie mas: describe el cruce entre las
+#: marcas y el contenido visible, NO el estado del plan sellado (que esta
+#: superficie no lee). Ver `Resultado.materializacion`.
+COMPLETO = "COMPLETO"
+PARCIAL = "PARCIAL"
+NO_DISPONIBLE = "NO_DISPONIBLE"
+
+MATERIALIZACION: tuple[str, ...] = (COMPLETO, PARCIAL, NO_DISPONIBLE)
+
+#: La frase que le toca a cada grado. Vive aqui y no en la plantilla para que
+#: la pantalla y las pruebas lean el MISMO texto: un literal duplicado en Jinja
+#: se puede cambiar en un sitio y seguir verde en el otro.
+FRASE_MATERIALIZACION: dict[str, str] = {
+    COMPLETO: "completo",
+    PARCIAL: "parcial",
+    NO_DISPONIBLE: "no disponible",
+}
+
 #: Forma admisible de un `apply_id` (``writer/apply_identity.py``). Se
 #: comprueba ANTES de tocar la base: una cadena arbitraria en la URL no llega a
 #: convertirse en un parametro de consulta.
@@ -227,6 +246,51 @@ class Resultado:
     entidades: Bloque
     relaciones: Bloque
     hechos: Bloque
+
+    @property
+    def materializacion(self) -> str:
+        """Si lo que sostienen las marcas esta entero, a medias, o no esta.
+
+        DOS AUTORIDADES EN LA MISMA PAGINA, Y HASTA AHORA SIN DECIRLO
+        ------------------------------------------------------------
+        `operaciones` sale de las MARCAS del apply (`V3AppliedOperation`), y
+        los tres bloques salen del CONTENIDO que esas marcas deberian
+        sostener. Son dos lecturas distintas del grafo, y las marcas
+        sobreviven al contenido: un plan que quedo `partial` deja sus marcas
+        registradas y el contenido a medias o sin materializar.
+
+        Medido antes de este corte: la pantalla decia «4 operaciones» arriba y
+        «esta ejecucion no dejo ninguna relacion que puedas ver» abajo, sin una
+        sola pista de incompletitud. El `0` de los bloques se leia como VACIO
+        LEGITIMO --«no cambio nada»-- cuando lo que decia era «lo que estas
+        marcas sostenian no esta».
+
+        LO QUE ESTA PROPIEDAD **NO** HACE
+        ---------------------------------
+        No mira `sealed_plans`. Esta superficie no tiene --ni gana aqui--
+        acceso al plan sellado: darselo la convertiria en un reconciliador
+        plan-contra-grafo, que es otro producto. Lo unico que hace es cruzar
+        las dos lecturas que ESTA pantalla ya tiene, y por eso el vocabulario
+        es deliberadamente modesto: «no disponible» y «parcial» describen lo
+        que este lector puede ver, no un veredicto sobre el plan.
+
+        Y por la misma razon `ERROR` no se convierte en incompletitud: un
+        bloque que no se pudo leer no afirma nada sobre lo que hay.
+        """
+        bloques = (self.entidades, self.relaciones, self.hechos)
+        if any(b.estado == ERROR for b in bloques):
+            return NO_DISPONIBLE
+        con_contenido = [b for b in bloques if b.filas]
+        if not con_contenido:
+            return NO_DISPONIBLE
+        if len(con_contenido) < len(bloques):
+            return PARCIAL
+        return COMPLETO
+
+    @property
+    def frase_materializacion(self) -> str:
+        """La frase que la pantalla pinta. Un solo texto, no dos copias."""
+        return FRASE_MATERIALIZACION[self.materializacion]
 
 
 @dataclass

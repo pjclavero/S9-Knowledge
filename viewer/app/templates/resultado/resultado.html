@@ -32,6 +32,27 @@
       <dt>Partida</dt>
       <dd data-field="partida">
         {{ resultado.partida_id | e if resultado.partida_id else 'capa de juego (sin partida)' }}</dd>
+      {#
+        LAS DOS AUTORIDADES DE ESTA PAGINA, DICHAS COMO TALES.
+
+        `Marcas registradas` sale de las marcas del apply; los bloques de
+        abajo salen del contenido que esas marcas sostienen. Son dos lecturas
+        distintas, y las marcas SOBREVIVEN al contenido.
+
+        Antes esto decia «Operaciones aplicadas: 4» plegado en el detalle
+        tecnico, y abajo «esta ejecucion no dejo ninguna relacion que puedas
+        ver». Las dos frases eran ciertas y juntas mentian: el `0` parecia un
+        vacio legitimo. La pista de incompletitud va AQUI, en la cabecera
+        visible, y no dentro del `details` cerrado, que es donde nadie mira.
+
+        `Plan completo` describe lo que este lector ve, NO el estado de
+        `sealed_plans`: esta pantalla no lee el plan sellado y este corte no le
+        da acceso.
+      #}
+      <dt>Plan completo</dt>
+      <dd data-field="materializacion"
+          data-materializacion="{{ resultado.materializacion }}">
+        {{ resultado.frase_materializacion }}</dd>
     </dl>
 
     {#
@@ -42,7 +63,12 @@
     <details data-role="detalle-tecnico">
       <summary>Detalle tecnico</summary>
       <dl>
-        <dt>Operaciones aplicadas</dt>
+        {#
+          «Operaciones aplicadas» afirmaba de mas: son las MARCAS que el apply
+          registro, y una marca registrada no garantiza que lo que sostenia
+          siga ahi. Se nombra por lo que es.
+        #}
+        <dt>Marcas registradas</dt>
         <dd data-field="operaciones">{{ resultado.operaciones }}</dd>
         <dt>Identificador de propiedad</dt>
         <dd data-field="ownership-id">

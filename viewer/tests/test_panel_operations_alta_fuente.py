@@ -58,6 +58,22 @@ FLAG = slot_flag_env(SLOT)
 PASSWORD = "PanelBAlta_1234567890!"
 
 REPO = Path(__file__).resolve().parents[2]
+
+
+# ---------------------------------------------------------------------------
+# GRAFO DE MENTIRA: este modulo no viene a medir la observacion del grafo
+# ---------------------------------------------------------------------------
+# Desde el Slice 2 · Corte 5 la ingesta del panel abre una conexion de solo
+# lectura a Neo4j y falla cerrado sin ella. Los casos de este modulo miden otra
+# cosa y corren sin Docker, asi que se les da un doble que responde a la
+# consulta del catalogo. Lo que NINGUNO de ellos puede afirmar por eso es que
+# el producto observe el grafo de verdad: eso se mide con Neo4j real.
+@pytest.fixture(autouse=True)
+def _grafo_de_mentira(monkeypatch):
+    import grafo_doble
+
+    return grafo_doble.instalar(monkeypatch)
+
 EJEMPLOS = REPO / "examples" / "ingesta-v3"
 
 
@@ -818,11 +834,25 @@ def test_el_resumen_no_publica_la_ruta_de_la_fuente(tmp_path):
 
 
 def test_este_corte_no_aplica_nada_al_grafo():
-    """`apply` y `rollback` son cortes posteriores: aquí no se tocan.
+    """La ingesta del panel LEE el grafo, y sigue sin ESCRIBIR en él.
 
-    Se comprueba por AST sobre el handler: la llamada al núcleo pasa
-    `apply=False` literal y `driver=None` literal. Un futuro cambio que active
-    la escritura tendrá que pasar por aquí.
+    Antes del Slice 2 · Corte 5 este caso exigía las dos constantes juntas:
+    `apply=False` **y** `driver=None`. Las dos cosas se leían como una sola
+    --«no toca el grafo»-- y no lo son. `driver=None` no significaba «no
+    escribe»: significaba «no mira», y ésa era justo la costura que dejaba las
+    anclas del plan en `observed: false` y la proyección omitida para siempre.
+
+    Lo que se mide ahora, por AST y por separado:
+
+      * `apply=False` LITERAL: es lo único que gobierna la escritura, porque
+        `run_ingest` hace `writer_driver=driver if apply else None`. Mientras
+        esa constante esté, el writer no ve la conexión aunque exista.
+      * `driver` NO es una constante: la llamada recibe una conexión de sólo
+        lectura, que es lo que permite observar el catálogo del workspace.
+
+    Un futuro cambio que active la escritura tendrá que pasar por aquí igual
+    que antes: lo que cambia es que ya no hace falta romper esto para poder
+    MIRAR.
     """
     from jobs.handlers import ingest_v3 as handler_mod
 
@@ -833,4 +863,8 @@ def test_este_corte_no_aplica_nada_al_grafo():
     )
     kwargs = {k.arg: ast.unparse(k.value) for k in llamada.keywords}
     assert kwargs.get("apply") == "False", kwargs
-    assert kwargs.get("driver") == "None", kwargs
+    assert kwargs.get("driver") not in (None, "None"), (
+        f"la ingesta del panel ha vuelto a llamar al núcleo sin grafo: {kwargs}. "
+        "Sin driver ningún ancla sale observada y el sellado omite toda "
+        "proyección con `PROJECTION_ANCHOR_NOT_OBSERVED`."
+    )
