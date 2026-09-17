@@ -655,9 +655,23 @@ def test_el_aviso_de_alcance_del_enmascarado_esta_en_la_pantalla(
     assert r.status_code == 200
     assert 'data-role="aviso-alcance-enmascarado"' in r.text
     assert "no reflejan las divergencias locales" in r.text
-    # Y va DENTRO del bloque de relaciones, que es donde esta la incoherencia.
-    bloque = r.text.split('data-role="relaciones"', 1)[1]
-    assert 'data-role="aviso-alcance-enmascarado"' in bloque
+
+    # Y va DENTRO del bloque de relaciones, que es donde esta la incoherencia
+    # que advierte. Un aviso al pie del documento no advierte de nada: el
+    # lector ya paso de largo por las relaciones cuando llega a el.
+    #
+    # EL CORTE SE CIERRA POR `</section>`, y esto es una correccion medida, no
+    # una precaucion: la version anterior partia por el marcador de APERTURA y
+    # miraba todo el sufijo, asi que un revisor movio el aviso al pie del
+    # documento --fuera del bloque-- y la prueba SIGUIO VERDE. Partir por un
+    # delimitador de apertura sin cerrar por el de cierre no acota nada:
+    # "despues de aqui" incluye el resto del fichero.
+    tras_apertura = r.text.split('data-role="relaciones"', 1)[1]
+    bloque = tras_apertura.split("</section>", 1)[0]
+    assert 'data-role="aviso-alcance-enmascarado"' in bloque, (
+        "el aviso existe pero NO esta dentro del bloque de relaciones: si cae "
+        "mas abajo, el lector ya ha pasado por las relaciones sin verlo"
+    )
 
 
 def test_el_proveedor_crudo_de_neo4j_solo_es_alcanzable_por_el_filtrado(real_app):
@@ -688,18 +702,54 @@ def test_el_proveedor_crudo_de_neo4j_solo_es_alcanzable_por_el_filtrado(real_app
 
     for ruta in raiz.rglob("*.py"):
         arbol = ast.parse(ruta.read_text(encoding="utf-8"))
-        # Nombres ligados a un proveedor SIN filtrar en este modulo.
-        crudos = {"get_provider"}
+
+        # --- Nombres que en ESTE modulo designan al proveedor SIN filtrar.
+        # Se persigue el SIMBOLO IMPORTADO, con alias incluido, y no solo la
+        # cadena "get_provider". La version anterior miraba el nombre tal cual,
+        # y por eso este escape pasaba con rc=0 y las dos mitades en verde:
+        #
+        #     from app.deps import get_provider as _gp
+        #     prov = _gp()
+        #     prov.list_assertions(...)          # <- proveedor crudo, sin Depends
+        #
+        # Hoy no hay ningun sitio asi, pero `list_assertions` entrega material
+        # cross-partida A PROPOSITO, asi que es justo el invariante que no
+        # puede tener agujeros: lo que lo sostiene todo es que su unico
+        # llamador sea el proveedor filtrado.
+        crudos: set[str] = set()
+        for n in ast.walk(arbol):
+            if isinstance(n, ast.ImportFrom):
+                for alias in n.names:
+                    if alias.name == "get_provider":
+                        crudos.add(alias.asname or alias.name)
+            elif isinstance(n, ast.Import):
+                for alias in n.names:
+                    # `import app.deps as d` -> `d.get_provider(...)`
+                    if alias.name.endswith("deps"):
+                        crudos.add(alias.asname or alias.name.split(".")[0])
+
+        # --- Variables ligadas al RESULTADO de llamar a cualquiera de esos
+        # nombres: `prov = _gp()` hace de `prov` un proveedor crudo.
+        for n in ast.walk(arbol):
+            if not isinstance(n, ast.Assign) or not isinstance(n.value, ast.Call):
+                continue
+            f = n.value.func
+            nombre = getattr(f, "id", None) or getattr(f, "attr", None)
+            if nombre in crudos or nombre == "get_provider":
+                for t in n.targets:
+                    if isinstance(t, ast.Name):
+                        crudos.add(t.id)
+
         for n in ast.walk(arbol):
             if isinstance(n, ast.Call) and getattr(n.func, "attr", None) == "list_assertions":
                 llamadas_totales += 1
-                receptor = n.func.value
                 # `self._base.list_assertions(...)` dentro del provider
                 # filtrado es EL llamador legitimo.
                 if ruta.name == "filtered_provider.py":
                     continue
+                receptor = n.func.value
                 nombre = getattr(receptor, "id", None) or getattr(receptor, "attr", None)
-                if nombre in crudos:
+                if nombre in crudos or nombre == "get_provider":
                     infractores.append(f"{ruta}:{n.lineno} ({nombre})")
 
     # Control positivo: si la sonda no encuentra NINGUNA llamada, no esta
@@ -826,12 +876,23 @@ def test_los_proveedores_reales_implementan_list_assertions():
     # `GraphProvider`. Un doble no tiene por que leer hechos, asi que exigirselo
     # habria sido un rojo por la causa equivocada -- y un rojo por la causa
     # equivocada se lee igual que uno legitimo.
+    # `__subclasses__()` solo ve subclases DIRECTAS: un proveedor que heredara
+    # de otro proveedor (o de una base intermedia) no aparecia, y se le habria
+    # exigido nada en silencio. Se recorre el arbol entero.
+    #
+    # `PolicyFilteredProvider` NO necesita excluirse por nombre: vive en
+    # `app.authz.filtered_provider`, asi que el acotado por modulo ya lo deja
+    # fuera. La exclusion por nombre que habia era redundante, y una condicion
+    # redundante en una red es peor que inutil -- invita a creer que ahi se
+    # decide algo.
+    def _descendientes(clase):
+        for hija in clase.__subclasses__():
+            yield hija
+            yield from _descendientes(hija)
+
     concretos = [
-        c for c in GraphProvider.__subclasses__()
+        c for c in _descendientes(GraphProvider)
         if c.__module__.startswith("app.providers.")
-        # `PolicyFilteredProvider` es un ENVOLTORIO, no una fuente: su trabajo
-        # es delegar y filtrar, no leer del almacen.
-        and c.__name__ != "PolicyFilteredProvider"
     ]
     assert concretos, "la sonda no descubrio ningun proveedor: no mide"
 
