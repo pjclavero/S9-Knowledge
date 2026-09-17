@@ -459,6 +459,19 @@ LECTURAS_DE_CONTENIDO = {"read_text", "read_bytes", "read", "readline",
                          "readlines", "open"}
 
 
+def test_main_imprime_su_propio_recuento(entorno, monkeypatch, capsys):
+    """Lo que no imprime la maquina se cuenta a mano, y a mano ya salio mal."""
+    for clave, valor in entorno.items():
+        monkeypatch.setenv(clave, valor)
+    pf.main(["--workspace", WS])
+    salida = capsys.readouterr().out
+    linea = next(l for l in salida.splitlines() if l.startswith("RECUENTO"))
+    assert f"TOTAL {len(pf.COMPROBACIONES)}" in linea
+    for estado in (pf.ROJO, pf.PENDIENTE, pf.VERDE):
+        esperado = sum(1 for l in salida.splitlines() if l.startswith(estado))
+        assert f"{estado} {esperado}" in linea
+
+
 def test_main_no_imprime_el_secreto(entorno, monkeypatch, capsys):
     """`main()` entero, con la salida capturada. Incluye el veredicto."""
     for clave, valor in entorno.items():
@@ -497,6 +510,28 @@ def test_otro_arbol_da_rojo(entorno):
     """
     entorno["S9K_ENSAYO_COMMIT"] = "0" * 40
     assert _correr(entorno)["arbol.declarado"].estado == pf.ROJO
+
+
+@pytest.mark.parametrize("declarado", ["e", "e7", "e75f19", "no-es-un-sha", "zzzzzzz"])
+def test_un_commit_truncado_o_no_hexadecimal_da_rojo(entorno, declarado):
+    """La misma puerta degenerada que `S9K_STATE_ROOT=/`, y en el punto cuya
+    razon de ser es que el arbol no mienta: un prefijo de un caracter casaba
+    con cualquier arbol cuyo HEAD empezara por el, y salia VERDE.
+    """
+    entorno["S9K_ENSAYO_COMMIT"] = declarado
+    assert _correr(entorno)["arbol.declarado"].estado == pf.ROJO
+
+
+def test_el_commit_declarado_en_mayusculas_es_verde(entorno):
+    """Direccion segura, pero un falso rojo es ruido evitable."""
+    entorno["S9K_ENSAYO_COMMIT"] = (pf._head_del_arbol() or "").upper()
+    assert _correr(entorno)["arbol.declarado"].estado == pf.VERDE
+
+
+def test_un_prefijo_legitimo_es_verde(entorno):
+    """Siete digitos bastan: es lo que identifica un commit, no una letra."""
+    entorno["S9K_ENSAYO_COMMIT"] = (pf._head_del_arbol() or "")[:7]
+    assert _correr(entorno)["arbol.declarado"].estado == pf.VERDE
 
 
 def test_arbol_sin_declarar_queda_pendiente(entorno):

@@ -85,6 +85,11 @@ VALORES_ENCENDIDO = frozenset({"true", "1"})
 #: secretos -> fichero 0600 -> stdin -> variable efimera).
 SECRETOS_EN_ENTORNO = ("S9K_NEO4J_PASSWORD",)
 
+#: Digitos hexadecimales minimos para que `S9K_ENSAYO_COMMIT` identifique UN
+#: commit. Menos que esto es una puerta degenerada: casa por prefijo con
+#: arboles que no son el declarado y sale verde sin verificar nada.
+LONGITUD_MINIMA_DEL_COMMIT = 7
+
 
 @dataclass(frozen=True)
 class Resultado:
@@ -621,11 +626,21 @@ def arbol_declarado(ctx: Contexto) -> Resultado:
     arbol equivocado da un veredicto sobre un producto que no es el que se va a
     desplegar, y no se distingue de uno bueno.
     """
-    esperado = (ctx.env.get("S9K_ENSAYO_COMMIT") or "").strip()
+    esperado = (ctx.env.get("S9K_ENSAYO_COMMIT") or "").strip().lower()
     if not esperado:
         return Resultado("arbol.declarado", PENDIENTE,
                          "S9K_ENSAYO_COMMIT sin declarar: no hay contra que "
                          "comparar el arbol desde el que se ejecuta")
+    # LA MISMA PUERTA DEGENERADA QUE `S9K_STATE_ROOT=/`, y en el punto cuya
+    # razon de ser es que el arbol no mienta: `S9K_ENSAYO_COMMIT='e'` casaba por
+    # prefijo con cualquier arbol cuyo HEAD empiece por 'e' y salia VERDE sin
+    # verificar nada. Se exige un prefijo que identifique de verdad.
+    if len(esperado) < LONGITUD_MINIMA_DEL_COMMIT or any(
+            c not in "0123456789abcdef" for c in esperado):
+        return Resultado("arbol.declarado", ROJO,
+                         "S9K_ENSAYO_COMMIT no es un commit: se exigen al menos "
+                         f"{LONGITUD_MINIMA_DEL_COMMIT} digitos hexadecimales, y un "
+                         "prefijo mas corto casaria con arboles que no son el declarado")
     obtenido = _head_del_arbol()
     if obtenido is None:
         return Resultado("arbol.declarado", PENDIENTE,
@@ -733,6 +748,14 @@ def main(argv: Optional[list] = None) -> int:
     ancho = max(len(r.id) for r in resultados)
     for r in resultados:
         print(f"{r.estado:<9} {r.id:<{ancho}}  {r.detalle}")
+
+    # EL RECUENTO LO DA LA MAQUINA. Se imprime porque lo que no se imprime se
+    # cuenta a mano, y un recuento a mano ya salio mal dos veces seguidas en un
+    # informe. Aqui no hay nada que contar: esta escrito.
+    recuento = {estado: sum(1 for r in resultados if r.estado == estado)
+                for estado in (ROJO, PENDIENTE, VERDE)}
+    print("\nRECUENTO  " + " · ".join(f"{k} {v}" for k, v in recuento.items())
+          + f" · TOTAL {len(resultados)}")
 
     codigo = codigo_de_salida(resultados)
     veredicto = {0: "APTO para empezar el ensayo",

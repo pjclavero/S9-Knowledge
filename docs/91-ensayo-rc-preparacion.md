@@ -55,7 +55,7 @@ python3 deploy/scripts/preflight_ensayo_rc.py --workspace <ws>
 | Punto | Cómo se observa | Calibrado |
 | --- | --- | --- |
 | `canario` | sondeo con respuesta conocida: **tiene que dar ROJO**; si no, el guion aborta sin juzgar nada | sí |
-| `arbol.declarado` | el `HEAD` real del árbol (leído de `.git`, sin invocar `git`) contra `S9K_ENSAYO_COMMIT` | sí (otro commit, sin declarar, HEAD ilegible) |
+| `arbol.declarado` | el `HEAD` real del árbol (leído de `.git`, sin invocar `git`) contra `S9K_ENSAYO_COMMIT`, que tiene que ser un commit (≥7 hex) | sí (otro commit, prefijo truncado, no hexadecimal, sin declarar, HEAD ilegible) |
 | `fuentes.pobladas` | se pide el catálogo **del producto** (`sources_catalog.listar_fuentes`) y se cuenta | sí |
 | `paneles.por_letra` | B, C, F, G con un valor que el chasis acepta (`true`/`1`, nada más) | sí (una por letra + valor inválido) |
 | `paneles.sin_nombres` | ninguna `S9K_PANEL_*_ENABLED` fuera del contrato por letra | sí |
@@ -94,6 +94,17 @@ desplegar**, y desde fuera no se distingue de uno bueno. `arbol.declarado`
 compara el `HEAD` real —leído de `.git`, también el de un *worktree* enlazado,
 **sin invocar `git`**— con `S9K_ENSAYO_COMMIT`. Sin declarar, PENDIENTE; y
 PENDIENTE bloquea.
+
+`S9K_ENSAYO_COMMIT` tiene que **ser un commit**: al menos siete dígitos
+hexadecimales. La primera versión comparaba por prefijo sin mínimo, así que
+`S9K_ENSAYO_COMMIT=e` daba **VERDE** sobre cualquier árbol cuyo `HEAD` empezara
+por `e` — la misma puerta degenerada que `S9K_STATE_ROOT=/`, y precisamente en
+el punto que existe para que el árbol no mienta. Las mayúsculas se normalizan:
+un falso rojo es dirección segura, pero es ruido evitable.
+
+El guion **imprime su propio recuento** (`RECUENTO  ROJO n · PENDIENTE n ·
+VERDE n · TOTAL n`). Lo que no imprime la máquina se cuenta a mano, y a mano ya
+salió mal dos veces seguidas.
 
 ### La comprobación que hoy bloquea
 
