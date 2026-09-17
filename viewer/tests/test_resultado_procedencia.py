@@ -1215,11 +1215,16 @@ def test_todo_materializado_se_declara_COMPLETO():
     )
     res = _resultado(lec, espia)
 
-    if not (res.entidades.filas and res.relaciones.filas and res.hechos.filas):
-        pytest.skip(
-            "el doble del lector ya no produce las tres secciones con "
-            "contenido: este control positivo hay que rehacerlo, no relajarlo"
-        )
+    # SIN VALVULA DE ESCAPE. Aqui habia un `pytest.skip` para el caso de que
+    # el doble dejara de producir las tres secciones. Un `skipped` NO es verde,
+    # y este es el UNICO caso capaz de afirmar `COMPLETO`: si se auto-omitiera,
+    # `materializacion` podria devolver "no disponible" siempre y toda la
+    # correccion del `partial` seguiria en verde sin decir nada.
+    assert res.entidades.filas and res.relaciones.filas and res.hechos.filas, (
+        "el doble del lector ya no produce las tres secciones con contenido, "
+        "asi que este control positivo no esta ejerciendo lo que dice. Hay que "
+        "REHACERLO, no relajarlo ni omitirlo."
+    )
     assert res.materializacion == servicio.COMPLETO
     assert res.frase_materializacion == "completo"
 
@@ -1259,3 +1264,143 @@ def test_la_pantalla_de_resultado_NO_consulta_el_plan_sellado():
     }
     assert not {c for c in llamadas
                 if "last_plan" in c or "sealed_plan" in c}, llamadas
+
+
+# ===========================================================================
+# LA PANTALLA, PEDIDA DE VERDAD — el testigo que faltaba
+# ===========================================================================
+#
+# POR QUE EXISTE ESTE BLOQUE. Los casos de arriba miden la PROPIEDAD
+# `Resultado.materializacion`. Ninguno RENDERIZA la pagina, y eso se pago:
+# borrando del template el bloque entero de la cabecera visible
+# --`<dt>Plan completo</dt>` con `data-field="materializacion"`-- la suite
+# entera del visor seguia en VERDE. Un falso verde demostrado sobre la UNICA
+# superficie de operador que este corte toca.
+#
+# Aqui se pide la ruta real (`/panel/resultado/{apply_id}`) con la plantilla
+# real, la puerta de rol real y el interruptor real. NO hace falta navegador
+# --el contrato de navegador no corre en esta maquina-- porque lo que se
+# comprueba es el MARCADO que el servidor emite, enumerado.
+#
+# Lo que este bloque NO mide: autorizacion. `get_filtered_provider` se
+# sustituye entero a proposito, asi que la cadena de politica no se atraviesa.
+# Eso se mide en `test_resultado_procedencia_neo4j_real.py`, contra grafo real.
+
+FLAG_RESULTADO = "S9K_PANEL_RESULTADO_ENABLED"
+CLAVE_PANTALLA = "CorteCincoPantalla_1234567890!"
+
+
+@pytest.fixture
+def entorno_pantalla(tmp_path, monkeypatch):
+    from app.auth.config import get_auth_settings
+    from app.config import get_settings
+
+    monkeypatch.setenv("S9K_DEFAULT_WORKSPACE", WS)
+    monkeypatch.setenv("S9K_AUTH_ENABLED", "true")
+    monkeypatch.setenv("S9K_AUTH_DB_PATH", str(tmp_path / "auth.db"))
+    monkeypatch.setenv(FLAG_RESULTADO, "true")
+    get_settings.cache_clear()
+    get_auth_settings.cache_clear()
+
+    from app.auth import db as auth_db
+
+    auth_db.ensure_migrated(tmp_path / "auth.db")
+    yield tmp_path / "auth.db"
+
+    get_settings.cache_clear()
+    get_auth_settings.cache_clear()
+
+
+def _pantalla(entorno_pantalla, lector, proveedor, monkeypatch):
+    """La pagina REAL para ese resultado, como HTML servido."""
+    from fastapi.testclient import TestClient
+
+    from app.auth import db as auth_db
+    from app.auth.config import get_auth_settings
+    from app.auth.passwords import hash_password
+    from app.auth.sessions import create_session
+    from app.authz.dependencies import get_filtered_provider
+    from app.main import app
+    from app.routers import resultado as ruta_resultado
+
+    with auth_db.get_conn(entorno_pantalla) as conn:
+        u = auth_db.create_user(
+            conn, username="corte5-lector", display_name="Corte5",
+            password_hash=hash_password(CLAVE_PANTALLA), role="admin")
+        auth_db.update_user(conn, u.id, must_change_password=False)
+        u = auth_db.get_user_by_id(conn, u.id)
+        token, _ = create_session(conn, u)
+
+    # El LECTOR de procedencia se sustituye donde la ruta lo resuelve.
+    monkeypatch.setattr(ruta_resultado, "reader_for", lambda _p: lector)
+    app.dependency_overrides[get_filtered_provider] = lambda: proveedor
+    try:
+        cliente = TestClient(app, raise_server_exceptions=False,
+                             follow_redirects=False)
+        cliente.cookies.set(
+            get_auth_settings().S9K_SESSION_COOKIE_NAME, token)
+        return cliente.get(f"/panel/resultado/{APPLY}",
+                           params={"workspace": WS})
+    finally:
+        app.dependency_overrides.pop(get_filtered_provider, None)
+
+
+def test_la_pantalla_DECLARA_que_el_plan_no_esta_completo(
+    entorno_pantalla, monkeypatch
+):
+    """EL CASO DEL DEFECTO, ya en el HTML que el operador recibe.
+
+    Marcas registradas y ni una fila en los tres bloques. Antes esto se pintaba
+    como un vacio legitimo. Ahora la cabecera lo dice, y se comprueba sobre el
+    marcado servido: el atributo de estado Y el texto que lo acompaña.
+    """
+    lector = LectorFalso(entidades=[], aristas=[], aserciones=[])
+    r = _pantalla(entorno_pantalla, lector, ProveedorEspia(visibles=[]), monkeypatch)
+
+    assert r.status_code == 200, r.status_code
+    assert 'data-field="materializacion"' in r.text, (
+        "la cabecera de la pantalla ya no publica el grado de "
+        "materializacion: el `0` de los bloques vuelve a leerse como un vacio "
+        "legitimo, que es EL defecto que este corte cierra"
+    )
+    assert 'data-materializacion="NO_DISPONIBLE"' in r.text, r.text[:400]
+    assert "Plan completo" in r.text
+    assert "no disponible" in r.text
+
+
+def test_la_pantalla_nombra_las_marcas_por_lo_que_son(
+    entorno_pantalla, monkeypatch
+):
+    """«Operaciones aplicadas» afirmaba de mas; «Marcas registradas» no.
+
+    Una marca registrada no garantiza que lo que sostenia siga ahi. El
+    renombrado es la otra mitad de la correccion y hasta ahora tampoco lo
+    guardaba ningun testigo.
+    """
+    lector = LectorFalso(entidades=[], aristas=[], aserciones=[])
+    r = _pantalla(entorno_pantalla, lector, ProveedorEspia(visibles=[]), monkeypatch)
+
+    assert r.status_code == 200, r.status_code
+    assert "Marcas registradas" in r.text, (
+        "la pantalla ha vuelto a llamar «Operaciones aplicadas» a las marcas"
+    )
+    assert "Operaciones aplicadas" not in r.text, (
+        "sigue el rotulo que afirmaba de mas"
+    )
+
+
+def test_la_pantalla_dice_PARCIAL_cuando_solo_falta_una_parte(
+    entorno_pantalla, monkeypatch
+):
+    """CONTROL POSITIVO del anterior: la pantalla sabe decir otra cosa.
+
+    Sin este, `data-materializacion="NO_DISPONIBLE"` podria estar cableado en
+    la plantilla y el caso de arriba seguiria verde.
+    """
+    lector = LectorFalso(entidades=["entity:visible"], aristas=[], aserciones=[])
+    r = _pantalla(entorno_pantalla, lector,
+                  ProveedorEspia(visibles=["entity:visible"]), monkeypatch)
+
+    assert r.status_code == 200, r.status_code
+    assert 'data-materializacion="PARCIAL"' in r.text, r.text[:400]
+    assert "parcial" in r.text

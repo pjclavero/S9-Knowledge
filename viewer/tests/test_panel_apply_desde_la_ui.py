@@ -323,6 +323,27 @@ def _bloque_plan(html: str) -> dict:
     }
 
 
+#: Los dos acuses con los que el sellado puede terminar BIEN. El plan queda
+#: sellado en los dos casos; se diferencian en si alguna relacion aprobada se
+#: ha quedado sin proyectar, y eso el operador tiene que verlo (Corte 5).
+SELLADO_OK = {"PLAN_SEALED", "PLAN_SEALED_SIN_PROYECCION"}
+
+
+def _sellado_ok(respuesta) -> str:
+    """El acuse del sellado, exigiendo que sea UNO DE LOS DOS de exito.
+
+    Los casos que usan esto no vienen a medir la proyeccion: miden supersesion,
+    cadena de auditoria, CSRF o permisos. Lo que necesitan es que el sellado
+    haya ido bien, no CUAL de los dos desenlaces salio.
+
+    Y sigue siendo una asercion, no un comodin: un `PLAN_NOT_SEALED`, un
+    `SEAL_CONFLICT` o cualquier codigo de error enrojece aqui igual que antes.
+    """
+    aviso = _aviso_de(respuesta)
+    assert aviso in SELLADO_OK, f"el sellado no termino bien: {aviso!r}"
+    return aviso
+
+
 def _sellar(operador, job_id: str):
     return operador.post(
         "/panel/operations/planes",
@@ -550,7 +571,7 @@ def test_el_revisor_ve_la_corrida_pero_no_puede_aplicarla(
     que aquí se comprueba que NO ocurre.
     """
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    _sellado_ok(_sellar(operador, job_id))
     assert _filas_de_plan(almacenes["base"])[0]["state"] == "sealed"
 
     from app.config import get_settings
@@ -593,7 +614,7 @@ def test_un_csrf_invalido_para_la_aplicacion_aunque_el_rol_sea_admin(
 ):
     """El mismo control sobre la acción que escribe en el grafo."""
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    _sellado_ok(_sellar(operador, job_id))
     respuesta = operador.post("/panel/operations/aplicaciones",
                               data={"trabajo": job_id,
                                     "csrf_token": "token-falsificado"})
@@ -631,7 +652,7 @@ def test_sellar_deja_un_snapshot_vigente_y_la_pantalla_lo_dice(
     assert bloque["form_sellado"], "con algo aprobado hay que ofrecer prepararlo"
     assert not bloque["form_aplicacion"], "no se ofrece aplicar sin plan sellado"
 
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    _sellado_ok(_sellar(operador, job_id))
 
     filas = _filas_de_plan(almacenes["base"])
     assert len(filas) == 1, filas
@@ -669,7 +690,7 @@ def test_el_sellado_no_reejecuta_el_pipeline(
         ingest_cli, "run_ingest",
         lambda *a, **k: (llamadas.append(1), original(*a, **k))[1],
     )
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    _sellado_ok(_sellar(operador, job_id))
     assert llamadas == [], "sellar reejecutó el pipeline"
 
 
@@ -682,8 +703,8 @@ def test_sellar_dos_veces_no_deja_dos_planes_vigentes(
     (workspace, job_id) WHERE state='sealed'.
     """
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    _sellado_ok(_sellar(operador, job_id))
+    _sellado_ok(_sellar(operador, job_id))
 
     filas = _filas_de_plan(almacenes["base"])
     assert len(filas) == 2, filas
@@ -707,7 +728,7 @@ def test_cambiar_una_decision_tras_sellar_supersede_el_plan_v1(
     al cambiar una decisión dejaría de ser el snapshot de nada.
     """
     job_id, propuesta = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    _sellado_ok(_sellar(operador, job_id))
     antes = _filas_de_plan(almacenes["base"])[0]
     assert antes["state"] == "sealed"
 
@@ -742,7 +763,7 @@ def test_sin_declaracion_de_escritura_no_se_ofrece_ni_se_aplica(
 ):
     """503 conceptual: la dependencia no está y se dice con su código."""
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    _sellado_ok(_sellar(operador, job_id))
 
     monkeypatch.delenv("S9K_ALLOW_REAL_INGEST", raising=False)
     bloque = _bloque_plan(_panel(operador, job_id))
@@ -770,7 +791,7 @@ def test_la_pantalla_no_publica_conocimiento_interno(
     una ruta publicada.
     """
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    _sellado_ok(_sellar(operador, job_id))
 
     fila = _filas_de_plan(almacenes["base"])[0]
     documento = json.loads(fila["plan_json"])
@@ -932,7 +953,7 @@ def test_de_la_fuente_al_conocimiento_materializado_desde_la_ui(
     assert _afirmaciones(grafo, workspace) == [], "el grafo tiene que empezar vacío"
 
     job_id, propuesta = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    _sellado_ok(_sellar(operador, job_id))
 
     fila = _filas_de_plan(almacenes["base"])[0]
     documento = json.loads(fila["plan_json"])
@@ -978,7 +999,7 @@ def test_aplicar_dos_veces_no_duplica_conocimiento(
     """
     workspace = "ws-cofradia"
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    _sellado_ok(_sellar(operador, job_id))
     assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_APPLIED"
 
     primera = _afirmaciones(grafo, workspace)
@@ -1010,7 +1031,7 @@ def test_apply_consume_el_snapshot_y_no_lo_que_el_pipeline_diria_ahora(
     """
     workspace = "ws-cofradia"
     job_id, propuesta = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    _sellado_ok(_sellar(operador, job_id))
 
     documento = json.loads(_filas_de_plan(almacenes["base"])[0]["plan_json"])
     sellado = sorted(op["assertion_id"] for op in documento["mutation_operations"])
@@ -1205,7 +1226,7 @@ def test_si_el_proceso_muere_tras_reservar_no_se_afirma_conocimiento(
     monkeypatch.setenv("S9K_ALLOW_REAL_INGEST", "1")
     monkeypatch.setenv("S9K_WRITER_WORKSPACE", "ws-cofradia")
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    _sellado_ok(_sellar(operador, job_id))
 
     from app.services import v3_apply as servicio
 
@@ -1266,7 +1287,7 @@ def test_un_apply_que_no_escribe_invalida_el_plan_en_vez_de_resucitarlo(
     preparar de nuevo cuesta un clic y vuelve a leer las decisiones.
     """
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    _sellado_ok(_sellar(operador, job_id))
 
     monkeypatch.setenv("S9K_ALLOW_REAL_INGEST", "1")
     monkeypatch.setenv("S9K_WRITER_WORKSPACE", "ws-cofradia")
@@ -1298,7 +1319,7 @@ def test_el_sellado_queda_en_la_cadena_y_la_cadena_se_lee(
     from app.services.v3_review_store import SQLiteReviewStore
 
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    _sellado_ok(_sellar(operador, job_id))
 
     eventos = SQLiteReviewStore(almacenes["base"]).audit_events("ws-cofradia")
     tipos = [e["event_type"] for e in eventos]
@@ -1367,7 +1388,7 @@ def test_la_pantalla_dice_que_lo_escrito_no_queda_navegable(
         lambda self, mod, aprobadas, job_id: None,
     )
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    _sellado_ok(_sellar(operador, job_id))
     # El desenlace ya no es `PLAN_APPLIED`: sin procedencia alcanzable, un
     # apply no puede anunciarse como éxito completo.
     assert _aviso_de(_aplicar(operador, job_id)) == "APPLY_INCOMPLETE"
@@ -1465,7 +1486,7 @@ def test_desde_el_resultado_se_llega_a_la_evidencia_CORRECTA(
     """
     workspace = "ws-cofradia"
     job_id, propuesta = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    _sellado_ok(_sellar(operador, job_id))
 
     documento = json.loads(_fila_de_plan(almacenes["base"])["plan_json"])
     operaciones = documento["mutation_operations"]
@@ -1570,7 +1591,7 @@ def test_sin_paquete_de_procedencia_el_apply_NO_termina_como_exito(
         lambda self, mod, aprobadas, job_id: None,
     )
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    _sellado_ok(_sellar(operador, job_id))
 
     # CALIBRACIÓN DE LA MUTACIÓN: si el paquete siguiera publicándose, este
     # caso mediría otra cosa y saldría verde por el motivo equivocado.
@@ -1633,7 +1654,7 @@ def test_procedencia_de_otro_material_no_pone_verde_esta_afirmacion(
 
     monkeypatch.setattr(servicio.ReviewApplyService, "_procedencia", ajena)
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    _sellado_ok(_sellar(operador, job_id))
     assert _aviso_de(_aplicar(operador, job_id)) == "APPLY_INCOMPLETE"
 
     documento = json.loads(_fila_de_plan(almacenes["base"])["plan_json"])
@@ -1667,7 +1688,7 @@ def test_repetir_el_apply_no_duplica_la_procedencia(
     """La idempotencia se mide también en el volcado, no sólo en el plan."""
     workspace = "ws-cofradia"
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    _sellado_ok(_sellar(operador, job_id))
     assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_APPLIED"
 
     def foto() -> tuple:
@@ -1732,7 +1753,7 @@ def test_matar_el_volcado_deja_estado_PARCIAL_dicho_y_reconciliable(
     monkeypatch.setattr(apply_mod, "persist_provenance", volcado)
 
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
-    assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+    _sellado_ok(_sellar(operador, job_id))
     # CALIBRACIÓN: el paquete SÍ se selló. Lo que se mata es el volcado, no el
     # material; si no, este control sería el 2 otra vez.
     assert _fila_de_plan(almacenes["base"])["provenance_json"], (
@@ -2003,6 +2024,10 @@ def test_insignia_la_ui_proyecta_una_relacion_anclada_en_lo_OBSERVADO(
     job_id, _ = _aprobar_proyectable(
         operador, cola, almacenes, monkeypatch, fuente_proyectable, set(anclas)
     )
+    # SELLADO LIMPIO, y desde el Corte 5 eso AFIRMA algo: el acuse sólo es
+    # `PLAN_SEALED` a secas cuando NINGUNA relación aprobada se quedó sin
+    # proyectar. Si se hubiera quedado alguna, el panel diría
+    # `PLAN_SEALED_SIN_PROYECCION` y este caso lo vería.
     assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
 
     operaciones = _operaciones_del_plan(almacenes["base"])
@@ -2100,8 +2125,15 @@ def test_control_con_driver_None_la_relacion_se_cae_POR_NO_OBSERVAR(
             operador, cola, almacenes, monkeypatch, fuente_proyectable,
             set(anclas),
         )
-        # (1) NADA MÁS SE HA ROTO.
-        assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED"
+        # (1) NADA MÁS SE HA ROTO, **Y EL OPERADOR SE ENTERA**.
+        #
+        # Las dos mitades importan. Que el sellado termine bien descarta que
+        # este rojo venga de otro sitio; y que el acuse sea
+        # `PLAN_SEALED_SIN_PROYECCION` --y no `PLAN_SEALED` a secas-- es lo que
+        # convierte la omisión en algo que una persona ve. Antes del Corte 5
+        # esto era un `PLAN_SEALED` limpio con cero proyecciones: cierto y
+        # engañoso a la vez.
+        assert _aviso_de(_sellar(operador, job_id)) == "PLAN_SEALED_SIN_PROYECCION"
 
     operaciones = _operaciones_del_plan(almacenes["base"])
     assert operaciones, (
@@ -2357,3 +2389,56 @@ def test_los_codigos_nuevos_los_sabe_pintar_el_panel():
         assert codigo in panel_errors.CATALOGO, (
             f"{codigo} sale del worker y el panel no tiene frase para él"
         )
+
+
+def test_una_URI_con_esquema_no_soportado_es_PERMANENTE(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch, tmp_path,
+    _grafo_de_mentira
+):
+    """Un defecto de DECLARACIÓN no se puede disfrazar de indisponibilidad.
+
+    `http://` no es un esquema que el controlador soporte, y nadie lo va a
+    corregir entre el primer intento y el tercero. Antes salía
+    `GRAPH_OBSERVATION_UNAVAILABLE`, que es REINTENTABLE y cuya frase dice
+    «puedes volver a intentarlo cuando el grafo responda»: un consejo falso que
+    además gasta los tres intentos del worker mientras la pantalla sigue
+    diciendo que el trabajo está en la cola.
+    """
+    _sin_doble(monkeypatch, _grafo_de_mentira)
+    fichero = tmp_path / "clave-esquema"
+    fichero.write_text("lo-que-sea", encoding="utf-8")
+    fichero.chmod(0o600)
+    monkeypatch.setenv("S9K_NEO4J_URI", "http://127.0.0.1:7687")
+    monkeypatch.setenv("S9K_NEO4J_USER", "neo4j")
+    monkeypatch.setenv("S9K_NEO4J_PASSWORD_FILE", str(fichero))
+
+    job = _ingesta_fallida(operador, cola, monkeypatch)
+
+    assert job["error_message"].startswith("GRAPH_OBSERVATION_UNCONFIGURED:"), (
+        f"una URI con esquema no soportado sigue clasificándose mal: "
+        f"{job['error_message']!r}"
+    )
+
+
+def test_una_credencial_rechazada_por_el_servidor_es_PERMANENTE(monkeypatch):
+    """Usuario o contraseña que el servidor rechaza: el grafo responde BIEN.
+
+    Lo que está mal es lo declarado, así que reintentar no lo arregla. Se mide
+    sobre el clasificador y por CLASE de excepción --no por el texto del
+    mensaje, que cambia entre versiones del controlador-- que es exactamente
+    como lo decide el producto.
+    """
+    from neo4j.exceptions import AuthError, ConfigurationError, ServiceUnavailable
+
+    from jobs.handlers import ingest_v3
+
+    assert ingest_v3._clasificar(AuthError("credencial rechazada")) == \
+        "GRAPH_OBSERVATION_UNCONFIGURED"
+    assert ingest_v3._clasificar(ConfigurationError("esquema raro")) == \
+        "GRAPH_OBSERVATION_UNCONFIGURED"
+    # EL CONTROL POSITIVO: lo que SÍ es transitorio se queda reintentable.
+    # Sin esto, clasificarlo TODO como permanente pasaría igual de verde.
+    assert ingest_v3._clasificar(ServiceUnavailable("el grafo no responde")) == \
+        "GRAPH_OBSERVATION_UNAVAILABLE"
+    assert ingest_v3._clasificar(RuntimeError("cualquier otra cosa")) == \
+        "GRAPH_OBSERVATION_UNAVAILABLE"

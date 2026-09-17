@@ -172,6 +172,39 @@ def _ruta(valor: Any, *, campo: str) -> Path:
         raise IngestV3Error("SOURCE_PACKAGE_INVALID") from exc
 
 
+def _clasificar(exc: BaseException) -> str:
+    """DECLARACION o INDISPONIBILIDAD. La diferencia es el consejo que se da.
+
+    `GRAPH_OBSERVATION_UNAVAILABLE` es REINTENTABLE y su frase dice "puedes
+    volver a intentarlo cuando el grafo responda". Darsela a un defecto que no
+    puede cambiar es un consejo FALSO, y ademas gasta los tres intentos del
+    worker mientras la pantalla dice que el trabajo sigue en la cola.
+
+    Dos defectos que salian mal clasificados y son PERMANENTES:
+
+    * `ConfigurationError` -- una URI con un esquema que el controlador no
+      soporta (`http://`, medido). Nadie la va a corregir entre dos intentos.
+    * `AuthError` -- usuario o contrasena que el servidor rechaza. El grafo
+      responde perfectamente; lo que esta mal es lo declarado.
+
+    Todo lo demas --`ServiceUnavailable`, tiempos de espera, DNS, el
+    controlador ausente-- se queda reintentable, que es lo correcto cuando no
+    se puede afirmar que el defecto sea permanente.
+
+    Se compara por CLASE, no por el texto del mensaje: un mensaje cambia entre
+    versiones del controlador y un `in` sobre el texto daria falsos negativos
+    silenciosos. Si `neo4j` no esta instalado no hay nada que clasificar y la
+    respuesta honesta es la reintentable.
+    """
+    try:
+        from neo4j.exceptions import AuthError, ConfigurationError
+    except Exception:  # noqa: BLE001 - sin controlador no hay clases que mirar
+        return "GRAPH_OBSERVATION_UNAVAILABLE"
+    if isinstance(exc, (AuthError, ConfigurationError)):
+        return "GRAPH_OBSERVATION_UNCONFIGURED"
+    return "GRAPH_OBSERVATION_UNAVAILABLE"
+
+
 def _driver_de_observacion() -> Any:
     """Abre la conexion de SOLO LECTURA con la que la corrida observa el grafo.
 
@@ -207,14 +240,16 @@ def _driver_de_observacion() -> Any:
         raise IngestV3Error("GRAPH_OBSERVATION_UNCONFIGURED") from exc
     except Exception as exc:  # noqa: BLE001 - controlador ausente o caido
         log.exception("no se pudo abrir la conexion de observacion al grafo")
-        raise IngestV3Error("GRAPH_OBSERVATION_UNAVAILABLE") from exc
+        raise IngestV3Error(_clasificar(exc)) from exc
     try:
         # SE COMPRUEBA ANTES DE EXTRAER. Sin esto, un grafo inalcanzable no se
         # notaria hasta la consulta del catalogo, ya gastada la extraccion
-        # entera; y el error de ahi viaja dentro de un `PipelineError`, que
-        # este handler traduce a `SOURCE_PACKAGE_INVALID` -- es decir, el
-        # operador leeria "la fuente no es valida" cuando la fuente esta bien y
-        # lo que falla es el grafo. Un rojo por la causa equivocada.
+        # entera; y el fallo de ahi sale del `except` de abajo como
+        # `INGEST_FAILED` (MEDIDO: `ServiceUnavailable` no esta en la lista de
+        # traduccion, asi que cae en el generico). Es decir, el operador leeria
+        # "la ingesta no ha terminado correctamente" cuando lo que pasa es que
+        # el grafo no responde, y no sabria que reintentar sirve. Un rojo por
+        # la causa equivocada.
         driver.verify_connectivity()
     except Exception as exc:  # noqa: BLE001
         log.exception("el grafo no respondio a la comprobacion de conectividad")
@@ -222,7 +257,7 @@ def _driver_de_observacion() -> Any:
             driver.close()
         except Exception:  # noqa: BLE001 - cerrar no puede tapar el motivo real
             log.warning("no se pudo cerrar el driver tras el fallo", exc_info=True)
-        raise IngestV3Error("GRAPH_OBSERVATION_UNAVAILABLE") from exc
+        raise IngestV3Error(_clasificar(exc)) from exc
     return driver
 
 

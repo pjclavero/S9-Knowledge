@@ -373,6 +373,28 @@ ACUSES_DE_EXITO = {
         "Lo aprobado de esta ingesta ya está preparado. Revísalo abajo y, si "
         "es lo que quieres, añádelo al conocimiento."
     ),
+    # EL SELLADO QUE DEJA RELACIONES FUERA, DICHO EN LA PANTALLA
+    # (Slice 2 · Corte 5).
+    #
+    # `sellar()` devuelve `sin_proyeccion` desde el Corte anterior, y hasta
+    # ahora esa lista iba SOLO al log del servidor y a auditoría. El operador
+    # recibía un `PLAN_SEALED` limpio y cerraba la pantalla creyendo que lo que
+    # aprobó estaba entero.
+    #
+    # Antes del Corte 5 eso pasaba SIEMPRE --ninguna proyección se emitía
+    # nunca-- y ahora pasa A VECES, que es peor de detectar: el operador que ve
+    # funcionar el caso normal no tiene motivo para sospechar del que no.
+    #
+    # No se pinta el motivo interno (`PROJECTION_*`): esos códigos son del
+    # motor y no son para una persona. Se dice QUÉ se ha perdido y qué hacer.
+    "PLAN_SEALED_SIN_PROYECCION": (
+        "Lo aprobado de esta ingesta ya está preparado, PERO alguna de las "
+        "relaciones que aprobaste no se va a añadir: no se ha podido "
+        "comprobar contra el conocimiento que ya existe a qué apuntan. Lo "
+        "demás sí se añadirá. Si esperabas esas relaciones, avisa a quien "
+        "administra el servicio antes de continuar; el detalle queda "
+        "registrado en el servidor."
+    ),
     "PLAN_APPLIED": (
         "Lo aprobado ya forma parte del conocimiento."
     ),
@@ -901,7 +923,15 @@ def sellar_plan(
         from app.services.v3_apply import ReviewApplyService  # noqa: PLC0415
 
         salida = ReviewApplyService().sellar(workspace=workspace, job_id=job_id)
-        return {"aviso": "PLAN_SEALED", **salida}
+        # EL ACUSE DICE EL DESENLACE ENTERO, no la mitad buena.
+        #
+        # `sin_proyeccion` no es un detalle técnico: es conocimiento que el
+        # operador aprobó y que NO va a llegar al grafo. Un `PLAN_SEALED`
+        # limpio en ese caso es cierto y engañoso a la vez -- el plan está
+        # sellado, sí, y le falta algo que el operador pidió.
+        aviso = ("PLAN_SEALED_SIN_PROYECCION" if salida.get("sin_proyeccion")
+                 else "PLAN_SEALED")
+        return {"aviso": aviso, **salida}
 
     return _accion(request, user, CAPACIDAD_SELLADO, trabajo, csrf_token, scope,
                    _ejecutar)
