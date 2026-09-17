@@ -693,6 +693,40 @@ def test_el_proveedor_crudo_de_neo4j_solo_es_alcanzable_por_el_filtrado(real_app
 
     Se comprueba por AST --no por `grep`--: lo que importa es una LLAMADA
     real, no que la cadena aparezca en un comentario o en un docstring.
+
+    ================== HASTA DONDE LLEGA ESTA RED, Y HASTA DONDE NO ==========
+
+    ESTO NO ES UNA PRUEBA DE IMPOSIBILIDAD. Es una sonda SINTACTICA sobre el
+    arbol: **no es analisis de flujo**. Reconoce las formas DIRECTAS --el
+    import del simbolo crudo, con alias incluido, y la variable ligada al
+    resultado de llamarlo-- y no cierra el aliasing en general, que es
+    indecidible. Se han plantado en produccion y EJECUTADO estas cuatro
+    indirecciones, y las cuatro pasan esta red EN VERDE:
+
+        a) `getattr`:   `_f = getattr(_d, "get_provider"); _f().list_assertions(...)`
+        b) atributo:    `self.prov = get_provider()`  (el Assign va a un
+                        Attribute, no a un Name, asi que no lo liga)
+        c) contenedor:  `reg = {"p": get_provider()}; reg["p"].list_assertions(...)`
+        d) argumento:   `def h(p): return p.list_assertions(...)`
+
+    Estan escritas aqui A PROPOSITO, y no se persiguen a proposito: cada
+    patron nuevo compra UN caso y deja el siguiente abierto, y una red cada
+    vez mas barroca se acaba leyendo como si fuera completa -- que es
+    exactamente el modo en que una red deja de proteger. Quien lea esta
+    prueba tiene que saber que la vigilancia humana sigue haciendo falta.
+
+    Lo que SI cierra es la clase con forma de ACCIDENTE: el router que se
+    inyecta el proveedor crudo, y quien lo llama y usa el resultado. Las
+    cuatro de arriba exigen saltarse la inyeccion DELIBERADAMENTE; ninguna se
+    comete sin querer. A dia de hoy no existe ni un sitio asi: sigue habiendo
+    un unico llamador, verificado.
+
+    EL CIERRE DE VERDAD ES ESTRUCTURAL Y NO ES UNA PRUEBA (deuda anotada, sin
+    implementar, fuera de este carril): hacer el proveedor crudo inalcanzable
+    POR CONSTRUCCION -- por ejemplo, que `list_assertions` EXIJA el contexto
+    de politica como argumento, de modo que llamarlo sin cascada no sea
+    siquiera expresable. Mientras eso no exista, esta red es una ayuda, no
+    una garantia.
     """
     import ast
 

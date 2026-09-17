@@ -1883,3 +1883,34 @@ La fila **M4** debe leerse: entregó el campo `local_override_of`, la razón
 `LOCAL_DIVERGENCE` y la consulta de enmascarado, **pero no su conexión al
 camino de lectura del producto**. Ese tramo lo cierra este carril, sobre
 aserciones y con la deuda de §12.4 declarada.
+
+### 12.6 Deuda: el llamador único se sostiene con una red sintáctica, no por construcción
+
+`Neo4jGraphProvider.list_assertions` entrega, **a propósito**, material
+candidato de todas las partidas del workspace: el enmascarado necesita ver a la
+vez el hecho de capa juego y la divergencia que lo sustituye, así que no puede
+acotar por partida en Cypher. La consecuencia es que **toda** la seguridad de
+esa lectura descansa en que su único llamador sea `PolicyFilteredProvider`.
+
+Hoy eso lo sostienen dos pruebas por AST (`test_el_proveedor_crudo_de_neo4j_
+solo_es_alcanzable_por_el_filtrado` y su gemela sobre `Depends`). **Y esas
+pruebas tienen un techo declarado**: son sondas *sintácticas*, no análisis de
+flujo. Cierran la clase con forma de accidente —el import del símbolo crudo,
+con alias, y la variable ligada a su resultado— y **no** cierran `getattr`,
+atributos de instancia, contenedores ni paso por argumento. Las cuatro
+indirecciones están enumeradas y ejecutadas en el docstring de esa prueba; las
+cuatro la pasan en verde.
+
+No se persiguen más patrones, y la razón es de método: cada patrón nuevo compra
+un caso y deja el siguiente abierto, mientras que una red cada vez más barroca
+**se lee como si fuera completa**, que es el modo en que una red deja de
+proteger. Es el mismo principio por el que se retiró de esa red una condición
+redundante, aplicado al revés: **lo que la red no puede ver también hay que
+escribirlo.**
+
+**Dirección propuesta para el cierre real** (estructural, código de producción,
+fuera del carril M): hacer el proveedor crudo **inalcanzable por
+construcción** — por ejemplo, que `list_assertions` **exija el contexto de
+política como argumento**, de modo que llamarlo sin cascada no sea siquiera
+expresable. Mientras eso no exista, las pruebas de arriba son una ayuda a la
+vigilancia, **no una garantía**.
