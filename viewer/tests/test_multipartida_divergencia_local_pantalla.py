@@ -56,10 +56,21 @@ SUJETO = "dios-sol"
 TEXTO_LORE = "el dios sol es benevolo con los navegantes"
 TEXTO_DIVERGENCIA_B = "en esta partida el dios sol exige sacrificios"
 TEXTO_SOLO_B = "el templo de Bryn arde desde la tercera sesion"
+TEXTO_LORE_2 = "el dios sol tiene un templo en la capital"
+TEXTO_DIVERGENCIA_A = "en esta partida el templo de la capital esta en ruinas"
 
 ID_LORE = "hecho-lore-dios-sol"
 ID_DIVERGENCIA_B = "hecho-partidaB-dios-sol"
 ID_SOLO_B = "hecho-partidaB-templo"
+#: Segundo hecho de lore, divergido por la OTRA partida. Existe por una razon
+#: medida: con una sola divergencia, el acotado "solo enmascara la partida
+#: ACTIVA" resultaba INDISTINGUIBLE de no acotar, porque la cascada ya retira
+#: el material de la otra partida antes de que el enmascarado lo vea. La
+#: mutacion que quitaba ese acotado SOBREVIVIA a la suite. Con dos
+#: divergencias cruzadas y un lector que ve las dos (admin), el acotado pasa a
+#: ser observable y la mutacion muere.
+ID_LORE_2 = "hecho-lore-templo-capital"
+ID_DIVERGENCIA_A = "hecho-partidaA-templo-capital"
 
 PARTIDA_A = "partida-A"
 PARTIDA_B = "partida-B"
@@ -100,14 +111,20 @@ def _hecho(
     return h
 
 
-#: El escenario del requisito, entero:
-#:   lore comun  -> ID_LORE          (capa juego, sin partida)
-#:   partida A   -> ninguna divergencia: debe seguir viendo el lore comun
-#:   partida B   -> ID_DIVERGENCIA_B, que apunta a ID_LORE
+#: El escenario del requisito, entero y CRUZADO:
+#:   lore comun -> ID_LORE   y   ID_LORE_2      (capa juego, sin partida)
+#:   partida A  -> diverge de ID_LORE_2, y NO de ID_LORE
+#:   partida B  -> diverge de ID_LORE,   y NO de ID_LORE_2
+#: Cruzarlas es lo que hace observable que cada partida solo se enmascara con
+#: LO SUYO: cada lector tiene, en la misma pagina, un hecho de lore que debe
+#: seguir viendo y otro que debe haber sido sustituido.
 HECHOS: tuple[dict, ...] = (
     _hecho(ID_LORE, texto=TEXTO_LORE),
+    _hecho(ID_LORE_2, texto=TEXTO_LORE_2),
     _hecho(ID_DIVERGENCIA_B, texto=TEXTO_DIVERGENCIA_B,
            partida_id=PARTIDA_B, local_override_of=ID_LORE, known_from_session=0),
+    _hecho(ID_DIVERGENCIA_A, texto=TEXTO_DIVERGENCIA_A,
+           partida_id=PARTIDA_A, local_override_of=ID_LORE_2, known_from_session=0),
     # Hecho privado de B SIN divergencia: sirve de control interno. Si una
     # prueba viera cero hechos en B, este distingue "enmascarado de mas" de
     # "la partida B no ve nada en absoluto".
@@ -295,20 +312,23 @@ def test_G1_la_divergencia_de_B_no_modifica_el_lore_comun(
 def test_G2_la_divergencia_de_B_no_cambia_lo_que_ve_A(
     real_app, con_proveedor, panel_on, auth_on
 ):
-    """A sigue viendo el lore comun, y NO la version de B."""
+    """A sigue viendo el lore comun que B ha divergido, y NO la version de B."""
     con_proveedor()
     cookie = _cookie(auth_on, "m_lectora_a", partida_id=PARTIDA_A)
     r = _ficha(real_app, cookie)
     assert r.status_code == 200
     vistos = _hechos_en_pantalla(r.text)
 
-    assert ID_LORE in vistos, "A debe seguir viendo el lore comun"
+    assert ID_LORE in vistos, "A debe seguir viendo el lore que diverge B"
     assert TEXTO_LORE in r.text
     # Lo de B no se le cruza NI como hecho ni como texto.
     assert ID_DIVERGENCIA_B not in vistos
     assert TEXTO_DIVERGENCIA_B not in r.text
     assert ID_SOLO_B not in vistos
     assert TEXTO_SOLO_B not in r.text
+    # Y su PROPIA divergencia si se le aplica: A no ve las dos versiones.
+    assert ID_DIVERGENCIA_A in vistos
+    assert ID_LORE_2 not in vistos
 
 
 def test_G3_B_ve_su_version_y_NO_ve_ademas_la_original(
@@ -334,6 +354,12 @@ def test_G3_B_ve_su_version_y_NO_ve_ademas_la_original(
     # Control interno: B no se ha quedado sin nada. Si viera cero hechos, la
     # afirmacion de arriba no distinguiria "enmascarado" de "no ve nada".
     assert ID_SOLO_B in vistos
+    # Y el lore que B NO ha divergido le sigue llegando entero: el enmascarado
+    # es puntual, no un apagon de la capa juego.
+    assert ID_LORE_2 in vistos
+    assert TEXTO_LORE_2 in r.text
+    # La divergencia de A no le llega ni le enmascara nada.
+    assert ID_DIVERGENCIA_A not in vistos
 
 
 def test_G4_la_divergencia_se_marca_como_tal_en_la_pantalla(
@@ -399,6 +425,44 @@ def test_control_negativo_la_partida_ajena_no_enmascara_a_nadie(
         r = _ficha(real_app, _cookie(auth_on, usuario, partida_id=partida))
         assert r.status_code == 200
         assert (ID_LORE in _hechos_en_pantalla(r.text)) is ve_lore
+
+
+def test_el_acotado_a_la_partida_activa_es_OBSERVABLE_con_un_lector_que_ve_todo(
+    real_app, con_proveedor, panel_on, auth_on
+):
+    """El enmascarado se indexa por la partida ACTIVA, y eso se puede ver ROJO.
+
+    POR QUE ESTA PRUEBA EXISTE, dicho sin adornos: la mutacion que quitaba el
+    acotado --enmascarar con la divergencia de CUALQUIER partida-- SOBREVIVIA
+    a esta suite. No porque el acotado no estuviera, sino porque para un lector
+    normal es INOBSERVABLE: la cascada ya retira el material de la otra partida
+    antes de que el enmascarado llegue a verlo, asi que acotar o no acotar da
+    el mismo resultado.
+
+    Un lector `admin_full` si ve el material de las dos partidas, y sobre el la
+    diferencia se mide: con el acotado puesto, un admin situado en la partida B
+    pierde ID_LORE (divergido por B) y CONSERVA ID_LORE_2 (divergido por A, que
+    no es su partida). Sin el acotado, perderia los dos.
+
+    Queda dicho lo que esto NO significa: el acotado no es lo que impide el
+    cruce cross-partida para un jugador --eso lo hace la cascada, y lo
+    comprueba la prueba de arriba--. Es defensa en profundidad, y ahora es
+    defensa en profundidad MEDIDA en vez de supuesta.
+    """
+    con_proveedor()
+    r = _ficha(real_app, _cookie(auth_on, "m_admin_en_b",
+                                 partida_id=PARTIDA_B, role="admin"))
+    assert r.status_code == 200
+    vistos = _hechos_en_pantalla(r.text)
+
+    # Ve las dos partidas: es admin_full. Sin esto, lo de abajo no mide nada.
+    assert ID_DIVERGENCIA_A in vistos and ID_DIVERGENCIA_B in vistos
+
+    assert ID_LORE not in vistos, "su partida activa (B) diverge de ID_LORE"
+    assert ID_LORE_2 in vistos, (
+        "ID_LORE_2 lo diverge la partida A, que NO es la partida activa: "
+        "una divergencia ajena no puede enmascarar"
+    )
 
 
 # ===========================================================================
