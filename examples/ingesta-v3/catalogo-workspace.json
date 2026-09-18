@@ -1,6 +1,6 @@
 {
   "workspace": "ws-cofradia",
-  "comentario": "Entidades que YA existen en el grafo del workspace. En produccion esto lo da Neo4j; aqui lo da un fichero porque el dry-run no abre conexiones. `provisional: true` significa que la entidad NO esta todavia en el grafo: entra en el glosario (para que el extractor sepa leer el nombre) pero NO en el catalogo del resolutor, que es exactamente lo que fuerza un CREATE en vez de un enlace.",
+  "comentario": "Entidades que YA existen en el grafo del workspace. Desde el Slice 2 - Corte 5 la ingesta del panel LEE estas entidades del grafo (solo lectura), y este fichero aporta el VOCABULARIO de identidad: como se llaman y por que alias se las puede alcanzar. Las dos fuentes se juntan para resolver y el grafo manda cuando el mismo id esta en las dos. Lo declarado aqui y AUSENTE del grafo no entra en el snapshot: sale como alta pendiente y espera a un humano. `provisional: true` significa que la entidad NO esta todavia en el grafo: entra en el glosario (para que el extractor sepa leer el nombre) pero NO en el catalogo del resolutor, que es exactamente lo que fuerza un CREATE en vez de un enlace.",
   "entities": [
     {"entity_id": "entity:sela-marrec", "type": "Character", "name": "Sela Marrec", "aliases": ["Sela"]},
     {"entity_id": "entity:cofradia-ambar", "type": "Faction", "name": "Cofradia de Ambar", "aliases": ["la Cofradia"]},

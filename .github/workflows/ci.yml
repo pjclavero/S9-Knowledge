@@ -267,13 +267,17 @@ jobs:
           # que hace peligrosa a una lista N+1: el descubridor sigue mandando,
           # y si la parte del visor del conjunto deja de ser EXACTAMENTE este
           # fichero, el paso se pone ROJO y dice que hay que anadirlo aqui.
-          esperado='viewer/tests/test_panel_apply_desde_la_ui.py'
+          # Slice 2 · Corte 5: entra el modulo que comprueba que la cuenta del
+          # worker es de SOLO LECTURA de verdad (rol Neo4j, prueba negativa
+          # calibrada). El orden es el que produce el descubridor, no uno
+          # elegido: por eso se compara contra su salida tal cual.
+          esperado=$'viewer/tests/test_corte5_credencial_solo_lectura_neo4j_real.py\nviewer/tests/test_panel_apply_desde_la_ui.py'
           if [ "$ficheros" != "$esperado" ]; then
             echo "::error::la parte del visor del conjunto descubierto ya no es exactamente '$esperado' (es: $ficheros). Anade el modulo nuevo a la invocacion de este paso: si no, su cobertura contra Neo4j real no existe en ningun job"
             exit 1
           fi
           set +e
-          out="$(python -m pytest viewer/tests/test_panel_apply_desde_la_ui.py -v --tb=short --no-header 2>&1)"
+          out="$(python -m pytest viewer/tests/test_corte5_credencial_solo_lectura_neo4j_real.py viewer/tests/test_panel_apply_desde_la_ui.py -v --tb=short --no-header 2>&1)"
           rc=$?
           set -e
           echo "$out"

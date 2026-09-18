@@ -28,6 +28,22 @@ RAIZ_REPO = pathlib.Path(__file__).resolve().parents[2]
 from app.providers import provenance_reader as lector
 from app.services import result_provenance as servicio
 
+
+# ---------------------------------------------------------------------------
+# GRAFO DE MENTIRA: este modulo no viene a medir la observacion del grafo
+# ---------------------------------------------------------------------------
+# Desde el Slice 2 · Corte 5 la ingesta del panel abre una conexion de solo
+# lectura a Neo4j y falla cerrado sin ella. Los casos de este modulo miden otra
+# cosa y corren sin Docker, asi que se les da un doble que responde a la
+# consulta del catalogo. Lo que NINGUNO de ellos puede afirmar por eso es que
+# el producto observe el grafo de verdad: eso se mide con Neo4j real.
+@pytest.fixture(autouse=True)
+def _grafo_de_mentira(monkeypatch):
+    import grafo_doble
+
+    return grafo_doble.instalar(monkeypatch)
+
+
 WS = "leyenda"
 OTRO_WS = "otro-mundo"
 APPLY = "apply:" + "a" * 32
@@ -797,30 +813,22 @@ def test_el_plan_de_la_interfaz_YA_PUEDE_proyectar_una_relacion():
     )
 
 
-def test_la_ingesta_DEL_PANEL_no_observa_el_ancla_asi_que_no_proyecta():
-    """POR QUE LA INSIGNIA SIGUE PARTIENDO DE LA INGESTA Y NO DE LA INTERFAZ.
+def test_la_ingesta_DEL_PANEL_YA_ABRE_EL_GRAFO_para_observar_el_ancla():
+    """EL DIA LLEGO (Slice 2 · Corte 5), Y ESTE TESTIGO CAMBIA DE LADO.
 
-    La proyeccion solo se emite si el ancla esta OBSERVADA
-    (`review_plan.py`: `PROJECTION_ANCHOR_NOT_OBSERVED`), y `observed=True` lo
-    pone UN SOLO SITIO en todo el motor: `graph_catalog.snapshot_entities`,
-    al que `run_ingest` solo llega cuando recibe un `driver`.
+    Hasta el Corte 5 este caso afirmaba lo contrario: que el manejador de
+    ingesta del panel llamaba a `run_ingest` con `driver=None` LITERAL, y que
+    por eso el ancla nunca salia observada y la proyeccion se omitia siempre
+    (`PROJECTION_ANCHOR_NOT_OBSERVED`). La nota que dejaba escrita decia que
+    cuando alguien le pasara un driver a esa llamada habria que darle la
+    vuelta. Esto es darsela.
 
-    MEDIDO sobre este arbol: el manejador de ingesta del panel
-    --`jobs/handlers/ingest_v3.py`, el unico camino por el que la interfaz
-    produce propuestas-- llama a `run_ingest` con `driver=None` LITERAL. Asi
-    que por la interfaz el ancla nunca se observa y la proyeccion se omite
-    siempre. Comprobado tambien end-to-end, fuera de esta prueba: las cuatro
-    anclas del sobre que produce ese camino salen con `observed: false`.
-
-    LA CAPACIDAD EXISTE Y NO SE ALCANZA. No es un defecto de B2 --su motor
-    hace lo correcto, y negarse a proyectar sobre un `state_hash` reconstruible
-    sin haber mirado el grafo es justo lo que protege la integridad-- sino una
-    COSTURA entre el motor y el manejador que lo invoca.
-
-    CUANDO ESTE CASO SE PONGA ROJO --porque alguien le pase un `driver` a esa
-    llamada-- la insignia de este carril YA PODRA partir de un apply de la
-    interfaz CON proyeccion, y habra que moverla. Ese es el dia, y esta es la
-    nota que lo dice.
+    LO QUE SE MIDE AQUI, Y LO QUE NO. Esto es AST: mide la FORMA del camino
+    --que la unica llamada al nucleo desde el panel recibe un driver, y no una
+    constante--. NO mide que el grafo se lea de verdad; eso es la insignia de
+    `test_panel_apply_desde_la_ui.py`, con Neo4j real. Los dos hacen falta: la
+    forma sola se podria cumplir pasando un objeto inerte, y el recorrido solo
+    no impediria que alguien devolviera manana el `None` literal.
     """
     import ast
 
@@ -846,13 +854,52 @@ def test_la_ingesta_DEL_PANEL_no_observa_el_ancla_asi_que_no_proyecta():
         "ingesta del panel: este testigo no esta mirando lo que cree mirar "
         "(se movio el manejador?)"
     )
-    sin_grafo = [(l, d) for l, d in llamadas if d in ("None", "AUSENTE (por defecto None)")]
-    assert sin_grafo == llamadas, (
-        f"la ingesta del panel YA abre el grafo en alguna llamada ({llamadas}). "
-        "Entonces el ancla puede salir OBSERVADA y el plan de la interfaz "
-        "puede proyectar de verdad: la prueba insignia de este carril ya puede "
-        "partir de un apply de la INTERFAZ con proyeccion, en vez de uno de "
-        "ingesta. Moverla y retirar esta nota."
+    sin_grafo = [(l, d) for l, d in llamadas
+                 if d in ("None", "'None'", "AUSENTE (por defecto None)")]
+    assert not sin_grafo, (
+        f"la ingesta del panel ha vuelto a llamar al nucleo sin grafo "
+        f"({sin_grafo}). Sin driver el ancla sale con `observed: false`, el "
+        "sellado omite TODA proyeccion con `PROJECTION_ANCHOR_NOT_OBSERVED` y "
+        "el operador aprueba relaciones que no llegan nunca al grafo, sin un "
+        "solo error por el camino. Es la regresion del Corte 5."
+    )
+
+
+def test_la_escritura_sigue_apagada_aunque_ahora_haya_conexion():
+    """EL CONTROL QUE IMPIDE QUE LO DE ARRIBA SE LEA COMO «YA ESCRIBE».
+
+    Abrir el grafo para LEER y escribir en el son dos decisiones distintas, y
+    en `run_ingest` van por caminos distintos: `writer_driver=driver if apply
+    else None`. Con `apply=False` el writer no ve la conexion ni existiendo.
+
+    Este caso ata la mitad que no se ha movido: que la llamada del panel sigue
+    pasando `apply=False` LITERAL. Si alguien lo cambia a una variable o a
+    `True`, esto se pone rojo y hay que volver a mirarlo, porque entonces la
+    frontera de confianza del worker ya no seria solo de lectura.
+    """
+    import ast
+
+    handler = (RAIZ_REPO / "data-engine" / "app" / "jobs" / "handlers"
+               / "ingest_v3.py")
+    arbol = ast.parse(handler.read_text(encoding="utf-8", errors="replace"))
+
+    aplicaciones = []
+    for nodo in ast.walk(arbol):
+        if isinstance(nodo, ast.Call):
+            nombre = getattr(nodo.func, "attr", None) or getattr(nodo.func, "id", None)
+            if nombre == "run_ingest":
+                pasado = {k.arg: k.value for k in nodo.keywords}
+                valor = pasado.get("apply")
+                aplicaciones.append(
+                    valor.value if isinstance(valor, ast.Constant)
+                    else f"<expresion: {ast.unparse(valor)}>" if valor is not None
+                    else "AUSENTE"
+                )
+
+    assert aplicaciones == [False], (
+        f"la ingesta del panel ya no declara `apply=False` literal "
+        f"({aplicaciones}). La conexion que el Corte 5 abrio es de SOLO "
+        "LECTURA, y lo unico que la mantiene asi es esa constante."
     )
 
 
@@ -1071,3 +1118,289 @@ def test_LIMITE_esta_superficie_no_puede_ver_el_estado_del_plan():
         "a `partial` su propia frase en la pantalla --ni exito ni 'no hay "
         "nada'-- y retira esta nota."
     )
+
+
+# ===========================================================================
+# SLICE 2 · CORTE 5 — EL `0` QUE PARECIA UN VACIO LEGITIMO
+# ===========================================================================
+#
+# EL DEFECTO, MEDIDO. Un plan que quedo `partial` deja sus MARCAS registradas y
+# el contenido que esas marcas sostenian a medias o sin materializar. La
+# pantalla de resultado leia las dos cosas de sitios distintos --las marcas de
+# `operations_of_apply`, el contenido de los tres bloques-- y las pintaba como
+# si fueran una sola: «4 operaciones» arriba y «esta ejecucion no dejo ninguna
+# relacion que puedas ver» abajo, sin una sola pista de incompletitud. El
+# operador leia el `0` como "no cambio nada".
+#
+# LO QUE ESTE CORTE CORRIGE, Y LO QUE NO. Lenguaje y estado, nada mas. Esta
+# superficie NO gana acceso al plan sellado: darselo la convertiria en un
+# reconciliador plan-contra-grafo, que es otro producto. Por eso el grado se
+# deriva del cruce de las dos lecturas que la pantalla YA tiene, y el caso de
+# abajo lo ata: ni una consulta a `sealed_plans`.
+
+def test_marcas_con_todo_el_contenido_ausente_NO_se_lee_como_vacio():
+    """EL CASO DEL DEFECTO. Hay marcas y no hay nada que ensenar.
+
+    Antes: «operaciones: 1» y tres bloques vacios, sin nada que los relacione.
+    Ahora la pantalla lo DECLARA: lo que las marcas sostenian no esta
+    disponible.
+    """
+    lec = LectorFalso(entidades=[], aristas=[], aserciones=[])
+    res = _resultado(lec, ProveedorEspia(visibles=[]))
+
+    assert res is not None, "con marcas registradas el resultado existe"
+    assert res.operaciones == 1, "el caso necesita marcas para medir algo"
+    assert res.materializacion == servicio.NO_DISPONIBLE, (
+        "hay marcas y ni una fila en los tres bloques, y la pantalla lo sigue "
+        "presentando como un vacio legitimo"
+    )
+    assert res.frase_materializacion == "no disponible"
+
+
+def test_contenido_a_medias_se_declara_PARCIAL():
+    """Algunas secciones con material y otras vacias: eso es parcial.
+
+    Es el caso que mas se parece a un resultado normal y el mas facil de leer
+    mal: la seccion que si tiene contenido hace de coartada para las que no.
+    """
+    lec = LectorFalso(
+        entidades=["entity:visible"], aristas=[], aserciones=[],
+    )
+    res = _resultado(lec, ProveedorEspia(visibles=["entity:visible"]))
+
+    assert res.entidades.filas, "el caso necesita una seccion CON contenido"
+    assert not res.relaciones.filas and not res.hechos.filas
+    assert res.materializacion == servicio.PARCIAL
+    assert res.frase_materializacion == "parcial"
+
+
+def test_un_bloque_que_no_se_pudo_leer_NO_se_convierte_en_incompletitud():
+    """`ERROR` no es `0`. Un bloque ilegible no afirma nada sobre lo que hay.
+
+    El control que impide que esta correccion se coma la distincion que la
+    pantalla ya hacia: «no se pudo mirar» y «no hay nada» son dos cosas
+    distintas, y tratarlas igual seria cambiar un defecto por otro.
+    """
+    lec = LectorFalso(revienta=("relation_edges_for_keys",))
+    res = _resultado(lec, ProveedorEspia(visibles=["entity:daiki"]))
+
+    assert res.relaciones.estado == servicio.ERROR
+    assert res.relaciones.total is None, "un bloque en ERROR no publica cifra"
+    assert res.materializacion == servicio.NO_DISPONIBLE, (
+        "con una seccion ilegible la pantalla no puede afirmar que el resto "
+        "este completo"
+    )
+
+
+def test_todo_materializado_se_declara_COMPLETO():
+    """El control POSITIVO: sin el, «no disponible» podria salir siempre.
+
+    Un indicador que nunca dice «completo» es tan inutil como uno que nunca
+    dice «no disponible», y solo el par lo distingue.
+    """
+    lec = LectorFalso(
+        entidades=["entity:daiki"],
+        aristas=[{"from_id": "entity:daiki", "to_id": "entity:otro",
+                  "type": "LEADS"}],
+        aserciones=[{"assertion_id": "assert:1", "predicate": "LEADS",
+                     "subject_entity_id": "entity:daiki",
+                     "object_entity_id": "entity:otro"}],
+    )
+    espia = ProveedorEspia(
+        visibles=["entity:daiki", "entity:otro"],
+        relaciones={"entity:daiki": [
+            {"from": "entity:daiki", "to": "entity:otro", "type": "LEADS",
+             "id": "r1", "label": "LEADS"},
+        ]},
+    )
+    res = _resultado(lec, espia)
+
+    # SIN VALVULA DE ESCAPE. Aqui habia un `pytest.skip` para el caso de que
+    # el doble dejara de producir las tres secciones. Un `skipped` NO es verde,
+    # y este es el UNICO caso capaz de afirmar `COMPLETO`: si se auto-omitiera,
+    # `materializacion` podria devolver "no disponible" siempre y toda la
+    # correccion del `partial` seguiria en verde sin decir nada.
+    assert res.entidades.filas and res.relaciones.filas and res.hechos.filas, (
+        "el doble del lector ya no produce las tres secciones con contenido, "
+        "asi que este control positivo no esta ejerciendo lo que dice. Hay que "
+        "REHACERLO, no relajarlo ni omitirlo."
+    )
+    assert res.materializacion == servicio.COMPLETO
+    assert res.frase_materializacion == "completo"
+
+
+def test_la_pantalla_de_resultado_NO_consulta_el_plan_sellado():
+    """LA AUTORIDAD NO SE MUEVE. Enumeracion sobre el modulo, por AST.
+
+    La correccion autorizada era de LENGUAJE. Si manana alguien resolviera la
+    incompletitud leyendo `sealed_plans`, esta pantalla dejaria de ser un
+    lector de procedencia y pasaria a ser un reconciliador plan-contra-grafo
+    --otro producto, con otra autoridad y otros permisos-- y lo haria sin que
+    nada se pusiera rojo. Esto lo pone rojo.
+    """
+    import ast
+
+    fuente = (RAIZ_REPO / "viewer" / "app" / "services" / "result_provenance.py")
+    texto = fuente.read_text(encoding="utf-8", errors="replace")
+    arbol = ast.parse(texto)
+
+    importados = set()
+    for nodo in ast.walk(arbol):
+        if isinstance(nodo, ast.ImportFrom):
+            for alias in nodo.names:
+                importados.add(f"{nodo.module or ''}.{alias.name}")
+        elif isinstance(nodo, ast.Import):
+            for alias in nodo.names:
+                importados.add(alias.name)
+
+    prohibidos = [i for i in importados
+                  if "v3_review_store" in i or "v3_apply" in i]
+    assert not prohibidos, (
+        f"la pantalla de resultado importa el almacen del plan: {prohibidos}. "
+        "Con eso deja de ser un lector de procedencia."
+    )
+    llamadas = {
+        ast.unparse(n.func) for n in ast.walk(arbol) if isinstance(n, ast.Call)
+    }
+    assert not {c for c in llamadas
+                if "last_plan" in c or "sealed_plan" in c}, llamadas
+
+
+# ===========================================================================
+# LA PANTALLA, PEDIDA DE VERDAD — el testigo que faltaba
+# ===========================================================================
+#
+# POR QUE EXISTE ESTE BLOQUE. Los casos de arriba miden la PROPIEDAD
+# `Resultado.materializacion`. Ninguno RENDERIZA la pagina, y eso se pago:
+# borrando del template el bloque entero de la cabecera visible
+# --`<dt>Plan completo</dt>` con `data-field="materializacion"`-- la suite
+# entera del visor seguia en VERDE. Un falso verde demostrado sobre la UNICA
+# superficie de operador que este corte toca.
+#
+# Aqui se pide la ruta real (`/panel/resultado/{apply_id}`) con la plantilla
+# real, la puerta de rol real y el interruptor real. NO hace falta navegador
+# --el contrato de navegador no corre en esta maquina-- porque lo que se
+# comprueba es el MARCADO que el servidor emite, enumerado.
+#
+# Lo que este bloque NO mide: autorizacion. `get_filtered_provider` se
+# sustituye entero a proposito, asi que la cadena de politica no se atraviesa.
+# Eso se mide en `test_resultado_procedencia_neo4j_real.py`, contra grafo real.
+
+FLAG_RESULTADO = "S9K_PANEL_RESULTADO_ENABLED"
+CLAVE_PANTALLA = "CorteCincoPantalla_1234567890!"
+
+
+@pytest.fixture
+def entorno_pantalla(tmp_path, monkeypatch):
+    from app.auth.config import get_auth_settings
+    from app.config import get_settings
+
+    monkeypatch.setenv("S9K_DEFAULT_WORKSPACE", WS)
+    monkeypatch.setenv("S9K_AUTH_ENABLED", "true")
+    monkeypatch.setenv("S9K_AUTH_DB_PATH", str(tmp_path / "auth.db"))
+    monkeypatch.setenv(FLAG_RESULTADO, "true")
+    get_settings.cache_clear()
+    get_auth_settings.cache_clear()
+
+    from app.auth import db as auth_db
+
+    auth_db.ensure_migrated(tmp_path / "auth.db")
+    yield tmp_path / "auth.db"
+
+    get_settings.cache_clear()
+    get_auth_settings.cache_clear()
+
+
+def _pantalla(entorno_pantalla, lector, proveedor, monkeypatch):
+    """La pagina REAL para ese resultado, como HTML servido."""
+    from fastapi.testclient import TestClient
+
+    from app.auth import db as auth_db
+    from app.auth.config import get_auth_settings
+    from app.auth.passwords import hash_password
+    from app.auth.sessions import create_session
+    from app.authz.dependencies import get_filtered_provider
+    from app.main import app
+    from app.routers import resultado as ruta_resultado
+
+    with auth_db.get_conn(entorno_pantalla) as conn:
+        u = auth_db.create_user(
+            conn, username="corte5-lector", display_name="Corte5",
+            password_hash=hash_password(CLAVE_PANTALLA), role="admin")
+        auth_db.update_user(conn, u.id, must_change_password=False)
+        u = auth_db.get_user_by_id(conn, u.id)
+        token, _ = create_session(conn, u)
+
+    # El LECTOR de procedencia se sustituye donde la ruta lo resuelve.
+    monkeypatch.setattr(ruta_resultado, "reader_for", lambda _p: lector)
+    app.dependency_overrides[get_filtered_provider] = lambda: proveedor
+    try:
+        cliente = TestClient(app, raise_server_exceptions=False,
+                             follow_redirects=False)
+        cliente.cookies.set(
+            get_auth_settings().S9K_SESSION_COOKIE_NAME, token)
+        return cliente.get(f"/panel/resultado/{APPLY}",
+                           params={"workspace": WS})
+    finally:
+        app.dependency_overrides.pop(get_filtered_provider, None)
+
+
+def test_la_pantalla_DECLARA_que_el_plan_no_esta_completo(
+    entorno_pantalla, monkeypatch
+):
+    """EL CASO DEL DEFECTO, ya en el HTML que el operador recibe.
+
+    Marcas registradas y ni una fila en los tres bloques. Antes esto se pintaba
+    como un vacio legitimo. Ahora la cabecera lo dice, y se comprueba sobre el
+    marcado servido: el atributo de estado Y el texto que lo acompaña.
+    """
+    lector = LectorFalso(entidades=[], aristas=[], aserciones=[])
+    r = _pantalla(entorno_pantalla, lector, ProveedorEspia(visibles=[]), monkeypatch)
+
+    assert r.status_code == 200, r.status_code
+    assert 'data-field="materializacion"' in r.text, (
+        "la cabecera de la pantalla ya no publica el grado de "
+        "materializacion: el `0` de los bloques vuelve a leerse como un vacio "
+        "legitimo, que es EL defecto que este corte cierra"
+    )
+    assert 'data-materializacion="NO_DISPONIBLE"' in r.text, r.text[:400]
+    assert "Plan completo" in r.text
+    assert "no disponible" in r.text
+
+
+def test_la_pantalla_nombra_las_marcas_por_lo_que_son(
+    entorno_pantalla, monkeypatch
+):
+    """«Operaciones aplicadas» afirmaba de mas; «Marcas registradas» no.
+
+    Una marca registrada no garantiza que lo que sostenia siga ahi. El
+    renombrado es la otra mitad de la correccion y hasta ahora tampoco lo
+    guardaba ningun testigo.
+    """
+    lector = LectorFalso(entidades=[], aristas=[], aserciones=[])
+    r = _pantalla(entorno_pantalla, lector, ProveedorEspia(visibles=[]), monkeypatch)
+
+    assert r.status_code == 200, r.status_code
+    assert "Marcas registradas" in r.text, (
+        "la pantalla ha vuelto a llamar «Operaciones aplicadas» a las marcas"
+    )
+    assert "Operaciones aplicadas" not in r.text, (
+        "sigue el rotulo que afirmaba de mas"
+    )
+
+
+def test_la_pantalla_dice_PARCIAL_cuando_solo_falta_una_parte(
+    entorno_pantalla, monkeypatch
+):
+    """CONTROL POSITIVO del anterior: la pantalla sabe decir otra cosa.
+
+    Sin este, `data-materializacion="NO_DISPONIBLE"` podria estar cableado en
+    la plantilla y el caso de arriba seguiria verde.
+    """
+    lector = LectorFalso(entidades=["entity:visible"], aristas=[], aserciones=[])
+    r = _pantalla(entorno_pantalla, lector,
+                  ProveedorEspia(visibles=["entity:visible"]), monkeypatch)
+
+    assert r.status_code == 200, r.status_code
+    assert 'data-materializacion="PARCIAL"' in r.text, r.text[:400]
+    assert "parcial" in r.text

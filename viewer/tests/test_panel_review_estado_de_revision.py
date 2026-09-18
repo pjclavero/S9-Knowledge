@@ -55,6 +55,21 @@ import pytest
 
 from app import jobs_client
 
+
+# ---------------------------------------------------------------------------
+# GRAFO DE MENTIRA: este modulo no viene a medir la observacion del grafo
+# ---------------------------------------------------------------------------
+# Desde el Slice 2 · Corte 5 la ingesta del panel abre una conexion de solo
+# lectura a Neo4j y falla cerrado sin ella. Los casos de este modulo miden otra
+# cosa y corren sin Docker, asi que se les da un doble que responde a la
+# consulta del catalogo. Lo que NINGUNO de ellos puede afirmar por eso es que
+# el producto observe el grafo de verdad: eso se mide con Neo4j real.
+@pytest.fixture(autouse=True)
+def _grafo_de_mentira(monkeypatch):
+    import grafo_doble
+
+    return grafo_doble.instalar(monkeypatch)
+
 # El arnés del Corte 3 ya monta app real, auth real, cola real y almacén
 # aislado. Se REUTILIZA en vez de reconstruirlo: dos arneses para el mismo
 # recorrido acaban divergiendo, y el que no se mira es el que miente.

@@ -88,6 +88,186 @@ existe **un solo resolvedor** (`data-engine/app/knowledge_v3/review_paths.py`)
 y el visor lo importa en vez de derivar la suya. Un caso lo comprueba por
 enumeración del árbol.
 
+## Invariante: el worker tiene que poder OBSERVAR el grafo
+
+**Slice 2 · Corte 5.** Hasta este corte el worker no tenía ni una referencia a
+Neo4j y el propio `worker.py` lo declaraba por escrito. Ya no es cierto: el
+handler `ingest_v3` abre una conexión de **sólo lectura** al grafo.
+
+**Por qué no es opcional.** El motor marca un ancla del plan como `observed`
+en un único sitio (`pipeline/graph_catalog.snapshot_entities`), alcanzable sólo
+con driver. Sin driver, las anclas salen con `observed: false` y el sellado
+omite **toda** proyección con `PROJECTION_ANCHOR_NOT_OBSERVED`: el operador
+aprueba una relación, el plan se sella, el apply se ejecuta y la arista no
+aparece nunca.
+
+Y no vale copiar el `state_hash` del catálogo en fichero: ese hash está
+**derivado** de `{entity_id, entity_type, version}`, o sea, es reconstruible
+sin haber mirado el grafo. Es un valor plausible y falso. La observación real
+no se puede sustituir.
+
+**Leer no es escribir.** La escritura la gobierna `apply`, por separado, y el
+worker sigue corriendo con `apply=False`. El driver que abre el worker se usa
+para una sola consulta: el catálogo de entidades del workspace.
+
+### La cuenta del worker ES de sólo lectura. No es una recomendación.
+
+**Requisito, no consejo:** el worker se conecta con una cuenta de Neo4j que
+**no puede escribir**, y eso es una propiedad de la cuenta comprobada por una
+prueba negativa calibrada
+(`viewer/tests/test_corte5_credencial_solo_lectura_neo4j_real.py`): intenta
+`CREATE`, `SET`, `DELETE` y `MERGE` con esa cuenta y exige
+`Neo.ClientError.Security.Forbidden` **y** que el recuento de nodos no se
+mueva; su gemela hace lo mismo con la cuenta administradora y comprueba que
+**sí** escribe, que es lo que distingue «no tiene permiso» de «la sentencia no
+escribía».
+
+Cómo se crea el rol (una vez, con una cuenta administradora):
+
+```cypher
+CREATE ROLE s9k_observador;
+GRANT ACCESS ON DATABASE neo4j TO s9k_observador;
+GRANT MATCH {*} ON GRAPH neo4j NODES * TO s9k_observador;
+GRANT MATCH {*} ON GRAPH neo4j RELATIONSHIPS * TO s9k_observador;
+CREATE USER s9k_worker_lector SET PASSWORD '<secreto>' SET PASSWORD CHANGE NOT REQUIRED;
+GRANT ROLE s9k_observador TO s9k_worker_lector;
+```
+
+No se concede `WRITE`, ni `CREATE`, ni `SET`, ni `DELETE`, ni `MERGE`. Las
+cuatro formas se comprueban por separado: conceder `MATCH` y olvidar que
+`MERGE` es otra capacidad sería justamente el hueco por el que se cuela una
+escritura.
+
+> ⚠️ **CONDICIÓN DE EDICIÓN — verificada, no supuesta.** Medido contra
+> `neo4j:5.26-community`: `CREATE USER` funciona, pero `CREATE ROLE`,
+> `SHOW ROLES` y `ALTER DATABASE … SET ACCESS READ ONLY` responden
+> `UnsupportedAdministrationCommand`, y **un usuario creado en Community
+> escribe sin restricción**. En Community una cuenta de sólo lectura **no se
+> puede expresar**.
+>
+> Por tanto: **el rol de sólo lectura exige Neo4j Enterprise.** Si el
+> despliegue corre Community, el worker se conectará necesariamente con una
+> cuenta capaz de escribir, y esa exposición residual **tiene que aceptarse
+> explícitamente por escrito** — no se puede dar por mitigada. Lo único que la
+> contiene entonces es que ningún camino de código emita una escritura, que es
+> una propiedad del código y no de la cuenta.
+
+### Lo que el worker necesita, y sin lo cual falla cerrado
+
+| Requisito | Variable | Si falta |
+|---|---|---|
+| Conectividad al servidor | `S9K_NEO4J_URI` (`bolt://…`), sin valor por defecto | `GRAPH_OBSERVATION_UNCONFIGURED` |
+| Usuario **de sólo lectura** (ver arriba) | `S9K_NEO4J_USER` | `GRAPH_OBSERVATION_UNCONFIGURED` |
+| Credencial: **el camino de un fichero `0600`**, nunca la contraseña en una variable ni en `argv` | `S9K_NEO4J_PASSWORD_FILE` | `GRAPH_OBSERVATION_UNCONFIGURED` |
+| Base/contexto correcto, si el despliegue no usa la de por defecto | `S9K_NEO4J_DATABASE` | consulta contra la base equivocada: catálogo vacío y plan sin proyección |
+| Workspace del perfil de la fuente coherente con el del grafo | perfil de ingesta | catálogo vacío; ninguna ancla observada |
+| CA/TLS, si la URI es `bolt+s`/`neo4j+s` | truststore del sistema en la imagen del worker | `GRAPH_OBSERVATION_UNAVAILABLE` |
+
+> ⚠️ **El entorno del worker NO debe llevar `S9K_NEO4J_PASSWORD`.** El motor
+> (`knowledge_v3/driver_neo4j.py`) **sólo** lee `S9K_NEO4J_PASSWORD_FILE` y
+> **ignora** la variable con el secreto dentro. Si se copia `viewer.env` tal
+> cual —que sí admite las dos formas—, el secreto queda en una variable de
+> entorno, el worker sigue funcionando porque coge el fichero, y **nada avisa
+> de que el secreto está expuesto de más**. Copiar `viewer.env` al worker es
+> precisamente el error fácil.
+
+**Fail closed, y sin ruta de repuesto.** Si algo de lo anterior falta, el job
+**no** se completa con una corrida sin observar: termina en ERROR con uno de
+los dos códigos. Se distinguen por si tiene sentido reintentar:
+
+* `GRAPH_OBSERVATION_UNCONFIGURED` — **permanente**. Cubre la conexión sin
+  declarar, el fichero de credencial ausente/vacío/legible por el grupo, una
+  URI con un esquema no soportado, y una credencial que el servidor rechaza
+  (el grafo responde bien; lo que está mal es lo declarado).
+* `GRAPH_OBSERVATION_UNAVAILABLE` — **reintentable**. El grafo no responde
+  ahora y puede responder luego.
+
+Degradar a `driver=None` sería una ruta de repuesto silenciosa: produciría una
+ingesta que parece correcta y cuyo plan no puede proyectar nada.
+
+### Quién provisiona esto hoy: NADIE. Es trabajo pendiente del operador.
+
+Dicho sin rodeos, porque este corte **rompe a propósito** cualquier despliegue
+que no lo haga: hoy, en este repositorio,
+
+* **`deploy/ansible/` no define ninguna variable `S9K_NEO4J_*` para el motor.**
+  El rol `data_engine` sólo clona el repositorio y su cabecera dice «No ejecuta
+  ingesta. No toca Neo4j.»
+* **No existe ninguna unidad systemd para el worker de jobs.** Las unidades que
+  sí existen son el visor, la prueba de restore y el healthcheck.
+* **`scripts/run-jobs-worker.sh`** —el único lanzador— exporta sólo
+  `S9K_JOBS_DB` y apunta al layout *legacy*
+  (`/opt/knowledge-services/s9-knowledge-repo`).
+* `validate_deploy.sh` valida `viewer.env`, **no** un entorno de worker, y
+  `S9K_NEO4J_PASSWORD_FILE` ni siquiera está en `CRITICAL_ENV_VARS`.
+
+**El patrón a replicar es el que ya usa el visor**, y es enteramente manual:
+
+| Paso | Quién | Detalle |
+|---|---|---|
+| 1. Directorio | Ansible (`roles/common`) | `/etc/s9-knowledge`, `root:root`, `0700` |
+| 2. Subdirectorio | **el operador, a mano** | `/etc/s9-knowledge/secrets`, `root:root`, `0700` |
+| 3. Fichero del secreto | **el operador, a mano** | `/etc/s9-knowledge/secrets/neo4j_worker_password`, `root:root`, **`0600`**, fuera de la release (nunca bajo `/opt/s9-knowledge/current`, que `validate_deploy.sh` rechaza) |
+| 4. Entorno del worker | **el operador, a mano** | `/etc/s9-knowledge/worker.env`, `root:root`, `0600`, con `S9K_NEO4J_URI`, `S9K_NEO4J_USER` y `S9K_NEO4J_PASSWORD_FILE` — **y sin `S9K_NEO4J_PASSWORD`** |
+| 5. Lanzador | ya lo hace | `scripts/run-jobs-worker.sh` carga `worker.env` si existe |
+
+Hay una **plantilla literal** en `deploy/config/worker.env.example`, con las
+tres variables obligatorias y la lista de lo que **no** debe ir ahí.
+
+No hay `ansible-vault` en este repositorio: el secreto lo deposita una persona
+en el host y ninguna herramienta lo genera.
+
+**Y ahora hay una puerta, no sólo un párrafo.**
+`deploy/scripts/validate_deploy.sh::validate_worker_env` —invocada desde
+`deploy.sh`— bloquea el despliegue si `worker.env` existe y le falta cualquiera
+de las tres variables, si el fichero del secreto no es `0600` o no existe, o si
+alguien ha puesto `S9K_NEO4J_PASSWORD`. Si el fichero **no** existe no bloquea
+—hoy no hay unidad de worker instalada y exigirlo rompería todos los
+despliegues actuales— pero **avisa nombrando el código** con el que el operador
+se lo encontraría. Su tabla de calibración está en
+`deploy/tests/test_worker_env_validacion.py`: cada fila rompe una cosa y exige
+rojo.
+
+No se ha añadido `S9K_NEO4J_PASSWORD_FILE` a `CRITICAL_ENV_VARS`, y es
+deliberado: esa lista gobierna `viewer.env`, y el **visor** admite a propósito
+las dos formas (`viewer/app/config.py`). Hacerla crítica allí rompería una
+configuración soportada del visor por un requisito que es del **motor**.
+
+### CONDICIÓN PREVIA AL DESPLIEGUE: nodos sin `state_hash`
+
+**Esto tiene que cerrarse antes de apuntar el worker a un grafo real.** No es
+una nota al pie: el grafo legado es exactamente el caso que lo dispara.
+
+Medido: con **todos** los nodos del workspace sin `state_hash` —el estado de un
+grafo anterior al arreglo del writer, o sembrado a mano— la ingesta del panel
+termina en `failed` con **`INGEST_FAILED` genérico** y **cero propuestas**. El
+operador recibe el mensaje genérico en vez del diagnóstico y, como
+`INGEST_FAILED` es reintentable, **gasta los tres intentos mientras la pantalla
+dice «el trabajo sigue en la cola»**.
+
+La causa está localizada: `graph_catalog.carencias` sabe emitir
+`ENTIDAD_SIN_STATE_HASH`, pero **`run_ingest` nunca la llama** —sólo lo hace
+`ingest_cli.main`—, así que por el camino del panel la carencia **ni se
+calcula**. Es del motor y no se corrige en este corte.
+
+Antes de apuntar el worker a un grafo preexistente, comprobar:
+
+```cypher
+MATCH (n:V3Entity {workspace: $ws}) WHERE n.state_hash IS NULL RETURN count(n);
+```
+
+Si devuelve algo distinto de `0`, **no desplegar**: o se repuebla el
+`state_hash` de esos nodos, o se cierra antes la carencia en `run_ingest`.
+
+### Consecuencia para el ensayo RC
+
+El próximo ensayo ya **no puede validar sólo que el visor y el worker comparten
+volúmenes**. Tiene que validar además la **capacidad real del worker de
+observar el grafo**: desde el entorno del worker, con sus variables y su
+credencial de sólo lectura, una ingesta desde el panel tiene que terminar
+`complete`. Si termina con `GRAPH_OBSERVATION_*`, el despliegue está incompleto
+aunque todos los volúmenes estén bien montados.
+
 ## Actualización V3
 
 El flujo operativo es:

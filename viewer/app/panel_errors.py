@@ -155,6 +155,19 @@ CATALOGO: dict[str, str] = {
     "INGEST_FAILED":
         "La ingesta no ha terminado correctamente. El detalle queda registrado "
         "en el servidor para quien lo administra.",
+    # --- observacion del grafo (Slice 2 - Corte 5) ---
+    #
+    # Las dos dicen lo MISMO que se ha perdido --la ingesta no ha podido
+    # comprobar contra el grafo lo que iba a proponer-- y se diferencian en lo
+    # unico que le sirve a quien las lee: si tiene sentido reintentar.
+    "GRAPH_OBSERVATION_UNCONFIGURED":
+        "Este despliegue no tiene declarada la conexion al grafo, asi que la "
+        "ingesta no puede comprobar contra el que existe lo que va a proponer. "
+        "No se ha ingerido nada. Avisa a quien administra el servicio.",
+    "GRAPH_OBSERVATION_UNAVAILABLE":
+        "No se ha podido consultar el grafo, asi que la ingesta no puede "
+        "comprobar contra el que existe lo que va a proponer. No se ha "
+        "ingerido nada; puedes volver a intentarlo cuando el grafo responda.",
 }
 
 
