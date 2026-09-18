@@ -157,7 +157,36 @@ development:
   # refrescar `main_commit` sólo desplaza la brecha al commit siguiente. Se deja
   # el AVISO en pie, que es honesto, en vez de convertirlo en una cifra falsa.
   main_commit: "84f9cc7596381e1e56ff5a2fc059104b3c5aa063"
-  latest_merged_pr: 218  # medido sobre `origin/main`; ojo: `gh pr list` por `mergedAt` dice #208 y es un artefacto
+  #
+  # REMEDIDO el 2026-09-18, tras la entrada de #233 y #231 en `main`. El dato
+  # solo podia caducar AL FUSIONAR: mientras esos PR estaban abiertos, `#218`
+  # era cierto. Lo que lo ha roto no es una mentira nueva, es que la ventana de
+  # PR del gate --los PR que `_merged_prs` encuentra en los ultimos 60 commits
+  # de `origin/main`-- se ha DESLIZADO y ha expulsado al #218. Ese caso es
+  # ERROR, no aviso: el gate distingue <<no esta en la ventana>> (rojo) de
+  # <<entraron PR despues>> (aviso), y el #218 cayo del primer lado.
+  #
+  # MEDIDO con la MISMA autoridad que usa el gate --`_merged_prs(origin/main)`,
+  # asuntos de merge/squash parseados de `git log`--, sobre
+  # `8b37109d3c4a2e4af5ed2ca4fd721ac002147122`:
+  #   prs[0] = #231  ("Merge pull request #231 from pjclavero/slice2/corte5-...")
+  #   ventana completa: #231, #233, #227, #229, #228, #226, #225, #224, #223, #221
+  # El #231 es el ultimo pese a NO ser el de numero mayor (el #233 se fusiono
+  # antes, a las 08:02:47Z del mismo dia, frente a las 09:34:05Z del #231): el
+  # aviso de esta linea se vuelve a ganar el sitio.
+  #
+  # COMPROBADO el artefacto que avisa la linea: `gh pr list --state merged` ya
+  # NO pone al #208 en cabeza en esta ventana; aqui el orden por `mergedAt` y
+  # el orden real de `main` coinciden en el #231, y su merge commit ES la punta
+  # de `main`. Se comprueba, no se cita.
+  #
+  # `main_commit` NO SE MUEVE, y `latest_ci` y `tests` TAMPOCO: el bloque de CI
+  # de abajo es la CI DE `main_commit` (84f9cc7), y moverlo obligaria a re-medir
+  # lo que cuelga de el --hoy `main` tiene 2 failure, justo los que este PR cura,
+  # asi que quedaria <<green>> falso o <<red>> caduco--. El desfase de
+  # `main_commit` es un AVISO del gate, no un error, y por tanto NO es lo que
+  # pone rojo a `main`. El minimo honesto es este unico campo.
+  latest_merged_pr: 231  # medido sobre `origin/main` con `_merged_prs`; ojo: el ultimo NO es el de numero mayor (#233 se fusiono antes que el #231)
   # CI DE `main_commit` (84f9cc7), no de este commit — ver la explicación de
   # semántica en la cabecera de este fichero.
   #
