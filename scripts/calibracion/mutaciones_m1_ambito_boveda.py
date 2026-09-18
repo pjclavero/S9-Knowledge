@@ -241,7 +241,30 @@ def _aplicar(m: Mutacion) -> None:
 
 
 def _revertir(m: Mutacion) -> None:
+    """Restaura el fichero Y TIRA EL BYTECODE. Lo segundo no es precaución.
+
+    MEDIDO EN ESTE MISMO ARNÉS, y casi cuesta una entrega falsa: la mutación nº 4
+    cambia `MOTIVO_INCOHERENTE` por `MOTIVO_DESCONOCIDA`, que tiene EXACTAMENTE
+    la misma longitud. Python invalida el `.pyc` comparando **mtime y tamaño**
+    del fuente; si el `git checkout` cae en el mismo segundo que la escritura de
+    la mutación, los dos coinciden y el intérprete sigue ejecutando **el bytecode
+    del código mutado** — indefinidamente.
+
+    El resultado es un árbol que `git status` declara limpio, un fuente que al
+    leerlo es correcto, y un producto que al EJECUTARSE es el mutado. Es
+    exactamente «medir sobre un árbol contaminado», pero por debajo del nivel en
+    el que se suele mirar: el diff no lo ve porque no hay diff.
+
+    Así que se borra el `.pyc` del fichero revertido. Y no se confía en que
+    baste: `main()` vuelve a correr la prueba SIN mutación al final y exige que
+    esté verde, que es la comprobación por EFECTO y no por intención.
+    """
     subprocess.run(["git", "checkout", "--", m.fichero], cwd=REPO, check=True)
+    fuente = REPO / m.fichero
+    cache = fuente.parent / "__pycache__"
+    if cache.is_dir():
+        for pyc in cache.glob(fuente.stem + ".*.pyc"):
+            pyc.unlink()
 
 
 def main() -> int:
@@ -287,6 +310,25 @@ def main() -> int:
         print("RESULTADO: el arbol NO quedo limpio tras revertir las mutaciones")
         return 2
     print("arbol limpio tras revertir todas las mutaciones")
+
+    # RESTAURACION COMPROBADA POR EFECTO, NO POR INTENCION.
+    #
+    # `git status` limpio NO demuestra que el producto ejecutado sea el de la
+    # rama: un `.pyc` del codigo mutado puede sobrevivir al revert (ver
+    # `_revertir`). La unica prueba es volver a correr las suites y verlas
+    # verdes DESPUES de deshacerlo todo.
+    print("\ncomprobando POR EFECTO que el arbol quedo restaurado...")
+    verificacion = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", SUITE, SUITE_ALTA],
+        cwd=REPO, capture_output=True, text=True,
+    )
+    print(f"  PYTEST_RC = {verificacion.returncode}")
+    if verificacion.returncode != 0:
+        print("RESULTADO: el arbol dice estar limpio pero NO se comporta como "
+              "limpio. Alguna mutacion sigue viva (bytecode rancio?).")
+        print(verificacion.stdout[-3000:])
+        return 2
+    print("  las suites vuelven a estar verdes: la restauracion es REAL")
     if fallos:
         print("RESULTADO: CALIBRACION FALLIDA")
         for f in fallos:
