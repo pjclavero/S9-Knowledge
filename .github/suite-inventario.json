@@ -278,6 +278,7 @@
     "deploy/tests/test_create_workspace.py": 3,
     "deploy/tests/test_docs_consistency.py": 53,
     "deploy/tests/test_manifest_schema_truth.py": 14,
+    "deploy/tests/test_preflight_ensayo_rc.py": 59,
     "deploy/tests/test_release_checksum.py": 33,
     "deploy/tests/test_release_identity.py": 26,
     "deploy/tests/test_resolve_release_commit.py": 18,
@@ -422,7 +423,7 @@
     "viewer/tests/test_graph_ux_v2.py",
     "viewer/tests/test_panel_apply_desde_la_ui.py"
   ],
-  "total": 8540,
+  "total": 8606,
   "modulos": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 526,
     "contracts/review-ingest/v1/tests/test_contracts_v1.py": 38,
@@ -608,6 +609,7 @@
     "deploy/tests/test_create_workspace.py": 3,
     "deploy/tests/test_docs_consistency.py": 83,
     "deploy/tests/test_manifest_schema_truth.py": 14,
+    "deploy/tests/test_preflight_ensayo_rc.py": 66,
     "deploy/tests/test_release_checksum.py": 33,
     "deploy/tests/test_release_identity.py": 29,
     "deploy/tests/test_resolve_release_commit.py": 18,
