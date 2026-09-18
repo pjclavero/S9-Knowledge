@@ -314,17 +314,93 @@ def test_la_ruta_no_puede_salir_de_la_boveda():
     assert "sube por encima de la raiz" in ei.value.detalle
 
 
-def test_no_se_devuelve_nunca_un_ambito_por_defecto():
-    """No existe «ya veremos luego que ambito era».
+#: Segmentos con los que se compone el barrido. Mezclan los legitimos del
+#: esquema con los HOSTILES —`..`, `.`, vacio, mayusculas, buzon de otra
+#: partida, sesion mal formada— porque la propiedad que se afirma es sobre
+#: TODAS las rutas, no sobre las bonitas.
+_SEGMENTOS = (
+    "l5r", "trudvang", "_plantilla", "otra-cosa", "",
+    "compartido", "reservado", "referencia", "entrada", "archivo",
+    "partidas", "p", "campana-grulla",
+    "aportaciones", "campana-grulla-hitomi", "campana-escorpion-hitomi",
+    "sesiones", "sesion-01", "sesion-1", "Sesion-01",
+    "secretos", "notas-narrador", "personajes", "material-jugadores",
+    "lore", "manuales", "videos",
+    "..", ".", "x.md",
+)
 
-    Se barre un surtido de rutas fuera del esquema: ninguna puede salir con
-    ambito. La unica forma de no ingerir es levantar.
+
+def test_no_se_devuelve_nunca_un_ambito_por_defecto():
+    """No existe «ya veremos luego que ambito era». BARRIDO, no surtido.
+
+    La version anterior de esta prueba probaba SIETE rutas escritas a mano y la
+    prosa afirmaba que «no existe rama que devuelva ambito por defecto». Siete
+    casos no demuestran eso: un revisor independiente lo hizo notar, con razon,
+    tras barrer el espacio de verdad por su cuenta.
+
+    Asi que el testigo sube a la altura de lo que afirma. Se genera el producto
+    cartesiano de segmentos —legitimos y HOSTILES— hasta profundidad 4
+    (~850.000 rutas), y de cada resultado se exige la propiedad fuerte:
+
+      * o levanta `NoIngerible` con uno de los CUATRO motivos declarados,
+      * o devuelve un `Ambito` cuya `visibility` esta en el enum cerrado del
+        contrato, cuya `regla` esta en el conjunto de reglas conocidas, y cuyo
+        `workspace` es None (lo pone despues el perfil, nunca el clasificador).
+
+    No hay tercera posibilidad, y ninguna ruta puede inventarse una regla.
+
+    EL TECHO, DECLARADO
+    -------------------
+    Lo que este barrido NO cubre, para que nadie lo lea como exhaustivo:
+    profundidades mayores que 4; segmentos fuera de `_SEGMENTOS` (nombres
+    arbitrarios de juego, partida o jugador); separadores distintos de `/`;
+    y nombres con Unicode, espacios o mayusculas mas alla de `Sesion-01`. La
+    profundidad esta acotada por coste: a 5 la prueba tardaba 165 s.
     """
-    for ruta in ("otra-cosa/x.md", "l5r/partidas/p/x.md", "l5r/partidas/x.md",
-                 "l5r/x.md", "l5r/compartido", "l5r/partidas",
-                 "l5r/partidas/p/aportaciones/x.md"):
-        with pytest.raises(NoIngerible):
-            clasificar(ruta)
+    import itertools
+
+    visibilidades_validas = {"player", "narrator", "secret", "reference", "deny"}
+    motivos_validos = {MOTIVO_DESCONOCIDA, MOTIVO_INCOHERENTE,
+                       MOTIVO_RESERVADA, MOTIVO_NO_INGERIBLE}
+    reglas_validas = {f[0] for f in REGLAS_DOCUMENTADAS}
+
+    total = 0
+    con_ambito = 0
+    motivos_vistos = set()
+    for profundidad in range(1, 5):
+        for combo in itertools.product(_SEGMENTOS, repeat=profundidad):
+            ruta = "/".join(combo)
+            total += 1
+            try:
+                a = clasificar(ruta)
+            except NoIngerible as exc:
+                assert exc.motivo in motivos_validos, (ruta, exc.motivo)
+                assert exc.detalle, f"{ruta}: rechazo SIN diagnostico"
+                motivos_vistos.add(exc.motivo)
+                continue
+            con_ambito += 1
+            assert a.visibility in visibilidades_validas, (ruta, a.visibility)
+            assert a.regla in reglas_validas, (
+                f"{ruta}: regla inventada {a.regla!r}, fuera de la tabla §3"
+            )
+            assert a.workspace is None, (
+                f"{ruta}: el clasificador se invento un workspace {a.workspace!r};"
+                " eso lo declara el perfil de la boveda, no la ruta"
+            )
+            # La carpeta de juego es el primer segmento SIGNIFICATIVO. Los
+            # segmentos vacios y `.` se normalizan —son no-operaciones en una
+            # ruta POSIX—, asi que `./l5r/...` es `l5r/...` y no una bóveda
+            # llamada «.». `..` NO se normaliza: se rechaza, y por eso no llega
+            # hasta aqui. Lo encontro este mismo barrido al ampliarlo.
+            significativos = [x for x in combo if x not in ("", ".")]
+            assert a.carpeta_juego == significativos[0], (ruta, a.carpeta_juego)
+
+    # El arnes muerde: si no hubiera casos de los dos tipos, no diria nada.
+    assert total > 10000, f"barrido demasiado pequeno: {total}"
+    assert con_ambito > 0, "ninguna ruta se clasifico: el barrido no toca el esquema"
+    assert motivos_vistos == motivos_validos, (
+        f"motivos sin ejercitar en el barrido: {motivos_validos - motivos_vistos}"
+    )
 
 
 # ===========================================================================
@@ -374,14 +450,28 @@ def test_toda_ruta_recorrida_acaba_en_fuente_o_en_rechazo(entorno_boveda, boveda
 
     Este es el defecto original medido: `sorted(raiz.iterdir())` sin recursion
     descartaba subdirectorios sin aviso, sin warning y con `stderr` vacio.
+
+    EL TESTIGO NO HEREDA SU DEFINICION DEL SUJETO
+    ---------------------------------------------
+    La primera version de esta prueba construia el universo esperado con
+    `if p.name not in sources_catalog._NO_SON_FUENTES`: **la misma constante del
+    sujeto que causaba el descarte**. Definir el caso fuera del testigo lo
+    incapacita para verlo, y en efecto NO lo vio — un revisor independiente
+    encontro que un `README.md` anidado en `compartido/lore/` salia sin ser
+    fuente ni rechazo, en silencio, a cualquier profundidad.
+
+    Ahora el universo es TODO fichero del arbol, sin excepciones tomadas del
+    sujeto. Si el catalogo quiere excluir algo, que lo DECLARE como rechazo.
     """
     fuentes, rechazos = sources_catalog.listar_fuentes_boveda(entorno_boveda)
 
+    # SIN filtro prestado del sujeto: todos los ficheros, y punto.
     en_disco = {
         p.relative_to(boveda).as_posix()
         for p in boveda.rglob("*")
-        if p.is_file() and p.name not in sources_catalog._NO_SON_FUENTES
+        if p.is_file()
     }
+    assert en_disco, "arnes vacio: sin ficheros esta prueba no dice nada"
     contabilizadas = (
         {f.ruta.relative_to(boveda).as_posix() for f in fuentes}
         | {r["ruta"] for r in rechazos}
@@ -391,6 +481,42 @@ def test_toda_ruta_recorrida_acaba_en_fuente_o_en_rechazo(entorno_boveda, boveda
         "ficheros recorridos que no son ni fuente ni rechazo (descartados en "
         f"silencio, que es el defecto que este corte corrige): {sorted(perdidas)}"
     )
+
+
+def test_un_auxiliar_ANIDADO_se_declara_en_vez_de_desaparecer(boveda):
+    """El caso EXACTO que se escapo, calibrado como prueba propia.
+
+    Un `README.md` con contenido real, hondo en el arbol y dentro de una carpeta
+    perfectamente clasificable. Antes: `continue` mudo. Ahora: rechazo con su
+    motivo, para que el operador vea por que no aparece su fichero.
+    """
+    escondido = boveda / "l5r" / "compartido" / "lore" / "README.md"
+    _escribir(escondido, "esto tiene contenido de verdad, no es un hueco")
+    env = {sources_catalog.ENV_RAIZ_BOVEDAS: str(boveda),
+           sources_catalog.ENV_EXIGIR_MONTAJE: "0"}
+
+    fuentes, rechazos = sources_catalog.listar_fuentes_boveda(env)
+    relativa = escondido.relative_to(boveda).as_posix()
+
+    assert all(f.ruta != escondido for f in fuentes), (
+        "el auxiliar se ofrecio como fuente ingerible"
+    )
+    declarado = [r for r in rechazos if r["ruta"] == relativa]
+    assert declarado, (
+        f"`{relativa}` no es fuente NI rechazo: se fue en silencio, que es el "
+        "defecto que este corte corrige, en forma residual"
+    )
+    assert declarado[0]["motivo"] == sources_catalog.MOTIVO_AUXILIAR
+    assert "NO es una fuente" in declarado[0]["detalle"]
+
+
+def test_los_auxiliares_de_la_raiz_del_juego_tambien_se_declaran(entorno_boveda):
+    """Perfil y catalogo tampoco desaparecen: se dicen, con el mismo motivo."""
+    _fuentes, rechazos = sources_catalog.listar_fuentes_boveda(entorno_boveda)
+    auxiliares = {r["ruta"] for r in rechazos
+                  if r["motivo"] == sources_catalog.MOTIVO_AUXILIAR}
+    assert f"l5r/{sources_catalog.NOMBRE_PERFIL}" in auxiliares, auxiliares
+    assert f"trudvang/{sources_catalog.NOMBRE_PERFIL}" in auxiliares, auxiliares
 
 
 def test_la_recursion_ve_los_niveles_profundos_Y_cada_uno_con_SU_ambito(entorno_boveda):
@@ -620,3 +746,117 @@ def test_el_modo_lo_decide_la_raiz_de_bovedas(boveda):
     assert sources_catalog.modo_boveda({}) is False
     assert sources_catalog.modo_boveda(
         {sources_catalog.ENV_RAIZ_BOVEDAS: str(boveda)}) is True
+
+
+# ===========================================================================
+# 7. LA FRONTERA: ORIGEN NO ES REVELACION
+# ---------------------------------------------------------------------------
+# Decision del operador, y la linea que este carril NO cruza:
+#
+#     sesion de ORIGEN     = donde nacio el material      -> procedencia, es de M1
+#     sesion de REVELACION = desde cuando puede conocerse -> decision humana,
+#                                                            se toma en REVIEW
+#
+#     ruta: sesiones/sesion-05/...   NO IMPLICA   known_from_session = 5
+#
+# M1 decide DONDE PERTENECE el material. Review decide QUE SIGNIFICA y CUANDO
+# puede revelarse. Auth decide QUIEN puede verlo. Estas pruebas existen para que
+# la primera no suplante a la segunda, hoy ni cuando alguien pase por aqui.
+# ===========================================================================
+
+def test_la_sesion_de_ORIGEN_se_conoce_porque_es_procedencia():
+    """Saber de donde salio un fichero es legitimo, y hace falta."""
+    a = clasificar("l5r/partidas/campana-grulla/sesiones/sesion-05/"
+                   "transcripciones/t.md")
+    assert a.sesion_origen == "sesion-05"
+    assert a.partida_id == "campana-grulla"
+    # Y las carpetas de formato no la alteran.
+    b = clasificar("l5r/partidas/campana-grulla/sesiones/sesion-05/acta.md")
+    assert b.sesion_origen == "sesion-05"
+
+
+def test_fuera_de_sesiones_NO_se_inventa_una_sesion_de_origen():
+    """Sin carpeta de sesion no hay procedencia de sesion. No se deduce."""
+    for ruta in ("l5r/partidas/campana-grulla/secretos/x.md",
+                 "l5r/partidas/campana-grulla/notas-narrador/x.md",
+                 "l5r/compartido/lore/x.md",
+                 "l5r/entrada/x.md"):
+        assert clasificar(ruta).sesion_origen is None, ruta
+
+
+def test_el_ORIGEN_no_se_convierte_en_REVELACION_en_ninguna_parte():
+    """LA PRUEBA DE LA FRONTERA. `sesion-05` no puede volverse un `5`.
+
+    Se comprueba sobre el objeto que viaja: ni el ambito ni lo que se pinta
+    contienen `known_from_session` ni ningun numero derivado de la carpeta.
+    Derivarlo seria conceder conocimiento por inferencia de directorio.
+    """
+    a = clasificar("l5r/partidas/campana-grulla/sesiones/sesion-05/acta.md")
+
+    prohibidos = {"known_from_session", "known_by", "known_by_characters",
+                  "revelacion", "revealed_from_session"}
+    assert not (set(vars(a)) & prohibidos), vars(a)
+    assert not (set(a.para_pantalla()) & prohibidos), a.para_pantalla()
+
+    # Y la procedencia NO se ha convertido en un entero de sesion.
+    assert a.sesion_origen == "sesion-05", (
+        "la procedencia dejo de ser la carpeta tal cual; si alguien la ha "
+        "normalizado a un numero, el siguiente paso es usarla como revelacion"
+    )
+    assert not isinstance(a.sesion_origen, int)
+
+
+def test_el_modulo_de_ambito_no_nombra_la_revelacion_en_su_codigo():
+    """`known_from_session` no aparece como CODIGO en el clasificador.
+
+    Se parsea el AST y se miran nombres, atributos y literales: contar
+    apariciones en el texto daria falso positivo con la prosa que explica
+    precisamente que NO se usa (y que tiene que poder escribirse).
+    """
+    import ast as _ast
+
+    from app import vault_scope
+
+    arbol = _ast.parse(inspect.getsource(vault_scope))
+    prohibidos = {"known_from_session", "known_by", "known_by_characters"}
+    encontrados = set()
+    for nodo in _ast.walk(arbol):
+        if isinstance(nodo, _ast.Name) and nodo.id in prohibidos:
+            encontrados.add(nodo.id)
+        elif isinstance(nodo, _ast.Attribute) and nodo.attr in prohibidos:
+            encontrados.add(nodo.attr)
+        elif isinstance(nodo, _ast.Constant) and isinstance(nodo.value, str):
+            # Un literal de cadena SI cuenta: seria la clave de un dict.
+            if nodo.value in prohibidos and not _es_docstring(nodo, arbol):
+                encontrados.add(nodo.value)
+    assert not encontrados, (
+        f"el clasificador nombra la revelacion en su codigo: {encontrados}. "
+        "La carpeta no concede conocimiento; eso se decide en Review"
+    )
+
+
+def _es_docstring(nodo, arbol) -> bool:
+    """¿Ese literal es un docstring? La prosa puede nombrar lo prohibido."""
+    import ast as _ast
+
+    for padre in _ast.walk(arbol):
+        if isinstance(padre, (_ast.Module, _ast.ClassDef, _ast.FunctionDef)):
+            doc = _ast.get_docstring(padre, clean=False)
+            if doc is not None and nodo.value == doc:
+                return True
+    return False
+
+
+def test_el_payload_del_alta_no_lleva_revelacion(entorno_boveda):
+    """Aguas abajo tampoco: lo que se encola no declara revelacion alguna.
+
+    El motor la exigira y fallara cerrado —esa es la conducta correcta— pero el
+    alta NO puede rellenarla por su cuenta con la sesion del path.
+    """
+    fuentes, _ = sources_catalog.listar_fuentes_boveda(entorno_boveda)
+    de_sesion = [f for f in fuentes if f.ambito.sesion_origen]
+    assert de_sesion, "el arnes no tiene material de sesion: no dice nada"
+    for f in de_sesion:
+        pintado = f.para_pantalla()["ambito"]
+        assert "known_from_session" not in pintado
+        assert pintado["sesion_origen"] == f.ambito.sesion_origen

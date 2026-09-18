@@ -38,6 +38,27 @@ DE DONDE SALE EL DIRECTORIO
 `S9K_INGEST_SOURCES_DIR`, y si no esta, `examples/ingesta-v3` del repositorio,
 que es el material de prueba que el Corte 1 usa. El operador no lo escribe ni
 lo ve.
+
+EL UNICO AMBITO QUE NO SALE DE UNA RUTA CLASIFICADA: `AMBITO_PLANO`
+-------------------------------------------------------------------
+Se nombra aqui, arriba y con todas las letras, porque es EL sitio del arbol
+donde alguien podria apoyarse manana sin entender por que es seguro.
+
+En modo boveda todo ambito lo produce `vault_scope.clasificar` a partir de la
+ruta. En el catalogo PLANO heredado no hay arbol del que derivar nada, asi que
+la fuente se construye con `AMBITO_PLANO`. NO es «el ambito por defecto» ni una
+puerta trasera del invariante, y estas son las tres razones, comprobables:
+
+  1. es lo mas RESTRICTIVO —`visibility="secret"`, el mismo defecto fail-closed
+     que aplica el estampador—, asi que no puede sobreexponer nada;
+  2. lleva `regla="catalogo-plano-sin-boveda"`, que se PINTA en la pantalla:
+     no se disfraza de ruta clasificada, se ve que no lo es;
+  3. no trae `workspace`, y el alta lo vuelve a EXIGIR (`SOURCE_PACKAGE_INVALID`
+     si el perfil no lo declara), asi que tampoco inventa ambito.
+
+Lo que NO debe hacerse con el: usarlo para «rellenar» un ambito en modo boveda.
+Si una ruta no se sabe clasificar, la respuesta es un rechazo con su motivo, no
+este objeto.
 """
 from __future__ import annotations
 
@@ -66,6 +87,7 @@ __all__ = [
     "NOMBRE_PERFIL",
     "NOMBRE_CATALOGO",
     "AMBITO_PLANO",
+    "MOTIVO_AUXILIAR",
     "ENV_RAIZ_BOVEDAS",
     "ENV_EXIGIR_MONTAJE",
 ]
@@ -88,6 +110,11 @@ EXTENSIONES_SOPORTADAS = {
 NOMBRE_PERFIL = "perfil-operador.json"
 NOMBRE_CATALOGO = "catalogo-workspace.json"
 _NO_SON_FUENTES = {NOMBRE_PERFIL, NOMBRE_CATALOGO, "README.md"}
+
+#: Motivo con el que se DECLARA un fichero auxiliar (perfil, catalogo, README)
+#: encontrado durante el recorrido de una boveda. Existe para que no haya
+#: ninguna salida muda: ver el comentario en `listar_fuentes_boveda`.
+MOTIVO_AUXILIAR = "AUXILIAR_NO_ES_FUENTE"
 
 
 class CatalogoNoDisponible(RuntimeError):
@@ -267,10 +294,20 @@ def listar_fuentes_boveda(
 ) -> tuple[list[FuenteDisponible], list[dict]]:
     """DESCUBRIMIENTO JERARQUICO con clasificacion, indivisibles.
 
-    Devuelve `(fuentes, rechazos)`. Toda ruta recorrida acaba en uno de los dos
-    sitios: o es una fuente CON ambito, o es un rechazo CON motivo. No hay
-    tercera salida, y en particular no existe la que habia antes —descartada en
+    Devuelve `(fuentes, rechazos)`. Todo FICHERO recorrido acaba en uno de los
+    dos sitios: o es una fuente CON ambito, o es un rechazo CON motivo. No hay
+    tercera salida, y en particular no existe la que habia antes —descartado en
     silencio, sin warning y con `stderr` vacio—.
+
+    El alcance de esa afirmacion, acotado a proposito para que no prometa de
+    mas: se refiere a los FICHEROS que el recorrido visita. Un DIRECTORIO no
+    genera entrada por si mismo —lo hacen los ficheros que contiene—, y un
+    directorio vacio no produce ni fuente ni rechazo porque no hay nada que
+    ingerir en el.
+
+    Los auxiliares (`_NO_SON_FUENTES`) tampoco son una excepcion: se declaran
+    con `MOTIVO_AUXILIAR`. Lo fueron hasta que un revisor encontro que un
+    `README.md` anidado salia en silencio.
 
     El orden es el que impone la frontera: primero se VERIFICA el montaje
     (`vault_mount.inspeccionar`), y solo despues se enumera. Un mountpoint sin
@@ -297,6 +334,27 @@ def listar_fuentes_boveda(
             absoluta = Path(dirpath) / nombre
             relativa = absoluta.relative_to(raiz).as_posix()
             if nombre in _NO_SON_FUENTES:
+                # AUXILIAR, PERO DECLARADO. Antes esto era un `continue` mudo, y
+                # era la TERCERA SALIDA que el docstring negaba: un `README.md`
+                # con contenido real dentro de `compartido/lore/` se iba sin ser
+                # fuente ni rechazo, en silencio, a cualquier profundidad. Es el
+                # defecto de este corte en forma residual —no puede producir un
+                # ambito erroneo ni sobreexponer, porque excluye; pero descartar
+                # sin avisar es exactamente lo que se vino a corregir—.
+                #
+                # Ahora se emite un rechazo. Cuesta una linea en la pantalla y
+                # convierte un silencio en un hecho visible: el operador ve que
+                # su `README.md` no se ingiere, en vez de preguntarse por que no
+                # aparece.
+                rechazos.append({
+                    "motivo": MOTIVO_AUXILIAR,
+                    "ruta": relativa,
+                    "detalle": (
+                        "acompana a las fuentes pero NO es una fuente: es "
+                        "material auxiliar del workspace. No se ingiere, y se "
+                        "dice para que no desaparezca sin explicacion"
+                    ),
+                })
                 continue
 
             # CLASIFICAR ES EL PASO 1, NO UN FILTRO POSTERIOR. Se hace antes de

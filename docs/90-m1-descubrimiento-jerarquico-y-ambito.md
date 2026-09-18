@@ -94,11 +94,38 @@ obligaría a adivinar cuál de los dos ocurrió.
 | `PERFIL_DE_BOVEDA_INVALIDO` | la bóveda no declara su workspace |
 | `FORMATO_NO_SOPORTADO` / `FUENTE_ILEGIBLE` | la fuente no se puede leer |
 
+| `AUXILIAR_NO_ES_FUENTE` | perfil, catálogo o `README.md`: acompañan a las fuentes pero no lo son |
+
 **Nunca «ya veremos luego qué ámbito era».** No existe ninguna rama que devuelva
-un ámbito por defecto: la única forma de no ingerir es levantar.
+un ámbito por defecto. La propiedad se mide con un **barrido de ~850.000 rutas**
+(producto cartesiano de segmentos legítimos y hostiles hasta profundidad 4), que
+exige de cada una: o `NoIngerible` con uno de los cuatro motivos **y su
+diagnóstico**, o un `Ambito` con visibilidad del enum cerrado, regla dentro de la
+tabla §3 y **sin workspace inventado**. Su techo está declarado en el propio test
+(profundidades mayores, nombres arbitrarios, otros separadores, Unicode).
 
 Y **lo que no entra se ve**: la pantalla del panel lista los rechazos con su
 motivo. Descartar en silencio era el defecto original con otra cara.
+
+### La tercera salida que sí existía
+
+La primera entrega afirmaba, en el docstring del recorrido, que *«toda ruta
+recorrida acaba en uno de los dos sitios… no hay tercera salida»*. **Era falso.**
+`if nombre in _NO_SON_FUENTES: continue` se evaluaba **antes de clasificar y sin
+registrar rechazo**, a cualquier profundidad: un `README.md` con contenido real
+dentro de `compartido/lore/` salía **ni fuente ni rechazo, en silencio** — el
+defecto de este corte en forma residual.
+
+No podía producir un ámbito erróneo ni sobreexponer (excluye, es *fail-closed*),
+pero la afirmación absoluta no se sostenía. Ahora esos ficheros se **declaran**
+con `AUXILIAR_NO_ES_FUENTE`, que convierte un silencio en un hecho visible.
+
+Lo encontró **un revisor independiente, no esta suite**, y la razón importa: el
+testigo construía el universo esperado con `_NO_SON_FUENTES`, **la misma
+constante del sujeto que causaba el descarte**. Un testigo que hereda del sujeto
+la definición de lo que vigila no puede ponerse rojo por esa clase de fuga. El
+testigo ya no filtra nada: el universo es *todo fichero del árbol*, y si el
+catálogo quiere excluir algo, que lo declare.
 
 ## 5. Las convenciones cerradas (instrucción 11)
 
@@ -150,6 +177,27 @@ handler pasa `partida_id` a `run_ingest`, que **ya lo aceptaba**.
 identidad del asset sigue siendo **independiente de ruta y de renombrado**.
 Partida y ámbito viajan como **dimensiones explícitas**; no se recicla
 `collection_id` para codificarlos.
+
+## 7 bis. `AMBITO_PLANO`: el único ámbito que no sale de una ruta
+
+Se nombra aparte porque es **el sitio del árbol donde alguien podría apoyarse
+mañana sin entender por qué es seguro**.
+
+En modo bóveda todo ámbito lo produce `clasificar` a partir de la ruta. En el
+catálogo **plano heredado** no hay árbol del que derivar nada, así que la fuente
+se construye con `AMBITO_PLANO`. **No es «el ámbito por defecto»** ni una puerta
+trasera del invariante, y por tres razones comprobables:
+
+1. es **lo más restrictivo** (`visibility="secret"`, el mismo defecto
+   *fail-closed* del estampador): no puede sobreexponer nada;
+2. lleva `regla="catalogo-plano-sin-boveda"`, que **se pinta**: no se disfraza de
+   ruta clasificada;
+3. **no trae `workspace`**, y el alta lo vuelve a exigir
+   (`SOURCE_PACKAGE_INVALID` si el perfil no lo declara): tampoco inventa ámbito.
+
+**Lo que no debe hacerse con él**: usarlo para «rellenar» un ámbito en modo
+bóveda. Si una ruta no se sabe clasificar, la respuesta es un rechazo con su
+motivo, no este objeto.
 
 ## 8. Lo que este carril NO hace, a propósito
 

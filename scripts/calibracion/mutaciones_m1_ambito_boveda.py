@@ -188,6 +188,54 @@ MUTACIONES = [
     ),
 
     # =================================================================
+    # 10. LA TERCERA SALIDA MUDA (la que se le escapo a la primera entrega)
+    # -----------------------------------------------------------------
+    # `if nombre in _NO_SON_FUENTES: continue` descartaba EN SILENCIO, a
+    # cualquier profundidad: un `README.md` con contenido real dentro de
+    # `compartido/lore/` salia ni fuente ni rechazo. Es el defecto de este
+    # corte en forma residual, y el docstring afirmaba que no existia.
+    #
+    # Lo encontro un revisor independiente, no esta suite: el testigo
+    # construia el universo esperado con la MISMA constante del sujeto que
+    # causaba el descarte, asi que no podia verlo. Los dos —producto y
+    # testigo— estan corregidos; esta mutacion es lo que lo mantiene asi.
+    # =================================================================
+    Mutacion(
+        nombre="devolver la TERCERA SALIDA MUDA: auxiliar descartado en "
+               "silencio a cualquier profundidad",
+        fichero=CATALOGO,
+        viejo='''                rechazos.append({
+                    "motivo": MOTIVO_AUXILIAR,''',
+        nuevo='''                continue
+                rechazos.append({
+                    "motivo": MOTIVO_AUXILIAR,''',
+        prueba=f"{SUITE}::test_un_auxiliar_ANIDADO_se_declara_en_vez_de_desaparecer",
+        esperado="se fue en silencio",
+    ),
+
+    # =================================================================
+    # 11. CRUZAR LA FRONTERA: convertir ORIGEN en REVELACION
+    # -----------------------------------------------------------------
+    # La linea que el operador ha marcado y este carril no cruza:
+    #
+    #     ruta: sesiones/sesion-05/...  NO IMPLICA  known_from_session = 5
+    #
+    # Aqui se cruza a proposito —derivando el entero de la carpeta, que es
+    # justo lo que alguien haria «por comodidad»— y se exige que la guarda
+    # por AST lo vea. Sin esta mutacion, esa guarda seria prosa.
+    # =================================================================
+    Mutacion(
+        nombre="CRUZAR LA FRONTERA: derivar known_from_session de la carpeta "
+               "sesion-NN",
+        fichero=SCOPE,
+        viejo="        origen = sesion\n",
+        nuevo=("        origen = sesion\n"
+               "        known_from_session = int(sesion.split('-')[1])\n"),
+        prueba=f"{SUITE}::test_el_modulo_de_ambito_no_nombra_la_revelacion_en_su_codigo",
+        esperado="la carpeta no concede conocimiento",
+    ),
+
+    # =================================================================
     # 9. BORRAR LA PANTALLA
     # =================================================================
     Mutacion(

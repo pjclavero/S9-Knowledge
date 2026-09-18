@@ -93,6 +93,30 @@ class Ambito:
     `carpeta_juego` es el nombre EXTERNO de la carpeta, no el workspace: la
     equivalencia la declara el perfil de la boveda. `workspace` se rellena
     despues, por quien lee ese perfil, y por eso es opcional aqui.
+
+    LA FRONTERA QUE NO SE CRUZA: ORIGEN NO ES REVELACION
+    ----------------------------------------------------
+    `sesion_origen` es la carpeta `sesion-NN` de la que SALIO el fichero. Es
+    PROCEDENCIA —donde nacio el material—, y por eso este modulo puede y debe
+    saberla: sirve para decir de donde viene una fuente.
+
+    NO es `known_from_session`, que es otra pregunta completamente distinta:
+    desde que sesion puede CONOCER un personaje ese contenido. Esa es una
+    decision EXPLICITA de una persona, y se toma en REVIEW, antes de sellar.
+
+        ruta: sesiones/sesion-05/...   NO IMPLICA   known_from_session = 5
+
+    Convertir lo uno en lo otro seria volver a hacer que una carpeta conceda
+    conocimiento, que es exactamente lo que M1 tiene prohibido. Ni aqui ni
+    aguas abajo se deriva revelacion de esta carpeta: no se elige «la sesion
+    del path», ni «la ultima sesion», ni «la fecha de ingesta». Si falta la
+    declaracion, se falla cerrado y lo dice.
+
+    El reparto, para que nadie suplante a nadie:
+
+        M1     decide DONDE PERTENECE el material
+        Review decide QUE SIGNIFICA y CUANDO puede revelarse
+        Auth   decide QUIEN puede verlo
     """
 
     carpeta_juego: str
@@ -100,6 +124,9 @@ class Ambito:
     visibility: str
     regla: str
     workspace: Optional[str] = None
+    #: SESION DE ORIGEN. PROCEDENCIA, NO REVELACION. Lee la frontera de abajo
+    #: antes de tocar este campo.
+    sesion_origen: Optional[str] = None
 
     def con_workspace(self, workspace: str) -> "Ambito":
         """El mismo ambito con el workspace DECLARADO por el perfil."""
@@ -111,6 +138,7 @@ class Ambito:
             visibility=self.visibility,
             regla=self.regla,
             workspace=workspace,
+            sesion_origen=self.sesion_origen,
         )
 
     def para_pantalla(self) -> dict:
@@ -120,6 +148,9 @@ class Ambito:
             "partida_id": self.partida_id,
             "visibility": self.visibility,
             "regla": self.regla,
+            # PROCEDENCIA. Se llama `sesion_origen` y no `sesion` a proposito:
+            # el nombre tiene que impedir que alguien lo lea como revelacion.
+            "sesion_origen": self.sesion_origen,
         }
 
 
@@ -281,6 +312,8 @@ def clasificar(ruta_relativa: str | PurePosixPath) -> Ambito:
                   f"`partidas/{partida}/{sub}/` no es ninguna seccion de "
                   "partida del esquema")
 
+    origen: Optional[str] = None
+
     if sub == _APORTACIONES:
         # `<partida>-<jugador>` se CONSERVA tal cual y es deliberado: Nextcloud
         # fija el `file_target` al crear el compartido y NO lo actualiza, asi
@@ -324,6 +357,10 @@ def clasificar(ruta_relativa: str | PurePosixPath) -> Ambito:
         # `transcripciones/` y las que el operador anada son carpetas de
         # FORMATO, transparentes para el ambito. No aparecen en la tabla a
         # proposito y no pueden modificarlo.
+        #
+        # Y se ANOTA la sesion de ORIGEN: procedencia, no revelacion. Ver la
+        # frontera en el docstring de `Ambito`.
+        origen = sesion
 
     return Ambito(
         carpeta_juego=juego,
@@ -331,4 +368,5 @@ def clasificar(ruta_relativa: str | PurePosixPath) -> Ambito:
         visibility=_CAPA_PARTIDA[sub],
         regla=(f"<juego>/partidas/<p>/{sub}/"
                + ("<p>-<jugador>/**" if sub == _APORTACIONES else "**")),
+        sesion_origen=origen,
     )
