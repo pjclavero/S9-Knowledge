@@ -26,12 +26,17 @@ LAS MUTACIONES OBLIGATORIAS DEL ENCARGO, Y DÓNDE ESTÁ CADA UNA
      la forma fácil de aprobar la nº 5 sería declarar todo inutilizable.
   4. **partida que no llega al alta** -> nº 7 y nº 8 (payload y motor).
 
-Y una más, que no está en la lista pero sí en el encargo:
+Y tres más, que no están en la lista pero sí en el encargo y en el dictamen:
 
   9. **BORRAR LA PANTALLA**. En esta sesión un carril añadió una cabecera y
      borrarla entera dejó la suite igual de verde. Aquí se borra la tabla de
      ámbito del panel y se exige que la suite se entere: si una garantía es
      visible, el testigo tiene que PEDIR LA PANTALLA.
+ 10. **LA TERCERA SALIDA MUDA**, que se le escapó a la primera entrega y
+     encontró un revisor independiente. Un auxiliar anidado descartado en
+     silencio es el defecto de este corte en forma residual.
+ 11. **CRUZAR LA FRONTERA** origen -> revelación. Sin esta mutación, la guarda
+     por AST que lo impide sería prosa.
 
 USO
 ---
@@ -120,7 +125,10 @@ MUTACIONES = [
     if False:
         raise _no(MOTIVO_DESCONOCIDA, partes,""",
         prueba=f"{SUITE}::test_no_se_devuelve_nunca_un_ambito_por_defecto",
-        esperado="DID NOT RAISE",
+        # El barrido ampliado da un diagnostico MEJOR que el `DID NOT RAISE`
+        # que daba el `pytest.raises` de la version de 7 rutas: nombra la
+        # regla inventada y dice que esta fuera de la tabla §3.
+        esperado="regla inventada",
     ),
     Mutacion(
         nombre="colapsar INCOHERENTE en DESCONOCIDA (rechaza, pero con el "
@@ -232,7 +240,7 @@ MUTACIONES = [
         nuevo=("        origen = sesion\n"
                "        known_from_session = int(sesion.split('-')[1])\n"),
         prueba=f"{SUITE}::test_el_modulo_de_ambito_no_nombra_la_revelacion_en_su_codigo",
-        esperado="la carpeta no concede conocimiento",
+        esperado="La carpeta no concede conocimiento",
     ),
 
     # =================================================================
