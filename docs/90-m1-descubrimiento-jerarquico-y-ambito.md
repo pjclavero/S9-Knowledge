@@ -93,7 +93,6 @@ obligaría a adivinar cuál de los dos ocurrió.
 | `RUTA_NO_INGERIBLE` | `<juego>/archivo/**` |
 | `PERFIL_DE_BOVEDA_INVALIDO` | la bóveda no declara su workspace |
 | `FORMATO_NO_SOPORTADO` / `FUENTE_ILEGIBLE` | la fuente no se puede leer |
-
 | `AUXILIAR_NO_ES_FUENTE` | perfil, catálogo o `README.md`: acompañan a las fuentes pero no lo son |
 
 **Nunca «ya veremos luego qué ámbito era».** No existe ninguna rama que devuelva
@@ -199,6 +198,69 @@ trasera del invariante, y por tres razones comprobables:
 bóveda. Si una ruta no se sabe clasificar, la respuesta es un rechazo con su
 motivo, no este objeto.
 
+## 7 ter. ORIGEN no es REVELACIÓN — la frontera entre capas
+
+**Decisión de diseño ratificada por el operador**, y la línea que este carril no
+cruza. Son dos preguntas distintas y se responden en sitios distintos:
+
+```
+sesion de ORIGEN      = donde/cuando NACIO el material
+                      = sale del arbol de la boveda          <- PROCEDENCIA, es de M1
+sesion de REVELACION  = desde que sesion puede CONOCERLO un personaje
+                      = decision EXPLICITA de una persona    <- known_from_session, es de Review
+```
+
+La regla, textual:
+
+```
+ruta: sesiones/sesion-05/...      NO IMPLICA      known_from_session = 5
+```
+
+M1 **puede y debe** saber que un documento viene de `partida X / sesiones /
+sesion-05 / transcripciones`: eso es **contexto y procedencia de la fuente**. Lo
+que **no** hace es convertirlo en concesión de conocimiento. Derivarlo sería
+volver a hacer que una carpeta conceda conocimiento, que es justo lo que M1
+tiene prohibido.
+
+### Cómo está implementado
+
+`Ambito.sesion_origen` lleva la carpeta `sesion-NN` de la que salió el fichero, y
+`None` cuando no viene de una sesión — **no se inventa** para material de
+`secretos/`, `notas-narrador/` o capa juego. Se llama `sesion_origen` y no
+`sesion` a propósito: **el nombre tiene que impedir que alguien lo lea como
+revelación**.
+
+### Cómo está defendido, en tres capas
+
+1. **Por AST** (barata y temprana): el clasificador no puede **nombrar**
+   `known_from_session` / `known_by` en su código. Su techo está declarado: no ve
+   indirecciones (`getattr`, claves compuestas en ejecución, campos de nombre
+   neutro).
+2. **Por efecto, sobre el objeto**: se miran las **claves** del `Ambito`, que es
+   `frozen` y tiene seis campos.
+3. **Por efecto, sobre el payload**: se miran las claves de lo que se encola.
+
+Las capas 2 y 3 **no se esquivan**: una evasión de la capa 1 sólo sirve si
+consigue meter el dato **en el objeto o en el payload**, y ahí se mira por clave.
+
+### Dónde entra la revelación, y por qué no aquí
+
+En **REVIEW, antes de sellar**, que es donde ya está el punto de autoridad
+humana. No se añade otro almacén ni otra etapa:
+
+```
+fuente -> ingest -> propuestas -> REVIEW -> decision + revelacion/visibilidad
+                                         -> plan sellado -> APPLY
+```
+
+Cuando falte la declaración se falla cerrado, con frase accionable y código
+estable, **sin pedir identificadores técnicos al operador**. Nunca se elige en
+silencio la sesión del path, la última sesión ni la fecha de ingesta.
+
+> **M1 decide DÓNDE PERTENECE el material. Review decide QUÉ SIGNIFICA y CUÁNDO
+> puede revelarse. Auth decide QUIÉN puede verlo. Ninguna de las tres suplanta a
+> las otras.**
+
 ## 8. Lo que este carril NO hace, a propósito
 
 - **No deriva permisos ni `known_by` de carpetas.** `known_by` se sigue
@@ -252,3 +314,49 @@ declarado**, no resuelto por inferencia.
   lo trata como vacío: cualquier nivel extra bajo una sesión hereda como carpeta
   de formato, y cualquier otro cuelga de una fila `**` o cae en
   `RUTA_DESCONOCIDA`. Ninguna rama asume que no hay nada más abajo.
+
+- **El catálogo PLANO heredado sigue descartando en silencio.** No es una
+  regresión —es el comportamiento que ya tenía en `main`, y ese camino no es
+  recursivo, así que el descarte es de un solo nivel y a la vista— pero conviene
+  que quede dicho: **`AUXILIAR_NO_ES_FUENTE` cubre el modo bóveda, no el plano.**
+
+## 11. Condición del ensayo RC — esto no se ha ejercido contra un rclone real
+
+**Hay que decirlo antes que nada: el modo bóveda nunca se ha ejercido contra un
+montaje rclone real.** Todo lo medido usa `S9K_VAULT_REQUIRE_MOUNT=0` sobre un
+directorio temporal. El recorrido que falta por ejercer, entero, es:
+
+```
+montaje rclone REAL -> catalogo jerarquico -> clasificacion M1 real -> Source -> ingest_v3
+```
+
+Lo que **sí** está establecido, y acota el alcance del ensayo: la clasificación
+**no depende del sistema de ficheros**. `vault_scope` es una función pura sobre
+la cadena de la ruta —usa `PurePosixPath`, no toca disco— y clasifica igual
+rutas que no existen. Así que un directorio temporal ejercita la clasificación
+**exactamente igual** que un FUSE. Lo que el ensayo tiene que ejercer es la otra
+mitad: **la frontera de adquisición y los bytes que el montaje entrega**.
+
+Tres comprobaciones concretas, todas encontradas **ejecutando**. Ninguna bloquea
+—las tres excluyen, y ninguna puede producir un ámbito equivocado— pero el
+ensayo tiene que mirarlas:
+
+**1 · `S9K_VAULT_ROOT` tiene que ser el MOUNTPOINT, no un subdirectorio suyo.**
+Reproducido: con el montaje en `<mount>` y las bóvedas en `<mount>/bovedas`,
+`ismount` da False y se levanta `MOUNT_MISSING` **aunque la bóveda esté llena y
+sea perfectamente legible**. La dirección del fallo es la correcta (no se degrada
+a lista vacía), pero es un **riesgo de disponibilidad con un mensaje que
+despista**: dice «no hay montaje activo» cuando lo que pasa es que se apuntó un
+nivel por debajo.
+
+**2 · Caja del nombre.** `Compartido/` cae en `RUTA_DESCONOCIDA`. Es fail-closed
+y correcto, pero en un backend que pliegue mayúsculas el ensayo debe confirmar
+que rclone entrega los nombres **exactamente** como los fija el esquema.
+
+**3 · Forma Unicode.** La clasificación es pura, **pero los bytes del nombre se
+los da el sistema de ficheros**. Con la partida en NFC y el buzón de
+aportaciones en NFD sale `RUTA_INCOHERENTE` con un mensaje que enfrenta **dos
+cadenas visualmente idénticas** — fail-closed, pero **indiagnosticable para el
+operador**. Nextcloud y macOS normalizan distinto, así que el caso es plausible,
+no teórico.
+

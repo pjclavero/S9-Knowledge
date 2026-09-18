@@ -812,6 +812,26 @@ def test_el_modulo_de_ambito_no_nombra_la_revelacion_en_su_codigo():
     Se parsea el AST y se miran nombres, atributos y literales: contar
     apariciones en el texto daria falso positivo con la prosa que explica
     precisamente que NO se usa (y que tiene que poder escribirse).
+
+    EL TECHO DE ESTA RED, DECLARADO
+    -------------------------------
+    Esta guarda **no ve indirecciones**: concatenacion de literales en tiempo
+    de ejecucion, `getattr`/`setattr` con un nombre compuesto, o un campo de
+    nombre inocente que acabe llevando el dato. Un revisor la ataco con cuatro
+    y **tres la esquivan**.
+
+    No se persiguen, y es una decision, no un descuido: el aliasing no se
+    cierra anadiendo patrones, y perseguirlo convertiria una red util en una
+    supuesta demostracion de imposibilidad que no puede ser. Lo que cierra esas
+    evasiones son las guardas POR EFECTO de mas abajo
+    (`test_el_ORIGEN_no_se_convierte_en_REVELACION_en_ninguna_parte` y
+    `test_el_payload_del_alta_no_lleva_revelacion`): miran las CLAVES del
+    `Ambito` —que es `frozen` y tiene seis campos— y las del payload encolado.
+
+    Es decir: una evasion de esta red solo sirve de algo si consigue meter el
+    dato **en el objeto o en el payload**, y ahi se mira por clave, no por
+    nombre en el codigo. Esta capa es la barata y temprana; las otras dos son
+    las que no se esquivan.
     """
     import ast as _ast
 
