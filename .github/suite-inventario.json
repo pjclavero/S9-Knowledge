@@ -61,6 +61,7 @@
     "viewer/tests/test_contrato_paneles_neo4j.py": "CONDICIONAL",
     "viewer/tests/test_contrato_writer_a_visor_neo4j.py": "CONDICIONAL",
     "viewer/tests/test_integracion_tanda11_recorrido_completo.py": "CONDICIONAL",
+    "viewer/tests/test_multipartida_divergencia_local_neo4j.py": "CONDICIONAL",
     "viewer/tests/test_neo4j_integration_authz.py": "CONDICIONAL",
     "viewer/tests/test_resultado_procedencia_neo4j_real.py": "CONDICIONAL"
   },
@@ -86,6 +87,7 @@
     "viewer/tests/test_contrato_paneles_neo4j.py": "not URI or not PASSWORD",
     "viewer/tests/test_contrato_writer_a_visor_neo4j.py": "not URI or not PASSWORD",
     "viewer/tests/test_integracion_tanda11_recorrido_completo.py": "not URI or not PASSWORD",
+    "viewer/tests/test_multipartida_divergencia_local_neo4j.py": "not URI or not PASSWORD",
     "viewer/tests/test_neo4j_integration_authz.py": "not URI or not PASSWORD",
     "viewer/tests/test_resultado_procedencia_neo4j_real.py": "not URI or not PASSWORD"
   },
@@ -345,6 +347,8 @@
     "viewer/tests/test_m5b3_migracion_visibilidad.py": 20,
     "viewer/tests/test_m5b_plan_migracion_produccion.py": 15,
     "viewer/tests/test_metodos_escritura_http.py": 6,
+    "viewer/tests/test_multipartida_divergencia_local_neo4j.py": 3,
+    "viewer/tests/test_multipartida_divergencia_local_pantalla.py": 19,
     "viewer/tests/test_multipartida_e2e.py": 6,
     "viewer/tests/test_multipartida_isolation.py": 18,
     "viewer/tests/test_multipartida_m5a_adversarial.py": 30,
@@ -423,7 +427,7 @@
     "viewer/tests/test_graph_ux_v2.py",
     "viewer/tests/test_panel_apply_desde_la_ui.py"
   ],
-  "total": 8606,
+  "total": 8634,
   "modulos": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 526,
     "contracts/review-ingest/v1/tests/test_contracts_v1.py": 38,
@@ -676,6 +680,8 @@
     "viewer/tests/test_m5b3_migracion_visibilidad.py": 59,
     "viewer/tests/test_m5b_plan_migracion_produccion.py": 39,
     "viewer/tests/test_metodos_escritura_http.py": 6,
+    "viewer/tests/test_multipartida_divergencia_local_neo4j.py": 3,
+    "viewer/tests/test_multipartida_divergencia_local_pantalla.py": 25,
     "viewer/tests/test_multipartida_e2e.py": 6,
     "viewer/tests/test_multipartida_isolation.py": 18,
     "viewer/tests/test_multipartida_m5a_adversarial.py": 30,
