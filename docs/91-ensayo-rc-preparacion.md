@@ -70,7 +70,7 @@ python3 deploy/scripts/preflight_ensayo_rc.py --workspace <ws>
 | `apply.habilitado` | la **misma** declaración que lee `v3_apply._habilitado` (`=="1"` y workspace) | sí |
 | `neo4j.credencial` | usuario propio (≠ `neo4j`), fichero `0600`, fuera del repo, no vacío, **el valor no se lee** | sí |
 | `neo4j.transporte` | local, o cifrado con CA presente; `+ssc` es ROJO | sí |
-| `worker.observa_grafo` | ver abajo: **PENDIENTE**, dependencia del carril A | sí (mock ⇒ ROJO) |
+| `worker.observa_grafo` | el handler del panel **sigue llamando** al constructor del driver de lectura (parseado); el sondeo con grafo vivo queda **PENDIENTE** | sí (mock, driver sin llamador, nadie construye, handler ilegible) |
 | `aislamiento.workspace` | visor, writer y ensayo hablan del mismo workspace | sí |
 
 **Calibrado** significa que existe una prueba que pone ese punto en **rojo**
@@ -110,18 +110,29 @@ salió mal dos veces seguidas.
 
 `worker.observa_grafo`. El ensayo ya **no** puede validar sólo volúmenes
 compartidos: lo que decide si el recorrido termina es si el worker, con **su**
-credencial y **su** contexto, **ve el grafo**. El camino de producto hasta el
-driver real lo está construyendo **el carril A**, así que aquí la comprobación
-queda **PENDIENTE** y el preflight sale ≠ 0.
+credencial y **su** contexto, **ve el grafo**.
 
-No se sustituye por un sondeo propio a propósito: abrir aquí una sesión con el
-driver mediría **otra cosa** distinta de la que usará el worker, y saldría
-verde con el camino de producto roto. Cuando el carril A cierre, se observa
-así, y no antes de tener su punto de entrada:
+**El carril A ya entró** (Corte 5, en `main`): el handler que el panel invoca
+abre un driver de **sólo lectura** para consultar el catálogo del workspace.
+Así que este punto ya no dice «no existe el punto de entrada» —sería falso—,
+y se parte en dos mitades:
 
-- con el entorno del ensayo, un sondeo de **solo lectura** por el **mismo**
-  camino que usa el worker abre sesión, lee el workspace declarado y devuelve
-  el recuento;
+- **lo que ya se observa hoy, sin encender nada**: que el camino de producto
+  **siga ahí**. Se parsea el handler y se exige que alguien **llame** al
+  constructor del driver. Un driver que se construye y **nadie invoca** es el
+  patrón que este repositorio ya sufrió tres veces —capacidad completa y sin
+  llamador—, y desde el código se lee igual que una viva; si reaparece, esto
+  se pone **ROJO**, porque el ensayo estaría midiendo una ingesta que no mira
+  el grafo y saldría bien;
+- **lo que sigue sin poderse mirar**: que el worker, con su credencial y su
+  contexto, **abra sesión y lea**. Eso exige grafo vivo, así que queda
+  **PENDIENTE** —y PENDIENTE bloquea— hasta el ensayo.
+
+Sigue sin sustituirse por un sondeo propio: abrir aquí una sesión mediría
+**otra cosa** distinta de la que usa el worker. En el ensayo se observa así:
+
+- un sondeo de **solo lectura** por el **mismo** camino que usa el worker abre
+  sesión, lee el workspace declarado y devuelve el recuento;
 - credencial ausente, sin permiso, o TLS que no valida ⇒ **fallo explícito**,
   nunca «cero nodos».
 
@@ -203,13 +214,15 @@ Browser, no está demostrado por el producto.
 
 | Carril | Qué aporta | Estado para este ensayo |
 | --- | --- | --- |
-| **A · Neo4j product path** | camino de producto hasta el driver real | **bloqueante**: `worker.observa_grafo` sale PENDIENTE hasta que cierre |
+| **A · Neo4j product path** | camino de producto hasta el driver real | **CERRADO** (Corte 5, en `main`). El camino se observa hoy; lo que queda PENDIENTE es el sondeo con grafo vivo, que es del ensayo, no del carril |
 | **B · M1 (bóvedas / Nextcloud)** | el escáner que detecta el fichero subido y el mapping a workspace/ámbito/partida | **bloqueante para el paso 1**: sin él, el ensayo arranca desde el catálogo de fuentes, no desde «subir fichero» |
-| **MULTIPARTIDA-READ** | el enmascarado de divergencias locales (`local_override_of`) en el camino de lectura del visor | **bloqueante para el punto 2 del aislamiento**: sin él no se puede afirmar que la parte multi-partida sea usable de extremo a extremo |
+| **MULTIPARTIDA-READ** | el enmascarado de divergencias locales (`local_override_of`) en el camino de lectura del visor | **bloqueante para el punto 2 del aislamiento**, y **a punto de cerrarse**: entra justo después de esta preparación |
 
-Mientras cualquiera de las tres esté abierta, el ensayo es **parcial y hay que
-declararlo como parcial**. El nombre `S9K_SCANNER_STATE_PATH` es **propuesto**:
-si el carril B elige otro, se renombra aquí y en el guion.
+Con el carril A cerrado, lo que mantiene **parcial** el ensayo es **M1** —sin
+él no hay paso 1 de verdad— y, para la parte multi-partida, MULTIPARTIDA-READ
+hasta que entre. Mientras cualquiera siga abierta, el ensayo es **parcial y hay
+que declararlo como parcial**. El nombre `S9K_SCANNER_STATE_PATH` es
+**propuesto**: si el carril B elige otro, se renombra aquí y en el guion.
 
 ## Pendiente de autorización del operador
 

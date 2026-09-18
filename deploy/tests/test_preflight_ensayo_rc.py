@@ -113,8 +113,8 @@ def test_main_aborta_si_el_canario_no_da_rojo(monkeypatch, entorno, capsys):
 #: de trabajo y un vigia que lo usaba giro en vacio sin emitir nada; cualquier
 #: herramienta externa vuelve a abrir esa puerta, y `subprocess` es la puerta.
 IMPORTS_PERMITIDOS = {
-    "__future__", "argparse", "importlib", "importlib.util", "os", "stat",
-    "sys", "dataclasses", "pathlib", "typing", "urllib.parse",
+    "__future__", "argparse", "ast", "importlib", "importlib.util", "os",
+    "stat", "sys", "dataclasses", "pathlib", "typing", "urllib.parse",
 }
 
 
@@ -371,10 +371,67 @@ def test_grafo_mock_da_rojo(entorno):
     assert _correr(entorno)["worker.observa_grafo"].estado == pf.ROJO
 
 
-def test_la_dependencia_del_carril_a_esta_declarada(entorno):
+def test_el_camino_de_producto_al_driver_esta_presente(entorno):
+    """El carril A ya entro: el handler del panel abre el driver de lectura.
+
+    Lo que queda PENDIENTE ya no es "no existe el punto de entrada" --eso seria
+    falso--, sino la unica mitad que no se puede mirar sin grafo vivo.
+    """
     r = _correr(entorno)["worker.observa_grafo"]
     assert r.estado == pf.PENDIENTE
-    assert "CARRIL A" in r.detalle
+    assert "PRESENTE" in r.detalle
+    presente, motivo = pf._camino_de_observacion_del_worker()
+    assert presente is True, motivo
+
+
+def _handler_falso(tmp_path, cuerpo: str):
+    """Un arbol con la forma del repositorio y el handler que se le indique."""
+    destino = tmp_path.joinpath(*pf.HANDLER_DE_INGESTA)
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.write_text(cuerpo, encoding="utf-8")
+    return tmp_path
+
+
+def test_el_driver_sin_llamador_da_rojo(entorno, monkeypatch, tmp_path):
+    """Capacidad completa y SIN LLAMADOR: el patron que ya mordio tres veces.
+
+    Desde el codigo se lee igual que una viva, y el ensayo mediria una ingesta
+    que no mira el grafo y saldria bien.
+    """
+    raiz = _handler_falso(tmp_path, (
+        "from knowledge_v3.driver_neo4j import build_driver_factory\n"
+        "def _driver_de_observacion():\n"
+        "    return build_driver_factory({})()\n"
+        "def handle_ingest_v3(payload):\n"
+        "    return {'ok': True}\n"  # ya nadie abre el driver
+    ))
+    veredicto = _camino_real(raiz)          # el parser DE VERDAD, otra raiz
+    assert veredicto[0] is False, veredicto  # primero: el parser lo ve
+    monkeypatch.setattr(pf, "_camino_de_observacion_del_worker",
+                        lambda *a, **k: veredicto)
+    assert _correr(entorno)["worker.observa_grafo"].estado == pf.ROJO
+
+
+def _camino_real(raiz):
+    """El parser de verdad, apuntado a otra raiz (sin el monkeypatch)."""
+    import importlib.util as _il
+    spec = _il.spec_from_file_location("_pf_limpio", GUION)
+    modulo = _il.module_from_spec(spec)
+    sys.modules[spec.name] = modulo
+    spec.loader.exec_module(modulo)
+    return modulo._camino_de_observacion_del_worker(raiz)
+
+
+def test_nadie_construye_el_driver_da_rojo(tmp_path):
+    raiz = _handler_falso(tmp_path, "def handle_ingest_v3(payload):\n    return {}\n")
+    presente, motivo = _camino_real(raiz)
+    assert presente is False, motivo
+
+
+def test_handler_ilegible_queda_pendiente(tmp_path):
+    """No poder mirar el camino no es que el camino este bien."""
+    presente, motivo = _camino_real(tmp_path)  # sin el fichero
+    assert presente is None, motivo
 
 
 def test_una_comprobacion_que_revienta_es_rojo(entorno, monkeypatch):

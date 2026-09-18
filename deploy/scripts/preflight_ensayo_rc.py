@@ -51,6 +51,7 @@ Codigos de salida:
 from __future__ import annotations
 
 import argparse
+import ast
 import importlib.util
 import os
 import stat
@@ -565,11 +566,22 @@ def worker_observa_el_grafo(ctx: Contexto) -> Resultado:
         return Resultado("worker.observa_grafo", ROJO,
                          f"S9K_GRAPH_PROVIDER='{proveedor or 'ausente'}': el ensayo "
                          "exige el grafo real, un mock lo daria por bueno")
+    presente, motivo = _camino_de_observacion_del_worker()
+    if presente is None:
+        return Resultado("worker.observa_grafo", PENDIENTE,
+                         f"no se pudo mirar el camino de producto: {motivo}")
+    if not presente:
+        # REGRESION, y de la clase que este repositorio ya ha sufrido tres
+        # veces: una capacidad completa y SIN LLAMADOR se lee desde el codigo
+        # igual que una viva. Si el handler deja de construir el driver, el
+        # ensayo mediria una ingesta que no mira el grafo y saldria bien.
+        return Resultado("worker.observa_grafo", ROJO,
+                         f"el camino de producto al driver de lectura NO esta: {motivo}")
     return Resultado(
         "worker.observa_grafo", PENDIENTE,
-        "DEPENDENCIA DEL CARRIL A: sin punto de entrada de producto al driver real "
-        "no hay capacidad que observar. No se sustituye por un sondeo propio: seria "
-        "medir otra cosa distinta de la que usara el worker",
+        f"camino de producto PRESENTE ({motivo}); falta la unica mitad que no se "
+        "puede mirar sin el grafo vivo: que el worker, con SU credencial y SU "
+        "contexto, abra sesion y lea el workspace. Se observa en el ensayo",
     )
 
 
@@ -614,6 +626,63 @@ def _head_del_arbol(raiz: Path = REPO_ROOT) -> Optional[str]:
     except OSError:
         return None
     return None
+
+
+#: El handler de la cola que el panel invoca. Es el UNICO sitio donde el camino
+#: de producto abre el driver de lectura del grafo (Slice 2 · Corte 5).
+HANDLER_DE_INGESTA = ("data-engine", "app", "jobs", "handlers", "ingest_v3.py")
+
+#: La fabrica del driver, tal y como la nombra el motor. Si el handler deja de
+#: llamarla, el worker ya no observa el grafo.
+FABRICA_DEL_DRIVER = "build_driver_factory"
+
+
+def _camino_de_observacion_del_worker(raiz: Path = REPO_ROOT):
+    """¿Sigue existiendo el llamador que abre el driver de lectura?
+
+    Se PARSEA el handler: se busca la funcion que construye el driver y, sobre
+    todo, **que alguien la llame**. Una funcion que construye el driver y que
+    nadie invoca es exactamente el patron que este repositorio ya ha sufrido
+    tres veces --capacidad completa y sin llamador-- y desde el codigo se lee
+    igual que una viva.
+
+    Devuelve ``(True|False|None, motivo)``. ``None`` es "no se pudo mirar", que
+    arriba es PENDIENTE y nunca verde.
+    """
+    fichero = raiz.joinpath(*HANDLER_DE_INGESTA)
+    try:
+        arbol = ast.parse(fichero.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError) as exc:
+        return None, f"{type(exc).__name__} al leer el handler"
+
+    def nombre_llamado(nodo: ast.Call) -> Optional[str]:
+        objetivo = nodo.func
+        if isinstance(objetivo, ast.Attribute):
+            return objetivo.attr
+        if isinstance(objetivo, ast.Name):
+            return objetivo.id
+        return None
+
+    constructoras = set()
+    for definicion in ast.walk(arbol):
+        if not isinstance(definicion, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for nodo in ast.walk(definicion):
+            if isinstance(nodo, ast.Call) and nombre_llamado(nodo) == FABRICA_DEL_DRIVER:
+                constructoras.add(definicion.name)
+    if not constructoras:
+        return False, f"nadie construye el driver ({FABRICA_DEL_DRIVER} sin uso)"
+
+    for definicion in ast.walk(arbol):
+        if not isinstance(definicion, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if definicion.name in constructoras:
+            continue  # una constructora no se llama a si misma como llamador
+        for nodo in ast.walk(definicion):
+            if isinstance(nodo, ast.Call) and nombre_llamado(nodo) in constructoras:
+                return True, f"{definicion.name}() llama a {nombre_llamado(nodo)}()"
+    return False, ("el driver se construye pero NADIE lo llama: capacidad sin "
+                   "llamador, que desde el codigo se lee como viva")
 
 
 def arbol_declarado(ctx: Contexto) -> Resultado:
