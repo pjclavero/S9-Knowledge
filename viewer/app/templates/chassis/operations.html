@@ -331,14 +331,57 @@
           <select name="fuente" data-role="selector-fuente" required>
             <option value="">Elige una fuente…</option>
             {% for f in fuentes.lista %}
-            <option value="{{ f.handle | e }}">
+            <option value="{{ f.handle | e }}"
+                    data-ambito="{{ f.ambito.workspace | e }}"
+                    data-de-partida="{{ f.ambito.partida_id | e if f.ambito.partida_id else '' }}"
+                    data-visibilidad="{{ f.ambito.visibility | e }}">
               {{ f.titulo | e }} ({{ f.formato | e }}, {{ f.tamano_bytes }} bytes)
+              — {{ f.ambito.workspace | e }}{% if f.ambito.partida_id %} · partida {{ f.ambito.partida_id | e }}{% else %} · todo el juego{% endif %} · {{ f.ambito.visibility | e }}
             </option>
             {% endfor %}
           </select>
         </label>
         <button type="submit" data-role="solicitar-ingesta">Solicitar ingesta</button>
       </form>
+      {#
+        EL ÁMBITO SE VE, FUENTE A FUENTE. No es decoración, y no es conocimiento
+        interno: es lo que el operador está AUTORIZANDO. Sin esta tabla,
+        «ingerir la nota» y «ingerir un secreto de una partida concreta» se leen
+        exactamente igual en la pantalla, que es como el ámbito uniforme pasaría
+        desapercibido. Se nombra en la lengua del operador —juego, partida, quién
+        lo verá— y nunca con los identificadores de las tripas.
+      #}
+      <table data-role="ambito-de-fuentes">
+        <caption>Con qué alcance entraría cada fuente</caption>
+        <thead><tr><th>Fuente</th><th>Juego</th><th>Partida</th><th>Quién lo verá, de entrada</th><th>Por qué carpeta</th></tr></thead>
+        <tbody>
+          {% for f in fuentes.lista %}
+          <tr data-handle="{{ f.handle | e }}">
+            <td>{{ f.titulo | e }}</td>
+            <td data-col="juego">{{ f.ambito.workspace | e }}</td>
+            <td data-col="partida">{% if f.ambito.partida_id %}{{ f.ambito.partida_id | e }}{% else %}todo el juego{% endif %}</td>
+            <td data-col="visibilidad">{{ f.ambito.visibility | e }}</td>
+            <td data-col="regla">{{ f.ambito.regla | e }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+    {#
+      LO QUE NO ENTRA, Y POR QUÉ. El defecto que este corte corrige era
+      precisamente descartar sin avisar: sin warning y con `stderr` vacío.
+    #}
+    {% if fuentes and fuentes.available and fuentes.rechazos %}
+      <div data-role="fuentes-rechazadas">
+        <h3>No se ingieren ({{ fuentes.rechazos | length }})</h3>
+        <ul>
+          {% for r in fuentes.rechazos %}
+          <li data-motivo="{{ r.motivo | e }}">
+            <code>{{ r.ruta | e }}</code> — {{ r.detalle | e }}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
     {% endif %}
   </section>
 

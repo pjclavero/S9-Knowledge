@@ -41,6 +41,7 @@ lo ve.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import unicodedata
@@ -48,15 +49,25 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from . import vault_mount
+from .vault_scope import Ambito, NoIngerible, clasificar
+
 __all__ = [
     "FuenteDisponible",
     "CatalogoNoDisponible",
     "directorio_de_fuentes",
+    "raiz_de_bovedas",
+    "modo_boveda",
     "listar_fuentes",
+    "listar_fuentes_boveda",
+    "rechazos_de_boveda",
     "resolver",
     "EXTENSIONES_SOPORTADAS",
     "NOMBRE_PERFIL",
     "NOMBRE_CATALOGO",
+    "AMBITO_PLANO",
+    "ENV_RAIZ_BOVEDAS",
+    "ENV_EXIGIR_MONTAJE",
 ]
 
 #: Extensiones que el nucleo de ingesta declara saber leer
@@ -88,12 +99,46 @@ class CatalogoNoDisponible(RuntimeError):
     """
 
 
+#: El ambito de una fuente del catalogo PLANO heredado (un unico directorio sin
+#: estructura de boveda: el material de ejemplo del repositorio). No hay arbol
+#: del que derivar nada, asi que se declara lo mas restrictivo —`secret`, el
+#: mismo defecto fail-closed que el estampador— y se dice POR QUE REGLA se
+#: obtuvo. No es una ruta clasificada: es la ausencia de boveda, nombrada.
+AMBITO_PLANO = Ambito(
+    carpeta_juego="",
+    partida_id=None,
+    visibility="secret",
+    regla="catalogo-plano-sin-boveda",
+)
+
+#: Raiz del arbol de bovedas (el MONTAJE rclone). Su presencia es lo que
+#: enciende el modo boveda: descubrimiento jerarquico + clasificacion.
+ENV_RAIZ_BOVEDAS = "S9K_VAULT_ROOT"
+#: Interruptor EXPLICITO para no exigir montaje activo (suites, y despliegues
+#: donde la raiz es un directorio local). El defecto es exigirlo.
+ENV_EXIGIR_MONTAJE = "S9K_VAULT_REQUIRE_MOUNT"
+
+
 @dataclass(frozen=True)
 class FuenteDisponible:
     """Una fuente elegible, tal y como se le ofrece al operador.
 
     `ruta` NO se serializa a la pantalla: existe para que el servidor resuelva.
-    Lo que viaja al navegador son `handle`, `titulo`, `formato` y `tamano`.
+    Lo que viaja al navegador son `handle`, `titulo`, `formato`, `tamano` y el
+    AMBITO —que si se pinta, y a proposito: es lo que el operador necesita para
+    ver que va a ingerir algo marcado `secret` de la partida que cree—.
+
+    EL INVARIANTE, HECHO IMPOSIBLE DE SEPARAR
+    -----------------------------------------
+    `ambito` es un campo OBLIGATORIO y SIN DEFECTO. No es una convencion ni una
+    comprobacion que alguien pueda olvidarse de llamar: es la firma del
+    constructor. Ninguna rama de este modulo —ni de ningun otro— puede producir
+    una fuente sin ambito, porque `FuenteDisponible(...)` sin `ambito` es un
+    `TypeError` antes de que exista el objeto.
+
+    Es exactamente la garantia que pide el encargo: hacer el catalogo recursivo
+    sin activar la clasificacion no da un resultado peor, no da NINGUN
+    resultado.
     """
 
     handle: str
@@ -101,6 +146,9 @@ class FuenteDisponible:
     formato: str
     tamano_bytes: int
     ruta: Path
+    ambito: Ambito
+    perfil: Path
+    catalogo: Optional[Path] = None
 
     def para_pantalla(self) -> dict:
         """La fuente SIN nada del servidor dentro. Es lo unico que se pinta."""
@@ -109,6 +157,11 @@ class FuenteDisponible:
             "titulo": self.titulo,
             "formato": self.formato,
             "tamano_bytes": self.tamano_bytes,
+            # EL AMBITO SE VE. Una garantia que no se pinta no la puede
+            # comprobar quien opera: `workspace`, `partida_id` y `visibility`
+            # inicial viajan a la pantalla. No son datos internos del servidor
+            # —no hay rutas aqui—, son lo que el operador esta autorizando.
+            "ambito": self.ambito.para_pantalla(),
         }
 
 
@@ -136,8 +189,191 @@ def directorio_de_fuentes(env: Optional[dict] = None) -> Path:
     return Path(__file__).resolve().parents[2] / "examples" / "ingesta-v3"
 
 
+def raiz_de_bovedas(env: Optional[dict] = None) -> Optional[Path]:
+    """Raiz del arbol de bovedas, si este despliegue tiene una."""
+    entorno = env if env is not None else os.environ
+    crudo = entorno.get(ENV_RAIZ_BOVEDAS)
+    return Path(crudo) if crudo else None
+
+
+def modo_boveda(env: Optional[dict] = None) -> bool:
+    """`True` si hay arbol de bovedas: descubrimiento jerarquico."""
+    return raiz_de_bovedas(env) is not None
+
+
+def _exigir_montaje(env: Optional[dict] = None) -> bool:
+    entorno = env if env is not None else os.environ
+    crudo = str(entorno.get(ENV_EXIGIR_MONTAJE, "1")).strip().lower()
+    return crudo not in {"0", "false", "no", ""}
+
+
+def _workspace_declarado(perfil: Path) -> str:
+    """El workspace que el PERFIL DE LA BOVEDA declara. No se infiere nunca.
+
+    `l5r/` es un nombre EXTERNO de carpeta. Que corresponda al workspace
+    `leyenda` es una DECLARACION del operador en el perfil, no algo que el
+    codigo pueda deducir del nombre. Por eso no hay aqui ninguna tabla global
+    carpeta -> workspace: hay un perfil por boveda, y dice lo suyo.
+
+    Se reutiliza el mecanismo que YA existe (el alta lee `workspace` de un
+    perfil JSON), no se inventa otro.
+    """
+    datos = json.loads(perfil.read_text(encoding="utf-8"))
+    if not isinstance(datos, dict):
+        raise ValueError("el perfil de la boveda no es un objeto JSON")
+    ws = datos.get("workspace")
+    if not isinstance(ws, str) or not ws.strip():
+        raise ValueError("el perfil de la boveda no declara `workspace`")
+    return ws.strip()
+
+
+def _perfiles_por_juego(raiz: Path, carpetas: list[str]) -> tuple[dict, list[dict]]:
+    """Perfil (y catalogo) de cada carpeta de juego, mas los rechazos.
+
+    Una carpeta de juego SIN perfil valido no aporta ninguna fuente: sin perfil
+    no hay `workspace` DECLARADO, y sin workspace declarado la alternativa seria
+    inventarlo a partir del nombre de la carpeta. FALLA CERRADO.
+    """
+    perfiles: dict[str, dict] = {}
+    rechazos: list[dict] = []
+    for carpeta in carpetas:
+        perfil = raiz / carpeta / NOMBRE_PERFIL
+        catalogo = raiz / carpeta / NOMBRE_CATALOGO
+        try:
+            ws = _workspace_declarado(perfil)
+        except (OSError, ValueError) as exc:
+            rechazos.append({
+                "motivo": "PERFIL_DE_BOVEDA_INVALIDO",
+                "ruta": carpeta,
+                "detalle": (
+                    "el perfil de esta boveda no declara a que juego "
+                    "corresponde la carpeta (%s). El nombre de la carpeta es "
+                    "un nombre EXTERNO y no se da por supuesto: sin esa "
+                    "declaracion no se ingiere nada de esta boveda"
+                    % type(exc).__name__
+                ),
+            })
+            continue
+        perfiles[carpeta] = {
+            "workspace": ws,
+            "perfil": perfil,
+            "catalogo": catalogo if catalogo.is_file() else None,
+        }
+    return perfiles, rechazos
+
+
+def listar_fuentes_boveda(
+    env: Optional[dict] = None,
+) -> tuple[list[FuenteDisponible], list[dict]]:
+    """DESCUBRIMIENTO JERARQUICO con clasificacion, indivisibles.
+
+    Devuelve `(fuentes, rechazos)`. Toda ruta recorrida acaba en uno de los dos
+    sitios: o es una fuente CON ambito, o es un rechazo CON motivo. No hay
+    tercera salida, y en particular no existe la que habia antes —descartada en
+    silencio, sin warning y con `stderr` vacio—.
+
+    El orden es el que impone la frontera: primero se VERIFICA el montaje
+    (`vault_mount.inspeccionar`), y solo despues se enumera. Un mountpoint sin
+    montaje activo parece un directorio vacio; aqui levanta.
+    """
+    raiz = raiz_de_bovedas(env)
+    if raiz is None:  # pragma: no cover - lo decide `listar_fuentes`
+        raise CatalogoNoDisponible("no hay raiz de bovedas configurada")
+
+    montaje = vault_mount.inspeccionar(raiz, exigir_montaje=_exigir_montaje(env))
+    if not montaje.utilizable:
+        # AUSENCIA DECLARADA. `MONTAJE_AUSENTE` no se degrada a lista vacia:
+        # es el caso por el que existe todo este modulo.
+        raise CatalogoNoDisponible(f"{montaje.estado.value}: {montaje.detalle}")
+
+    carpetas = [n for n in (montaje.entradas or []) if (raiz / n).is_dir()]
+    perfiles, rechazos = _perfiles_por_juego(raiz, carpetas)
+
+    fuentes: list[FuenteDisponible] = []
+    vistos: dict[str, int] = {}
+    for dirpath, dirnames, filenames in os.walk(raiz):
+        dirnames.sort()
+        for nombre in sorted(filenames):
+            absoluta = Path(dirpath) / nombre
+            relativa = absoluta.relative_to(raiz).as_posix()
+            if nombre in _NO_SON_FUENTES:
+                continue
+
+            # CLASIFICAR ES EL PASO 1, NO UN FILTRO POSTERIOR. Se hace antes de
+            # mirar la extension o el tamano: una ruta que no se sabe clasificar
+            # no llega siquiera a evaluarse como candidata.
+            try:
+                ambito = clasificar(relativa)
+            except NoIngerible as exc:
+                rechazos.append(exc.para_pantalla())
+                continue
+
+            declarado = perfiles.get(ambito.carpeta_juego)
+            if declarado is None:
+                # Su carpeta de juego ya fue rechazada por perfil invalido: la
+                # boveda entera esta rechazada y no se repite fila por fila.
+                continue
+            ambito = ambito.con_workspace(declarado["workspace"])
+
+            formato = EXTENSIONES_SOPORTADAS.get(absoluta.suffix.lower())
+            if formato is None:
+                rechazos.append({
+                    "motivo": "FORMATO_NO_SOPORTADO",
+                    "ruta": relativa,
+                    "detalle": (
+                        "la extension `%s` no esta entre las que el nucleo "
+                        "declara saber leer"
+                        % (absoluta.suffix.lower() or "(ninguna)")
+                    ),
+                })
+                continue
+            try:
+                tamano = absoluta.stat().st_size
+            except OSError as exc:
+                rechazos.append({
+                    "motivo": "FUENTE_ILEGIBLE",
+                    "ruta": relativa,
+                    "detalle": f"no se pudo medir la fuente: {type(exc).__name__}",
+                })
+                continue
+
+            handle = _slug(nombre)
+            if handle in vistos:
+                vistos[handle] += 1
+                handle = f"{handle}-{vistos[handle]}"
+            else:
+                vistos[handle] = 1
+
+            fuentes.append(FuenteDisponible(
+                handle=handle,
+                titulo=_titulo(nombre),
+                formato=formato,
+                tamano_bytes=tamano,
+                ruta=absoluta,
+                ambito=ambito,
+                perfil=declarado["perfil"],
+                catalogo=declarado["catalogo"],
+            ))
+
+    return (sorted(fuentes, key=lambda f: (f.ambito.workspace or "", f.titulo)),
+            sorted(rechazos, key=lambda r: r["ruta"]))
+
+
+def rechazos_de_boveda(env: Optional[dict] = None) -> list[dict]:
+    """Solo los rechazos. Para pintarlos: lo que NO entra tiene que verse."""
+    if not modo_boveda(env):
+        return []
+    return listar_fuentes_boveda(env)[1]
+
+
 def listar_fuentes(env: Optional[dict] = None) -> list[FuenteDisponible]:
     """Fuentes elegibles, ordenadas por titulo. Levanta si no se puede mirar.
+
+    Con raiz de bovedas configurada delega en `listar_fuentes_boveda`: el modo
+    jerarquico. Sin ella conserva el catalogo PLANO heredado, que sigue siendo
+    NO recursivo A PROPOSITO —un directorio suelto no tiene esquema del que
+    derivar ambito, asi que recorrerlo en profundidad seria justamente la
+    recursion sin clasificacion que el invariante prohibe—.
 
     Un handle repetido (dos ficheros cuyo nombre produce el mismo slug) se
     desambigua con un sufijo numerico: dos entradas con el mismo handle harian
@@ -145,6 +381,9 @@ def listar_fuentes(env: Optional[dict] = None) -> list[FuenteDisponible]:
     aparezca", que es un resultado que depende del orden del sistema de
     ficheros.
     """
+    if modo_boveda(env):
+        return listar_fuentes_boveda(env)[0]
+
     raiz = directorio_de_fuentes(env)
     try:
         if not raiz.is_dir():
@@ -152,6 +391,21 @@ def listar_fuentes(env: Optional[dict] = None) -> list[FuenteDisponible]:
         entradas = sorted(raiz.iterdir(), key=lambda p: p.name)
     except OSError as exc:
         raise CatalogoNoDisponible(f"{raiz}: {exc}") from exc
+
+    perfil_raiz = raiz / NOMBRE_PERFIL
+    catalogo_raiz = raiz / NOMBRE_CATALOGO
+    catalogo_raiz = catalogo_raiz if catalogo_raiz.is_file() else None
+
+    # EL CATALOGO PLANO TAMBIEN DECLARA SU AMBITO. No porque tenga arbol, sino
+    # porque `FuenteDisponible` no admite fuentes sin el: aqui se ve que el
+    # invariante no tiene puerta trasera ni siquiera en el camino heredado.
+    try:
+        ambito_plano = AMBITO_PLANO.con_workspace(_workspace_declarado(perfil_raiz))
+    except (OSError, ValueError):
+        # Sin perfil legible no hay workspace declarado. Se conserva el ambito
+        # sin workspace: el alta lo vuelve a exigir y falla con su codigo, que
+        # es donde el operador ya sabe leerlo.
+        ambito_plano = AMBITO_PLANO
 
     fuentes: list[FuenteDisponible] = []
     vistos: dict[str, int] = {}
@@ -177,6 +431,9 @@ def listar_fuentes(env: Optional[dict] = None) -> list[FuenteDisponible]:
             formato=formato,
             tamano_bytes=tamano,
             ruta=entrada,
+            ambito=ambito_plano,
+            perfil=perfil_raiz,
+            catalogo=catalogo_raiz,
         ))
     return sorted(fuentes, key=lambda f: f.titulo)
 

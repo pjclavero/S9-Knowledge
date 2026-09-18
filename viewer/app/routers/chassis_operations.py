@@ -334,16 +334,30 @@ def _fuentes() -> dict:
     NO se pinta un desplegable vacío (que se lee como "no hay fuentes"), se
     dice que el dato no está.
     """
+    rechazos: list[dict] = []
     try:
-        fuentes = sources_catalog.listar_fuentes()
+        if sources_catalog.modo_boveda():
+            fuentes, rechazos = sources_catalog.listar_fuentes_boveda()
+        else:
+            fuentes = sources_catalog.listar_fuentes()
     except sources_catalog.CatalogoNoDisponible as exc:
+        # Aquí entra también el montaje AUSENTE, VACÍO-porque-no-está-montado,
+        # ilegible o roto. Ninguno se degrada a "no hay fuentes": la frontera
+        # los declaró y el panel dice que el dato no está.
         panel_errors.registrar("SOURCE_CATALOG_UNAVAILABLE", exc)
-        return {"available": False, "lista": []}
+        return {"available": False, "lista": [], "rechazos": []}
     # La clave es `lista` y NO `items`: en Jinja `fuentes.items` resuelve al
     # METODO `dict.items` antes que a la clave, asi que `{% for f in
     # fuentes.items %}` iteraba sobre un builtin y reventaba la plantilla.
     # Medido, no supuesto.
-    return {"available": True, "lista": [f.para_pantalla() for f in fuentes]}
+    # LO QUE NO ENTRA TAMBIÉN SE VE. Un fichero mal colocado que desaparece en
+    # silencio es el defecto original con otra cara: el operador no puede
+    # corregir lo que nadie le enseña.
+    return {
+        "available": True,
+        "lista": [f.para_pantalla() for f in fuentes],
+        "rechazos": rechazos,
+    }
 
 
 # Estados con DESENLACE. Se declaran una sola vez porque los usan las dos
@@ -763,16 +777,19 @@ def solicitar_ingesta(
     if elegida is None:
         return _fallo("SOURCE_UNKNOWN")
 
-    # 4. Todo lo interno lo pone el SERVIDOR: perfil, catálogo y workspace. El
-    #    operador no los ha escrito ni los ha visto.
-    perfil, catalogo = sources_catalog.perfil_y_catalogo()
+    # 4. Todo lo interno lo pone el SERVIDOR: perfil, catálogo, workspace Y
+    #    ÁMBITO. El operador no los ha escrito. El perfil y el catálogo salen
+    #    ahora de la propia fuente —en una bóveda hay uno por juego, no uno en
+    #    la raíz— y el `workspace` sale del ÁMBITO, que a su vez lo tomó del
+    #    perfil de la bóveda. Sigue siendo una declaración del operador en un
+    #    fichero, nunca una inferencia a partir del nombre de la carpeta.
+    perfil, catalogo = elegida.perfil, elegida.catalogo
     if not perfil.is_file():
         return _fallo("SOURCE_PACKAGE_INVALID")
-    try:
-        workspace = json.loads(perfil.read_text(encoding="utf-8")).get("workspace")
-    except (OSError, ValueError, AttributeError) as exc:
-        return _fallo("SOURCE_PACKAGE_INVALID", exc)
+    ambito = elegida.ambito
+    workspace = ambito.workspace
     if not workspace:
+        # Fuente clasificada pero sin workspace DECLARADO: no se adivina.
         return _fallo("SOURCE_PACKAGE_INVALID")
 
     # 5. Se encola en la cola QUE YA EXISTE.
@@ -785,6 +802,18 @@ def solicitar_ingesta(
                 "profile_path": str(perfil),
                 "catalog_path": str(catalogo) if catalogo else None,
                 "workspace": str(workspace),
+                # LA PARTIDA VIAJA EXPLÍCITA HASTA EL ALTA, y desde aquí hasta
+                # el motor (que ya la acepta: `run_ingest(partida_id=...)`).
+                # NO se codifica dentro de `collection_id`: la colección sigue
+                # siendo `collection:{workspace}` y la identidad del asset sigue
+                # siendo independiente de la ruta y del renombrado. Partida y
+                # ámbito son DIMENSIONES propias, no un `collection_id` reciclado.
+                "partida_id": ambito.partida_id,
+                # Visibilidad INICIAL propuesta por la carpeta. Propone, no
+                # decide: a partir de aquí manda `KnowledgeVisibilityV1`. Y no
+                # es `known_by`: no concede conocimiento a nadie.
+                "visibility": ambito.visibility,
+                "scope_rule": ambito.regla,
                 "source_title": elegida.titulo,
                 # ATRIBUCIÓN DURABLE: quién pidió esta ingesta queda en el
                 # propio trabajo, no sólo en un log que rota.
@@ -799,8 +828,10 @@ def solicitar_ingesta(
     # 6. AUDITABLE: queda el rastro de quién ejerció qué capacidad y con qué
     #    resultado. Es la mitad del contrato que no se puede omitir.
     audit.info(
-        "capacidad=%s operador=%s fuente=%s resultado=ENCOLADO trabajo=%s",
+        "capacidad=%s operador=%s fuente=%s resultado=ENCOLADO trabajo=%s "
+        "workspace=%s partida=%s visibility=%s regla=%s",
         CAPACIDAD_INGESTA.name, quien, elegida.handle, job_id,
+        workspace, ambito.partida_id, ambito.visibility, ambito.regla,
     )
     return RedirectResponse(
         url=f"{request.url_for('chassis_operations')}?solicitado={job_id}",

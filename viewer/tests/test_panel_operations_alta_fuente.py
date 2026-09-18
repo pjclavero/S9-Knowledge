@@ -868,3 +868,183 @@ def test_este_corte_no_aplica_nada_al_grafo():
         "Sin driver ningún ancla sale observada y el sellado omite toda "
         "proyección con `PROJECTION_ANCHOR_NOT_OBSERVED`."
     )
+
+
+# ===========================================================================
+# 9. CARRIL B · M1 — la partida llega HASTA EL ALTA, y el ámbito se VE
+# ---------------------------------------------------------------------------
+# Lo de arriba corre sobre el catálogo PLANO heredado. Esto corre sobre una
+# BÓVEDA: el descubrimiento jerárquico con clasificación ruta -> ámbito. Se
+# ejecuta contra la app real, la cola real y el worker real, igual que el resto
+# de la suite: nada de esto se afirma leyendo código.
+# ===========================================================================
+
+from test_vault_descubrimiento_ambito import (  # noqa: E402
+    PARTIDAS_L5R,
+    boveda,  # noqa: F401 - fixture
+)
+
+
+@pytest.fixture
+def boveda_montada(boveda, monkeypatch):  # noqa: F811
+    """Bóveda encendida para la app real, sin exigir montaje (es un tmp_path)."""
+    monkeypatch.setenv(sources_catalog.ENV_RAIZ_BOVEDAS, str(boveda))
+    monkeypatch.setenv(sources_catalog.ENV_EXIGIR_MONTAJE, "0")
+    return boveda
+
+
+def _fila_de_ambito(html: str, handle: str) -> dict:
+    """La fila de ESE handle en la tabla de ámbito de la pantalla.
+
+    Levanta si la tabla no está: es lo que hace que BORRAR la pantalla ponga
+    esto rojo. Una garantía que no se pinta no la puede comprobar quien opera,
+    así que el testigo PIDE LA PANTALLA y no se conforma con el payload.
+    """
+    tabla = re.search(r'data-role="ambito-de-fuentes".*?</table>', html, re.S)
+    assert tabla, (
+        "no se pinta el ámbito de las fuentes: el operador no puede ver con qué "
+        "alcance va a entrar lo que elige"
+    )
+    fila = re.search(r'<tr data-handle="%s">.*?</tr>' % re.escape(handle),
+                     tabla.group(0), re.S)
+    assert fila, f"la fuente {handle!r} no aparece en la tabla de ámbito"
+    return {k: v.strip() for k, v in re.findall(
+        r'data-col="([^"]+)">(.*?)</td>', fila.group(0), re.S)}
+
+
+def _handle_de(html: str, aguja: str) -> str:
+    """El handle de la opción cuyo texto contiene `aguja`."""
+    bloque = re.search(r'data-role="selector-fuente".*?</select>', html, re.S)
+    assert bloque
+    for opcion in re.findall(r'<option value="([^"]+)"[^>]*>(.*?)</option>',
+                             bloque.group(0), re.S):
+        if aguja.lower() in opcion[1].lower():
+            return opcion[0]
+    raise AssertionError(f"no hay ninguna fuente que contenga {aguja!r}")
+
+
+def test_la_pantalla_ensena_el_ambito_de_cada_fuente(real_app, panel_on, cola,
+                                                     operador, boveda_montada):
+    """Dos fuentes del MISMO juego, con ámbitos distintos, se distinguen.
+
+    Es el contraste directo con el defecto: con el ámbito único de la raíz,
+    «ingerir los clanes» y «ingerir un secreto de la campaña Grulla» se leerían
+    exactamente igual en la pantalla.
+    """
+    html = operador.get(SLOT.prefix).text
+
+    clanes = _fila_de_ambito(html, _handle_de(html, "clanes"))
+    assert clanes["juego"] == "leyenda", clanes
+    assert clanes["partida"] == "todo el juego", clanes
+    assert clanes["visibilidad"] == "player", clanes
+
+    impostor = _fila_de_ambito(html, _handle_de(html, "impostor"))
+    assert impostor["visibilidad"] == "secret", impostor
+    assert impostor["partida"] in PARTIDAS_L5R, impostor
+
+    assert clanes != impostor, (
+        "dos fuentes de ámbito distinto se pintan igual: el ámbito uniforme "
+        "de la raíz habría pasado desapercibido"
+    )
+
+
+def test_la_pantalla_ensena_lo_que_NO_entra(real_app, panel_on, cola, operador,
+                                            boveda_montada):
+    """`archivo/` no se ingiere, y el operador se entera.
+
+    El defecto original no era sólo clasificar mal: era descartar EN SILENCIO,
+    sin warning y con `stderr` vacío.
+    """
+    html = operador.get(SLOT.prefix).text
+    bloque = re.search(r'data-role="fuentes-rechazadas".*?</div>', html, re.S)
+    assert bloque, "lo que no entra no se ve en ninguna parte"
+    assert "archivo/retirado.md" in bloque.group(0)
+    assert "no se ingiere nunca" in bloque.group(0)
+
+
+def _payload_del_unico_job(cola):
+    store = jobs_client._load_job_store()
+    jobs = store.list_jobs(status="pending", db_path=str(cola))
+    assert len(jobs) == 1, jobs
+    return jobs[0], json.loads(jobs[0]["payload_json"])
+
+
+def test_la_partida_viaja_EXPLICITA_hasta_el_trabajo(real_app, panel_on, cola,
+                                                     operador, boveda_montada):
+    """EVIDENCIA EJECUTADA de la instrucción 9, sobre la cola REAL.
+
+    El motor ya aceptaba partida (`run_ingest(partida_id=...)`); el hueco era el
+    alta de producto. Aquí se solicita una ingesta de material de partida y se
+    lee del job REAL que la partida llegó.
+    """
+    html = operador.get(SLOT.prefix).text
+    handle = _handle_de(html, "impostor")
+    envio = operador.post(
+        "/panel/operations/ingestas",
+        data={"fuente": handle, "csrf_token": _csrf_del_formulario(html)},
+    )
+    assert envio.status_code == 303, envio.text[:300]
+
+    _job, payload = _payload_del_unico_job(cola)
+
+    assert payload["partida_id"] in PARTIDAS_L5R, (
+        "la partida NO llegó al alta: el payload encolado sigue sin dimensión "
+        f"de partida. payload={sorted(payload)}"
+    )
+    assert payload["visibility"] == "secret"
+    assert payload["workspace"] == "leyenda"
+
+    # Y NO se coló dentro de la colección. La identidad del asset sigue siendo
+    # independiente de la ruta y del renombrado (instrucción 6).
+    assert "collection_id" not in payload
+    assert ":" not in payload["workspace"]
+
+
+def test_una_fuente_de_capa_juego_no_inventa_partida(real_app, panel_on, cola,
+                                                     operador, boveda_montada):
+    """El otro lado: `compartido/` es capa juego y viaja SIN partida."""
+    html = operador.get(SLOT.prefix).text
+    handle = _handle_de(html, "clanes")
+    operador.post("/panel/operations/ingestas",
+                  data={"fuente": handle, "csrf_token": _csrf_del_formulario(html)})
+    _job, payload = _payload_del_unico_job(cola)
+    assert payload["partida_id"] is None
+    assert payload["visibility"] == "player"
+
+
+def test_la_partida_llega_hasta_EL_MOTOR_y_alli_falla_cerrado(
+        real_app, panel_on, cola, operador, boveda_montada):
+    """La prueba de que la partida no se queda en el payload: el motor la ve.
+
+    El motor exige, para ámbito de partida, la SESIÓN DE REVELACIÓN. La carpeta
+    `sesion-NN` NO la declara —es contrato de ENTRADA, no una declaración de qué
+    se reveló ni a quién— y derivarla sería conceder conocimiento por inferencia
+    de directorio, que es justo lo prohibido (instrucción 10).
+
+    Así que este recorrido termina en ERROR, y esa es la conducta correcta: el
+    diagnóstico exacto lo demuestra. Si la partida NO llegase al motor, la
+    ingesta terminaría «correctamente» en capa juego — silenciosamente en el
+    ámbito equivocado, que es el desenlace que este corte existe para impedir.
+    """
+    html = operador.get(SLOT.prefix).text
+    handle = _handle_de(html, "impostor")
+    operador.post("/panel/operations/ingestas",
+                  data={"fuente": handle, "csrf_token": _csrf_del_formulario(html)})
+
+    store = jobs_client._load_job_store()
+    job_id = store.list_jobs(status="pending", db_path=str(cola))[0]["job_id"]
+    _correr_worker(cola)
+    final = store.get_job(job_id, db_path=str(cola))
+
+    assert final["status"] == "failed", (
+        "una fuente de partida sin sesión de revelación declarada terminó "
+        f"'{final['status']}': el motor no vio la partida, o la degradó a capa "
+        "juego y la ingesta pasó por buena en el ámbito equivocado"
+    )
+    mensaje = final.get("error_message") or ""
+    assert "PARTIDA_SIN_SESION_DECLARADA" in mensaje, (
+        f"el rojo no dice su causa: {mensaje!r}"
+    )
+    assert "sesion" in mensaje.lower() or "sesión" in mensaje.lower()
+    # Y no se filtra ni la ruta del servidor ni la traza.
+    assert str(boveda_montada) not in mensaje
