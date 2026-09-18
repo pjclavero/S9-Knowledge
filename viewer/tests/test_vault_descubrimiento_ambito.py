@@ -495,7 +495,11 @@ def test_montaje_ausente_y_montaje_vacio_son_ESTADOS_DISTINTOS(tmp_path):
 
     # (a) EXIGIENDO montaje: `tmp_path` no lo es -> MONTAJE_AUSENTE
     ausente = vault_mount.inspeccionar(punto, exigir_montaje=True)
-    assert ausente.estado is vault_mount.EstadoMontaje.MONTAJE_AUSENTE
+    assert ausente.estado is vault_mount.EstadoMontaje.MONTAJE_AUSENTE, (
+        "un mountpoint SIN montaje activo no se declaro MONTAJE_AUSENTE: salio "
+        f"{ausente.estado.value}. Si sale como vacio, una boveda llena se lee "
+        "como «no hay fuentes», que es la conclusion contraria a la correcta"
+    )
     assert "NO hay un montaje activo" in ausente.detalle
     assert not ausente.utilizable
     assert not ausente.vacio_de_verdad, (

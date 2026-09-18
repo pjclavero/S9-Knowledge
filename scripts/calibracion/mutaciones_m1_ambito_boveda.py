@@ -151,7 +151,7 @@ MUTACIONES = [
             return Montaje(
                 EstadoMontaje.MONTAJE_AUSENTE, p,""",
         prueba=f"{SUITE}::test_montaje_ausente_y_montaje_vacio_son_ESTADOS_DISTINTOS",
-        esperado="assert",
+        esperado="no se declaro MONTAJE_AUSENTE",
     ),
     Mutacion(
         nombre="EN SENTIDO CONTRARIO: declarar inutilizable tambien el vacio "
@@ -163,7 +163,7 @@ MUTACIONES = [
     EstadoMontaje.MONTAJE_VACIO,
     EstadoMontaje.MONTAJE_AUSENTE,""",
         prueba=f"{SUITE}::test_una_boveda_realmente_vacia_da_lista_vacia_sin_levantar",
-        esperado="CatalogoNoDisponible",
+        esperado="CatalogoNoDisponible: MOUNT_AVAILABLE_EMPTY",
     ),
 
     # =================================================================
