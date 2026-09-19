@@ -77,6 +77,7 @@ fichero vacio"`— se captura y se traduce; no se deja propagar.
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 from typing import Any, Optional
 
@@ -276,6 +277,41 @@ def _driver_de_observacion() -> Any:
     return driver
 
 
+#: Forma de un codigo de carencia del motor. Se publica el CODIGO, nunca el
+#: `detail`: `CADENA_DETENIDA` lleva `run.stop_reason` dentro y
+#: `graph_catalog.carencias` mete identificadores del grafo, asi que el texto
+#: del motor es material interno. El codigo es ASCII cerrado y el visor lo
+#: convierte en una frase para una persona.
+_CODIGO_DE_CARENCIA = re.compile(r"^[A-Z][A-Z0-9_]{2,63}$")
+
+
+def _carencias_publicables(report: dict) -> list[str]:
+    """Los codigos de carencia que el motor YA declara, para el operador.
+
+    EL MOTOR NO SE INVENTA NADA AQUI. `ingest_report._carencias` produce
+    `SIN_GLOSARIO`, `SIN_MENCIONES`, `SIN_CLAIMS`, `CADENA_DETENIDA`,
+    `SIN_PLAN`, `PLAN_NO_APROBADO`... y el CLI del mismo motor las imprime bajo
+    «## CARENCIAS declaradas · No se rellena con ceros que parezcan datos».
+    El producto no las consumia: la pantalla se quedaba con `menciones: 0` y
+    `cadena_detenida_en` pelado, es decir con los ceros y sin el motivo.
+
+    Se filtra por FORMA, no por lista blanca de codigos: una carencia nueva del
+    motor tiene que seguir llegando (dejarla fuera seria volver a convertir una
+    ausencia en silencio), pero nada que no sea un codigo estable pasa.
+    """
+    faltas = report.get("carencias")
+    if not isinstance(faltas, list):
+        return []
+    codigos: list[str] = []
+    for falta in faltas:
+        if not isinstance(falta, dict):
+            continue
+        codigo = str(falta.get("code") or "")
+        if _CODIGO_DE_CARENCIA.match(codigo) and codigo not in codigos:
+            codigos.append(codigo)
+    return codigos
+
+
 def _resumen(report: dict) -> dict:
     """Lo que el operador puede ver del informe. Curado, no el informe entero.
 
@@ -445,12 +481,37 @@ def handle_ingest_v3(payload: dict, *, job_id: Optional[str] = None) -> dict:
         )
     else:
         mensaje = "La ingesta ha terminado correctamente y no ha dejado nada en revision."
+    carencias = _carencias_publicables(report)
+    # EL CERO MUDO. «Ha terminado correctamente y no ha dejado nada en revision»
+    # con menciones 0, afirmaciones 0 y propuestas 0 se lee como «estaba todo
+    # claro», y el operador archiva la fuente. No entro ni una afirmacion.
+    #
+    # El desenlace deja de ser `INGEST_OK` cuando la corrida NO PRODUJO NADA:
+    # es un desenlace distinto y tiene codigo propio. Las carencias --que el
+    # motor ya declaraba y que se quedaban en el log-- viajan con el.
+    nada = not resumen["menciones"] and not resumen["afirmaciones"]
+    if not pendientes and nada:
+        codigo = "INGEST_SIN_EXTRACCION"
+        mensaje = (
+            "La ingesta ha terminado, pero el motor NO ha extraido nada de esta "
+            "fuente: ni una mencion ni una afirmacion. No hay nada en revision "
+            "porque no hay nada que revisar, no porque estuviera todo claro. "
+            "El motivo esta abajo."
+        )
+    else:
+        codigo = "INGEST_OK"
     cola = report.get("cola_de_revision")
     return {
         "ok": True,
         "handler": JOB_TYPE,
-        "code": "INGEST_OK",
+        "code": codigo,
         "message": mensaje,
+        # LO QUE EL MOTOR YA SABIA Y NO LLEGABA A NADIE. Cada codigo es una cosa
+        # que esta corrida NO pudo hacer, dicha como tal. `[]` aqui significa
+        # «el motor no declaro ninguna», no «no se miro»: si el informe no trae
+        # el bloque, `_carencias_publicables` devuelve lista vacia y la pantalla
+        # no pinta el apartado.
+        "carencias": carencias,
         "source_title": payload.get("source_title") or None,
         "resumen": resumen,
         # El enlace se construye con la identidad de ESTA corrida. Sin

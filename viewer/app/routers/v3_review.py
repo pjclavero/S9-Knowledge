@@ -125,12 +125,18 @@ def glossary_candidates(
     )
 
 
-@router.get("", response_class=HTMLResponse)
-@router.get("/", response_class=HTMLResponse)
+@router.get("", response_class=HTMLResponse, name="v3_review_queue")
+@router.get("/", response_class=HTMLResponse, name="v3_review_queue_slash")
 def queue(
     request: Request,
     workspace: str | None = Query(default=None),
     source_id: str | None = Query(default=None),
+    # LA CORRIDA, PUESTA POR EL ACUSE (Corte 2). El acuse de la ingesta manda
+    # aqui con el `job_id` de SU corrida, para que el operador no tenga que
+    # teclear identificadores ni buscar sus propuestas entre las de todas las
+    # corridas del workspace. La atribucion ya existia en el sobre del paquete
+    # (`package_runs`); lo que faltaba era poder filtrar por ella.
+    job_id: str | None = Query(default=None),
     engine_decision: str | None = Query(default=None),
     notice: str | None = Query(default=None),
     scope: VisibilityScope = Depends(get_visibility_scope),
@@ -152,6 +158,7 @@ def queue(
                 selected_workspace,
                 source_id=source_id,
                 engine_decision=engine_decision,
+                job_id=job_id,
                 scope=scope,
             )
             if selected_workspace else None
@@ -174,6 +181,7 @@ def queue(
             "workspace": selected_workspace,
             "source_id": source_id,
             "engine_decision": engine_decision,
+            "job_id": job_id,
             "queue": view,
             "almacen": almacen,
             "request_id": str(uuid.uuid4()),

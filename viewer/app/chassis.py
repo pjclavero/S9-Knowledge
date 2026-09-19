@@ -233,7 +233,7 @@ NAV: tuple[NavItem, ...] = (
     NavItem("Estado", "status_view", None, 4),
     NavItem("Fuentes", "sources_page", "reviewer", 5),
     NavItem("Reviews", "reviews_view", "reviewer", 6),
-    NavItem("Revisión V3", "queue", "reviewer", 7),
+    NavItem("Revisión V3", "v3_review_queue", "reviewer", 7),
     NavItem("Admin", "admin_users", "admin", 20),
     NavItem("Partidas", "admin_partidas", "admin", 21),
 ) + tuple(

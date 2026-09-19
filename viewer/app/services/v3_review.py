@@ -710,6 +710,12 @@ class ReviewService:
         *,
         source_id: str | None = None,
         engine_decision: str | None = None,
+        #: LA CORRIDA. Filtra por la atribucion que el sobre del paquete ya
+        #: traia (`package_runs`, poblado desde el bloque `run` del paquete).
+        #: NO se deriva ni se adivina: una propuesta sin corrida declarada NO
+        #: entra cuando se filtra por corrida, porque afirmar que es de esta
+        #: seria inventar la atribucion que el paquete no tiene.
+        job_id: str | None = None,
         include_decided: bool = False,
         scope: "VisibilityScope | None" = None,
     ) -> QueueView:
@@ -731,6 +737,7 @@ class ReviewService:
         filtered = [
             proposal for proposal in all_workspace
             if (not source_id or proposal["source_id"] == source_id)
+            and (not job_id or job_id in (proposal.get("package_runs") or ()))
             and (
                 not engine_decision
                 or (proposal.get("engine_decision") or {}).get("decision") == engine_decision

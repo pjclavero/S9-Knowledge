@@ -1313,7 +1313,13 @@ def test_un_apply_que_no_escribe_invalida_el_plan_en_vez_de_resucitarlo(
     get_settings.cache_clear()
 
     codigo = _aviso_de(_aplicar(operador, job_id))
-    assert codigo in ("APPLY_REJECTED", "APPLY_FAILED"), codigo
+    # CORTE 2. El rechazo del writer ya no se aplana en un `APPLY_REJECTED`
+    # mudo: `EXEC_SCHEMA_CONSTRAINTS_MISSING` --que es lo que emite un grafo
+    # que ni siquiera se puede consultar-- llega al operador con frase propia.
+    assert codigo in (
+        "APPLY_REJECTED", "APPLY_REJECTED_ESQUEMA", "APPLY_REJECTED_GRAFO",
+        "APPLY_FAILED",
+    ), codigo
 
     fila = _filas_de_plan(almacenes["base"])[0]
     assert fila["state"] == "superseded", (
