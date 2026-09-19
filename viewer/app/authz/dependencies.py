@@ -45,12 +45,17 @@ def _still_has_access(user, partida_id: str) -> bool:
     revocación tenga efecto inmediato sobre las sesiones ya abiertas.
 
     Un admin no tiene asignaciones propias, pero tampoco puede activar una
-    partida inventada: se admite cualquier partida que exista en la tabla.
+    partida inventada: se admite cualquier partida que exista canónicamente en
+    ESTE workspace. CORTE 1: antes se admitía «cualquier partida que exista en
+    la tabla», sin mirar el workspace de la fila, con lo que una concesión en un
+    ámbito ajeno o inventado re-verificaba como válida en el ámbito real.
     """
     from app.auth import db as auth_db
+    from app.authz import existencia
 
-    workspace = get_settings().S9K_DEFAULT_WORKSPACE
-    if not workspace or not isinstance(workspace, str) or not workspace.strip():
+    # CORTE 1: mismo origen de ámbito que los otros dos consumidores.
+    workspace = existencia.workspace_canonico()
+    if not workspace:
         # Fail-closed: sin workspace efectivo determinable, no se concede acceso.
         return False
 
@@ -60,7 +65,7 @@ def _still_has_access(user, partida_id: str) -> bool:
     try:
         with auth_db.get_conn(db_path) as conn:
             if getattr(user, "is_admin", None) is not None and user.is_admin():
-                return auth_db.partida_exists(conn, partida_id)
+                return existencia.partida_existe(conn, workspace, partida_id)
             return partida_id in auth_db.user_allowed_partidas(conn, user.id, workspace=workspace)
     except Exception:
         # Fail-closed: si no se puede comprobar el acceso, no se concede.

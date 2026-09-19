@@ -34,11 +34,35 @@
     </div>
     <div class="field">
       <label for="workspace">Juego (workspace)</label>
-      <input id="workspace" type="text" name="workspace" placeholder="juego:leyenda" required>
+      <input id="workspace" type="text" name="workspace"
+             value="{{ workspace_canonico | e }}" readonly aria-readonly="true">
+      <small>Este despliegue sirve un solo workspace: <code>{{ workspace_canonico | e }}</code>.
+      Antes este campo era texto libre y aceptaba cualquier cosa; una concesión
+      en un workspace inventado se guardaba, se mostraba aquí abajo como viva, y
+      hacía «existir» esa partida también en el workspace real.</small>
     </div>
     <div class="field">
       <label for="partida_id">Partida</label>
-      <input id="partida_id" type="text" name="partida_id" placeholder="partida:mesa1" required>
+      <input id="partida_id" type="text" name="partida_id" list="partidas_existentes"
+             placeholder="partida:mesa1" required>
+      <datalist id="partidas_existentes">
+        {% for pid in partidas_conocidas %}
+          <option value="{{ pid | e }}"></option>
+        {% endfor %}
+      </datalist>
+      <small id="aviso_partidas_conocidas">
+        {% if partidas_conocidas %}
+          Partidas con alguna concesión en <code>{{ workspace_canonico | e }}</code>:
+          {% for pid in partidas_conocidas %}<code>{{ pid | e }}</code>{% if not loop.last %}, {% endif %}{% endfor %}.
+        {% else %}
+          Todavía no hay ninguna partida con concesiones en
+          <code>{{ workspace_canonico | e }}</code>.
+        {% endif %}
+        <strong>Ojo:</strong> este producto no tiene censo de partidas. Esta
+        lista son las partidas ya concedidas, no las que existen: escribir un
+        identificador nuevo la crea, y una errata es indistinguible de una
+        partida nueva. Compruébalo contra la carpeta de la bóveda.
+      </small>
     </div>
     <div class="field">
       <label for="max_visible_session">Sesión jugada (tope)</label>
