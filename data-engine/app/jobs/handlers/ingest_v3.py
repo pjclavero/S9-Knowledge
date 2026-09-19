@@ -410,10 +410,17 @@ def _desenlace(resumen: dict, carencias: list) -> tuple:
     veredicto `REVIEW` sigue mandando en la REDACCION, porque es lo que el
     operador tiene que saber cuando lo hay.
 
-    `PLAN_REVISION_SIN_OPERACIONES` NO es carencia de cosecha, y esto tambien
-    esta medido: el corpus estandar --sano, con 4 propuestas en la cola-- la
-    emite. Tratarla como carencia de cosecha clasificaria de esteril a la
-    corrida mas normal del repo. Se publica en pantalla como las demas.
+    `PLAN_REVISION_SIN_OPERACIONES` NO es carencia de cosecha, y el motivo es
+    MAS FUERTE QUE EL QUE SE ESCRIBIO PRIMERO. Aquel decia que el corpus
+    estandar --sano, con 4 propuestas en cola-- la emite, y que incluirla lo
+    clasificaria de esteril. Eso era cierto con el ORDEN DE RAMAS ANTERIOR;
+    con el de ahora la rama 1 gana antes y el corpus estandar ya ni llega a la
+    de carencias de cosecha. El motivo de hoy: su condicion en el motor es
+    `en_revision > 0` --contando REVIEW **o** ABSTAIN--, y a la rama 4 solo se
+    llega con `propuestas == 0`, es decir con la cola VACIA. Esa carencia NO
+    PUEDE dispararse ahi, asi que incluirla seria CODIGO MUERTO: una linea que
+    aparenta cubrir un caso que no existe. Se publica en pantalla como las
+    demas, que es donde si sirve.
     """
     propuestas = resumen["propuestas_de_revision"]
     pendientes = resumen["en_revision"]

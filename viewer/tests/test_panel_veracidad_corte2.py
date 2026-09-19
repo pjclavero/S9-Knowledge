@@ -35,53 +35,57 @@ la suite se moviera.
 
 QUÉ MIRA CADA UNO, SIN AFIRMAR DE MÁS. Decir «todos piden la pantalla» sería,
 en un corte cuya propiedad es no afirmar lo que no se comprueba, exactamente
-el defecto que el corte persigue. Y la primera versión de este párrafo —escrita
-para dejar de afirmar de más— volvió a hacerlo por partida doble: dijo que M5
-ponía rojos a estos testigos (M5 pone rojo el testigo EXTERNO; aquí no mueve
-ninguno) y se presentó como exhaustiva dejándose uno fuera. El reparto real,
-con la mutación que pone rojo a cada uno:
+el defecto que el corte persigue.
+
+POR QUÉ ESTA LISTA YA NO DICE QUÉ MUTACIÓN PONE ROJO A CADA UNO. Lo decía, y
+era FALSO en dos de nueve entradas (M1 no enrojece el testigo del bloque
+borrado; M3 no enrojece nada de este fichero, sino el externo) y corto en
+otras dos. Es la TERCERA vez que este mismo párrafo afirma de más: primero
+dijo que todos pedían la pantalla, luego que M5 los enrojecía, después una
+atribución equivocada. El guardián de abajo comprueba que la lista no se quede
+CORTA, pero no puede comprobar que sea CIERTA, y una atribución mantenida a
+mano frente a un guardián que no la verifica se vuelve a desincronizar: la
+única forma de sostenerla sería ejecutar las nueve mutaciones dentro de la
+suite, que es caro y frágil. Así que se BORRA. La clasificación que queda —qué
+mira cada testigo— sí es verificable y se verifica; la atribución de
+mutaciones vive en el PR, que es un documento fechado y no una afirmación
+permanente del código.
 
   PIDEN EL HTML por GET (de ahí sale la afirmación de visibilidad):
-    · test_una_ingesta_que_no_cosecha_nada_lo_DICE_en_la_pantalla      · M1, M4
-    · test_una_cosecha_esteril_no_se_anuncia_como_tranquilizadora      · M6, M7
-    · test_con_ABSTAIN_y_sin_REVIEW_el_acuse_no_se_contradice_a_si_mismo · M8
-    · test_si_borro_el_bloque_de_carencias_este_testigo_se_pone_rojo   · M1, M4
+    · test_una_ingesta_que_no_cosecha_nada_lo_DICE_en_la_pantalla
+    · test_una_cosecha_esteril_no_se_anuncia_como_tranquilizadora
+    · test_con_ABSTAIN_y_sin_REVIEW_el_acuse_no_se_contradice_a_si_mismo
+    · test_si_borro_el_bloque_de_carencias_este_testigo_se_pone_rojo
 
   NO PIDEN LA PANTALLA — miran el catálogo, el AST del almacén o la firma de
   la ruta, porque lo que afirman es del DATO, no del pintado:
     · test_las_carencias_desconocidas_se_nombran_en_vez_de_desaparecer
-        se pondría rojo si `panel_errors.carencia` se tragara el código, o si
-        el filtro por forma dejara de descartar lo que no es un código.
-    · test_la_pantalla_no_afirma_que_una_decision_cambio               · M2
+    · test_la_pantalla_no_afirma_que_una_decision_cambio
     · test_el_camino_del_apply_fallido_se_distingue_y_se_dice
-        se pondría rojo si el sellado escribiera `apply_notes_json` y la
-        columna dejara de distinguir el camino.
     · test_el_rechazo_del_writer_llega_al_operador_con_su_motivo
-        se pondría rojo si el mapa de rechazos publicara un código no
-        declarado, o si filtrara el código interno del writer al operador.
-    · test_la_consola_que_decide_acepta_la_corrida_puesta              · M3
-    · test_las_cinco_ramas_del_desenlace_estan_cerradas                · M6, M7, M8
+    · test_la_consola_que_decide_acepta_la_corrida_puesta
+    · test_las_cinco_ramas_del_desenlace_estan_cerradas
+
+  CALIBRAN LOS PROPIOS GUARDIANES, no el producto:
+    · test_el_guardian_de_la_frase_no_se_esquiva_con_una_tilde
+    · test_la_enumeracion_de_esta_cabecera_es_exhaustiva
 
   DÓNDE VIVE LA COBERTURA DE PANTALLA DE LOS QUE NO LA PIDEN:
     · `PLAN_SUPERSEDED` y el apply fallido se recorren POR LA UI, con GET del
       acuse y la frase exigida en el HTML, en
-      `test_panel_apply_desde_la_ui.py::test_tras_un_apply_fallido_la_pantalla_no_culpa_a_una_decision`
-      — y ÉSE es el que M5 pone rojo.
+      `test_panel_apply_desde_la_ui.py::test_tras_un_apply_fallido_la_pantalla_no_culpa_a_una_decision`.
     · El destino del enlace se lee del `href` del propio acuse en
       `test_panel_review_estado_de_revision.py::test_el_resumen_enlaza_a_la_revision_de_SU_corrida`.
 
-  · test_la_enumeracion_de_esta_cabecera_es_exhaustiva
-        el guardián de la lista: se pondría rojo si alguien añade un caso
-        y no lo añade aquí. Esta enumeración ya se quedó corta una vez.
-
-  Esta lista cubre TODOS los casos del fichero, Y ESO SE COMPRUEBA: el
-  último de la lista lo verifica, para que no vuelva a quedarse corta sin
-  que nadie se entere.
+  Esta lista cubre TODOS los casos del fichero, Y ESO SE COMPRUEBA: el guardián
+  de arriba lo verifica, para que no vuelva a quedarse corta sin que nadie se
+  entere. Lo que el guardián NO puede verificar, ya no se afirma.
 """
 from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from pathlib import Path
 
 import pytest
@@ -101,6 +105,35 @@ from test_panel_review_cola_desde_ingesta import (  # noqa: F401
 #: La frase EXACTA que producía el cero mudo. No se busca «parecida»: se busca
 #: ésta, porque es la que el operador leía como «estaba todo claro».
 FRASE_TRANQUILIZADORA = "no ha dejado nada en revision"
+
+
+def _normaliza(texto: str) -> str:
+    """Minúsculas, SIN TILDES y espacios colapsados.
+
+    POR QUÉ LAS TRES COSAS, MEDIDO. El guardián comparaba la frase tal cual y
+    después en minúsculas, y así tenía CINCO puertas abiertas: «revisión» con
+    tilde, doble espacio, la frase partida por un salto de línea, y las
+    combinaciones. La de la tilde es la realista y la peligrosa: el producto
+    escribe con tilde en toda la UI y estos mensajes son ASCII POR COSTUMBRE,
+    NO POR REGLA. El día que alguien escriba la frase en español correcto, el
+    guardián dejaría de guardar EN SILENCIO — y este guardián es toda la
+    defensa del cero mudo.
+    """
+    sin_tildes = "".join(
+        c for c in unicodedata.normalize("NFKD", texto)
+        if not unicodedata.combining(c)
+    )
+    return " ".join(sin_tildes.lower().split())
+
+
+def tranquiliza(texto: str) -> bool:
+    """¿Este texto afirma que la corrida no dejó nada que revisar?
+
+    UNO SOLO para todos los testigos: había tres comparaciones distintas —una
+    literal, otra en minúsculas y otra dentro de un caso— y la más débil era la
+    que vigilaba la pantalla.
+    """
+    return _normaliza(FRASE_TRANQUILIZADORA) in _normaliza(texto)
 
 #: La causalidad fabricada que `PLAN_SUPERSEDED` afirmaba sin comprobarla.
 CAUSALIDAD_FABRICADA = "Una decision cambio"
@@ -279,7 +312,7 @@ def test_una_ingesta_que_no_cosecha_nada_lo_DICE_en_la_pantalla(
         "una corrida que no extrajo NADA se sigue acusando como una ingesta "
         "correcta cualquiera"
     )
-    assert FRASE_TRANQUILIZADORA not in html, (
+    assert not tranquiliza(html), (
         "la pantalla sigue diciendo «no ha dejado nada en revisión», que es "
         "lo que el operador lee como «estaba todo claro»"
     )
@@ -512,7 +545,7 @@ def test_una_cosecha_esteril_no_se_anuncia_como_tranquilizadora(
     html = _acuse(operador, job_id)
 
     # 1. LA FRASE TRANQUILIZADORA NO SE EMITE.
-    assert FRASE_TRANQUILIZADORA not in html, (
+    assert not tranquiliza(html), (
         "con menciones cosechadas y CERO propuestas la pantalla sigue diciendo "
         "«no ha dejado nada en revisión» como si todo estuviera claro"
     )
@@ -548,10 +581,6 @@ def test_las_cinco_ramas_del_desenlace_estan_cerradas(real_app):
     raiz = Path(__file__).resolve().parents[2]
     sys.path.insert(0, str(raiz / "data-engine" / "app"))
     from jobs.handlers.ingest_v3 import CARENCIAS_DE_COSECHA, _desenlace
-
-    def tranquiliza(mensaje: str) -> bool:
-        """N-4. La comparación literal se esquiva con una mayúscula."""
-        return FRASE_TRANQUILIZADORA.lower() in mensaje.lower()
 
     # 1. Cola con propuestas Y veredictos REVIEW: conduce, y dice las dos cifras.
     codigo, mensaje = _desenlace(
@@ -629,9 +658,12 @@ def test_las_cinco_ramas_del_desenlace_estan_cerradas(real_app):
     # `SIN_ESCRITURA` NO es carencia de cosecha: se emite en toda corrida sana.
     assert "SIN_ESCRITURA" not in CARENCIAS_DE_COSECHA
     # Y `PLAN_REVISION_SIN_OPERACIONES` TAMPOCO, aunque sea la séptima que el
-    # motor emite: MEDIDO, el corpus estándar —sano, con 4 propuestas en la
-    # cola— la declara. Tratarla como carencia de cosecha clasificaría de
-    # estéril a la corrida más normal del repositorio.
+    # motor emite. El primer motivo que se escribió —que el corpus estándar,
+    # sano, la declara— era del ORDEN DE RAMAS ANTERIOR: hoy la rama 1 gana
+    # antes y ese corpus ni llega aquí. El motivo de ahora es más fuerte: su
+    # condición en el motor es `en_revision > 0` (REVIEW **o** ABSTAIN) y a la
+    # rama de carencias de cosecha sólo se llega con la cola VACÍA, así que no
+    # puede dispararse ahí. Incluirla sería CÓDIGO MUERTO.
     assert "PLAN_REVISION_SIN_OPERACIONES" not in CARENCIAS_DE_COSECHA
 
 
@@ -670,7 +702,7 @@ def test_con_ABSTAIN_y_sin_REVIEW_el_acuse_no_se_contradice_a_si_mismo(
     html = _acuse(operador, job_id)
 
     # 1. LA PANTALLA NO NIEGA LO QUE ELLA MISMA OFRECE.
-    assert FRASE_TRANQUILIZADORA.lower() not in html.lower(), (
+    assert not tranquiliza(html), (
         f"el acuse dice «no ha dejado nada en revisión» con {propuestas} "
         "propuestas revisables en la cola, y las enlaza en el mismo acuse"
     )
@@ -719,6 +751,55 @@ def test_la_enumeracion_de_esta_cabecera_es_exhaustiva():
     faltan = sorted(t for t in definidos if t not in cabecera)
     assert not faltan, (
         f"la cabecera se presenta como el reparto REAL y no menciona {faltan}: "
-        "clasifícalos (¿piden la pantalla o miran el dato?) y di qué mutación "
-        "pone rojo a cada uno"
+        "clasifícalos (¿piden la pantalla, miran el dato, o calibran un "
+        "guardián?)"
     )
+
+
+def test_el_guardian_de_la_frase_no_se_esquiva_con_una_tilde():
+    """EL GUARDIÁN TAMBIÉN SE CALIBRA: es toda la defensa del cero mudo.
+
+    Un guardián que se esquiva cambiando una letra no guarda nada, y este
+    tenía CINCO puertas abiertas: comparaba la frase tal cual, y después sólo
+    en minúsculas. La de la tilde es la realista — el producto escribe con
+    tilde en toda la UI, y que estos mensajes sean ASCII es COSTUMBRE, NO
+    REGLA. El día que alguien escriba «revisión» correctamente, el guardián
+    dejaría de guardar SIN QUE NADA SE PUSIERA ROJO.
+
+    Las variantes honestas están aquí por la otra mitad: un guardián que cace
+    de más convertiría en rojo una frase que dice la verdad.
+    """
+    ESQUIVAN = {
+        "tal cual": "…y no ha dejado nada en revision.",
+        "mayúsculas": "…y NO HA DEJADO NADA EN REVISION.",
+        "con tilde": "…y no ha dejado nada en revisión.",
+        "tilde y mayúsculas": "…y NO HA DEJADO NADA EN REVISIÓN.",
+        "doble espacio": "…y no ha  dejado nada en revision.",
+        "partida por salto de línea": "…y no ha dejado\nnada en revision.",
+        "tilde y doble espacio": "…y no ha  dejado nada en revisión.",
+    }
+    for nombre, texto in ESQUIVAN.items():
+        assert tranquiliza(texto), (
+            f"la variante «{nombre}» esquiva el guardián: una frase "
+            f"tranquilizadora pasaría sin que nada se pusiera rojo — {texto!r}"
+        )
+
+    HONESTAS = {
+        "conduce a la cola": (
+            "La ingesta ha terminado y ha dejado 2 propuestas revisables, "
+            "aunque ninguna decision quedo en REVIEW."
+        ),
+        "estéril": (
+            "La ingesta ha terminado y ha reconocido 3 menciones, pero ninguna "
+            "propuesta ha llegado a la consola de revision."
+        ),
+        "sin extracción": (
+            "La cola de revision se queda vacia porque no hay nada que "
+            "revisar, no porque estuviera todo claro."
+        ),
+    }
+    for nombre, texto in HONESTAS.items():
+        assert not tranquiliza(texto), (
+            f"el guardián caza de más: «{nombre}» dice la verdad y aun así se "
+            f"trata como frase tranquilizadora — {texto!r}"
+        )
