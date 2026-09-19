@@ -244,6 +244,25 @@ MUTACIONES = [
     ),
 
     # =================================================================
+    # 12. LA COSTURA CON EL PREFLIGHT DEL ENSAYO RC
+    # -----------------------------------------------------------------
+    # Regresion REAL: al partir el catalogo en tres, los imports relativos
+    # rompieron la carga POR RUTA que hace el preflight, y este paso a decir
+    # PENDIENTE —«no pude mirar»— en vez de medir. Dos piezas verdes por
+    # separado, rotas en el borde. Aqui se quita el respaldo y se exige que
+    # se vea desde MI lado, que es donde nacio la rotura.
+    # =================================================================
+    Mutacion(
+        nombre="quitar el respaldo de carga POR RUTA (rompe el preflight del "
+               "ensayo RC en silencio)",
+        fichero=CATALOGO,
+        viejo="except ImportError:  # pragma: no cover - cargado POR RUTA, sin paquete padre",
+        nuevo="except SystemExit:  # respaldo desactivado a proposito",
+        prueba=f"{SUITE}::test_el_catalogo_se_puede_cargar_POR_RUTA_como_hace_el_preflight",
+        esperado="ImportError",
+    ),
+
+    # =================================================================
     # 9. BORRAR LA PANTALLA
     # =================================================================
     Mutacion(
