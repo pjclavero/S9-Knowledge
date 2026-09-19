@@ -564,7 +564,7 @@ def test_las_cinco_ramas_del_desenlace_estan_cerradas(real_app):
     assert "4 propuestas revisables" in mensaje, (
         "el acuse oculta que la cola tiene MÁS propuestas que decisiones REVIEW"
     )
-    assert not tranquiliza(mensaje)
+    assert not tranquiliza(mensaje), f"rama 1 tranquiliza: {mensaje!r}"
 
     # 2. LA COSTURA DEL RECUENTO: propuestas en la cola y CERO `REVIEW`.
     #    Es el caso que hacía que el acuse se contradijera a sí mismo.
@@ -596,7 +596,7 @@ def test_las_cinco_ramas_del_desenlace_estan_cerradas(real_app):
         ["SIN_MENCIONES", "SIN_CLAIMS"],
     )
     assert codigo == "INGEST_SIN_EXTRACCION"
-    assert not tranquiliza(mensaje)
+    assert not tranquiliza(mensaje), f"rama 4 (doble cero) tranquiliza: {mensaje!r}"
 
     # 5. Cosecha estéril: hubo menciones y aun así la cola quedó vacía. NI
     #    tranquiliza NI comete el error simétrico de negar la extracción.
@@ -606,8 +606,14 @@ def test_las_cinco_ramas_del_desenlace_estan_cerradas(real_app):
         ["SIN_CLAIMS"],
     )
     assert codigo == "INGEST_OK"
-    assert not tranquiliza(mensaje)
-    assert "3 menciones" in mensaje
+    assert not tranquiliza(mensaje), (
+        "rama 5: se cosecharon menciones, la cola quedó VACÍA y la pantalla lo "
+        f"anuncia como si estuviera todo claro: {mensaje!r}"
+    )
+    assert "3 menciones" in mensaje, (
+        "rama 5 no dice cuántas menciones se reconocieron, así que el operador "
+        f"no puede distinguirlo de «no se extrajo nada»: {mensaje!r}"
+    )
 
     # 6. LA RAMA SANA. Única en la que la frase tranquilizadora es cierta, y la
     #    que se quedó sin `mensaje`.
