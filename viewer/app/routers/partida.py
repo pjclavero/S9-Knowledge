@@ -21,7 +21,7 @@ from app.auth.config import get_auth_settings
 from app.auth.csrf import validate_csrf
 from app.auth.dependencies import require_authenticated_user
 from app.auth.models import User
-from app.config import get_settings
+from app.authz import existencia
 
 router = APIRouter()
 
@@ -61,7 +61,9 @@ async def select_partida(
     # partida llamada "". Semántica explícita, igual que en M4.
     chosen = partida_id.strip() or None
     db_path = _get_db_path()
-    workspace = get_settings().S9K_DEFAULT_WORKSPACE
+    # CORTE 1: el ámbito sale del ÚNICO sitio que lo decide, no de una lectura
+    # propia de settings. Vacío = no determinable = fail-closed, igual que antes.
+    workspace = existencia.workspace_canonico()
     with auth_db.get_conn(db_path) as conn:
         if chosen is not None:
             if not user.is_admin():
@@ -76,7 +78,7 @@ async def select_partida(
                         status_code=403,
                         detail="No tienes asignada esa partida.",
                     )
-            elif not auth_db.partida_exists(conn, chosen):
+            elif not existencia.partida_existe(conn, workspace, chosen):
                 # El admin ve todo igualmente (admin_full), pero fijar una
                 # partida inexistente solo puede ser un error: se rechaza para
                 # que no quede estado sin sentido en la sesión.

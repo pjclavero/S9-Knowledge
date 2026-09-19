@@ -868,17 +868,36 @@ def partida_progress(
     return tope, pj
 
 
-def partida_exists(conn: sqlite3.Connection, partida_id: str) -> bool:
-    """¿Existe esa partida como asignación de algún usuario?
+def partida_exists(conn: sqlite3.Connection, workspace: str, partida_id: str) -> bool:
+    """¿Existe esa partida como asignación de algún usuario EN ESE WORKSPACE?
 
     Es la única definición de "partida conocida" que tiene el visor hoy (no hay
     catálogo de partidas). Sirve para que un admin no pueda activar una partida
     inventada por error tipográfico.
+
+    CORTE 1. La consulta filtraba SÓLO por `partida_id`, y esa omisión convertía
+    la promesa de este docstring en falsa: una concesión en un workspace
+    cualquiera —incluido uno inventado y tecleado a mano en `/admin/partidas`—
+    hacía «existir» ese `partida_id` en TODOS los workspaces, el real incluido.
+    La unidad de existencia es el PAR `(workspace, partida_id)`.
+
+    El parámetro `workspace` va POSICIONALMENTE ANTES que `partida_id` a
+    propósito: un llamante que no se haya actualizado falla con `TypeError`, no
+    pasa un `partida_id` como si fuera un workspace y devuelve `False` en
+    silencio. Un fail-closed mudo aquí sería indistinguible de la guarda
+    funcionando.
+
+    Esta función responde por la TABLA. Quién es un workspace canónico lo decide
+    `app.authz.existencia`, que es el sitio por el que entran los tres
+    consumidores; no la llames directamente desde un router.
     """
+    if not isinstance(workspace, str) or not workspace.strip():
+        return False
     if not isinstance(partida_id, str) or not partida_id.strip():
         return False
     row = conn.execute(
-        "SELECT 1 FROM partida_access WHERE partida_id = ? LIMIT 1", (partida_id,)
+        "SELECT 1 FROM partida_access WHERE workspace = ? AND partida_id = ? LIMIT 1",
+        (workspace.strip(), partida_id.strip()),
     ).fetchone()
     return row is not None
 

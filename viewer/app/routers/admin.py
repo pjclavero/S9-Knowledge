@@ -14,6 +14,7 @@ from app.auth.csrf import get_csrf_token_for_session, validate_csrf
 from app.auth.dependencies import require_admin
 from app.auth.models import ROLES, User
 from app.auth.passwords import hash_password, validate_password
+from app.authz import existencia
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -402,15 +403,25 @@ async def admin_partidas(
     session = getattr(request.state, "session", None)
     db_path = _get_db_path()
     auth_db.ensure_migrated(db_path)
+    ws = existencia.workspace_canonico()
     with auth_db.get_conn(db_path) as conn:
         users = auth_db.list_users(conn)
         access = auth_db.list_partida_access(conn)
+    # CORTE 1: la pantalla deja de pedir identificadores de memoria. Lo que
+    # ofrece NO es un censo —no existe— sino las partidas ya concedidas en el
+    # workspace canonico, y la propia pantalla dice que eso es lo que es.
+    partidas_conocidas = sorted({
+        a.partida_id for a in access
+        if ws and a.workspace == ws and a.partida_id
+    })
     return templates.TemplateResponse(
         request,
         "auth/admin/partidas.html",
         {
             "users": users,
             "access": access,
+            "workspace_canonico": ws,
+            "partidas_conocidas": partidas_conocidas,
             "admin": admin,
             "csrf_token": _get_csrf(request, session.id if session else 0),
             "errors": [],
@@ -444,6 +455,22 @@ async def admin_partidas_grant(
     partida_id = partida_id.strip()
     if not workspace or not partida_id:
         raise HTTPException(status_code=400, detail="workspace y partida_id son obligatorios")
+
+    # CORTE 1 — PRIMER consumidor de la unidad de control. Conceder era el acto
+    # que CREABA existencia: este campo era texto libre y nadie lo miraba, de
+    # modo que `workspace=juego:inventado-no-existe` devolvia 302 y una fila
+    # viva en «Asignaciones existentes», con fecha y boton de revocar. Y esa
+    # fila, a traves de `partida_exists`, teñia de existente su `partida_id` en
+    # el workspace REAL. El formulario ya no pide el ambito, pero la guarda vive
+    # AQUI: un POST directo sin pasar por la pantalla se rechaza igual.
+    if not existencia.es_workspace_canonico(workspace):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Ese workspace no existe en este despliegue. Las concesiones "
+                "solo pueden crearse en el workspace efectivo."
+            ),
+        )
 
     tope = (max_visible_session or "").strip()
     if tope:
