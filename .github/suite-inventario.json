@@ -28,6 +28,7 @@
     "viewer/tests/test_p0_autoridad_admin_full_http.py",
     "viewer/tests/test_panel_entities.py",
     "viewer/tests/test_panel_operations.py",
+    "viewer/tests/test_panel_operations_alta_fuente.py",
     "viewer/tests/test_panel_review_console.py",
     "viewer/tests/test_panel_review_estado_de_revision.py",
     "viewer/tests/test_panel_sources.py",
@@ -37,7 +38,8 @@
     "viewer/tests/test_registro_de_autorizacion.py",
     "viewer/tests/test_registro_es_especificacion_ejecutable.py",
     "viewer/tests/test_serializers.py",
-    "viewer/tests/test_v3_review_almacen_no_disponible.py"
+    "viewer/tests/test_v3_review_almacen_no_disponible.py",
+    "viewer/tests/test_vault_descubrimiento_ambito.py"
   ],
   "silenciados": {
     "data-engine/app/tests/test_equipo5a_partida_y_esquema_neo4j_real.py": "CONDICIONAL",
@@ -359,7 +361,7 @@
     "viewer/tests/test_p0_autoridad_admin_full_http.py": 7,
     "viewer/tests/test_panel_entities.py": 40,
     "viewer/tests/test_panel_operations.py": 43,
-    "viewer/tests/test_panel_operations_alta_fuente.py": 29,
+    "viewer/tests/test_panel_operations_alta_fuente.py": 34,
     "viewer/tests/test_panel_review_cola_desde_ingesta.py": 8,
     "viewer/tests/test_panel_review_console.py": 43,
     "viewer/tests/test_panel_review_estado_de_revision.py": 10,
@@ -391,6 +393,7 @@
     "viewer/tests/test_v3_review_almacen_no_disponible.py": 9,
     "viewer/tests/test_v3_review_e2e.py": 37,
     "viewer/tests/test_v3_review_storage.py": 7,
+    "viewer/tests/test_vault_descubrimiento_ambito.py": 36,
     "viewer/tests/test_view_as_character.py": 3,
     "viewer/tests/test_visibility_contract_adapter.py": 15,
     "viewer/tests/test_visibility_policy.py": 14
@@ -427,7 +430,7 @@
     "viewer/tests/test_graph_ux_v2.py",
     "viewer/tests/test_panel_apply_desde_la_ui.py"
   ],
-  "total": 8634,
+  "total": 8686,
   "modulos": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 526,
     "contracts/review-ingest/v1/tests/test_contracts_v1.py": 38,
@@ -692,7 +695,7 @@
     "viewer/tests/test_p0_autoridad_admin_full_http.py": 7,
     "viewer/tests/test_panel_entities.py": 73,
     "viewer/tests/test_panel_operations.py": 51,
-    "viewer/tests/test_panel_operations_alta_fuente.py": 29,
+    "viewer/tests/test_panel_operations_alta_fuente.py": 34,
     "viewer/tests/test_panel_review_cola_desde_ingesta.py": 8,
     "viewer/tests/test_panel_review_console.py": 51,
     "viewer/tests/test_panel_review_estado_de_revision.py": 10,
@@ -724,6 +727,7 @@
     "viewer/tests/test_v3_review_almacen_no_disponible.py": 12,
     "viewer/tests/test_v3_review_e2e.py": 37,
     "viewer/tests/test_v3_review_storage.py": 7,
+    "viewer/tests/test_vault_descubrimiento_ambito.py": 47,
     "viewer/tests/test_view_as_character.py": 3,
     "viewer/tests/test_visibility_contract_adapter.py": 37,
     "viewer/tests/test_visibility_policy.py": 14
