@@ -90,6 +90,11 @@ CATALOGO: dict[str, str] = {
     "SOURCE_CATALOG_UNAVAILABLE":
         "No se puede consultar el catalogo de fuentes en este despliegue. "
         "Avisa a quien administra el servicio.",
+    "PARTIDA_SIN_SESION_DECLARADA":
+        "Esta fuente pertenece a una partida, y para ingerir material de una "
+        "partida hay que declarar en que sesion se revelo. La carpeta no puede "
+        "decirlo por ti: dar por supuesta una revelacion seria conceder a los "
+        "personajes un conocimiento que nadie declaro.",
     # --- cola de trabajos ---
     "QUEUE_UNAVAILABLE":
         "La cola de trabajos no esta disponible en este despliegue, asi que la "

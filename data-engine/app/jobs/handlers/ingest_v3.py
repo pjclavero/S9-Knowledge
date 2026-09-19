@@ -109,6 +109,16 @@ JOB_TYPE = "ingest_v3"
 #: dos tablas.
 CODIGOS = {
     "SOURCE_PACKAGE_INVALID": "El paquete de la fuente no es valido.",
+    # La fuente esta en una carpeta de partida, asi que la ingesta es de ambito
+    # partida, y el motor exige la SESION DE REVELACION para ese ambito. No se
+    # deriva de `sesion-NN`: el nombre de una carpeta es contrato de ENTRADA, no
+    # una declaracion de que se revelo ni a quien. Derivarla seria conceder
+    # conocimiento por inferencia de directorio, que es justo lo prohibido.
+    "PARTIDA_SIN_SESION_DECLARADA": (
+        "Esta fuente pertenece a una partida, y para ingerir material de una "
+        "partida hay que declarar en que sesion se revelo. La carpeta no puede "
+        "decirlo por ti."
+    ),
     "INGEST_FAILED": (
         "La ingesta no ha terminado correctamente. El detalle queda registrado "
         "en el servidor para quien lo administra."
@@ -137,9 +147,14 @@ CODIGOS = {
 #: `GRAPH_OBSERVATION_UNAVAILABLE` se queda fuera a proposito --un grafo que no
 #: responde ahora puede responder en el reintento--, y esa es exactamente la
 #: distincion que el worker no puede hacer por su cuenta.
+#:
+#: `PARTIDA_SIN_SESION_DECLARADA` es permanente por el mismo criterio: la sesion
+#: de revelacion la declara una PERSONA, y no va a aparecer sola entre dos
+#: intentos. Reintentarla solo retrasa el error que el operador espera ver.
 PERMANENTES = frozenset({
     "SOURCE_PACKAGE_INVALID",
     "GRAPH_OBSERVATION_UNCONFIGURED",
+    "PARTIDA_SIN_SESION_DECLARADA",
 })
 
 
@@ -315,7 +330,12 @@ def handle_ingest_v3(payload: dict, *, job_id: Optional[str] = None) -> dict:
         source_path   ruta de la fuente resuelta por el catalogo del servidor
         profile_path  perfil del workspace
         catalog_path  catalogo de entidades (opcional)
-        workspace     ambito, derivado del perfil
+        workspace     ambito, derivado del perfil de la boveda
+        partida_id    partida, DERIVADA DE LA RUTA por la clasificacion de la
+                      boveda. Viaja explicita: no se codifica dentro de
+                      `collection_id` ni se adivina aqui.
+        visibility    visibilidad INICIAL propuesta por la carpeta. Se registra
+                      y se audita; NO es `known_by` y no concede nada.
         source_title  nombre humano de la fuente, para el acuse del panel
     """
     payload = payload or {}
@@ -324,6 +344,10 @@ def handle_ingest_v3(payload: dict, *, job_id: Optional[str] = None) -> dict:
     catalogo_crudo = payload.get("catalog_path")
     catalogo = Path(str(catalogo_crudo)) if catalogo_crudo else None
     workspace: Optional[str] = payload.get("workspace") or None
+    # LA PARTIDA LLEGA HASTA EL MOTOR. `run_ingest` ya la aceptaba
+    # (`partida_id=...`); lo que faltaba era que el alta de producto la
+    # trajera. Un payload sin partida sigue siendo capa juego, como hasta hoy.
+    partida_id: Optional[str] = payload.get("partida_id") or None
 
     # FALLO CERRADO ANTES DE EMPEZAR: una fuente que no esta, o que no es un
     # fichero, es un paquete invalido. Se dice con el codigo estable; la ruta
@@ -347,6 +371,7 @@ def handle_ingest_v3(payload: dict, *, job_id: Optional[str] = None) -> dict:
             profile_path=perfil,
             catalog_path=catalogo,
             workspace=workspace,
+            partida_id=partida_id,
             # DRY-RUN EXPLICITO. `apply=False` es el defecto de `run_ingest`,
             # y aun asi se escribe: el corte que active la escritura tendra que
             # cambiar esta linea, que es donde se mira.
@@ -379,6 +404,12 @@ def handle_ingest_v3(payload: dict, *, job_id: Optional[str] = None) -> dict:
         # el panel podria acabar sacandola.
         log.exception("ingesta fallida para %s", fuente)
         nombre = type(exc).__name__
+        # DIAGNOSTICO EXACTO, no "paquete invalido". El motor falla cerrado con
+        # `PLAN_SESION_NO_DECLARADA` cuando el ambito es de partida y no hay
+        # sesion de revelacion. Traducirlo a SOURCE_PACKAGE_INVALID mandaria al
+        # operador a revisar un fichero que esta perfectamente bien.
+        if nombre == "PipelineError" and "PLAN_SESION_NO_DECLARADA" in str(exc):
+            raise IngestV3Error("PARTIDA_SIN_SESION_DECLARADA") from exc
         if nombre in {"PipelineError", "FileNotFoundError", "ValueError",
                       "UnicodeDecodeError", "JSONDecodeError"}:
             raise IngestV3Error("SOURCE_PACKAGE_INVALID") from exc
