@@ -227,6 +227,17 @@ def _acuse(operador, job_id):
     return respuesta.text
 
 
+def _frase_del_resultado(html: str) -> str:
+    """La frase del desenlace, extraída del HTML, para CITARLA en un rojo.
+
+    Un `assert ..., html[:600]` produce un mensaje que empieza por líneas en
+    blanco y se lee como un rojo sin causa. El testigo tiene que decir qué
+    pone la pantalla, no enseñar el marcado entero.
+    """
+    bloque = re.search(r'data-role="resultado".*?<p>(.*?)</p>', html, re.S)
+    return " ".join(bloque.group(1).split()) if bloque else "(sin frase)"
+
+
 def _carencias_pintadas(html: str) -> list[str]:
     """Los códigos de carencia que están EN EL HTML. No en un diccionario."""
     bloque = re.search(r'data-role="carencias".*?</section>', html, re.S)
@@ -660,11 +671,24 @@ def test_con_ABSTAIN_y_sin_REVIEW_el_acuse_no_se_contradice_a_si_mismo(
 
     # 2. Y EL BLOQUE DE ENLACE SIGUE OFRECIÉNDOLAS: es la otra mitad de la
     #    contradicción, y tiene que seguir ahí para que el caso sea real.
-    assert 'data-role="enlace-revision"' in html
-    assert f'data-revision-propuestas="{propuestas}"' in html, html[:600]
+    assert 'data-role="enlace-revision"' in html, (
+        "el acuse ya no ofrece el enlace a la revisión: sin él no hay "
+        "contradicción que medir y este testigo dejaría de vigilar el caso"
+    )
+    assert f'data-revision-propuestas="{propuestas}"' in html, (
+        f"el bloque de enlace no declara las {propuestas} propuestas que la "
+        "corrida dejó en la cola"
+    )
 
     # 3. EL ACUSE CONDUCE: dice cuántas hay que revisar.
-    assert f"{propuestas} propuestas revisables" in html, html[:600]
+    #
+    # EL MENSAJE DEL ROJO NOMBRA LA CAUSA, no vuelca el HTML. Volcarlo daba un
+    # `AssertionError:` que empezaba por líneas en blanco y se leía como un
+    # rojo sin causa — y un rojo que no dice de qué va no es una garantía.
+    assert f"{propuestas} propuestas revisables" in html, (
+        f"el acuse no dice que hay {propuestas} propuestas que revisar. Lo que "
+        f"dice es: {_frase_del_resultado(html)!r}"
+    )
 
     # 4. Y NO INVENTA UN `REVIEW` QUE NO HUBO.
     assert "decisiones en REVIEW" not in html, (
