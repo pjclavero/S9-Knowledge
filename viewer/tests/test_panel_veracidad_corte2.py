@@ -35,34 +35,54 @@ la suite se moviera.
 
 QUÉ MIRA CADA UNO, SIN AFIRMAR DE MÁS. Decir «todos piden la pantalla» sería,
 en un corte cuya propiedad es no afirmar lo que no se comprueba, exactamente
-el defecto que el corte persigue. El reparto REAL es éste:
+el defecto que el corte persigue. Y la primera versión de este párrafo —escrita
+para dejar de afirmar de más— volvió a hacerlo por partida doble: dijo que M5
+ponía rojos a estos testigos (M5 pone rojo el testigo EXTERNO; aquí no mueve
+ninguno) y se presentó como exhaustiva dejándose uno fuera. El reparto real,
+con la mutación que pone rojo a cada uno:
 
-  PIDEN EL HTML por GET (y de ahí sale la afirmación de visibilidad):
-    · test_una_ingesta_que_no_cosecha_nada_lo_DICE_en_la_pantalla
-    · test_una_cosecha_esteril_no_se_anuncia_como_tranquilizadora
-    · test_si_borro_el_bloque_de_carencias_este_testigo_se_pone_rojo
+  PIDEN EL HTML por GET (de ahí sale la afirmación de visibilidad):
+    · test_una_ingesta_que_no_cosecha_nada_lo_DICE_en_la_pantalla      · M1, M4
+    · test_una_cosecha_esteril_no_se_anuncia_como_tranquilizadora      · M6, M7
+    · test_con_ABSTAIN_y_sin_REVIEW_el_acuse_no_se_contradice_a_si_mismo · M8
+    · test_si_borro_el_bloque_de_carencias_este_testigo_se_pone_rojo   · M1, M4
 
   NO PIDEN LA PANTALLA — miran el catálogo, el AST del almacén o la firma de
   la ruta, porque lo que afirman es del DATO, no del pintado:
     · test_las_carencias_desconocidas_se_nombran_en_vez_de_desaparecer
-    · test_la_pantalla_no_afirma_que_una_decision_cambio  (catálogo entero)
-    · test_el_camino_del_apply_fallido_se_distingue_y_se_dice  (AST del almacén)
+        se pondría rojo si `panel_errors.carencia` se tragara el código, o si
+        el filtro por forma dejara de descartar lo que no es un código.
+    · test_la_pantalla_no_afirma_que_una_decision_cambio               · M2
+    · test_el_camino_del_apply_fallido_se_distingue_y_se_dice
+        se pondría rojo si el sellado escribiera `apply_notes_json` y la
+        columna dejara de distinguir el camino.
     · test_el_rechazo_del_writer_llega_al_operador_con_su_motivo
-    · test_la_consola_que_decide_acepta_la_corrida_puesta
+        se pondría rojo si el mapa de rechazos publicara un código no
+        declarado, o si filtrara el código interno del writer al operador.
+    · test_la_consola_que_decide_acepta_la_corrida_puesta              · M3
+    · test_las_cinco_ramas_del_desenlace_estan_cerradas                · M6, M7, M8
 
-  DÓNDE VIVE LA COBERTURA DE PANTALLA DE ESOS CASOS:
+  DÓNDE VIVE LA COBERTURA DE PANTALLA DE LOS QUE NO LA PIDEN:
     · `PLAN_SUPERSEDED` y el apply fallido se recorren POR LA UI, con GET del
       acuse y la frase exigida en el HTML, en
-      `test_panel_apply_desde_la_ui.py::test_tras_un_apply_fallido_la_pantalla_no_culpa_a_una_decision`.
+      `test_panel_apply_desde_la_ui.py::test_tras_un_apply_fallido_la_pantalla_no_culpa_a_una_decision`
+      — y ÉSE es el que M5 pone rojo.
     · El destino del enlace se lee del `href` del propio acuse en
       `test_panel_review_estado_de_revision.py::test_el_resumen_enlaza_a_la_revision_de_SU_corrida`.
-    · Que estos testigos no son vacíos está demostrado por sus mutaciones: la
-      que borra la rama del apply fallido (M5) los pone rojos.
+
+  · test_la_enumeracion_de_esta_cabecera_es_exhaustiva
+        el guardián de la lista: se pondría rojo si alguien añade un caso
+        y no lo añade aquí. Esta enumeración ya se quedó corta una vez.
+
+  Esta lista cubre TODOS los casos del fichero, Y ESO SE COMPRUEBA: el
+  último de la lista lo verifica, para que no vuelva a quedarse corta sin
+  que nadie se entere.
 """
 from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 
 import pytest
 
@@ -138,6 +158,39 @@ def fuente_esteril(tmp_path):
         "Sela Marrec. Bren Halloway. Vado Alto.\n\n"
         "## Lo que se hablo\n\n"
         "Se reviso el calendario y se acordo continuar la semana que viene.\n",
+        encoding="utf-8",
+    )
+    return destino
+
+
+@pytest.fixture
+def fuente_abstain(tmp_path):
+    """UNA SOLA FRASE del fichero de ejemplo del repo. Produce ABSTAIN y CERO REVIEW.
+
+    No es un corpus paralelo: es la primera frase de
+    `examples/ingesta-v3/nota-cofradia-de-ambar.md`, copiada tal cual. El
+    corpus estándar tiene una mezcla de veredictos FIJA (`REVIEW:2, ACCEPT:1,
+    ABSTAIN:2`), así que `REVIEW` siempre es > 0 y el eje «qué veredictos
+    salieron» no se podía recorrer con él. Aislar la frase que ya daba los dos
+    ABSTAIN es la fuente mínima que abre ese eje.
+
+    MEDIDO contra el motor: menciones 3, `by_outcome = {'ABSTAIN': 2}`,
+    `cola.propuestas = 2`. Ni un solo `REVIEW`, y aun así DOS propuestas
+    revisables en la consola.
+    """
+    import shutil
+
+    destino = tmp_path / "fuentes"
+    shutil.copytree(EJEMPLOS, destino)
+    original = (destino / "nota-cofradia-de-ambar.md").read_text(encoding="utf-8")
+    frase = "Sela Marrec es miembro de la Cofradia de Ambar y vive en Vado Alto."
+    assert frase in original, (
+        "la frase ya no está en el fichero de ejemplo: esta fuente dejaría de "
+        "ser «una frase del corpus» y pasaría a ser un corpus inventado"
+    )
+    (destino / "nota-cofradia-de-ambar.md").unlink()
+    (destino / "nota-solo-abstain.md").write_text(
+        f"# Nota de sesion\n\n## Quien estaba en la mesa\n\n{frase}\n",
         encoding="utf-8",
     )
     return destino
@@ -465,65 +518,177 @@ def test_una_cosecha_esteril_no_se_anuncia_como_tranquilizadora(
     assert "SIN_CLAIMS" in codigos, codigos
 
 
-def test_las_cuatro_ramas_del_desenlace_estan_cerradas(real_app):
-    """LA RAMA QUE EL CORPUS NO ALCANZA, cubierta por enumeración.
+def test_las_cinco_ramas_del_desenlace_estan_cerradas(real_app):
+    """LAS RAMAS QUE EL CORPUS NO ALCANZA, cubiertas por enumeración.
 
     `_desenlace` nació como un `if/elif` dentro del manejador y una de sus
-    ramas —la corrida SANA, sin pendientes y sin carencias de cosecha— se quedó
-    sin asignar `mensaje`: habría reventado con `UnboundLocalError` en
-    producción, en la ingesta más limpia posible. La suite entera seguía verde
-    porque el corpus de ejemplo no produce ese caso. Lo destapó una mutación.
+    ramas —la corrida SANA— se quedó sin asignar `mensaje`: habría reventado
+    con `UnboundLocalError` en producción, en la ingesta más limpia posible. La
+    suite entera seguía verde porque el corpus de ejemplo no produce ese caso.
+    Lo destapó una mutación.
 
-    Por eso se enumeran LAS CUATRO aquí: es la única forma de recorrer una rama
-    para la que no se puede fabricar una fuente con el catálogo de ejemplo. Las
-    otras tres SÍ se miden además contra la pantalla, en los testigos de arriba.
+    EL GUARDIÁN ES INSENSIBLE A MAYÚSCULAS a propósito: comparar la frase tal
+    cual dejaba pasar una frase genuinamente tranquilizadora con una sola letra
+    cambiada, y un guardián que se esquiva cambiando una letra no guarda nada.
     """
     import sys
     from pathlib import Path
 
     raiz = Path(__file__).resolve().parents[2]
     sys.path.insert(0, str(raiz / "data-engine" / "app"))
-    from jobs.handlers.ingest_v3 import _desenlace
+    from jobs.handlers.ingest_v3 import CARENCIAS_DE_COSECHA, _desenlace
 
-    FRASE = "no ha dejado nada en revision"
+    def tranquiliza(mensaje: str) -> bool:
+        """N-4. La comparación literal se esquiva con una mayúscula."""
+        return FRASE_TRANQUILIZADORA.lower() in mensaje.lower()
 
-    # 1. Hay pendientes: conduce a revisarlas.
+    # 1. Cola con propuestas Y veredictos REVIEW: conduce, y dice las dos cifras.
     codigo, mensaje = _desenlace(
-        {"en_revision": 2, "menciones": 10, "afirmaciones": 1}, ["SIN_ESCRITURA"]
+        {"en_revision": 2, "menciones": 10, "afirmaciones": 1,
+         "propuestas_de_revision": 4},
+        ["PLAN_REVISION_SIN_OPERACIONES", "SIN_ESCRITURA"],
     )
     assert codigo == "INGEST_OK"
     assert "2 decisiones en REVIEW" in mensaje
-    assert FRASE not in mensaje
+    assert "4 propuestas revisables" in mensaje, (
+        "el acuse oculta que la cola tiene MÁS propuestas que decisiones REVIEW"
+    )
+    assert not tranquiliza(mensaje)
 
-    # 2. Doble cero: no se extrajo nada, y se dice.
+    # 2. LA COSTURA DEL RECUENTO: propuestas en la cola y CERO `REVIEW`.
+    #    Es el caso que hacía que el acuse se contradijera a sí mismo.
     codigo, mensaje = _desenlace(
-        {"en_revision": 0, "menciones": 0, "afirmaciones": 0},
+        {"en_revision": 0, "menciones": 3, "afirmaciones": 0,
+         "propuestas_de_revision": 2},
+        ["PLAN_NO_APROBADO", "PLAN_REVISION_SIN_OPERACIONES"],
+    )
+    assert codigo == "INGEST_OK"
+    assert not tranquiliza(mensaje), (
+        "con DOS propuestas en la cola el acuse dice que no dejó nada que revisar"
+    )
+    assert "2 propuestas revisables" in mensaje, mensaje
+
+    # 3. `None` NO ES CERO: sin cola exportada no se afirma que no quedó nada.
+    codigo, mensaje = _desenlace(
+        {"en_revision": 0, "menciones": 3, "afirmaciones": 0,
+         "propuestas_de_revision": None},
+        ["SIN_CLAIMS"],
+    )
+    assert not tranquiliza(mensaje), (
+        "sin cola exportada se afirma que no quedó nada: eso es inventar el dato"
+    )
+
+    # 4. Doble cero: no se extrajo nada, y se dice.
+    codigo, mensaje = _desenlace(
+        {"en_revision": 0, "menciones": 0, "afirmaciones": 0,
+         "propuestas_de_revision": 0},
         ["SIN_MENCIONES", "SIN_CLAIMS"],
     )
     assert codigo == "INGEST_SIN_EXTRACCION"
-    assert FRASE not in mensaje
+    assert not tranquiliza(mensaje)
 
-    # 3. Cosecha estéril: hubo menciones y aun así nada llegó. NI tranquiliza
-    #    NI comete el error simétrico de negar la extracción.
+    # 5. Cosecha estéril: hubo menciones y aun así la cola quedó vacía. NI
+    #    tranquiliza NI comete el error simétrico de negar la extracción.
     codigo, mensaje = _desenlace(
-        {"en_revision": 0, "menciones": 3, "afirmaciones": 0}, ["SIN_CLAIMS"]
+        {"en_revision": 0, "menciones": 3, "afirmaciones": 0,
+         "propuestas_de_revision": 0},
+        ["SIN_CLAIMS"],
     )
     assert codigo == "INGEST_OK"
-    assert FRASE not in mensaje
+    assert not tranquiliza(mensaje)
     assert "3 menciones" in mensaje
 
-    # 4. LA RAMA SANA. Es la única en la que la frase tranquilizadora es cierta,
-    #    y es la que se quedó sin `mensaje`. Que devuelva la pareja completa es
-    #    exactamente lo que este caso existe para sostener.
+    # 6. LA RAMA SANA. Única en la que la frase tranquilizadora es cierta, y la
+    #    que se quedó sin `mensaje`.
     codigo, mensaje = _desenlace(
-        {"en_revision": 0, "menciones": 10, "afirmaciones": 4}, ["SIN_ESCRITURA"]
+        {"en_revision": 0, "menciones": 10, "afirmaciones": 4,
+         "propuestas_de_revision": 0},
+        ["SIN_ESCRITURA"],
     )
     assert codigo == "INGEST_OK"
     assert isinstance(mensaje, str) and mensaje, "la rama sana no produce frase"
-    assert FRASE in mensaje, mensaje
+    assert tranquiliza(mensaje), mensaje
 
-    # `SIN_ESCRITURA` NO es carencia de cosecha: se emite en toda corrida sana,
-    # y tratarla como tal volvería sospechosa cualquier ingesta correcta.
-    from jobs.handlers.ingest_v3 import CARENCIAS_DE_COSECHA
-
+    # `SIN_ESCRITURA` NO es carencia de cosecha: se emite en toda corrida sana.
     assert "SIN_ESCRITURA" not in CARENCIAS_DE_COSECHA
+    # Y `PLAN_REVISION_SIN_OPERACIONES` TAMPOCO, aunque sea la séptima que el
+    # motor emite: MEDIDO, el corpus estándar —sano, con 4 propuestas en la
+    # cola— la declara. Tratarla como carencia de cosecha clasificaría de
+    # estéril a la corrida más normal del repositorio.
+    assert "PLAN_REVISION_SIN_OPERACIONES" not in CARENCIAS_DE_COSECHA
+
+
+def test_con_ABSTAIN_y_sin_REVIEW_el_acuse_no_se_contradice_a_si_mismo(
+    real_app, paneles_on, cola, operador, almacen_de_propuestas,
+    fuente_abstain, monkeypatch,
+):
+    """LA COSTURA DEL RECUENTO, medida en la pantalla. Eje de VEREDICTOS.
+
+    Había DOS autoridades en desacuerdo sobre qué es «estar en revisión»:
+
+      · `resumen["en_revision"]` cuenta SÓLO el veredicto `REVIEW` — decisión
+        deliberada y documentada del Corte 4, que lo separó de la revisión de
+        identidad;
+      · la cola exporta `REVIEW`, `ABSTAIN` y `REJECT_INVALID`.
+
+    Con ABSTAIN y sin REVIEW el acuse decía «no ha dejado nada en revisión»
+    MIENTRAS su propio bloque de enlace ofrecía las propuestas y enlazaba a
+    ellas. Una pantalla que se contradice a sí misma: la propiedad exacta de
+    este corte, una casilla de veredicto más allá del Corte 4.
+
+    EL CONTADOR NO SE TOCA (rompería lo que el Corte 4 decidió y su testigo).
+    Lo que cambia es de qué cuelga la decisión: de la COLA, que es lo que la
+    consola contiene y lo que el bloque de enlace ya usaba. UNA autoridad.
+    """
+    job_id, resultado = _ingerir(operador, cola, fuente_abstain, monkeypatch)
+
+    # EL CASO, DEMOSTRADO PRIMERO: la región existe y es ésta.
+    resumen = resultado["resumen"]
+    assert resumen["por_veredicto"].get("REVIEW", 0) == 0, resumen["por_veredicto"]
+    assert resumen["por_veredicto"].get("ABSTAIN", 0) > 0, resumen["por_veredicto"]
+    assert resumen["en_revision"] == 0, "el contador de REVIEW ya no es 0"
+    propuestas = resumen["propuestas_de_revision"]
+    assert propuestas, "sin propuestas en la cola no hay contradicción que medir"
+
+    html = _acuse(operador, job_id)
+
+    # 1. LA PANTALLA NO NIEGA LO QUE ELLA MISMA OFRECE.
+    assert FRASE_TRANQUILIZADORA.lower() not in html.lower(), (
+        f"el acuse dice «no ha dejado nada en revisión» con {propuestas} "
+        "propuestas revisables en la cola, y las enlaza en el mismo acuse"
+    )
+
+    # 2. Y EL BLOQUE DE ENLACE SIGUE OFRECIÉNDOLAS: es la otra mitad de la
+    #    contradicción, y tiene que seguir ahí para que el caso sea real.
+    assert 'data-role="enlace-revision"' in html
+    assert f'data-revision-propuestas="{propuestas}"' in html, html[:600]
+
+    # 3. EL ACUSE CONDUCE: dice cuántas hay que revisar.
+    assert f"{propuestas} propuestas revisables" in html, html[:600]
+
+    # 4. Y NO INVENTA UN `REVIEW` QUE NO HUBO.
+    assert "decisiones en REVIEW" not in html, (
+        "se anuncian decisiones en REVIEW cuando el motor se abstuvo en todas"
+    )
+
+
+def test_la_enumeracion_de_esta_cabecera_es_exhaustiva():
+    """La cabecera dice ser el reparto REAL. Que lo sea no puede ser confianza.
+
+    Esta enumeración YA se quedó corta una vez: se escribió clasificando ocho
+    casos y un commit posterior añadió un noveno sin tocarla, de modo que un
+    párrafo escrito para dejar de afirmar de más volvió a afirmar de más. Una
+    lista que se mantiene a mano se desincroniza; una que se comprueba, no.
+    """
+    import re
+
+    fuente = Path(__file__).read_text(encoding="utf-8")
+    cabecera = fuente[: fuente.index("from __future__")]
+    definidos = set(re.findall(r"^def (test_\w+)", fuente, re.M))
+    assert definidos, "no se encontró ningún caso: el parseo está roto"
+    faltan = sorted(t for t in definidos if t not in cabecera)
+    assert not faltan, (
+        f"la cabecera se presenta como el reparto REAL y no menciona {faltan}: "
+        "clasifícalos (¿piden la pantalla o miran el dato?) y di qué mutación "
+        "pone rojo a cada uno"
+    )

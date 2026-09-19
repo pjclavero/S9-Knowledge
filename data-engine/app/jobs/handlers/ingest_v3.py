@@ -375,60 +375,102 @@ def _resumen(report: dict) -> dict:
 
 
 def _desenlace(resumen: dict, carencias: list) -> tuple:
-    """El codigo y la frase del acuse. FUNCION PURA: cuatro ramas, sin huecos.
+    """El codigo y la frase del acuse. FUNCION PURA: cinco ramas, sin huecos.
 
     VIVE APARTE POR UNA RAZON MEDIDA. Cuando esto era un `if/elif` dentro del
-    manejador, una de las ramas --la corrida SANA, sin pendientes y sin
-    carencias de cosecha-- se quedo sin asignar `mensaje` y habria reventado
-    con `UnboundLocalError` en produccion. La suite entera seguia verde: el
-    corpus de ejemplo no produce ese caso, asi que ningun test lo recorria.
-    Lo destapo una MUTACION, no una lectura. Aqui las cuatro ramas devuelven la
-    pareja completa y se pueden enumerar sin fabricar una fuente para cada una.
+    manejador, una de las ramas --la corrida SANA-- se quedo sin asignar
+    `mensaje` y habria reventado con `UnboundLocalError` en produccion. La
+    suite seguia verde: el corpus de ejemplo no produce ese caso. Lo destapo
+    una MUTACION, no una lectura. Aqui cada rama devuelve la pareja completa y
+    se pueden enumerar sin fabricar una fuente para cada una.
 
-    LAS CUATRO, y por que se dicen distinto (medido sobre el motor con el
-    catalogo de ejemplo):
+    UNA SOLA AUTORIDAD SOBRE «HAY ALGO QUE REVISAR»: LA COLA.
+    ------------------------------------------------------
+    Habia DOS en desacuerdo, y de ahi salia una pantalla que se contradecia a
+    si misma. MEDIDO contra el motor, con una sola frase del propio fichero de
+    ejemplo del repo ("Sela Marrec es miembro de la Cofradia de Ambar y vive en
+    Vado Alto."):
 
-      hay pendientes          -> hay que revisarlas, y se dice cuantas.
-      menciones 0, claims 0   -> `SIN_MENCIONES`, `SIN_CLAIMS`, `SIN_PLAN`...
-          no se reconocio nada: la fuente es ilegible para este glosario.
-      menciones 3, claims 0   -> `SIN_CLAIMS`, `CADENA_DETENIDA`, `SIN_PLAN`
-          SI se reconocieron nombres y aun asi no salio ni una relacion.
-          Llamar a esto «no ha extraido nada» seria el error SIMETRICO: el
-          motor extrajo menciones, y negarlo manda al operador a revisar un
-          glosario que funciona. Por eso NO basta cambiar el `and` por un `or`.
-      cosecha normal sin cola -> ninguna carencia de cosecha.
-          AQUI, Y SOLO AQUI, «no ha dejado nada en revision» es cierto.
+        by_outcome = {'ABSTAIN': 2}        <- NI UN SOLO `REVIEW`
+        cola.propuestas = 2                <- y aun asi DOS propuestas revisables
 
-    No hace falta un tercer codigo para separar los dos casos esteriles: lo que
-    cambia entre ellos es QUE se cosecho, y eso ya lo dice la pantalla carencia
-    por carencia.
+    `resumen["en_revision"]` cuenta SOLO el veredicto `REVIEW` --decision
+    deliberada y documentada del Corte 4, que lo separo de la revision de
+    IDENTIDAD-- mientras que la cola exporta `REVIEW`, `ABSTAIN` y
+    `REJECT_INVALID` (`review_export.EXPORTED_DECISIONS`). Con ABSTAIN y sin
+    REVIEW el acuse decia «no ha dejado nada en revision» MIENTRAS su propio
+    bloque de enlace ofrecia «esta corrida dejo 2 propuestas revisables» y
+    enlazaba a ellas.
+
+    EL CONTADOR NO SE TOCA: `en_revision` significa lo que el Corte 4 decidio
+    que significara, se ensena en pantalla con ese nombre y hay un testigo que
+    lo ata al veredicto real. Lo que se corrige es QUE se pregunta: la decision
+    cuelga ahora de `propuestas_de_revision`, que es lo que la consola contiene
+    de verdad y lo que el bloque de enlace del mismo acuse ya usaba. El
+    veredicto `REVIEW` sigue mandando en la REDACCION, porque es lo que el
+    operador tiene que saber cuando lo hay.
+
+    `PLAN_REVISION_SIN_OPERACIONES` NO es carencia de cosecha, y esto tambien
+    esta medido: el corpus estandar --sano, con 4 propuestas en la cola-- la
+    emite. Tratarla como carencia de cosecha clasificaria de esteril a la
+    corrida mas normal del repo. Se publica en pantalla como las demas.
     """
+    propuestas = resumen["propuestas_de_revision"]
     pendientes = resumen["en_revision"]
-    if pendientes:
+
+    # 1. LA COLA TIENE ALGO. Conduce, pase lo que pase con los veredictos.
+    if propuestas:
+        if pendientes:
+            return "INGEST_OK", (
+                f"La ingesta ha terminado correctamente y ha dejado {pendientes} "
+                f"{'decision' if pendientes == 1 else 'decisiones'} en REVIEW, "
+                f"y {propuestas} "
+                f"{'propuesta revisable' if propuestas == 1 else 'propuestas revisables'} "
+                "en total. No esta todo resuelto: hay que revisarlas."
+            )
+        # ABSTAIN (o RECHAZO) SIN NI UN `REVIEW`. La cola SI tiene trabajo.
         return "INGEST_OK", (
-            f"La ingesta ha terminado correctamente y ha dejado {pendientes} "
-            f"{'decision' if pendientes == 1 else 'decisiones'} en REVIEW. "
-            "No esta todo resuelto: hay que revisarlas."
+            f"La ingesta ha terminado y ha dejado {propuestas} "
+            f"{'propuesta revisable' if propuestas == 1 else 'propuestas revisables'}, "
+            "aunque ninguna decision quedo en REVIEW: el motor se abstuvo en vez "
+            "de proponer. Hay que revisarlas igualmente."
         )
+
+    # 2. NO SE SABE CUANTAS. `None` es «no se exporto cola», que NO es cero:
+    #    afirmar aqui que no quedo nada seria inventar el dato que falta.
+    if propuestas is None:
+        return "INGEST_OK", (
+            "La ingesta ha terminado, pero esta corrida no ha declarado cuantas "
+            "propuestas revisables deja, asi que esta pantalla no puede decir si "
+            "queda algo por revisar. Compruebalo en la consola de revision."
+        )
+
+    # 3. NI UNA MENCION NI UNA AFIRMACION: no se extrajo nada, y se dice.
     if not resumen["menciones"] and not resumen["afirmaciones"]:
         return "INGEST_SIN_EXTRACCION", (
             "La ingesta ha terminado, pero el motor NO ha extraido nada de esta "
-            "fuente: ni una mencion ni una afirmacion. No hay nada en revision "
-            "porque no hay nada que revisar, no porque estuviera todo claro. "
-            "El motivo esta abajo."
+            "fuente: ni una mencion ni una afirmacion. La cola de revision se "
+            "queda vacia porque no hay nada que revisar, no porque estuviera "
+            "todo claro. El motivo esta abajo."
         )
+
+    # 4. SE COSECHO ALGO Y AUN ASI LA COLA ESTA VACIA. No se afirma que no se
+    #    extrajo nada --seria el error SIMETRICO, y mandaria al operador a
+    #    revisar un glosario que funciona-- y no se tranquiliza: el motor sabe
+    #    por que no llego.
     if any(c in CARENCIAS_DE_COSECHA for c in carencias):
-        # SE COSECHO ALGO Y AUN ASI NO LLEGO NADA A REVISION. No se afirma que
-        # no se extrajo nada --seria falso-- y no se tranquiliza --el motor
-        # sabe por que no llego--. Se dice lo que hay y se manda al motivo.
         menciones = resumen["menciones"]
         return "INGEST_OK", (
             f"La ingesta ha terminado y ha reconocido {menciones} "
-            f"{'mencion' if menciones == 1 else 'menciones'}, pero NO ha dejado "
-            "nada en revision, y no es porque estuviera todo claro: el motor "
-            "declara abajo que le falto para llegar a una propuesta."
+            f"{'mencion' if menciones == 1 else 'menciones'}, pero ninguna "
+            "propuesta ha llegado a la consola de revision, y no es porque "
+            "estuviera todo claro: el motor declara abajo que le falto para "
+            "llegar a una propuesta."
         )
-    # LA UNICA RAMA EN LA QUE LA FRASE TRANQUILIZADORA ES VERDAD.
+
+    # 5. LA UNICA RAMA EN LA QUE LA FRASE TRANQUILIZADORA ES VERDAD: se cosecho,
+    #    la cola esta vacia porque no quedo nada que decidir, y el motor no
+    #    declara ninguna carencia de cosecha.
     return "INGEST_OK", (
         "La ingesta ha terminado correctamente y no ha dejado nada en revision."
     )
