@@ -46,7 +46,11 @@ def _arbol_limpio_tracked() -> bool:
 def _correr_testigo() -> tuple[int, str]:
     _purgar_pycache()
     r = subprocess.run(
-        [sys.executable, "-m", "pytest", TESTIGO, "-q", "--no-header", "-p", "no:randomly"],
+        # `--color=no`: sin esto los codigos ANSI envuelven la palabra FAILED y
+        # el parser de abajo devuelve [] con la suite en rojo. Paso por ese cero
+        # falso al calibrar este mismo arnes: el detector tambien se calibra.
+        [sys.executable, "-m", "pytest", TESTIGO, "-q", "--no-header",
+         "--color=no", "-p", "no:randomly"],
         cwd=RAIZ, capture_output=True, text=True,
     )
     return r.returncode, r.stdout + r.stderr
@@ -104,6 +108,16 @@ MUTACIONES = [
         "def partida_exists(conn: sqlite3.Connection, workspace: str = \"\", partida_id: str = \"\") -> bool:",
         ["test_partida_exists_exige_el_workspace_y_no_lo_hace_opcional"],
         "tiene default",
+    ),
+    (
+        "M6 — LA PANTALLA: se BORRA ENTERA la lista de partidas conocidas y el "
+        "aviso de que no son un censo. Borrar una garantía visible del todo no "
+        "puede dejar la suite igual de verde",
+        "viewer/app/templates/auth/admin/partidas.html",
+        '''      <input id="partida_id" type="text" name="partida_id" list="partidas_existentes"''',
+        '''      <input id="partida_id" type="text" name="partida_id"''',
+        ["test_la_pantalla_ofrece_las_partidas_ya_concedidas_y_dice_que_no_son_un_censo"],
+        "sigue pidiendo el identificador de memoria",
     ),
     (
         "M5 — LA PANTALLA: se borra el campo de sólo lectura y la lista de "
