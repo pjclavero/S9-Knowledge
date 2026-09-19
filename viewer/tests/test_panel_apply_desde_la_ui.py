@@ -293,8 +293,9 @@ def _decidir(propuesta: dict, veredicto: str, *, reviewer: str = "apply_operador
     return registro["decision_id"] if isinstance(registro, dict) else ""
 
 
-def _panel(operador, job_id: str):
-    r = operador.get(f"{SLOT_B.prefix}?solicitado={job_id}")
+def _panel(operador, job_id: str, aviso: str | None = None):
+    consulta = f"?solicitado={job_id}" + (f"&aviso={aviso}" if aviso else "")
+    r = operador.get(f"{SLOT_B.prefix}{consulta}")
     assert r.status_code == 200, r.status_code
     return r.text
 
@@ -1326,6 +1327,51 @@ def test_un_apply_que_no_escribe_invalida_el_plan_en_vez_de_resucitarlo(
         "un plan que no escribió volvió a estar vigente"
     )
     assert fila["apply_id"] is None
+    get_settings.cache_clear()
+
+
+def test_tras_un_apply_fallido_la_pantalla_no_culpa_a_una_decision(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch
+):
+    """CORTE 2. El tercer camino a `superseded`, DICHO POR LO QUE FUE.
+
+    El plan queda `superseded` porque LA ESCRITURA FALLÓ, y el operador que
+    vuelve a intentarlo recibía «Una decisión cambió después de preparar lo
+    aprobado»: una causa que el código no comprueba y que además OCULTA que lo
+    que falló fue el apply. Aquí se recorre el caso entero por la UI —sellar,
+    aplicar contra un grafo inalcanzable, volver a aplicar— y se exige que el
+    segundo desenlace nombre el apply fallido.
+    """
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
+
+    monkeypatch.setenv("S9K_ALLOW_REAL_INGEST", "1")
+    monkeypatch.setenv("S9K_WRITER_WORKSPACE", "ws-cofradia")
+    monkeypatch.setenv("S9K_NEO4J_URI", "bolt://127.0.0.1:1")
+    monkeypatch.setenv("S9K_NEO4J_PASSWORD", "no-importa")
+    from app.config import get_settings
+    get_settings.cache_clear()
+
+    primero = _aviso_de(_aplicar(operador, job_id))
+    assert primero != "PLAN_SUPERSEDED", primero
+    fila = _filas_de_plan(almacenes["base"])[0]
+    assert fila["state"] == "superseded", fila["state"]
+    # EL DATO QUE DISTINGUE EL CAMINO. Lo escribe únicamente `finish_apply`.
+    assert fila["apply_notes_json"], (
+        "sin notas de apply no hay forma de saber que este `superseded` vino "
+        "de una escritura fallida"
+    )
+
+    segundo = _aviso_de(_aplicar(operador, job_id))
+    assert segundo == "PLAN_SUPERSEDED_TRAS_APPLY_FALLIDO", segundo
+
+    # Y LA PANTALLA lo dice: el testigo pide el HTML, no el código.
+    from app import panel_errors
+    html = _panel(operador, job_id, aviso=segundo)
+    assert "Una decision cambio" not in html, (
+        "la pantalla sigue achacando a una decisión lo que fue un apply fallido"
+    )
+    assert panel_errors.CATALOGO[segundo] in html, html[:400]
     get_settings.cache_clear()
 
 
