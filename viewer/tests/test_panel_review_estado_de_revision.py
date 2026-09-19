@@ -364,12 +364,19 @@ def test_el_resumen_enlaza_a_la_revision_de_SU_corrida(
         r'data-role="enlace-revision".*?<a href="([^"]+)"', acuse.text, re.S
     )
     assert destino is not None, "el acuse no trae un enlace dentro del bloque"
+    # `url_for` devuelve una URL ABSOLUTA (`http://testserver/...`): se compara
+    # la RUTA, no el prefijo de la cadena. Comparar la cadena entera daba un
+    # rojo por la causa equivocada — y, con el orden invertido, habría dado un
+    # verde que no medía nada.
+    from urllib.parse import urlsplit
+
     href = destino.group(1).replace("&amp;", "&")
-    assert href.startswith("/v3/review"), (
+    ruta = urlsplit(href).path
+    assert ruta.startswith("/v3/review"), (
         "el acuse manda a la consola de SÓLO LECTURA por contrato declarado "
         f"(`/panel/review`), donde no hay ni un botón con el que decidir: {href}"
     )
-    assert not href.startswith(SLOT_C.prefix), href
+    assert not ruta.startswith(SLOT_C.prefix), href
     assert f"job_id={job_id}" in href, (
         "el enlace lleva a la cola entera, no a las propuestas de esta corrida"
     )
