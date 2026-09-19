@@ -285,6 +285,22 @@ def _driver_de_observacion() -> Any:
 _CODIGO_DE_CARENCIA = re.compile(r"^[A-Z][A-Z0-9_]{2,63}$")
 
 
+#: Las carencias que explican POR QUE una corrida no dejo nada que revisar.
+#:
+#: NO estan todas: `SIN_ESCRITURA` (y el resto de lo que `describe_outcome`
+#: anexa) habla del dry-run, se emite SIEMPRE y en toda corrida sana, asi que
+#: incluirla convertiria a cualquier ingesta correcta en sospechosa. Estas seis
+#: son las que el motor emite cuando la COSECHA se quedo corta.
+CARENCIAS_DE_COSECHA = frozenset({
+    "SIN_GLOSARIO",
+    "SIN_MENCIONES",
+    "SIN_CLAIMS",
+    "CADENA_DETENIDA",
+    "SIN_PLAN",
+    "PLAN_NO_APROBADO",
+})
+
+
 def _carencias_publicables(report: dict) -> list[str]:
     """Los codigos de carencia que el motor YA declara, para el operador.
 
@@ -479,24 +495,53 @@ def handle_ingest_v3(payload: dict, *, job_id: Optional[str] = None) -> dict:
             f"{'decision' if pendientes == 1 else 'decisiones'} en REVIEW. "
             "No esta todo resuelto: hay que revisarlas."
         )
-    else:
-        mensaje = "La ingesta ha terminado correctamente y no ha dejado nada en revision."
     carencias = _carencias_publicables(report)
-    # EL CERO MUDO. «Ha terminado correctamente y no ha dejado nada en revision»
-    # con menciones 0, afirmaciones 0 y propuestas 0 se lee como «estaba todo
-    # claro», y el operador archiva la fuente. No entro ni una afirmacion.
+    # EL CERO MUDO, Y SU RESIDUO.
     #
-    # El desenlace deja de ser `INGEST_OK` cuando la corrida NO PRODUJO NADA:
-    # es un desenlace distinto y tiene codigo propio. Las carencias --que el
-    # motor ya declaraba y que se quedaban en el log-- viajan con el.
-    nada = not resumen["menciones"] and not resumen["afirmaciones"]
-    if not pendientes and nada:
+    # «Ha terminado correctamente y no ha dejado nada en revision» se lee como
+    # «estaba todo claro», y el operador archiva la fuente. Esa frase solo es
+    # honesta cuando la corrida SI cosecho y sencillamente no quedo nada por
+    # decidir. En cuanto el motor declara POR QUE no llego nada, decirla es
+    # tranquilizar sobre un vacio que tiene causa conocida.
+    #
+    # LAS TRES SITUACIONES SON DISTINTAS Y SE DICEN DISTINTO. Medido sobre el
+    # motor con el catalogo de ejemplo:
+    #
+    #   menciones 0, claims 0 -> SIN_MENCIONES, SIN_CLAIMS, CADENA_DETENIDA...
+    #       no se reconocio nada: la fuente es ilegible para este glosario.
+    #   menciones 3, claims 0 -> SIN_CLAIMS, CADENA_DETENIDA, SIN_PLAN
+    #       SI se reconocieron nombres y aun asi no salio ni una relacion.
+    #       Llamar a esto «no ha extraido nada» seria el error SIMETRICO: el
+    #       motor extrajo menciones, y negarlo manda al operador a revisar un
+    #       glosario que funciona.
+    #   cosecha normal        -> ninguna carencia de cosecha
+    #       aqui, y solo aqui, «no ha dejado nada en revision» es cierto.
+    #
+    # Por eso NO basta con cambiar el `and` por un `or`, y por eso no hace
+    # falta un tercer codigo: lo que cambia entre los dos primeros casos es
+    # QUE se cosecho, y eso ya lo dicen las carencias una por una en la
+    # pantalla. Lo que hay que dejar de emitir es la frase tranquilizadora.
+    esteriles = [c for c in carencias if c in CARENCIAS_DE_COSECHA]
+    if pendientes:
+        codigo = "INGEST_OK"
+    elif not resumen["menciones"] and not resumen["afirmaciones"]:
         codigo = "INGEST_SIN_EXTRACCION"
         mensaje = (
             "La ingesta ha terminado, pero el motor NO ha extraido nada de esta "
             "fuente: ni una mencion ni una afirmacion. No hay nada en revision "
             "porque no hay nada que revisar, no porque estuviera todo claro. "
             "El motivo esta abajo."
+        )
+    elif esteriles:
+        # SE COSECHO ALGO Y AUN ASI NO LLEGO NADA A REVISION. No se afirma que
+        # no se extrajo nada --seria falso-- y no se tranquiliza --el motor
+        # sabe por que no llego--. Se dice lo que hay y se manda al motivo.
+        codigo = "INGEST_OK"
+        mensaje = (
+            f"La ingesta ha terminado y ha reconocido {resumen['menciones']} "
+            f"{'mencion' if resumen['menciones'] == 1 else 'menciones'}, pero NO "
+            "ha dejado nada en revision, y no es porque estuviera todo claro: "
+            "el motor declara abajo que le falto para llegar a una propuesta."
         )
     else:
         codigo = "INGEST_OK"

@@ -31,8 +31,33 @@ POR QUÉ ESTOS TESTIGOS PIDEN LA PANTALLA
 Estas garantías son VISIBLES. Un testigo que se conforme con el diccionario
 que devuelve un servicio se queda verde aunque la plantilla no pinte nada — y
 en este mismo programa ya ocurrió: una cabecera se pudo borrar entera sin que
-la suite se moviera. Todos los testigos de aquí hacen un GET de la pantalla
-real del operador y leen el HTML que llega al navegador.
+la suite se moviera.
+
+QUÉ MIRA CADA UNO, SIN AFIRMAR DE MÁS. Decir «todos piden la pantalla» sería,
+en un corte cuya propiedad es no afirmar lo que no se comprueba, exactamente
+el defecto que el corte persigue. El reparto REAL es éste:
+
+  PIDEN EL HTML por GET (y de ahí sale la afirmación de visibilidad):
+    · test_una_ingesta_que_no_cosecha_nada_lo_DICE_en_la_pantalla
+    · test_una_cosecha_esteril_no_se_anuncia_como_tranquilizadora
+    · test_si_borro_el_bloque_de_carencias_este_testigo_se_pone_rojo
+
+  NO PIDEN LA PANTALLA — miran el catálogo, el AST del almacén o la firma de
+  la ruta, porque lo que afirman es del DATO, no del pintado:
+    · test_las_carencias_desconocidas_se_nombran_en_vez_de_desaparecer
+    · test_la_pantalla_no_afirma_que_una_decision_cambio  (catálogo entero)
+    · test_el_camino_del_apply_fallido_se_distingue_y_se_dice  (AST del almacén)
+    · test_el_rechazo_del_writer_llega_al_operador_con_su_motivo
+    · test_la_consola_que_decide_acepta_la_corrida_puesta
+
+  DÓNDE VIVE LA COBERTURA DE PANTALLA DE ESOS CASOS:
+    · `PLAN_SUPERSEDED` y el apply fallido se recorren POR LA UI, con GET del
+      acuse y la frase exigida en el HTML, en
+      `test_panel_apply_desde_la_ui.py::test_tras_un_apply_fallido_la_pantalla_no_culpa_a_una_decision`.
+    · El destino del enlace se lee del `href` del propio acuse en
+      `test_panel_review_estado_de_revision.py::test_el_resumen_enlaza_a_la_revision_de_SU_corrida`.
+    · Que estos testigos no son vacíos está demostrado por sus mutaciones: la
+      que borra la rama del apply fallido (M5) los pone rojos.
 """
 from __future__ import annotations
 
@@ -84,6 +109,35 @@ def fuente_muda(tmp_path):
         "## Lo que se hablo\n\n"
         "Se reviso el calendario y se acordo continuar la semana que viene.\n\n"
         "No hubo acuerdos que registrar ni nada pendiente de anotar.\n",
+        encoding="utf-8",
+    )
+    return destino
+
+
+@pytest.fixture
+def fuente_esteril(tmp_path):
+    """Una fuente con MENCIONES pero sin ni una relación. El residuo D-1.
+
+    MEDIDO sobre el motor con el catálogo de ejemplo: menciones 3,
+    afirmaciones 0, en revisión 0, y carencias `SIN_CLAIMS`, `CADENA_DETENIDA`,
+    `SIN_PLAN`. Es el caso que el primer arreglo del cero mudo NO cubría: con
+    `menciones > 0` el desenlace volvía a ser `INGEST_OK` y volvía a emitir la
+    frase tranquilizadora, que es la que causa la inacción.
+
+    Los nombres salen del catálogo de ejemplo, así que se reconocen; lo que no
+    hay es ninguna frase de relación entre ellos.
+    """
+    import shutil
+
+    destino = tmp_path / "fuentes"
+    shutil.copytree(EJEMPLOS, destino)
+    (destino / "nota-cofradia-de-ambar.md").unlink()
+    (destino / "nota-solo-menciones.md").write_text(
+        "# Nota de sesion\n\n"
+        "## Quien estaba en la mesa\n\n"
+        "Sela Marrec. Bren Halloway. Vado Alto.\n\n"
+        "## Lo que se hablo\n\n"
+        "Se reviso el calendario y se acordo continuar la semana que viene.\n",
         encoding="utf-8",
     )
     return destino
@@ -364,3 +418,48 @@ def test_la_consola_que_decide_acepta_la_corrida_puesta(real_app):
     solo_lectura = real_app.url_path_for("chassis_review")
     assert str(solo_lectura).startswith(SLOT_C.prefix), solo_lectura
     assert str(decide) != str(solo_lectura)
+
+
+def test_una_cosecha_esteril_no_se_anuncia_como_tranquilizadora(
+    real_app, paneles_on, cola, operador, almacen_de_propuestas,
+    fuente_esteril, monkeypatch,
+):
+    """EL RESIDUO DEL CERO MUDO: menciones > 0, afirmaciones 0, revisión 0.
+
+    El primer arreglo condicionaba el desenlace a `menciones == 0 and
+    afirmaciones == 0`, así que esta corrida seguía siendo `INGEST_OK` y seguía
+    diciendo «…y no ha dejado nada en revisión» — la misma frase que el
+    operador lee como «estaba todo claro» y por la que archiva la fuente.
+
+    Y NO SE ARREGLA con un `or`: aquí el motor SÍ reconoció tres menciones, así
+    que anunciar «no ha extraído nada» sería el error SIMÉTRICO y mandaría al
+    operador a revisar un glosario que funciona. Lo que tiene que desaparecer
+    es la TRANQUILIDAD, no la cifra.
+    """
+    job_id, resultado = _ingerir(operador, cola, fuente_esteril, monkeypatch)
+
+    # EL CASO, DEMOSTRADO PRIMERO. Sin esto el testigo no distingue este
+    # desenlace del doble cero que ya estaba cubierto.
+    resumen = resultado["resumen"]
+    assert resumen["menciones"] > 0, resumen
+    assert not resumen["afirmaciones"], resumen
+    assert not resumen["en_revision"], resumen
+
+    html = _acuse(operador, job_id)
+
+    # 1. LA FRASE TRANQUILIZADORA NO SE EMITE.
+    assert FRASE_TRANQUILIZADORA not in html, (
+        "con menciones cosechadas y CERO propuestas la pantalla sigue diciendo "
+        "«no ha dejado nada en revisión» como si todo estuviera claro"
+    )
+
+    # 2. NI SE COMETE EL ERROR SIMÉTRICO: hubo extracción y se dice.
+    assert 'data-resultado-code="INGEST_SIN_EXTRACCION"' not in html, (
+        "se anuncia «no se extrajo nada» habiendo reconocido menciones: es la "
+        "mentira simétrica, y manda a revisar un glosario que funciona"
+    )
+    assert str(resumen["menciones"]) in html
+
+    # 3. Y EL MOTIVO ESTÁ, que es lo que convierte el vacío en accionable.
+    codigos = _carencias_pintadas(html)
+    assert "SIN_CLAIMS" in codigos, codigos
