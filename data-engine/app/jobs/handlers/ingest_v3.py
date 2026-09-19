@@ -374,6 +374,66 @@ def _resumen(report: dict) -> dict:
     }
 
 
+def _desenlace(resumen: dict, carencias: list) -> tuple:
+    """El codigo y la frase del acuse. FUNCION PURA: cuatro ramas, sin huecos.
+
+    VIVE APARTE POR UNA RAZON MEDIDA. Cuando esto era un `if/elif` dentro del
+    manejador, una de las ramas --la corrida SANA, sin pendientes y sin
+    carencias de cosecha-- se quedo sin asignar `mensaje` y habria reventado
+    con `UnboundLocalError` en produccion. La suite entera seguia verde: el
+    corpus de ejemplo no produce ese caso, asi que ningun test lo recorria.
+    Lo destapo una MUTACION, no una lectura. Aqui las cuatro ramas devuelven la
+    pareja completa y se pueden enumerar sin fabricar una fuente para cada una.
+
+    LAS CUATRO, y por que se dicen distinto (medido sobre el motor con el
+    catalogo de ejemplo):
+
+      hay pendientes          -> hay que revisarlas, y se dice cuantas.
+      menciones 0, claims 0   -> `SIN_MENCIONES`, `SIN_CLAIMS`, `SIN_PLAN`...
+          no se reconocio nada: la fuente es ilegible para este glosario.
+      menciones 3, claims 0   -> `SIN_CLAIMS`, `CADENA_DETENIDA`, `SIN_PLAN`
+          SI se reconocieron nombres y aun asi no salio ni una relacion.
+          Llamar a esto «no ha extraido nada» seria el error SIMETRICO: el
+          motor extrajo menciones, y negarlo manda al operador a revisar un
+          glosario que funciona. Por eso NO basta cambiar el `and` por un `or`.
+      cosecha normal sin cola -> ninguna carencia de cosecha.
+          AQUI, Y SOLO AQUI, «no ha dejado nada en revision» es cierto.
+
+    No hace falta un tercer codigo para separar los dos casos esteriles: lo que
+    cambia entre ellos es QUE se cosecho, y eso ya lo dice la pantalla carencia
+    por carencia.
+    """
+    pendientes = resumen["en_revision"]
+    if pendientes:
+        return "INGEST_OK", (
+            f"La ingesta ha terminado correctamente y ha dejado {pendientes} "
+            f"{'decision' if pendientes == 1 else 'decisiones'} en REVIEW. "
+            "No esta todo resuelto: hay que revisarlas."
+        )
+    if not resumen["menciones"] and not resumen["afirmaciones"]:
+        return "INGEST_SIN_EXTRACCION", (
+            "La ingesta ha terminado, pero el motor NO ha extraido nada de esta "
+            "fuente: ni una mencion ni una afirmacion. No hay nada en revision "
+            "porque no hay nada que revisar, no porque estuviera todo claro. "
+            "El motivo esta abajo."
+        )
+    if any(c in CARENCIAS_DE_COSECHA for c in carencias):
+        # SE COSECHO ALGO Y AUN ASI NO LLEGO NADA A REVISION. No se afirma que
+        # no se extrajo nada --seria falso-- y no se tranquiliza --el motor
+        # sabe por que no llego--. Se dice lo que hay y se manda al motivo.
+        menciones = resumen["menciones"]
+        return "INGEST_OK", (
+            f"La ingesta ha terminado y ha reconocido {menciones} "
+            f"{'mencion' if menciones == 1 else 'menciones'}, pero NO ha dejado "
+            "nada en revision, y no es porque estuviera todo claro: el motor "
+            "declara abajo que le falto para llegar a una propuesta."
+        )
+    # LA UNICA RAMA EN LA QUE LA FRASE TRANQUILIZADORA ES VERDAD.
+    return "INGEST_OK", (
+        "La ingesta ha terminado correctamente y no ha dejado nada en revision."
+    )
+
+
 def handle_ingest_v3(payload: dict, *, job_id: Optional[str] = None) -> dict:
     """Ejecuta una ingesta V3 en dry-run y devuelve el resultado, ya resumido.
 
@@ -487,64 +547,9 @@ def handle_ingest_v3(payload: dict, *, job_id: Optional[str] = None) -> dict:
     # ENGANOSO: el operador cierra la pantalla. Cuando hay revision real, el
     # acuse lo dice en la misma frase y ofrece el enlace a SU revision — no a
     # la cola entera, sino a las propuestas de ESTA corrida.
-    pendientes = resumen["en_revision"]
-    propuestas = resumen["propuestas_de_revision"]
-    if pendientes:
-        mensaje = (
-            f"La ingesta ha terminado correctamente y ha dejado {pendientes} "
-            f"{'decision' if pendientes == 1 else 'decisiones'} en REVIEW. "
-            "No esta todo resuelto: hay que revisarlas."
-        )
+    # EL DESENLACE, EN UNA SOLA FUNCION Y SIN HUECOS. Ver `_desenlace`.
     carencias = _carencias_publicables(report)
-    # EL CERO MUDO, Y SU RESIDUO.
-    #
-    # «Ha terminado correctamente y no ha dejado nada en revision» se lee como
-    # «estaba todo claro», y el operador archiva la fuente. Esa frase solo es
-    # honesta cuando la corrida SI cosecho y sencillamente no quedo nada por
-    # decidir. En cuanto el motor declara POR QUE no llego nada, decirla es
-    # tranquilizar sobre un vacio que tiene causa conocida.
-    #
-    # LAS TRES SITUACIONES SON DISTINTAS Y SE DICEN DISTINTO. Medido sobre el
-    # motor con el catalogo de ejemplo:
-    #
-    #   menciones 0, claims 0 -> SIN_MENCIONES, SIN_CLAIMS, CADENA_DETENIDA...
-    #       no se reconocio nada: la fuente es ilegible para este glosario.
-    #   menciones 3, claims 0 -> SIN_CLAIMS, CADENA_DETENIDA, SIN_PLAN
-    #       SI se reconocieron nombres y aun asi no salio ni una relacion.
-    #       Llamar a esto «no ha extraido nada» seria el error SIMETRICO: el
-    #       motor extrajo menciones, y negarlo manda al operador a revisar un
-    #       glosario que funciona.
-    #   cosecha normal        -> ninguna carencia de cosecha
-    #       aqui, y solo aqui, «no ha dejado nada en revision» es cierto.
-    #
-    # Por eso NO basta con cambiar el `and` por un `or`, y por eso no hace
-    # falta un tercer codigo: lo que cambia entre los dos primeros casos es
-    # QUE se cosecho, y eso ya lo dicen las carencias una por una en la
-    # pantalla. Lo que hay que dejar de emitir es la frase tranquilizadora.
-    esteriles = [c for c in carencias if c in CARENCIAS_DE_COSECHA]
-    if pendientes:
-        codigo = "INGEST_OK"
-    elif not resumen["menciones"] and not resumen["afirmaciones"]:
-        codigo = "INGEST_SIN_EXTRACCION"
-        mensaje = (
-            "La ingesta ha terminado, pero el motor NO ha extraido nada de esta "
-            "fuente: ni una mencion ni una afirmacion. No hay nada en revision "
-            "porque no hay nada que revisar, no porque estuviera todo claro. "
-            "El motivo esta abajo."
-        )
-    elif esteriles:
-        # SE COSECHO ALGO Y AUN ASI NO LLEGO NADA A REVISION. No se afirma que
-        # no se extrajo nada --seria falso-- y no se tranquiliza --el motor
-        # sabe por que no llego--. Se dice lo que hay y se manda al motivo.
-        codigo = "INGEST_OK"
-        mensaje = (
-            f"La ingesta ha terminado y ha reconocido {resumen['menciones']} "
-            f"{'mencion' if resumen['menciones'] == 1 else 'menciones'}, pero NO "
-            "ha dejado nada en revision, y no es porque estuviera todo claro: "
-            "el motor declara abajo que le falto para llegar a una propuesta."
-        )
-    else:
-        codigo = "INGEST_OK"
+    codigo, mensaje = _desenlace(resumen, carencias)
     cola = report.get("cola_de_revision")
     return {
         "ok": True,

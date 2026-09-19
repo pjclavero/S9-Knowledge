@@ -463,3 +463,67 @@ def test_una_cosecha_esteril_no_se_anuncia_como_tranquilizadora(
     # 3. Y EL MOTIVO ESTÁ, que es lo que convierte el vacío en accionable.
     codigos = _carencias_pintadas(html)
     assert "SIN_CLAIMS" in codigos, codigos
+
+
+def test_las_cuatro_ramas_del_desenlace_estan_cerradas(real_app):
+    """LA RAMA QUE EL CORPUS NO ALCANZA, cubierta por enumeración.
+
+    `_desenlace` nació como un `if/elif` dentro del manejador y una de sus
+    ramas —la corrida SANA, sin pendientes y sin carencias de cosecha— se quedó
+    sin asignar `mensaje`: habría reventado con `UnboundLocalError` en
+    producción, en la ingesta más limpia posible. La suite entera seguía verde
+    porque el corpus de ejemplo no produce ese caso. Lo destapó una mutación.
+
+    Por eso se enumeran LAS CUATRO aquí: es la única forma de recorrer una rama
+    para la que no se puede fabricar una fuente con el catálogo de ejemplo. Las
+    otras tres SÍ se miden además contra la pantalla, en los testigos de arriba.
+    """
+    import sys
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parents[2]
+    sys.path.insert(0, str(raiz / "data-engine" / "app"))
+    from jobs.handlers.ingest_v3 import _desenlace
+
+    FRASE = "no ha dejado nada en revision"
+
+    # 1. Hay pendientes: conduce a revisarlas.
+    codigo, mensaje = _desenlace(
+        {"en_revision": 2, "menciones": 10, "afirmaciones": 1}, ["SIN_ESCRITURA"]
+    )
+    assert codigo == "INGEST_OK"
+    assert "2 decisiones en REVIEW" in mensaje
+    assert FRASE not in mensaje
+
+    # 2. Doble cero: no se extrajo nada, y se dice.
+    codigo, mensaje = _desenlace(
+        {"en_revision": 0, "menciones": 0, "afirmaciones": 0},
+        ["SIN_MENCIONES", "SIN_CLAIMS"],
+    )
+    assert codigo == "INGEST_SIN_EXTRACCION"
+    assert FRASE not in mensaje
+
+    # 3. Cosecha estéril: hubo menciones y aun así nada llegó. NI tranquiliza
+    #    NI comete el error simétrico de negar la extracción.
+    codigo, mensaje = _desenlace(
+        {"en_revision": 0, "menciones": 3, "afirmaciones": 0}, ["SIN_CLAIMS"]
+    )
+    assert codigo == "INGEST_OK"
+    assert FRASE not in mensaje
+    assert "3 menciones" in mensaje
+
+    # 4. LA RAMA SANA. Es la única en la que la frase tranquilizadora es cierta,
+    #    y es la que se quedó sin `mensaje`. Que devuelva la pareja completa es
+    #    exactamente lo que este caso existe para sostener.
+    codigo, mensaje = _desenlace(
+        {"en_revision": 0, "menciones": 10, "afirmaciones": 4}, ["SIN_ESCRITURA"]
+    )
+    assert codigo == "INGEST_OK"
+    assert isinstance(mensaje, str) and mensaje, "la rama sana no produce frase"
+    assert FRASE in mensaje, mensaje
+
+    # `SIN_ESCRITURA` NO es carencia de cosecha: se emite en toda corrida sana,
+    # y tratarla como tal volvería sospechosa cualquier ingesta correcta.
+    from jobs.handlers.ingest_v3 import CARENCIAS_DE_COSECHA
+
+    assert "SIN_ESCRITURA" not in CARENCIAS_DE_COSECHA
