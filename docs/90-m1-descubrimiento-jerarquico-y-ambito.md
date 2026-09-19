@@ -177,6 +177,28 @@ identidad del asset sigue siendo **independiente de ruta y de renombrado**.
 Partida y ámbito viajan como **dimensiones explícitas**; no se recicla
 `collection_id` para codificarlos.
 
+## 6 bis. Este módulo tiene que seguir cargándose POR RUTA
+
+**Restricción que no es evidente leyendo el código, y que ya se rompió una vez.**
+
+El preflight del ensayo RC (`deploy/scripts/preflight_ensayo_rc.py`) carga
+`sources_catalog.py` con `spec_from_file_location`, **sin paquete padre**, para
+comprobar que el catálogo del producto ve fuentes. Mientras este módulo fue un
+fichero suelto, funcionó. Al partirlo en tres (`vault_scope`, `vault_mount`) los
+imports relativos dejaron de resolver y el preflight pasó a decir **`PENDIENTE`
+—«no pude mirar el catálogo»— en vez de medir**.
+
+Las dos piezas estaban **verdes por separado**: este carril y el del ensayo. Lo
+que falló fue el **borde**, y sólo apareció al correr la suite completa después
+del rebase.
+
+Por eso `sources_catalog` resuelve sus hermanos **por ruta** cuando no hay
+paquete padre, sin tocar el `sys.path` del proceso que lo carga. Quien parta este
+módulo otra vez tiene dos pruebas vigilando ese borde desde este lado, que es
+donde nació la rotura: una reproduce el mecanismo **exacto** del preflight —un
+`import` normal estaría verde justo cuando el preflight falla— y otra comprueba
+**por efecto** que el preflight dictamina en vez de excusarse.
+
 ## 7 bis. `AMBITO_PLANO`: el único ámbito que no sale de una ruta
 
 Se nombra aparte porque es **el sitio del árbol donde alguien podría apoyarse
