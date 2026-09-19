@@ -85,6 +85,14 @@
 
         El enlace lleva el `job_id` de ESTA corrida: manda a SUS propuestas,
         no a la cola entera. Sin `job_id` no se ofrece enlace filtrado.
+
+        Y APUNTA A LA CONSOLA QUE DECIDE. Hasta el Corte 2 apuntaba a
+        `chassis_review` (`/panel/review`), que es de SOLO LECTURA POR CONTRATO
+        DECLARADO: el operador seguia el camino que el producto le marcaba,
+        llegaba a una pantalla sin un solo boton y podia concluir que no tenia
+        permiso para decidir. No era un fallo de permisos; el cartel apuntaba
+        al lado equivocado. Se decide en `/v3/review`, que hasta ahora solo
+        era alcanzable por el menu lateral y a mano.
       #}
       {% if resultado.revision and resultado.revision.job_id %}
         <p data-role="enlace-revision"
@@ -93,9 +101,31 @@
           Esta corrida dejó
           <strong>{{ resultado.revision.propuestas if resultado.revision.propuestas is not none else 'un número no disponible de' }}</strong>
           propuestas revisables.
-          <a href="{{ url_for('chassis_review') }}?workspace={{ (resultado.revision.workspace or '') | urlencode }}&amp;job_id={{ resultado.revision.job_id | urlencode }}">
+          <a href="{{ url_for('v3_review_queue') }}?workspace={{ (resultado.revision.workspace or '') | urlencode }}&amp;job_id={{ resultado.revision.job_id | urlencode }}">
             Revisar las propuestas de esta corrida</a>.
         </p>
+      {% endif %}
+      {#
+        LO QUE ESTA CORRIDA NO PUDO HACER.
+
+        VA DELANTE DEL RESUMEN A PROPOSITO: el resumen es una lista de
+        numeros, y un 0 sin motivo es lo que hacia que el operador diera la
+        fuente por limpia. El motor SIEMPRE supo el motivo --su propio CLI lo
+        imprime bajo «CARENCIAS declaradas · No se rellena con ceros que
+        parezcan datos»--; lo que faltaba era que el producto lo consumiera.
+
+        Se pinta SOLO si hay alguna: sin carencias no hay apartado, no un
+        apartado vacio que se lea como «se comprobo y no habia nada».
+      #}
+      {% if resultado.carencias %}
+        <section data-role="carencias" data-carencias-total="{{ resultado.carencias | length }}">
+          <h3>Lo que esta ingesta no ha podido hacer</h3>
+          <ul>
+            {% for falta in resultado.carencias %}
+            <li data-carencia="{{ falta.code | e }}">{{ falta.message }}</li>
+            {% endfor %}
+          </ul>
+        </section>
       {% endif %}
       {% if resultado.resumen %}
         <ul data-role="resumen">

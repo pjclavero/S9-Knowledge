@@ -77,6 +77,7 @@ fichero vacio"`— se captura y se traduce; no se deja propagar.
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 from typing import Any, Optional
 
@@ -276,6 +277,57 @@ def _driver_de_observacion() -> Any:
     return driver
 
 
+#: Forma de un codigo de carencia del motor. Se publica el CODIGO, nunca el
+#: `detail`: `CADENA_DETENIDA` lleva `run.stop_reason` dentro y
+#: `graph_catalog.carencias` mete identificadores del grafo, asi que el texto
+#: del motor es material interno. El codigo es ASCII cerrado y el visor lo
+#: convierte en una frase para una persona.
+_CODIGO_DE_CARENCIA = re.compile(r"^[A-Z][A-Z0-9_]{2,63}$")
+
+
+#: Las carencias que explican POR QUE una corrida no dejo nada que revisar.
+#:
+#: NO estan todas: `SIN_ESCRITURA` (y el resto de lo que `describe_outcome`
+#: anexa) habla del dry-run, se emite SIEMPRE y en toda corrida sana, asi que
+#: incluirla convertiria a cualquier ingesta correcta en sospechosa. Estas seis
+#: son las que el motor emite cuando la COSECHA se quedo corta.
+CARENCIAS_DE_COSECHA = frozenset({
+    "SIN_GLOSARIO",
+    "SIN_MENCIONES",
+    "SIN_CLAIMS",
+    "CADENA_DETENIDA",
+    "SIN_PLAN",
+    "PLAN_NO_APROBADO",
+})
+
+
+def _carencias_publicables(report: dict) -> list[str]:
+    """Los codigos de carencia que el motor YA declara, para el operador.
+
+    EL MOTOR NO SE INVENTA NADA AQUI. `ingest_report._carencias` produce
+    `SIN_GLOSARIO`, `SIN_MENCIONES`, `SIN_CLAIMS`, `CADENA_DETENIDA`,
+    `SIN_PLAN`, `PLAN_NO_APROBADO`... y el CLI del mismo motor las imprime bajo
+    «## CARENCIAS declaradas · No se rellena con ceros que parezcan datos».
+    El producto no las consumia: la pantalla se quedaba con `menciones: 0` y
+    `cadena_detenida_en` pelado, es decir con los ceros y sin el motivo.
+
+    Se filtra por FORMA, no por lista blanca de codigos: una carencia nueva del
+    motor tiene que seguir llegando (dejarla fuera seria volver a convertir una
+    ausencia en silencio), pero nada que no sea un codigo estable pasa.
+    """
+    faltas = report.get("carencias")
+    if not isinstance(faltas, list):
+        return []
+    codigos: list[str] = []
+    for falta in faltas:
+        if not isinstance(falta, dict):
+            continue
+        codigo = str(falta.get("code") or "")
+        if _CODIGO_DE_CARENCIA.match(codigo) and codigo not in codigos:
+            codigos.append(codigo)
+    return codigos
+
+
 def _resumen(report: dict) -> dict:
     """Lo que el operador puede ver del informe. Curado, no el informe entero.
 
@@ -320,6 +372,115 @@ def _resumen(report: dict) -> dict:
         # Son la diferencia entre un plan que puede proyectar y uno que no.
         "observacion": "SI (grafo, solo lectura)",
     }
+
+
+def _desenlace(resumen: dict, carencias: list) -> tuple:
+    """El codigo y la frase del acuse. FUNCION PURA: cinco ramas, sin huecos.
+
+    VIVE APARTE POR UNA RAZON MEDIDA. Cuando esto era un `if/elif` dentro del
+    manejador, una de las ramas --la corrida SANA-- se quedo sin asignar
+    `mensaje` y habria reventado con `UnboundLocalError` en produccion. La
+    suite seguia verde: el corpus de ejemplo no produce ese caso. Lo destapo
+    una MUTACION, no una lectura. Aqui cada rama devuelve la pareja completa y
+    se pueden enumerar sin fabricar una fuente para cada una.
+
+    UNA SOLA AUTORIDAD SOBRE «HAY ALGO QUE REVISAR»: LA COLA.
+    ------------------------------------------------------
+    Habia DOS en desacuerdo, y de ahi salia una pantalla que se contradecia a
+    si misma. MEDIDO contra el motor, con una sola frase del propio fichero de
+    ejemplo del repo ("Sela Marrec es miembro de la Cofradia de Ambar y vive en
+    Vado Alto."):
+
+        by_outcome = {'ABSTAIN': 2}        <- NI UN SOLO `REVIEW`
+        cola.propuestas = 2                <- y aun asi DOS propuestas revisables
+
+    `resumen["en_revision"]` cuenta SOLO el veredicto `REVIEW` --decision
+    deliberada y documentada del Corte 4, que lo separo de la revision de
+    IDENTIDAD-- mientras que la cola exporta `REVIEW`, `ABSTAIN` y
+    `REJECT_INVALID` (`review_export.EXPORTED_DECISIONS`). Con ABSTAIN y sin
+    REVIEW el acuse decia «no ha dejado nada en revision» MIENTRAS su propio
+    bloque de enlace ofrecia «esta corrida dejo 2 propuestas revisables» y
+    enlazaba a ellas.
+
+    EL CONTADOR NO SE TOCA: `en_revision` significa lo que el Corte 4 decidio
+    que significara, se ensena en pantalla con ese nombre y hay un testigo que
+    lo ata al veredicto real. Lo que se corrige es QUE se pregunta: la decision
+    cuelga ahora de `propuestas_de_revision`, que es lo que la consola contiene
+    de verdad y lo que el bloque de enlace del mismo acuse ya usaba. El
+    veredicto `REVIEW` sigue mandando en la REDACCION, porque es lo que el
+    operador tiene que saber cuando lo hay.
+
+    `PLAN_REVISION_SIN_OPERACIONES` NO es carencia de cosecha, y el motivo es
+    MAS FUERTE QUE EL QUE SE ESCRIBIO PRIMERO. Aquel decia que el corpus
+    estandar --sano, con 4 propuestas en cola-- la emite, y que incluirla lo
+    clasificaria de esteril. Eso era cierto con el ORDEN DE RAMAS ANTERIOR;
+    con el de ahora la rama 1 gana antes y el corpus estandar ya ni llega a la
+    de carencias de cosecha. El motivo de hoy: su condicion en el motor es
+    `en_revision > 0` --contando REVIEW **o** ABSTAIN--, y a la rama 4 solo se
+    llega con `propuestas == 0`, es decir con la cola VACIA. Esa carencia NO
+    PUEDE dispararse ahi, asi que incluirla seria CODIGO MUERTO: una linea que
+    aparenta cubrir un caso que no existe. Se publica en pantalla como las
+    demas, que es donde si sirve.
+    """
+    propuestas = resumen["propuestas_de_revision"]
+    pendientes = resumen["en_revision"]
+
+    # 1. LA COLA TIENE ALGO. Conduce, pase lo que pase con los veredictos.
+    if propuestas:
+        if pendientes:
+            return "INGEST_OK", (
+                f"La ingesta ha terminado correctamente y ha dejado {pendientes} "
+                f"{'decision' if pendientes == 1 else 'decisiones'} en REVIEW, "
+                f"y {propuestas} "
+                f"{'propuesta revisable' if propuestas == 1 else 'propuestas revisables'} "
+                "en total. No esta todo resuelto: hay que revisarlas."
+            )
+        # ABSTAIN (o RECHAZO) SIN NI UN `REVIEW`. La cola SI tiene trabajo.
+        return "INGEST_OK", (
+            f"La ingesta ha terminado y ha dejado {propuestas} "
+            f"{'propuesta revisable' if propuestas == 1 else 'propuestas revisables'}, "
+            "aunque ninguna decision quedo en REVIEW: el motor se abstuvo en vez "
+            "de proponer. Hay que revisarlas igualmente."
+        )
+
+    # 2. NO SE SABE CUANTAS. `None` es «no se exporto cola», que NO es cero:
+    #    afirmar aqui que no quedo nada seria inventar el dato que falta.
+    if propuestas is None:
+        return "INGEST_OK", (
+            "La ingesta ha terminado, pero esta corrida no ha declarado cuantas "
+            "propuestas revisables deja, asi que esta pantalla no puede decir si "
+            "queda algo por revisar. Compruebalo en la consola de revision."
+        )
+
+    # 3. NI UNA MENCION NI UNA AFIRMACION: no se extrajo nada, y se dice.
+    if not resumen["menciones"] and not resumen["afirmaciones"]:
+        return "INGEST_SIN_EXTRACCION", (
+            "La ingesta ha terminado, pero el motor NO ha extraido nada de esta "
+            "fuente: ni una mencion ni una afirmacion. La cola de revision se "
+            "queda vacia porque no hay nada que revisar, no porque estuviera "
+            "todo claro. El motivo esta abajo."
+        )
+
+    # 4. SE COSECHO ALGO Y AUN ASI LA COLA ESTA VACIA. No se afirma que no se
+    #    extrajo nada --seria el error SIMETRICO, y mandaria al operador a
+    #    revisar un glosario que funciona-- y no se tranquiliza: el motor sabe
+    #    por que no llego.
+    if any(c in CARENCIAS_DE_COSECHA for c in carencias):
+        menciones = resumen["menciones"]
+        return "INGEST_OK", (
+            f"La ingesta ha terminado y ha reconocido {menciones} "
+            f"{'mencion' if menciones == 1 else 'menciones'}, pero ninguna "
+            "propuesta ha llegado a la consola de revision, y no es porque "
+            "estuviera todo claro: el motor declara abajo que le falto para "
+            "llegar a una propuesta."
+        )
+
+    # 5. LA UNICA RAMA EN LA QUE LA FRASE TRANQUILIZADORA ES VERDAD: se cosecho,
+    #    la cola esta vacia porque no quedo nada que decidir, y el motor no
+    #    declara ninguna carencia de cosecha.
+    return "INGEST_OK", (
+        "La ingesta ha terminado correctamente y no ha dejado nada en revision."
+    )
 
 
 def handle_ingest_v3(payload: dict, *, job_id: Optional[str] = None) -> dict:
@@ -435,22 +596,21 @@ def handle_ingest_v3(payload: dict, *, job_id: Optional[str] = None) -> dict:
     # ENGANOSO: el operador cierra la pantalla. Cuando hay revision real, el
     # acuse lo dice en la misma frase y ofrece el enlace a SU revision — no a
     # la cola entera, sino a las propuestas de ESTA corrida.
-    pendientes = resumen["en_revision"]
-    propuestas = resumen["propuestas_de_revision"]
-    if pendientes:
-        mensaje = (
-            f"La ingesta ha terminado correctamente y ha dejado {pendientes} "
-            f"{'decision' if pendientes == 1 else 'decisiones'} en REVIEW. "
-            "No esta todo resuelto: hay que revisarlas."
-        )
-    else:
-        mensaje = "La ingesta ha terminado correctamente y no ha dejado nada en revision."
+    # EL DESENLACE, EN UNA SOLA FUNCION Y SIN HUECOS. Ver `_desenlace`.
+    carencias = _carencias_publicables(report)
+    codigo, mensaje = _desenlace(resumen, carencias)
     cola = report.get("cola_de_revision")
     return {
         "ok": True,
         "handler": JOB_TYPE,
-        "code": "INGEST_OK",
+        "code": codigo,
         "message": mensaje,
+        # LO QUE EL MOTOR YA SABIA Y NO LLEGABA A NADIE. Cada codigo es una cosa
+        # que esta corrida NO pudo hacer, dicha como tal. `[]` aqui significa
+        # «el motor no declaro ninguna», no «no se miro»: si el informe no trae
+        # el bloque, `_carencias_publicables` devuelve lista vacia y la pantalla
+        # no pinta el apartado.
+        "carencias": carencias,
         "source_title": payload.get("source_title") or None,
         "resumen": resumen,
         # El enlace se construye con la identidad de ESTA corrida. Sin

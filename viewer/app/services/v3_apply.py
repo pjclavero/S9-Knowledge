@@ -85,15 +85,50 @@ CODIGOS = (
     "PLAN_APPLY_IN_FLIGHT",
     "AUDIT_CHAIN_BROKEN",
     "PLAN_SUPERSEDED",
+    #: EL MISMO ESTADO, PERO CON LA CAUSA MEDIDA. `superseded` se alcanza por
+    #: tres caminos y solo uno es «una decision cambio». Cuando la fila lleva
+    #: notas de apply --que SOLO escribe `finish_apply`-- el camino fue un
+    #: APPLY FALLIDO, y eso se dice en vez de achacarlo a una decision.
+    "PLAN_SUPERSEDED_TRAS_APPLY_FALLIDO",
     "APPLY_NOT_ENABLED",
     "GRAPH_UNAVAILABLE",
     "APPLY_REJECTED",
+    #: El rechazo del writer, DICHO. Los tres cambian la decision de quien lee
+    #: --si reintentar sirve o no--, que es justo lo que el mensaje generico le
+    #: negaba mientras el motivo se quedaba en `log.error`.
+    "APPLY_REJECTED_ESQUEMA",
+    "APPLY_REJECTED_SESION",
+    "APPLY_REJECTED_GRAFO",
     "APPLY_FAILED",
     #: L2 ESCRITO y algo declarado SIN materializar. No es un fallo del apply
     #: --el conocimiento esta-- y no es un exito: es el estado PARCIAL dicho en
     #: voz alta. El operador puede reintentar; la reconciliacion es idempotente.
     "APPLY_INCOMPLETE",
 )
+
+
+#: Rechazo del writer -> codigo de operador. CERRADO: lo que no este aqui sale
+#: como `APPLY_REJECTED`, que sigue siendo cierto (no se escribio nada) aunque
+#: no diga la causa. Se traduce el CODIGO del rechazo, nunca su texto.
+RECHAZOS_CON_CAUSA = {
+    "EXEC_SCHEMA_CONSTRAINTS_MISSING": "APPLY_REJECTED_ESQUEMA",
+    "EXEC_REVELACION_NO_DECLARADA": "APPLY_REJECTED_SESION",
+    "EXEC_DRIVER_FAILURE": "APPLY_REJECTED_GRAFO",
+}
+
+
+def _codigo_de_rechazo(rechazos) -> str:
+    """El codigo que se le publica al operador a partir de los del writer.
+
+    ORDEN DECLARADO, no «el primero que venga»: un plan puede acumular varios
+    rechazos y el que decide si reintentar sirve manda sobre el resto. Con dos
+    causas traducibles gana la primera de `RECHAZOS_CON_CAUSA`, que es estable.
+    """
+    presentes = {str(c) for c in (rechazos or ())}
+    for codigo, publico in RECHAZOS_CON_CAUSA.items():
+        if codigo in presentes:
+            return publico
+    return "APPLY_REJECTED"
 
 
 class ApplyError(RuntimeError):
@@ -515,6 +550,19 @@ class ReviewApplyService:
                 # que esta capacidad existe para impedir.
                 raise ApplyError("PLAN_APPLY_IN_FLIGHT")
             else:
+                # CUAL DE LOS TRES CAMINOS FUE, MEDIDO EN EL DATO.
+                #
+                # `apply_notes_json` lo escribe UNICAMENTE `finish_apply`: el
+                # INSERT del sellado no lo pone y `_supersede_sealed` solo toca
+                # `state`. Una fila `superseded` con notas es, por tanto, un
+                # APPLY QUE FALLO -- y decirle a ese operador «una decision
+                # cambio» ocultaba que lo que fallo fue la escritura.
+                #
+                # Sin notas NO se afirma cual de los otros dos caminos fue: no
+                # hay dato que lo distinga y la frase se limita a lo que se
+                # sabe (el plan dejo de ser aplicable).
+                if ultimo.get("apply_notes_json"):
+                    raise ApplyError("PLAN_SUPERSEDED_TRAS_APPLY_FALLIDO")
                 raise ApplyError("PLAN_SUPERSEDED")
 
         if not self._habilitado(workspace):
@@ -619,7 +667,13 @@ class ReviewApplyService:
         )
         if not aplicado:
             log.error("apply rechazado para %s: %s", job_id, rechazos)
-            raise ApplyError("APPLY_REJECTED", ",".join(rechazos))
+            # EL MOTIVO LLEGA AL OPERADOR. Antes esta linea era la unica que lo
+            # sabia: `log.error(...)` y acto seguido un `APPLY_REJECTED` que
+            # decia «el motivo queda registrado en el servidor». Con
+            # `EXEC_SCHEMA_CONSTRAINTS_MISSING` --que no se arregla solo-- el
+            # operador solo podia reintentar en bucle hasta que alguien mirase
+            # el log por SSH.
+            raise ApplyError(_codigo_de_rechazo(rechazos), ",".join(rechazos))
         if not completo:
             # 200 «Aplicado correctamente» con la arista o la procedencia sin
             # materializar es FALSO EXITO desde la perspectiva del operador.

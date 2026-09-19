@@ -113,6 +113,7 @@ from typing import Any, Optional
 
 import json
 import logging
+import re
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -484,6 +485,34 @@ def _revision_del_resultado(bruto: Any) -> Optional[dict]:
     }
 
 
+#: Forma de un codigo estable. Lo que no la tenga no se pinta: el detalle
+#: tecnico del motor no cruza esta frontera.
+_CODIGO_ESTABLE = re.compile(r"^[A-Z][A-Z0-9_]{2,63}$")
+
+
+def _carencias_del_resultado(bruto: Any) -> list[dict]:
+    """Lo que la corrida NO pudo hacer, traducido. Por LISTA BLANCA de FORMA.
+
+    Del bloque que publica el handler solo pasan CODIGOS, y solo si tienen
+    forma de codigo estable: el `detail` del motor lleva `run.stop_reason` e
+    identificadores del grafo, y este repositorio es publico.
+
+    La lista vacia se distingue del bloque ausente en la plantilla, que solo
+    pinta el apartado cuando hay algo que decir.
+    """
+    if not isinstance(bruto, list):
+        return []
+    vistas: list[dict] = []
+    vistos: set[str] = set()
+    for codigo in bruto:
+        texto = str(codigo or "")
+        if not _CODIGO_ESTABLE.match(texto) or texto in vistos:
+            continue
+        vistos.add(texto)
+        vistas.append({"code": texto, "message": panel_errors.carencia(texto)})
+    return vistas
+
+
 def _resultado_del_trabajo(job: Optional[dict]) -> Optional[dict]:
     """Lo que el operador lee cuando el trabajo TERMINA. Explica el desenlace.
 
@@ -507,7 +536,7 @@ def _resultado_del_trabajo(job: Optional[dict]) -> Optional[dict]:
         if not isinstance(resultado, dict):
             return {"estado": "ok", "code": "INGEST_OK",
                     "message": "La ingesta ha terminado correctamente.",
-                    "resumen": None}
+                    "resumen": None, "carencias": []}
         return {
             "estado": "ok",
             "code": str(resultado.get("code") or "INGEST_OK"),
@@ -521,6 +550,13 @@ def _resultado_del_trabajo(job: Optional[dict]) -> Optional[dict]:
             # paquete: el `job_id` ya lo conoce el operador, el `workspace`
             # también, y el recuento es el que la corrida declaró.
             "revision": _revision_del_resultado(resultado.get("revision")),
+            # EL CERO MUDO, CERRADO. El motor declaraba `SIN_GLOSARIO`,
+            # `SIN_MENCIONES`, `SIN_CLAIMS`, `CADENA_DETENIDA`... y nada de eso
+            # llegaba a la pantalla: el operador leia «no ha dejado nada en
+            # revision» sobre menciones 0 y afirmaciones 0, lo entendia como
+            # «estaba todo claro» y archivaba la fuente sin que entrara ni una
+            # afirmacion. El motivo estaba a un log de distancia.
+            "carencias": _carencias_del_resultado(resultado.get("carencias")),
         }
     if estado in ESTADOS_FALLIDOS:
         crudo = job.get("error_message") or ""
@@ -529,9 +565,11 @@ def _resultado_del_trabajo(job: Optional[dict]) -> Optional[dict]:
             # Ni el código se reconoce ni se enseña el texto: fallo cerrado.
             codigo = "INGEST_FAILED"
         return {"estado": "error", "code": codigo,
-                "message": panel_errors.CATALOGO[codigo], "resumen": None}
+                "message": panel_errors.CATALOGO[codigo], "resumen": None,
+                "carencias": []}
     return {"estado": "en_curso", "code": None,
-            "message": "El trabajo sigue en la cola.", "resumen": None}
+            "message": "El trabajo sigue en la cola.", "resumen": None,
+            "carencias": []}
 
 
 def _plan_de_la_corrida(resultado: Optional[dict]) -> Optional[dict]:

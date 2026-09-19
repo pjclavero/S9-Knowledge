@@ -45,6 +45,7 @@ POR QUÉ ESTAS PRUEBAS NO SE PONEN VERDES POR CASUALIDAD
 """
 from __future__ import annotations
 
+import re
 import json
 import os
 import shutil
@@ -355,8 +356,28 @@ def test_el_resumen_enlaza_a_la_revision_de_SU_corrida(
     assert 'data-role="enlace-revision"' in acuse.text, (
         "el acuse de la ingesta no ofrece ningún camino a la revisión"
     )
-    assert SLOT_C.prefix in acuse.text, "no se menciona /panel/review"
-    assert f"job_id={job_id}" in acuse.text, (
+    # CORTE 2. El destino se lee DEL PROPIO ENLACE, no del texto de la
+    # pantalla: `SLOT_C.prefix in acuse.text` pasaba VACIAMENTE porque la barra
+    # de navegación menciona `/panel/review` en todas las pantallas. Un testigo
+    # que se satisface con la barra de navegación no mide ningún enlace.
+    destino = re.search(
+        r'data-role="enlace-revision".*?<a href="([^"]+)"', acuse.text, re.S
+    )
+    assert destino is not None, "el acuse no trae un enlace dentro del bloque"
+    # `url_for` devuelve una URL ABSOLUTA (`http://testserver/...`): se compara
+    # la RUTA, no el prefijo de la cadena. Comparar la cadena entera daba un
+    # rojo por la causa equivocada — y, con el orden invertido, habría dado un
+    # verde que no medía nada.
+    from urllib.parse import urlsplit
+
+    href = destino.group(1).replace("&amp;", "&")
+    ruta = urlsplit(href).path
+    assert ruta.startswith("/v3/review"), (
+        "el acuse manda a la consola de SÓLO LECTURA por contrato declarado "
+        f"(`/panel/review`), donde no hay ni un botón con el que decidir: {href}"
+    )
+    assert not ruta.startswith(SLOT_C.prefix), href
+    assert f"job_id={job_id}" in href, (
         "el enlace lleva a la cola entera, no a las propuestas de esta corrida"
     )
 

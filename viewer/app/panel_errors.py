@@ -53,6 +53,8 @@ __all__ = [
     "de_codigo",
     "registrar",
     "codigos_conocidos",
+    "CARENCIAS",
+    "carencia",
 ]
 
 
@@ -129,10 +131,26 @@ CATALOGO: dict[str, str] = {
     "AUDIT_CHAIN_BROKEN":
         "El registro de auditoria de esta revision no verifica, asi que no se "
         "ha preparado nada. Avisa a quien administra el servicio.",
+    # NO SE FABRICA LA CAUSA. Al estado `superseded` se llega por TRES caminos
+    # (`_supersede_sealed` desde una decision de OTRA corrida del workspace,
+    # un resellado de la misma corrida, y un APPLY FALLIDO) y la frase anterior
+    # --«Una decision cambio despues de preparar lo aprobado»-- solo describia
+    # el primero. En el tercero ocultaba que lo que fallo fue la ESCRITURA.
+    #
+    # Cuando el almacen SI distingue el camino (el plan lleva notas de apply),
+    # se publica `PLAN_SUPERSEDED_TRAS_APPLY_FALLIDO`, que es el codigo de
+    # abajo. Cuando no, la UI se limita a lo que el dato contiene.
     "PLAN_SUPERSEDED":
-        "Una decision cambio despues de preparar lo aprobado, asi que lo "
-        "preparado ha dejado de valer y no se ha aplicado nada. Vuelve a "
-        "prepararlo para incluir la decision nueva.",
+        "El plan ya no es aplicable, asi que no se ha aplicado nada. Es "
+        "necesario volver a preparar lo aprobado de esta ingesta.",
+    # SI SE CONOCE LA CAUSA CONCRETA, SE PUBLICA. Esta fila quedo `superseded`
+    # porque un intento de aplicar FALLO --lo dicen sus notas de apply, que
+    # solo escribe `finish_apply`--, no porque nadie cambiara de opinion.
+    "PLAN_SUPERSEDED_TRAS_APPLY_FALLIDO":
+        "El intento anterior de anadir lo aprobado al conocimiento no salio "
+        "bien y no se escribio nada, asi que lo preparado dejo de valer. No es "
+        "que haya cambiado ninguna decision. Vuelve a preparar lo aprobado; si "
+        "vuelve a fallar, avisa a quien administra el servicio.",
     "APPLY_NOT_ENABLED":
         "Este despliegue no tiene habilitada la escritura en el conocimiento, "
         "asi que no se ha aplicado nada. No es cosa tuya: avisa a quien "
@@ -140,9 +158,35 @@ CATALOGO: dict[str, str] = {
     "GRAPH_UNAVAILABLE":
         "No se puede alcanzar el conocimiento en este despliegue, asi que no se "
         "ha aplicado nada. Avisa a quien administra el servicio.",
+    # EL MOTIVO, CUANDO EL MOTOR LO DA. El rechazo del writer trae codigos
+    # (`EXEC_*`) que dicen exactamente que falta; hasta ahora se quedaban en
+    # `log.error` y el operador solo podia reintentar en bucle hasta que
+    # alguien mirase el log por SSH. Los que cambian LA DECISION de quien lee
+    # --si reintentar sirve o no-- tienen frase propia.
     "APPLY_REJECTED":
         "Lo preparado no se ha podido anadir al conocimiento y no se ha escrito "
         "nada. El motivo queda registrado en el servidor para quien lo administra.",
+    # MEDIDO, Y POR ESO NO PROMETE: `EXEC_SCHEMA_CONSTRAINTS_MISSING` lo emite
+    # `writer._schema_incompleto` TANTO cuando faltan restricciones COMO cuando
+    # `SHOW CONSTRAINTS` no se pudo ejecutar (grafo inalcanzable). El codigo no
+    # distingue los dos casos, asi que la frase tampoco los distingue: decir
+    # "reintentar no sirve" seria fabricar una certeza que el dato no contiene,
+    # que es justo el defecto que este corte cierra en `PLAN_SUPERSEDED`.
+    "APPLY_REJECTED_ESQUEMA":
+        "No se ha podido dar por buena la preparacion del grafo del "
+        "conocimiento --o le faltan las restricciones que esta escritura "
+        "exige, o no se han podido comprobar--, asi que no se ha escrito nada. "
+        "Esto no se arregla reintentando sin mas: avisa a quien administra el "
+        "servicio.",
+    "APPLY_REJECTED_SESION":
+        "Esta corrida es de una partida y no consta declarada la sesion en la "
+        "que se revela, asi que no se ha escrito nada. REINTENTAR NO VA A "
+        "CAMBIARLO mientras falte esa declaracion: avisa a quien administra el "
+        "servicio.",
+    "APPLY_REJECTED_GRAFO":
+        "No se ha podido hablar con el conocimiento mientras se anadia lo "
+        "preparado, asi que no se ha escrito nada. Puedes volver a intentarlo "
+        "mas tarde; si sigue fallando, avisa a quien administra el servicio.",
     "APPLY_FAILED":
         "La operacion no ha terminado correctamente. El detalle queda registrado "
         "en el servidor para quien lo administra.",
@@ -174,6 +218,57 @@ CATALOGO: dict[str, str] = {
         "comprobar contra el que existe lo que va a proponer. No se ha "
         "ingerido nada; puedes volver a intentarlo cuando el grafo responda.",
 }
+
+
+#: LO QUE LA CORRIDA NO PUDO HACER, DICHO PARA UNA PERSONA.
+#:
+#: El motor ya declaraba estas carencias (`ingest_report._carencias`) y su
+#: propio CLI las imprime bajo «## CARENCIAS declaradas · No se rellena con
+#: ceros que parezcan datos». El producto no las consumia: la pantalla ensenaba
+#: `menciones: 0` y `cadena detenida en: engine` sin decir por que.
+#:
+#: Aqui NO se traduce el `detail` del motor --lleva `run.stop_reason` e
+#: identificadores del grafo dentro--, se traduce el CODIGO. Un codigo que no
+#: este aqui NO se descarta: la pantalla lo nombra tal cual, porque tirar una
+#: carencia a la basura es exactamente el silencio que este apartado cierra.
+CARENCIAS = {
+    "SIN_GLOSARIO":
+        "No habia ni una entrada de glosario para esta fuente, y sin glosario "
+        "el extractor no puede reconocer ningun nombre.",
+    "SIN_MENCIONES":
+        "La fuente se leyo entera, pero ningun nombre del texto figura en el "
+        "glosario: no se reconocio ni una sola mencion.",
+    "SIN_CLAIMS":
+        "Se reconocieron menciones, pero no se pudo emitir ninguna relacion "
+        "entre ellas.",
+    "CADENA_DETENIDA":
+        "El proceso se paro antes de llegar al final, asi que lo que ves esta "
+        "incompleto. El punto exacto y su motivo quedan registrados en el "
+        "servidor para quien lo administra.",
+    "SIN_PLAN":
+        "No se llego a preparar ningun cambio sobre el conocimiento.",
+    "PLAN_NO_APROBADO":
+        "Se preparo un conjunto de cambios, pero el propio motor no lo aprobo: "
+        "no hay nada de esta corrida que se pueda anadir.",
+    "PLAN_REVISION_SIN_OPERACIONES":
+        "Hay decisiones pendientes de revisar, pero el plan de revision no "
+        "lleva ninguna operacion asociada.",
+}
+
+
+def carencia(code: str) -> str:
+    """La frase de una carencia. Un codigo desconocido SE NOMBRA, no se calla.
+
+    Devolver "" o saltarse la fila convertiria una carencia declarada por el
+    motor en una ausencia invisible, que es el defecto que este apartado cierra.
+    """
+    conocida = CARENCIAS.get(code)
+    if conocida:
+        return conocida
+    return (
+        "El motor declaro una carencia que esta pantalla todavia no sabe "
+        f"explicar ({code}). Avisa a quien administra el servicio."
+    )
 
 
 def codigos_conocidos() -> frozenset:
