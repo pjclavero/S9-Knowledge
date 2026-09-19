@@ -880,3 +880,88 @@ def test_el_payload_del_alta_no_lleva_revelacion(entorno_boveda):
         pintado = f.para_pantalla()["ambito"]
         assert "known_from_session" not in pintado
         assert pintado["sesion_origen"] == f.ambito.sesion_origen
+
+
+# ===========================================================================
+# 8. LA COSTURA CON EL PREFLIGHT DEL ENSAYO RC
+# ---------------------------------------------------------------------------
+# Regresion REAL, no hipotesis. El preflight (`deploy/scripts/
+# preflight_ensayo_rc.py`) carga `sources_catalog.py` con
+# `spec_from_file_location`, SIN paquete padre, para comprobar que el catalogo
+# del producto ve fuentes. Mientras este modulo fue un fichero suelto, funciono.
+# Al partirlo en tres (`vault_scope`, `vault_mount`) los imports relativos
+# dejaron de resolver y el preflight paso a decir PENDIENTE —«no se pudo cargar
+# el catalogo»— en vez de MEDIR.
+#
+# Las dos piezas estaban verdes por separado: la mia y la suya. Lo que fallaba
+# era el borde, y solo se vio al correr la suite completa despues del rebase.
+# Esta prueba pone ese borde bajo vigilancia desde MI lado, que es donde nacio
+# la rotura.
+# ===========================================================================
+
+def test_el_catalogo_se_puede_cargar_POR_RUTA_como_hace_el_preflight():
+    """Cargado como lo carga el preflight: por ruta y sin paquete padre.
+
+    Se reproduce el mecanismo EXACTO (`spec_from_file_location` + registro en
+    `sys.modules` + `exec_module`), no una aproximacion: si se probara con un
+    `import` normal, esta prueba estaria verde justo cuando el preflight falla.
+    """
+    import importlib.util
+    import sys as _sys
+
+    ruta = REPO / "viewer" / "app" / "sources_catalog.py"
+    assert ruta.is_file(), ruta
+
+    nombre = "_s9k_sources_catalog_prueba_de_costura"
+    spec = importlib.util.spec_from_file_location(nombre, ruta)
+    assert spec is not None and spec.loader is not None
+    modulo = importlib.util.module_from_spec(spec)
+    _sys.modules[nombre] = modulo
+    try:
+        spec.loader.exec_module(modulo)   # <- aqui reventaba el ImportError
+        # Y no basta con importar: tiene que SERVIR. El preflight llama a
+        # `listar_fuentes`, asi que se llama a `listar_fuentes`.
+        fuentes = modulo.listar_fuentes({"S9K_INGEST_SOURCES_DIR": str(EJEMPLOS)})
+        assert fuentes, (
+            "cargado por ruta, el catalogo no ve las fuentes de ejemplo: el "
+            "preflight del ensayo RC mediria PENDIENTE en vez de VERDE/ROJO"
+        )
+        # Las piezas hermanas tienen que haber llegado de verdad.
+        assert modulo.vault_mount.EstadoMontaje.MONTAJE_AUSENTE
+        assert modulo.clasificar("l5r/compartido/lore/x.md").visibility == "player"
+    finally:
+        _sys.modules.pop(nombre, None)
+
+
+def test_el_preflight_mide_las_fuentes_en_vez_de_declararse_PENDIENTE(tmp_path):
+    """El borde, comprobado POR EFECTO sobre el sujeto real del preflight.
+
+    No se comprueba que «se puede importar»: se corre la comprobacion REAL del
+    preflight sobre un directorio con una fuente y se exige que dictamine, no
+    que se excuse. `PENDIENTE` aqui significa «no pude mirar», y era justo lo
+    que este carril provoco sin querer.
+    """
+    import importlib.util
+    import sys as _sys
+
+    guion = REPO / "deploy" / "scripts" / "preflight_ensayo_rc.py"
+    if not guion.is_file():  # pragma: no cover - el carril del ensayo no esta
+        pytest.skip("el preflight del ensayo RC no existe en este arbol")
+
+    nombre = "_s9k_preflight_prueba_de_costura"
+    spec = importlib.util.spec_from_file_location(nombre, guion)
+    modulo = importlib.util.module_from_spec(spec)
+    _sys.modules[nombre] = modulo
+    try:
+        spec.loader.exec_module(modulo)
+        _escribir(tmp_path / "una-fuente.md")
+        ctx = modulo.Contexto(env={"S9K_INGEST_SOURCES_DIR": str(tmp_path)},
+                              workspace="leyenda")
+        resultado = modulo.fuentes_pobladas(ctx)
+        assert resultado.estado != modulo.PENDIENTE, (
+            f"el preflight no pudo mirar el catalogo: {resultado.detalle}. "
+            "Es la costura: el catalogo se carga por ruta y sin paquete padre"
+        )
+        assert resultado.estado == modulo.VERDE, resultado.detalle
+    finally:
+        _sys.modules.pop(nombre, None)

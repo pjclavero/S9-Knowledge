@@ -65,13 +65,48 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from . import vault_mount
-from .vault_scope import Ambito, NoIngerible, clasificar
+try:  # modo normal: el visor importa esto como parte del paquete `app`
+    from . import vault_mount
+    from .vault_scope import Ambito, NoIngerible, clasificar
+except ImportError:  # pragma: no cover - cargado POR RUTA, sin paquete padre
+    # COSTURA REAL, no defensa hipotetica. El preflight del ensayo RC
+    # (`deploy/scripts/preflight_ensayo_rc.py`) carga ESTE fichero con
+    # `spec_from_file_location`, sin paquete padre, para comprobar que el
+    # catalogo del producto ve fuentes. Mientras este modulo no tuvo imports
+    # relativos eso funciono; al partirlo en tres, los imports dejaron de
+    # resolver y el preflight paso a decir PENDIENTE —«no se pudo cargar el
+    # catalogo»— en vez de medir. Las dos piezas estaban verdes por separado.
+    #
+    # Se resuelven los hermanos por RUTA, desde el directorio de este fichero,
+    # que es la unica referencia fiable cuando no hay paquete. No se toca
+    # `sys.path`: eso alteraria la resolucion de imports del proceso que nos
+    # carga, que no es nuestro.
+    import importlib.util as _importlib_util
+
+    def _hermano(_nombre: str):
+        _ruta = Path(__file__).resolve().parent / f"{_nombre}.py"
+        _spec = _importlib_util.spec_from_file_location(
+            f"_s9k_sources_catalog_{_nombre}", _ruta)
+        if _spec is None or _spec.loader is None:  # pragma: no cover
+            raise ImportError(str(_ruta))
+        _modulo = _importlib_util.module_from_spec(_spec)
+        # Registrado ANTES de ejecutar: los `@dataclass` del modulo cargado
+        # resuelven sus anotaciones por `sys.modules[__module__]`.
+        sys.modules[_spec.name] = _modulo
+        _spec.loader.exec_module(_modulo)
+        return _modulo
+
+    vault_mount = _hermano("vault_mount")
+    _vault_scope = _hermano("vault_scope")
+    Ambito = _vault_scope.Ambito
+    NoIngerible = _vault_scope.NoIngerible
+    clasificar = _vault_scope.clasificar
 
 __all__ = [
     "FuenteDisponible",
