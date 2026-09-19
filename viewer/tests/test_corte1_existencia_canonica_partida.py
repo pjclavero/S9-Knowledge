@@ -149,7 +149,10 @@ def test_un_workspace_inventado_no_contiene_partidas_ni_las_suyas(entorno):
     from app.authz import existencia
 
     with auth_db.get_conn(db_path) as conn:
-        assert existencia.partida_existe(conn, WS_FANTASMA, PARTIDA) is False
+        assert existencia.partida_existe(conn, WS_FANTASMA, PARTIDA) is False, (
+            "un workspace inventado se comporta como un ámbito real: contiene "
+            "las partidas que se le concedan"
+        )
 
 
 # ---------------------------------------------------------------------------

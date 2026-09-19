@@ -78,9 +78,26 @@ MUTACIONES = [
         ["test_EL_CRUCE_workspace_B_partida_X_inexistente_NO_valida_en_B",
          "test_activar_X_en_workspace_incorrecto_es_RECHAZADO",
          "test_la_concesion_FANTASMA_no_altera_la_existencia_de_ninguna_canonica",
-         "test_reverificar_una_concesion_CRUZADA_es_RECHAZADO",
-         "test_un_workspace_inventado_no_contiene_partidas_ni_las_suyas"],
+         "test_reverificar_una_concesion_CRUZADA_es_RECHAZADO"],
+        # `test_un_workspace_inventado...` NO entra aqui, y el primer pase de
+        # calibracion lo demostro: esa prueba no enrojece con M1 porque
+        # `partida_existe` corta en `es_workspace_canonico` ANTES de llegar al
+        # SQL. La expectativa estaba mal, no el codigo. Esa capa la mutila M1b.
         "el cruce no está cerrado",
+    ),
+    (
+        "M1b — `es_workspace_canonico` devuelve siempre True: un workspace "
+        "inventado vuelve a comportarse como un ámbito real",
+        "viewer/app/authz/existencia.py",
+        """    canonico = workspace_canonico()
+    if not canonico:
+        return False""",
+        """    canonico = workspace_canonico()
+    if True:
+        return True""",
+        ["test_conceder_con_workspace_inventado_NO_crea_existencia",
+         "test_un_workspace_inventado_no_contiene_partidas_ni_las_suyas"],
+        "se comporta como un ámbito real",
     ),
     (
         "M2 — el panel deja de validar el workspace al conceder "
@@ -92,12 +109,30 @@ MUTACIONES = [
         "se guardó igual que antes",
     ),
     (
-        "M3 — la re-verificación por petición vuelve a ignorar el workspace",
+        # El primer pase mutaba esta linea a
+        # `auth_db.partida_exists(conn, partida_id, partida_id)`, y el testigo
+        # NO enrojecio: pasar el partida_id como workspace no encuentra fila y
+        # devuelve False. Esa mutacion era ELLA MISMA fail-closed, no el
+        # defecto. Aqui se reproduce el SQL agnostico original, que es el
+        # comportamiento que habia que poder recrear.
+        "M3 — la re-verificación por petición vuelve a ignorar el workspace "
+        "(SQL agnóstico en línea: el defecto original, recreado)",
         "viewer/app/authz/dependencies.py",
         "                return existencia.partida_existe(conn, workspace, partida_id)",
-        "                return auth_db.partida_exists(conn, partida_id, partida_id)",
-        ["test_los_tres_consumidores_entran_por_app_authz_existencia",
-         "test_reverificar_una_concesion_CRUZADA_es_RECHAZADO"],
+        '                return conn.execute(\n'
+        '                    "SELECT 1 FROM partida_access WHERE partida_id = ? LIMIT 1",\n'
+        '                    (partida_id,),\n'
+        '                ).fetchone() is not None',
+        ["test_reverificar_una_concesion_CRUZADA_es_RECHAZADO"],
+        "y dejó",
+    ),
+    (
+        "M3b — un cuarto consumidor pregunta por su cuenta a "
+        "`auth_db.partida_exists`, saltándose el único sitio que decide",
+        "viewer/app/routers/partida.py",
+        "            elif not existencia.partida_existe(conn, workspace, chosen):",
+        "            elif not auth_db.partida_exists(conn, workspace, chosen):",
+        ["test_los_tres_consumidores_entran_por_app_authz_existencia"],
         "sin pasar por app.authz.existencia",
     ),
     (
