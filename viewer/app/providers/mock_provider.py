@@ -34,6 +34,22 @@ class MockGraphProvider(GraphProvider):
 
         self._nodes_by_id = {n["id"]: n for n in self._nodes}
 
+        # Hechos (`:V3Assertion`). Clave OPCIONAL del JSON: una muestra que no
+        # la traiga sigue cargando y simplemente no tiene hechos. El ambito y
+        # el enmascarado de divergencias locales NO se aplican aqui --igual que
+        # en el proveedor de Neo4j, los aplica `PolicyFilteredProvider`.
+        self._assertions: list[dict[str, Any]] = []
+        for a in data.get("assertions", []):
+            assertion = dict(a)
+            assertion.setdefault("workspace", workspace)
+            # `partida_id` se declara EXPLICITAMENTE, incluso a `None`: su
+            # ausencia y "capa juego" no pueden ser el mismo valor por accidente
+            # cuando de ese campo depende a quien se enmascara.
+            assertion.setdefault("partida_id", None)
+            assertion.setdefault("local_override_of", None)
+            assertion.setdefault("id", assertion.get("assertion_id"))
+            self._assertions.append(assertion)
+
     def is_connected(self) -> bool:
         return True
 
@@ -252,3 +268,22 @@ class MockGraphProvider(GraphProvider):
 
     def _edges_in_workspace(self, workspace: str) -> list[dict[str, Any]]:
         return [e for e in self._edges if e.get("workspace") == workspace]
+
+    def list_assertions(
+        self, workspace: str, *, subject_entity_id: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Hechos del workspace, sin acotar por ambito ni enmascarar.
+
+        Mismo contrato que el proveedor de Neo4j: entrega el conjunto
+        CANDIDATO, y quien decide que sale por la pantalla es
+        `PolicyFilteredProvider`. Se devuelven copias para que un consumidor
+        descuidado no pueda mutar la muestra cargada en memoria.
+        """
+        salida = []
+        for a in self._assertions:
+            if a.get("workspace") != workspace:
+                continue
+            if subject_entity_id is not None and a.get("subject_entity_id") != subject_entity_id:
+                continue
+            salida.append(dict(a))
+        return sorted(salida, key=lambda a: str(a.get("assertion_id") or ""))

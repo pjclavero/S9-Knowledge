@@ -1814,3 +1814,103 @@ desde la raíz, primer plano): **6585 passed, 53 skipped, 4 xfailed, 0 failed**
    otra información de operación. El detalle completo queda para admin.
    Alternativa descartada: sanear el payload campo a campo (frágil, y falla
    abierto en cuanto el data-engine añade una clave nueva).
+
+---
+
+## 12. Cierre del tramo de LECTURA de M4 (carril M, `MULTIPARTIDA-READ`)
+
+### 12.1 La deriva que se cierra
+
+La tabla de §5 asignaba a **M4** la *«lógica de enmascarado en lectura
+(provider)»*. **M4 se cerró sin entregarla.** El aplazamiento a M5 no volvió
+nunca a esa tabla: vivió sólo en el docstring de
+`data-engine/app/knowledge_v3/writer/reads.py`, que lo decía con todas las
+letras — ese módulo *«existe sobre todo para tener una API de la que colgar
+los tests»* y el visor *«será el consumidor real… pero M5 no existe
+todavía»*.
+
+Estado medido sobre `324cb207` antes de este carril, por AST y no por `grep`:
+
+| Lado | Estado |
+|---|---|
+| Escritura | **VIVO.** `find_local_override` con llamador de producción real (`writer/executor.py:370`). |
+| Lectura | **SIN CONSUMIDOR.** `list_visible_assertions` tenía 13 llamadas, **las 13 de prueba**. `list_visible_assertions_query` sólo la envolvía `reads.py:65`. |
+| Visor | `local_override_of` aparecía **CERO veces** bajo `viewer/`. Cero calibrado: la misma sonda sobre las mismas rutas devuelve 323 para `partida_id`. |
+
+### 12.2 Dónde enchufa, y por qué ahí
+
+En **`PolicyFilteredProvider`**, que es lo que §2.5 punto 4 ya había decidido:
+*«lógica nueva en `PolicyFilteredProvider` o en la capa de provider base, no
+en `VisibilityPolicy` (que decide visible/no visible, no "cuál de dos
+versiones mostrar")»*.
+
+La razón es de naturaleza, no de comodidad: **enmascarar no es autorizar**. No
+concede ni retira permisos; elige cuál de dos versiones se enseña sobre un
+conjunto que la cascada ya aprobó. Por eso corre **después** de la cascada
+completa y **sólo puede quitar**: es una resta, nunca una suma. Un enmascarado
+que pudiera añadir sería una vía de autorización paralela.
+
+La cascada de `can_view` no se reordena, no se puentea y no se sustituye. La
+barrera de partida sigue delante del nivel y del conocimiento, y `known_by`
+sigue sin poder saltarla.
+
+### 12.3 Dos decisiones explícitas de la lectura
+
+1. **El puntero manda, no el estado del override.** Igual que en el writer:
+   una divergencia `SUPERSEDED` sigue enmascarando. Si dependiera del estado,
+   supersederla haría reaparecer el lore junto a su sustituta, y la unicidad
+   estricta de `find_local_override` impediría volver a ocultarlo.
+2. **Sólo enmascara una divergencia que ese lector PUEDE VER.** Es una
+   diferencia deliberada con la consulta del writer, que no tiene niveles de
+   visibilidad. Sin esta condición, un lector sin derechos sobre la divergencia
+   se quedaría sin el lore *y* sin la sustituta: un hueco que además delata por
+   ausencia que ahí hay una divergencia que no le corresponde ver.
+
+### 12.4 Lo que NO se cerró, y hay que decirlo
+
+**El enmascarado opera sobre ASERCIONES, no sobre las relaciones del grafo.**
+`local_override_of` es una propiedad de `:V3Assertion` y el executor sólo la
+valida en la rama `CREATE_ASSERTION`. Las aristas que pinta la ficha **no
+llevan `assertion_id`** (`neo4j_provider.py` lo dice: el objeto durable es el
+nodo, la arista es su *proyección*), así que hoy **no hay forma de correlacionar
+una arista con la aserción que la superó**, y una divergencia local **no
+enmascara la relación proyectada**. Cerrarlo exigiría tocar el writer y el
+esquema, que este carril tiene prohibido. Queda como deuda declarada.
+
+### 12.5 Corrección a la tabla de §5
+
+La fila **M4** debe leerse: entregó el campo `local_override_of`, la razón
+`LOCAL_DIVERGENCE` y la consulta de enmascarado, **pero no su conexión al
+camino de lectura del producto**. Ese tramo lo cierra este carril, sobre
+aserciones y con la deuda de §12.4 declarada.
+
+### 12.6 Deuda: el llamador único se sostiene con una red sintáctica, no por construcción
+
+`Neo4jGraphProvider.list_assertions` entrega, **a propósito**, material
+candidato de todas las partidas del workspace: el enmascarado necesita ver a la
+vez el hecho de capa juego y la divergencia que lo sustituye, así que no puede
+acotar por partida en Cypher. La consecuencia es que **toda** la seguridad de
+esa lectura descansa en que su único llamador sea `PolicyFilteredProvider`.
+
+Hoy eso lo sostienen dos pruebas por AST (`test_el_proveedor_crudo_de_neo4j_
+solo_es_alcanzable_por_el_filtrado` y su gemela sobre `Depends`). **Y esas
+pruebas tienen un techo declarado**: son sondas *sintácticas*, no análisis de
+flujo. Cierran la clase con forma de accidente —el import del símbolo crudo,
+con alias, y la variable ligada a su resultado— y **no** cierran `getattr`,
+atributos de instancia, contenedores ni paso por argumento. Las cuatro
+indirecciones están enumeradas y ejecutadas en el docstring de esa prueba; las
+cuatro la pasan en verde.
+
+No se persiguen más patrones, y la razón es de método: cada patrón nuevo compra
+un caso y deja el siguiente abierto, mientras que una red cada vez más barroca
+**se lee como si fuera completa**, que es el modo en que una red deja de
+proteger. Es el mismo principio por el que se retiró de esa red una condición
+redundante, aplicado al revés: **lo que la red no puede ver también hay que
+escribirlo.**
+
+**Dirección propuesta para el cierre real** (estructural, código de producción,
+fuera del carril M): hacer el proveedor crudo **inalcanzable por
+construcción** — por ejemplo, que `list_assertions` **exija el contexto de
+política como argumento**, de modo que llamarlo sin cascada no sea siquiera
+expresable. Mientras eso no exista, las pruebas de arriba son una ayuda a la
+vigilancia, **no una garantía**.

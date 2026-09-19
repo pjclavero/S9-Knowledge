@@ -74,7 +74,7 @@ from app.routers.chassis_slot import slot_context, slot_guard
 # mismos que los de `/entities`. Una segunda copia sería una segunda política de
 # recorte capaz de divergir en silencio.
 from app.routers.readonly import _validate_query_params as validar_listado
-from app.serializers import serialize_edge, serialize_node
+from app.serializers import serialize_assertion, serialize_edge, serialize_node
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -252,12 +252,35 @@ def chassis_entities_item(
         s["other_entity"] = serialize_node(other) if other else None
         return s
 
+    # HECHOS de la entidad, con el enmascarado de divergencia local aplicado
+    # (M4/M5, docs/v3/49 §2.5 punto 4). Se piden al MISMO proveedor filtrado que
+    # el resto de la ficha: si la partida activa ha divergido de un hecho del
+    # lore comun, lo que llega aqui es su version y NO la de capa juego. Esta
+    # ruta no vuelve a decidir nada -- ni filtra, ni recorta, ni ordena por
+    # ambito: el dia que este `for` se ponga a elegir que hecho pintar, la
+    # barrera habra vuelto a la plantilla, que es donde no puede estar.
+    #
+    # `workspace` sale del NODO ya autorizado, nunca de la peticion: la ficha
+    # se acaba de resolver contra el ambito del servidor, y reusar su workspace
+    # es la unica forma de que los hechos no puedan pedirse de otro sitio.
+    hechos: list[dict] = []
+    try:
+        hechos = [
+            serialize_assertion(a)
+            for a in provider.list_assertions(
+                node.get("workspace"), subject_entity_id=entity_id
+            )
+        ]
+    except Exception as exc:  # noqa: BLE001
+        return _error(request, user, exc)
+
     ficha = serialize_node(node)
     return templates.TemplateResponse(
         request, ITEM_TEMPLATE,
         _context(
             request, user,
             items=[ficha], entity=ficha,
+            hechos=hechos,
             outgoing=[_con_el_otro(e, "to") for e in outgoing],
             incoming=[_con_el_otro(e, "from") for e in incoming],
         ),

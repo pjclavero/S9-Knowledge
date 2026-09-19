@@ -103,3 +103,27 @@ class GraphProvider(ABC):
     @abstractmethod
     def quality_metrics(self, workspace: str | None = None) -> dict[str, Any]:
         """Métricas de calidad de solo lectura (counts, distribuciones, gaps)."""
+
+    # -- Hechos (aserciones) de una entidad -----------------------------------
+    # NO es `@abstractmethod` a proposito, y la excepcion se razona aqui porque
+    # el resto de la interfaz SI lo es: convertirlo en abstracto romperia de
+    # golpe a todos los proveedores ya escritos (incluidos los falsos de las
+    # suites), y un carril de LECTURA no puede exigir que cada proveedor se
+    # reescriba para poder desplegarse.
+    #
+    # El defecto es la lista VACIA, y eso es deliberado en direccion segura:
+    # un proveedor que no sepa leer hechos no entrega ninguno. "No se puede
+    # leer" se degrada a "no hay nada que enseñar", nunca a "enseñalo todo".
+    # La pantalla distingue las dos cosas (dice "sin hechos visibles"), pero
+    # ningun hecho se filtra por esta via.
+    def list_assertions(
+        self, workspace: str, *, subject_entity_id: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Hechos (`:V3Assertion`) cuyo SUJETO es esa entidad, sin filtrar.
+
+        Devuelve diccionarios crudos. El acotado por ambito de lectura y el
+        enmascarado de divergencias locales (`local_override_of`, M4) NO se
+        hacen aqui: los aplica `PolicyFilteredProvider`, que es el unico punto
+        por el que la aplicacion obtiene datos (docs/v3/49 §2.5 punto 4).
+        """
+        return []
