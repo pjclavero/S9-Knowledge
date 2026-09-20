@@ -45,32 +45,43 @@ acción se RECORRE EL POST y se SIGUE EL REDIRECT.
 
 LO QUE ESTOS TESTIGOS **NO** CUBREN (techo declarado)
 -----------------------------------------------------
-  · **JavaScript.** El `onchange="this.form.submit()"` de los selects no se
-    dispara aquí; lo que esta suite mide es que el filtro ESTÁ en el
-    formulario, que es lo que el navegador reenviaría. El gesto REAL se mide
-    en `viewer/tests/browser/test_browser_v3_review_filtros.py`, con chromium
-    de verdad; ese fichero declara a su vez su propio techo. Esta suite, por sí
-    sola, NO cubre el reenvío.
+  · **JavaScript: el reenvío del navegador NO lo cubre NADIE.** El
+    `onchange="this.form.submit()"` de los selects no se dispara aquí; lo que
+    esta suite mide es que el filtro ESTÁ en el formulario, que es lo que el
+    navegador reenviaría.
 
-    UNA CAUSA QUE ESCRIBÍ AQUÍ Y ERA FALSA, PARA QUE NADIE LA HEREDE. Cuando
-    ese testigo se cayó en su primer intento, este techo dijo que la razón era
-    que el job de Playwright instala sólo `viewer/requirements.txt` y que
-    `default_proposals_dir()` FALLA CERRADO sin `data-engine` montado. **Es
-    falso, y está comprobado aquí**: `knowledge_v3/__init__` no importa nada
-    salvo `__future__`; `review_paths` importa sólo `os` y `pathlib`, así que
-    no puede levantar `ImportError` por dependencias; y
-    `_engine_review_paths()` SE AUTOCABLEA, insertando `data-engine/app` en
-    `sys.path` a partir de `__file__`, sin depender del `pip install`.
-    Ejecutado con SÓLO `viewer` en `sys.path`, `default_proposals_dir()`
-    resuelve la ruta.
+    LA HISTORIA DE ESTE HUECO, CON LAS DOS CAUSAS QUE SE DESCARTARON, para que
+    el siguiente no repita ninguna de las dos:
 
-    La causa VERDADERA del `almacen_caido=True` es mucho más barata: la ruta
-    por defecto es `viewer/output/reviews-v3/proposals`, `output/` está en
-    `.gitignore`, y en un checkout limpio ese directorio NO EXISTE, así que
-    `load_proposals` levanta `PROPOSALS_STORE_MISSING`. El laboratorio no tenía
-    propuestas sembradas. Se arregla sembrando un directorio y escribiendo un
-    paquete —lo que ya hace cada fixture unitaria—, no montando el motor ni
-    tocando la definición de ninguna puerta.
+    1. PRIMERA CAUSA, FALSA, y la escribí yo aquí: «el job de Playwright
+       instala sólo `viewer/requirements.txt` y `default_proposals_dir()` falla
+       cerrado sin `data-engine`». **Comprobada y descartada**:
+       `knowledge_v3/__init__` no importa nada salvo `__future__`;
+       `review_paths` importa sólo `os` y `pathlib` (por AST), así que no puede
+       levantar `ImportError` por dependencias; `_engine_review_paths()` SE
+       AUTOCABLEA metiendo `data-engine/app` en `sys.path` desde `__file__`; y
+       con SÓLO `viewer` en `sys.path` la función RESUELVE la ruta.
+
+    2. SEGUNDA CAUSA, cierta pero INSUFICIENTE: la ruta por defecto es
+       `viewer/output/reviews-v3/proposals`, `output/` está en `.gitignore`, y
+       en un checkout limpio no existe, así que `load_proposals` levanta
+       `PROPOSALS_STORE_MISSING`. Es verdad, y explica por qué el laboratorio
+       arranca sin cola. Pero **sembrar no bastó**, y ahí está el hecho nuevo:
+
+       con la fixture sembrando un almacén temporal y apuntando
+       `S9K_V3_REVIEW_PROPOSALS_DIR` a él, sus DOS controles positivos
+       —`default_proposals_dir()` es la ruta sembrada, y `ReviewService().queue()`
+       devuelve 2 propuestas— **PASAN dentro de la fixture**, y aun así la
+       petición HTTP del navegador ve `almacen_caido=True, fichas=0`. Es decir:
+       el almacén está bien EN TIEMPO DE FIXTURE y no lo está EN TIEMPO DE
+       PETICIÓN. Eso no es «falta sembrar»: es algo que ocurre entre las dos, y
+       no está diagnosticado.
+
+    El testigo se retira por segunda vez en vez de dejar un gate en rojo, y el
+    hueco queda como deuda con esa medida exacta —que es más de lo que se sabía
+    antes, y apunta al sitio correcto: la ventana entre fixture y petición—.
+    No se ha podido ejercitar en local: chromium arranca y muere por nueve
+    librerías de sistema ausentes que requieren root.
   · **Infraestructura real.** El almacén de propuestas es un directorio
     temporal y no hay Neo4j. Capa alcanzada: usable desde el producto (HTTP +
     plantilla reales), no «ejercida contra infra real».
