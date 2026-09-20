@@ -333,7 +333,7 @@
     "viewer/tests/test_contrato_paneles_neo4j.py": 47,
     "viewer/tests/test_contrato_writer_a_visor_neo4j.py": 11,
     "viewer/tests/test_corte1_existencia_canonica_partida.py": 13,
-    "viewer/tests/test_corte_altas_de_entidad.py": 22,
+    "viewer/tests/test_corte_altas_de_entidad.py": 31,
     "viewer/tests/test_dependencias_fail_closed.py": 9,
     "viewer/tests/test_exception_codes_instrumento.py": 9,
     "viewer/tests/test_fixtures_sin_referencias_a_material_restringido.py": 2,
@@ -434,7 +434,7 @@
     "viewer/tests/test_graph_ux_v2.py",
     "viewer/tests/test_panel_apply_desde_la_ui.py"
   ],
-  "total": 8735,
+  "total": 8744,
   "modulos": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 526,
     "contracts/review-ingest/v1/tests/test_contracts_v1.py": 38,
@@ -670,7 +670,7 @@
     "viewer/tests/test_contrato_paneles_neo4j.py": 67,
     "viewer/tests/test_contrato_writer_a_visor_neo4j.py": 12,
     "viewer/tests/test_corte1_existencia_canonica_partida.py": 13,
-    "viewer/tests/test_corte_altas_de_entidad.py": 22,
+    "viewer/tests/test_corte_altas_de_entidad.py": 31,
     "viewer/tests/test_dependencias_fail_closed.py": 9,
     "viewer/tests/test_exception_codes_instrumento.py": 9,
     "viewer/tests/test_fixtures_sin_referencias_a_material_restringido.py": 5,
