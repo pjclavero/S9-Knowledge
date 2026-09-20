@@ -604,12 +604,113 @@ def _plan_de_la_corrida(resultado: Optional[dict]) -> Optional[dict]:
         return {"estado": "no_disponible", "avisos": ["REVIEW_STORE_UNAVAILABLE"],
                 "sellable": False, "aplicable": False, "aprobadas": 0,
                 "pendientes": 0, "en_el_plan": 0, "excluidas": [],
-                "afirmaciones_escritas": None, "habilitado": False}
+                "afirmaciones_escritas": None, "habilitado": False,
+                # `no_procede`, del vocabulario CERRADO de más abajo, y no un
+                # código propio: aquí no se sabe si se escribió algo, así que
+                # no hay camino que ofrecer ni ausencia que nombrar —de la
+                # indisponibilidad ya habla el párrafo `no_disponible`—. Un
+                # quinto código que la pantalla no supiera pintar saldría en
+                # blanco, y un desenlace mudo se lee como «no hay nada».
+                "apply_id": None, "workspace": None, "resultado": "no_procede"}
     vista = estado.to_dict()
     # La corrida viaja en el formulario, no en el cuerpo del estado: es la
     # única identidad que el POST necesita y ya es pública para el operador.
     vista["job_id"] = str(revision["job_id"])
+    vista.update(_camino_al_resultado(estado, workspace))
     return vista
+
+
+#: Los CUATRO desenlaces del camino a «lo que realmente se aplicó». Es un
+#: vocabulario CERRADO y se pinta por código, nunca por texto libre del motor.
+#:
+#: `no_procede`   -- no se ha escrito nada todavía: no hay resultado que ver.
+#: `disponible`   -- hay identidad durable y la pantalla se sirve: hay camino.
+#: `sin_identidad`-- SE ESCRIBIÓ y no consta con qué identidad. AUSENCIA, no
+#:                   cero: hay conocimiento nuevo y este producto no sabe
+#:                   llevarte hasta él. Se dice, no se calla.
+#: `apagado`      -- hay identidad, pero la pantalla de resultado no está
+#:                   servida en este despliegue. Tampoco es cero: el dato
+#:                   existe y el camino está cerrado por configuración.
+CAMINOS_AL_RESULTADO = ("no_procede", "disponible", "sin_identidad", "apagado")
+
+
+def _camino_al_resultado(estado, workspace: str) -> dict:
+    """¿Se puede llegar desde «aplicado» hasta lo que se aplicó? (Corte 3).
+
+    EL DEFECTO, MEDIDO sobre el HTML real que servía `/panel/operations` con
+    un plan en `applied`: el bloque del plan no contenía NI UN SOLO enlace.
+    La operación terminaba, la pantalla decía «ya forma parte del
+    conocimiento» y ahí se acababa el producto. Para ver QUÉ se escribió, de
+    dónde venía y con qué evidencia había que salir a la línea de comandos o
+    a Neo4j Browser — justo lo que el programa llama USABLE = no.
+
+    NO SE CONSTRUYE NADA NUEVO. La pantalla de resultado y la de evidencia ya
+    existían, montadas y con su autorización; el `apply_id` ya estaba en la
+    fila del plan. Lo único que faltaba era publicar el camino.
+
+    NI HABILITAR NI FINGIR, la misma regla que los botones de este panel: el
+    enlace sólo se ofrece cuando la pantalla de destino se sirve de verdad en
+    este despliegue. Si no, se NOMBRA la situación en vez de ofrecer un enlace
+    que siempre daría 404.
+
+    Y AQUÍ ESTÁ EL LÍMITE DE ESA REGLA, DICHO EN VOZ ALTA PORQUE HOY MUERDE.
+    Esta función comprueba que el destino esté SERVIDO; no comprueba que vaya
+    a RESPONDER. Con el bloqueo que este corte midió —el recorrido
+    revisión->apply no crea nodos `:Entity`, y el ámbito del lector se deriva
+    de ellos—, el destino contesta 404 a la ejecución que acaba de ocurrir.
+    Es decir: el panel pinta `disponible` y ofrece un enlace que HOY SIEMPRE
+    FALLA, de modo que este corte incumple en la práctica su propia regla.
+
+    DÓNDE VIVE EL ARREGLO, medido por INTERVENCIÓN (un solo `:Entity` con
+    `entity_id` inyectado: ámbito [] -> ['ws-…'], destino 404 -> 200): NO en la
+    semántica de autorización, que no se toca. El plan de la UI emite sólo
+    `CREATE_ASSERTION` y `PROJECT_RELATION`; `review_plan` se niega a emitir
+    `CREATE_ENTITY` y lo dice por escrito —exige un alta aprobada por una
+    persona (`pipeline/entity_decisions.py`)—. Lo que falta es esa superficie
+    de decisión en el recorrido, no una tubería.
+
+    NO SE TAPA CON UNA COMPROBACIÓN NUEVA CONTRA EL GRAFO. Preguntarle al grafo
+    desde aquí antes de pintar el enlace es maquinaria nueva —y una consulta
+    más por carga de pantalla— para esconder un defecto que vive en otra capa.
+    Mientras tanto la situación se DECLARA, que es lo que permite decidir el
+    orden de los cortes con la información delante.
+
+    AUTORIZACIÓN: aquí no se concede nada. El destino conserva su guarda de
+    rol y su filtrado por política — quien no pueda ver una entidad, una
+    relación o una evidencia seguirá sin verla, porque quien filtra es el
+    servicio del destino y no este enlace. Lo único que viaja es la identidad
+    de la ejecución y el ámbito en el que ocurrió.
+    """
+    if estado.estado not in ("applied", "partial"):
+        return {"resultado": "no_procede", "apply_id": None, "workspace": None}
+    if not estado.apply_id:
+        return {"resultado": "sin_identidad", "apply_id": None, "workspace": None}
+    try:
+        from app.routers import resultado as pantalla_resultado  # noqa: PLC0415
+
+        servida = pantalla_resultado.esta_encendida()
+    except Exception as exc:  # noqa: BLE001 - la pantalla no se cae por esto
+        # FRONTERA DEFENSIVA NO EJERCIDA. Si no se puede saber si el destino se
+        # sirve, NO se ofrece: fallo cerrado. Un enlace ofrecido a ciegas es un
+        # 404 disfrazado de camino.
+        #
+        # Se nombra así y no «inalcanzable», que es lo que decía antes y era
+        # decir de más: no hay corpus que la alcance sin mutilar el módulo, y
+        # eso NO es lo mismo que demostrar que no puede ocurrir. Una mutación
+        # que rompe el import la ejerce y degrada a `apagado`, o sea que la
+        # frontera hace lo que promete; lo que no hay es un testigo del árbol
+        # que la recorra.
+        panel_errors.registrar("RESULTADO_PANEL_NO_CONSULTABLE", exc)
+        servida = False
+    if not servida:
+        return {"resultado": "apagado", "apply_id": None, "workspace": None}
+    # `workspace` sale con el enlace porque el DESTINO lo necesita para no
+    # enseñar el resultado de otro ámbito: sin él cae al workspace por defecto
+    # del despliegue, y eso sería llevar al operador a una ejecución que no es
+    # la suya. No es conocimiento interno nuevo: es la misma atribución de
+    # corrida (`job_id` + `workspace`) que el acuse de la ingesta ya publica.
+    return {"resultado": "disponible", "apply_id": estado.apply_id,
+            "workspace": workspace}
 
 
 def _authorize(request: Request, user):

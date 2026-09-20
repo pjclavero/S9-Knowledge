@@ -2610,3 +2610,812 @@ def test_el_sellado_limpio_NO_asusta_al_operador(
         "el sellado LIMPIO está avisando de relaciones que no se añaden: un "
         "aviso que sale siempre es un aviso que nadie lee"
     )
+
+
+# ===========================================================================
+# SLICE 2 · CORTE 3 — DE «APLICADO» A LO QUE REALMENTE SE APLICÓ
+#
+# EL DEFECTO, MEDIDO sobre el HTML real que servía `/panel/operations` con un
+# plan en `applied`, antes de este corte:
+#
+#     data-plan-desenlace  ['applied']
+#     <a href=...>         []          <-- CERO enlaces en todo el bloque
+#
+# La operación terminaba, la pantalla decía «ya forma parte del conocimiento»
+# y ahí se acababa el producto. Para ver QUÉ se escribió, de dónde venía y con
+# qué evidencia había que salir a la línea de comandos o a Neo4j Browser.
+#
+# LO QUE NO SE CONSTRUYE AQUÍ. La pantalla de resultado (`/panel/resultado`) y
+# la de evidencia ya existían, montadas y con su autorización; el `apply_id`
+# ya estaba en la fila de `sealed_plans`. El corte PUBLICA EL CAMINO; no
+# inventa una consulta al grafo, no toca el writer y no añade ninguna ACL.
+#
+# EN QUÉ CAPA MIDE CADA CASO, dicho y no presupuesto:
+#
+#   * capa «usable desde el producto» — los casos de esta sección sin marca
+#     corren siempre: piden el HTML real, enumeran lo que el bloque ofrece y
+#     comprueban que la identidad enlazada es EXACTAMENTE la que el almacén
+#     registró. No necesitan grafo para ser ciertos, y no lo fingen.
+#   * capa «ejercida contra infra real» — el caso `neo4j_real` recorre el
+#     camino entero: aplica de verdad, SIGUE el enlace y comprueba que la
+#     pantalla de destino responde y enseña lo que esa ejecución escribió.
+#     Sin `S9K_WRITER_NEO4J_REAL=1` se OMITE, y omitido no es verde.
+# ===========================================================================
+
+#: La forma que el producto exige a un `apply_id` (`writer/apply_identity.py`).
+#: Se escribe aquí con un dígito distinto en cada caso para que dos ejecuciones
+#: del arnés NO compartan identidad: si las compartieran, un enlace cruzado
+#: —el defecto de atribución que este corte tiene que impedir— se vería igual
+#: de bien que uno correcto.
+def _identidad_de_apply(semilla: str) -> str:
+    return "apply:" + (semilla * 32)[:32]
+
+
+#: La pantalla de destino está APAGADA por defecto (`S9K_PANEL_RESULTADO_ENABLED`).
+FLAG_RESULTADO = "S9K_PANEL_RESULTADO_ENABLED"
+
+
+@pytest.fixture
+def resultado_on(monkeypatch):
+    """La pantalla de destino, SERVIDA. Se enciende explícitamente.
+
+    No se mete en `paneles_on`: que el destino esté apagado es un estado
+    legítimo del despliegue y hay un caso que lo mide. Si estuviera siempre
+    encendido, ese caso no podría existir.
+    """
+    monkeypatch.setenv(FLAG_RESULTADO, "true")
+
+
+def _aplicar_en_el_almacen(almacenes, *, apply_id, complete=True, notes=None):
+    """Lleva el plan a `applied`/`partial` POR EL CAMINO DEL PRODUCTO.
+
+    `claim_for_apply` + `record_apply_result` son los dos únicos sitios del
+    producto que mueven ese estado; el apply real los llama a ellos. Escribir
+    el `UPDATE` a mano aquí mediría una fila que el producto no sabe producir.
+
+    Esto NO sustituye al caso con grafo: deja el ALMACÉN como lo dejaría un
+    apply, que es lo que la pantalla lee, y por eso sirve para medir la
+    pantalla. Lo que no mide —y no dice medir— es que el conocimiento esté
+    materializado; de eso se ocupa el caso `neo4j_real` de más abajo.
+    """
+    from app.services.v3_review import ReviewService
+
+    fila = _fila_de_plan(almacenes["base"])
+    store = ReviewService().store
+    reserva = store.claim_for_apply(plan_id=fila["plan_id"], now="2026-01-01T00:00:00Z")
+    assert reserva["claimed"], (
+        "el plan no se dejó reservar: el caso no llega a medir ningún desenlace"
+    )
+    store.record_apply_result(
+        plan_id=fila["plan_id"], apply_id=apply_id, ok=True,
+        now="2026-01-01T00:00:01Z", applied_operations=1,
+        notes=list(notes or ["APPLY_PROVENANCE_PERSISTED"]), complete=complete,
+    )
+    return _fila_de_plan(almacenes["base"])
+
+
+def _camino(bloque: dict) -> dict:
+    """Lo que el bloque ofrece COMO CAMINO. Enumerado del marcado real.
+
+    Devuelve el código del desenlace del camino y los `href` que el bloque
+    contiene. Los `href` se leen de TODO el bloque, no sólo del párrafo
+    esperado: así un enlace que apareciera donde no debe también se ve.
+    """
+    texto = bloque.get("texto", "")
+    codigos = re.findall(r'data-plan-resultado="([^"]*)"', texto)
+    enlaces = re.findall(r'<a [^>]*href="([^"]*)"', texto)
+    return {"codigos": codigos, "enlaces": enlaces, "texto": texto}
+
+
+def _primer_enlace(camino: dict) -> str:
+    """El enlace del camino, o un ROJO QUE DICE SU CAUSA.
+
+    Sin esto, un bloque sin enlaces se cae con un `IndexError` pelado, y un
+    rojo que no dice por qué se lee igual que una avería del arnés. La
+    calibración de este corte exige lo contrario: cada rojo nombra el defecto
+    que lo produce.
+    """
+    assert camino["enlaces"], (
+        "el bloque del plan no publica NINGÚN enlace, así que desde «aplicado» "
+        "no se puede llegar a lo que se aplicó; desenlace del camino "
+        f"pintado: {camino['codigos']}"
+    )
+    return camino["enlaces"][0]
+
+
+def _vista_aplicada(operador, cola, almacenes, monkeypatch, *, apply_id,
+                    complete=True):
+    """Aprobar -> sellar -> dejar el almacén aplicado -> PEDIR LA PANTALLA."""
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
+    fila = _aplicar_en_el_almacen(almacenes, apply_id=apply_id, complete=complete)
+    bloque = _bloque_plan(_panel(operador, job_id))
+    assert bloque, "la pantalla no pinta el bloque del plan: no se mide nada"
+    return job_id, fila, bloque
+
+
+# ---------------------------------------------------------------------------
+# EL CASO QUE FIJA EL DEFECTO: desde «aplicado» HAY camino, y es EL SUYO
+# ---------------------------------------------------------------------------
+
+def test_desde_aplicado_la_pantalla_OFRECE_el_camino_a_lo_aplicado(
+    real_app, paneles_on, resultado_on, cola, operador, almacenes, monkeypatch
+):
+    """El acuse de «aplicado» deja de ser un callejón sin salida.
+
+    Se pide el HTML REAL y se enumera el bloque. Lo que se afirma no es «hay
+    un enlace» —cualquier enlace pondría eso verde— sino que el enlace apunta
+    a la pantalla de resultado CON LA IDENTIDAD DURABLE QUE EL ALMACÉN
+    REGISTRÓ. Identidad contra identidad: un `apply_id` plausible pero distinto
+    llevaría al operador al resultado de otra ejecución, y eso es fabricar
+    procedencia.
+    """
+    identidad = _identidad_de_apply("b")
+    _, fila, bloque = _vista_aplicada(
+        operador, cola, almacenes, monkeypatch, apply_id=identidad)
+
+    assert bloque["atributos"]["estado"] == "applied", bloque["atributos"]
+    camino = _camino(bloque)
+    assert camino["codigos"] == ["disponible"], (
+        "desde «aplicado» la pantalla no ofrece camino a lo aplicado: el "
+        f"desenlace del camino es {camino['codigos']}"
+    )
+    assert camino["enlaces"], (
+        "el bloque dice que hay camino y no publica ningún enlace: el operador "
+        "sigue sin poder llegar a lo que se escribió"
+    )
+    destino = _primer_enlace(camino)
+
+    # LA IDENTIDAD, contra la del almacén. No contra una cadena escrita aquí.
+    assert fila["apply_id"] == identidad, fila["apply_id"]
+    assert identidad in destino, (
+        f"el enlace no lleva la identidad de ESTA ejecución: destino={destino} "
+        f"identidad registrada={fila['apply_id']}"
+    )
+    # Y el ÁMBITO, sin el cual el destino caería al workspace por defecto y
+    # enseñaría —o negaría— una ejecución que no es ésta.
+    assert f"workspace={fila['workspace']}" in destino, (
+        "el enlace no lleva el ámbito de la ejecución, así que el destino caerá "
+        "al workspace por defecto del despliegue y enseñará —o negará— una "
+        f"ejecución que no es ésta: destino={destino}")
+    assert 'data-role="ver-lo-aplicado"' in camino["texto"]
+
+
+def test_el_enlace_resuelve_a_la_pantalla_de_resultado_y_esta_responde(
+    real_app, paneles_on, resultado_on, cola, operador, almacenes, monkeypatch
+):
+    """El enlace se SIGUE, y el destino es la pantalla de resultado.
+
+    QUÉ MIDE Y QUÉ NO. Mide que el `href` publicado es una ruta REAL de esta
+    app —resuelve al endpoint `resultado_de_ejecucion` con ESTE `apply_id`— y
+    que al pedirla NO se responde con el 404 del interruptor apagado ni con un
+    error del servidor. NO mide que la pantalla enseñe conocimiento: sin grafo
+    no hay nada que enseñar, y afirmar lo contrario sería el falso verde que
+    este programa persigue. Eso lo mide el caso `neo4j_real`.
+    """
+    identidad = _identidad_de_apply("c")
+    _, _, bloque = _vista_aplicada(
+        operador, cola, almacenes, monkeypatch, apply_id=identidad)
+    destino = _primer_enlace(_camino(bloque))
+
+    # RESUELVE, y resuelve a ESE endpoint. `route_index` da el patrón; aquí se
+    # comprueba que la ruta pedida es la de esa pantalla y no otra parecida.
+    from urllib.parse import urlsplit
+
+    from app.routers.resultado import PREFIJO, RUTA_RESULTADO
+    esperado = real_app.url_path_for(RUTA_RESULTADO, apply_id=identidad)
+    camino_del_enlace = urlsplit(destino).path
+    assert camino_del_enlace == esperado, (
+        "el enlace del acuse no es la ruta de la pantalla de resultado para "
+        f"ESTA ejecución: publicado={camino_del_enlace} esperado={esperado}")
+    assert camino_del_enlace.startswith(PREFIJO), (
+        f"el enlace sale del espacio de la pantalla de resultado: {destino}")
+
+    respuesta = operador.get(destino)
+    assert respuesta.status_code != 500, respuesta.text[:300]
+    assert respuesta.status_code != 302, (
+        "el enlace lleva a un login: el rol que puede aplicar no puede ver lo "
+        "que aplicó"
+    )
+    # EL `in (200, 404, 503)` QUE HABÍA AQUÍ ERA DECORATIVO: los tres son los
+    # únicos desenlaces que esta ruta puede dar una vez descartados el 500 y el
+    # 302, así que no había nada que pudiera ponerlo rojo. Un testigo vacío.
+    #
+    # Se sustituye por lo que sí es portante sin grafo: que la negación, si la
+    # hay, NO venga del INTERRUPTOR. Encendido y apagado dan los dos 404 y se
+    # ven igual; lo que los distingue es el cuerpo, y `RESULT_NOT_FOUND` sólo
+    # lo emite el camino que ya pasó la puerta del interruptor.
+    if respuesta.status_code == 404:
+        assert "RESULT_NOT_FOUND" in respuesta.text, (
+            "el destino responde 404 por algo que NO es «no hay resultado»: si "
+            "es el interruptor, el panel está publicando un enlace hacia una "
+            f"pantalla que no se sirve. Cuerpo: {respuesta.text[:200]}")
+
+
+# ---------------------------------------------------------------------------
+# CONTROLES NEGATIVOS EN LAS DOS DIRECCIONES
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("estado_esperado", ["sealed"])
+def test_sin_haber_escrito_NO_se_ofrece_camino_a_lo_aplicado(
+    real_app, paneles_on, resultado_on, cola, operador, almacenes, monkeypatch,
+    estado_esperado,
+):
+    """LA OTRA DIRECCIÓN. Un plan sellado no ha escrito nada todavía.
+
+    El arreglo podía derivar a ofrecer el camino siempre que hubiera plan. Un
+    enlace a «lo que se aplicó» sobre algo que no se ha aplicado afirma una
+    escritura que no ocurrió — la misma clase de falso éxito que este módulo
+    lleva cerrando desde B2.
+    """
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
+    bloque = _bloque_plan(_panel(operador, job_id))
+    assert bloque["atributos"]["estado"] == estado_esperado, bloque["atributos"]
+
+    camino = _camino(bloque)
+    assert camino["codigos"] == [], (
+        "la pantalla ofrece un camino a «lo aplicado» sobre un plan que NO se "
+        f"ha aplicado: {camino['codigos']}"
+    )
+    assert "ver-lo-aplicado" not in camino["texto"], (
+        "hay un enlace a lo aplicado sin que se haya aplicado nada"
+    )
+
+
+def test_en_vuelo_NO_se_ofrece_camino_porque_NO_SE_SABE_como_termino(
+    real_app, paneles_on, resultado_on, cola, operador, almacenes, monkeypatch
+):
+    """`applying`: apply RESERVADO y SIN desenlace conocido.
+
+    Ofrecer aquí el camino a «lo que se aplicó» contradiría, en la misma
+    pantalla, al párrafo de arriba que dice que no consta cómo terminó.
+
+    QUÉ CUBRE ESTE CASO, DICHO CON PRECISIÓN. Éste es el camino
+    `sealed -> applying`, y se MIDIÓ que por ahí la columna `apply_id` llega a
+    NULL, así que el camino se cierra por AUSENCIA DE IDENTIDAD. Con las dos
+    guardas de estado fuera, este caso sigue dando `sin_identidad` y NUNCA
+    `disponible`: no distingue una cosa de la otra.
+
+    La celda que sí produce la contradicción —`disponible` sobre un apply del
+    que no consta cómo terminó— la cubre el caso hermano, el de la re-reserva
+    de un `partial`, donde la columna llega estampada. Allí está la tabla de
+    ablación completa.
+
+    Se dice así porque una versión anterior de este docstring afirmaba que la
+    guarda de estado era redundante «porque la columna está a NULL», y ese
+    razonamiento era falso: sólo vale por ESTE camino, no por el otro.
+    """
+    from app.services.v3_review import ReviewService
+
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
+    fila = _fila_de_plan(almacenes["base"])
+    ReviewService().store.claim_for_apply(
+        plan_id=fila["plan_id"], now="2026-01-01T00:00:00Z")
+
+    bloque = _bloque_plan(_panel(operador, job_id))
+    assert bloque["atributos"]["estado"] == "applying", bloque["atributos"]
+    assert "applying" in bloque["desenlace"], bloque["desenlace"]
+    camino = _camino(bloque)
+    assert camino["codigos"] == [], (
+        "con el apply EN VUELO la pantalla ofrece camino a lo aplicado: eso "
+        f"afirma un desenlace que ella misma dice no conocer ({camino['codigos']})"
+    )
+
+
+def test_en_vuelo_TRAS_REINTENTAR_UN_PARCIAL_tampoco_ofrece_camino(
+    real_app, paneles_on, resultado_on, cola, operador, almacenes, monkeypatch
+):
+    """DONDE LA GUARDA DE ESTADO ACTÚA DE VERDAD. La rama que faltaba.
+
+    EL HUECO QUE ESTE CASO CIERRA, y por qué existía. Se había afirmado que la
+    guarda `estado in ('applied','partial')` era redundante «porque
+    `claim_for_apply` no estampa la identidad». Medido contra el almacén real,
+    es falso — y el error fue mirar UN SOLO camino hacia `applying`:
+
+        tras apply PARCIAL        state='partial'   apply_id='apply:bbbb…'
+        re-reserva                claimed=True
+        EN VUELO tras re-reserva  state='applying'  apply_id='apply:bbbb…'
+
+    `claim_for_apply` toma desde `sealed` Y desde `partial` —la reconciliación
+    de un apply incompleto— y su UPDATE no toca `apply_id`; pero en `partial`
+    la columna YA la estampó `record_apply_result`. Así que por ESTE camino el
+    `applying` llega CON identidad bien formada, y lo único que impide que la
+    pantalla ofrezca el camino a «lo que se aplicó» —contradiciendo su propio
+    párrafo de «no consta cómo terminó»— es la guarda de estado.
+
+    QUÉ APORTA ESTE CASO Y QUÉ NO, medido por ablación sobre el HTML —porque
+    la regla de estado vive en DOS sitios y decir «la guarda» en singular sería
+    tan inexacto como lo que vino a corregir:
+
+        guardas RETIRADAS    sealed->applying   partial->re-reserva
+        -----------------    ----------------   -------------------
+        ninguna              []                 []
+        sólo la del motor    []                 []
+        sólo la del router   sin_identidad      sin_identidad
+        LAS DOS              sin_identidad      DISPONIBLE   <- aquí
+
+    LEER EL ENCABEZADO DESPACIO: cada fila dice qué se QUITA, no qué se pone;
+    la primera es el código tal como está hoy. Va rotulado así porque el
+    encabezado escueto («guardas fuera») ya se leyó del revés una vez, y
+    entonces la última fila parece una contradicción.
+
+    QUÉ SE SIGUE DE LA TABLA, con la media línea que falta:
+
+      * Las dos bastan por separado PARA IMPEDIR `disponible`, y sólo para
+        eso. Ninguna es por sí sola «la que impide» esa contradicción.
+      * Pero NO son intercambiables. Retirar la del ROUTER sí es observable:
+        `[]` -> `sin_identidad`, o sea la pantalla afirmaría «se escribió y no
+        consta con qué identidad» sobre un plan EN VUELO. Es falso para el
+        operador, aunque no sea la contradicción gorda.
+      * La del MOTOR es la única cuya retirada es plenamente inobservable hoy.
+
+    Lo que este caso cubre en exclusiva es la celda de abajo a la derecha: el
+    ÚNICO escenario del módulo donde la pantalla llega a pintar `disponible`
+    sobre un apply del que no consta cómo terminó. En los demás el camino se
+    cierra por AUSENCIA DE IDENTIDAD, que es otra cosa y se ve igual de verde.
+
+    Sin este caso esa celda no la alcanzaba ningún testigo, que es la forma en
+    que una rama se queda fuera de toda puerta sin que nadie se entere.
+    """
+    from app.services.v3_review import ReviewService
+
+    identidad = _identidad_de_apply("b")
+    job_id, fila, _ = _vista_aplicada(
+        operador, cola, almacenes, monkeypatch, apply_id=identidad,
+        complete=False)
+    assert fila["state"] == "partial", fila["state"]
+
+    reserva = ReviewService().store.claim_for_apply(
+        plan_id=fila["plan_id"], now="2026-01-02T00:00:00Z")
+    assert reserva["claimed"], (
+        "un `partial` no se dejó re-reservar: este caso no llega a la rama que "
+        "viene a cubrir")
+
+    en_vuelo = _fila_de_plan(almacenes["base"])
+    assert en_vuelo["state"] == "applying", en_vuelo["state"]
+    # LA PRECONDICIÓN QUE HACE ÚTIL A ESTE CASO. Si la columna llegara vacía,
+    # el camino se cerraría por ausencia de identidad y esta prueba volvería a
+    # no ejercer la guarda de estado — verde sin cubrir nada.
+    assert en_vuelo["apply_id"] == identidad, (
+        "la re-reserva de un `partial` ya no conserva la identidad "
+        f"({en_vuelo['apply_id']!r}): esta prueba ha dejado de ejercer la "
+        "guarda de estado y hay que rehacerla, no darla por buena")
+
+    bloque = _bloque_plan(_panel(operador, job_id))
+    assert bloque["atributos"]["estado"] == "applying", bloque["atributos"]
+    camino = _camino(bloque)
+    assert camino["codigos"] == [], (
+        "con identidad estampada y el apply EN VUELO la pantalla ofrece camino "
+        "a lo aplicado: afirma un desenlace que ella misma dice no conocer "
+        f"({camino['codigos']})")
+
+
+def test_escrito_y_sin_identidad_durable_se_dice_AUSENTE_y_no_se_calla(
+    real_app, paneles_on, resultado_on, cola, operador, almacenes, monkeypatch
+):
+    """AUSENCIA != CERO, y tampoco silencio.
+
+    Una fila `applied` cuya columna de identidad no tiene forma de `apply_id`
+    es un apply del que SÍ hay conocimiento escrito y al que este producto no
+    sabe llevar. Las dos salidas fáciles son falsas: enlazar igualmente (a un
+    identificador que no existe) y no decir nada (que se lee como «no hay nada
+    que ver»). La pantalla lo NOMBRA.
+    """
+    _, fila, bloque = _vista_aplicada(
+        operador, cola, almacenes, monkeypatch, apply_id="no-es-un-apply-id")
+
+    assert fila["state"] == "applied", fila["state"]
+    assert fila["apply_id"] == "no-es-un-apply-id", fila["apply_id"]
+    camino = _camino(bloque)
+    assert camino["codigos"] == ["sin_identidad"], (
+        "un apply escrito sin identidad durable no se está nombrando como "
+        f"ausencia: {camino['codigos']}"
+    )
+    assert not camino["enlaces"], (
+        "se publica un enlace construido sobre una identidad que no tiene "
+        f"forma de apply_id: {camino['enlaces']}"
+    )
+    # Y la cadena inválida NO se publica: sería material del almacén en la UI.
+    assert "no-es-un-apply-id" not in bloque["texto"]
+
+
+def test_con_la_pantalla_de_destino_APAGADA_se_dice_y_no_se_ofrece_un_404(
+    real_app, paneles_on, cola, operador, almacenes, monkeypatch
+):
+    """NI HABILITAR NI FINGIR, la regla de los botones de este panel.
+
+    Sin `resultado_on` la pantalla de destino no se sirve. Ofrecer el enlace
+    igualmente daría un 404 con la pinta de un camino que existe; callarse
+    diría que no hay nada. Se nombra la situación.
+    """
+    monkeypatch.delenv(FLAG_RESULTADO, raising=False)
+    _, fila, bloque = _vista_aplicada(
+        operador, cola, almacenes, monkeypatch,
+        apply_id=_identidad_de_apply("d"))
+
+    assert fila["state"] == "applied", fila["state"]
+    camino = _camino(bloque)
+    assert camino["codigos"] == ["apagado"], (
+        "con la pantalla de resultado apagada el panel no lo dice: "
+        f"{camino['codigos']}"
+    )
+    assert not camino["enlaces"], (
+        "se ofrece un enlace a una pantalla que este despliegue no sirve"
+    )
+    # Y la identidad TAMPOCO se publica: no hay a dónde ir con ella.
+    assert fila["apply_id"] not in bloque["texto"], (
+        "se publica la identidad de la ejecución sin ofrecer camino: material "
+        "del almacén en pantalla sin ninguna razón"
+    )
+
+
+def test_el_desenlace_PARCIAL_tambien_ofrece_el_camino(
+    real_app, paneles_on, resultado_on, cola, operador, almacenes, monkeypatch
+):
+    """`partial` ES escritura: hay conocimiento nuevo al que llegar.
+
+    Región que el corpus no alcanzaría sola, cubierta a propósito. Dejar
+    `partial` sin camino sería precisamente el peor caso: un apply incompleto
+    es cuando MÁS falta hace poder mirar qué quedó escrito.
+    """
+    identidad = _identidad_de_apply("e")
+    _, fila, bloque = _vista_aplicada(
+        operador, cola, almacenes, monkeypatch, apply_id=identidad,
+        complete=False)
+
+    assert fila["state"] == "partial", fila["state"]
+    assert "partial" in bloque["desenlace"], bloque["desenlace"]
+    camino = _camino(bloque)
+    assert camino["codigos"] == ["disponible"], (
+        "un apply PARCIAL no ofrece camino a lo que si quedo escrito: "
+        f"{camino['codigos']}")
+    enlace = _primer_enlace(camino)
+    assert identidad in enlace, (
+        "el camino del desenlace PARCIAL no lleva la identidad de esta "
+        f"ejecución: {camino['enlaces']}")
+    # EL ÁMBITO, TAMBIÉN AQUÍ. Sólo un testigo lo cautelaba, y una pérdida del
+    # `workspace` que ocurriera únicamente en esta rama habría pasado entera:
+    # el destino caería al workspace por defecto y enseñaría —o negaría— una
+    # ejecución que no es ésta.
+    assert f"workspace={fila['workspace']}" in enlace, (
+        "el camino del desenlace PARCIAL no lleva el ámbito de la ejecución: "
+        f"destino={enlace}")
+
+
+def test_los_CUATRO_desenlaces_del_camino_estan_declarados_y_pintados():
+    """Un vocabulario cerrado que la pantalla sepa pintar ENTERO.
+
+    Se enumera contra la plantilla, no contra el código: un código nuevo que
+    el visor no supiera traducir saldría en blanco, y un desenlace mudo se lee
+    como «no hay nada». `no_procede` es el único que NO se pinta a propósito
+    —no hay escritura de la que hablar— y se afirma que no se pinta.
+    """
+    from app.routers.chassis_operations import CAMINOS_AL_RESULTADO
+
+    ruta = (Path(__file__).resolve().parents[1] / "app" / "templates" /
+            "chassis" / "operations.html")
+    marcado = re.sub(r"\{#.*?#\}", "", ruta.read_text(encoding="utf-8"), flags=re.S)
+    pintados = set(re.findall(r"plan\.resultado == '([a-z_]+)'", marcado))
+
+    assert set(CAMINOS_AL_RESULTADO) == {"no_procede", "disponible",
+                                         "sin_identidad", "apagado"}
+    assert pintados == set(CAMINOS_AL_RESULTADO) - {"no_procede"}, (
+        f"hay desenlaces del camino que la pantalla no sabe pintar: "
+        f"{set(CAMINOS_AL_RESULTADO) - {'no_procede'} - pintados}"
+    )
+
+
+def test_ningun_desenlace_del_camino_escapa_al_vocabulario_declarado():
+    """Por AST, no contando texto: ningún código sale del vocabulario cerrado.
+
+    Este control existe porque el defecto ya se cometió en este mismo corte:
+    la rama de «almacén no consultable» devolvía un QUINTO código propio
+    (`sin_escritura`) que la plantilla no sabía pintar. La consecuencia no es
+    una excepción —Jinja no falla— sino un párrafo que no sale: el desenlace
+    se queda MUDO, y un desenlace mudo se lee como «no hay nada que ver».
+
+    Se PARSEA el módulo y se leen los valores literales asignados a la clave
+    `resultado` en los diccionarios que el router construye. Contar
+    apariciones de las cadenas daría un falso negativo en cuanto alguien
+    escribiera el código en una variable; esto ve la estructura.
+
+    EL TECHO DE ESTA RED, DECLARADO — porque una red que no dice qué no ve se
+    lee como completa. Sólo alcanza `ast.Dict` cuya clave sea la constante
+    `"resultado"` y cuyo valor sea también constante. Queda FUERA de su vista:
+
+      * la asignación posterior a un diccionario ya construido
+        (`vista["resultado"] = x`),
+      * un valor calculado (`"resultado": f(...)` o una variable),
+      * un desenlace que llegara a la vista desde otro módulo.
+
+    Ninguna de las tres existe hoy: `_camino_al_resultado` es el único
+    productor y devuelve literales. Se dice igualmente, porque el aliasing no
+    se cierra añadiendo patrones y la alternativa honesta a un techo declarado
+    es una falsa sensación de cobertura total.
+    """
+    import ast
+
+    from app.routers import chassis_operations as panel_ops
+
+    ruta = Path(panel_ops.__file__)
+    arbol = ast.parse(ruta.read_text(encoding="utf-8"))
+    emitidos = set()
+    for nodo in ast.walk(arbol):
+        if not isinstance(nodo, ast.Dict):
+            continue
+        for clave, valor in zip(nodo.keys, nodo.values):
+            if (isinstance(clave, ast.Constant) and clave.value == "resultado"
+                    and isinstance(valor, ast.Constant)):
+                emitidos.add(valor.value)
+
+    assert emitidos, (
+        "el análisis no encontró NINGÚN desenlace del camino en el router: el "
+        "instrumento ha dejado de ver lo que dice mirar, y un verde así no "
+        "cubre nada"
+    )
+    fuera = emitidos - set(panel_ops.CAMINOS_AL_RESULTADO)
+    assert not fuera, (
+        "el router emite desenlaces del camino que NO están en el vocabulario "
+        f"declarado, así que la pantalla no sabrá pintarlos: {sorted(fuera)}"
+    )
+
+
+def test_el_camino_no_publica_conocimiento_interno_nuevo(
+    real_app, paneles_on, resultado_on, cola, operador, almacenes, monkeypatch
+):
+    """Repositorio PÚBLICO. El enlace no puede ser una rendija.
+
+    Mismo censo que el caso de la sección 6, aplicado al HTML que ahora lleva
+    un enlace nuevo: el `plan_id`, el `plan_hash`, el `snapshot_id`, el
+    `source_asset_id` y las rutas del servidor siguen sin aparecer.
+    """
+    _, fila, bloque = _vista_aplicada(
+        operador, cola, almacenes, monkeypatch,
+        apply_id=_identidad_de_apply("f"))
+    documento = json.loads(fila["plan_json"])
+    html = bloque["texto"]
+
+    prohibidas = {
+        "plan_id": fila["plan_id"],
+        "plan_hash": fila["plan_hash"],
+        "snapshot_id": documento["snapshot_id"],
+        "source_asset_id": documento["source_asset_id"],
+        "ruta del almacén": str(almacenes["propuestas"]),
+        "ruta de la base": str(almacenes["base"]),
+    }
+    filtradas = {k: v for k, v in prohibidas.items() if v and v in html}
+    assert not filtradas, f"el camino publica material interno: {filtradas}"
+    for palabra in ("Traceback", "sqlite3", "neo4j://", "bolt://"):
+        assert palabra not in html, f"el camino publica «{palabra}»"
+
+
+def test_el_enlace_no_concede_nada_a_quien_no_puede_ver_el_resultado(
+    real_app, auth_on, paneles_on, resultado_on, cola, operador, almacenes,
+    monkeypatch
+):
+    """PERMISOS EN EL BACKEND, no en el marcado.
+
+    Se construye el enlace desde el panel del ADMIN y se SIGUE con un cliente
+    que no tiene rol para la pantalla de destino. Si la autorización viviera
+    en el frontend —en no pintar el enlace— esta petición devolvería
+    contenido. La guarda del destino es la misma que ya existía; aquí se
+    comprueba que este corte no la ha esquivado.
+    """
+    _, _, bloque = _vista_aplicada(
+        operador, cola, almacenes, monkeypatch,
+        apply_id=_identidad_de_apply("a"))
+    destino = _primer_enlace(_camino(bloque))
+
+    miron = _cliente(real_app, _cookie(auth_on, "apply_miron", "viewer"))
+    respuesta = miron.get(destino)
+    assert respuesta.status_code in (302, 403), (
+        "el backend NO deniega a un rol insuficiente que sigue el enlace del "
+        f"panel: respondió {respuesta.status_code}. CALIBRADO: relajar la "
+        "guarda del destino produce aquí un 404 —el rol pasa y sólo lo para la "
+        "ausencia de contenido—, y un 404 no es una autorización: el día que "
+        "hubiera contenido, ese mismo camino lo entregaría"
+    )
+    anonimo = TestClient(real_app, raise_server_exceptions=False,
+                         follow_redirects=False)
+    anonimo.headers.update({"accept": "text/html"})
+    assert anonimo.get(destino).status_code == 302, (
+        "un anónimo entra en la pantalla de resultado por el enlace del panel"
+    )
+
+
+# ---------------------------------------------------------------------------
+# CAPA 3 — EJERCIDO CONTRA INFRA REAL
+#
+# Aquí se intentó cerrar la propiedad de punta a punta y NO se pudo. Lo que
+# sigue son las dos mitades honestas de esa medición: lo que SÍ quedó
+# comprobado contra un grafo de verdad, y el BLOQUEO que lo impide, fijado por
+# su CAUSA para que no se pueda olvidar ni leer como si no existiera.
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def visor_sobre_el_grafo(real_app, grafo_real):
+    """El VISOR leyendo el MISMO grafo en el que se acaba de aplicar.
+
+    El resto de este módulo no lo necesita —mide la cola, el almacén y lo que
+    el writer dejó, y comprueba el grafo con Cypher propio—, así que la app
+    servía el proveedor por defecto y la pantalla de resultado no tenía de
+    dónde leer. Sin esto, cualquier medición del destino habría sido un rojo
+    del arnés disfrazado de defecto del producto.
+
+    Se sustituye el proveedor BASE y no el filtrado, así que la cadena entera
+    de autorización (`get_filtered_provider` -> `PolicyFilteredProvider` ->
+    `VisibilityPolicy`) se atraviesa en cada petición: este arnés no relaja ni
+    una regla, sólo conecta el visor a la fuente.
+    """
+    import app.deps as deps
+    from app.providers.neo4j_provider import Neo4jGraphProvider
+
+    proveedor = Neo4jGraphProvider(
+        grafo_real["uri"], grafo_real["user"], grafo_real["password"])
+    real_app.dependency_overrides[deps.get_provider] = lambda: proveedor
+    yield proveedor
+    real_app.dependency_overrides.pop(deps.get_provider, None)
+    proveedor._driver.close()
+
+
+@neo4j_real
+def test_tras_un_apply_REAL_el_acuse_ofrece_el_camino_con_su_identidad(
+    real_app, paneles_on, resultado_on, cola, operador, almacenes, grafo,
+    visor_sobre_el_grafo, monkeypatch
+):
+    """LO QUE SÍ CIERRA ESTE CORTE, ejercido contra un grafo de verdad.
+
+    fuente -> ingesta -> revisión -> aprobar -> sellar -> APLICAR DE VERDAD ->
+    el acuse de «aplicado» OFRECE el camino, y lo ofrece con la identidad
+    durable que el almacén registró para ESA ejecución.
+
+    Todo por HTTP. Lo que NO afirma este caso es que el destino entregue el
+    contenido: eso se midió, no se cumple hoy, y tiene su propio caso abajo.
+    """
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
+    assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_APPLIED"
+
+    fila = _fila_de_plan(almacenes["base"])
+    assert fila["state"] == "applied", fila["state"]
+    assert fila["apply_id"], "sin identidad durable no hay nada que enlazar"
+
+    bloque = _bloque_plan(_panel(operador, job_id))
+    camino = _camino(bloque)
+    assert camino["codigos"] == ["disponible"], (
+        "tras un apply REAL el acuse no ofrece camino a lo aplicado: "
+        f"{camino['codigos']}")
+    destino = _primer_enlace(camino)
+    assert fila["apply_id"] in destino, (
+        "el enlace no lleva la identidad durable que el almacén registró para "
+        f"este apply: destino={destino} registrada={fila['apply_id']}")
+
+    # Y la identidad enlazada es la que el GRAFO tiene marcada, no sólo la que
+    # el almacén anotó. Las dos autoridades, y coinciden.
+    with grafo.session() as sesion:
+        marcadas = [f["aid"] for f in sesion.run(
+            "MATCH (o:V3AppliedOperation {workspace: $ws}) "
+            "RETURN DISTINCT o.apply_id AS aid", ws="ws-cofradia")]
+    assert marcadas == [fila["apply_id"]], (
+        "la identidad que el panel enlaza no es la que el grafo tiene marcada: "
+        f"enlazada={fila['apply_id']} en el grafo={marcadas}")
+
+
+@neo4j_real
+def test_BLOQUEO_el_destino_niega_el_apply_que_acaba_de_ocurrir(
+    real_app, paneles_on, resultado_on, cola, operador, almacenes, grafo,
+    visor_sobre_el_grafo, monkeypatch
+):
+    """EL BLOQUEO, MEDIDO Y FIJADO POR SU CAUSA. No cierra la propiedad.
+
+    Este caso NO celebra un comportamiento: lo DENUNCIA. Se aplica de verdad,
+    se sigue el enlace que el panel publica —el correcto, con la identidad
+    correcta— y la pantalla de destino responde **404 RESULT_NOT_FOUND** sobre
+    la ejecución que acaba de ocurrir.
+
+    LA CAUSA, MEDIDA y no supuesta:
+
+        etiquetas en el grafo tras el apply REAL
+            V3AppliedOperation 1 · V3Assertion 1 · V3Episode 4
+            V3Evidence 4 · V3Source 1 · **Entity 0**
+
+        reader.operations_of_apply(ws, apply_id)   -> 1 fila (el apply ESTÁ)
+        provider.workspaces()                      -> []   (el ámbito NO)
+
+    `resultado_de_apply` comprueba el ÁMBITO antes que nada, y
+    `Neo4jGraphProvider.workspaces()` deriva la lista de nodos `:Entity` con
+    `entity_id`. El writer V3 de este recorrido no escribe ni un `:Entity`, así
+    que el workspace donde SÍ hay conocimiento nuevo no aparece en la lista y
+    la pantalla lo niega. La ausencia de entidades se convierte en ausencia de
+    ámbito, y la ausencia de ámbito en «no existe».
+
+    DÓNDE VIVE EL ARREGLO — RECTIFICACIÓN MEDIDA. Una versión anterior de este
+    docstring elevaba el bloqueo diciendo que arreglarlo exigía tocar la
+    SEMÁNTICA DE AUTORIZACIÓN, contrato congelado. **Era falso, y mandaba al
+    operador contra un muro que no hacía falta tocar.** Medido por
+    INTERVENCIÓN: inyectando UN solo `:Entity` con `entity_id`, sin tocar el
+    apply, ni el plan, ni una sola regla de autorización:
+
+        ámbito   ANTES=[]    DESPUÉS=['ws-cofradia']
+        destino  ANTES=404   DESPUÉS=200
+
+    La causa raíz está UNA CAPA ANTES: el plan de la UI emite exactamente DOS
+    `operation_type` —`CREATE_ASSERTION` y `PROJECT_RELATION`— y nunca
+    `CREATE_ENTITY`, así que un workspace construido por el camino
+    revisión->apply tiene SIEMPRE `Entity = 0`. `workspaces()`,
+    `_workspace_autorizado`, las políticas, `known_by` y los grants NO se
+    tocan.
+
+    Y NO ES UN OLVIDO DE PLOMERÍA, QUE ES EL SEGUNDO ESCALÓN. Toda la cadena
+    de `CREATE_ENTITY` ya existe —el Cypher estampa `:Entity:V3Entity` con
+    `entity_id`, el executor la ejecuta, el contrato la declara y el pipeline
+    calcula los candidatos—, pero `review_plan` se NIEGA a emitirla, y lo dice
+    por escrito en su propia cabecera: «un extremo `pending_creation` exige un
+    `CREATE_ENTITY`, y eso sólo lo autoriza un alta aprobada
+    (`pipeline/entity_decisions.py`): aprobar una propuesta de revisión NO es
+    aprobar el alta de una entidad, y esa frontera la cruza una persona». Lo
+    que falta, por tanto, no es una línea: es la SUPERFICIE DE DECISIÓN
+    —aprobar el alta de una entidad— que el recorrido de la UI no ofrece.
+
+    POR QUÉ NO SE ARREGLA AQUÍ. Porque es otro corte, no porque sea intocable.
+
+    POR QUÉ ES UNA PRUEBA Y NO UN COMENTARIO. Un párrafo en un informe no se
+    entera de nada. Esto se pone ROJO el día que el bloqueo se levante —o el
+    día que la causa cambie por otra— y obliga a releerlo y a promover el caso
+    de arriba a la propiedad entera. Un `skip` aquí sería un verde sin haber
+    mirado.
+    """
+    from app.providers.provenance_reader import reader_for
+
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
+    assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_APPLIED"
+    fila = _fila_de_plan(almacenes["base"])
+    destino = _primer_enlace(_camino(_bloque_plan(_panel(operador, job_id))))
+
+    # 1. EL APPLY ESTÁ, y el lector de procedencia lo alcanza sin problemas.
+    lector = reader_for(visor_sobre_el_grafo)
+    assert lector is not None, (
+        "no hay lector de procedencia: el arnés no está conectado al grafo y "
+        "este caso no mediría el bloqueo sino su propio cableado")
+    operaciones = lector.operations_of_apply("ws-cofradia", fila["apply_id"])
+    assert operaciones, (
+        "el apply no dejó marca alcanzable: entonces el 404 de abajo sería "
+        "legítimo y este caso estaría midiendo otra cosa")
+
+    # 2. LA CAUSA, ASEVERADA Y NO SÓLO CONTADA EN LA PROSA.
+    #
+    #    Sin esto, el caso seguiría «verde-como-bloqueado» si la causa cambiara
+    #    a otra —`:Entity` presentes pero sin `entity_id`, o una política que
+    #    vacíe `workspaces()`— mientras su docstring seguiría afirmando ésta.
+    #    Un testigo cuya causa declarada puede volverse falsa sin que él se
+    #    entere no fija nada.
+    with grafo.session() as sesion:
+        censo = {f["l"]: f["c"] for f in sesion.run(
+            "MATCH (n) UNWIND labels(n) AS l RETURN l, count(*) AS c")}
+    assert censo.get("V3Assertion"), (
+        "el apply no dejó ninguna afirmación: sin conocimiento escrito este "
+        f"caso no mide el bloqueo sino un apply vacío ({censo})")
+    assert censo.get("Entity", 0) == 0, (
+        "YA HAY nodos `:Entity` tras el apply del recorrido de la UI "
+        f"({censo}): la causa medida de este bloqueo ha cambiado. Reléelo "
+        "entero antes de tocar nada — puede que el camino ya llegue al final")
+
+    # 3. Y AUN ASÍ EL ÁMBITO NO EXISTE PARA EL LECTOR.
+    ambitos = list(visor_sobre_el_grafo.workspaces() or ())
+    assert "ws-cofradia" not in ambitos, (
+        "EL BLOQUEO SE HA LEVANTADO: el workspace del apply ya aparece en el "
+        f"ámbito del lector ({ambitos}). Relee este caso: el camino de este "
+        "corte probablemente ya llegue hasta el final, y el caso de arriba "
+        "debe promoverse a la propiedad completa")
+
+    # 4. Y el destino niega la ejecución que acaba de ocurrir.
+    pantalla = operador.get(destino)
+    assert pantalla.status_code == 404, (
+        "el destino ya no responde 404 al apply recién hecho "
+        f"({pantalla.status_code}): el bloqueo ha cambiado y hay que remedirlo")
+    assert "RESULT_NOT_FOUND" in pantalla.text, (
+        "el destino niega por una causa DISTINTA de la medida; un rojo por la "
+        f"razón equivocada se lee igual que éste: {pantalla.text[:200]}")

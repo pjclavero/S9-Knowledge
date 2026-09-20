@@ -106,6 +106,22 @@ def _encendido() -> bool:
     return raw.strip().lower() in valores
 
 
+def esta_encendida() -> bool:
+    """¿Esta pantalla se sirve en este despliegue? Lectura PUBLICA del switch.
+
+    Existe para que OTRA pantalla pueda decidir si ofrecer el camino hasta
+    aqui sin tocar el privado de este modulo ni —mucho peor— releer la
+    variable por su cuenta. Dos lecturas del mismo interruptor acaban
+    divergiendo, y la forma en que divergen aqui es especialmente mala: un
+    enlace ofrecido hacia una pantalla apagada es un 404 con la pinta de un
+    camino que existe.
+
+    No relaja nada: delega en `_encendido`, que es el MISMO fallo cerrado que
+    aplica la guarda de las rutas.
+    """
+    return _encendido()
+
+
 def _exigir_encendido() -> None:
     """El interruptor, DESPUES de la puerta de rol.
 

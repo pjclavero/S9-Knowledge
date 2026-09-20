@@ -43,6 +43,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from app.services.result_provenance import es_apply_id
 from app.services.v3_review import (
     ReviewError,
     ReviewService,
@@ -153,11 +154,27 @@ class EstadoDelPlan:
     NO lleva `plan_id`, ni `workspace`, ni `snapshot_id`, ni rutas, ni
     comandos: son identidades del servidor. Lleva lo que el operador necesita
     para decidir qué hacer y para entender qué pasó.
+
+    SÍ LLEVA `apply_id`, Y NO CONTRADICE LO ANTERIOR. El `apply_id` no es una
+    identidad del servidor que el operador no deba ver: es la identidad
+    DURABLE de la ejecución (`apply:<32hex>`, `writer/apply_identity.py`) que
+    el producto YA publica en la URL de `/panel/resultado/{apply_id}`. Sin él,
+    el acuse de «aplicado» es un callejón sin salida: MEDIDO sobre el HTML
+    real servido, el bloque `plan-revisado` en estado `applied` no contenía
+    NI UN SOLO enlace, así que llegar a qué se escribió exigía salir a la
+    línea de comandos o a Neo4j Browser. El dato ya estaba en la fila de
+    `sealed_plans`; lo que faltaba era publicarlo.
+
+    ES `Optional` A PROPÓSITO. `None` significa AUSENTE —no hay identidad
+    durable registrada, o la que hay no tiene forma de `apply_id`—, y la
+    pantalla lo dice como ausencia. No se inventa una atribución plausible:
+    este corte va precisamente de procedencia, y un `apply_id` fabricado
+    llevaría al operador al resultado de OTRA ejecución.
     """
 
     __slots__ = (
         "estado", "aprobadas", "pendientes", "en_el_plan", "excluidas",
-        "afirmaciones_escritas", "habilitado", "avisos",
+        "afirmaciones_escritas", "habilitado", "avisos", "apply_id",
     )
 
     def __init__(
@@ -171,7 +188,9 @@ class EstadoDelPlan:
         afirmaciones_escritas: Optional[int] = None,
         habilitado: bool = False,
         avisos: tuple = (),
+        apply_id: Optional[str] = None,
     ):
+        self.apply_id = apply_id
         self.estado = estado
         self.aprobadas = aprobadas
         self.pendientes = pendientes
@@ -213,6 +232,7 @@ class EstadoDelPlan:
             "sellable": self.sellable,
             "aplicable": self.aplicable,
             "avisos": list(self.avisos),
+            "apply_id": self.apply_id,
         }
 
 
@@ -354,7 +374,69 @@ class ReviewApplyService:
             notas = tuple(json.loads(ultimo["apply_notes_json"] or "[]"))
         except (TypeError, ValueError):  # pragma: no cover - fila corrupta
             notas = ()
+        # LA IDENTIDAD DURABLE DE LA EJECUCION, SI LA HAY (Corte 3).
+        #
+        # Se lee de la MISMA fila y en la MISMA lectura que el estado y el
+        # recuento: pedirla aparte abriria una ventana en la que la pantalla
+        # contara un desenlace y enlazara otro.
+        #
+        # La FORMA se comprueba, no se presume, con `es_apply_id` —la misma
+        # definicion que la pantalla de resultado usa para decidir si mira
+        # siquiera en la base—. Una fila con basura en esa columna produce
+        # `None`, o sea AUSENCIA declarada, y nunca un enlace a un
+        # identificador que no existe.
+        #
+        # Y SOLO EN LOS ESTADOS EN LOS QUE SE ESCRIBIO.
+        #
+        # RECTIFICACION MEDIDA, Y CON LA MEDICION DELANTE. Una version anterior
+        # de este comentario decia que la guarda era redundante «porque
+        # `claim_for_apply` no estampa la identidad, asi que en `applying` la
+        # columna esta a NULL». ESE RAZONAMIENTO ERA FALSO, y era falso de la
+        # manera peligrosa: habria justificado borrar la linea. `claim_for_apply`
+        # toma desde `sealed` Y desde `partial` --la reconciliacion de un apply
+        # incompleto-- y en `partial` la columna YA la estampo
+        # `record_apply_result`. Medido contra el almacen real:
+        #
+        #   tras un apply PARCIAL     state='partial'   apply_id='apply:bbbb...'
+        #   re-reserva                claimed=True
+        #   EN VUELO tras re-reserva  state='applying'  apply_id='apply:bbbb...'
+        #
+        # O sea: hay DOS caminos hasta `applying` y solo uno deja la columna
+        # vacia.
+        #
+        # QUE APORTA ENTONCES ESTA LINEA, medido por ablacion sobre el HTML
+        # (`_camino_al_resultado` lleva la MISMA regla de estado):
+        #
+        #   guardas RETIRADAS   sealed->applying   partial->re-reserva
+        #   -----------------   ----------------   -------------------
+        #   ninguna             []                 []
+        #   solo ESTA           []                 []
+        #   solo la del router  sin_identidad      sin_identidad
+        #   LAS DOS             sin_identidad      DISPONIBLE
+        #
+        # LEER EL ENCABEZADO DESPACIO: cada fila dice que se QUITA, no que se
+        # pone. La primera fila es el codigo tal como esta hoy. Rotulado asi
+        # porque el encabezado escueto («guardas fuera») ya se leyo del reves
+        # una vez, y entonces la ultima fila parece una contradiccion.
+        #
+        # CONCLUSION HONESTA, que no es ninguna de las dos que se dijeron:
+        #
+        #   * Las dos bastan por separado PARA IMPEDIR «disponible», y solo
+        #     para eso. La unica celda que produce ese falso es la de abajo a
+        #     la derecha, y a ella se llega solo por el parcial reintentado.
+        #   * NO SON INTERCAMBIABLES. Retirar la del ROUTER si es observable:
+        #     `[]` -> `sin_identidad`, o sea la pantalla pasaria a afirmar «se
+        #     escribio y no consta con que identidad» sobre un plan EN VUELO.
+        #     Es falso para el operador aunque no sea la contradiccion gorda.
+        #   * ESTA, la del motor, es la unica cuya retirada es plenamente
+        #     inobservable hoy. Se conserva como defensa en profundidad
+        #     DELIBERADA, no como codigo muerto.
+        #
+        # La suite cubre los dos caminos.
+        bruto = ultimo["apply_id"] if estado in ("applied", "partial") else None
+        identidad = bruto if es_apply_id(bruto) else None
         return EstadoDelPlan(
+            apply_id=identidad,
             estado=estado,
             aprobadas=len(aprobadas),
             pendientes=pendientes,
