@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import uuid
 from pathlib import Path
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -48,6 +49,49 @@ def _detalle_seguro(exc: ProposalStoreUnavailable) -> str:
     """
     vista = store_unavailable_view(exc)
     return f"{vista['code']}: {vista['message']}"
+
+
+#: Los filtros DE PANTALLA de la consola. Son exactamente los tres parámetros
+#: de consulta que el operador ya puede poner con la mano en la barra del
+#: navegador: no hay aquí ningún dato que él no pudiera escribir.
+FILTROS_DE_PANTALLA = ("source_id", "engine_decision", "job_id")
+
+
+def _destino(workspace: str, filtros: dict[str, str | None], **extra: str) -> str:
+    """El sitio al que se vuelve tras decidir o deshacer, CON EL CONTEXTO PUESTO.
+
+    EL DEFECTO QUE CIERRA. Medido por efecto sobre la consola:
+
+        GET  /v3/review?workspace=alpha&job_id=job-A  -> 2 fichas, filtro declarado
+        POST /v3/review/decide (APPROVE)              -> 303 a /v3/review?workspace=alpha
+        GET  de ese destino                           -> 3 fichas, filtro AUSENTE
+
+    La cola se ensanchaba sola de 2 a 3 por un clic del propio operador, y sin
+    declararlo. Es la misma enfermedad que el filtro no pegajoso del `<select>`
+    —un cambio de estado no declarado provocado por el propio operador— pero
+    por la PUERTA PRINCIPAL en vez de por la lateral, y peor: allí al menos
+    había tocado un filtro; aquí sólo había aprobado una propuesta.
+
+    El redirect codificaba `workspace` a mano con una f-string, así que tiraba
+    también `source_id` y `engine_decision`. Se rehace con `urlencode`, que es
+    además lo que impide que un valor con `&`, un espacio o un salto de línea
+    fabrique parámetros ajenos o parta la cabecera `Location`.
+
+    LO QUE ESTO **NO** ES: una fuente de autoridad. Estos tres valores viajan
+    por el formulario y por la URL, donde el operador puede escribirlos; el
+    ámbito se sigue resolviendo EN EL SERVIDOR con `get_visibility_scope`, y el
+    recuento se sigue calculando DESPUÉS del recorte. Un identificador que
+    viaja en un POST no concede nada: sólo dice qué se estaba mirando.
+    """
+    parametros = {"workspace": workspace}
+    parametros.update(extra)
+    for nombre in FILTROS_DE_PANTALLA:
+        valor = (filtros.get(nombre) or "").strip()
+        # UN FILTRO VACÍO NO SE PEGA. Si el operador lo quitó, se queda quitado:
+        # reponerlo sería el error simétrico de perderlo.
+        if valor:
+            parametros[nombre] = valor
+    return f"/v3/review?{urlencode(parametros)}"
 
 
 def _guard(request: Request):
@@ -212,6 +256,11 @@ def decide(
     misrecognition: str = Form(""),
     spoken_form: str = Form(""),
     csrf_token: str = Form(""),
+    # LOS FILTROS VIGENTES, PARA QUE SOBREVIVAN A LA DECISIÓN. Ver `_destino`:
+    # son los tres parámetros de pantalla, no autoridad de nada.
+    filtro_source_id: str = Form("", alias="source_id"),
+    filtro_engine_decision: str = Form("", alias="engine_decision"),
+    filtro_job_id: str = Form("", alias="job_id"),
     # `scope` (arriba) es un campo del formulario de corrección; el ámbito de
     # visibilidad de la petición se llama aparte para no colisionar.
     visibility_scope: VisibilityScope = Depends(get_visibility_scope),
@@ -220,6 +269,11 @@ def decide(
     if isinstance(guard, (RedirectResponse, HTMLResponse)):
         return guard
     _check_csrf(request, csrf_token)
+    filtros = {
+        "source_id": filtro_source_id,
+        "engine_decision": filtro_engine_decision,
+        "job_id": filtro_job_id,
+    }
     correction = {
         key: value for key, value in {
             "predicate": predicate.strip(),
@@ -257,8 +311,10 @@ def decide(
             scope=visibility_scope,
         )
     except StaleReviewError:
+        # EL AVISO TAMPOCO PIERDE EL CONTEXTO: la propuesta cambió, pero el
+        # operador sigue mirando la misma corrida.
         return RedirectResponse(
-            url=f"/v3/review?workspace={workspace}&notice=STALE_REVIEW", status_code=303
+            url=_destino(workspace, filtros, notice="STALE_REVIEW"), status_code=303
         )
     except ProposalStoreUnavailable as exc:
         # TERCER CONSUMIDOR de `load_proposals`: `record()`. Se captura ANTES
@@ -273,7 +329,7 @@ def decide(
         raise HTTPException(status_code=503, detail=_detalle_seguro(exc)) from exc
     except ReviewError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return RedirectResponse(url=f"/v3/review?workspace={workspace}", status_code=303)
+    return RedirectResponse(url=_destino(workspace, filtros), status_code=303)
 
 
 @router.post("/undo")
@@ -282,12 +338,23 @@ def undo(
     workspace: str = Form(...),
     request_id: str = Form(...),
     csrf_token: str = Form(""),
+    # Los mismos tres filtros que `decide`, por la misma razón: deshacer es
+    # también una acción de esta consola, y tampoco puede ensanchar la cola
+    # sin decirlo.
+    filtro_source_id: str = Form("", alias="source_id"),
+    filtro_engine_decision: str = Form("", alias="engine_decision"),
+    filtro_job_id: str = Form("", alias="job_id"),
     scope: VisibilityScope = Depends(get_visibility_scope),
 ):
     guard = _guard(request)
     if isinstance(guard, (RedirectResponse, HTMLResponse)):
         return guard
     _check_csrf(request, csrf_token)
+    filtros = {
+        "source_id": filtro_source_id,
+        "engine_decision": filtro_engine_decision,
+        "job_id": filtro_job_id,
+    }
     try:
         _service().undo_last(
             workspace=workspace,
@@ -307,4 +374,4 @@ def undo(
         raise HTTPException(status_code=503, detail=_detalle_seguro(exc)) from exc
     except ReviewError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return RedirectResponse(url=f"/v3/review?workspace={workspace}", status_code=303)
+    return RedirectResponse(url=_destino(workspace, filtros), status_code=303)

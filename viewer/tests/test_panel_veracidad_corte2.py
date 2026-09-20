@@ -362,10 +362,16 @@ def test_una_ingesta_que_no_cosecha_nada_lo_DICE_en_la_pantalla(
     # código hermano. Para el humano estaba cerrado —está MEDIDO que ninguna
     # hoja de estilo colorea por este atributo, así que no había un verde que
     # contradijera el texto—; lo que quedaba abierto era el programa que lo lee.
+    # EL MENSAJE DICE EL VALOR OBSERVADO, no el que se supone. La primera
+    # versión afirmaba «sigue publicando estado="ok"», y eso es FALSO cuando lo
+    # que hay es `estado="error"`: el veredicto acertaba y la prosa mentía, que
+    # es un rojo por la razón equivocada disfrazado de rojo legítimo.
+    _estado = re.search(r'data-resultado-estado="([^"]*)"', html)
     assert 'data-resultado-estado="sin_resultado"' in html, (
-        "el acuse de una corrida que no cosechó NADA sigue publicando "
-        "`estado=\"ok\"` junto a `code=\"INGEST_SIN_EXTRACCION\"`: un "
-        "consumidor de máquina lee éxito donde el texto dice lo contrario"
+        "el acuse de una corrida que no cosechó NADA publica "
+        f"`estado={_estado.group(1)!r}` junto a `code=\"INGEST_SIN_EXTRACCION\"`: "
+        "un consumidor de máquina lee un desenlace que su propio código "
+        "hermano contradice"
     )
     assert 'data-resultado-estado="error"' not in html, (
         "el error SIMÉTRICO: el trabajo NO falló, y marcarlo como error manda "
@@ -394,8 +400,11 @@ def test_el_estado_del_acuse_sale_de_una_tabla_declarada_y_no_de_una_regla(
             {"status": "complete", "result": json.dumps({"code": code, "message": "x"})}
         )
 
-    assert acuse("INGEST_SIN_EXTRACCION")["estado"] == "sin_resultado", (
-        "una corrida sin extracción se sigue publicando como éxito"
+    _visto = acuse("INGEST_SIN_EXTRACCION")["estado"]
+    assert _visto == "sin_resultado", (
+        "una corrida sin extracción se publica con "
+        f"`estado={_visto!r}`, que no es el desenlace que su código declara "
+        "(`ok` la disfraza de éxito; `error` la disfraza de avería)"
     )
     assert acuse("INGEST_OK")["estado"] == "ok", (
         "el error simétrico: una corrida que SÍ cosechó deja de decir que fue "

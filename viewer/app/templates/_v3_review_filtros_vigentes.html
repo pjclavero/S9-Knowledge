@@ -1,0 +1,18 @@
+{#
+  LOS FILTROS VIGENTES, EN CADA FORMULARIO QUE SALE DE ESTA PANTALLA.
+
+  Sin esto, aprobar una propuesta devolvía al operador a la cola ENTERA: la
+  lista pasaba de 2 fichas a 3 sin que nada lo dijera, porque el redirect
+  codificaba a mano sólo el `workspace`. Es la misma enfermedad que el filtro
+  no pegajoso de los `<select>`, pero por la puerta principal de la consola.
+
+  VIVE EN UN SOLO SITIO A PROPÓSITO. Son dos formularios POST (decidir y
+  deshacer) y el día que haya un tercero, lo que se olvidaría es justo esto.
+  Un fragmento incluido no se puede desincronizar consigo mismo.
+
+  Un filtro vacío NO se emite: si el operador lo quitó, se queda quitado.
+  Reponerlo sería el error simétrico de perderlo.
+#}
+{% if source_id %}<input type="hidden" name="source_id" value="{{ source_id | e }}">{% endif %}
+{% if engine_decision %}<input type="hidden" name="engine_decision" value="{{ engine_decision | e }}">{% endif %}
+{% if job_id %}<input type="hidden" name="job_id" value="{{ job_id | e }}">{% endif %}

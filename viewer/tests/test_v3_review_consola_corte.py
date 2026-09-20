@@ -24,24 +24,44 @@ la corrida puesta; esto cierra lo que pasa una vez DENTRO:
        sola. Un cambio de estado no declarado, provocado por un clic del propio
        operador.
 
+  H-1. Y LO MISMO POR LA PUERTA PRINCIPAL. Medido por efecto:
+
+           GET  ?workspace=alpha&job_id=job-A -> 2 fichas, filtro declarado
+           POST /v3/review/decide (APPROVE)   -> 303 a ?workspace=alpha
+           GET  de ese destino                -> 3 fichas, filtro AUSENTE
+
+       La cola se ensanchaba de 2 a 3 porque el operador había APROBADO algo,
+       no porque hubiera tocado un filtro. Ningún formulario POST llevaba los
+       filtros y el redirect codificaba a mano sólo el `workspace`, así que
+       tiraba también `source_id` y `engine_decision`.
+
 POR QUÉ ESTOS TESTIGOS PIDEN LA PANTALLA
 ----------------------------------------
-Las dos garantías son VISIBLES: viven en la plantilla, no en el servicio. Un
-testigo que se conformara con el `QueueView` que devuelve `ReviewService`
-seguiría verde con la cabecera borrada — ya pasó en este programa. Por eso
-aquí se hace GET del HTML y se lee el marcado.
+Las garantías son VISIBLES: viven en la plantilla y en el redirect, no en el
+servicio. Un testigo que se conformara con el `QueueView` que devuelve
+`ReviewService` seguiría verde con la cabecera borrada — ya pasó en este
+programa. Por eso aquí se hace GET del HTML, se lee el marcado, y donde hay una
+acción se RECORRE EL POST y se SIGUE EL REDIRECT.
 
 LO QUE ESTOS TESTIGOS **NO** CUBREN (techo declarado)
 -----------------------------------------------------
-  · No ejercen JavaScript: el `onchange="this.form.submit()"` de los selects no
-    se dispara aquí. Lo que se mide es que el `job_id` ESTÁ en el formulario,
-    que es lo que el navegador reenviaría; el reenvío real del navegador queda
-    como región no observada por esta suite.
-  · No ejercen infraestructura real: el almacén de propuestas es un directorio
-    temporal. Capa alcanzada: **usable desde el producto** (HTTP + plantilla
-    reales), no «ejercida contra infra real».
-  · El negativo por ámbito muere por la barrera de partida. No dice nada de las
-    demás puertas de autorización.
+  · **JavaScript.** El `onchange="this.form.submit()"` de los selects no se
+    dispara aquí. Lo que esta suite mide es que el filtro ESTÁ en el
+    formulario, que es lo que el navegador reenviaría. El gesto REAL —tocar
+    «Fuente» y que el navegador reenvíe— se mide en
+    `viewer/tests/browser/test_browser_v3_review_filtros.py`, con chromium de
+    verdad; ese fichero declara a su vez su propio techo. Esta suite, por sí
+    sola, NO cubre el reenvío.
+  · **Infraestructura real.** El almacén de propuestas es un directorio
+    temporal y no hay Neo4j. Capa alcanzada: usable desde el producto (HTTP +
+    plantilla reales), no «ejercida contra infra real».
+  · **Autorización.** El negativo de ámbito muere por la barrera de PARTIDA y
+    no dice nada de las demás puertas. Y es una GUARDA DE REGRESIÓN de una
+    propiedad que ya existía en la base, no la prueba de un arreglo de este
+    corte.
+  · **El resto de la consola.** Estos testigos miran el recuento, los filtros y
+    su supervivencia. No dicen nada del cuerpo de la ficha, de la corrección,
+    del glosario ni del apply.
 """
 from __future__ import annotations
 
@@ -100,6 +120,30 @@ def consola(monkeypatch, tmp_path, lector_por_dependencia):
 
 def _fichas(html: str) -> int:
     return html.count("data-review-item")
+
+
+def _campos(html: str, patron: str) -> dict[str, str]:
+    """Los campos que un formulario de la pantalla lleva DE VERDAD.
+
+    Se envía lo que el formulario trae, no un diccionario a mano. Un POST
+    construido con campos inventados mide una petición que el navegador nunca
+    habría hecho — y este defecto vive justo en lo que el formulario OLVIDA
+    llevar, así que fabricarlo lo taparía.
+    """
+    formulario = re.search(patron, html, re.S)
+    assert formulario is not None, f"no está el formulario {patron!r} en la pantalla"
+    return dict(re.findall(r'name="([^"]+)" value="([^"]*)"', formulario.group(0)))
+
+
+def _aprobar(cliente, html: str) -> str:
+    """Aprueba la primera propuesta y devuelve el `Location` del 303."""
+    datos = _campos(html, r'<form class="v3r-decision".*?</form>')
+    datos["human_decision"] = "APPROVE"
+    respuesta = cliente.post("/v3/review/decide", data=datos, follow_redirects=False)
+    assert respuesta.status_code == 303, (
+        f"decidir no redirige (PRG roto): status {respuesta.status_code}"
+    )
+    return respuesta.headers["location"]
 
 
 def _cabecera(html: str) -> str:
@@ -198,6 +242,13 @@ def test_con_filtro_que_casa_las_tres_cifras_son_distinguibles(consola):
 def test_el_recuento_cuenta_despues_del_recorte_por_ambito(consola):
     """UNA CIFRA QUE CUENTE ANTES DEL RECORTE DELATA LO QUE NO SE PUEDE VER.
 
+    ESTO ES UNA GUARDA DE REGRESIÓN, NO LA DEMOSTRACIÓN DE UN ARREGLO. El
+    recorte por ámbito en el recuento YA ESTABA en la base `e3fe2ebb`; este
+    corte no lo introduce. Lo que hace es ponerle un testigo, porque el corte
+    toca precisamente las cifras de la cabecera y una de las formas conocidas
+    de romper esta propiedad es «arreglar un contador». Presentarlo como un
+    arreglo sería atribuirse una garantía ajena.
+
     Arreglar un contador es fácil que filtre existencia: si `remaining` o
     `total` contaran sobre el almacén y no sobre lo permitido, la cabecera
     diría cuántas propuestas hay en una partida ajena.
@@ -267,15 +318,186 @@ def test_el_job_id_viaja_en_el_formulario_de_filtros(consola):
 
 
 def test_sin_corrida_no_se_inventa_un_filtro_de_corrida(consola):
-    """El error simétrico de D-2: declarar un filtro que nadie puso."""
+    """El error simétrico de D-2: declarar un filtro que nadie puso.
+
+    CONTROL POSITIVO OBLIGATORIO. Este testigo se quedó VERDE cuando el revisor
+    borró la plantilla entera —la consola no mostraba NADA— porque sus dos
+    aserciones eran sólo de AUSENCIA: pasaban igual sobre una pantalla en
+    blanco, sobre un 500 o sobre un redirect. Sus hermanos sí se autocontrolan.
+    Un testigo de ausencia sin control positivo no guarda nada, porque «no está»
+    es cierto también cuando no hay pantalla.
+    """
     cliente, _ = consola
     html = cliente.get("/v3/review?workspace=alpha").text
+    assert _fichas(html) == 4 and "v3r-filters" in html, (
+        "no hay pantalla que medir (fichas: "
+        f"{_fichas(html)}, formulario de filtros: {'v3r-filters' in html}): lo "
+        "que este testigo afirme a partir de aquí sería una ausencia trivial"
+    )
     assert "data-filtro-corrida" not in html, (
         "la pantalla anuncia un filtro de corrida sin que haya ninguno"
     )
     assert 'name="job_id"' not in html, (
         "el formulario lleva un `job_id` vacío que el navegador reenviaría"
     )
+
+
+# ===========================================================================
+# H-1 · El filtro sobrevive a la ACCIÓN PRINCIPAL de la consola.
+# ===========================================================================
+
+def test_aprobar_una_propuesta_no_ensancha_la_cola_en_silencio(consola):
+    """EL DEFECTO, MEDIDO POR EFECTO Y DE PUNTA A PUNTA.
+
+    Antes de este corte, con el filtro de corrida puesto:
+
+        GET  /v3/review?workspace=alpha&job_id=job-A -> 2 fichas, filtro declarado
+        POST /v3/review/decide (APPROVE)             -> 303 a /v3/review?workspace=alpha
+        GET  de ese destino                          -> 3 fichas, filtro AUSENTE
+
+    La cola se ensanchaba sola de 2 a 3 por un clic del propio operador y sin
+    declararlo. Es la misma enfermedad que el filtro no pegajoso del `<select>`,
+    pero por la PUERTA PRINCIPAL en vez de por la lateral, y peor: allí el
+    operador al menos había tocado un filtro; aquí sólo aprobó una propuesta.
+
+    El testigo RECORRE EL POST y SIGUE EL REDIRECT hasta el HTML, porque es ahí
+    —y no en el diccionario de un servicio— donde el contexto se perdía.
+    """
+    cliente, _ = consola
+    antes = cliente.get("/v3/review?workspace=alpha&job_id=job-A").text
+    assert _fichas(antes) == 2, f"el caso no es el que se mide: {_fichas(antes)} fichas"
+
+    destino = _aprobar(cliente, antes)
+    assert "job_id=job-A" in destino, (
+        "tras decidir, el redirect tira el filtro de corrida y devuelve al "
+        f"operador a la cola entera; Location: {destino!r}"
+    )
+
+    despues = cliente.get(destino).text
+    assert "data-filtro-corrida" in despues, (
+        "la pantalla a la que se vuelve ya no declara el filtro de corrida"
+    )
+    assert _fichas(despues) == 1, (
+        "la cola no quedó en la propuesta que faltaba de ESTA corrida: se ha "
+        f"ensanchado a {_fichas(despues)} fichas sin que nadie lo pidiera"
+    )
+
+
+def test_deshacer_tampoco_pierde_el_contexto(consola):
+    """`undo` es la otra acción de esta consola, y tenía el mismo redirect."""
+    cliente, _ = consola
+    antes = cliente.get("/v3/review?workspace=alpha&job_id=job-A").text
+    pantalla = cliente.get(_aprobar(cliente, antes)).text
+
+    datos = _campos(pantalla, r'<form method="post" action="/v3/review/undo">.*?</form>')
+    respuesta = cliente.post("/v3/review/undo", data=datos, follow_redirects=False)
+    assert respuesta.status_code == 303, f"deshacer no redirige: {respuesta.status_code}"
+    assert "job_id=job-A" in respuesta.headers["location"], (
+        "deshacer devuelve al operador a la cola entera; Location: "
+        f"{respuesta.headers['location']!r}"
+    )
+
+
+def test_los_tres_filtros_sobreviven_a_la_decision_no_solo_la_corrida(consola):
+    """LOS TRES. El redirect codificaba `workspace` a mano, así que tiraba
+    también `source_id` y `engine_decision`: arreglar sólo el `job_id` habría
+    dejado dos tercios del defecto en pie."""
+    cliente, _ = consola
+    url = "/v3/review?workspace=alpha&job_id=job-A&source_id=source-0&engine_decision=REVIEW"
+    antes = cliente.get(url).text
+    assert _fichas(antes) == 1, f"el caso no es el que se mide: {_fichas(antes)} fichas"
+
+    destino = _aprobar(cliente, antes)
+    for esperado in ("job_id=job-A", "source_id=source-0", "engine_decision=REVIEW"):
+        assert esperado in destino, (
+            f"el filtro {esperado!r} no sobrevive a la decisión; "
+            f"Location: {destino!r}"
+        )
+
+
+def test_no_se_pega_un_filtro_que_el_operador_no_puso(consola):
+    """EL ERROR SIMÉTRICO de H-1: que el arreglo se pase de pegajoso.
+
+    Un contexto que sobrevive a todo y no se puede soltar es una cárcel. Sin
+    filtros, el destino tras decidir no debe llevar ninguno inventado.
+    """
+    cliente, _ = consola
+    antes = cliente.get("/v3/review?workspace=alpha").text
+    assert _fichas(antes) == 4, f"el caso no es el que se mide: {_fichas(antes)} fichas"
+
+    destino = _aprobar(cliente, antes)
+    for nombre in ("job_id", "source_id", "engine_decision"):
+        assert nombre not in destino, (
+            f"el destino se inventa un filtro {nombre!r} que nadie puso: "
+            f"{destino!r}"
+        )
+
+
+def test_el_filtro_que_viaja_en_el_post_no_puede_fabricar_parametros(consola):
+    """EL FILTRO VIAJA POR LA URL, ASÍ QUE SE CODIFICA.
+
+    El redirect se construía con una f-string. Un valor con `&`, con `=` o con
+    un salto de línea podría fabricar parámetros ajenos o partir la cabecera
+    `Location`. `urlencode` lo cierra, y esto lo comprueba.
+
+    NO ES una comprobación de autorización: estos tres valores no conceden
+    nada. El ámbito se resuelve en el servidor y el recuento cuenta después del
+    recorte; lo que se guarda aquí es la FORMA de la URL.
+    """
+    cliente, _ = consola
+    antes = cliente.get("/v3/review?workspace=alpha").text
+    datos = _campos(antes, r'<form class="v3r-decision".*?</form>')
+    datos["human_decision"] = "APPROVE"
+    datos["job_id"] = "job-A&workspace=otro-workspace"
+
+    destino = cliente.post(
+        "/v3/review/decide", data=datos, follow_redirects=False
+    ).headers["location"]
+    assert destino.count("workspace=") == 1, (
+        f"el valor del filtro ha fabricado un parámetro ajeno: {destino!r}"
+    )
+    assert "\n" not in destino and "\r" not in destino, (
+        f"el valor del filtro parte la cabecera Location: {destino!r}"
+    )
+    # Y el workspace que vale sigue siendo el del formulario, no el inyectado.
+    assert "workspace=alpha" in destino, destino
+
+
+def test_con_el_almacen_caido_la_pantalla_no_afirma_estar_mostrando_la_corrida(
+    monkeypatch, tmp_path, lector_por_dependencia,
+):
+    """AUSENCIA != LISTA FILTRADA.
+
+    Con el almacén caído y un `job_id` puesto, la pantalla decía a la vez
+    «estás viendo sólo las propuestas de la corrida X» y «no se puede decir
+    cuántas propuestas hay pendientes»: afirmaba mostrar algo que no mostraba.
+    El filtro se sigue diciendo —el operador tiene derecho a saber con qué
+    parámetro entró—, pero sin prometer una lista.
+    """
+    from app.services.v3_review import ReviewService
+
+    ausente = tmp_path / "no-existe"
+    servicio = ReviewService(ausente, tmp_path / "decisions.jsonl")
+    monkeypatch.setattr(router_module, "_service", lambda: servicio)
+    import app.main  # noqa: F401
+
+    app = FastAPI()
+    app.include_router(router_module.router)
+    lector_por_dependencia(app)
+    html = TestClient(app).get("/v3/review?workspace=alpha&job_id=job-A").text
+
+    assert 'data-state="unavailable"' in html, (
+        "el caso no es el que se mide: el almacén no se declara caído"
+    )
+    assert "Estás viendo sólo las propuestas" not in html, (
+        "con la cola no consultable la pantalla sigue afirmando que está "
+        "mostrando las propuestas de una corrida"
+    )
+    assert 'data-filtro-corrida="job-A"' in html, (
+        "el error simétrico: la pantalla se calla con qué filtro entró el "
+        "operador, que es un dato que él mismo puso"
+    )
+    assert str(ausente) not in html, "la ruta del almacén se ha filtrado al HTML"
 
 
 # ===========================================================================
