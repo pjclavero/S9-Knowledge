@@ -91,6 +91,25 @@ Lo que no entra se dice con código enumerado y cerrado por construcción
 (`ALTA_CODES`): `ALTA_NOT_DECLARED_IN_RUN`, `ALTA_NOT_REFERENCED`,
 `ALTA_WITHOUT_TYPE`.
 
+### Y se le DICE al operador, que es lo que faltaba
+
+La primera versión de este corte calculaba esos motivos, los devolvía y no los
+consumía nadie: sólo iban a `log.warning`. Medido en vivo por el revisor —seis
+altas aprobadas, dos en el plan— el acuse decía `PLAN_SEALED_SIN_PROYECCION` y
+no mencionaba las otras cuatro. Falsa confirmación sobre la pieza que este
+corte añade.
+
+Ahora la omisión se **persiste con el plan** (`sealed_plans.altas_omitidas_json`,
+no se recalcula al pintar: el motivo se decidió con las propuestas y las
+aprobaciones de aquel instante) y sale por dos sitios:
+
+- el **acuse**, con precedencia declarada — `PLAN_SEALED_SIN_ALTAS` pesa más
+  que `PLAN_SEALED_SIN_PROYECCION`, porque sin la entidad tampoco habrá nada a
+  lo que enlazar después; con las dos, `PLAN_SEALED_INCOMPLETO`;
+- la **pantalla de altas**, por entidad y con el motivo traducido. Se traduce
+  el CÓDIGO, nunca el texto del motor, y un código que este despliegue no sepa
+  interpretar **se nombra**, no se descarta.
+
 ## Ningún contrato congelado se versiona
 
 `CREATE_ENTITY` ya estaba en el enum del `graph-mutation-plan-v3.schema.json`,
@@ -99,6 +118,40 @@ validador ya sabían tratarlo. Lo que este corte añade viaja en `plan_context`,
 que es el sobre interno del paquete de propuestas, y en una tabla nueva del
 almacén de revisión. El plan sellado se valida contra el schema de `main`, y hay
 una prueba que lo **comprueba** en vez de afirmarlo.
+
+## El recorrido, EJERCIDO CONTRA UN GRAFO DE VERDAD
+
+Una versión anterior de este documento decía que la pieza 7 «no está ejercida
+contra infraestructura real» y delegaba la garantía en «el recorrido con
+grafo». **Las dos mitades eran falsas**, y conviene decir por qué, porque el
+error es reutilizable:
+
+1. **Sí se puede medir aquí.** El arnés de Neo4j efímero
+   (`grafo_real` / `grafo`, contenedor propio retirado por nombre con
+   `docker rm -f`, nunca `prune`) ya existía en `test_panel_apply_desde_la_ui.py`
+   desde cortes anteriores. Dar una medición por imposible sin buscar cómo la
+   habían hecho los cortes previos es lo que produjo la afirmación falsa.
+2. **El fichero al que se delegaba NO cubría la garantía.** Su recorrido no
+   aprueba ningún alta, y su testigo del enlace **tolera explícitamente el
+   404**. Delegar una garantía en un testigo que admite el fallo es dejarla sin
+   cubrir.
+
+Lo medido, todo por HTTP y sin tocar el grafo a mano
+(`test_E2E_aprobar_el_alta_hace_que_el_destino_deje_de_dar_404`):
+
+    ingesta -> aprobar la propuesta -> APROBAR EL ALTA -> sellar -> aplicar
+
+    plan sellado                trae `CREATE_ENTITY` del alta aprobada
+    tras el apply               nodos `:Entity` con `entity_id` Y `workspace`
+    provider.workspaces()       incluye el workspace   (antes `[]`)
+    destino del acuse           **200**                (antes 404)
+
+La mitad negativa —qué pasa **sin** aprobar ningún alta— la fija
+`test_SIN_ALTA_APROBADA_el_destino_niega_el_apply_que_acaba_de_ocurrir`, que
+antes se llamaba «BLOQUEO» y prometía ponerse roja el día que el bloqueo se
+levantara. No lo hizo: el bloqueo se levantó y el caso siguió verde, porque su
+recorrido no aprueba ningún alta. Su gatillo está reescrito como lo que de
+verdad mide.
 
 ## Lo que este corte NO hace, dicho en voz alta
 
@@ -111,6 +164,6 @@ una prueba que lo **comprueba** en vez de afirmarlo.
   declara como deuda en la cabecera de `ingest_cli.py`: el motor no puede leer
   el almacén del visor sin invertir la dirección de dependencia, y eso es un
   carril aparte.
-- **No está ejercido contra infraestructura real.** Que el nodo quede escrito en
-  un Neo4j de verdad lo cubre el recorrido con grafo, que se salta sin
-  `S9K_WRITER_NEO4J_REAL=1`.
+- **No calibra el encadenado de la auditoría**, sólo la presencia del evento y
+  que la cadena verifica. Que un evento manipulado ponga roja la verificación
+  es una propiedad distinta, y queda declarada como deuda.

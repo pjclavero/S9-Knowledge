@@ -67,6 +67,42 @@ log = logging.getLogger("panel.apply")
 #: se quede muda.
 ALTAS_KEY = "entity_altas"
 
+#: MOTIVOS por los que un alta APROBADA no llega al plan, traducidos para una
+#: persona. Las claves son los codigos del motor (`review_plan.ALTA_CODES`);
+#: el texto es del visor, porque los codigos del motor no son para un
+#: operador. Se traduce el CODIGO, nunca el texto del motor.
+#:
+#: UN CODIGO QUE NO SE SEPA TRADUCIR SE NOMBRA, NO SE DESCARTA: `motivo_de
+#: _omision` devuelve una frase que dice que la entidad no llego al plan y que
+#: el motivo no se sabe interpretar en este despliegue. Callarlo volveria a
+#: producir exactamente el fallo que esta tabla existe para cerrar -- una
+#: omision que el producto no menciona.
+MOTIVOS_DE_ALTA_OMITIDA = {
+    "ALTA_NOT_DECLARED_IN_RUN": (
+        "Esta ingesta no la declaro entre sus entidades nuevas, asi que no se "
+        "sabe como habria que crearla. Vuelve a solicitar la ingesta."
+    ),
+    "ALTA_NOT_REFERENCED": (
+        "Ninguna de las afirmaciones que se van a anadir la menciona, asi que "
+        "crearla dejaria una ficha vacia que nada sostiene."
+    ),
+    "ALTA_WITHOUT_TYPE": (
+        "No consta de que clase de cosa se trata, y eso no se supone. Vuelve "
+        "a darle el visto bueno indicando el tipo."
+    ),
+}
+
+
+def motivo_de_omision(codigo: str) -> str:
+    """La frase del motivo, o la DECLARACION de que no se sabe traducirlo."""
+    conocido = MOTIVOS_DE_ALTA_OMITIDA.get(str(codigo or ""))
+    if conocido:
+        return conocido
+    return (
+        "No se anadio al conocimiento, y este despliegue no sabe interpretar "
+        "el motivo que quedo registrado. Avisa a quien administra el servicio."
+    )
+
 __all__ = [
     "AltaDeEntidad",
     "ApplyError",
@@ -284,7 +320,7 @@ class AltaDeEntidad:
 
     __slots__ = (
         "entity_id", "nombre", "entity_type", "aliases", "motivos",
-        "evidencias", "aprobada", "aprobada_por", "aprobada_en",
+        "evidencias", "aprobada", "aprobada_por", "aprobada_en", "omitida",
     )
 
     def __init__(
@@ -299,7 +335,13 @@ class AltaDeEntidad:
         aprobada: bool = False,
         aprobada_por: Optional[str] = None,
         aprobada_en: Optional[str] = None,
+        omitida: Optional[str] = None,
     ):
+        #: Frase del motivo por el que esta alta APROBADA no llego al ultimo
+        #: plan preparado, o `None` si llego (o si todavia no hay plan).
+        #: `None` NO significa "llego": significa que no consta omision, y la
+        #: pantalla no afirma mas que eso.
+        self.omitida = omitida
         self.entity_id = entity_id
         self.nombre = nombre
         self.entity_type = entity_type
@@ -321,6 +363,7 @@ class AltaDeEntidad:
             "aprobada": self.aprobada,
             "aprobada_por": self.aprobada_por,
             "aprobada_en": self.aprobada_en,
+            "omitida": self.omitida,
         }
 
 
@@ -503,6 +546,7 @@ class ReviewApplyService:
             for fila in self.store.entity_altas_aprobadas(
                 workspace=workspace, job_id=job_id)
         }
+        omitidas = self._omitidas_del_ultimo_plan(workspace, job_id)
         salida = []
         for entity_id in sorted(declaradas):
             cuerpo = declaradas[entity_id]
@@ -519,8 +563,48 @@ class ReviewApplyService:
                 aprobada=fila is not None,
                 aprobada_por=(fila or {}).get("approved_by"),
                 aprobada_en=(fila or {}).get("approved_at"),
+                omitida=omitidas.get(entity_id),
             ))
         return tuple(salida), declarado
+
+    def _omitidas_del_ultimo_plan(self, workspace: str, job_id: str) -> dict:
+        """`entity_id -> frase` de lo que el ULTIMO plan de la corrida dejo fuera.
+
+        Se lee de la fila del plan, donde el sellado lo guardo, y NO se
+        recalcula: el motivo se decidio con las propuestas y las aprobaciones
+        de aquel instante. Recalcularlo ahora podria dar otro motivo --o
+        ninguno-- sobre un almacen que ha cambiado, y la pantalla estaria
+        afirmando de un plan viejo algo que el plan viejo no dice.
+
+        Un almacen anterior a este corte no tiene la columna, o la tiene a
+        `NULL`: eso es AUSENCIA DE CONSTANCIA, no "no se omitio nada", y por
+        eso el diccionario sale vacio y la pantalla no afirma nada sobre esas
+        altas en vez de declararlas completas.
+        """
+        try:
+            fila = self.store.last_plan(workspace=workspace, job_id=job_id)
+        except Exception:  # noqa: BLE001 - la pantalla no se cae por esto
+            return {}
+        if not fila:
+            return {}
+        try:
+            crudo = fila["altas_omitidas_json"]
+        except (KeyError, IndexError):  # pragma: no cover - almacen antiguo
+            return {}
+        if not crudo:
+            return {}
+        try:
+            filas = json.loads(crudo)
+        except (TypeError, ValueError):  # pragma: no cover - fila corrupta
+            return {}
+        salida: dict = {}
+        for entrada in filas if isinstance(filas, list) else ():
+            if not isinstance(entrada, dict):
+                continue
+            entity_id = str(entrada.get("entity_id") or "")
+            if entity_id:
+                salida[entity_id] = motivo_de_omision(entrada.get("code"))
+        return salida
 
     def aprobar_alta(
         self, *, workspace: str, job_id: str, entity_id: str,
@@ -749,6 +833,17 @@ class ReviewApplyService:
                     json.dumps(paquete, ensure_ascii=False, sort_keys=True,
                                separators=(",", ":"))
                     if paquete else None
+                ),
+                # LO QUE EL OPERADOR APROBO Y EL PLAN NO TRAE, con su motivo,
+                # guardado JUNTO al plan. Antes esto solo iba a `log.warning`
+                # y a este `return`, que nadie consumia: el acuse decia
+                # `PLAN_SEALED` y las altas desaparecidas no se mencionaban en
+                # ninguna parte del producto.
+                altas_omitidas_json=(
+                    json.dumps([o.to_dict() for o in construido.altas_omitted],
+                               ensure_ascii=False, sort_keys=True,
+                               separators=(",", ":"))
+                    if construido.altas_omitted else None
                 ),
             )
         except SealConflict as exc:

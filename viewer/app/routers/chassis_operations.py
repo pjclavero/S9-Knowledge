@@ -410,6 +410,31 @@ ACUSES_DE_EXITO = {
         "administra el servicio antes de continuar; el detalle queda "
         "registrado en el servidor."
     ),
+    # EL SELLADO QUE DEJA FUERA UNA ENTIDAD QUE EL OPERADOR APROBO.
+    #
+    # Medido en vivo por el revisor: seis altas aprobadas, dos en el plan, y el
+    # acuse decia `PLAN_SEALED_SIN_PROYECCION` sin mencionar las otras cuatro.
+    # `sellar()` calculaba la lista y la devolvia; no la consumia nadie. Es
+    # exactamente el pecado que este mismo fichero predica dos parrafos mas
+    # arriba --«EL ACUSE DICE EL DESENLACE ENTERO, no la mitad buena»--
+    # cometido sobre la pieza nueva.
+    #
+    # PRECEDENCIA DECLARADA, no "el primero que salga": una ENTIDAD que no se
+    # crea pesa mas que una relacion que no se proyecta, porque sin la entidad
+    # tampoco habra nada a lo que enlazarla despues. Cuando faltan las dos, se
+    # dice que falta de todo y se manda a la pantalla que lo detalla.
+    "PLAN_SEALED_SIN_ALTAS": (
+        "Lo aprobado de esta ingesta ya esta preparado, PERO alguna de las "
+        "entidades nuevas a las que diste el visto bueno NO se va a anadir. "
+        "El motivo de cada una aparece en la pantalla de entidades nuevas de "
+        "esta ingesta. Revisalo antes de continuar."
+    ),
+    "PLAN_SEALED_INCOMPLETO": (
+        "Lo aprobado de esta ingesta ya esta preparado, PERO se queda fuera "
+        "parte de lo que aprobaste: alguna entidad nueva y alguna relacion. "
+        "El detalle de las entidades esta en la pantalla de entidades nuevas "
+        "de esta ingesta; el de las relaciones, registrado en el servidor."
+    ),
     "PLAN_APPLIED": (
         "Lo aprobado ya forma parte del conocimiento."
     ),
@@ -1128,8 +1153,19 @@ def sellar_plan(
         # operador aprobó y que NO va a llegar al grafo. Un `PLAN_SEALED`
         # limpio en ese caso es cierto y engañoso a la vez -- el plan está
         # sellado, sí, y le falta algo que el operador pidió.
-        aviso = ("PLAN_SEALED_SIN_PROYECCION" if salida.get("sin_proyeccion")
-                 else "PLAN_SEALED")
+        # LOS CUATRO DESENLACES DEL SELLADO, POR PRECEDENCIA DECLARADA.
+        # Ver `ACUSES_DE_EXITO`: la entidad que no nace pesa mas que la
+        # relacion que no se proyecta.
+        faltan_altas = bool(salida.get("altas_omitidas"))
+        faltan_aristas = bool(salida.get("sin_proyeccion"))
+        if faltan_altas and faltan_aristas:
+            aviso = "PLAN_SEALED_INCOMPLETO"
+        elif faltan_altas:
+            aviso = "PLAN_SEALED_SIN_ALTAS"
+        elif faltan_aristas:
+            aviso = "PLAN_SEALED_SIN_PROYECCION"
+        else:
+            aviso = "PLAN_SEALED"
         return {"aviso": aviso, **salida}
 
     return _accion(request, user, CAPACIDAD_SELLADO, trabajo, csrf_token, scope,
@@ -1214,12 +1250,18 @@ def _altas_de_la_corrida(resultado: Optional[dict], scope: VisibilityScope) -> O
     except Exception as exc:  # noqa: BLE001 - la pantalla no se cae por esto
         panel_errors.registrar("REVIEW_STORE_UNAVAILABLE", exc)
         return {"declarado": False, "total": None, "aprobadas": None,
-                "pendientes": None, "job_id": str(revision["job_id"])}
+                "pendientes": None, "omitidas": None,
+                "job_id": str(revision["job_id"])}
     return {
         "declarado": declarado,
         "total": len(filas),
         "aprobadas": sum(1 for a in filas if a.aprobada),
         "pendientes": sum(1 for a in filas if not a.aprobada),
+        # APROBADAS QUE EL ULTIMO PLAN DEJO FUERA. No es lo mismo que
+        # «pendientes»: estas ya tienen el visto bueno de una persona y aun
+        # asi no van a nacer, que es la peor de las dos situaciones y la que
+        # el acuse callaba.
+        "omitidas": sum(1 for a in filas if a.omitida),
         "job_id": str(revision["job_id"]),
     }
 

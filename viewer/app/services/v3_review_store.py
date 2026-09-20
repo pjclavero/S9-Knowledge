@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS sealed_plans (
   applied_operations INTEGER,
   apply_notes_json TEXT,
   provenance_json TEXT,
+  altas_omitidas_json TEXT,
   UNIQUE (workspace, job_id, revision)
 );
 CREATE TABLE IF NOT EXISTS entity_altas (
@@ -173,7 +174,20 @@ class SQLiteReviewStore:
     #: reventaba en produccion, no aqui. Es una lista, no un `try/except`
     #: suelto, para que anadir la siguiente no sea inventarse el patron otra
     #: vez.
-    _COLUMNAS_ANADIDAS = (("sealed_plans", "provenance_json", "TEXT"),)
+    _COLUMNAS_ANADIDAS = (
+        ("sealed_plans", "provenance_json", "TEXT"),
+        # LAS ALTAS APROBADAS QUE EL PLAN NO TRAE, CON SU MOTIVO.
+        #
+        # Se persiste con el plan, y no se recalcula al pintar, por la misma
+        # razon que el resto del sellado: el motivo se decidio con las
+        # propuestas y las aprobaciones de ESE instante, y recalcularlo mas
+        # tarde podria dar otro --o ninguno-- sobre un almacen que ha
+        # cambiado. Sin esta columna el dato existia, `sellar()` lo devolvia,
+        # y no tenia ni un consumidor: el operador aprobaba seis altas, dos
+        # llegaban al plan y el acuse no decia una palabra de las otras
+        # cuatro. Eso es falsa confirmacion, no una omision menor.
+        ("sealed_plans", "altas_omitidas_json", "TEXT"),
+    )
 
     def _migrar(self, connection: sqlite3.Connection) -> None:
         """Pone al dia una base anterior a este corte. Idempotente.
@@ -418,9 +432,20 @@ class SQLiteReviewStore:
     ) -> dict[str, Any]:
         """Aprueba UN alta, por su id. Sin comodines y sin «aprobar todas».
 
-        IDEMPOTENTE POR LA BASE, no por una comprobacion en Python: la clave
-        primaria `(workspace, job_id, entity_id)` es la que impide la segunda
-        fila. Repetir la aprobacion no duplica la entidad ni reescribe la
+        IDEMPOTENTE, Y ESTE PARRAFO DICE DONDE DE VERDAD. Una version anterior
+        afirmaba «por la base, no por una comprobacion en Python». Era FALSO y
+        describia mal este mismo metodo: quien decide es el `SELECT` de abajo,
+        DENTRO de `BEGIN IMMEDIATE`, y cuando la fila ya existe no se llega
+        nunca al `INSERT`. La clave primaria `(workspace, job_id, entity_id)`
+        esta, y es la red de seguridad -- sin ella dos escritores concurrentes
+        podrian colarse-- pero no es la que produce el desenlace normal.
+
+        La diferencia importa para quien venga a cambiarlo: quitar el `SELECT`
+        creyendo que «la base ya lo impide» no daria un no-op, daria un
+        `IntegrityError` que sale como `APPLY_FAILED`. Se midio exactamente
+        eso al calibrar.
+
+        Repetir la aprobacion no duplica la entidad ni reescribe la
         atribucion: el autor y el momento de la PRIMERA aprobacion se
         conservan, porque son los que de verdad ocurrieron.
 
@@ -504,6 +529,7 @@ class SQLiteReviewStore:
         expected_decision_ids: list,
         provenance_json: str | None = None,
         expected_alta_ids: list | None = None,
+        altas_omitidas_json: str | None = None,
     ) -> dict:
         """Sella un plan en la MISMA transacción que comprueba las decisiones.
 
@@ -563,13 +589,13 @@ class SQLiteReviewStore:
                 """INSERT INTO sealed_plans
                    (plan_id, workspace, job_id, revision, state, plan_json,
                     plan_hash, decision_ids_json, proposal_ids_json, sealed_at,
-                    provenance_json)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    provenance_json, altas_omitidas_json)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     plan_id, workspace, job_id, revision, self.ESTADO_SELLADO,
                     plan_json, plan_hash, canonical(sorted(set(decision_ids))),
                     canonical(sorted(set(proposal_ids))), sealed_at,
-                    provenance_json,
+                    provenance_json, altas_omitidas_json,
                 ),
             )
             self._audit(connection, workspace, {

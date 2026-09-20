@@ -175,7 +175,8 @@
              data-altas-declarado="{{ 'true' if altas.declarado else 'false' }}"
              data-altas-total="{{ altas.total if altas.total is not none else '' }}"
              data-altas-pendientes="{{ altas.pendientes if altas.pendientes is not none else '' }}"
-             data-altas-aprobadas="{{ altas.aprobadas if altas.aprobadas is not none else '' }}">
+             data-altas-aprobadas="{{ altas.aprobadas if altas.aprobadas is not none else '' }}"
+             data-altas-omitidas="{{ altas.omitidas if altas.omitidas is not none else '' }}">
       <h2>Entidades nuevas de esta ingesta</h2>
       {% if altas.total is none %}
         <p data-availability="unavailable">
@@ -199,6 +200,19 @@
           {{ 'entidad nueva' if altas.pendientes == 1 else 'entidades nuevas' }}
           esperando tu visto bueno. Aprobar una afirmación no da de alta a la
           entidad de la que habla: eso se decide aparte.
+        </p>
+      {% endif %}
+      {#
+        LO APROBADO QUE NO LLEGO AL PLAN. Se dice AQUI tambien, y no solo en
+        la otra pantalla, porque esta es la que el operador tiene delante
+        justo despues de preparar lo aprobado.
+      #}
+      {% if altas.omitidas %}
+        <p data-altas-estado="omitidas">
+          <strong>{{ altas.omitidas }}</strong>
+          {{ 'entidad nueva que aprobaste NO se va a anadir' if altas.omitidas == 1
+             else 'entidades nuevas que aprobaste NO se van a anadir' }}.
+          El motivo de cada una esta en la pantalla de entidades nuevas.
         </p>
       {% endif %}
       {% if altas.total is not none and altas.declarado %}

@@ -49,6 +49,7 @@ import pytest
 from test_panel_apply_desde_la_ui import (  # noqa: F401
     SLOT_B,
     _aplicable,
+    _aplicar,
     _aviso_de,
     _cliente,
     _cookie,
@@ -64,10 +65,15 @@ from test_panel_apply_desde_la_ui import (  # noqa: F401
     almacenes,
     auth_on,
     cola,
+    grafo,
+    grafo_real,
+    neo4j_real,
     operador,
     paneles_on,
     real_app,
+    resultado_on,
     revisor,
+    visor_sobre_el_grafo,
 )
 
 #: LA CLAVE DEL SOBRE, repetida a propósito. El servicio del visor la declara
@@ -549,8 +555,15 @@ def test_negativo_entidad_no_aprobada_no_produce_create_entity(
     # sería cierto por el motivo equivocado (`ALTA_NOT_REFERENCED`) y esta
     # prueba no mediría la falta de aprobación, que es lo que dice medir.
     _decidir(corrida["propuesta"], "APPROVE")
-    _sellar(operador, corrida["job_id"])
+    assert _aviso_de(_sellar(operador, corrida["job_id"])).startswith("PLAN_SEALED")
     assert corrida["declaradas"], "sin candidata declarada la prueba es vacía"
+    # D-9. ESTE `assert` FALTABA, y mi informe de la ronda 1 afirmaba que
+    # estaba: sin él, el caso seguía verde con el plan VACÍO y sin sellarse
+    # siquiera —miraba el sobre, no el plan—, así que el cero de altas era
+    # trivialmente cierto sobre una tubería desconectada.
+    assert _operaciones_del_plan(almacenes["base"]), (
+        "el plan salió vacío: el cero de altas no demuestra nada"
+    )
     assert _altas_en_el_plan(almacenes["base"]) == [], (
         "se dio de alta una entidad que nadie aprobó"
     )
@@ -604,11 +617,16 @@ def test_negativo_repetir_la_aprobacion_no_duplica_la_entidad(
 ):
     """NEGATIVO 5 — aprobar dos veces deja UNA fila y UN `CREATE_ENTITY`.
 
-    Las dos mitades importan y se miden las dos: la fila (idempotencia por
-    clave primaria, impuesta por la BASE y no por un `if`) y la operación (dos
+    Las dos mitades importan y se miden las dos: la fila y la operación (dos
     `CREATE_ENTITY` del mismo id abortarían el apply entero con
     `EXEC_TARGET_EXISTS`, o sea cambiarían «falta un nodo» por «no se escribe
     nada»).
+
+    DÓNDE VIVE LA IDEMPOTENCIA, RECTIFICADO: no «en la base». El manejador
+    DECIDE con un `SELECT` dentro de la transacción y no llega al `INSERT`
+    cuando la fila ya existe; la clave primaria es la red de seguridad frente
+    a dos escritores a la vez, no el mecanismo del caso normal. La versión
+    anterior de este párrafo describía mal el código que mide.
 
     Y el acuse DISTINGUE los dos casos: repetir no dice «aprobada».
 
@@ -769,8 +787,14 @@ def test_la_pantalla_de_altas_no_publica_nada_interno(operador, corrida):
     ROJA ASÍ: `AssertionError: la pantalla publica <cosa interna>`.
     """
     html = _pantalla_de_altas(operador, corrida["job_id"]).text
-    for prohibido in ("plan:", "snapshot:", "/home/", "Traceback",
-                      "S9K_V3_REVIEW", "sqlite3", ".sqlite3"):
+    prohibidos = ["plan:", "snapshot:", "/home/", "Traceback",
+                  "S9K_V3_REVIEW", "sqlite3", ".sqlite3"]
+    # D-7. EL WORKSPACE FALTABA de esta lista, y el docstring lo prometía: es
+    # identidad del servidor, el operador no lo teclea nunca y el manejador lo
+    # resuelve él solo desde la corrida. Prometerlo y no comprobarlo es la
+    # clase de higiene que se lee como cubierta sin estarlo.
+    prohibidos.append(str(corrida["propuestas"][0]["workspace"]))
+    for prohibido in prohibidos:
         assert prohibido not in html, f"la pantalla publica {prohibido!r}"
 
 
@@ -800,4 +824,485 @@ def test_la_capacidad_esta_declarada_y_montada_bajo_operaciones(real_app):
     assert capacidad.path in montadas, "la capacidad de alta no está montada"
     assert undeclared_writes(real_app, slot) == [], (
         "hay escrituras sin declarar en el hueco B"
+    )
+
+
+# ===========================================================================
+# RONDA 2 · lo que el revisor derrotó, y el arnés que lo impide
+# ===========================================================================
+#
+# Los bloques de abajo existen porque un revisor independiente ROMPIÓ lo de
+# arriba con mutaciones VIVAS y las 22 pruebas siguieron verdes. Cada uno
+# nombra la mutación que lo derrotó, para que nadie tenga que reconstruirla.
+
+
+def _reescribir_el_sobre(directorio: Path, mutador) -> None:
+    """Aplica `mutador(paquete)` a CADA paquete del almacén de propuestas.
+
+    POR QUÉ SE TOCA EL SOBRE Y NO SE FABRICA UNA PANTALLA
+    -----------------------------------------------------
+    El sobre es la ENTRADA del producto: lo escribe la corrida y lo lee el
+    visor. Cambiarlo pone al producto delante de un caso que el corpus de
+    ejemplo no produce (varias altas, material de otra partida) sin tocar ni
+    una línea del camino que se está midiendo. La alternativa —construir a
+    mano el diccionario que la plantilla recibe— mediría la plantilla y no el
+    recorrido, que es justo lo que este módulo no puede permitirse.
+
+    El `proposal_hash` no se toca: el cargador lo RECALCULA en su frontera de
+    confianza, así que un paquete reescrito entra por el camino normal.
+    """
+    ficheros = sorted(directorio.glob("*.json"))
+    assert ficheros, "no hay paquetes que reescribir: el arnés no ingirió nada"
+    for ruta in ficheros:
+        paquete = json.loads(ruta.read_text(encoding="utf-8"))
+        mutador(paquete)
+        ruta.write_text(
+            json.dumps(paquete, ensure_ascii=False, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+
+def _declarar_altas_extra(paquete: dict, cuantas: int) -> list:
+    """Añade altas DECLARADAS al sobre. Devuelve sus ids, en orden.
+
+    Son altas que ninguna propuesta menciona: al sellar producirán
+    `ALTA_NOT_REFERENCED`, que es exactamente el motivo de omisión que el
+    operador no veía. Sirven para dos cosas a la vez — tener VARIAS altas en
+    pantalla (sin eso, «no hay aprobar todas» se medía sobre `1 == 1`) y tener
+    una omisión real que el acuse tiene que decir.
+    """
+    contexto = paquete.get("plan_context")
+    assert isinstance(contexto, dict), "el paquete no trae contexto de plan"
+    altas = contexto.setdefault(CLAVE_SOBRE, {})
+    creadas = []
+    for indice in range(cuantas):
+        entity_id = "entity:new:extra%d%s" % (indice, "0" * 10)
+        altas[entity_id] = {
+            "entity_id": entity_id,
+            "entity_type": "Character",
+            "name": "Figurante %d" % indice,
+            "aliases": [],
+            "reason_codes": ["NO_CANDIDATE", "AUSENTE_DEL_GRAFO"],
+            "mention_ids": [],
+            "confidence": 0.9,
+        }
+        creadas.append(entity_id)
+    return creadas
+
+
+@pytest.fixture
+def corrida_con_varias_altas(corrida, almacenes):
+    """La misma corrida, con TRES altas declaradas en vez de una.
+
+    El corpus de ejemplo declara UNA sola, y con una sola varias afirmaciones
+    de este módulo se cumplían por aritmética (`1 == 1`) sin distinguir el
+    singular del plural. Aquí hay un alta real —la que el plan sí puede
+    crear— y dos que ninguna propuesta menciona.
+    """
+    extra = []
+
+    def _mutar(paquete):
+        extra.extend(_declarar_altas_extra(paquete, 2))
+
+    _reescribir_el_sobre(almacenes["propuestas"], _mutar)
+    propuestas = _propuestas(almacenes["propuestas"])
+    declaradas = _altas_del_sobre(propuestas, corrida["job_id"])
+    assert len(declaradas) == 3, (
+        "el sobre no quedó con tres altas: %s" % sorted(declaradas))
+    return {**corrida, "propuestas": propuestas, "declaradas": declaradas,
+            "extra": sorted(set(extra))}
+
+
+# ---------------------------------------------------------------------------
+# D-1 · LA GUARDA DE ROL, MEDIDA POR COMPORTAMIENTO Y SIN SOBREDETERMINAR
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def ambito_abierto(real_app):
+    """Sustituye el ámbito de la petición por uno SIN restricción.
+
+    Existe para DESACTIVAR la segunda puerta. El testigo de rol de la ronda 1
+    seguía verde con la guarda retirada porque al `reviewer` lo paraba además
+    la resolución de la corrida con ámbito: dos puertas, una sola prueba, y
+    ninguna de las dos aislada. Con el ámbito abierto, lo único que puede
+    parar a un rol insuficiente es la guarda del hueco.
+    """
+    from app.authz.dependencies import get_visibility_scope
+    from app.authz.scope import UNRESTRICTED
+
+    real_app.dependency_overrides[get_visibility_scope] = lambda: UNRESTRICTED
+    yield
+    real_app.dependency_overrides.pop(get_visibility_scope, None)
+
+
+def test_con_el_ambito_abierto_el_admin_SI_aprueba(
+    operador, corrida, almacenes, ambito_abierto
+):
+    """CONTROL POSITIVO del aislamiento de D-1. Sin esto, el rojo no vale.
+
+    Si con el ámbito abierto el admin tampoco pudiera aprobar, el caso de
+    abajo estaría midiendo una tercera cosa y su verde no diría nada sobre el
+    rol. Esto fija que la única diferencia entre los dos casos es QUIÉN pide.
+
+    ROJA ASÍ: `AssertionError: con el ámbito abierto el admin tampoco aprueba`.
+    """
+    entity_id = sorted(corrida["declaradas"])[0]
+    assert _aviso_de(_aprobar(operador, corrida["job_id"], entity_id)) == "ALTA_APPROVED", (
+        "con el ámbito abierto el admin tampoco aprueba: este arnés no aísla "
+        "el rol, mide otra cosa"
+    )
+    assert len(_filas_de_alta(almacenes["base"])) == 1
+
+
+def test_un_rol_insuficiente_no_aprueba_AUNQUE_la_corrida_le_sea_visible(
+    revisor, corrida, almacenes, ambito_abierto
+):
+    """LA GUARDA DE ROL, AISLADA. Lo que la ronda 1 no medía.
+
+    QUÉ DERROTÓ AL TESTIGO ANTERIOR, medido por el revisor: envolvió la
+    dependencia en un wrapper que devolvía `html_role_guard("reviewer")`
+    conservando el texto `slot_guard(SLOT)` en el árbol. La prueba estructural
+    exigía dos subcadenas del AST desparseado y no vio nada: 22 passed. Y la
+    degradación efectiva NO era «a reviewer»: `html_role_guard` es NO-OP
+    cuando `S9K_AUTH_ENABLED` está ausente, así que era A CUALQUIERA.
+
+    Parsear estructura no sustituye a ejercer comportamiento cuando lo que se
+    vigila es una guarda. Esto ejerce el POST con un rol insuficiente y un
+    ámbito que NO le esconde la corrida, y comprueba la TABLA.
+
+    ROJA ASÍ: `AssertionError: un rol insuficiente aprobó un alta con la
+    corrida visible` — y se pone roja con el wrapper del revisor puesto,
+    porque no mira el árbol sino lo que la base acaba teniendo.
+    """
+    entity_id = sorted(corrida["declaradas"])[0]
+    respuesta = _aprobar(revisor, corrida["job_id"], entity_id)
+    assert respuesta.status_code in (302, 303, 403), respuesta.status_code
+    assert _filas_de_alta(almacenes["base"]) == [], (
+        "un rol insuficiente aprobó un alta con la corrida visible: la guarda "
+        "del hueco no está parando nada"
+    )
+
+
+# ---------------------------------------------------------------------------
+# D-0 · EL ACUSE DEL SELLADO NO PUEDE CALLAR LO QUE NO LLEGÓ AL PLAN
+# ---------------------------------------------------------------------------
+
+def test_el_acuse_dice_las_altas_aprobadas_que_el_plan_deja_fuera(
+    operador, corrida_con_varias_altas, almacenes
+):
+    """FALSA CONFIRMACIÓN, CERRADA. Hallazgo del revisor, medido en vivo.
+
+    Aprobó seis altas, dos llegaron al plan, el acuse dijo
+    `PLAN_SEALED_SIN_PROYECCION` y no mencionó las otras cuatro. `sellar()`
+    calculaba `altas_omitidas` y lo devolvía; NO TENÍA NI UN CONSUMIDOR en
+    todo `viewer/`. Los `ALTA_CODES` sólo iban a `log.warning`.
+
+    Aquí se aprueban tres altas —una que el plan sí puede crear y dos que
+    ninguna propuesta menciona— y se exige que el acuse lo DIGA.
+
+    ROJA ASÍ: `AssertionError: el acuse calla las altas que no llegaron al
+    plan: PLAN_SEALED_SIN_PROYECCION`.
+    """
+    corrida = corrida_con_varias_altas
+    _decidir(corrida["propuesta"], "APPROVE")
+    for entity_id in sorted(corrida["declaradas"]):
+        assert _aviso_de(_aprobar(operador, corrida["job_id"], entity_id)) == "ALTA_APPROVED"
+    aviso = _aviso_de(_sellar(operador, corrida["job_id"]))
+    assert aviso in ("PLAN_SEALED_SIN_ALTAS", "PLAN_SEALED_INCOMPLETO"), (
+        "el acuse calla las altas que no llegaron al plan: %s" % aviso
+    )
+    # Y NO ES UN ACUSE HUECO: el plan de verdad dejó fuera a las dos extra.
+    en_el_plan = _altas_en_el_plan(almacenes["base"])
+    assert corrida["entidad"] in en_el_plan
+    for ajena in corrida["extra"]:
+        assert ajena not in en_el_plan, (
+            "el plan creó una entidad que ninguna afirmación menciona: este "
+            "caso ya no mide una omisión"
+        )
+
+
+def test_la_pantalla_dice_POR_QUE_no_se_anadio_cada_alta_omitida(
+    operador, corrida_con_varias_altas, almacenes
+):
+    """El motivo llega a la persona, traducido, y NO como código del motor.
+
+    El acuse dice que falta algo; esto comprueba que la pantalla dice CUÁL y
+    POR QUÉ, con la frase del visor y sin publicar el código interno.
+
+    ROJA ASÍ: `AssertionError: la pantalla no dice que <id> se quedó fuera`.
+    """
+    corrida = corrida_con_varias_altas
+    _decidir(corrida["propuesta"], "APPROVE")
+    for entity_id in sorted(corrida["declaradas"]):
+        _aprobar(operador, corrida["job_id"], entity_id)
+    _sellar(operador, corrida["job_id"])
+
+    html = _pantalla_de_altas(operador, corrida["job_id"]).text
+    tarjetas = _tarjetas(html)
+    for ajena in corrida["extra"]:
+        assert 'data-alta-omitida="true"' in tarjetas[ajena]["texto"], (
+            "la pantalla no dice que %s se quedó fuera" % ajena
+        )
+    assert 'data-alta-omitida="true"' not in tarjetas[corrida["entidad"]]["texto"], (
+        "la pantalla declara omitida una entidad que SÍ está en el plan"
+    )
+    # EL CÓDIGO DEL MOTOR NO SE PUBLICA: se traduce.
+    for codigo in ("ALTA_NOT_REFERENCED", "ALTA_NOT_DECLARED_IN_RUN",
+                   "ALTA_WITHOUT_TYPE"):
+        assert codigo not in html, (
+            "la pantalla publica el código interno %s" % codigo)
+
+
+def test_un_motivo_de_omision_desconocido_se_NOMBRA_y_no_se_descarta():
+    """AUSENCIA != CERO en la tabla de traducción.
+
+    Un código que este despliegue no sepa interpretar no puede desaparecer de
+    la pantalla: eso reintroduciría la omisión muda por otra puerta.
+
+    ROJA ASÍ: `AssertionError: un motivo desconocido se traduce a nada`.
+    """
+    from app.services.v3_apply import MOTIVOS_DE_ALTA_OMITIDA, motivo_de_omision
+
+    frase = motivo_de_omision("ALTA_DE_UN_CORTE_FUTURO")
+    assert frase and "no sabe interpretar" in frase, (
+        "un motivo desconocido se traduce a nada: %r" % frase
+    )
+    assert set(MOTIVOS_DE_ALTA_OMITIDA) == {
+        "ALTA_NOT_DECLARED_IN_RUN", "ALTA_NOT_REFERENCED", "ALTA_WITHOUT_TYPE",
+    }, "la tabla del visor y los ALTA_CODES del motor han dejado de coincidir"
+
+
+# ---------------------------------------------------------------------------
+# D-2 · EL FILTRO DE ÁMBITO, CON CONTROL NEGATIVO PROPIO
+# ---------------------------------------------------------------------------
+
+def test_negativo_el_ambito_recorta_las_altas_ANTES_de_componerlas(
+    corrida, almacenes
+):
+    """SEGURIDAD: «lo que la política oculta no se envía», GUARDADO.
+
+    Quitando `permitido.allows(p)` de `v3_apply.altas`, las 22 de la ronda 1
+    seguían verdes: ni el caso de otra corrida lo veía (lo para
+    `_corrida_visible`, otra puerta) ni el de otro workspace (muere por
+    pertenencia). La propiedad era cierta por lectura y no estaba vigilada.
+
+    Este caso mata POR ÁMBITO y por nada más: mismo servicio, misma corrida,
+    mismo workspace, mismas propuestas. Lo único que cambia es la partida
+    activa del lector, y las propuestas llevan la suya declarada.
+
+    ROJA ASÍ: `AssertionError: el ámbito no recorta nada: N altas visibles
+    desde una partida ajena`.
+    """
+    from app.authz.context import build_viewer_context
+    from app.authz.scope import UNRESTRICTED, VisibilityScope
+    from app.services.v3_apply import ReviewApplyService
+
+    def _marcar(paquete):
+        for item in paquete.get("items", []):
+            item["partida_id"] = "partida:alfa"
+
+    _reescribir_el_sobre(almacenes["propuestas"], _marcar)
+    workspace = _propuestas(almacenes["propuestas"])[0]["workspace"]
+    servicio = ReviewApplyService()
+
+    # CONTROL POSITIVO: sin restricción, el material está y se ve.
+    visibles, declarado = servicio.altas(
+        workspace=workspace, job_id=corrida["job_id"], scope=UNRESTRICTED)
+    assert declarado and visibles, (
+        "sin restricción tampoco hay altas: este caso no mediría el ámbito "
+        "sino un almacén vacío"
+    )
+
+    # Y AHORA EL MISMO SERVICIO, con un lector de OTRA partida.
+    ajeno = VisibilityScope(build_viewer_context(
+        role="viewer", auth_enabled=True, default_workspace=workspace,
+        active_partida="partida:beta",
+    ))
+    recortadas, _ = servicio.altas(
+        workspace=workspace, job_id=corrida["job_id"], scope=ajeno)
+    assert recortadas == (), (
+        "el ámbito no recorta nada: %d altas visibles desde una partida ajena"
+        % len(recortadas)
+    )
+
+
+# ---------------------------------------------------------------------------
+# D-3 · «NO HAY APROBAR TODAS», SIN AUTORREFERENCIA Y EN PLURAL
+# ---------------------------------------------------------------------------
+
+def _formularios_al_alta(html: str) -> list:
+    """TODO formulario que apunte al alta, lleve o no la marca del producto.
+
+    La versión de la ronda 1 enumeraba `data-role="form-alta"`, que es
+    justamente la marca que un «APROBAR TODAS» no llevaría: el revisor añadió
+    uno real a la plantilla y pasaron las 22. Aquí el criterio es el DESTINO
+    —el `action` del formulario—, que un botón masivo no puede evitar si de
+    verdad quiere aprobar por esa ruta.
+    """
+    return [
+        bloque for bloque in re.findall(r"<form\b.*?</form>", html, re.S)
+        if "/panel/operations/altas" in bloque
+    ]
+
+
+def test_no_existe_NINGUNA_forma_de_aprobar_varias_altas_de_un_golpe(
+    operador, corrida_con_varias_altas
+):
+    """La frontera, en plural y sin depender de una marca del propio producto.
+
+    TRES comprobaciones, y cada una mata un «aprobar todas» distinto:
+      1. hay tantos formularios al alta como altas pendientes — uno extra
+         sobra;
+      2. cada uno manda EXACTAMENTE UNA entidad, y no vacía — un masivo o no
+         manda ninguna o manda varias;
+      3. los ids mandados son los de las altas, sin repetir — nadie cuela un
+         comodín.
+
+    ROJA ASÍ: `AssertionError: hay 4 formularios al alta para 3 pendientes` o
+    `AssertionError: un formulario al alta manda 0 entidades`.
+    """
+    corrida = corrida_con_varias_altas
+    html = _pantalla_de_altas(operador, corrida["job_id"]).text
+    formularios = _formularios_al_alta(html)
+    pendientes = sorted(corrida["declaradas"])
+    assert len(pendientes) >= 3, (
+        "el corpus volvió a declarar menos de tres altas: en singular este "
+        "caso se cumple por aritmética y no mide el plural"
+    )
+    assert len(formularios) == len(pendientes), (
+        "hay %d formularios al alta para %d pendientes"
+        % (len(formularios), len(pendientes))
+    )
+    mandados = []
+    for formulario in formularios:
+        entidades = re.findall(r'name="entidad"[^>]*value="([^"]*)"', formulario)
+        assert len(entidades) == 1, (
+            "un formulario al alta manda %d entidades: %s"
+            % (len(entidades), entidades)
+        )
+        assert entidades[0].strip(), "un formulario al alta manda una entidad vacía"
+        mandados.append(entidades[0])
+    assert sorted(mandados) == pendientes, (
+        "los formularios no mandan las altas pendientes: %s" % sorted(mandados)
+    )
+
+
+# ---------------------------------------------------------------------------
+# D-6 · LA FUENTE DE LA ATRIBUCIÓN, NO SÓLO SU VALOR
+# ---------------------------------------------------------------------------
+
+def test_la_atribucion_sale_de_la_SESION_y_el_cliente_no_puede_ponerla(
+    operador, corrida, almacenes
+):
+    """Lo que el docstring promete, GUARDADO.
+
+    El revisor hizo que el autor se tomara de `?autor=` y pasó todo, dejando
+    `approved_by=['FIRMA_FALSIFICADA']`. El valor estaba comprobado; la FUENTE
+    no. Aquí la petición lleva el nombre falsificado por varias puertas —query
+    y formulario, con cuatro nombres plausibles— y se exige que la tabla
+    conserve al usuario de la sesión.
+
+    ROJA ASÍ: `AssertionError: la atribución la escribió el cliente:
+    'panel:FIRMA_FALSIFICADA'`.
+    """
+    entity_id = sorted(corrida["declaradas"])[0]
+    falsa = "FIRMA_FALSIFICADA"
+    respuesta = operador.post(
+        "/panel/operations/altas?autor=%s&approved_by=%s" % (falsa, falsa),
+        data={
+            "trabajo": corrida["job_id"], "entidad": entity_id, "tipo": "",
+            "csrf_token": _csrf(operador),
+            "autor": falsa, "approved_by": falsa, "revisor": falsa,
+            "quien": falsa,
+        },
+    )
+    assert _aviso_de(respuesta) == "ALTA_APPROVED"
+    filas = _filas_de_alta(almacenes["base"])
+    assert len(filas) == 1, filas
+    autor = filas[0]["approved_by"]
+    assert falsa not in autor, (
+        "la atribución la escribió el cliente: %r" % autor)
+    assert "apply_operador" in autor, (
+        "la atribución no es la de la sesión autenticada: %r" % autor
+    )
+
+
+# ---------------------------------------------------------------------------
+# D-4 · EL RECORRIDO ENTERO, CONTRA UN GRAFO DE VERDAD
+# ---------------------------------------------------------------------------
+
+@neo4j_real
+def test_E2E_aprobar_el_alta_hace_que_el_destino_deje_de_dar_404(
+    real_app, paneles_on, resultado_on, cola, operador, almacenes, grafo,
+    visor_sobre_el_grafo, monkeypatch
+):
+    """LA PROPIEDAD ENTERA, EJERCIDA CONTRA INFRA REAL.
+
+    Mi informe de la ronda 1 dijo que esto «no se puede medir aquí». Era
+    FALSO: el arnés de Neo4j efímero ya existía en este mismo repositorio
+    desde cortes anteriores, y el revisor lo levantó y midió el recorrido
+    completo por esta superficie web. Se añade aquí como testigo propio.
+
+    Lo que se recorre, todo por HTTP y sin tocar el grafo a mano: ingesta ->
+    aprobar la propuesta -> **aprobar el alta** -> sellar -> aplicar -> seguir
+    el enlace que el panel publica.
+
+    Y lo que se comprueba, que es lo que el corte anterior no podía:
+      * el plan sellado trae `CREATE_ENTITY`;
+      * tras el apply hay nodos `:Entity` CON `entity_id` y `workspace`;
+      * `provider.workspaces()` incluye el workspace (antes `[]`);
+      * el destino responde **200** (antes 404).
+
+    ROJA ASÍ: `AssertionError: el apply no creó ninguna :Entity` o
+    `AssertionError: el destino sigue negando el apply (404)`.
+    """
+    from test_panel_apply_desde_la_ui import (
+        _bloque_plan, _camino, _panel, _primer_enlace,
+    )
+
+    job_id = _ingerir(operador, cola, monkeypatch)
+    propuestas = _propuestas(almacenes["propuestas"])
+    declaradas = _altas_del_sobre(propuestas, job_id)
+    assert declaradas, "la corrida no declaró ninguna alta: no hay nada que medir"
+    entity_id, propuesta = None, None
+    for candidato in sorted(declaradas):
+        elegida = _propuesta_que_menciona(propuestas, job_id, candidato)
+        if elegida is not None:
+            entity_id, propuesta = candidato, elegida
+            break
+    assert propuesta is not None, "ninguna alta está mencionada por una propuesta"
+
+    _decidir(propuesta, "APPROVE")
+    assert _aviso_de(_aprobar(operador, job_id, entity_id)) == "ALTA_APPROVED"
+    assert _aviso_de(_sellar(operador, job_id)).startswith("PLAN_SEALED")
+    assert entity_id in _altas_en_el_plan(almacenes["base"]), (
+        "el plan sellado no trae el CREATE_ENTITY del alta aprobada"
+    )
+    assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_APPLIED"
+
+    # 1. EL NODO ESTÁ, y con las dos propiedades de las que depende el ámbito.
+    with grafo.session() as sesion:
+        entidades = sesion.run(
+            "MATCH (e:Entity) RETURN e.entity_id AS id, e.workspace AS ws"
+        ).data()
+    assert entidades, "el apply no creó ninguna :Entity"
+    assert all(f["id"] and f["ws"] for f in entidades), (
+        "hay :Entity sin entity_id o sin workspace: %s" % entidades
+    )
+    assert entity_id in [f["id"] for f in entidades], (
+        "la entidad aprobada no está en el grafo: %s" % entidades
+    )
+
+    # 2. EL ÁMBITO EXISTE PARA EL LECTOR — lo que antes daba [].
+    ambitos = list(visor_sobre_el_grafo.workspaces() or ())
+    assert "ws-cofradia" in ambitos, (
+        "el workspace del apply sigue sin aparecer en el ámbito: %s" % ambitos
+    )
+
+    # 3. Y EL ENLACE QUE EL PANEL PUBLICA YA NO PROMETE UN 404.
+    destino = _primer_enlace(_camino(_bloque_plan(_panel(operador, job_id))))
+    pantalla = operador.get(destino)
+    assert pantalla.status_code == 200, (
+        "el destino sigue negando el apply (%s): el recorrido no llega hasta "
+        "el final" % pantalla.status_code
     )

@@ -125,6 +125,20 @@
             </p>
           {% endif %}
 
+          {#
+            LO QUE SE APROBO Y NO VA A NACER. Va ANTES del acuse de aprobada,
+            porque es lo que cambia la decision de quien lee: saber que tiene
+            el visto bueno sin saber que no llego al plan es la media verdad
+            que este bloque cierra. Si no consta omision no se dice nada: la
+            ausencia de constancia no es «llego bien».
+          #}
+          {% if alta.omitida %}
+            <p data-role="alta-omitida" data-alta-omitida="true">
+              <strong>No se ha anadido al conocimiento.</strong>
+              {{ alta.omitida }}
+            </p>
+          {% endif %}
+
           {% if alta.aprobada %}
             <p data-role="ya-aprobada">
               Ya tiene tu visto bueno
