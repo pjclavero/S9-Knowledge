@@ -168,6 +168,20 @@ def _aprobar(cliente, job_id: str, entity_id: str, tipo: str = ""):
     )
 
 
+def _bloque_de_altas(cliente, job_id: str) -> str:
+    """El bloque de altas TAL Y COMO LO VE EL OPERADOR en la consola.
+
+    Pide la PANTALLA y recorta la seccion; si la seccion no esta, devuelve
+    cadena vacia, que es lo que hace fallar a quien la interrogue. No se
+    consulta ningun servicio: lo que no llegue al HTML no existe para esto.
+    """
+    html = cliente.get(f"{SLOT_B.prefix}?solicitado={job_id}").text
+    bloque = re.search(
+        r'<section[^>]*data-role="altas-de-entidad".*?</section>', html, re.S
+    )
+    return bloque.group(0) if bloque else ""
+
+
 def _tarjetas(html: str) -> dict:
     """Las tarjetas de alta que el producto pintó, por `entity_id`."""
     salida: dict = {}
@@ -396,26 +410,35 @@ def test_un_revisor_no_puede_aprobar_un_alta(revisor, corrida, almacenes):
 
 
 def test_el_manejador_del_alta_pasa_por_la_guarda_del_hueco():
-    """La guarda de rol, AISLADA y por estructura. Se PARSEA, no se cuenta.
+    """La FORMA del manejador, y NADA MÁS que la forma. Se PARSEA, no se cuenta.
 
-    Existe porque el testigo de comportamiento de arriba está sobredeterminado:
-    con la guarda retirada sigue verde, porque al revisor lo para también el
-    ámbito. Aquí se mira el ÁRBOL del manejador y se exige lo que la guarda es:
+    Esta prueba NO es el testigo de seguridad. El testigo de seguridad es
+    `test_un_rol_insuficiente_no_aprueba_AUNQUE_la_corrida_le_sea_visible`, que
+    mide COMPORTAMIENTO y no está sobredeterminado por el ámbito. Lo de aquí es
+    higiene estructural: que el manejador se cuelgue de la puerta del hueco y no
+    invente una propia.
+
+    LO QUE SÍ COMPRUEBA:
 
       * que su parámetro `user` venga de `Depends(slot_guard(SLOT))` — la misma
-        puerta del hueco que usan el sellado y el apply, no una propia;
+        puerta del hueco que usan el sellado y el apply;
       * que el cuerpo delegue en `_accion`, que es quien llama a `_authorize`
-        ANTES que a nada. Un manejador que hiciera el trabajo por su cuenta se
-        saltaría ese orden sin que el rol declarado cambiara de sitio.
+        ANTES que a nada.
 
-    EL TECHO DE ESTA RED, DECLARADO — una red que no dice qué no ve se lee como
-    completa. Ve la FORMA del manejador; NO ve:
+    LO QUE NO COMPRUEBA, Y QUIÉN LO CUBRE DE VERDAD — un techo que atribuye mal
+    se lee como un reparto de trabajo que no existe, y este lo hacía:
 
-      * que `slot_guard` siga exigiendo `admin` (eso lo fija la capacidad
-        declarada, y lo comprueba `test_la_capacidad_esta_declarada_...`);
-      * un `_accion` degradado POR DENTRO (lo cubren los negativos de los otros
-        dos POST del hueco, que comparten esqueleto);
-      * una guarda retirada en tiempo de ejecución (monkeypatch, decorador).
+      * **que la guarda exija de verdad `admin`: NADIE MÁS QUE EL TESTIGO DE
+        COMPORTAMIENTO.** Antes decía aquí que lo fijaba
+        `test_la_capacidad_esta_declarada_...`, y ERA FALSO: `slot_guard(slot)`
+        lee `slot.role`, mientras que aquel test asevera `capacidad.role ==
+        "admin"`, que es otro dato. Degradando `SLOT.role` a `reviewer` ese test
+        PASA; el que se pone rojo es el de comportamiento.
+      * el texto `slot_guard(SLOT)` puede conservarse ENVOLVIENDO la llamada en
+        un wrapper que devuelva otra guarda. Esta red no lo ve. El de
+        comportamiento sí.
+      * un `_accion` degradado POR DENTRO, o una guarda retirada en tiempo de
+        ejecución (monkeypatch, decorador).
 
     ROJA ASÍ: `AssertionError: el manejador del alta no pasa por slot_guard` o
     `AssertionError: el manejador del alta no delega en _accion`.
@@ -530,7 +553,10 @@ def test_negativo_aprobar_una_afirmacion_no_aprueba_ninguna_entidad(
     ['entity:new:...']`.
     """
     _decidir(corrida["propuesta"], "APPROVE")
-    assert _aviso_de(_sellar(operador, corrida["job_id"])).startswith("PLAN_SEALED")
+    _aviso_sellado = _aviso_de(_sellar(operador, corrida["job_id"]))
+    assert _aviso_sellado.startswith("PLAN_SEALED"), (
+        f"el sellado no llegó a producir plan: acuse={_aviso_sellado!r}"
+    )
     assert _filas_de_alta(almacenes["base"]) == []
     altas = _altas_en_el_plan(almacenes["base"])
     assert altas == [], f"aprobar una propuesta dio de alta entidades: {altas}"
@@ -555,7 +581,10 @@ def test_negativo_entidad_no_aprobada_no_produce_create_entity(
     # sería cierto por el motivo equivocado (`ALTA_NOT_REFERENCED`) y esta
     # prueba no mediría la falta de aprobación, que es lo que dice medir.
     _decidir(corrida["propuesta"], "APPROVE")
-    assert _aviso_de(_sellar(operador, corrida["job_id"])).startswith("PLAN_SEALED")
+    _aviso_sellado = _aviso_de(_sellar(operador, corrida["job_id"]))
+    assert _aviso_sellado.startswith("PLAN_SEALED"), (
+        f"el sellado no llegó a producir plan: acuse={_aviso_sellado!r}"
+    )
     assert corrida["declaradas"], "sin candidata declarada la prueba es vacía"
     # D-9. ESTE `assert` FALTABA, y mi informe de la ronda 1 afirmaba que
     # estaba: sin él, el caso seguía verde con el plan VACÍO y sin sellarse
@@ -695,7 +724,10 @@ def test_el_alta_aprobada_produce_su_create_entity_en_el_plan_sellado(
     declarada = corrida["declaradas"][entity_id]
     _decidir(corrida["propuesta"], "APPROVE")
     assert _aviso_de(_aprobar(operador, corrida["job_id"], entity_id)) == "ALTA_APPROVED"
-    assert _aviso_de(_sellar(operador, corrida["job_id"])).startswith("PLAN_SEALED")
+    _aviso_sellado = _aviso_de(_sellar(operador, corrida["job_id"]))
+    assert _aviso_sellado.startswith("PLAN_SEALED"), (
+        f"el sellado no llegó a producir plan: acuse={_aviso_sellado!r}"
+    )
 
     operaciones = _operaciones_del_plan(almacenes["base"])
     altas = [op for op in operaciones if op["operation_type"] == "CREATE_ENTITY"]
@@ -1274,7 +1306,10 @@ def test_E2E_aprobar_el_alta_hace_que_el_destino_deje_de_dar_404(
 
     _decidir(propuesta, "APPROVE")
     assert _aviso_de(_aprobar(operador, job_id, entity_id)) == "ALTA_APPROVED"
-    assert _aviso_de(_sellar(operador, job_id)).startswith("PLAN_SEALED")
+    _aviso_sellado = _aviso_de(_sellar(operador, job_id))
+    assert _aviso_sellado.startswith("PLAN_SEALED"), (
+        f"el sellado no llegó a producir plan: acuse={_aviso_sellado!r}"
+    )
     assert entity_id in _altas_en_el_plan(almacenes["base"]), (
         "el plan sellado no trae el CREATE_ENTITY del alta aprobada"
     )
@@ -1305,4 +1340,54 @@ def test_E2E_aprobar_el_alta_hace_que_el_destino_deje_de_dar_404(
     assert pantalla.status_code == 200, (
         "el destino sigue negando el apply (%s): el recorrido no llega hasta "
         "el final" % pantalla.status_code
+    )
+
+
+def test_la_CONSOLA_tambien_avisa_de_las_altas_que_no_llegaron_al_plan(
+    operador, corrida_con_varias_altas
+):
+    """LA TERCERA SUPERFICIE DEL ACUSE, CON TESTIGO. Hallazgo del revisor.
+
+    La consola pinta `data-altas-omitidas` y el párrafo
+    `data-altas-estado="omitidas"`, y un comentario mío en la plantilla
+    justifica por qué importa: «esta es la que el operador tiene delante justo
+    después de preparar lo aprobado». No la vigilaba NADA. El revisor puso un
+    `{% if False %}` sobre el bloque y pasaron 134 tests.
+
+    La información es redundante —el acuse y la pantalla de altas sí están
+    guardados—, así que esto no es un agujero de seguridad. Es lo otro: una
+    superficie que yo mismo declaro importante y que ninguna prueba ve, que es
+    exactamente el agujero que llevamos tres cortes cerrando.
+
+    Se pide LA PANTALLA (GET del HTML de la consola), no un dict de servicio, y
+    se exige el recuento Y la frase, para que borrar cualquiera de los dos se
+    ponga rojo. Con control positivo implícito: antes de sellar el bloque no
+    puede afirmar omisiones, porque todavía no las hay.
+
+    ROJA ASÍ: `AssertionError: la consola no dice cuántas altas aprobadas se
+    quedaron fuera del plan` o `... no explica al operador que lo que aprobó no
+    se va a añadir`.
+    """
+    corrida = corrida_con_varias_altas
+    _decidir(corrida["propuesta"], "APPROVE")
+    for entity_id in sorted(corrida["declaradas"]):
+        _aprobar(operador, corrida["job_id"], entity_id)
+
+    # ANTES DE SELLAR no hay omisión alguna que anunciar: si el bloque ya
+    # dijera que faltan altas, estaría fabricando un desenlace inexistente.
+    antes = _bloque_de_altas(operador, corrida["job_id"])
+    assert 'data-altas-estado="omitidas"' not in antes, (
+        "la consola anuncia altas omitidas ANTES de que exista plan alguno"
+    )
+
+    _sellar(operador, corrida["job_id"])
+
+    despues = _bloque_de_altas(operador, corrida["job_id"])
+    esperadas = len(corrida["extra"])
+    assert 'data-altas-omitidas="%d"' % esperadas in despues, (
+        "la consola no dice cuántas altas aprobadas se quedaron fuera del "
+        "plan (esperaba %d)" % esperadas
+    )
+    assert 'data-altas-estado="omitidas"' in despues, (
+        "la consola no explica al operador que lo que aprobó no se va a añadir"
     )
