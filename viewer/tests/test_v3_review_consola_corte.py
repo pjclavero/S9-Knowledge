@@ -45,26 +45,32 @@ acción se RECORRE EL POST y se SIGUE EL REDIRECT.
 
 LO QUE ESTOS TESTIGOS **NO** CUBREN (techo declarado)
 -----------------------------------------------------
-  · **JavaScript: el reenvío del navegador NO está cubierto por NADIE.** El
-    `onchange="this.form.submit()"` de los selects no se dispara aquí; lo que
-    esta suite mide es que el filtro ESTÁ en el formulario, que es lo que el
-    navegador reenviaría.
+  · **JavaScript.** El `onchange="this.form.submit()"` de los selects no se
+    dispara aquí; lo que esta suite mide es que el filtro ESTÁ en el
+    formulario, que es lo que el navegador reenviaría. El gesto REAL se mide
+    en `viewer/tests/browser/test_browser_v3_review_filtros.py`, con chromium
+    de verdad; ese fichero declara a su vez su propio techo. Esta suite, por sí
+    sola, NO cubre el reenvío.
 
-    Y NO ES QUE NO SE INTENTARA. Existe `viewer/tests/browser/` con un job de
-    Playwright que lo ejecuta entero con chromium obligatorio y sin admitir un
-    solo skip, así que se escribió allí el testigo del gesto real. **Se cayó, y
-    por una razón medida, no supuesta**: ese job instala sólo
-    `viewer/requirements.txt`, y `default_proposals_dir()` delega la derivación
-    de la ruta en `data-engine` y FALLA CERRADO si el motor no está montado. El
-    diagnóstico del propio rojo, en CI:
+    UNA CAUSA QUE ESCRIBÍ AQUÍ Y ERA FALSA, PARA QUE NADIE LA HEREDE. Cuando
+    ese testigo se cayó en su primer intento, este techo dijo que la razón era
+    que el job de Playwright instala sólo `viewer/requirements.txt` y que
+    `default_proposals_dir()` FALLA CERRADO sin `data-engine` montado. **Es
+    falso, y está comprobado aquí**: `knowledge_v3/__init__` no importa nada
+    salvo `__future__`; `review_paths` importa sólo `os` y `pathlib`, así que
+    no puede levantar `ImportError` por dependencias; y
+    `_engine_review_paths()` SE AUTOCABLEA, insertando `data-engine/app` en
+    `sys.path` a partir de `__file__`, sin depender del `pip install`.
+    Ejecutado con SÓLO `viewer` en `sys.path`, `default_proposals_dir()`
+    resuelve la ruta.
 
-        fichas=0 almacen_caido=True recuento=None
-
-    Es decir: en ese laboratorio la consola no puede tener cola que enseñar. El
-    testigo se retiró en vez de dejar un gate en rojo, y montar el motor dentro
-    de ese job es trabajo de otro corte —toca la definición de una puerta por
-    un motivo que no es del producto—. Queda como deuda REGISTRADA, con su
-    causa ya medida.
+    La causa VERDADERA del `almacen_caido=True` es mucho más barata: la ruta
+    por defecto es `viewer/output/reviews-v3/proposals`, `output/` está en
+    `.gitignore`, y en un checkout limpio ese directorio NO EXISTE, así que
+    `load_proposals` levanta `PROPOSALS_STORE_MISSING`. El laboratorio no tenía
+    propuestas sembradas. Se arregla sembrando un directorio y escribiendo un
+    paquete —lo que ya hace cada fixture unitaria—, no montando el motor ni
+    tocando la definición de ninguna puerta.
   · **Infraestructura real.** El almacén de propuestas es un directorio
     temporal y no hay Neo4j. Capa alcanzada: usable desde el producto (HTTP +
     plantilla reales), no «ejercida contra infra real».
@@ -75,6 +81,17 @@ LO QUE ESTOS TESTIGOS **NO** CUBREN (techo declarado)
   · **El resto de la consola.** Estos testigos miran el recuento, los filtros y
     su supervivencia. No dicen nada del cuerpo de la ficha, de la corrección,
     del glosario ni del apply.
+
+  · **El `<select name="workspace">` arrastra la corrida.** Vive en el mismo
+    formulario que el `job_id` oculto, así que cambiar de workspace se lleva
+    puesta una corrida que es de OTRO. No produce falsa confirmación —la
+    pantalla declara el filtro y las cifras siguen siendo ciertas—, así que
+    queda como ERGONOMÍA declarada y NO se arregla en este corte.
+
+  · **La caducidad de sesión SÍ se cubre**, pero sólo hasta la puerta: se mide
+    que el `next` conserva la query y que la guarda anti-redirección abierta no
+    se ha ablandado. NO se ejercita el viaje completo (caducar, volver a
+    entrar, aterrizar): eso necesita una sesión real expirando.
 """
 from __future__ import annotations
 
@@ -517,6 +534,81 @@ def test_con_el_almacen_caido_la_pantalla_no_afirma_estar_mostrando_la_corrida(
     # navegador recorriendo el gesto, no una lectura del código.
     assert "workspace=None" not in html, (
         "la pantalla ofrece un enlace con el workspace literal «None»"
+    )
+
+
+# ===========================================================================
+# LA TERCERA PUERTA · la sesión caduca y el contexto no tiene por qué morir.
+# ===========================================================================
+
+def test_al_caducar_la_sesion_el_login_conserva_la_corrida(monkeypatch):
+    """`/login?next=` recibía `request.url.path` PELADO.
+
+    Si la sesión caducaba sobre `?workspace=alpha&job_id=job-A`, al reentrar se
+    aterrizaba en `/v3/review` sin nada: se perdía la corrida que el operador
+    estaba revisando. Misma clase que H-1, por una tercera puerta.
+    """
+    from urllib.parse import parse_qs, urlparse
+
+    from app.auth.config import get_auth_settings
+    from app.routers.auth import _safe_next
+
+    # EL CASO: autorización ENCENDIDA y petición SIN principal.
+    monkeypatch.setattr(
+        get_auth_settings, "__wrapped__", None, raising=False
+    )
+    cfg = get_auth_settings()
+    monkeypatch.setattr(cfg, "S9K_AUTH_ENABLED", True, raising=False)
+
+    import app.main  # noqa: F401
+
+    app = FastAPI()
+    app.include_router(router_module.router)
+    respuesta = TestClient(app).get(
+        "/v3/review?workspace=alpha&job_id=job-A", follow_redirects=False
+    )
+    assert respuesta.status_code == 302, (
+        "el caso no es el que se mide: sin sesión no se redirige al login "
+        f"(status {respuesta.status_code})"
+    )
+
+    destino = respuesta.headers["location"]
+    siguiente = parse_qs(urlparse(destino).query).get("next", [""])[0]
+    assert "job_id=job-A" in siguiente, (
+        "al caducar la sesión se pierde la corrida que se estaba revisando; "
+        f"next={siguiente!r}"
+    )
+    assert "workspace=alpha" in siguiente, f"next={siguiente!r}"
+    # Y el `?` de la query no ha fabricado parámetros en el propio /login.
+    assert len(parse_qs(urlparse(destino).query)) == 1, (
+        f"el destino ha fabricado parámetros en /login: {destino!r}"
+    )
+    # LA GUARDA QUE YA EXISTÍA SIGUE VALIENDO sobre el valor ENSANCHADO: sigue
+    # siendo relativo, así que `_safe_next` lo acepta tal cual.
+    assert _safe_next(siguiente) == siguiente, (
+        f"la guarda anti-redirección abierta ya no reconoce el destino: {siguiente!r}"
+    )
+
+
+@pytest.mark.parametrize("hostil", [
+    "https://evil.example/phishing",
+    "//evil.example/phishing",
+    "http://evil.example",
+    "evil.example/phishing",
+])
+def test_la_guarda_anti_redireccion_abierta_no_se_ha_ablandado(hostil):
+    """CONTROL NEGATIVO del ensanchado: `next` sigue sin poder salir del sitio.
+
+    Ensanchar el valor de `next` es exactamente el momento en que una
+    redirección abierta se cuela. La guarda no se toca, y esto lo comprueba
+    sobre las formas que importan —incluida `//host`, que es la que se escapa
+    de un `startswith("/")` ingenuo—.
+    """
+    from app.routers.auth import _safe_next
+
+    assert _safe_next(hostil) == "/", (
+        f"la guarda deja pasar un destino externo: {hostil!r} -> "
+        f"{_safe_next(hostil)!r}"
     )
 
 

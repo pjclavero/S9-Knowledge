@@ -99,7 +99,24 @@ def _guard(request: Request):
         return None
     user = getattr(request.state, "user", None)
     if user is None:
-        return RedirectResponse(url=f"/login?next={request.url.path}", status_code=302)
+        # LA TERCERA PUERTA POR LA QUE SE PERDÍA EL CONTEXTO. Esto mandaba
+        # `request.url.path` PELADO: si la sesión caducaba sobre
+        # `?workspace=alpha&job_id=job-A`, al reentrar se aterrizaba en
+        # `/v3/review` sin nada, y el operador perdía la corrida que estaba
+        # revisando. Misma clase que el filtro que no sobrevivía a decidir.
+        #
+        # SEGURIDAD: `next` es un vector clásico de redirección abierta, así
+        # que el destino sigue siendo RELATIVO y VALIDADO. La validación ya
+        # existe y no se toca —`auth._safe_next` rechaza esquema, `netloc`
+        # (incluido `//host`) y todo lo que no empiece por `/`—; lo único que
+        # cambia aquí es que el valor lleva ahora la query. Va por `urlencode`
+        # para que sus `?` y `&` no fabriquen parámetros en el propio `/login`.
+        destino = request.url.path
+        if request.url.query:
+            destino = f"{destino}?{request.url.query}"
+        return RedirectResponse(
+            url=f"/login?{urlencode({'next': destino})}", status_code=302
+        )
     if _RANK.get(getattr(user, "role", ""), 0) < _RANK["reviewer"]:
         raise HTTPException(status_code=403, detail="Se requiere rol reviewer o admin.")
     return user
