@@ -45,43 +45,39 @@ acción se RECORRE EL POST y se SIGUE EL REDIRECT.
 
 LO QUE ESTOS TESTIGOS **NO** CUBREN (techo declarado)
 -----------------------------------------------------
-  · **JavaScript: el reenvío del navegador NO lo cubre NADIE.** El
-    `onchange="this.form.submit()"` de los selects no se dispara aquí; lo que
-    esta suite mide es que el filtro ESTÁ en el formulario, que es lo que el
-    navegador reenviaría.
+  · **JavaScript.** El `onchange="this.form.submit()"` de los selects no se
+    dispara aquí; lo que esta suite mide es que el filtro ESTÁ en el
+    formulario, que es lo que el navegador reenviaría. El gesto REAL —y el de
+    decidir— se miden en
+    `viewer/tests/browser/test_browser_v3_review_filtros.py`, con chromium de
+    verdad. Esta suite, por sí sola, NO cubre el reenvío.
 
-    LA HISTORIA DE ESTE HUECO, CON LAS DOS CAUSAS QUE SE DESCARTARON, para que
-    el siguiente no repita ninguna de las dos:
+    DOS CAUSAS QUE SE ESCRIBIERON AQUÍ Y NO ERAN LA BUENA, para que nadie las
+    herede:
 
-    1. PRIMERA CAUSA, FALSA, y la escribí yo aquí: «el job de Playwright
-       instala sólo `viewer/requirements.txt` y `default_proposals_dir()` falla
-       cerrado sin `data-engine`». **Comprobada y descartada**:
-       `knowledge_v3/__init__` no importa nada salvo `__future__`;
-       `review_paths` importa sólo `os` y `pathlib` (por AST), así que no puede
-       levantar `ImportError` por dependencias; `_engine_review_paths()` SE
-       AUTOCABLEA metiendo `data-engine/app` en `sys.path` desde `__file__`; y
-       con SÓLO `viewer` en `sys.path` la función RESUELVE la ruta.
+    1. FALSA, y la escribí yo: «el job de Playwright instala sólo
+       `viewer/requirements.txt` y `default_proposals_dir()` falla cerrado sin
+       `data-engine`». Descartada por cuatro vías: `knowledge_v3/__init__` no
+       importa nada salvo `__future__`; `review_paths` importa sólo `os` y
+       `pathlib` (por AST); `_engine_review_paths()` SE AUTOCABLEA metiendo
+       `data-engine/app` en `sys.path` desde `__file__`; y con SÓLO `viewer` en
+       `sys.path` la función RESUELVE la ruta.
 
-    2. SEGUNDA CAUSA, cierta pero INSUFICIENTE: la ruta por defecto es
-       `viewer/output/reviews-v3/proposals`, `output/` está en `.gitignore`, y
-       en un checkout limpio no existe, así que `load_proposals` levanta
-       `PROPOSALS_STORE_MISSING`. Es verdad, y explica por qué el laboratorio
-       arranca sin cola. Pero **sembrar no bastó**, y ahí está el hecho nuevo:
+    2. CIERTA PERO INSUFICIENTE: la ruta por defecto es
+       `viewer/output/reviews-v3/proposals` y `output/` está en `.gitignore`,
+       así que en un checkout limpio no existe. Explica que el laboratorio
+       arranque sin cola, pero SEMBRAR NO BASTÓ.
 
-       con la fixture sembrando un almacén temporal y apuntando
-       `S9K_V3_REVIEW_PROPOSALS_DIR` a él, sus DOS controles positivos
-       —`default_proposals_dir()` es la ruta sembrada, y `ReviewService().queue()`
-       devuelve 2 propuestas— **PASAN dentro de la fixture**, y aun así la
-       petición HTTP del navegador ve `almacen_caido=True, fichas=0`. Es decir:
-       el almacén está bien EN TIEMPO DE FIXTURE y no lo está EN TIEMPO DE
-       PETICIÓN. Eso no es «falta sembrar»: es algo que ocurre entre las dos, y
-       no está diagnosticado.
-
-    El testigo se retira por segunda vez en vez de dejar un gate en rojo, y el
-    hueco queda como deuda con esa medida exacta —que es más de lo que se sabía
-    antes, y apunta al sitio correcto: la ventana entre fixture y petición—.
-    No se ha podido ejercitar en local: chromium arranca y muere por nueve
-    librerías de sistema ausentes que requieren root.
+    LA CAUSA VERDADERA, medida y reproducida en local: el `conftest.py` de la
+    RAÍZ tiene una fixture **autouse de ámbito FUNCIÓN** que redirige
+    `S9K_V3_REVIEW_PROPOSALS_DIR` a un almacén propio de cada caso —y hace
+    bien—. La fixture del laboratorio es de ámbito MÓDULO, así que siembra
+    ANTES, sus controles positivos pasan, y DESPUÉS la autouse de la raíz
+    apunta la variable a un directorio vacío. De ahí el síntoma que costó dos
+    intentos: el almacén bien EN TIEMPO DE FIXTURE y roto EN TIEMPO DE
+    PETICIÓN. El remedio es el que esa misma fixture documenta —volver a
+    declarar la variable en un fixture propio de ámbito función, que corre
+    después—, y es lo que hace el fichero de navegador.
   · **Infraestructura real.** El almacén de propuestas es un directorio
     temporal y no hay Neo4j. Capa alcanzada: usable desde el producto (HTTP +
     plantilla reales), no «ejercida contra infra real».
