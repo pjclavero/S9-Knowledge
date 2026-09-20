@@ -2707,6 +2707,22 @@ def _camino(bloque: dict) -> dict:
     return {"codigos": codigos, "enlaces": enlaces, "texto": texto}
 
 
+def _primer_enlace(camino: dict) -> str:
+    """El enlace del camino, o un ROJO QUE DICE SU CAUSA.
+
+    Sin esto, un bloque sin enlaces se cae con un `IndexError` pelado, y un
+    rojo que no dice por qué se lee igual que una avería del arnés. La
+    calibración de este corte exige lo contrario: cada rojo nombra el defecto
+    que lo produce.
+    """
+    assert camino["enlaces"], (
+        "el bloque del plan no publica NINGÚN enlace, así que desde «aplicado» "
+        "no se puede llegar a lo que se aplicó; desenlace del camino "
+        f"pintado: {camino['codigos']}"
+    )
+    return camino["enlaces"][0]
+
+
 def _vista_aplicada(operador, cola, almacenes, monkeypatch, *, apply_id,
                     complete=True):
     """Aprobar -> sellar -> dejar el almacén aplicado -> PEDIR LA PANTALLA."""
@@ -2748,7 +2764,7 @@ def test_desde_aplicado_la_pantalla_OFRECE_el_camino_a_lo_aplicado(
         "el bloque dice que hay camino y no publica ningún enlace: el operador "
         "sigue sin poder llegar a lo que se escribió"
     )
-    destino = camino["enlaces"][0]
+    destino = _primer_enlace(camino)
 
     # LA IDENTIDAD, contra la del almacén. No contra una cadena escrita aquí.
     assert fila["apply_id"] == identidad, fila["apply_id"]
@@ -2758,7 +2774,10 @@ def test_desde_aplicado_la_pantalla_OFRECE_el_camino_a_lo_aplicado(
     )
     # Y el ÁMBITO, sin el cual el destino caería al workspace por defecto y
     # enseñaría —o negaría— una ejecución que no es ésta.
-    assert f"workspace={fila['workspace']}" in destino, destino
+    assert f"workspace={fila['workspace']}" in destino, (
+        "el enlace no lleva el ámbito de la ejecución, así que el destino caerá "
+        "al workspace por defecto del despliegue y enseñará —o negará— una "
+        f"ejecución que no es ésta: destino={destino}")
     assert 'data-role="ver-lo-aplicado"' in camino["texto"]
 
 
@@ -2777,7 +2796,7 @@ def test_el_enlace_resuelve_a_la_pantalla_de_resultado_y_esta_responde(
     identidad = _identidad_de_apply("c")
     _, _, bloque = _vista_aplicada(
         operador, cola, almacenes, monkeypatch, apply_id=identidad)
-    destino = _camino(bloque)["enlaces"][0]
+    destino = _primer_enlace(_camino(bloque))
 
     # RESUELVE, y resuelve a ESE endpoint. `route_index` da el patrón; aquí se
     # comprueba que la ruta pedida es la de esa pantalla y no otra parecida.
@@ -2786,8 +2805,11 @@ def test_el_enlace_resuelve_a_la_pantalla_de_resultado_y_esta_responde(
     from app.routers.resultado import PREFIJO, RUTA_RESULTADO
     esperado = real_app.url_path_for(RUTA_RESULTADO, apply_id=identidad)
     camino_del_enlace = urlsplit(destino).path
-    assert camino_del_enlace == esperado, (destino, esperado)
-    assert camino_del_enlace.startswith(PREFIJO), destino
+    assert camino_del_enlace == esperado, (
+        "el enlace del acuse no es la ruta de la pantalla de resultado para "
+        f"ESTA ejecución: publicado={camino_del_enlace} esperado={esperado}")
+    assert camino_del_enlace.startswith(PREFIJO), (
+        f"el enlace sale del espacio de la pantalla de resultado: {destino}")
 
     respuesta = operador.get(destino)
     assert respuesta.status_code != 500, respuesta.text[:300]
@@ -2835,12 +2857,20 @@ def test_sin_haber_escrito_NO_se_ofrece_camino_a_lo_aplicado(
 def test_en_vuelo_NO_se_ofrece_camino_porque_NO_SE_SABE_como_termino(
     real_app, paneles_on, resultado_on, cola, operador, almacenes, monkeypatch
 ):
-    """`applying`: hay `apply_id` reservado y NO hay desenlace conocido.
+    """`applying`: apply RESERVADO y SIN desenlace conocido.
 
-    Es el caso en el que el arreglo se cae hacia el falso éxito con más
-    facilidad, porque la columna `apply_id` YA tiene valor. Ofrecer ahí el
-    camino a «lo que se aplicó» contradiría, en la misma pantalla, al párrafo
-    de arriba que dice que no consta cómo terminó.
+    Ofrecer aquí el camino a «lo que se aplicó» contradiría, en la misma
+    pantalla, al párrafo de arriba que dice que no consta cómo terminó.
+
+    QUÉ CUBRE HOY ESTE CASO, DICHO CON PRECISIÓN. Se MIDIÓ: `claim_for_apply`
+    no estampa la identidad —la pone `record_apply_result`, y sólo con
+    desenlace—, así que en `applying` la columna está a NULL y el camino se
+    cierra por AUSENCIA DE IDENTIDAD, no por la guarda de estado. Las dos
+    guardas están, y este caso no distingue cuál actúa. No es cobertura
+    regalada y tampoco se presenta como más de lo que es: fija el
+    COMPORTAMIENTO visible —en vuelo no hay camino— contra el día en que la
+    reserva estampe la identidad por adelantado, que es cuando la guarda de
+    estado pasará a ser la única que lo impide.
     """
     from app.services.v3_review import ReviewService
 
@@ -2936,8 +2966,12 @@ def test_el_desenlace_PARCIAL_tambien_ofrece_el_camino(
     assert fila["state"] == "partial", fila["state"]
     assert "partial" in bloque["desenlace"], bloque["desenlace"]
     camino = _camino(bloque)
-    assert camino["codigos"] == ["disponible"], camino["codigos"]
-    assert identidad in camino["enlaces"][0], camino["enlaces"]
+    assert camino["codigos"] == ["disponible"], (
+        "un apply PARCIAL no ofrece camino a lo que si quedo escrito: "
+        f"{camino['codigos']}")
+    assert identidad in _primer_enlace(camino), (
+        "el camino del desenlace PARCIAL no lleva la identidad de esta "
+        f"ejecución: {camino['enlaces']}")
 
 
 def test_los_CUATRO_desenlaces_del_camino_estan_declarados_y_pintados():
@@ -3007,13 +3041,16 @@ def test_el_enlace_no_concede_nada_a_quien_no_puede_ver_el_resultado(
     _, _, bloque = _vista_aplicada(
         operador, cola, almacenes, monkeypatch,
         apply_id=_identidad_de_apply("a"))
-    destino = _camino(bloque)["enlaces"][0]
+    destino = _primer_enlace(_camino(bloque))
 
     miron = _cliente(real_app, _cookie(auth_on, "apply_miron", "viewer"))
     respuesta = miron.get(destino)
     assert respuesta.status_code in (302, 403), (
-        "un rol sin acceso a la pantalla de resultado la ha obtenido "
-        f"siguiendo el enlace del panel: {respuesta.status_code}"
+        "el backend NO deniega a un rol insuficiente que sigue el enlace del "
+        f"panel: respondió {respuesta.status_code}. CALIBRADO: relajar la "
+        "guarda del destino produce aquí un 404 —el rol pasa y sólo lo para la "
+        "ausencia de contenido—, y un 404 no es una autorización: el día que "
+        "hubiera contenido, ese mismo camino lo entregaría"
     )
     anonimo = TestClient(real_app, raise_server_exceptions=False,
                          follow_redirects=False)
@@ -3053,8 +3090,10 @@ def test_desde_aplicado_se_llega_de_verdad_a_lo_escrito_y_a_su_procedencia(
     # 1. El acuse OFRECE el camino, con la identidad que el almacén registró.
     bloque = _bloque_plan(_panel(operador, job_id))
     camino = _camino(bloque)
-    assert camino["codigos"] == ["disponible"], camino["codigos"]
-    destino = camino["enlaces"][0]
+    assert camino["codigos"] == ["disponible"], (
+        "tras un apply REAL el acuse no ofrece camino a lo aplicado: "
+        f"{camino['codigos']}")
+    destino = _primer_enlace(camino)
     assert fila["apply_id"] in destino, (destino, fila["apply_id"])
 
     # 2. SE SIGUE, y el destino responde de verdad.

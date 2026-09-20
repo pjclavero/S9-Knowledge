@@ -386,10 +386,20 @@ class ReviewApplyService:
         # `None`, o sea AUSENCIA declarada, y nunca un enlace a un
         # identificador que no existe.
         #
-        # Y solo en los estados en los que SE ESCRIBIO. En `applying` hay
-        # `apply_id` reservado sin desenlace conocido: ofrecer ahi el camino a
-        # «lo que se aplico» afirmaria que se aplico algo, que es justo lo que
-        # esa rama dice que NO se sabe.
+        # Y SOLO EN LOS ESTADOS EN LOS QUE SE ESCRIBIO.
+        #
+        # La guarda es DELIBERADAMENTE REDUNDANTE y conviene decir por que, con
+        # lo MEDIDO delante: `claim_for_apply` mueve la fila a `applying` sin
+        # tocar la columna `apply_id` —la estampa `record_apply_result`, y solo
+        # con desenlace—, asi que hoy en `applying` la columna esta a NULL y
+        # esta linea no cambia el resultado. Se escribe igual porque lo que
+        # protege no es el valor de hoy sino la REGLA: una identidad sin
+        # desenlace conocido no autoriza a decir «esto es lo que se aplico». El
+        # dia que la reserva estampe la identidad por adelantado —que es una
+        # forma razonable de escribirla— esta linea es lo unico que impide que
+        # la pantalla se contradiga con el parrafo de arriba, el que dice que
+        # NO consta como termino. El control negativo del caso `en_vuelo` esta
+        # en la suite y se pone rojo si el camino aparece ahi.
         bruto = ultimo["apply_id"] if estado in ("applied", "partial") else None
         identidad = bruto if es_apply_id(bruto) else None
         return EstadoDelPlan(
