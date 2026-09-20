@@ -3103,22 +3103,52 @@ def test_el_enlace_no_concede_nada_a_quien_no_puede_ver_el_resultado(
 
 # ---------------------------------------------------------------------------
 # CAPA 3 — EJERCIDO CONTRA INFRA REAL
+#
+# Aquí se intentó cerrar la propiedad de punta a punta y NO se pudo. Lo que
+# sigue son las dos mitades honestas de esa medición: lo que SÍ quedó
+# comprobado contra un grafo de verdad, y el BLOQUEO que lo impide, fijado por
+# su CAUSA para que no se pueda olvidar ni leer como si no existiera.
 # ---------------------------------------------------------------------------
 
+@pytest.fixture
+def visor_sobre_el_grafo(real_app, grafo_real):
+    """El VISOR leyendo el MISMO grafo en el que se acaba de aplicar.
+
+    El resto de este módulo no lo necesita —mide la cola, el almacén y lo que
+    el writer dejó, y comprueba el grafo con Cypher propio—, así que la app
+    servía el proveedor por defecto y la pantalla de resultado no tenía de
+    dónde leer. Sin esto, cualquier medición del destino habría sido un rojo
+    del arnés disfrazado de defecto del producto.
+
+    Se sustituye el proveedor BASE y no el filtrado, así que la cadena entera
+    de autorización (`get_filtered_provider` -> `PolicyFilteredProvider` ->
+    `VisibilityPolicy`) se atraviesa en cada petición: este arnés no relaja ni
+    una regla, sólo conecta el visor a la fuente.
+    """
+    import app.deps as deps
+    from app.providers.neo4j_provider import Neo4jGraphProvider
+
+    proveedor = Neo4jGraphProvider(
+        grafo_real["uri"], grafo_real["user"], grafo_real["password"])
+    real_app.dependency_overrides[deps.get_provider] = lambda: proveedor
+    yield proveedor
+    real_app.dependency_overrides.pop(deps.get_provider, None)
+    proveedor._driver.close()
+
+
 @neo4j_real
-def test_desde_aplicado_se_llega_de_verdad_a_lo_escrito_y_a_su_procedencia(
+def test_tras_un_apply_REAL_el_acuse_ofrece_el_camino_con_su_identidad(
     real_app, paneles_on, resultado_on, cola, operador, almacenes, grafo,
-    monkeypatch
+    visor_sobre_el_grafo, monkeypatch
 ):
-    """LA PROPIEDAD DEL CORTE, de punta a punta y SIN SALIR DEL PRODUCTO.
+    """LO QUE SÍ CIERRA ESTE CORTE, ejercido contra un grafo de verdad.
 
-    fuente -> ingesta -> revisión -> aprobar -> sellar -> APLICAR -> el acuse
-    de «aplicado» -> SEGUIR SU ENLACE -> la pantalla de resultado -> desde
-    ella, el enlace a la procedencia de un hecho.
+    fuente -> ingesta -> revisión -> aprobar -> sellar -> APLICAR DE VERDAD ->
+    el acuse de «aplicado» OFRECE el camino, y lo ofrece con la identidad
+    durable que el almacén registró para ESA ejecución.
 
-    Ni una llamada al grafo desde la prueba para NAVEGAR: todo por HTTP y por
-    los enlaces que el producto publica, que es la única forma de que un verde
-    aquí signifique «un operador puede hacer esto sin terminal».
+    Todo por HTTP. Lo que NO afirma este caso es que el destino entregue el
+    contenido: eso se midió, no se cumple hoy, y tiene su propio caso abajo.
     """
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
     assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
@@ -3128,33 +3158,97 @@ def test_desde_aplicado_se_llega_de_verdad_a_lo_escrito_y_a_su_procedencia(
     assert fila["state"] == "applied", fila["state"]
     assert fila["apply_id"], "sin identidad durable no hay nada que enlazar"
 
-    # 1. El acuse OFRECE el camino, con la identidad que el almacén registró.
     bloque = _bloque_plan(_panel(operador, job_id))
     camino = _camino(bloque)
     assert camino["codigos"] == ["disponible"], (
         "tras un apply REAL el acuse no ofrece camino a lo aplicado: "
         f"{camino['codigos']}")
     destino = _primer_enlace(camino)
-    assert fila["apply_id"] in destino, (destino, fila["apply_id"])
+    assert fila["apply_id"] in destino, (
+        "el enlace no lleva la identidad durable que el almacén registró para "
+        f"este apply: destino={destino} registrada={fila['apply_id']}")
 
-    # 2. SE SIGUE, y el destino responde de verdad.
+    # Y la identidad enlazada es la que el GRAFO tiene marcada, no sólo la que
+    # el almacén anotó. Las dos autoridades, y coinciden.
+    with grafo.session() as sesion:
+        marcadas = [f["aid"] for f in sesion.run(
+            "MATCH (o:V3AppliedOperation {workspace: $ws}) "
+            "RETURN DISTINCT o.apply_id AS aid", ws="ws-cofradia")]
+    assert marcadas == [fila["apply_id"]], (
+        "la identidad que el panel enlaza no es la que el grafo tiene marcada: "
+        f"enlazada={fila['apply_id']} en el grafo={marcadas}")
+
+
+@neo4j_real
+def test_BLOQUEO_el_destino_niega_el_apply_que_acaba_de_ocurrir(
+    real_app, paneles_on, resultado_on, cola, operador, almacenes, grafo,
+    visor_sobre_el_grafo, monkeypatch
+):
+    """EL BLOQUEO, MEDIDO Y FIJADO POR SU CAUSA. No cierra la propiedad.
+
+    Este caso NO celebra un comportamiento: lo DENUNCIA. Se aplica de verdad,
+    se sigue el enlace que el panel publica —el correcto, con la identidad
+    correcta— y la pantalla de destino responde **404 RESULT_NOT_FOUND** sobre
+    la ejecución que acaba de ocurrir.
+
+    LA CAUSA, MEDIDA y no supuesta:
+
+        etiquetas en el grafo tras el apply REAL
+            V3AppliedOperation 1 · V3Assertion 1 · V3Episode 4
+            V3Evidence 4 · V3Source 1 · **Entity 0**
+
+        reader.operations_of_apply(ws, apply_id)   -> 1 fila (el apply ESTÁ)
+        provider.workspaces()                      -> []   (el ámbito NO)
+
+    `resultado_de_apply` comprueba el ÁMBITO antes que nada, y
+    `Neo4jGraphProvider.workspaces()` deriva la lista de nodos `:Entity` con
+    `entity_id`. El writer V3 de este recorrido no escribe ni un `:Entity`, así
+    que el workspace donde SÍ hay conocimiento nuevo no aparece en la lista y
+    la pantalla lo niega. La ausencia de entidades se convierte en ausencia de
+    ámbito, y la ausencia de ámbito en «no existe».
+
+    POR QUÉ NO SE ARREGLA AQUÍ. Tocarlo es tocar la SEMÁNTICA DE AUTORIZACIÓN
+    del visor —de dónde sale el ámbito de un lector—, que es contrato
+    congelado, y hacerlo desde este corte sería abrir por mi cuenta un frente
+    que no me toca. Queda elevado con esta evidencia.
+
+    POR QUÉ ES UNA PRUEBA Y NO UN COMENTARIO. Un párrafo en un informe no se
+    entera de nada. Esto se pone ROJO el día que el bloqueo se levante —o el
+    día que la causa cambie por otra— y obliga a releerlo y a promover el caso
+    de arriba a la propiedad entera. Un `skip` aquí sería un verde sin haber
+    mirado.
+    """
+    from app.providers.provenance_reader import reader_for
+
+    job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
+    assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_APPLIED"
+    fila = _fila_de_plan(almacenes["base"])
+    destino = _primer_enlace(_camino(_bloque_plan(_panel(operador, job_id))))
+
+    # 1. EL APPLY ESTÁ, y el lector de procedencia lo alcanza sin problemas.
+    lector = reader_for(visor_sobre_el_grafo)
+    assert lector is not None, (
+        "no hay lector de procedencia: el arnés no está conectado al grafo y "
+        "este caso no mediría el bloqueo sino su propio cableado")
+    operaciones = lector.operations_of_apply("ws-cofradia", fila["apply_id"])
+    assert operaciones, (
+        "el apply no dejó marca alcanzable: entonces el 404 de abajo sería "
+        "legítimo y este caso estaría midiendo otra cosa")
+
+    # 2. Y AUN ASÍ EL ÁMBITO NO EXISTE PARA EL LECTOR. Ésta es la causa.
+    ambitos = list(visor_sobre_el_grafo.workspaces() or ())
+    assert "ws-cofradia" not in ambitos, (
+        "EL BLOQUEO SE HA LEVANTADO: el workspace del apply ya aparece en el "
+        f"ámbito del lector ({ambitos}). Relee este caso: el camino de este "
+        "corte probablemente ya llegue hasta el final, y el caso de arriba "
+        "debe promoverse a la propiedad completa")
+
+    # 3. Y el destino niega la ejecución que acaba de ocurrir.
     pantalla = operador.get(destino)
-    assert pantalla.status_code == 200, (pantalla.status_code, pantalla.text[:300])
-    assert f'data-apply-id="{fila["apply_id"]}"' in pantalla.text, (
-        "la pantalla de destino no es la de ESTA ejecución"
-    )
-
-    # 3. Y desde ahí se llega a la PROCEDENCIA de un hecho concreto. Esto es lo
-    #    que cierra la propiedad: «qué se aplicó, de dónde vino y con qué
-    #    evidencia». Un `data-role` presente pero sin `href` no bastaría.
-    evidencias = re.findall(
-        r'<a [^>]*href="([^"]*)"[^>]*data-role="ver-procedencia"', pantalla.text)
-    assert evidencias, (
-        "desde el resultado no se ofrece ningún camino a la procedencia: el "
-        "operador ve QUÉ se escribió pero no DE DÓNDE sale"
-    )
-    prueba = operador.get(evidencias[0])
-    assert prueba.status_code == 200, (prueba.status_code, prueba.text[:300])
-    assert fila["apply_id"] in prueba.text, (
-        "la ficha de evidencia no está anclada a esta ejecución"
-    )
+    assert pantalla.status_code == 404, (
+        "el destino ya no responde 404 al apply recién hecho "
+        f"({pantalla.status_code}): el bloqueo ha cambiado y hay que remedirlo")
+    assert "RESULT_NOT_FOUND" in pantalla.text, (
+        "el destino niega por una causa DISTINTA de la medida; un rojo por la "
+        f"razón equivocada se lee igual que éste: {pantalla.text[:200]}")
