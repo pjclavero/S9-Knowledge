@@ -29,7 +29,37 @@
       {% if almacen %}
       <p>No se puede decir cuántas propuestas hay pendientes.</p>
       {% elif queue %}
-      <p><strong data-remaining>{{ queue.remaining }}</strong> pendientes de {{ queue.total }}</p>
+      {#
+        LA CABECERA NO PUEDE CONTRADECIR A LA LISTA.
+
+        Hasta este corte esta línea decía siempre «N pendientes de M» contando
+        el workspace ENTERO, con filtros o sin ellos. Medido: con un `job_id`,
+        un `source_id` o una `engine_decision` que no casaban con nada, la
+        lista salía VACÍA y la cabecera seguía afirmando «4 pendientes de 4».
+        Falsa confirmación: la pantalla se desmentía a sí misma.
+
+        Se separan las preguntas en vez de retocar una cifra:
+          · `mostradas` = lo que se está pintando AHORA (len(items));
+          · `remaining` = lo que queda por decidir en el workspace;
+          · `total`     = cuántas propuestas hay en el workspace.
+        No hay una cuarta cifra, porque el dato no sostiene ninguna más.
+
+        El ERROR SIMÉTRICO —hacer que las tres cifras colapsen en la del
+        filtro, y pintar «0 pendientes de 0» con trabajo pendiente detrás—
+        sería igual de falso: escondería que hay cola. Por eso con filtro se
+        dicen las tres, y se dice que hay un filtro puesto.
+
+        Las tres se calculan tras el recorte por ámbito (ver `QueueView`), así
+        que ninguna revela cuántas propuestas hay fuera del ámbito del lector.
+      #}
+      {% if queue.filtrado %}
+      <p data-recuento="filtrado">Mostrando <strong data-mostradas>{{ queue.mostradas }}</strong>
+        con los filtros puestos ·
+        <strong data-remaining>{{ queue.remaining }}</strong> pendientes de {{ queue.total }}
+        en este workspace</p>
+      {% else %}
+      <p data-recuento="sin-filtro"><strong data-remaining>{{ queue.remaining }}</strong> pendientes de {{ queue.total }}</p>
+      {% endif %}
       {% else %}
       <p>Selecciona un workspace para comenzar.</p>
       {% endif %}
@@ -44,7 +74,34 @@
     {% endif %}
   </header>
 
+  {#
+    EL FILTRO DE CORRIDA, DECLARADO Y PEGAJOSO.
+
+    El enlace del acuse de ingesta trae `job_id` puesto. Medido antes de este
+    corte: ese `job_id` no aparecía en NINGUNA parte del HTML —la pantalla no
+    declaraba que había un filtro— y el formulario de filtros no lo llevaba,
+    así que al tocar «Fuente» o «Decisión del motor» el `job_id` se perdía en
+    silencio y la cola se ensanchaba sola. Un cambio de estado no declarado,
+    provocado por un clic del propio operador.
+
+    El `job_id` es el identificador del TRABAJO, el mismo que el acuse ya le
+    enseña al operador con `data-trabajo-estado`; no es un identificador
+    interno del grafo ni una ruta, así que se puede escribir en pantalla.
+  #}
+  {% if job_id %}
+  <p class="v3r-filtro-activo" data-filtro-corrida="{{ job_id | e }}">
+    Estás viendo sólo las propuestas de la corrida <code>{{ job_id | e }}</code>.
+    <a data-quitar-filtro-corrida
+       href="/v3/review?workspace={{ workspace | urlencode }}{% if source_id %}&amp;source_id={{ source_id | urlencode }}{% endif %}{% if engine_decision %}&amp;engine_decision={{ engine_decision | urlencode }}{% endif %}">Ver
+      las de todas las corridas</a>.
+  </p>
+  {% endif %}
+
   <form class="v3r-filters" method="get" action="/v3/review">
+    {% if job_id %}
+    {# PEGAJOSO: sin esto, tocar cualquier otro filtro borra la corrida. #}
+    <input type="hidden" name="job_id" value="{{ job_id | e }}">
+    {% endif %}
     <label>Workspace
       <select name="workspace" required onchange="this.form.submit()">
         <option value="">Seleccionar</option>

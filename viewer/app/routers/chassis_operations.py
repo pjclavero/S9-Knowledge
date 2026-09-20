@@ -370,6 +370,27 @@ ESTADOS_OK = frozenset({"complete", "completed"})
 ESTADOS_FALLIDOS = frozenset({"failed", "skipped", "cancelled"})
 ESTADOS_TERMINALES = ESTADOS_OK | ESTADOS_FALLIDOS
 
+#: DESENLACES QUE TERMINAN BIEN PERO NO SON UN ÉXITO.
+#:
+#: `data-resultado-estado` y `data-resultado-code` son hermanos y responden a
+#: la MISMA pregunta —«¿cómo acabó esto?»—, no a dos distintas: el `estado`
+#: sale del `status` del trabajo y el `code`, del desenlace que el handler
+#: publicó. Cuando el motor no cosechó nada, el handler publica
+#: `INGEST_SIN_EXTRACCION` y una frase inequívoca, pero el `estado` seguía
+#: siendo `"ok"`: una afirmación de ÉXITO legible por programa que contradecía
+#: a su propio código hermano.
+#:
+#: Para el operador humano estaba cerrado (está MEDIDO que ninguna hoja de
+#: estilo colorea por este atributo, así que no había un verde que
+#: contradijera el texto). Lo que quedaba abierto era el consumidor de
+#: máquina. Se alinea aquí, con una tabla EXPLÍCITA en vez de una regla
+#: implícita: un código que no esté en la tabla no cambia el estado.
+#:
+#: No se convierte en `"error"`: el trabajo NO falló. `sin_resultado` es el
+#: tercer desenlace real —terminó, y no trajo nada—, y nombrarlo así evita el
+#: error simétrico de mandar al operador a buscar un fallo que no existe.
+ESTADO_POR_CODIGO = {"INGEST_SIN_EXTRACCION": "sin_resultado"}
+
 
 def _job_terminado(job: Optional[dict]) -> bool:
     """¿Este trabajo ya tiene desenlace? Sólo entonces deja de estar «en la cola»."""
@@ -574,9 +595,10 @@ def _resultado_del_trabajo(job: Optional[dict]) -> Optional[dict]:
             return {"estado": "ok", "code": "INGEST_OK",
                     "message": "La ingesta ha terminado correctamente.",
                     "resumen": None, "carencias": []}
+        codigo_ok = str(resultado.get("code") or "INGEST_OK")
         return {
-            "estado": "ok",
-            "code": str(resultado.get("code") or "INGEST_OK"),
+            "estado": ESTADO_POR_CODIGO.get(codigo_ok, "ok"),
+            "code": codigo_ok,
             "message": str(resultado.get("message")
                            or "La ingesta ha terminado correctamente."),
             "resumen": resultado.get("resumen")
