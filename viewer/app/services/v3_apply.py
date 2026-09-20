@@ -407,19 +407,32 @@ class ReviewApplyService:
         # QUE APORTA ENTONCES ESTA LINEA, medido por ablacion sobre el HTML
         # (`_camino_al_resultado` lleva la MISMA regla de estado):
         #
-        #   guardas fuera      sealed->applying   partial->re-reserva
-        #   ---------------    ----------------   -------------------
-        #   ninguna            []                 []
-        #   solo ESTA          []                 []            <- el router cierra
-        #   solo la del router sin_identidad      sin_identidad <- esta cierra
-        #   LAS DOS            sin_identidad      DISPONIBLE    <- la contradiccion
+        #   guardas RETIRADAS   sealed->applying   partial->re-reserva
+        #   -----------------   ----------------   -------------------
+        #   ninguna             []                 []
+        #   solo ESTA           []                 []
+        #   solo la del router  sin_identidad      sin_identidad
+        #   LAS DOS             sin_identidad      DISPONIBLE
         #
-        # Conclusion HONESTA, que no es ninguna de las dos que se dijeron: las
-        # dos guardas son suficientes por separado, asi que quitar SOLO esta no
-        # cambia nada observable. Pero es defensa en profundidad DELIBERADA, no
-        # codigo muerto: la unica celda que produce el falso «disponible» es la
-        # de abajo a la derecha, y a ella se llega solo por el camino del
-        # parcial reintentado. La suite cubre los dos caminos.
+        # LEER EL ENCABEZADO DESPACIO: cada fila dice que se QUITA, no que se
+        # pone. La primera fila es el codigo tal como esta hoy. Rotulado asi
+        # porque el encabezado escueto («guardas fuera») ya se leyo del reves
+        # una vez, y entonces la ultima fila parece una contradiccion.
+        #
+        # CONCLUSION HONESTA, que no es ninguna de las dos que se dijeron:
+        #
+        #   * Las dos bastan por separado PARA IMPEDIR «disponible», y solo
+        #     para eso. La unica celda que produce ese falso es la de abajo a
+        #     la derecha, y a ella se llega solo por el parcial reintentado.
+        #   * NO SON INTERCAMBIABLES. Retirar la del ROUTER si es observable:
+        #     `[]` -> `sin_identidad`, o sea la pantalla pasaria a afirmar «se
+        #     escribio y no consta con que identidad» sobre un plan EN VUELO.
+        #     Es falso para el operador aunque no sea la contradiccion gorda.
+        #   * ESTA, la del motor, es la unica cuya retirada es plenamente
+        #     inobservable hoy. Se conserva como defensa en profundidad
+        #     DELIBERADA, no como codigo muerto.
+        #
+        # La suite cubre los dos caminos.
         bruto = ultimo["apply_id"] if estado in ("applied", "partial") else None
         identidad = bruto if es_apply_id(bruto) else None
         return EstadoDelPlan(

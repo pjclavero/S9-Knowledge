@@ -2929,19 +2929,32 @@ def test_en_vuelo_TRAS_REINTENTAR_UN_PARCIAL_tampoco_ofrece_camino(
     la regla de estado vive en DOS sitios y decir «la guarda» en singular sería
     tan inexacto como lo que vino a corregir:
 
-        guardas fuera        sealed->applying   partial->re-reserva
+        guardas RETIRADAS    sealed->applying   partial->re-reserva
         -----------------    ----------------   -------------------
         ninguna              []                 []
         sólo la del motor    []                 []
         sólo la del router   sin_identidad      sin_identidad
         LAS DOS              sin_identidad      DISPONIBLE   <- aquí
 
-    Las dos guardas bastan por separado, así que ninguna de las dos por sí sola
-    es «la que impide» nada. Lo que este caso cubre en exclusiva es la celda de
-    abajo a la derecha: es el ÚNICO escenario del módulo donde la pantalla
-    llega a pintar `disponible` sobre un apply del que no consta cómo terminó
-    — la contradicción de verdad. En los demás el camino se cierra por
-    AUSENCIA DE IDENTIDAD, que es otra cosa y se ve igual de verde.
+    LEER EL ENCABEZADO DESPACIO: cada fila dice qué se QUITA, no qué se pone;
+    la primera es el código tal como está hoy. Va rotulado así porque el
+    encabezado escueto («guardas fuera») ya se leyó del revés una vez, y
+    entonces la última fila parece una contradicción.
+
+    QUÉ SE SIGUE DE LA TABLA, con la media línea que falta:
+
+      * Las dos bastan por separado PARA IMPEDIR `disponible`, y sólo para
+        eso. Ninguna es por sí sola «la que impide» esa contradicción.
+      * Pero NO son intercambiables. Retirar la del ROUTER sí es observable:
+        `[]` -> `sin_identidad`, o sea la pantalla afirmaría «se escribió y no
+        consta con qué identidad» sobre un plan EN VUELO. Es falso para el
+        operador, aunque no sea la contradicción gorda.
+      * La del MOTOR es la única cuya retirada es plenamente inobservable hoy.
+
+    Lo que este caso cubre en exclusiva es la celda de abajo a la derecha: el
+    ÚNICO escenario del módulo donde la pantalla llega a pintar `disponible`
+    sobre un apply del que no consta cómo terminó. En los demás el camino se
+    cierra por AUSENCIA DE IDENTIDAD, que es otra cosa y se ve igual de verde.
 
     Sin este caso esa celda no la alcanzaba ningún testigo, que es la forma en
     que una rama se queda fuera de toda puerta sin que nadie se entere.
