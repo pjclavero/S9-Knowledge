@@ -94,6 +94,22 @@ def _abrir_con_corrida(page, viewer: ViewerServer):
     page.wait_for_selector("form.v3r-filters")
 
 
+def _diagnostico(page) -> str:
+    """Por que la pantalla no trae lo que se esperaba, en una linea.
+
+    Un rojo que solo dice «no trae 2 fichas» no distingue «el almacen no se
+    leyo» de «el ambito recorto» de «el filtro no caso». Las tres se arreglan
+    en sitios distintos, asi que el mensaje las separa.
+    """
+    return (
+        f"url={page.url!r} "
+        f"fichas={page.locator('[data-review-item]').count()} "
+        f"almacen_caido={page.locator('[data-state=\"unavailable\"]').count() > 0} "
+        f"recuento={page.locator('[data-recuento]').inner_text() if page.locator('[data-recuento]').count() else None!r} "
+        f"opciones_workspace={page.locator('form.v3r-filters select[name=\"workspace\"] option').count()}"
+    )
+
+
 def test_el_filtro_de_corrida_sobrevive_a_tocar_el_select_de_fuente(
     revisor, viewer_con_cola,
 ):
@@ -109,10 +125,11 @@ def test_el_filtro_de_corrida_sobrevive_a_tocar_el_select_de_fuente(
     # SE DEMUESTRA PRIMERO EL CASO: la pantalla esta filtrada de verdad.
     assert revisor.locator("[data-filtro-corrida]").count() == 1, (
         "la pantalla de partida no declara el filtro de corrida, asi que lo "
-        "que se mida despues no dira nada de si sobrevive"
+        f"que se mida despues no dira nada de si sobrevive. {_diagnostico(revisor)}"
     )
     assert revisor.locator("[data-review-item]").count() == 2, (
-        "el caso no es el que se mide: la corrida filtrada no trae 2 fichas"
+        f"el caso no es el que se mide: la corrida filtrada no trae 2 fichas. "
+        f"{_diagnostico(revisor)}"
     )
 
     # EL GESTO. `select_option` dispara el evento `change` del navegador, que
@@ -152,5 +169,6 @@ def test_quitar_el_filtro_de_corrida_lo_quita_de_verdad(revisor, viewer_con_cola
         "la pantalla sigue declarando un filtro de corrida que ya no hay"
     )
     assert revisor.locator("[data-review-item]").count() == 3, (
-        "tras quitar el filtro no se ven las propuestas de todas las corridas"
+        f"tras quitar el filtro no se ven las propuestas de todas las corridas. "
+        f"{_diagnostico(revisor)}"
     )
