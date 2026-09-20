@@ -14,14 +14,25 @@ y solo uno se puede medir sin navegador:
     existe y el job de CI lo ejecuta entero con chromium obligatorio y sin
     permitir un solo skip. Asi que se mide.
 
-  · LA ACCION PRINCIPAL (aprobar, deshacer). Esa si se puede medir sin
-    navegador, y se mide en `viewer/tests/test_v3_review_consola_corte.py`.
+  · LA ACCION PRINCIPAL (aprobar). Se mide tambien sin navegador en
+    `viewer/tests/test_v3_review_consola_corte.py`, y aqui ADEMAS con el boton
+    real, porque el recorrido completo —cola visible, filtro ejercido, decidir,
+    el filtro sobrevive, quitar el filtro— es lo que un operador hace de
+    seguido, y las costuras aparecen entre pieza y pieza, no dentro de ellas.
+
+EL RECORRIDO QUE EJERCE, de punta a punta:
+    cola realmente visible -> filtros realmente ejercidos (el `<select>`, con
+    su `onchange`) -> `decide` con el boton real -> los filtros sobreviven ->
+    quitar el filtro funciona -> no aparece `?workspace=None`
 
 LO QUE ESTE FICHERO **NO** CUBRE (techo declarado):
   · No ejercita Neo4j: el proveedor de grafo es el `mock` del propio producto y
     el almacen de propuestas es un directorio temporal sembrado por la fixture.
-  · Mide el filtro de CORRIDA. Los otros dos filtros viajan por el mismo campo
-    oculto y el mismo formulario, pero aqui no se ejercen uno a uno.
+  · Mide el filtro de CORRIDA. Los otros dos viajan por el mismo campo oculto y
+    el mismo formulario —y su supervivencia a `decide` SI se mide, uno a uno,
+    en la suite sin navegador—, pero aqui no se ejercen por separado.
+  · No cubre `undo` en navegador (si sin navegador), ni la caducidad de sesion.
+  · Un unico navegador: chromium. Nada dice de otros motores.
 """
 from __future__ import annotations
 
