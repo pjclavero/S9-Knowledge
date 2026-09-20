@@ -653,6 +653,28 @@ def _camino_al_resultado(estado, workspace: str) -> dict:
     este despliegue. Si no, se NOMBRA la situación en vez de ofrecer un enlace
     que siempre daría 404.
 
+    Y AQUÍ ESTÁ EL LÍMITE DE ESA REGLA, DICHO EN VOZ ALTA PORQUE HOY MUERDE.
+    Esta función comprueba que el destino esté SERVIDO; no comprueba que vaya
+    a RESPONDER. Con el bloqueo que este corte midió —el recorrido
+    revisión->apply no crea nodos `:Entity`, y el ámbito del lector se deriva
+    de ellos—, el destino contesta 404 a la ejecución que acaba de ocurrir.
+    Es decir: el panel pinta `disponible` y ofrece un enlace que HOY SIEMPRE
+    FALLA, de modo que este corte incumple en la práctica su propia regla.
+
+    DÓNDE VIVE EL ARREGLO, medido por INTERVENCIÓN (un solo `:Entity` con
+    `entity_id` inyectado: ámbito [] -> ['ws-…'], destino 404 -> 200): NO en la
+    semántica de autorización, que no se toca. El plan de la UI emite sólo
+    `CREATE_ASSERTION` y `PROJECT_RELATION`; `review_plan` se niega a emitir
+    `CREATE_ENTITY` y lo dice por escrito —exige un alta aprobada por una
+    persona (`pipeline/entity_decisions.py`)—. Lo que falta es esa superficie
+    de decisión en el recorrido, no una tubería.
+
+    NO SE TAPA CON UNA COMPROBACIÓN NUEVA CONTRA EL GRAFO. Preguntarle al grafo
+    desde aquí antes de pintar el enlace es maquinaria nueva —y una consulta
+    más por carga de pantalla— para esconder un defecto que vive en otra capa.
+    Mientras tanto la situación se DECLARA, que es lo que permite decidir el
+    orden de los cortes con la información delante.
+
     AUTORIZACIÓN: aquí no se concede nada. El destino conserva su guarda de
     rol y su filtrado por política — quien no pueda ver una entidad, una
     relación o una evidencia seguirá sin verla, porque quien filtra es el
@@ -668,8 +690,16 @@ def _camino_al_resultado(estado, workspace: str) -> dict:
 
         servida = pantalla_resultado.esta_encendida()
     except Exception as exc:  # noqa: BLE001 - la pantalla no se cae por esto
-        # Si no se puede saber si el destino se sirve, NO se ofrece: fallo
-        # cerrado. Un enlace ofrecido a ciegas es un 404 disfrazado de camino.
+        # FRONTERA DEFENSIVA NO EJERCIDA. Si no se puede saber si el destino se
+        # sirve, NO se ofrece: fallo cerrado. Un enlace ofrecido a ciegas es un
+        # 404 disfrazado de camino.
+        #
+        # Se nombra así y no «inalcanzable», que es lo que decía antes y era
+        # decir de más: no hay corpus que la alcance sin mutilar el módulo, y
+        # eso NO es lo mismo que demostrar que no puede ocurrir. Una mutación
+        # que rompe el import la ejerce y degrada a `apagado`, o sea que la
+        # frontera hace lo que promete; lo que no hay es un testigo del árbol
+        # que la recorra.
         panel_errors.registrar("RESULTADO_PANEL_NO_CONSULTABLE", exc)
         servida = False
     if not servida:

@@ -388,18 +388,38 @@ class ReviewApplyService:
         #
         # Y SOLO EN LOS ESTADOS EN LOS QUE SE ESCRIBIO.
         #
-        # La guarda es DELIBERADAMENTE REDUNDANTE y conviene decir por que, con
-        # lo MEDIDO delante: `claim_for_apply` mueve la fila a `applying` sin
-        # tocar la columna `apply_id` —la estampa `record_apply_result`, y solo
-        # con desenlace—, asi que hoy en `applying` la columna esta a NULL y
-        # esta linea no cambia el resultado. Se escribe igual porque lo que
-        # protege no es el valor de hoy sino la REGLA: una identidad sin
-        # desenlace conocido no autoriza a decir «esto es lo que se aplico». El
-        # dia que la reserva estampe la identidad por adelantado —que es una
-        # forma razonable de escribirla— esta linea es lo unico que impide que
-        # la pantalla se contradiga con el parrafo de arriba, el que dice que
-        # NO consta como termino. El control negativo del caso `en_vuelo` esta
-        # en la suite y se pone rojo si el camino aparece ahi.
+        # RECTIFICACION MEDIDA, Y CON LA MEDICION DELANTE. Una version anterior
+        # de este comentario decia que la guarda era redundante «porque
+        # `claim_for_apply` no estampa la identidad, asi que en `applying` la
+        # columna esta a NULL». ESE RAZONAMIENTO ERA FALSO, y era falso de la
+        # manera peligrosa: habria justificado borrar la linea. `claim_for_apply`
+        # toma desde `sealed` Y desde `partial` --la reconciliacion de un apply
+        # incompleto-- y en `partial` la columna YA la estampo
+        # `record_apply_result`. Medido contra el almacen real:
+        #
+        #   tras un apply PARCIAL     state='partial'   apply_id='apply:bbbb...'
+        #   re-reserva                claimed=True
+        #   EN VUELO tras re-reserva  state='applying'  apply_id='apply:bbbb...'
+        #
+        # O sea: hay DOS caminos hasta `applying` y solo uno deja la columna
+        # vacia.
+        #
+        # QUE APORTA ENTONCES ESTA LINEA, medido por ablacion sobre el HTML
+        # (`_camino_al_resultado` lleva la MISMA regla de estado):
+        #
+        #   guardas fuera      sealed->applying   partial->re-reserva
+        #   ---------------    ----------------   -------------------
+        #   ninguna            []                 []
+        #   solo ESTA          []                 []            <- el router cierra
+        #   solo la del router sin_identidad      sin_identidad <- esta cierra
+        #   LAS DOS            sin_identidad      DISPONIBLE    <- la contradiccion
+        #
+        # Conclusion HONESTA, que no es ninguna de las dos que se dijeron: las
+        # dos guardas son suficientes por separado, asi que quitar SOLO esta no
+        # cambia nada observable. Pero es defensa en profundidad DELIBERADA, no
+        # codigo muerto: la unica celda que produce el falso «disponible» es la
+        # de abajo a la derecha, y a ella se llega solo por el camino del
+        # parcial reintentado. La suite cubre los dos caminos.
         bruto = ultimo["apply_id"] if estado in ("applied", "partial") else None
         identidad = bruto if es_apply_id(bruto) else None
         return EstadoDelPlan(

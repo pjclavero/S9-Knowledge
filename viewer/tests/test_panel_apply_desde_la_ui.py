@@ -2817,10 +2817,19 @@ def test_el_enlace_resuelve_a_la_pantalla_de_resultado_y_esta_responde(
         "el enlace lleva a un login: el rol que puede aplicar no puede ver lo "
         "que aplicó"
     )
-    # 404 aquí sería el `RESULT_NOT_FOUND` legítimo (no hay grafo), NO el del
-    # interruptor: eso se distingue porque el interruptor está encendido y el
-    # caso de apagado, abajo, mide la otra mitad.
-    assert respuesta.status_code in (200, 404, 503), respuesta.status_code
+    # EL `in (200, 404, 503)` QUE HABÍA AQUÍ ERA DECORATIVO: los tres son los
+    # únicos desenlaces que esta ruta puede dar una vez descartados el 500 y el
+    # 302, así que no había nada que pudiera ponerlo rojo. Un testigo vacío.
+    #
+    # Se sustituye por lo que sí es portante sin grafo: que la negación, si la
+    # hay, NO venga del INTERRUPTOR. Encendido y apagado dan los dos 404 y se
+    # ven igual; lo que los distingue es el cuerpo, y `RESULT_NOT_FOUND` sólo
+    # lo emite el camino que ya pasó la puerta del interruptor.
+    if respuesta.status_code == 404:
+        assert "RESULT_NOT_FOUND" in respuesta.text, (
+            "el destino responde 404 por algo que NO es «no hay resultado»: si "
+            "es el interruptor, el panel está publicando un enlace hacia una "
+            f"pantalla que no se sirve. Cuerpo: {respuesta.text[:200]}")
 
 
 # ---------------------------------------------------------------------------
@@ -2862,15 +2871,20 @@ def test_en_vuelo_NO_se_ofrece_camino_porque_NO_SE_SABE_como_termino(
     Ofrecer aquí el camino a «lo que se aplicó» contradiría, en la misma
     pantalla, al párrafo de arriba que dice que no consta cómo terminó.
 
-    QUÉ CUBRE HOY ESTE CASO, DICHO CON PRECISIÓN. Se MIDIÓ: `claim_for_apply`
-    no estampa la identidad —la pone `record_apply_result`, y sólo con
-    desenlace—, así que en `applying` la columna está a NULL y el camino se
-    cierra por AUSENCIA DE IDENTIDAD, no por la guarda de estado. Las dos
-    guardas están, y este caso no distingue cuál actúa. No es cobertura
-    regalada y tampoco se presenta como más de lo que es: fija el
-    COMPORTAMIENTO visible —en vuelo no hay camino— contra el día en que la
-    reserva estampe la identidad por adelantado, que es cuando la guarda de
-    estado pasará a ser la única que lo impide.
+    QUÉ CUBRE ESTE CASO, DICHO CON PRECISIÓN. Éste es el camino
+    `sealed -> applying`, y se MIDIÓ que por ahí la columna `apply_id` llega a
+    NULL, así que el camino se cierra por AUSENCIA DE IDENTIDAD. Con las dos
+    guardas de estado fuera, este caso sigue dando `sin_identidad` y NUNCA
+    `disponible`: no distingue una cosa de la otra.
+
+    La celda que sí produce la contradicción —`disponible` sobre un apply del
+    que no consta cómo terminó— la cubre el caso hermano, el de la re-reserva
+    de un `partial`, donde la columna llega estampada. Allí está la tabla de
+    ablación completa.
+
+    Se dice así porque una versión anterior de este docstring afirmaba que la
+    guarda de estado era redundante «porque la columna está a NULL», y ese
+    razonamiento era falso: sólo vale por ESTE camino, no por el otro.
     """
     from app.services.v3_review import ReviewService
 
@@ -2888,6 +2902,81 @@ def test_en_vuelo_NO_se_ofrece_camino_porque_NO_SE_SABE_como_termino(
         "con el apply EN VUELO la pantalla ofrece camino a lo aplicado: eso "
         f"afirma un desenlace que ella misma dice no conocer ({camino['codigos']})"
     )
+
+
+def test_en_vuelo_TRAS_REINTENTAR_UN_PARCIAL_tampoco_ofrece_camino(
+    real_app, paneles_on, resultado_on, cola, operador, almacenes, monkeypatch
+):
+    """DONDE LA GUARDA DE ESTADO ACTÚA DE VERDAD. La rama que faltaba.
+
+    EL HUECO QUE ESTE CASO CIERRA, y por qué existía. Se había afirmado que la
+    guarda `estado in ('applied','partial')` era redundante «porque
+    `claim_for_apply` no estampa la identidad». Medido contra el almacén real,
+    es falso — y el error fue mirar UN SOLO camino hacia `applying`:
+
+        tras apply PARCIAL        state='partial'   apply_id='apply:bbbb…'
+        re-reserva                claimed=True
+        EN VUELO tras re-reserva  state='applying'  apply_id='apply:bbbb…'
+
+    `claim_for_apply` toma desde `sealed` Y desde `partial` —la reconciliación
+    de un apply incompleto— y su UPDATE no toca `apply_id`; pero en `partial`
+    la columna YA la estampó `record_apply_result`. Así que por ESTE camino el
+    `applying` llega CON identidad bien formada, y lo único que impide que la
+    pantalla ofrezca el camino a «lo que se aplicó» —contradiciendo su propio
+    párrafo de «no consta cómo terminó»— es la guarda de estado.
+
+    QUÉ APORTA ESTE CASO Y QUÉ NO, medido por ablación sobre el HTML —porque
+    la regla de estado vive en DOS sitios y decir «la guarda» en singular sería
+    tan inexacto como lo que vino a corregir:
+
+        guardas fuera        sealed->applying   partial->re-reserva
+        -----------------    ----------------   -------------------
+        ninguna              []                 []
+        sólo la del motor    []                 []
+        sólo la del router   sin_identidad      sin_identidad
+        LAS DOS              sin_identidad      DISPONIBLE   <- aquí
+
+    Las dos guardas bastan por separado, así que ninguna de las dos por sí sola
+    es «la que impide» nada. Lo que este caso cubre en exclusiva es la celda de
+    abajo a la derecha: es el ÚNICO escenario del módulo donde la pantalla
+    llega a pintar `disponible` sobre un apply del que no consta cómo terminó
+    — la contradicción de verdad. En los demás el camino se cierra por
+    AUSENCIA DE IDENTIDAD, que es otra cosa y se ve igual de verde.
+
+    Sin este caso esa celda no la alcanzaba ningún testigo, que es la forma en
+    que una rama se queda fuera de toda puerta sin que nadie se entere.
+    """
+    from app.services.v3_review import ReviewService
+
+    identidad = _identidad_de_apply("b")
+    job_id, fila, _ = _vista_aplicada(
+        operador, cola, almacenes, monkeypatch, apply_id=identidad,
+        complete=False)
+    assert fila["state"] == "partial", fila["state"]
+
+    reserva = ReviewService().store.claim_for_apply(
+        plan_id=fila["plan_id"], now="2026-01-02T00:00:00Z")
+    assert reserva["claimed"], (
+        "un `partial` no se dejó re-reservar: este caso no llega a la rama que "
+        "viene a cubrir")
+
+    en_vuelo = _fila_de_plan(almacenes["base"])
+    assert en_vuelo["state"] == "applying", en_vuelo["state"]
+    # LA PRECONDICIÓN QUE HACE ÚTIL A ESTE CASO. Si la columna llegara vacía,
+    # el camino se cerraría por ausencia de identidad y esta prueba volvería a
+    # no ejercer la guarda de estado — verde sin cubrir nada.
+    assert en_vuelo["apply_id"] == identidad, (
+        "la re-reserva de un `partial` ya no conserva la identidad "
+        f"({en_vuelo['apply_id']!r}): esta prueba ha dejado de ejercer la "
+        "guarda de estado y hay que rehacerla, no darla por buena")
+
+    bloque = _bloque_plan(_panel(operador, job_id))
+    assert bloque["atributos"]["estado"] == "applying", bloque["atributos"]
+    camino = _camino(bloque)
+    assert camino["codigos"] == [], (
+        "con identidad estampada y el apply EN VUELO la pantalla ofrece camino "
+        "a lo aplicado: afirma un desenlace que ella misma dice no conocer "
+        f"({camino['codigos']})")
 
 
 def test_escrito_y_sin_identidad_durable_se_dice_AUSENTE_y_no_se_calla(
@@ -2969,9 +3058,17 @@ def test_el_desenlace_PARCIAL_tambien_ofrece_el_camino(
     assert camino["codigos"] == ["disponible"], (
         "un apply PARCIAL no ofrece camino a lo que si quedo escrito: "
         f"{camino['codigos']}")
-    assert identidad in _primer_enlace(camino), (
+    enlace = _primer_enlace(camino)
+    assert identidad in enlace, (
         "el camino del desenlace PARCIAL no lleva la identidad de esta "
         f"ejecución: {camino['enlaces']}")
+    # EL ÁMBITO, TAMBIÉN AQUÍ. Sólo un testigo lo cautelaba, y una pérdida del
+    # `workspace` que ocurriera únicamente en esta rama habría pasado entera:
+    # el destino caería al workspace por defecto y enseñaría —o negaría— una
+    # ejecución que no es ésta.
+    assert f"workspace={fila['workspace']}" in enlace, (
+        "el camino del desenlace PARCIAL no lleva el ámbito de la ejecución: "
+        f"destino={enlace}")
 
 
 def test_los_CUATRO_desenlaces_del_camino_estan_declarados_y_pintados():
@@ -3010,6 +3107,20 @@ def test_ningun_desenlace_del_camino_escapa_al_vocabulario_declarado():
     `resultado` en los diccionarios que el router construye. Contar
     apariciones de las cadenas daría un falso negativo en cuanto alguien
     escribiera el código en una variable; esto ve la estructura.
+
+    EL TECHO DE ESTA RED, DECLARADO — porque una red que no dice qué no ve se
+    lee como completa. Sólo alcanza `ast.Dict` cuya clave sea la constante
+    `"resultado"` y cuyo valor sea también constante. Queda FUERA de su vista:
+
+      * la asignación posterior a un diccionario ya construido
+        (`vista["resultado"] = x`),
+      * un valor calculado (`"resultado": f(...)` o una variable),
+      * un desenlace que llegara a la vista desde otro módulo.
+
+    Ninguna de las tres existe hoy: `_camino_al_resultado` es el único
+    productor y devuelve literales. Se dice igualmente, porque el aliasing no
+    se cierra añadiendo patrones y la alternativa honesta a un techo declarado
+    es una falsa sensación de cobertura total.
     """
     import ast
 
@@ -3207,10 +3318,35 @@ def test_BLOQUEO_el_destino_niega_el_apply_que_acaba_de_ocurrir(
     la pantalla lo niega. La ausencia de entidades se convierte en ausencia de
     ámbito, y la ausencia de ámbito en «no existe».
 
-    POR QUÉ NO SE ARREGLA AQUÍ. Tocarlo es tocar la SEMÁNTICA DE AUTORIZACIÓN
-    del visor —de dónde sale el ámbito de un lector—, que es contrato
-    congelado, y hacerlo desde este corte sería abrir por mi cuenta un frente
-    que no me toca. Queda elevado con esta evidencia.
+    DÓNDE VIVE EL ARREGLO — RECTIFICACIÓN MEDIDA. Una versión anterior de este
+    docstring elevaba el bloqueo diciendo que arreglarlo exigía tocar la
+    SEMÁNTICA DE AUTORIZACIÓN, contrato congelado. **Era falso, y mandaba al
+    operador contra un muro que no hacía falta tocar.** Medido por
+    INTERVENCIÓN: inyectando UN solo `:Entity` con `entity_id`, sin tocar el
+    apply, ni el plan, ni una sola regla de autorización:
+
+        ámbito   ANTES=[]    DESPUÉS=['ws-cofradia']
+        destino  ANTES=404   DESPUÉS=200
+
+    La causa raíz está UNA CAPA ANTES: el plan de la UI emite exactamente DOS
+    `operation_type` —`CREATE_ASSERTION` y `PROJECT_RELATION`— y nunca
+    `CREATE_ENTITY`, así que un workspace construido por el camino
+    revisión->apply tiene SIEMPRE `Entity = 0`. `workspaces()`,
+    `_workspace_autorizado`, las políticas, `known_by` y los grants NO se
+    tocan.
+
+    Y NO ES UN OLVIDO DE PLOMERÍA, QUE ES EL SEGUNDO ESCALÓN. Toda la cadena
+    de `CREATE_ENTITY` ya existe —el Cypher estampa `:Entity:V3Entity` con
+    `entity_id`, el executor la ejecuta, el contrato la declara y el pipeline
+    calcula los candidatos—, pero `review_plan` se NIEGA a emitirla, y lo dice
+    por escrito en su propia cabecera: «un extremo `pending_creation` exige un
+    `CREATE_ENTITY`, y eso sólo lo autoriza un alta aprobada
+    (`pipeline/entity_decisions.py`): aprobar una propuesta de revisión NO es
+    aprobar el alta de una entidad, y esa frontera la cruza una persona». Lo
+    que falta, por tanto, no es una línea: es la SUPERFICIE DE DECISIÓN
+    —aprobar el alta de una entidad— que el recorrido de la UI no ofrece.
+
+    POR QUÉ NO SE ARREGLA AQUÍ. Porque es otro corte, no porque sea intocable.
 
     POR QUÉ ES UNA PRUEBA Y NO UN COMENTARIO. Un párrafo en un informe no se
     entera de nada. Esto se pone ROJO el día que el bloqueo se levante —o el
@@ -3236,7 +3372,25 @@ def test_BLOQUEO_el_destino_niega_el_apply_que_acaba_de_ocurrir(
         "el apply no dejó marca alcanzable: entonces el 404 de abajo sería "
         "legítimo y este caso estaría midiendo otra cosa")
 
-    # 2. Y AUN ASÍ EL ÁMBITO NO EXISTE PARA EL LECTOR. Ésta es la causa.
+    # 2. LA CAUSA, ASEVERADA Y NO SÓLO CONTADA EN LA PROSA.
+    #
+    #    Sin esto, el caso seguiría «verde-como-bloqueado» si la causa cambiara
+    #    a otra —`:Entity` presentes pero sin `entity_id`, o una política que
+    #    vacíe `workspaces()`— mientras su docstring seguiría afirmando ésta.
+    #    Un testigo cuya causa declarada puede volverse falsa sin que él se
+    #    entere no fija nada.
+    with grafo.session() as sesion:
+        censo = {f["l"]: f["c"] for f in sesion.run(
+            "MATCH (n) UNWIND labels(n) AS l RETURN l, count(*) AS c")}
+    assert censo.get("V3Assertion"), (
+        "el apply no dejó ninguna afirmación: sin conocimiento escrito este "
+        f"caso no mide el bloqueo sino un apply vacío ({censo})")
+    assert censo.get("Entity", 0) == 0, (
+        "YA HAY nodos `:Entity` tras el apply del recorrido de la UI "
+        f"({censo}): la causa medida de este bloqueo ha cambiado. Reléelo "
+        "entero antes de tocar nada — puede que el camino ya llegue al final")
+
+    # 3. Y AUN ASÍ EL ÁMBITO NO EXISTE PARA EL LECTOR.
     ambitos = list(visor_sobre_el_grafo.workspaces() or ())
     assert "ws-cofradia" not in ambitos, (
         "EL BLOQUEO SE HA LEVANTADO: el workspace del apply ya aparece en el "
@@ -3244,7 +3398,7 @@ def test_BLOQUEO_el_destino_niega_el_apply_que_acaba_de_ocurrir(
         "corte probablemente ya llegue hasta el final, y el caso de arriba "
         "debe promoverse a la propiedad completa")
 
-    # 3. Y el destino niega la ejecución que acaba de ocurrir.
+    # 4. Y el destino niega la ejecución que acaba de ocurrir.
     pantalla = operador.get(destino)
     assert pantalla.status_code == 404, (
         "el destino ya no responde 404 al apply recién hecho "
