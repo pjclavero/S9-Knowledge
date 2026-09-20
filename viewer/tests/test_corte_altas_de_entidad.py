@@ -367,17 +367,77 @@ def test_la_consola_enlaza_a_la_decision_pendiente(operador, corrida):
 def test_un_revisor_no_puede_aprobar_un_alta(revisor, corrida, almacenes):
     """Aprobar una entidad NUEVA es un acto de administración, no de revisión.
 
-    El rol y el CSRF se comprueban POR SEPARADO (la prueba de rol usa un token
-    CSRF válido de SU propia sesión), porque en un corte anterior una prueba de
-    rol pasaba aunque se degradara la guarda: al revisor lo paraba el CSRF.
+    ESTE VERDE ESTÁ SOBREDETERMINADO, Y SE DICE — porque se MIDIÓ. Retirando la
+    guarda de rol del manejador, esta prueba SIGUE EN VERDE: al `reviewer` lo
+    para además la resolución de la corrida con ámbito (`_corrida_visible`),
+    que no le deja ver ese trabajo. Comprueba «un reviewer no aprueba», que es
+    cierto y es lo que le importa al producto, pero NO aísla cuál de las dos
+    puertas lo impide, y leerla como prueba de la guarda de rol sería leer un
+    verde por la razón equivocada.
 
-    ROJA ASÍ: `AssertionError: un reviewer aprobó un alta` — y, sobre todo, la
-    tabla deja de estar vacía, que es la afirmación que de verdad importa.
+    La guarda de rol, aislada, la mide por estructura
+    `test_el_manejador_del_alta_pasa_por_la_guarda_del_hueco`. Hacen falta las
+    dos.
+
+    ROJA ASÍ: `AssertionError: un reviewer aprobó un alta` — y lo que la pone
+    roja es la TABLA, no el código de respuesta: una ausencia de escritura no
+    se demuestra con un 403.
     """
     entity_id = sorted(corrida["declaradas"])[0]
     respuesta = _aprobar(revisor, corrida["job_id"], entity_id)
     assert respuesta.status_code in (302, 303, 403), respuesta.status_code
     assert _filas_de_alta(almacenes["base"]) == [], "un reviewer aprobó un alta"
+
+
+def test_el_manejador_del_alta_pasa_por_la_guarda_del_hueco():
+    """La guarda de rol, AISLADA y por estructura. Se PARSEA, no se cuenta.
+
+    Existe porque el testigo de comportamiento de arriba está sobredeterminado:
+    con la guarda retirada sigue verde, porque al revisor lo para también el
+    ámbito. Aquí se mira el ÁRBOL del manejador y se exige lo que la guarda es:
+
+      * que su parámetro `user` venga de `Depends(slot_guard(SLOT))` — la misma
+        puerta del hueco que usan el sellado y el apply, no una propia;
+      * que el cuerpo delegue en `_accion`, que es quien llama a `_authorize`
+        ANTES que a nada. Un manejador que hiciera el trabajo por su cuenta se
+        saltaría ese orden sin que el rol declarado cambiara de sitio.
+
+    EL TECHO DE ESTA RED, DECLARADO — una red que no dice qué no ve se lee como
+    completa. Ve la FORMA del manejador; NO ve:
+
+      * que `slot_guard` siga exigiendo `admin` (eso lo fija la capacidad
+        declarada, y lo comprueba `test_la_capacidad_esta_declarada_...`);
+      * un `_accion` degradado POR DENTRO (lo cubren los negativos de los otros
+        dos POST del hueco, que comparten esqueleto);
+      * una guarda retirada en tiempo de ejecución (monkeypatch, decorador).
+
+    ROJA ASÍ: `AssertionError: el manejador del alta no pasa por slot_guard` o
+    `AssertionError: el manejador del alta no delega en _accion`.
+    """
+    import ast
+
+    from app.routers import chassis_operations as panel_ops
+
+    arbol = ast.parse(Path(panel_ops.__file__).read_text(encoding="utf-8"))
+    manejador = next(
+        (n for n in ast.walk(arbol)
+         if isinstance(n, ast.FunctionDef) and n.name == "aprobar_alta"),
+        None,
+    )
+    assert manejador is not None, "no existe el manejador del alta"
+    defectos = [
+        ast.unparse(d) for d in manejador.args.defaults if isinstance(d, ast.Call)
+    ]
+    assert any("slot_guard(SLOT)" in d for d in defectos), (
+        f"el manejador del alta no pasa por slot_guard: {defectos}"
+    )
+    llamadas = {
+        n.func.id for n in ast.walk(manejador)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+    }
+    assert "_accion" in llamadas, (
+        f"el manejador del alta no delega en _accion: {sorted(llamadas)}"
+    )
 
 
 def test_sin_csrf_no_se_aprueba_ningun_alta(operador, corrida, almacenes):
