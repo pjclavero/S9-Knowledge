@@ -281,6 +281,48 @@
           {% endif %}
         {% endif %}
 
+        {#
+          DE «APLICADO» A LO QUE REALMENTE SE APLICÓ (Corte 3).
+
+          EL DEFECTO, MEDIDO sobre el HTML que servía esta misma plantilla con
+          un plan en `applied`: el bloque no contenía NI UN SOLO enlace. El
+          operador leía «ya forma parte del conocimiento» y el producto se
+          acababa ahí. Qué se escribió, de dónde venía y con qué evidencia
+          sólo se podían ver saliendo a la línea de comandos o a Neo4j
+          Browser.
+
+          NO SE AFIRMA MÁS DE LO QUE SE SABE. El enlace no promete que todo lo
+          preparado esté escrito ni que la evidencia esté completa: de eso ya
+          hablan, arriba, el desenlace y los avisos. Promete exactamente lo
+          que la pantalla de destino entrega — lo que ESA ejecución dejó y que
+          ESTE lector está autorizado a ver.
+
+          AUSENCIA != CERO, en las dos direcciones. Si se escribió y no consta
+          la identidad de la ejecución, se DICE que no hay camino, no se calla.
+          Si la identidad está y la pantalla de destino no se sirve aquí, se
+          dice eso otro. Callar cualquiera de los dos casos se leería como
+          «no hay nada que ver», que es falso: hay conocimiento nuevo escrito.
+        #}
+        {% if plan.resultado == 'disponible' %}
+          <p data-plan-resultado="disponible">
+            <a href="{{ url_for('resultado_de_ejecucion', apply_id=plan.apply_id) }}?workspace={{ plan.workspace | urlencode }}"
+               data-role="ver-lo-aplicado">Ver qué se añadió y de dónde sale</a>
+          </p>
+        {% elif plan.resultado == 'sin_identidad' %}
+          <p data-plan-resultado="sin_identidad">
+            Se escribió, pero <strong>no consta con qué identidad</strong>, así
+            que desde aquí no se puede llegar a lo que se añadió. No es que no
+            haya nada: es que falta el dato para alcanzarlo. Avisa a quien
+            administra el servicio.
+          </p>
+        {% elif plan.resultado == 'apagado' %}
+          <p data-plan-resultado="apagado">
+            La pantalla que enseña lo aplicado y su procedencia
+            <strong>no está disponible en este despliegue</strong>. Lo escrito
+            está; el camino para verlo, no.
+          </p>
+        {% endif %}
+
         {% if plan.aplicable %}
           {% if plan.estado != 'partial' %}
           <p data-plan-desenlace="sealed">

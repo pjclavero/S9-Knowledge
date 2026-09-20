@@ -43,6 +43,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from app.services.result_provenance import es_apply_id
 from app.services.v3_review import (
     ReviewError,
     ReviewService,
@@ -153,11 +154,27 @@ class EstadoDelPlan:
     NO lleva `plan_id`, ni `workspace`, ni `snapshot_id`, ni rutas, ni
     comandos: son identidades del servidor. Lleva lo que el operador necesita
     para decidir qué hacer y para entender qué pasó.
+
+    SÍ LLEVA `apply_id`, Y NO CONTRADICE LO ANTERIOR. El `apply_id` no es una
+    identidad del servidor que el operador no deba ver: es la identidad
+    DURABLE de la ejecución (`apply:<32hex>`, `writer/apply_identity.py`) que
+    el producto YA publica en la URL de `/panel/resultado/{apply_id}`. Sin él,
+    el acuse de «aplicado» es un callejón sin salida: MEDIDO sobre el HTML
+    real servido, el bloque `plan-revisado` en estado `applied` no contenía
+    NI UN SOLO enlace, así que llegar a qué se escribió exigía salir a la
+    línea de comandos o a Neo4j Browser. El dato ya estaba en la fila de
+    `sealed_plans`; lo que faltaba era publicarlo.
+
+    ES `Optional` A PROPÓSITO. `None` significa AUSENTE —no hay identidad
+    durable registrada, o la que hay no tiene forma de `apply_id`—, y la
+    pantalla lo dice como ausencia. No se inventa una atribución plausible:
+    este corte va precisamente de procedencia, y un `apply_id` fabricado
+    llevaría al operador al resultado de OTRA ejecución.
     """
 
     __slots__ = (
         "estado", "aprobadas", "pendientes", "en_el_plan", "excluidas",
-        "afirmaciones_escritas", "habilitado", "avisos",
+        "afirmaciones_escritas", "habilitado", "avisos", "apply_id",
     )
 
     def __init__(
@@ -171,7 +188,9 @@ class EstadoDelPlan:
         afirmaciones_escritas: Optional[int] = None,
         habilitado: bool = False,
         avisos: tuple = (),
+        apply_id: Optional[str] = None,
     ):
+        self.apply_id = apply_id
         self.estado = estado
         self.aprobadas = aprobadas
         self.pendientes = pendientes
@@ -213,6 +232,7 @@ class EstadoDelPlan:
             "sellable": self.sellable,
             "aplicable": self.aplicable,
             "avisos": list(self.avisos),
+            "apply_id": self.apply_id,
         }
 
 
@@ -354,7 +374,26 @@ class ReviewApplyService:
             notas = tuple(json.loads(ultimo["apply_notes_json"] or "[]"))
         except (TypeError, ValueError):  # pragma: no cover - fila corrupta
             notas = ()
+        # LA IDENTIDAD DURABLE DE LA EJECUCION, SI LA HAY (Corte 3).
+        #
+        # Se lee de la MISMA fila y en la MISMA lectura que el estado y el
+        # recuento: pedirla aparte abriria una ventana en la que la pantalla
+        # contara un desenlace y enlazara otro.
+        #
+        # La FORMA se comprueba, no se presume, con `es_apply_id` —la misma
+        # definicion que la pantalla de resultado usa para decidir si mira
+        # siquiera en la base—. Una fila con basura en esa columna produce
+        # `None`, o sea AUSENCIA declarada, y nunca un enlace a un
+        # identificador que no existe.
+        #
+        # Y solo en los estados en los que SE ESCRIBIO. En `applying` hay
+        # `apply_id` reservado sin desenlace conocido: ofrecer ahi el camino a
+        # «lo que se aplico» afirmaria que se aplico algo, que es justo lo que
+        # esa rama dice que NO se sabe.
+        bruto = ultimo["apply_id"] if estado in ("applied", "partial") else None
+        identidad = bruto if es_apply_id(bruto) else None
         return EstadoDelPlan(
+            apply_id=identidad,
             estado=estado,
             aprobadas=len(aprobadas),
             pendientes=pendientes,
