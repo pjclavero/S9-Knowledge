@@ -2997,6 +2997,47 @@ def test_los_CUATRO_desenlaces_del_camino_estan_declarados_y_pintados():
     )
 
 
+def test_ningun_desenlace_del_camino_escapa_al_vocabulario_declarado():
+    """Por AST, no contando texto: ningún código sale del vocabulario cerrado.
+
+    Este control existe porque el defecto ya se cometió en este mismo corte:
+    la rama de «almacén no consultable» devolvía un QUINTO código propio
+    (`sin_escritura`) que la plantilla no sabía pintar. La consecuencia no es
+    una excepción —Jinja no falla— sino un párrafo que no sale: el desenlace
+    se queda MUDO, y un desenlace mudo se lee como «no hay nada que ver».
+
+    Se PARSEA el módulo y se leen los valores literales asignados a la clave
+    `resultado` en los diccionarios que el router construye. Contar
+    apariciones de las cadenas daría un falso negativo en cuanto alguien
+    escribiera el código en una variable; esto ve la estructura.
+    """
+    import ast
+
+    from app.routers import chassis_operations as panel_ops
+
+    ruta = Path(panel_ops.__file__)
+    arbol = ast.parse(ruta.read_text(encoding="utf-8"))
+    emitidos = set()
+    for nodo in ast.walk(arbol):
+        if not isinstance(nodo, ast.Dict):
+            continue
+        for clave, valor in zip(nodo.keys, nodo.values):
+            if (isinstance(clave, ast.Constant) and clave.value == "resultado"
+                    and isinstance(valor, ast.Constant)):
+                emitidos.add(valor.value)
+
+    assert emitidos, (
+        "el análisis no encontró NINGÚN desenlace del camino en el router: el "
+        "instrumento ha dejado de ver lo que dice mirar, y un verde así no "
+        "cubre nada"
+    )
+    fuera = emitidos - set(panel_ops.CAMINOS_AL_RESULTADO)
+    assert not fuera, (
+        "el router emite desenlaces del camino que NO están en el vocabulario "
+        f"declarado, así que la pantalla no sabrá pintarlos: {sorted(fuera)}"
+    )
+
+
 def test_el_camino_no_publica_conocimiento_interno_nuevo(
     real_app, paneles_on, resultado_on, cola, operador, almacenes, monkeypatch
 ):

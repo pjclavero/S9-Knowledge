@@ -605,7 +605,13 @@ def _plan_de_la_corrida(resultado: Optional[dict]) -> Optional[dict]:
                 "sellable": False, "aplicable": False, "aprobadas": 0,
                 "pendientes": 0, "en_el_plan": 0, "excluidas": [],
                 "afirmaciones_escritas": None, "habilitado": False,
-                "apply_id": None, "workspace": None, "resultado": "sin_escritura"}
+                # `no_procede`, del vocabulario CERRADO de más abajo, y no un
+                # código propio: aquí no se sabe si se escribió algo, así que
+                # no hay camino que ofrecer ni ausencia que nombrar —de la
+                # indisponibilidad ya habla el párrafo `no_disponible`—. Un
+                # quinto código que la pantalla no supiera pintar saldría en
+                # blanco, y un desenlace mudo se lee como «no hay nada».
+                "apply_id": None, "workspace": None, "resultado": "no_procede"}
     vista = estado.to_dict()
     # La corrida viaja en el formulario, no en el cuerpo del estado: es la
     # única identidad que el POST necesita y ya es pública para el operador.
