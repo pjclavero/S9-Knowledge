@@ -104,9 +104,18 @@
     {% else %}
     Estás viendo sólo las propuestas de la corrida <code>{{ job_id | e }}</code>.
     {% endif %}
+    {#
+      SIN WORKSPACE NO HAY ENLACE. Con el almacén caído no hay workspace
+      seleccionado, y este enlace se pintaba como `?workspace=None`: una cadena
+      literal «None» que no es ningún workspace. Lo encontró un instrumento de
+      navegador recorriendo el gesto, no una lectura del código.
+      Un enlace que no se puede construir no se ofrece roto.
+    #}
+    {% if workspace %}
     <a data-quitar-filtro-corrida
        href="/v3/review?workspace={{ workspace | urlencode }}{% if source_id %}&amp;source_id={{ source_id | urlencode }}{% endif %}{% if engine_decision %}&amp;engine_decision={{ engine_decision | urlencode }}{% endif %}">Ver
       las de todas las corridas</a>.
+    {% endif %}
   </p>
   {% endif %}
 

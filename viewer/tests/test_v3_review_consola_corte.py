@@ -45,13 +45,26 @@ acción se RECORRE EL POST y se SIGUE EL REDIRECT.
 
 LO QUE ESTOS TESTIGOS **NO** CUBREN (techo declarado)
 -----------------------------------------------------
-  · **JavaScript.** El `onchange="this.form.submit()"` de los selects no se
-    dispara aquí. Lo que esta suite mide es que el filtro ESTÁ en el
-    formulario, que es lo que el navegador reenviaría. El gesto REAL —tocar
-    «Fuente» y que el navegador reenvíe— se mide en
-    `viewer/tests/browser/test_browser_v3_review_filtros.py`, con chromium de
-    verdad; ese fichero declara a su vez su propio techo. Esta suite, por sí
-    sola, NO cubre el reenvío.
+  · **JavaScript: el reenvío del navegador NO está cubierto por NADIE.** El
+    `onchange="this.form.submit()"` de los selects no se dispara aquí; lo que
+    esta suite mide es que el filtro ESTÁ en el formulario, que es lo que el
+    navegador reenviaría.
+
+    Y NO ES QUE NO SE INTENTARA. Existe `viewer/tests/browser/` con un job de
+    Playwright que lo ejecuta entero con chromium obligatorio y sin admitir un
+    solo skip, así que se escribió allí el testigo del gesto real. **Se cayó, y
+    por una razón medida, no supuesta**: ese job instala sólo
+    `viewer/requirements.txt`, y `default_proposals_dir()` delega la derivación
+    de la ruta en `data-engine` y FALLA CERRADO si el motor no está montado. El
+    diagnóstico del propio rojo, en CI:
+
+        fichas=0 almacen_caido=True recuento=None
+
+    Es decir: en ese laboratorio la consola no puede tener cola que enseñar. El
+    testigo se retiró en vez de dejar un gate en rojo, y montar el motor dentro
+    de ese job es trabajo de otro corte —toca la definición de una puerta por
+    un motivo que no es del producto—. Queda como deuda REGISTRADA, con su
+    causa ya medida.
   · **Infraestructura real.** El almacén de propuestas es un directorio
     temporal y no hay Neo4j. Capa alcanzada: usable desde el producto (HTTP +
     plantilla reales), no «ejercida contra infra real».
@@ -498,6 +511,13 @@ def test_con_el_almacen_caido_la_pantalla_no_afirma_estar_mostrando_la_corrida(
         "operador, que es un dato que él mismo puso"
     )
     assert str(ausente) not in html, "la ruta del almacén se ha filtrado al HTML"
+    # NINGÚN ENLACE ROTO. Sin almacén no hay workspace seleccionado, y el
+    # enlace de quitar el filtro se pintaba como `?workspace=None`: una cadena
+    # literal «None» que no es ningún workspace. Lo encontró un instrumento de
+    # navegador recorriendo el gesto, no una lectura del código.
+    assert "workspace=None" not in html, (
+        "la pantalla ofrece un enlace con el workspace literal «None»"
+    )
 
 
 # ===========================================================================
