@@ -410,8 +410,45 @@ ACUSES_DE_EXITO = {
         "administra el servicio antes de continuar; el detalle queda "
         "registrado en el servidor."
     ),
+    # EL SELLADO QUE DEJA FUERA UNA ENTIDAD QUE EL OPERADOR APROBO.
+    #
+    # Medido en vivo por el revisor: seis altas aprobadas, dos en el plan, y el
+    # acuse decia `PLAN_SEALED_SIN_PROYECCION` sin mencionar las otras cuatro.
+    # `sellar()` calculaba la lista y la devolvia; no la consumia nadie. Es
+    # exactamente el pecado que este mismo fichero predica dos parrafos mas
+    # arriba --«EL ACUSE DICE EL DESENLACE ENTERO, no la mitad buena»--
+    # cometido sobre la pieza nueva.
+    #
+    # PRECEDENCIA DECLARADA, no "el primero que salga": una ENTIDAD que no se
+    # crea pesa mas que una relacion que no se proyecta, porque sin la entidad
+    # tampoco habra nada a lo que enlazarla despues. Cuando faltan las dos, se
+    # dice que falta de todo y se manda a la pantalla que lo detalla.
+    "PLAN_SEALED_SIN_ALTAS": (
+        "Lo aprobado de esta ingesta ya esta preparado, PERO alguna de las "
+        "entidades nuevas a las que diste el visto bueno NO se va a anadir. "
+        "El motivo de cada una aparece en la pantalla de entidades nuevas de "
+        "esta ingesta. Revisalo antes de continuar."
+    ),
+    "PLAN_SEALED_INCOMPLETO": (
+        "Lo aprobado de esta ingesta ya esta preparado, PERO se queda fuera "
+        "parte de lo que aprobaste: alguna entidad nueva y alguna relacion. "
+        "El detalle de las entidades esta en la pantalla de entidades nuevas "
+        "de esta ingesta; el de las relaciones, registrado en el servidor."
+    ),
     "PLAN_APPLIED": (
         "Lo aprobado ya forma parte del conocimiento."
+    ),
+    # LAS DOS DEL ALTA. Son dos frases y no una porque describen dos cosas
+    # distintas: una decision NUEVA, que invalida lo que hubiera preparado, y
+    # una repeticion, que no cambia nada. Decir «aprobada» en los dos casos
+    # haria creer al operador que acaba de mover algo cuando no.
+    "ALTA_APPROVED": (
+        "Has dado el visto bueno a esa entidad. Si ya habias preparado lo "
+        "aprobado de esta ingesta, vuelve a prepararlo: aquello no la incluia."
+    ),
+    "ALTA_YA_APROBADA": (
+        "Esa entidad ya tenia tu visto bueno. No se ha vuelto a dar de alta: "
+        "no se duplica nada."
     ),
 }
 
@@ -828,6 +865,11 @@ def chassis_operations(
             # enlaza a SU revisión, y aquí se dice qué se puede hacer con lo
             # que se aprobó allí.
             plan=_plan_de_la_corrida(desenlace),
+            # LAS ALTAS DE ENTIDAD PENDIENTES. Solo el RECUENTO y el enlace:
+            # la evidencia vive en su propia pantalla, que es donde se decide.
+            # Ponerla aqui llenaria la consola de fragmentos de fuente que
+            # nadie ha pedido ver.
+            altas=_altas_de_la_corrida(desenlace, scope),
         ),
     )
 
@@ -1012,6 +1054,20 @@ def _corrida_visible(scope: VisibilityScope, job_id: str) -> Optional[dict]:
     return jobs_client.scoped_job(scope, job_id.strip())
 
 
+def _vuelta(request: Request, destino: str, job_id: str, codigo: str) -> str:
+    """La URL del 303. El nombre del parametro de corrida DEPENDE del destino.
+
+    La consola llama `solicitado` a la corrida y la pantalla de altas la llama
+    `trabajo`. Componer la vuelta con el nombre equivocado no da un error: da
+    una pantalla que abre SIN corrida y dice «no hay corrida que mirar» justo
+    despues de una aprobacion correcta, que es el peor desenlace posible --el
+    operador no sabe si aprobo o no.
+    """
+    base = request.url_for(destino)
+    clave = "trabajo" if destino == "chassis_operations_altas" else "solicitado"
+    return f"{base}?{clave}={job_id}&aviso={codigo}"
+
+
 def _accion(
     request: Request,
     user,
@@ -1020,6 +1076,7 @@ def _accion(
     csrf_token: str,
     scope: VisibilityScope,
     ejecutar,
+    destino: str = "chassis_operations",
 ):
     """El esqueleto COMÚN de las dos acciones. Mismo orden, siempre.
 
@@ -1028,7 +1085,8 @@ def _accion(
     3. la corrida, resuelta y ACOTADA por ámbito en el servidor;
     4. la acción;
     5. auditoría del intento, con su desenlace;
-    6. 303 con un código estable.
+    6. 303 con un código estable, a `destino` (la misma pantalla desde la que
+       se actuó, para que el acuse se lea donde se pulsó).
 
     Los pasos 1 y 2 están SEPARADOS y cada uno tiene su control negativo: en el
     Corte 1, una prueba de rol pasaba aunque se degradara la guarda porque al
@@ -1048,9 +1106,7 @@ def _accion(
             capacidad.name, quien, job_id, codigo,
         )
         return RedirectResponse(
-            url=f"{request.url_for('chassis_operations')}"
-                f"?solicitado={job_id}&aviso={codigo}",
-            status_code=303,
+            url=_vuelta(request, destino, job_id, codigo), status_code=303,
         )
 
     corrida = _corrida_visible(scope, job_id)
@@ -1075,9 +1131,7 @@ def _accion(
         capacidad.name, quien, job_id, workspace, hecho,
     )
     return RedirectResponse(
-        url=f"{request.url_for('chassis_operations')}"
-            f"?solicitado={job_id}&aviso={hecho['aviso']}",
-        status_code=303,
+        url=_vuelta(request, destino, job_id, hecho["aviso"]), status_code=303,
     )
 
 
@@ -1099,8 +1153,19 @@ def sellar_plan(
         # operador aprobó y que NO va a llegar al grafo. Un `PLAN_SEALED`
         # limpio en ese caso es cierto y engañoso a la vez -- el plan está
         # sellado, sí, y le falta algo que el operador pidió.
-        aviso = ("PLAN_SEALED_SIN_PROYECCION" if salida.get("sin_proyeccion")
-                 else "PLAN_SEALED")
+        # LOS CUATRO DESENLACES DEL SELLADO, POR PRECEDENCIA DECLARADA.
+        # Ver `ACUSES_DE_EXITO`: la entidad que no nace pesa mas que la
+        # relacion que no se proyecta.
+        faltan_altas = bool(salida.get("altas_omitidas"))
+        faltan_aristas = bool(salida.get("sin_proyeccion"))
+        if faltan_altas and faltan_aristas:
+            aviso = "PLAN_SEALED_INCOMPLETO"
+        elif faltan_altas:
+            aviso = "PLAN_SEALED_SIN_ALTAS"
+        elif faltan_aristas:
+            aviso = "PLAN_SEALED_SIN_PROYECCION"
+        else:
+            aviso = "PLAN_SEALED"
         return {"aviso": aviso, **salida}
 
     return _accion(request, user, CAPACIDAD_SELLADO, trabajo, csrf_token, scope,
@@ -1129,3 +1194,167 @@ def aplicar_plan(
 
     return _accion(request, user, CAPACIDAD_APLICACION, trabajo, csrf_token, scope,
                    _ejecutar)
+
+
+# ===========================================================================
+# LAS ALTAS DE ENTIDAD: la SEGUNDA decision, con su propia pantalla
+# ---------------------------------------------------------------------------
+# POR QUE ES UNA PANTALLA APARTE Y NO UNA CASILLA MAS EN LA COLA DE REVISION
+#
+# Porque son dos autoridades distintas y el producto tiene que ensenarlo asi.
+# `review_plan.py` lo lleva escrito en su cabecera desde `9f2627c`: «aprobar
+# una propuesta de revision NO es aprobar el alta de una entidad, y esa
+# frontera la cruza una persona, no este modulo». Una casilla junto a la de
+# aprobar la afirmacion invitaria justo a lo contrario -- a marcar las dos de
+# un golpe -- y en dos clics la frontera se habria borrado sin que nadie
+# tomara la decision de borrarla.
+#
+# Y NO HAY «APROBAR TODAS». Ni en la pantalla ni en el manejador: el
+# formulario manda UN `entity_id` y el servicio aprueba ese. Es la misma
+# regla que el CLI ya impone por escrito («no existe "aprobar todas": cada
+# alta se aprueba por su id»), llevada a la superficie web en vez de
+# relajada al pasar a ella.
+# ===========================================================================
+
+CAPACIDAD_ALTA = next(
+    c for c in capabilities_for_slot(SLOT.key) if c.name == "alta_de_entidad"
+)
+_RUTA_ALTA = CAPACIDAD_ALTA.path[len(SLOT.prefix):]
+
+
+def _altas_de_la_corrida(resultado: Optional[dict], scope: VisibilityScope) -> Optional[dict]:
+    """Cuantas altas hay y cuantas estan aprobadas. Sin evidencia y sin ids.
+
+    `None` cuando la corrida no atribuyo revision, por el mismo motivo que
+    `_plan_de_la_corrida`: sin corrida no hay nada que contar y pintar un
+    enlace muerto seria fingir el camino.
+
+    `declarado=False` significa que la corrida NO publico el bloque de altas
+    --es anterior a este corte-- y la pantalla lo dice asi. No es cero altas:
+    es que nadie hizo la pregunta.
+    """
+    if not resultado:
+        return None
+    revision = resultado.get("revision")
+    if not isinstance(revision, dict) or not revision.get("job_id"):
+        return None
+    workspace = str(revision.get("workspace") or "")
+    if not workspace:
+        return None
+    try:
+        from app.services.v3_apply import ReviewApplyService  # noqa: PLC0415
+
+        filas, declarado = ReviewApplyService().altas(
+            workspace=workspace, job_id=str(revision["job_id"]), scope=scope,
+        )
+    except Exception as exc:  # noqa: BLE001 - la pantalla no se cae por esto
+        panel_errors.registrar("REVIEW_STORE_UNAVAILABLE", exc)
+        return {"declarado": False, "total": None, "aprobadas": None,
+                "pendientes": None, "omitidas": None,
+                "job_id": str(revision["job_id"])}
+    return {
+        "declarado": declarado,
+        "total": len(filas),
+        "aprobadas": sum(1 for a in filas if a.aprobada),
+        "pendientes": sum(1 for a in filas if not a.aprobada),
+        # APROBADAS QUE EL ULTIMO PLAN DEJO FUERA. No es lo mismo que
+        # «pendientes»: estas ya tienen el visto bueno de una persona y aun
+        # asi no van a nacer, que es la peor de las dos situaciones y la que
+        # el acuse callaba.
+        "omitidas": sum(1 for a in filas if a.omitida),
+        "job_id": str(revision["job_id"]),
+    }
+
+
+@router.get("/altas", response_class=HTMLResponse, name="chassis_operations_altas")
+def pantalla_de_altas(
+    request: Request,
+    trabajo: str = Query(default=""),
+    aviso: Optional[str] = Query(default=None),
+    user=Depends(slot_guard(SLOT)),
+    scope: VisibilityScope = Depends(get_visibility_scope),
+):
+    """Las altas pendientes de UNA corrida, con evidencia para decidir.
+
+    LA CORRIDA SE RESUELVE CONTRA LA COLA Y CON AMBITO (`_corrida_visible`),
+    igual que en el sellado y en el apply. El `workspace` sale de ahi, NUNCA
+    del query string: aceptarlo del cliente permitiria pedir las altas de
+    cualquier ambito poniendo su nombre en la URL.
+
+    LO QUE NO SE ENVIA NO SE PUEDE ENSENAR. El filtro de ambito se aplica en
+    el servicio, sobre las propuestas, antes de componer una sola entrada: si
+    la politica oculta una propuesta, su fragmento no llega al navegador. No
+    hay aqui ninguna decision de pintado que un cliente pueda saltarse.
+    """
+    denegado = _authorize(request, user)
+    if denegado is not None:
+        return denegado
+    corrida = _corrida_visible(scope, trabajo)
+    contexto = {
+        "csrf_token": _csrf(request),
+        "trabajo": trabajo.strip(),
+        "aviso": _aviso(aviso, None, scope),
+        "altas": [],
+        "declarado": False,
+        "corrida_visible": corrida is not None,
+    }
+    if corrida is None:
+        # NI 404 NI LISTA VACIA. La pantalla abre y DICE que no hay corrida
+        # que mirar: una lista vacia se leeria como «esta ingesta no necesita
+        # ningun alta», que es una afirmacion distinta y puede ser falsa.
+        return templates.TemplateResponse(
+            request, "chassis/operations_altas.html",
+            _context(request, user, **contexto), status_code=404,
+        )
+    workspace = str(corrida.get("workspace") or "")
+    try:
+        from app.services.v3_apply import ReviewApplyService  # noqa: PLC0415
+
+        filas, declarado = ReviewApplyService().altas(
+            workspace=workspace, job_id=trabajo.strip(), scope=scope,
+        )
+    except Exception as exc:  # noqa: BLE001
+        panel_errors.registrar("REVIEW_STORE_UNAVAILABLE", exc)
+        contexto["aviso"] = {"tipo": "error", "code": "REVIEW_STORE_UNAVAILABLE",
+                             "message": panel_errors.CATALOGO["REVIEW_STORE_UNAVAILABLE"],
+                             "trabajo": None}
+        return templates.TemplateResponse(
+            request, "chassis/operations_altas.html",
+            _context(request, user, **contexto), status_code=503,
+        )
+    contexto["altas"] = [a.to_dict() for a in filas]
+    contexto["declarado"] = declarado
+    return templates.TemplateResponse(
+        request, "chassis/operations_altas.html", _context(request, user, **contexto),
+    )
+
+
+@router.post(_RUTA_ALTA, name="chassis_operations_alta")
+def aprobar_alta(
+    request: Request,
+    trabajo: str = Form(default=""),
+    entidad: str = Form(default=""),
+    tipo: str = Form(default=""),
+    csrf_token: str = Form(default=""),
+    user=Depends(slot_guard(SLOT)),
+    scope: VisibilityScope = Depends(get_visibility_scope),
+):
+    def _ejecutar(workspace: str, job_id: str, quien):
+        from app.services.v3_apply import ReviewApplyService  # noqa: PLC0415
+
+        hecho = ReviewApplyService().aprobar_alta(
+            workspace=workspace, job_id=job_id, entity_id=entidad, entity_type=tipo,
+            # QUIEN APRUEBA SALE DE LA SESION, no del formulario. Una
+            # aprobacion cuya atribucion la escribe el cliente no es una
+            # atribucion: es una firma en blanco.
+            quien=f"panel:{quien}" if quien else "panel:anonimo",
+            scope=scope,
+        )
+        # DOS ACUSES DISTINTOS PARA DOS COSAS DISTINTAS. Repetir la aprobacion
+        # no es un error --no duplica nada-- pero decirle «aprobada» otra vez
+        # le haria creer que acaba de cambiar algo.
+        aviso = "ALTA_APPROVED" if hecho["nuevo"] else "ALTA_YA_APROBADA"
+        return {"aviso": aviso, **hecho}
+
+    return _accion(request, user, CAPACIDAD_ALTA, trabajo, csrf_token, scope,
+                   _ejecutar, destino="chassis_operations_altas")

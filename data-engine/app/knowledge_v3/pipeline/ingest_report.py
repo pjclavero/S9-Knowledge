@@ -112,16 +112,20 @@ def _decision_row(decision: Any) -> dict:
     }
 
 
-def _candidates(resolutions: Sequence[Any]) -> dict:
-    """Las resoluciones, agrupadas por lo que PIDEN hacerle al grafo.
+def resolution_rows(resolutions: Sequence[Any]) -> list[dict]:
+    """Las resoluciones en forma de FILA, sin agrupar. UNA sola derivacion.
 
-    El criterio es el campo `action` del contrato, no una heuristica de este
-    modulo: `LINK_EXISTING` enlaza, `CREATE_*` da de alta, `REVIEW`/`SPLIT`
-    van a un humano.
+    Existe porque hay ya DOS consumidores que necesitan exactamente estas
+    filas: `_candidates` (que las reparte por accion) y
+    `review_export.run_entity_altas` (que se las pasa a
+    `entity_decisions.reconcile`, el cual vuelve a leer el campo `action`).
+    Reconstruir la fila en el segundo habria creado una SEGUNDA definicion de
+    "que campos lleva una resolucion", que es exactamente como un campo nuevo
+    llega a un consumidor y no al otro.
     """
-    link, create, review = [], [], []
+    filas: list[dict] = []
     for res in resolutions:
-        row = {
+        filas.append({
             "resolution_id": res.resolution_id,
             "mention_ids": list(res.mention_ids),
             "action": res.action,
@@ -134,10 +138,22 @@ def _candidates(resolutions: Sequence[Any]) -> dict:
             # enlace coincide con el seleccionado. Se publican los dos: si un
             # dia divergen, el consumidor lo ve en vez de leer un hueco.
             "assigned_entity_id": res.assigned_entity_id,
-        }
-        if res.action == "LINK_EXISTING":
+        })
+    return filas
+
+
+def _candidates(resolutions: Sequence[Any]) -> dict:
+    """Las resoluciones, agrupadas por lo que PIDEN hacerle al grafo.
+
+    El criterio es el campo `action` del contrato, no una heuristica de este
+    modulo: `LINK_EXISTING` enlaza, `CREATE_*` da de alta, `REVIEW`/`SPLIT`
+    van a un humano.
+    """
+    link, create, review = [], [], []
+    for row in resolution_rows(resolutions):
+        if row["action"] == "LINK_EXISTING":
             link.append(row)
-        elif res.action in CREATING_ACTIONS:
+        elif row["action"] in CREATING_ACTIONS:
             create.append(row)
         else:
             review.append(row)

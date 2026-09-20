@@ -254,6 +254,13 @@ CAPACIDADES_DECLARADAS = {
     "aplicacion_del_plan_revisado": (
         "/panel/operations/aplicaciones", frozenset({"POST"}), "admin",
     ),
+    # EL ALTA DE ENTIDAD (Corte de altas). Es una decision DISTINTA de aprobar
+    # una propuesta --aprobar una afirmacion no autoriza a crear la entidad de
+    # la que habla-- y por eso tiene su propia capacidad en vez de colgar de la
+    # del sellado. Rol `admin`, como las demas escrituras de este hueco.
+    "alta_de_entidad": (
+        "/panel/operations/altas", frozenset({"POST"}), "admin",
+    ),
 }
 
 

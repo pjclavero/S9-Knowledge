@@ -257,13 +257,7 @@ def run_entity_anchors(
     el snapshot entero engordaria el paquete con estado que nadie va a usar,
     y el almacen de propuestas ya crece sin cota.
     """
-    interesan: set[str] = set()
-    for documento in documents:
-        for bloque in (documento.get("resolution") or {}, documento.get("proposal") or {}):
-            for campo in ("subject", "object"):
-                valor = bloque.get(campo)
-                if isinstance(valor, str) and valor and valor != "not_available":
-                    interesan.add(valor)
+    interesan = _entidades_citadas(documents)
     anclas: dict[str, dict[str, Any]] = {}
     if not interesan:
         return anclas
@@ -291,6 +285,123 @@ def run_entity_anchors(
                 "observed": bool(getattr(nodo, "observed", False)),
             }
     return anclas
+
+
+def run_entity_altas(
+    result: Any, documents: Sequence[Mapping[str, Any]]
+) -> dict[str, dict[str, Any]]:
+    """Las ALTAS DE ENTIDAD que esta corrida deja pendientes de una persona.
+
+    POR QUE ESTA RANURA FALTABA, Y POR QUE NO LA CUBRE `entity_anchors`
+    -------------------------------------------------------------------
+    `run_entity_anchors` publica el ancla de las entidades que el snapshot
+    CONOCE. Una entidad que hay que dar de alta no esta en el snapshot por el
+    camino de la UI: `entity_decisions.reconcile` --el unico sitio del
+    producto que decide "esto es un alta"-- lo invoca SOLO `ingest_cli`, asi
+    que por la cola de trabajos la pregunta no se hacia nunca y el sobre no
+    llevaba nada con lo que contestarla. Consecuencia medida: `_proyeccion`
+    omitia por `PROJECTION_NO_ANCHOR` y el plan sellado no traia ni un
+    `CREATE_ENTITY`, de modo que el apply escribia afirmaciones sin ninguna
+    `:Entity` y el enlace al resultado acababa en 404.
+
+    AQUI NO SE DECIDE NADA NUEVO. Se llama a `entity_decisions.reconcile`, que
+    ya es la definicion canonica, con los MISMOS insumos que le pasa el CLI:
+    las filas de resolucion (`ingest_report.resolution_rows`), lo OBSERVADO en
+    el snapshot de la corrida, las superficies de las menciones y el catalogo
+    de identidades que el snapshot conoce. Lo que se publica es su resultado
+    `CREATE_ENTITY_REQUIRED`, ni mas ni menos.
+
+    Y NO APRUEBA NADA. Cada entrada sale `PENDIENTE`: este bloque es la
+    PREGUNTA que el sobre transporta hasta la pantalla, no la respuesta. La
+    respuesta la da una persona, en el almacen de revision, y es lo unico que
+    enciende un `CREATE_ENTITY` al sellar.
+
+    `entity_type` puede salir `None` --en un grafo nuevo el resolutor no tiene
+    contra que inferirlo-- y se publica ASI, como ausencia. No se rellena con
+    un tipo plausible: quien aprueba lo declara, igual que en `--tipo-alta`.
+
+    Acotado a las entidades que las propuestas EXPORTADAS nombran, por la
+    misma razon que las anclas: el paquete no engorda con material que la
+    pantalla no va a usar.
+    """
+    from .pipeline.ingest_report import resolution_rows  # noqa: PLC0415
+    from .pipeline import entity_decisions  # noqa: PLC0415
+
+    interesan = _entidades_citadas(documents)
+    if not interesan:
+        return {}
+    resoluciones = resolution_rows(getattr(result, "resolutions", ()) or ())
+    if not resoluciones:
+        return {}
+    # LO QUE EL SNAPSHOT CONOCE, consultado entidad a entidad: el protocolo
+    # `GraphSnapshot` no ofrece enumeracion, y no se le anade una aqui solo
+    # para esto. Los ids que hacen falta son los que las resoluciones nombran.
+    candidatos: set[str] = set(interesan)
+    for fila in resoluciones:
+        for campo in ("selected_entity_id", "assigned_entity_id"):
+            valor = fila.get(campo)
+            if isinstance(valor, str) and valor and valor != "not_available":
+                candidatos.add(valor)
+    observadas: set[str] = set()
+    catalogo: dict[str, dict[str, Any]] = {}
+    for run in getattr(result, "runs", ()):
+        snapshot = getattr(run, "snapshot", None)
+        if snapshot is None:
+            continue
+        for entity_id in sorted(candidatos):
+            if entity_id in observadas:
+                continue
+            try:
+                nodo = snapshot.entity(entity_id)
+            except Exception:  # noqa: BLE001 - un snapshot raro no rompe el export
+                nodo = None
+            if nodo is None or getattr(nodo, "pending_creation", False):
+                continue
+            observadas.add(entity_id)
+            catalogo[entity_id] = {
+                "name": getattr(nodo, "canonical_name", None),
+                "aliases": list(getattr(nodo, "aliases", ()) or ()),
+            }
+    nombres = {
+        str(getattr(m, "mention_id", "") or ""): str(getattr(m, "surface", "") or "")
+        for m in (getattr(result, "mentions", ()) or ())
+        if getattr(m, "mention_id", None) and getattr(m, "surface", None)
+    }
+    ledger = entity_decisions.reconcile(
+        resolutions=resoluciones,
+        graph_entity_ids=sorted(observadas),
+        workspace="",
+        source_path="",
+        names_by_mention=nombres,
+        catalog_by_entity=catalogo,
+    )
+    altas: dict[str, dict[str, Any]] = {}
+    for decision in ledger.altas:
+        entity_id = decision.entity_id
+        if not entity_id or entity_id not in interesan or entity_id in altas:
+            continue
+        altas[entity_id] = {
+            "entity_id": entity_id,
+            "entity_type": decision.entity_type,
+            "name": decision.name,
+            "aliases": list(decision.aliases),
+            "reason_codes": list(decision.reason_codes),
+            "mention_ids": list(decision.mention_ids),
+            "confidence": decision.confidence,
+        }
+    return altas
+
+
+def _entidades_citadas(documents: Sequence[Mapping[str, Any]]) -> set[str]:
+    """Los `entity_id` que las propuestas exportadas nombran como extremos."""
+    citadas: set[str] = set()
+    for documento in documents:
+        for bloque in (documento.get("resolution") or {}, documento.get("proposal") or {}):
+            for campo in ("subject", "object"):
+                valor = bloque.get(campo)
+                if isinstance(valor, str) and valor and valor != "not_available":
+                    citadas.add(valor)
+    return citadas
 
 
 def run_provenance_material(
@@ -433,6 +544,7 @@ def export_review_package(
             decisions_by_claim,
             documents,
             entity_anchors=run_entity_anchors(result, documents),
+            entity_altas=run_entity_altas(result, documents),
             provenance=run_provenance_material(result, documents, decisions_by_claim),
         )
         if contexto is not None:
@@ -464,5 +576,5 @@ def export_review_package(
 
 __all__ = [
     "EXPORTED_DECISIONS", "ReviewPackageExport", "export_review_package",
-    "review_documents", "run_plan_material",
+    "review_documents", "run_plan_material", "run_entity_altas",
 ]

@@ -59,7 +59,52 @@ from app.services.v3_review_store import (
 
 log = logging.getLogger("panel.apply")
 
+#: El nombre del bloque del sobre donde viajan las altas. Se DEFINE en el
+#: motor (`knowledge_v3.review_plan.ALTAS_KEY`) y aqui se repite como
+#: constante local para no cargar el puente del motor solo para leer una
+#: cadena. El arnes comprueba que las dos coinciden: si el motor la renombra,
+#: la prueba se pone roja diciendo exactamente eso, en vez de que la pantalla
+#: se quede muda.
+ALTAS_KEY = "entity_altas"
+
+#: MOTIVOS por los que un alta APROBADA no llega al plan, traducidos para una
+#: persona. Las claves son los codigos del motor (`review_plan.ALTA_CODES`);
+#: el texto es del visor, porque los codigos del motor no son para un
+#: operador. Se traduce el CODIGO, nunca el texto del motor.
+#:
+#: UN CODIGO QUE NO SE SEPA TRADUCIR SE NOMBRA, NO SE DESCARTA: `motivo_de
+#: _omision` devuelve una frase que dice que la entidad no llego al plan y que
+#: el motivo no se sabe interpretar en este despliegue. Callarlo volveria a
+#: producir exactamente el fallo que esta tabla existe para cerrar -- una
+#: omision que el producto no menciona.
+MOTIVOS_DE_ALTA_OMITIDA = {
+    "ALTA_NOT_DECLARED_IN_RUN": (
+        "Esta ingesta no la declaro entre sus entidades nuevas, asi que no se "
+        "sabe como habria que crearla. Vuelve a solicitar la ingesta."
+    ),
+    "ALTA_NOT_REFERENCED": (
+        "Ninguna de las afirmaciones que se van a anadir la menciona, asi que "
+        "crearla dejaria una ficha vacia que nada sostiene."
+    ),
+    "ALTA_WITHOUT_TYPE": (
+        "No consta de que clase de cosa se trata, y eso no se supone. Vuelve "
+        "a darle el visto bueno indicando el tipo."
+    ),
+}
+
+
+def motivo_de_omision(codigo: str) -> str:
+    """La frase del motivo, o la DECLARACION de que no se sabe traducirlo."""
+    conocido = MOTIVOS_DE_ALTA_OMITIDA.get(str(codigo or ""))
+    if conocido:
+        return conocido
+    return (
+        "No se anadio al conocimiento, y este despliegue no sabe interpretar "
+        "el motivo que quedo registrado. Avisa a quien administra el servicio."
+    )
+
 __all__ = [
+    "AltaDeEntidad",
     "ApplyError",
     "EstadoDelPlan",
     "ReviewApplyService",
@@ -105,6 +150,17 @@ CODIGOS = (
     #: --el conocimiento esta-- y no es un exito: es el estado PARCIAL dicho en
     #: voz alta. El operador puede reintentar; la reconciliacion es idempotente.
     "APPLY_INCOMPLETE",
+    #: EL ALTA QUE SE PIDIO APROBAR NO ES UN ALTA DE ESTA CORRIDA. Cubre los
+    #: tres casos de una vez, y a proposito: un id inventado, un id de otra
+    #: corrida y un id de OTRO WORKSPACE son indistinguibles desde fuera y
+    #: darles codigos distintos convertiria el formulario en un oraculo que
+    #: dice si cierta entidad existe en otro ambito.
+    "ALTA_DESCONOCIDA",
+    #: Se pidio aprobar sin decir cual. No se aprueba "la primera".
+    "ALTA_NO_SELECCIONADA",
+    #: El alta no trae tipo y quien aprueba tampoco lo declaro. El tipo no se
+    #: inventa: sin el, el plan no puede crear la entidad.
+    "ALTA_SIN_TIPO",
 )
 
 
@@ -236,6 +292,81 @@ class EstadoDelPlan:
         }
 
 
+class AltaDeEntidad:
+    """Un alta PENDIENTE o APROBADA, tal y como la pantalla la puede decir.
+
+    LO QUE LLEVA Y POR QUE
+    ----------------------
+    `entity_id` SI viaja, y es la unica identidad interna que lo hace: es lo
+    que el formulario devuelve para decir CUAL se aprueba, y aprobar por
+    posicion --"la segunda de la lista"-- seria aprobar lo que la pantalla
+    ordeno, no lo que la persona miro. Es el mismo criterio que el CLI, que
+    tambien aprueba por id (`--aprobar-alta <ENTITY_ID>`).
+
+    `evidencias` son los FRAGMENTOS SOPORTANTES de las propuestas de esta
+    corrida que nombran a esta entidad, y nada mas. No se abre ninguna via
+    nueva a la fuente: es el mismo `evidence.literal_text` que la pantalla de
+    revision ya le enseño a esta misma persona para esas mismas propuestas, y
+    se sirve despues del filtro de ambito, no antes.
+
+    `aprobada_por` y `aprobada_en` son `None` mientras nadie la haya aprobado.
+    `None` es AUSENCIA declarada: la pantalla dice "sin aprobar", no inventa un
+    autor plausible.
+
+    `entity_type` puede ser `None`. Tambien es ausencia: en un grafo nuevo el
+    resolutor no tiene contra que inferir el tipo, y la pantalla tiene que
+    pedirselo a quien aprueba en vez de elegir uno.
+    """
+
+    __slots__ = (
+        "entity_id", "nombre", "entity_type", "aliases", "motivos",
+        "evidencias", "aprobada", "aprobada_por", "aprobada_en", "omitida",
+    )
+
+    def __init__(
+        self,
+        *,
+        entity_id: str,
+        nombre: Optional[str],
+        entity_type: Optional[str],
+        aliases: tuple = (),
+        motivos: tuple = (),
+        evidencias: tuple = (),
+        aprobada: bool = False,
+        aprobada_por: Optional[str] = None,
+        aprobada_en: Optional[str] = None,
+        omitida: Optional[str] = None,
+    ):
+        #: Frase del motivo por el que esta alta APROBADA no llego al ultimo
+        #: plan preparado, o `None` si llego (o si todavia no hay plan).
+        #: `None` NO significa "llego": significa que no consta omision, y la
+        #: pantalla no afirma mas que eso.
+        self.omitida = omitida
+        self.entity_id = entity_id
+        self.nombre = nombre
+        self.entity_type = entity_type
+        self.aliases = aliases
+        self.motivos = motivos
+        self.evidencias = evidencias
+        self.aprobada = aprobada
+        self.aprobada_por = aprobada_por
+        self.aprobada_en = aprobada_en
+
+    def to_dict(self) -> dict:
+        return {
+            "entity_id": self.entity_id,
+            "nombre": self.nombre,
+            "entity_type": self.entity_type,
+            "aliases": list(self.aliases),
+            "motivos": list(self.motivos),
+            "evidencias": [dict(e) for e in self.evidencias],
+            "aprobada": self.aprobada,
+            "aprobada_por": self.aprobada_por,
+            "aprobada_en": self.aprobada_en,
+            "omitida": self.omitida,
+        }
+
+
 _PUENTE = threading.Lock()
 
 
@@ -342,6 +473,178 @@ class ReviewApplyService:
                 aprobadas.append(propuesta)
                 decision_ids[identificador] = str(decision.get("decision_id") or "")
         return aprobadas, decision_ids, pendientes, esperadas
+
+    # -- altas de entidad --------------------------------------------------
+
+    def altas(self, *, workspace: str, job_id: str, scope=None) -> tuple:
+        """Las altas de entidad de ESTA corrida, con su estado de aprobacion.
+
+        DE DONDE SALEN, Y POR QUE NO SE DEDUCEN AQUI
+        --------------------------------------------
+        Del bloque `entity_altas` del SOBRE del paquete, que la corrida
+        escribio llamando a `entity_decisions.reconcile` -- la definicion
+        canonica de "esto es un alta". Este servicio no vuelve a decidir si
+        una entidad existe o no: no tiene grafo delante, y decidirlo aqui
+        seria una segunda respuesta a una pregunta que ya se contesto con el
+        snapshot en la mano.
+
+        AUSENCIA != CERO. Una corrida ANTERIOR a este corte no publico el
+        bloque; sus propuestas no aportan ninguna alta y la pantalla lo dice
+        como "esta ingesta no dejo constancia", no como "no hay ninguna". Eso
+        se distingue con `declarado`, que es `False` cuando ninguna propuesta
+        de la corrida trae el bloque.
+
+        EL AMBITO SE APLICA ANTES DE COMPONER NADA. Las propuestas se filtran
+        con el mismo `VisibilityScope` que la cola de revision, asi que ni las
+        altas ni sus fragmentos pueden salir de una propuesta que esta persona
+        no puede ver. El backend no envia lo que la politica oculta: no hay un
+        filtro de pantalla que se pueda saltar.
+        """
+        from app.authz.scope import UNRESTRICTED  # noqa: PLC0415
+
+        try:
+            todas = load_proposals(self.review.proposals_dir)
+        except ReviewError as exc:
+            raise ApplyError("REVIEW_STORE_UNAVAILABLE", str(exc)) from exc
+        permitido = (scope or UNRESTRICTED).partida_only()
+        de_la_corrida = [
+            p for p in todas
+            if p.get("workspace") == workspace
+            and job_id in (p.get("package_runs") or ())
+            and permitido.allows(p)
+        ]
+        declaradas: dict = {}
+        declarado = False
+        for propuesta in de_la_corrida:
+            bloque = (propuesta.get("plan_context_by_run") or {}).get(job_id) or {}
+            crudo = bloque.get(ALTAS_KEY)
+            if not isinstance(crudo, dict):
+                continue
+            declarado = True
+            for entity_id, cuerpo in crudo.items():
+                if isinstance(cuerpo, dict):
+                    declaradas.setdefault(str(entity_id), cuerpo)
+        # LAS EVIDENCIAS, POR ENTIDAD. Solo el fragmento soportante de cada
+        # propuesta que la nombra: ni el episodio entero ni la fuente.
+        evidencias: dict = {}
+        for propuesta in de_la_corrida:
+            resolucion = propuesta.get("resolution") or {}
+            cuerpo = propuesta.get("proposal") or {}
+            literal = str((propuesta.get("evidence") or {}).get("literal_text") or "")
+            if not literal:
+                continue
+            for campo in ("subject", "object"):
+                entity_id = str(resolucion.get(campo) or cuerpo.get(campo) or "")
+                if entity_id and entity_id in declaradas:
+                    evidencias.setdefault(entity_id, []).append({
+                        "texto": literal,
+                        "predicado": str(cuerpo.get("predicate") or "UNKNOWN"),
+                        "papel": campo,
+                    })
+        aprobadas = {
+            fila["entity_id"]: fila
+            for fila in self.store.entity_altas_aprobadas(
+                workspace=workspace, job_id=job_id)
+        }
+        omitidas = self._omitidas_del_ultimo_plan(workspace, job_id)
+        salida = []
+        for entity_id in sorted(declaradas):
+            cuerpo = declaradas[entity_id]
+            fila = aprobadas.get(entity_id)
+            salida.append(AltaDeEntidad(
+                entity_id=entity_id,
+                nombre=cuerpo.get("name") or None,
+                entity_type=(
+                    (fila or {}).get("entity_type") or cuerpo.get("entity_type") or None
+                ),
+                aliases=tuple(cuerpo.get("aliases") or ()),
+                motivos=tuple(str(m) for m in (cuerpo.get("reason_codes") or ())),
+                evidencias=tuple(evidencias.get(entity_id) or ()),
+                aprobada=fila is not None,
+                aprobada_por=(fila or {}).get("approved_by"),
+                aprobada_en=(fila or {}).get("approved_at"),
+                omitida=omitidas.get(entity_id),
+            ))
+        return tuple(salida), declarado
+
+    def _omitidas_del_ultimo_plan(self, workspace: str, job_id: str) -> dict:
+        """`entity_id -> frase` de lo que el ULTIMO plan de la corrida dejo fuera.
+
+        Se lee de la fila del plan, donde el sellado lo guardo, y NO se
+        recalcula: el motivo se decidio con las propuestas y las aprobaciones
+        de aquel instante. Recalcularlo ahora podria dar otro motivo --o
+        ninguno-- sobre un almacen que ha cambiado, y la pantalla estaria
+        afirmando de un plan viejo algo que el plan viejo no dice.
+
+        Un almacen anterior a este corte no tiene la columna, o la tiene a
+        `NULL`: eso es AUSENCIA DE CONSTANCIA, no "no se omitio nada", y por
+        eso el diccionario sale vacio y la pantalla no afirma nada sobre esas
+        altas en vez de declararlas completas.
+        """
+        try:
+            fila = self.store.last_plan(workspace=workspace, job_id=job_id)
+        except Exception:  # noqa: BLE001 - la pantalla no se cae por esto
+            return {}
+        if not fila:
+            return {}
+        try:
+            crudo = fila["altas_omitidas_json"]
+        except (KeyError, IndexError):  # pragma: no cover - almacen antiguo
+            return {}
+        if not crudo:
+            return {}
+        try:
+            filas = json.loads(crudo)
+        except (TypeError, ValueError):  # pragma: no cover - fila corrupta
+            return {}
+        salida: dict = {}
+        for entrada in filas if isinstance(filas, list) else ():
+            if not isinstance(entrada, dict):
+                continue
+            entity_id = str(entrada.get("entity_id") or "")
+            if entity_id:
+                salida[entity_id] = motivo_de_omision(entrada.get("code"))
+        return salida
+
+    def aprobar_alta(
+        self, *, workspace: str, job_id: str, entity_id: str,
+        entity_type: str, quien: str, scope=None,
+    ) -> dict:
+        """Aprueba UNA alta, por su id. La frontera se cruza aqui y solo aqui.
+
+        LO QUE SE COMPRUEBA EN EL SERVIDOR, EN ESTE ORDEN:
+
+        * que se haya dicho CUAL (`ALTA_NO_SELECCIONADA`);
+        * que ese id sea un alta DECLARADA POR ESTA CORRIDA y VISIBLE en este
+          ambito (`ALTA_DESCONOCIDA`). Aqui mueren de golpe el id inventado,
+          el de otra corrida y el de otro workspace: la lista contra la que se
+          compara es la de la corrida, y la corrida ya vino acotada por el
+          ambito del llamante.
+        * que haya un tipo, declarado por la corrida o por quien aprueba
+          (`ALTA_SIN_TIPO`). No se elige uno plausible.
+
+        NO comprueba si ya estaba aprobada: eso lo resuelve la base, que es
+        idempotente por clave primaria. Comprobarlo aqui seria una carrera.
+        """
+        entity_id = (entity_id or "").strip()
+        if not entity_id:
+            raise ApplyError("ALTA_NO_SELECCIONADA")
+        pendientes, _ = self.altas(workspace=workspace, job_id=job_id, scope=scope)
+        elegida = next((a for a in pendientes if a.entity_id == entity_id), None)
+        if elegida is None:
+            raise ApplyError("ALTA_DESCONOCIDA")
+        tipo = (entity_type or "").strip() or elegida.entity_type
+        if not tipo:
+            raise ApplyError("ALTA_SIN_TIPO")
+        try:
+            hecho = self.store.approve_entity_alta(
+                workspace=workspace, job_id=job_id, entity_id=entity_id,
+                entity_type=tipo, approved_by=quien, approved_at=_ahora(),
+            )
+        except AuditChainBroken as exc:
+            raise ApplyError("AUDIT_CHAIN_BROKEN", str(exc)) from exc
+        return {"nuevo": bool(hecho.get("nuevo")),
+                "planes_invalidados": int(hecho.get("planes_invalidados") or 0)}
 
     def estado(self, *, workspace: str, job_id: str) -> EstadoDelPlan:
         """El estado de la corrida, para pintar la pantalla. Nunca sella nada."""
@@ -473,6 +776,11 @@ class ReviewApplyService:
         if not aprobadas:
             raise ApplyError("NO_APPROVED_PROPOSALS")
         ahora = _ahora()
+        altas_aprobadas = [
+            {"entity_id": fila["entity_id"], "entity_type": fila["entity_type"]}
+            for fila in self.store.entity_altas_aprobadas(
+                workspace=workspace, job_id=job_id)
+        ]
         try:
             construido = review_plan_mod.seal_review_plan(
                 workspace=workspace,
@@ -481,6 +789,11 @@ class ReviewApplyService:
                 approved=aprobadas,
                 decision_ids=decision_ids,
                 now=ahora,
+                # LA SEGUNDA DECISION, DESDE SU AUTORIDAD. No se leen del
+                # sobre las altas "que hubiera": se leen las que una persona
+                # aprobo, en la misma base que sostiene las decisiones de
+                # propuesta. El sobre solo declara candidatas.
+                approved_entities=altas_aprobadas,
             )
         except review_plan_mod.ReviewPlanError as exc:
             raise ApplyError("NO_APPLICABLE_PROPOSALS", str(exc)) from exc
@@ -515,10 +828,22 @@ class ReviewApplyService:
                 proposal_ids=list(construido.included_proposal_ids),
                 sealed_at=ahora,
                 expected_decision_ids=esperadas,
+                expected_alta_ids=[a["entity_id"] for a in altas_aprobadas],
                 provenance_json=(
                     json.dumps(paquete, ensure_ascii=False, sort_keys=True,
                                separators=(",", ":"))
                     if paquete else None
+                ),
+                # LO QUE EL OPERADOR APROBO Y EL PLAN NO TRAE, con su motivo,
+                # guardado JUNTO al plan. Antes esto solo iba a `log.warning`
+                # y a este `return`, que nadie consumia: el acuse decia
+                # `PLAN_SEALED` y las altas desaparecidas no se mencionaban en
+                # ninguna parte del producto.
+                altas_omitidas_json=(
+                    json.dumps([o.to_dict() for o in construido.altas_omitted],
+                               ensure_ascii=False, sort_keys=True,
+                               separators=(",", ":"))
+                    if construido.altas_omitted else None
                 ),
             )
         except SealConflict as exc:
@@ -549,7 +874,21 @@ class ReviewApplyService:
                     for o in construido.projections_omitted
                 ),
             )
+        if construido.altas_omitted:
+            # NI EN SILENCIO NI CONFUNDIDA CON UNA EXCLUSION DE PROPUESTA.
+            # Alguien aprobo el alta de una entidad y el plan no la trae: eso
+            # se dice, con su motivo enumerado en `ALTA_CODES`.
+            log.warning(
+                "sellado sin %s alta(s) aprobada(s) (%s): %s",
+                len(construido.altas_omitted), job_id,
+                "; ".join(
+                    f"{o.code}: {review_plan_mod.ALTA_CODES.get(o.code, '')}"
+                    for o in construido.altas_omitted
+                ),
+            )
         return {
+            "altas": tuple(construido.altas_included),
+            "altas_omitidas": tuple(o.to_dict() for o in construido.altas_omitted),
             "en_el_plan": len(documento["mutation_operations"]),
             "excluidas": tuple(e.to_dict() for e in construido.excluded),
             "sin_proyeccion": tuple(

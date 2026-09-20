@@ -572,6 +572,13 @@ def test_el_revisor_ve_la_corrida_pero_no_puede_aplicarla(
     que aquí se comprueba que NO ocurre.
     """
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
+    # LA PRECONDICIÓN DEL CASO, ASEVERADA. Sin esto el gatillo volvería a ser
+    # implícito: bastaría que el arnés empezara a aprobar un alta para que el
+    # caso midiera otra cosa creyendo medir ésta.
+    assert _altas_aprobadas_en(almacenes["base"]) == [], (
+        "este caso mide el recorrido SIN alta aprobada y el arnés ha aprobado "
+        "alguna: lo que sigue ya no mide lo que el docstring dice"
+    )
     assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
     assert _filas_de_plan(almacenes["base"])[0]["state"] == "sealed"
 
@@ -1490,6 +1497,25 @@ def test_la_pantalla_dice_que_lo_escrito_no_queda_navegable(
 # DECLARA SU TIPO, Y ESE EFECTO ES TRAZABLE. Y se comprueba MIRANDO EL GRAFO,
 # porque lo que el writer dijo haber hecho no contesta a si está hecho.
 # ===========================================================================
+
+def _altas_aprobadas_en(base: Path) -> list:
+    """Las altas de entidad APROBADAS que hay en el almacén. Para precondiciones.
+
+    Un almacén anterior al Corte de altas no tiene la tabla: eso es lista
+    vacía, que es lo cierto —no hay ninguna aprobada— y no un error del arnés.
+    """
+    if not base.exists():
+        return []
+    conexion = sqlite3.connect(f"file:{base}?mode=ro", uri=True)
+    try:
+        filas = conexion.execute(
+            "SELECT entity_id FROM entity_altas ORDER BY entity_id").fetchall()
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        conexion.close()
+    return [f[0] for f in filas]
+
 
 def _fila_de_plan(base: Path) -> dict:
     filas = _filas_de_plan(base)
@@ -3304,11 +3330,29 @@ def test_tras_un_apply_REAL_el_acuse_ofrece_el_camino_con_su_identidad(
 
 
 @neo4j_real
-def test_BLOQUEO_el_destino_niega_el_apply_que_acaba_de_ocurrir(
+def test_SIN_ALTA_APROBADA_el_destino_niega_el_apply_que_acaba_de_ocurrir(
     real_app, paneles_on, resultado_on, cola, operador, almacenes, grafo,
     visor_sobre_el_grafo, monkeypatch
 ):
-    """EL BLOQUEO, MEDIDO Y FIJADO POR SU CAUSA. No cierra la propiedad.
+    """EL RECORRIDO **SIN APROBAR NINGÚN ALTA**, MEDIDO Y FIJADO POR SU CAUSA.
+
+    EL GATILLO DE ESTE CASO CAMBIÓ, Y ESTE PÁRRAFO EXISTE PARA QUE NO SE LEA
+    AL REVÉS. Su versión anterior se llamaba «BLOQUEO» y prometía por escrito
+    que «esto se pone ROJO el día que el bloqueo se levante». **No era
+    cierto**: el bloqueo se levantó —el Corte de altas de entidad añadió la
+    superficie de decisión que faltaba— y este caso siguió verde, porque el
+    recorrido que ejerce (`_aprobar_una`) no aprueba NINGÚN alta de entidad y
+    sin alta aprobada el plan sigue sin emitir `CREATE_ENTITY`. Un testigo que
+    promete avisar de un cambio y no se entera de él se lee para siempre como
+    que nada ha cambiado.
+
+    Lo que este caso fija AHORA, con su gatillo correcto: **sin alta aprobada**
+    el recorrido revisión->apply escribe conocimiento y aun así el destino lo
+    niega. Eso ya no es un bloqueo del producto: es la consecuencia
+    DOCUMENTADA de no cruzar la segunda frontera, y la mitad negativa de la
+    propiedad cuya mitad positiva mide
+    `test_E2E_aprobar_el_alta_hace_que_el_destino_deje_de_dar_404`
+    (`test_corte_altas_de_entidad.py`), que con el alta aprobada llega a 200.
 
     Este caso NO celebra un comportamiento: lo DENUNCIA. Se aplica de verdad,
     se sigue el enlace que el panel publica —el correcto, con la identidad
@@ -3359,13 +3403,15 @@ def test_BLOQUEO_el_destino_niega_el_apply_que_acaba_de_ocurrir(
     que falta, por tanto, no es una línea: es la SUPERFICIE DE DECISIÓN
     —aprobar el alta de una entidad— que el recorrido de la UI no ofrece.
 
-    POR QUÉ NO SE ARREGLA AQUÍ. Porque es otro corte, no porque sea intocable.
+    YA SE ARREGLÓ, Y NO AQUÍ. La superficie de decisión existe desde el Corte
+    de altas de entidad (`/panel/operations/altas`). Lo que este caso conserva
+    es la medición de qué pasa cuando NO se usa.
 
     POR QUÉ ES UNA PRUEBA Y NO UN COMENTARIO. Un párrafo en un informe no se
-    entera de nada. Esto se pone ROJO el día que el bloqueo se levante —o el
-    día que la causa cambie por otra— y obliga a releerlo y a promover el caso
-    de arriba a la propiedad entera. Un `skip` aquí sería un verde sin haber
-    mirado.
+    entera de nada. Esto se pone ROJO el día que **un recorrido sin alta
+    aprobada** deje de comportarse así —porque alguien emita `CREATE_ENTITY`
+    sin aprobación, que es justo lo que la frontera prohíbe— y obliga a
+    releerlo entero. Un `skip` aquí sería un verde sin haber mirado.
     """
     from app.providers.provenance_reader import reader_for
 

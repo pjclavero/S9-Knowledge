@@ -630,8 +630,9 @@ class WriteCapability:
             )
 
 
-#: Las capacidades de escritura que el chasis aloja HOY. TRES, y las tres del
-#: hueco B (Operaciones): el alta de fuente, y las dos de la cadena de apply.
+#: Las capacidades de escritura que el chasis aloja HOY. CUATRO, y las cuatro
+#: del hueco B (Operaciones): el alta de fuente, el alta de entidad y las dos
+#: de la cadena de apply.
 #: Los huecos C, F y G no aparecen, y por eso siguen siendo de solo lectura
 #: por construccion.
 #:
@@ -679,6 +680,26 @@ WRITE_CAPABILITIES: tuple[WriteCapability, ...] = (
             "operador reviso, para que aplicar consuma exactamente eso y no "
             "algo recalculado. Un cambio posterior de decisiones no lo modifica: "
             "lo invalida."
+        ),
+    ),
+    WriteCapability(
+        slot_key="B",
+        name="alta_de_entidad",
+        title="Aprobar el alta de una entidad",
+        path="/panel/operations/altas",
+        methods=frozenset({"POST"}),
+        role="admin",
+        audited=True,
+        summary=(
+            "Aprueba, UNA A UNA Y POR SU ID, el alta de una entidad que una "
+            "corrida dejo pendiente. Es una decision DISTINTA de aprobar una "
+            "propuesta de revision, y por eso tiene su propia capacidad: "
+            "aprobar una afirmacion no autoriza a crear la entidad de la que "
+            "habla. No escribe en el grafo: deja la decision en el almacen de "
+            "revision, que es la misma autoridad que sostiene las decisiones "
+            "de propuesta y los planes sellados. Un alta aprobada INVALIDA el "
+            "plan sellado de esa corrida, porque aquel plan no la contenia. No "
+            "existe 'aprobar todas'."
         ),
     ),
     WriteCapability(

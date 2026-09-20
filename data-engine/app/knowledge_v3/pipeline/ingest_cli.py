@@ -37,6 +37,26 @@ en el grafo se DEGRADA a alta pendiente y se para. Las altas se aprueban por
 id, una a una (`--revisar --aprobar-alta <id> --revisor <quien>`); no hay
 "aprobar todas".
 
+Y AHORA HAY UNA SEGUNDA SUPERFICIE. DECLARADA, NO DESCUBIERTA.
+--------------------------------------------------------------
+Desde el Corte de altas de entidad, la misma decision se puede tomar desde el
+producto (`/panel/operations/altas`), y ALLI la autoridad es el almacen de
+revision del visor --la misma base que sostiene las decisiones de propuesta y
+los planes sellados--, no este fichero de decisiones.
+
+Las dos NO se hablan, y eso es DEUDA, no diseño:
+
+  * el camino WEB (cola de trabajos -> revision -> sellado -> apply) no lee ni
+    escribe `--decisiones`: emite `CREATE_ENTITY` unicamente para lo aprobado
+    en el almacen de revision;
+  * este camino CLI no lee la tabla del visor, y sigue usando su fichero.
+
+Mientras cada camino consuma SOLO su propia autoridad no hay dos verdades
+sobre un mismo plan --un plan lo sella uno de los dos, nunca los dos-- pero sí
+hay dos sitios donde mirar quien aprobo que. Unificarlas exige que el motor
+pueda leer el almacen del visor, y hoy la dependencia solo va en el otro
+sentido (visor -> motor): es un carril aparte, no un apaño dentro de este.
+
 ESCRITURA REAL
 --------------
 `--dry-run` sigue siendo el defecto. `--apply` existe ahora, y NO relaja nada:

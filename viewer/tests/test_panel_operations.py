@@ -343,16 +343,34 @@ def test_la_plantilla_solo_ofrece_los_formularios_de_las_capacidades_declaradas(
     """
     from app.chassis import capabilities_for_slot
 
-    ruta = Path(panel.__file__).resolve().parent.parent / "templates" / "chassis" / "operations.html"
-    marcado = re.sub(r"\{#.*?#\}", "", ruta.read_text(encoding="utf-8"), flags=re.S)
+    # LAS PLANTILLAS DEL HUECO, EN PLURAL. El Corte de altas añadió una
+    # SEGUNDA pantalla bajo este mismo hueco (`operations_altas.html`), con el
+    # formulario de su capacidad. Contar sólo `operations.html` habría dejado
+    # la cuenta corta y, peor, habría convertido esta guarda en una que se
+    # puede esquivar simplemente poniendo el formulario nuevo en otro fichero.
+    # Se enumera el DIRECTORIO del hueco, no una lista escrita a mano.
+    base = Path(panel.__file__).resolve().parent.parent / "templates" / "chassis"
+    plantillas = sorted(base.glob("operations*.html"))
+    assert plantillas, "no se encontró ninguna plantilla del hueco B"
+    marcado = "\n".join(
+        re.sub(r"\{#.*?#\}", "", ruta.read_text(encoding="utf-8"), flags=re.S)
+        for ruta in plantillas
+    )
     for metodo in ("put", "patch", "delete"):
         assert f'method="{metodo}"' not in marcado.lower(), (
             f"La plantilla ofrece un formulario {metodo.upper()}"
         )
     declaradas = capabilities_for_slot(SLOT.key)
+    # UN FORMULARIO POR CAPACIDAD, pero el del alta se REPITE por entidad
+    # dentro de un bucle: la plantilla escribe UN `method="post"` y Jinja lo
+    # instancia tantas veces como altas pendientes haya. Lo que se cuenta aquí
+    # es el marcado, no el HTML servido, así que la cuenta sigue siendo una por
+    # capacidad — y que cada formulario mande UNA entidad concreta lo comprueba
+    # `test_corte_altas_de_entidad.py` sobre el HTML real.
     assert marcado.lower().count('method="post"') == len(declaradas), (
-        "El número de formularios POST de la plantilla debe coincidir con las "
-        f"capacidades declaradas en el chasis ({[c.name for c in declaradas]})"
+        "El número de formularios POST de las plantillas del hueco debe "
+        "coincidir con las capacidades declaradas en el chasis "
+        f"({[c.name for c in declaradas]})"
     )
     assert marcado.lower().count('method="get"') == 1
 
