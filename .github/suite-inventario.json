@@ -430,7 +430,6 @@
     "viewer/tests/browser/test_browser_backend_down.py",
     "viewer/tests/browser/test_browser_graph_ux.py",
     "viewer/tests/browser/test_browser_navigation.py",
-    "viewer/tests/browser/test_browser_v3_review_filtros.py",
     "viewer/tests/browser/test_login_browser.py",
     "viewer/tests/test_corte5_credencial_solo_lectura_neo4j_real.py",
     "viewer/tests/test_graph_ux_v2.py",
