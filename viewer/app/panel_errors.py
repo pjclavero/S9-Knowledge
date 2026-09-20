@@ -128,6 +128,16 @@ CATALOGO: dict[str, str] = {
         "Se empezo a anadir lo aprobado y no consta como termino, asi que no se "
         "reintenta solo: hacerlo podria duplicar conocimiento. Avisa a quien "
         "administra el servicio para que compruebe que quedo escrito.",
+    # --- altas de entidad (Corte de altas) ---
+    "ALTA_NO_SELECCIONADA":
+        "No has indicado a que entidad das el visto bueno. Elige una de la "
+        "lista: cada una se aprueba por separado.",
+    "ALTA_DESCONOCIDA":
+        "Esa entidad no esta entre las que esta ingesta dejo pendientes. "
+        "Vuelve a cargar la pantalla y elige una de la lista actualizada.",
+    "ALTA_SIN_TIPO":
+        "Esa entidad no dice que clase de cosa es, y eso no se puede suponer. "
+        "Indica de que tipo es al darle el visto bueno.",
     "AUDIT_CHAIN_BROKEN":
         "El registro de auditoria de esta revision no verifica, asi que no se "
         "ha preparado nada. Avisa a quien administra el servicio.",

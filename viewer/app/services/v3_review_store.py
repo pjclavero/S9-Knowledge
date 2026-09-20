@@ -70,6 +70,15 @@ CREATE TABLE IF NOT EXISTS sealed_plans (
   provenance_json TEXT,
   UNIQUE (workspace, job_id, revision)
 );
+CREATE TABLE IF NOT EXISTS entity_altas (
+  workspace TEXT NOT NULL,
+  job_id TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  entity_type TEXT,
+  approved_by TEXT NOT NULL,
+  approved_at TEXT NOT NULL,
+  PRIMARY KEY (workspace, job_id, entity_id)
+);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_sealed_plan_vigente
   ON sealed_plans(workspace, job_id) WHERE state='sealed';
 CREATE INDEX IF NOT EXISTS idx_sealed_plan_por_corrida
@@ -378,6 +387,109 @@ class SQLiteReviewStore:
             [json.loads(row["record_json"]) for row in rows], workspace
         )
 
+    # -- ALTAS DE ENTIDAD: la SEGUNDA decision, en la MISMA autoridad --------
+    #
+    # POR QUE AQUI Y NO EN OTRO SITIO
+    # -------------------------------
+    # Aprobar el alta de una entidad es una decision humana durable que
+    # DETERMINA QUE SE ESCRIBE en el grafo, exactamente como una decision de
+    # propuesta. Ponerla en un fichero aparte --que es donde vive hoy la del
+    # CLI, `entity_decisions` serializado a `decisiones.json`-- habria creado
+    # la segunda verdad que el Corte 2 cerro: un fichero y una tabla capaces
+    # de contradecirse sobre que se aplica.
+    #
+    # Y hay una razon mas fuerte que la simetria: un alta aprobada TIENE QUE
+    # invalidar el plan sellado, igual que una decision de propuesta. Eso solo
+    # es atomico si las dos viven en la misma base y se tocan en la misma
+    # transaccion. Con el fichero por un lado y la tabla por otro existiria la
+    # ventana en la que hay un plan `sealed` que ya no corresponde a las altas
+    # aprobadas -- y aplicar en esa ventana escribiria (o dejaria de escribir)
+    # una entidad contra la decision vigente.
+
+    def approve_entity_alta(
+        self,
+        *,
+        workspace: str,
+        job_id: str,
+        entity_id: str,
+        entity_type: str | None,
+        approved_by: str,
+        approved_at: str,
+    ) -> dict[str, Any]:
+        """Aprueba UN alta, por su id. Sin comodines y sin «aprobar todas».
+
+        IDEMPOTENTE POR LA BASE, no por una comprobacion en Python: la clave
+        primaria `(workspace, job_id, entity_id)` es la que impide la segunda
+        fila. Repetir la aprobacion no duplica la entidad ni reescribe la
+        atribucion: el autor y el momento de la PRIMERA aprobacion se
+        conservan, porque son los que de verdad ocurrieron.
+
+        INVALIDA EL PLAN VIGENTE, y en la misma transaccion. Un plan sellado
+        antes de esta aprobacion no la contiene: seguir ofreciendolo seria
+        ofrecer un plan que no corresponde al conjunto de decisiones
+        confirmadas. No se edita --los planes nunca se editan--: se supersede.
+        Cuando la aprobacion ya existia no se invalida nada, porque nada ha
+        cambiado.
+
+        AUDITADA en la cadena encadenada del workspace, como el resto. Un acto
+        que decide que nace en el grafo sin rastro auditable no cumple el
+        contrato del chasis.
+        """
+        if not approved_by:
+            raise ValueError("una aprobacion sin revisor no es una aprobacion")
+        with self.transaction() as connection:
+            self.verify_audit_chain(connection, workspace)
+            existente = connection.execute(
+                """SELECT * FROM entity_altas
+                   WHERE workspace=? AND job_id=? AND entity_id=?""",
+                (workspace, job_id, entity_id),
+            ).fetchone()
+            if existente is not None:
+                return {"nuevo": False, "planes_invalidados": 0,
+                        "alta": dict(existente)}
+            connection.execute(
+                """INSERT INTO entity_altas
+                   (workspace, job_id, entity_id, entity_type, approved_by,
+                    approved_at)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (workspace, job_id, entity_id, entity_type or None,
+                 approved_by, approved_at),
+            )
+            cursor = connection.execute(
+                """UPDATE sealed_plans SET state=?
+                   WHERE workspace=? AND job_id=? AND state=?""",
+                (self.ESTADO_SUPERSEDIDO, workspace, job_id, self.ESTADO_SELLADO),
+            )
+            invalidados = cursor.rowcount or 0
+            self._audit(connection, workspace, {
+                "event": "ENTITY_ALTA_APPROVED",
+                "job_id": job_id,
+                "entity_id": entity_id,
+                "entity_type": entity_type or None,
+                "approved_by": approved_by,
+                "approved_at": approved_at,
+                "planes_invalidados": invalidados,
+            })
+        return {"nuevo": True, "planes_invalidados": invalidados,
+                "alta": {"workspace": workspace, "job_id": job_id,
+                         "entity_id": entity_id, "entity_type": entity_type,
+                         "approved_by": approved_by, "approved_at": approved_at}}
+
+    def entity_altas_aprobadas(self, *, workspace: str, job_id: str) -> list[dict[str, Any]]:
+        """Las altas APROBADAS de una corrida. Acotado por workspace Y corrida.
+
+        Las dos claves, no solo la corrida: un `job_id` es opaco y la consulta
+        que solo filtrara por el dejaria que una corrida homonima de otro
+        workspace aportase altas a este plan.
+        """
+        with self.connection() as connection:
+            filas = connection.execute(
+                """SELECT * FROM entity_altas
+                   WHERE workspace=? AND job_id=? ORDER BY entity_id""",
+                (workspace, job_id),
+            ).fetchall()
+        return [dict(f) for f in filas]
+
     def seal_plan(
         self,
         *,
@@ -391,6 +503,7 @@ class SQLiteReviewStore:
         sealed_at: str,
         expected_decision_ids: list,
         provenance_json: str | None = None,
+        expected_alta_ids: list | None = None,
     ) -> dict:
         """Sella un plan en la MISMA transacción que comprueba las decisiones.
 
@@ -412,6 +525,26 @@ class SQLiteReviewStore:
                 raise SealConflict(
                     "las decisiones cambiaron entre la lectura y el sellado"
                 )
+            # LA MISMA GUARDA PARA LA SEGUNDA DECISION. Aprobar un alta
+            # despues de sellar invalida el plan (`approve_entity_alta`); esto
+            # cierra la ventana CONTRARIA -- aprobar un alta mientras se
+            # componia el plan--, en la que el plan saldria `sealed` sin la
+            # entidad que el operador acaba de aprobar y nadie lo notaria.
+            # `None` significa "este llamante no leyo altas", y entonces no se
+            # compara nada: no se convierte una ausencia en un cero.
+            if expected_alta_ids is not None:
+                presentes = sorted({
+                    str(fila["entity_id"])
+                    for fila in connection.execute(
+                        """SELECT entity_id FROM entity_altas
+                           WHERE workspace=? AND job_id=?""",
+                        (workspace, job_id),
+                    )
+                })
+                if presentes != sorted(set(str(x) for x in expected_alta_ids)):
+                    raise SealConflict(
+                        "las altas de entidad cambiaron entre la lectura y el sellado"
+                    )
             # Un sellado nuevo invalida el anterior de esa corrida ANTES de
             # insertar: el índice único parcial no admite dos vigentes, así que
             # sin esto el segundo sellado fallaría con un error de base en vez

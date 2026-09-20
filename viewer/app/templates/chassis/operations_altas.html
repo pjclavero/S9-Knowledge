@@ -1,0 +1,156 @@
+{#
+  LAS ENTIDADES NUEVAS DE UNA INGESTA, y la decisión de darlas de alta.
+
+  POR QUÉ ESTA PANTALLA EXISTE APARTE DE LA COLA DE REVISIÓN
+  ----------------------------------------------------------
+  Porque son dos decisiones distintas y el producto tiene que enseñarlo así.
+  Aprobar una afirmación («X pertenece a Y») no autoriza a CREAR a X. Esa
+  frontera estaba decidida por escrito en el motor y hasta ahora sólo se podía
+  cruzar desde la línea de comandos, de una en una. Aquí se cruza igual: de una
+  en una, por su identificador, con un botón por entidad.
+
+  NO HAY «APROBAR TODAS», y no es un olvido: cada formulario manda UNA entidad.
+  Un botón que las aprobara todas sería la conversión silenciosa que toda esta
+  frontera existe para impedir, sólo que con ratón en vez de con bandera.
+
+  QUÉ SE ENSEÑA COMO EVIDENCIA
+  ----------------------------
+  El FRAGMENTO SOPORTANTE de cada propuesta de esta ingesta que nombra a la
+  entidad. Ni el episodio entero, ni la fuente, ni nada que la política de
+  procedencia no conceda ya: es el mismo texto que la pantalla de revisión le
+  enseñó a esta misma persona para esas mismas propuestas. Lo que la política
+  oculta no llega hasta aquí, porque el filtro se aplica en el servidor sobre
+  las propuestas, no al pintar.
+
+  AUSENCIA != CERO. Un tipo que la ingesta no supo deducir sale como ausente y
+  se PIDE; no se elige uno plausible. Una corrida que no dejó constancia se
+  dice así, y no como «no hace falta ninguna».
+
+  NINGUNA URL ESCRITA A MANO: todo `action` se resuelve por nombre de ruta.
+#}
+{% extends "base.html" %}
+{% block title %}Entidades nuevas · S9 Knowledge{% endblock %}
+{% block body %}
+<main class="container" data-slot="B" data-role="pantalla-altas">
+  <h1>Entidades nuevas de esta ingesta</h1>
+
+  {% if aviso %}
+    <section class="panel {{ 'panel-error' if aviso.tipo == 'error' else '' }}"
+             data-role="aviso" data-aviso-tipo="{{ aviso.tipo }}"
+             data-aviso-codigo="{{ aviso.code }}">
+      <p>{{ aviso.message }}</p>
+    </section>
+  {% endif %}
+
+  {% if not corrida_visible %}
+    {#
+      NI 404 MUDO NI LISTA VACÍA. Una lista vacía se leería como «esta ingesta
+      no necesita dar de alta nada», que es una afirmación distinta y puede ser
+      falsa. Se dice lo que pasa: no hay ingesta que mirar.
+    #}
+    <section class="panel panel-error" data-state="error" data-altas-estado="sin-corrida">
+      <h2>No hay ninguna ingesta que mirar</h2>
+      <p>
+        No se ha indicado de qué ingesta se trata, o esa ingesta no está a tu
+        alcance. Vuelve a la consola y entra desde el acuse de la ingesta.
+      </p>
+      <p><a href="{{ url_for('chassis_operations') }}">Volver a la consola</a></p>
+    </section>
+  {% elif not declarado %}
+    <section class="panel" data-state="empty" data-altas-estado="sin-constancia">
+      <h2>Esta ingesta no dejó constancia</h2>
+      <p>
+        No consta si esta ingesta necesitaba dar de alta alguna entidad. No
+        quiere decir que no necesite ninguna: quiere decir que no se preguntó.
+        Vuelve a solicitar la ingesta para que quede constancia.
+      </p>
+      <p><a href="{{ url_for('chassis_operations') }}">Volver a la consola</a></p>
+    </section>
+  {% elif not altas %}
+    <section class="panel" data-state="empty" data-altas-estado="ninguna">
+      <h2>Ninguna entidad nueva</h2>
+      <p>
+        Esta ingesta no necesita dar de alta ninguna entidad: todo lo que
+        menciona ya existe en el conocimiento.
+      </p>
+      <p><a href="{{ url_for('chassis_operations') }}">Volver a la consola</a></p>
+    </section>
+  {% else %}
+    <section class="panel" data-state="ready" data-role="lista-altas"
+             data-altas-total="{{ altas | length }}">
+      <p>
+        Cada entidad se decide por separado. Dar el visto bueno a una
+        afirmación no da de alta a la entidad de la que habla.
+      </p>
+      {% for alta in altas %}
+        <article class="panel" data-role="alta"
+                 data-alta-id="{{ alta.entity_id | e }}"
+                 data-alta-aprobada="{{ 'true' if alta.aprobada else 'false' }}"
+                 data-alta-tipo="{{ alta.entity_type | e if alta.entity_type else '' }}">
+          <h2>{{ alta.nombre if alta.nombre else alta.entity_id }}</h2>
+
+          {% if alta.entity_type %}
+            <p data-role="tipo">Tipo: <strong>{{ alta.entity_type }}</strong></p>
+          {% else %}
+            <p data-role="tipo" data-availability="unavailable">
+              La ingesta no ha podido decir de qué clase de cosa se trata. No se
+              supone: díselo tú al darle el visto bueno.
+            </p>
+          {% endif %}
+
+          {% if alta.aliases %}
+            <p data-role="alias">
+              También se la nombra como:
+              {% for a in alta.aliases %}<span>{{ a }}</span>{% if not loop.last %}, {% endif %}{% endfor %}
+            </p>
+          {% endif %}
+
+          {#
+            LA EVIDENCIA. Si no hay ninguna se DICE: decidir sin material es
+            una situación distinta de decidir con él, y un hueco en blanco se
+            lee como «no había nada que leer».
+          #}
+          {% if alta.evidencias %}
+            <ul data-role="evidencias">
+              {% for e in alta.evidencias %}
+                <li data-role="evidencia" data-evidencia-papel="{{ e.papel }}">
+                  <q>{{ e.texto }}</q>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p data-role="evidencias" data-availability="unavailable">
+              No consta ningún fragmento que sostenga esta entidad en lo que
+              puedes ver. Sin material no hay con qué decidir.
+            </p>
+          {% endif %}
+
+          {% if alta.aprobada %}
+            <p data-role="ya-aprobada">
+              Ya tiene tu visto bueno
+              {% if alta.aprobada_por %}(lo dio <strong>{{ alta.aprobada_por }}</strong>{% if alta.aprobada_en %}, el {{ alta.aprobada_en }}{% endif %}){% else %}
+                (no consta quién lo dio: el dato no está, y no se inventa)
+              {% endif %}.
+            </p>
+          {% else %}
+            <form method="post" data-role="form-alta"
+                  action="{{ url_for('chassis_operations_alta') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="trabajo" value="{{ trabajo | e }}">
+              <input type="hidden" name="entidad" value="{{ alta.entity_id | e }}">
+              {% if not alta.entity_type %}
+                <label>
+                  ¿De qué clase de cosa se trata?
+                  <input type="text" name="tipo" required>
+                </label>
+              {% endif %}
+              <button type="submit">Dar el visto bueno a esta entidad</button>
+            </form>
+          {% endif %}
+        </article>
+      {% endfor %}
+      <p><a href="{{ url_for('chassis_operations') }}">Volver a la consola</a></p>
+    </section>
+  {% endif %}
+</main>
+{% endblock %}

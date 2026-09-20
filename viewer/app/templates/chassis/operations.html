@@ -161,6 +161,57 @@
     dice que no es cosa suya en vez de ofrecer un botón que siempre falla.
   #}
   {% if plan %}
+  {#
+    LAS ALTAS DE ENTIDAD. Aquí sólo el RECUENTO y el camino: la decisión se
+    toma en su propia pantalla, porque es una decisión DISTINTA de aprobar una
+    propuesta y mezclarlas en el mismo bloque invita a tomarlas de un golpe.
+
+    AUSENCIA != CERO, y aquí muerde: una ingesta anterior a este corte no
+    publicó el bloque de altas. `declarado=false` NO es «no hacen falta
+    altas»: es «esta ingesta no dejó constancia», y se dice con esas palabras.
+  #}
+  {% if altas is defined and altas %}
+    <section class="panel" data-role="altas-de-entidad"
+             data-altas-declarado="{{ 'true' if altas.declarado else 'false' }}"
+             data-altas-total="{{ altas.total if altas.total is not none else '' }}"
+             data-altas-pendientes="{{ altas.pendientes if altas.pendientes is not none else '' }}"
+             data-altas-aprobadas="{{ altas.aprobadas if altas.aprobadas is not none else '' }}">
+      <h2>Entidades nuevas de esta ingesta</h2>
+      {% if altas.total is none %}
+        <p data-availability="unavailable">
+          No se puede consultar la cola de revisión en este despliegue, así que
+          no se sabe si esta ingesta necesita dar de alta alguna entidad.
+        </p>
+      {% elif not altas.declarado %}
+        <p data-altas-estado="sin-constancia">
+          Esta ingesta no dejó constancia de si hacía falta dar de alta alguna
+          entidad. No quiere decir que no haga falta ninguna: quiere decir que
+          no se preguntó.
+        </p>
+      {% elif altas.pendientes == 0 %}
+        <p data-altas-estado="ninguna-pendiente">
+          No queda ninguna entidad nueva esperando tu visto bueno
+          (<strong>{{ altas.aprobadas }}</strong> ya lo {{ 'tiene' if altas.aprobadas == 1 else 'tienen' }}).
+        </p>
+      {% else %}
+        <p data-altas-estado="pendientes">
+          Hay <strong>{{ altas.pendientes }}</strong>
+          {{ 'entidad nueva' if altas.pendientes == 1 else 'entidades nuevas' }}
+          esperando tu visto bueno. Aprobar una afirmación no da de alta a la
+          entidad de la que habla: eso se decide aparte.
+        </p>
+      {% endif %}
+      {% if altas.total is not none and altas.declarado %}
+        <p>
+          <a data-role="enlace-altas"
+             href="{{ url_for('chassis_operations_altas') }}?trabajo={{ altas.job_id | urlencode }}">
+            Ver las entidades nuevas y decidir
+          </a>
+        </p>
+      {% endif %}
+    </section>
+  {% endif %}
+
     <section class="panel" data-role="plan-revisado"
              data-plan-estado="{{ plan.estado }}"
              data-plan-trabajo="{{ plan.job_id | e }}"

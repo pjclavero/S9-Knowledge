@@ -112,6 +112,8 @@ from .contracts.mutation_plan import GraphMutationPlan
 from .engine.planner import PAYLOAD_FIELDS, assertion_identity
 
 __all__ = [
+    "ALTAS_KEY",
+    "ALTA_CODES",
     "ANCHORS_KEY",
     "PLAN_CONTEXT_KEY",
     "PROVENANCE_KEY",
@@ -121,6 +123,7 @@ __all__ = [
     "SealedPlanBuild",
     "ExcludedProposal",
     "OmittedProjection",
+    "OmittedAlta",
     "plan_context_from_run",
     "provenance_from_context",
     "seal_review_plan",
@@ -138,6 +141,14 @@ ANCHORS_KEY = "entity_anchors"
 #: Los DOCUMENTOS de procedencia dentro de `plan_context`: lo que el plan NO
 #: lleva dentro y sin lo cual `apply_v3` no puede persistir procedencia.
 PROVENANCE_KEY = "provenance"
+
+#: Las ALTAS DE ENTIDAD que la corrida dejo pendientes, dentro de
+#: `plan_context`. Es la PREGUNTA, no la respuesta: quien contesta es una
+#: persona y su respuesta vive en el almacen de revision, no aqui. Un sobre
+#: sin esta clave significa "esta corrida no publico altas", que no es lo
+#: mismo que "no hay ninguna": la distincion la sostiene la AUSENCIA de la
+#: clave frente a un diccionario vacio.
+ALTAS_KEY = "entity_altas"
 
 #: Paso declarado como productor del plan sellado. NO es `engine.plan`: no lo
 #: produjo el planificador del motor sobre una corrida, lo produjo la revision
@@ -227,6 +238,54 @@ PROJECTION_CODES = {
 }
 
 
+#: Motivos ENUMERABLES por los que un alta APROBADA por una persona no llega a
+#: producir un `CREATE_ENTITY` en el plan. Ninguno de los tres es un silencio:
+#: los tres significan que alguien aprobo algo y el plan no lo trae.
+ALTA_CODES = {
+    "ALTA_NOT_DECLARED_IN_RUN": (
+        "la corrida no declaro esta alta en su sobre, asi que el plan no sabe "
+        "con que tipo ni con que nombre habria que crearla"
+    ),
+    "ALTA_NOT_REFERENCED": (
+        "ninguna de las afirmaciones que entran en el plan menciona esta "
+        "entidad: crearla dejaria un nodo suelto que nada sostiene"
+    ),
+    "ALTA_WITHOUT_TYPE": (
+        "el alta no declara tipo de entidad, y el tipo no se inventa: quien "
+        "aprueba tiene que declararlo"
+    ),
+}
+
+
+class OmittedAlta:
+    """Un alta APROBADA que no produce `CREATE_ENTITY`. Y por que.
+
+    Mismo patron y misma razon que `ExcludedProposal` y `OmittedProjection`:
+    la enumeracion esta CERRADA por construccion, asi que no se puede emitir
+    un motivo que la pantalla no sepa traducir. Y no se confunde con las
+    otras dos: aqui lo que falta no es una propuesta ni una arista, sino la
+    entidad, y decir "se excluyo una propuesta" cuando lo que falta es un
+    nodo mandaria a mirar al sitio equivocado.
+    """
+
+    __slots__ = ("entity_id", "code")
+
+    def __init__(self, entity_id: str, code: str):
+        if code not in ALTA_CODES:
+            raise ReviewPlanError(
+                "ALTA_CODE_NOT_DECLARED",
+                f"motivo de omision no declarado en ALTA_CODES: {code}",
+            )
+        self.entity_id = entity_id
+        self.code = code
+
+    def to_dict(self) -> dict[str, str]:
+        return {"entity_id": self.entity_id, "code": self.code}
+
+    def __repr__(self) -> str:  # pragma: no cover - diagnostico
+        return f"OmittedAlta({self.entity_id!r}, {self.code!r})"
+
+
 class OmittedProjection:
     """Una afirmacion que SI entra en el plan y cuya arista NO. Y por que.
 
@@ -309,7 +368,7 @@ class SealedPlanBuild:
 
     __slots__ = (
         "plan_doc", "included_proposal_ids", "excluded", "decision_ids",
-        "projections_omitted",
+        "projections_omitted", "altas_included", "altas_omitted",
     )
 
     def __init__(
@@ -319,6 +378,8 @@ class SealedPlanBuild:
         excluded: tuple[ExcludedProposal, ...],
         decision_ids: tuple[str, ...],
         projections_omitted: tuple = (),
+        altas_included: tuple = (),
+        altas_omitted: tuple = (),
     ):
         self.plan_doc = plan_doc
         self.included_proposal_ids = included_proposal_ids
@@ -327,6 +388,9 @@ class SealedPlanBuild:
         #: Afirmaciones INCLUIDAS cuya arista no se emitio, con su motivo.
         #: Distinto de `excluded`: alli la propuesta no entra en el plan.
         self.projections_omitted = projections_omitted
+        #: Los `entity_id` que este plan DA DE ALTA, y los aprobados que no.
+        self.altas_included = altas_included
+        self.altas_omitted = altas_omitted
 
 
 # ---------------------------------------------------------------------------
@@ -356,6 +420,7 @@ def plan_context_from_run(
     documents: Sequence[Mapping[str, Any]],
     *,
     entity_anchors: Optional[Mapping[str, Mapping[str, Any]]] = None,
+    entity_altas: Optional[Mapping[str, Mapping[str, Any]]] = None,
     provenance: Optional[Mapping[str, Any]] = None,
 ) -> Optional[dict[str, Any]]:
     """El bloque `plan_context` del sobre, o `None` si la corrida no lo tiene.
@@ -397,6 +462,14 @@ def plan_context_from_run(
     if entity_anchors:
         contexto[ANCHORS_KEY] = {
             str(k): dict(v) for k, v in entity_anchors.items() if isinstance(v, Mapping)
+        }
+    # LAS ALTAS PENDIENTES, si la corrida las declaro. Mismo criterio que las
+    # anclas: solo si no esta vacio. Un bloque vacio diria "esta corrida no
+    # necesita ningun alta" cuando lo que puede pasar es que nadie se lo
+    # preguntara, y esas dos cosas se distinguen por la AUSENCIA de la clave.
+    if entity_altas:
+        contexto[ALTAS_KEY] = {
+            str(k): dict(v) for k, v in entity_altas.items() if isinstance(v, Mapping)
         }
     if provenance and (
         provenance.get("source_asset")
@@ -691,6 +764,93 @@ def _expira(now: str) -> str:
     return (momento + timedelta(seconds=PLAN_TTL_SECONDS)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _altas_aprobadas(
+    contexto: Mapping[str, Any],
+    approved_entities: Sequence[Mapping[str, Any]],
+    decisiones: Sequence[Mapping[str, Any]],
+) -> tuple[list[dict[str, Any]], list[str], list[OmittedAlta]]:
+    """Los `CREATE_ENTITY` de las altas APROBADAS. Ni uno mas.
+
+    TRES CONDICIONES, Y LAS TRES SE COMPRUEBAN AQUI, en el servidor:
+
+    1. **APROBADA.** Solo se mira lo que llega en `approved_entities`. Esta
+       funcion no lee el sobre buscando altas que emitir: el sobre solo puede
+       DECLARAR candidatas, y una candidata no aprobada no produce nada.
+    2. **DECLARADA POR ESTA CORRIDA.** Un id que el sobre de esta corrida no
+       declara no se crea, aunque venga aprobado. Es lo que hace que un alta
+       de OTRO workspace --u otra corrida, o un id inventado-- no se cuele por
+       el formulario: el sobre es de la corrida, y la corrida es del
+       workspace. Se dice con `ALTA_NOT_DECLARED_IN_RUN`.
+    3. **REFERENCIADA POR EL PLAN.** La entidad tiene que ser sujeto u objeto
+       de alguna afirmacion que entra. Crear un nodo que ninguna afirmacion
+       menciona seria escribir en el grafo algo que nadie reviso.
+
+    El `decision_id` de cada alta NO se inventa: es el de una decision REAL
+    del plan que menciona esa entidad. El validador congelado exige que toda
+    operacion tenga su decision asociada, y atarla a una decision que no la
+    nombra falsearia la procedencia del nodo.
+    """
+    declaradas = contexto.get(ALTAS_KEY)
+    declaradas = declaradas if isinstance(declaradas, Mapping) else {}
+    por_entidad: dict[str, Mapping[str, Any]] = {}
+    for decision in decisiones:
+        for campo in ("subject_entity_id", "object_entity_id"):
+            entity_id = str(decision.get(campo) or "")
+            if entity_id:
+                por_entidad.setdefault(entity_id, decision)
+    ops: list[dict[str, Any]] = []
+    incluidas: list[str] = []
+    omitidas: list[OmittedAlta] = []
+    vistas: set[str] = set()
+    for alta in sorted(approved_entities, key=lambda a: str(a.get("entity_id") or "")):
+        entity_id = str(alta.get("entity_id") or "")
+        if not entity_id or entity_id in vistas:
+            # REPETIR UNA APROBACION NO DUPLICA NADA. Dos veces el mismo id
+            # producen UN `CREATE_ENTITY`; dos abortarian el apply entero con
+            # `EXEC_TARGET_EXISTS`, que es el mismo motivo por el que el motor
+            # tiene `_dedupe_altas`.
+            continue
+        vistas.add(entity_id)
+        declarada = declaradas.get(entity_id)
+        if not isinstance(declarada, Mapping):
+            omitidas.append(OmittedAlta(entity_id, "ALTA_NOT_DECLARED_IN_RUN"))
+            continue
+        decision = por_entidad.get(entity_id)
+        if decision is None:
+            omitidas.append(OmittedAlta(entity_id, "ALTA_NOT_REFERENCED"))
+            continue
+        tipo = str(alta.get("entity_type") or declarada.get("entity_type") or "")
+        if not tipo:
+            omitidas.append(OmittedAlta(entity_id, "ALTA_WITHOUT_TYPE"))
+            continue
+        payload: dict[str, Any] = {
+            "entity_type": tipo,
+            "name": str(declarada.get("name") or entity_id),
+        }
+        alias = sorted({
+            str(a) for a in (declarada.get("aliases") or ()) if str(a).strip()
+        })
+        if alias:
+            # La clave se OMITE cuando no hay alias, igual que en
+            # `engine/planner._payload_alta`: una lista vacia entraria en el
+            # `state_hash` del nodo y haria distintos dos nodos iguales.
+            payload["aliases"] = alias
+        ops.append({
+            "operation_id": f"op:alta:{entity_id}",
+            "operation_type": "CREATE_ENTITY",
+            "decision_id": decision["decision_id"],
+            "target_entity_id": entity_id,
+            "payload": payload,
+            "evidence_fragment_ids": list(decision.get("evidence_fragment_ids") or ()),
+            "idempotency_key": "",  # la deriva `seal_plan`
+            "expected_state": "WOULD_CREATE",
+            "expected_version": None,
+            "expected_hash": None,
+        })
+        incluidas.append(entity_id)
+    return ops, incluidas, omitidas
+
+
 def seal_review_plan(
     *,
     workspace: str,
@@ -699,6 +859,7 @@ def seal_review_plan(
     approved: Sequence[Mapping[str, Any]],
     decision_ids: Mapping[str, str],
     now: str,
+    approved_entities: Sequence[Mapping[str, Any]] = (),
 ) -> SealedPlanBuild:
     """Sella el plan de UNA corrida desde sus propuestas APROBADAS.
 
@@ -707,6 +868,18 @@ def seal_review_plan(
     cargador) cuya decision humana ACTIVA es `APPROVE`. `decision_ids` ata cada
     `proposal_id` al `decision_id` de esa decision: es lo que hace que el plan
     quede ligado a UN conjunto concreto de decisiones y no a «las que hubiera».
+
+    `approved_entities` son las ALTAS DE ENTIDAD que una persona aprobo, una a
+    una y por su id, en la autoridad de revision. Es la SEGUNDA decision, y es
+    la unica cosa que enciende un `CREATE_ENTITY` en este plan: sin ella se
+    emiten exactamente cero, por muchas propuestas aprobadas que haya. La
+    frontera que la cabecera de este modulo declara --aprobar una propuesta NO
+    es aprobar un alta-- no se relaja: se le da su propio canal.
+
+    Cada elemento es `{"entity_id": ..., "entity_type": ... opcional}`. El tipo
+    declarado por quien aprueba MANDA sobre el que la corrida dedujo, porque en
+    un grafo nuevo el resolutor no tiene contra que inferirlo y sale `None`;
+    sin ninguno de los dos no se crea nada y se DICE (`ALTA_WITHOUT_TYPE`).
 
     `now` se INYECTA. Este modulo no lee el reloj: si lo leyera, sellar dos
     veces el mismo conjunto daria dos planes distintos y nada seria
@@ -812,6 +985,14 @@ def seal_review_plan(
             "ninguna propuesta aprobada produce una operacion aplicable",
         )
 
+    # LAS ALTAS DE ENTIDAD APROBADAS, y SOLO esas. Se emiten al final, cuando
+    # ya se sabe que afirmaciones entran: un alta cuya entidad no menciona
+    # ninguna afirmacion del plan crearia un nodo suelto.
+    altas_ops, altas_incluidas, altas_omitidas = _altas_aprobadas(
+        contexto, approved_entities, decisiones,
+    )
+    operaciones.extend(altas_ops)
+
     # Orden total antes de sellar. Sin el, el orden en que el almacen devuelva
     # las propuestas cambiaria el `plan_hash` de un plan identico.
     operaciones.sort(key=lambda op: op["operation_id"])
@@ -875,4 +1056,6 @@ def seal_review_plan(
         excluded=tuple(excluidas),
         decision_ids=tuple(sorted({d for d in usadas if d})),
         projections_omitted=tuple(omitidas),
+        altas_included=tuple(altas_incluidas),
+        altas_omitted=tuple(altas_omitidas),
     )
