@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-r"""E2E de navegador: `next` NUNCA saca al usuario del producto.
+r"""E2E de navegador: el destino interno legitimo SOBREVIVE al navegador.
 
 POR QUE ESTE FICHERO EXISTE, Y POR QUE NO BASTA LA SUITE SIN NAVEGADOR
 ----------------------------------------------------------------------
@@ -17,16 +17,12 @@ percent-encodea la backslash, el navegador recibe `/%5Cevil.example/x` y no hay
 ninguna backslash que normalizar. Esa normalizacion es real en otros contextos
 —un `href` crudo, por ejemplo—, pero no en este.
 
-Lo que SI escapa por esta superficie, medido con la defensa retirada en
-`test_browser_next_calibracion.py`, es la barra repetida: `///evil.example/x`.
-Un navegador salta todas las barras iniciales al entrar en la autoridad y lee
-`evil.example` como host. Por eso los negativos DE NAVEGADOR de este fichero
-son `///` y `////` y no la backslash: son los unicos que se pondrian rojos si
-la defensa cayera, y un negativo que no puede ponerse rojo no guarda nada.
-
-La backslash y sus codificaciones siguen siendo rechazos OBLIGATORIOS del
-validador —se miden sobre la cabecera, en la suite sin navegador, donde si
-discriminan—, pero no caben aqui como negativos.
+Y al medirlo aparecio algo mas: por la cabecera `Location` **ninguna** de las
+representaciones hostiles saca a Chromium del producto, ni siquiera
+`///evil.example/x`. Por eso este fichero se quedo SIN NEGATIVOS —ver el bloque
+del final— y solo conserva el positivo, que si discrimina. La medicion, caso a
+caso y con la defensa retirada de verdad, esta en
+`test_browser_next_calibracion.py`.
 
 COMO SE OBSERVA LA FUGA SIN TOCAR LA RED
 ----------------------------------------
@@ -43,10 +39,10 @@ TECHO DECLARADO — QUE **NO** CUBRE ESTE FICHERO
 - Cubre `POST /login`. `POST /partida/select` y `GET /login` se miden por
   cabecera y por HTML en la suite sin navegador, NO aqui: este fichero no debe
   leerse como si les diera cobertura de navegador.
-- Mide la tabla por muestreo, y solo los casos que DISCRIMINAN en esta
-  superficie (`///` y `////`). La tabla COMPLETA vive en la suite sin
-  navegador; cual de los casos discrimina y cual no, medido, en
-  `test_browser_next_calibracion.py`.
+- **No cubre ningun caso hostil**: no hay negativo que discrimine en esta
+  superficie, y esta medido. Todo el rechazo se mide en la suite sin navegador.
+  Este fichero cubre EXCLUSIVAMENTE que el destino interno legitimo sobrevive
+  al navegador con su query.
 - No prueba nada sobre autorizacion: que el destino sea interno no dice que el
   usuario pueda verlo.
 """
@@ -217,29 +213,23 @@ def test_navegador_vuelve_a_la_consola_filtrada(page, viewer_redir):
 
 
 # ---------------------------------------------------------------------------
-# NEGATIVOS — el navegador es quien decide, y decide quedarse dentro
+# NEGATIVOS: NO HAY, Y ESO ESTA MEDIDO
 # ---------------------------------------------------------------------------
-
-@pytest.mark.parametrize("etiqueta,hostil", [
-    ("tres barras", f"///{HOSTIL}/x"),
-    ("cuatro barras", f"////{HOSTIL}/x"),
-], ids=lambda v: v if isinstance(v, str) else str(v))
-def test_navegador_no_sale_del_producto(page, viewer_redir, etiqueta, hostil):
-    fugas = _vigilar_salidas(page, viewer_redir)
-    _login_con_next(page, viewer_redir, hostil)
-
-    assert not any(HOSTIL in u for u in fugas), (
-        f"REDIRECCION ABIERTA CONFIRMADA POR EL NAVEGADOR: con next={hostil!r} "
-        f"[{etiqueta}] Chromium intento navegar a {fugas!r}, es decir, FUERA del "
-        f"producto. Da igual que `_safe_next()` considerase esa cadena una ruta "
-        f"interna: quien interpreta `Location` es el navegador, y salta todas "
-        f"las barras iniciales al entrar en la autoridad."
-    )
-    assert page.url.startswith(viewer_redir.base_url), (
-        f"REDIRECCION ABIERTA CONFIRMADA POR EL NAVEGADOR: con next={hostil!r} "
-        f"[{etiqueta}] la URL efectiva tras el login es {page.url!r}, que no "
-        f"pertenece al origen del producto ({viewer_redir.base_url!r})."
-    )
-    assert HOSTIL not in page.url, (
-        f"[{etiqueta}] el dominio externo aparece en la URL final: {page.url!r}"
-    )
+#
+# Este fichero tuvo cuatro negativos de navegador. Eran testigos VACUOS: con la
+# defensa retirada seguian verdes, asi que no guardaban nada. Se comprobo caso
+# a caso en `test_browser_next_calibracion.py`, que retira la defensa de
+# verdad —y lo DEMUESTRA leyendo la cabecera con socket crudo antes de mirar al
+# navegador— y mide a donde va Chromium: con ninguna de las seis
+# representaciones sale del producto.
+#
+# La razon es que resolver un `Location` no es construir una URL: por esta via
+# Chromium deja `///evil.example/x` dentro del origen, y la backslash ni
+# siquiera llega al navegador porque Starlette la percent-encodea.
+#
+# De modo que aqui no hay negativo que poner. Poner uno seria exhibir un verde
+# que no prueba nada. El defecto se mide donde SI discrimina —la cabecera, en
+# `viewer/tests/test_next_url_open_redirect.py`, 84 rojos al retirar la
+# defensa— y la vacuidad de esta superficie queda como trinquete en el fichero
+# de calibracion, que se pondra rojo el dia que alguna de estas cadenas SI
+# saque a un navegador del sitio.

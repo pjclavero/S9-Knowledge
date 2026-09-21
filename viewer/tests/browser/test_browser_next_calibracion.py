@@ -12,43 +12,46 @@ PREEXISTENTE se reconstruye AQUI DENTRO, se inyecta en el router para la
 duracion de un caso, y se mide a donde va Chromium de verdad. Nada vulnerable
 llega a ninguna rama.
 
-POR QUE LA RESPUESTA LA DA UN NAVEGADOR Y NO UN `urljoin`
----------------------------------------------------------
-Esto se midio y conviene dejarlo escrito, porque es el mismo error que causo el
-defecto original, una capa mas arriba. Resolviendo `///evil.example/x` contra
-`http://127.0.0.1:PUERTO/login`:
+EL RESULTADO, QUE NO ES EL QUE SE ESPERABA
+-------------------------------------------
+Se esperaba que `///evil.example/x` sacara al navegador del producto: la WHATWG
+URL Standard salta todas las barras iniciales al entrar en la autoridad, de
+donde se sigue que `evil.example` deberia leerse como host. CI dijo que no.
+Medido con la defensa retirada y con el servidor emitiendo el `Location` hostil
+intacto —comprobado con socket crudo, ver `_location_crudo`—, **Chromium no
+sale del producto con ninguna de las seis representaciones**:
 
-    urllib.parse.urljoin  ->  http://127.0.0.1:PUERTO/evil.example/x   (dentro)
-    httpx.URL(...).join   ->  http://127.0.0.1:PUERTO/evil.example/x   (dentro)
+    ///evil.example/x      ////evil.example/x
+    /\evil.example/x       /\\evil.example/x
+    /%5Cevil.example/x     /%2F%2Fevil.example/x
 
-Los dos resolutores de Python dicen «se queda dentro». La WHATWG URL Standard,
-que es la que implementan los navegadores, salta TODAS las barras iniciales al
-entrar en la autoridad, asi que un navegador lee `evil.example` como host. Si
-se usara `urljoin` como oraculo se concluiria que el caso es vacuo y se estaria
-repitiendo el defecto: confundir nuestro parser con el del navegador. El
-oraculo de este fichero es Chromium.
+Dos lecturas, ambas utiles:
 
-LO QUE ESTE FICHERO AFIRMA, CASO A CASO, y por tanto lo que mide
-----------------------------------------------------------------
-Con la defensa RETIRADA:
-  · `///evil.example/x` y `////evil.example/x`  ->  Chromium SALE del producto.
-    Son los unicos que hacen de negativo de verdad.
-  · `/\evil.example/x`, `/\\…`, `/%5C…`, `/%2F%2F…`  ->  Chromium NO sale,
-    porque Starlette PERCENT-ENCODEA la backslash al construir el `Location` y
-    el navegador nunca llega a ver una backslash que normalizar. Estos cuatro
-    son VACUOS como negativos de navegador, y aqui queda medido que lo son.
+1. Resolver un `Location` NO es lo mismo que construir una URL. `urljoin` y
+   `httpx` tambien dejan `///evil.example/x` dentro del origen, y Chromium
+   coincide con ellos por esta via. La normalizacion de la backslash, ademas,
+   no llega a plantearse: Starlette PERCENT-ENCODEA la backslash y el navegador
+   nunca ve una que normalizar.
+2. Por tanto **no existe un negativo de navegador para este defecto**, y
+   `test_browser_next_open_redirect.py` NO TIENE NEGATIVOS: los cuatro que tuvo
+   eran testigos vacuos —verdes pasara lo que pasara— y se han retirado en vez
+   de maquillarse. Donde el defecto SI se mide y SI discrimina es en la
+   cabecera, en `viewer/tests/test_next_url_open_redirect.py`, cuyo control
+   sensible se pone rojo 84 veces al retirar la defensa.
 
-Si algun dia Starlette dejara de codificar la backslash, el caso dejaria de ser
-vacuo y ESTE FICHERO SE PONDRIA ROJO avisando de ello, en vez de que la suite
-siguiera creyendo que aquellos negativos guardaban algo.
+Que Chromium no salga no absuelve al validador: el `Location` seguia llevando
+una referencia fuera del sitio, hay clientes HTTP que la resuelven asi —el
+propio httpx se NIEGA a parsear `////…`—, y la propiedad que se defiende es
+sobre la representacion, no sobre un motor concreto.
 
 TECHO DECLARADO
 ---------------
-- Mide chromium. No dice nada de otros motores.
+- Mide chromium por la cabecera `Location`. NO dice nada de otros motores, ni
+  de la misma cadena en un `href`, un `<meta refresh>` o un `location.assign`,
+  donde la normalizacion de la backslash SI ocurre.
 - Mide `POST /login`. No cubre `/partida/select` ni `GET /login`.
-- No prueba la defensa: prueba que la PRUEBA de la defensa puede ponerse roja.
-  El verde de este fichero no dice que el producto sea seguro; lo dice
-  `test_browser_next_open_redirect.py`, que es a quien esto calibra.
+- No prueba la defensa: prueba que las pruebas de navegador de la defensa NO
+  podrian ponerse rojas, que es justo por lo que no existen.
 """
 from __future__ import annotations
 
@@ -60,6 +63,9 @@ import pytest
 from e2e_support import ViewerServer, start_viewer
 
 HOSTIL = "evil.example"
+
+#: El destino interno al que cae el validador cuando rechaza.
+DESTINO_POR_DEFECTO = "/"
 
 
 def _validador_preexistente(next_url: Optional[str]) -> str:
@@ -141,57 +147,102 @@ def _salio(fugas: list) -> bool:
     return any(urlparse(u).hostname == HOSTIL for u in fugas)
 
 
+def _location_crudo(viewer: ViewerServer, next_valor: str) -> str:
+    """El `Location` EXACTO que el servidor emite, leido con socket crudo.
+
+    CONTROL DEL CONTROL, y no es ceremonia: sin esto, «Chromium no salio» tiene
+    DOS causas indistinguibles —que el caso no escape, o que la defensa no se
+    hubiera retirado de verdad— y un rojo con dos causas posibles no dice nada.
+    Se usa `http.client` y no un cliente de alto nivel porque los de alto nivel
+    intentan RESOLVER la cabecera y algunos se niegan a parsear `////…`: aqui
+    hace falta el texto tal cual viaja, no su interpretacion.
+    """
+    import http.client
+    import re as _re
+    from urllib.parse import urlencode as _ue
+
+    host = urlparse(viewer.base_url).hostname
+    port = urlparse(viewer.base_url).port
+    conexion = http.client.HTTPConnection(host, port, timeout=10)
+
+    conexion.request("GET", "/login")
+    respuesta = conexion.getresponse()
+    cuerpo = respuesta.read().decode("utf-8", "replace")
+    galletas = "; ".join(
+        c.split(";", 1)[0] for c in respuesta.headers.get_all("set-cookie") or []
+    )
+    token = _re.search(r'name="csrf_token" value="([^"]*)"', cuerpo).group(1)
+
+    datos = _ue({"username": "s9reviewer",
+                 "password": viewer.users["s9reviewer"]["password"],
+                 "csrf_token": token, "next": next_valor})
+    conexion.request("POST", "/login", body=datos, headers={
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Cookie": galletas,
+    })
+    respuesta = conexion.getresponse()
+    location = respuesta.getheader("location")
+    respuesta.read()
+    conexion.close()
+    return location
+
+
 # ---------------------------------------------------------------------------
-# Los que SI discriminan: con la defensa retirada, el navegador se va fuera.
+# LA MEDICION. Para cada representacion: primero se demuestra que la defensa
+# esta de verdad retirada (el servidor emite el `Location` hostil), y solo
+# despues se le pregunta al navegador a donde va.
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("etiqueta,hostil", [
+CASOS = [
     ("tres barras", f"///{HOSTIL}/x"),
     ("cuatro barras", f"////{HOSTIL}/x"),
-], ids=["tres barras", "cuatro barras"])
-def test_con_la_defensa_retirada_el_navegador_SI_sale(
-        page, viewer_calibracion, defensa_retirada, etiqueta, hostil):
-    fugas = _intentar_login(page, viewer_calibracion, hostil)
-    assert _salio(fugas), (
-        f"TESTIGO VACUO: con el validador PREEXISTENTE —es decir, con la "
-        f"defensa de este microcarril retirada— y next={hostil!r} [{etiqueta}], "
-        f"Chromium NO intento salir del producto (salidas registradas: "
-        f"{fugas!r}). Si con la defensa quitada no se va fuera, el negativo "
-        f"correspondiente de `test_browser_next_open_redirect.py` esta verde "
-        f"pase lo que pase y no esta guardando nada. O el caso ya no escapa "
-        f"—y entonces sobra como negativo— o esta calibracion dejo de alcanzar "
-        f"al manejador."
-    )
-
-
-# ---------------------------------------------------------------------------
-# Los que NO discriminan. Medido, no supuesto: son vacuos COMO NEGATIVOS DE
-# NAVEGADOR, y por eso no se usan como tales.
-# ---------------------------------------------------------------------------
-
-@pytest.mark.parametrize("etiqueta,hostil", [
     ("backslash", f"/\\{HOSTIL}/x"),
     ("backslash doble", f"/\\\\{HOSTIL}/x"),
     ("backslash codificada", f"/%5C{HOSTIL}/x"),
     ("barras codificadas", f"/%2F%2F{HOSTIL}/x"),
-], ids=["backslash", "backslash doble", "backslash codificada", "barras codificadas"])
-def test_con_la_defensa_retirada_el_navegador_NO_sale(
-        page, viewer_calibracion, defensa_retirada, etiqueta, hostil):
-    """Estos cuatro NO sirven de negativo de navegador, y conviene que la suite
-    lo sepa por medicion y no por una nota en un docstring.
+]
 
-    Starlette percent-encodea la backslash al construir el `Location`, asi que
-    el navegador nunca ve la backslash que normalizaria. Siguen siendo rechazos
-    obligatorios del validador —eso se mide sobre la cabecera, en
-    `viewer/tests/test_next_url_open_redirect.py`—, pero no escapan por si
-    solos y por tanto no pueden hacer de negativo AQUI.
+
+@pytest.mark.parametrize("etiqueta,hostil", CASOS, ids=[e for e, _ in CASOS])
+def test_ninguna_de_estas_representaciones_saca_a_chromium_del_producto(
+        page, viewer_calibracion, defensa_retirada, etiqueta, hostil):
+    """Con la defensa RETIRADA, ¿se va Chromium fuera? MEDIDO: no, ninguna.
+
+    Y por eso `test_browser_next_open_redirect.py` NO TIENE NEGATIVOS: no
+    existe, para este defecto y por esta superficie, ningun caso capaz de
+    ponerse rojo en un navegador. Presentar cualquiera de estos seis como
+    «negativo de navegador» seria exhibir un testigo vacuo.
+
+    Esta prueba es un TRINQUETE EN EL SENTIDO CONTRARIO: afirma la vacuidad. El
+    dia que alguna de estas representaciones SI saque a Chromium del producto,
+    esto se pondra rojo y habra que reinstaurar el negativo correspondiente.
     """
+    # 1. La defensa esta retirada DE VERDAD: el servidor emite el valor hostil.
+    location = _location_crudo(viewer_calibracion, hostil)
+    # El criterio es «el valor del atacante LLEGO a la cabecera», no «llego
+    # literal»: para las backslash, Starlette las percent-encodea al construir
+    # el `Location`, asi que `/\evil…` sale como `/%5Cevil…`. Exigir igualdad
+    # literal haria fallar esos dos casos por una razon que no es la que se
+    # esta midiendo. Lo que distingue «defensa retirada» de «defensa puesta» es
+    # que con la defensa puesta el destino cae a `/`, siempre y en los seis.
+    assert location != DESTINO_POR_DEFECTO and HOSTIL in location, (
+        f"LA CALIBRACION NO ALCANZA AL MANEJADOR: con la defensa supuestamente "
+        f"retirada y next={hostil!r} [{etiqueta}], el servidor emitio "
+        f"Location={location!r}, que es lo que emitiria con la defensa PUESTA. "
+        f"Sin esta comprobacion, un «Chromium no salio» tendria dos causas "
+        f"posibles —que el caso no escape, o que la defensa siguiera puesta— y "
+        f"no distinguiria ninguna, que es exactamente el rojo sin causa que hay "
+        f"que evitar. Arreglar la inyeccion de `_safe_next` antes de leer nada."
+    )
+
+    # 2. Ahora si: el navegador tiene la ultima palabra.
     fugas = _intentar_login(page, viewer_calibracion, hostil)
     assert not _salio(fugas), (
-        f"CAMBIO DE SUPUESTO: con la defensa retirada y next={hostil!r} "
-        f"[{etiqueta}], Chromium SI intento salir ({fugas!r}). Este caso se "
-        f"daba por vacuo como negativo de navegador porque Starlette codificaba "
-        f"la backslash; si ya no lo hace, la superficie es MAS peligrosa de lo "
-        f"documentado y este caso debe ASCENDER a negativo real en "
-        f"`test_browser_next_open_redirect.py`."
+        f"CAMBIO DE SUPUESTO, Y HAY QUE ACTUAR: con la defensa retirada y "
+        f"next={hostil!r} [{etiqueta}], Chromium SI intento salir del producto "
+        f"({fugas!r}). Se habia MEDIDO que ninguna de estas representaciones lo "
+        f"conseguia por la cabecera `Location`, y en eso se apoya que "
+        f"`test_browser_next_open_redirect.py` no tenga negativos. Si este caso "
+        f"ya escapa, la superficie es MAS peligrosa de lo documentado y debe "
+        f"ASCENDER a negativo de navegador."
     )
