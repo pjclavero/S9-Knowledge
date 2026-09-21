@@ -268,10 +268,26 @@ def test_n5_el_resultado_depende_de_la_declaracion_del_perfil(tmp_path):
     a = autoridad.resolver({**env_comun, "S9K_INGEST_SOURCES_DIR": str(uno)})
     b = autoridad.resolver({**env_comun, "S9K_INGEST_SOURCES_DIR": str(otro)})
 
-    assert a.valor == WS_PERFIL and a.codigo == autoridad.COD_PERFIL_CONFIRMADO
-    assert b.valor == "" and b.codigo == autoridad.COD_DIVERGENTE, (
+    # EL DESENLACE COMPLETO EN UNA SOLA AFIRMACION, Y CON SU CAUSA.
+    #
+    # Aqui habia dos `assert` y el PRIMERO era mudo. La mutacion 1 del arnes
+    # (`scripts/calibracion/f2_autoridad_workspace.py`) —quitar la comparacion
+    # del perfil— hacia saltar el mudo antes que el que lleva el mensaje, y la
+    # prueba se ponia roja sin decir por que. Lo encontro la autocalibracion
+    # del arnes, no una lectura del codigo: por eso se deja escrito.
+    assert (a.valor, b.valor) == (WS_PERFIL, ""), (
         "cambiar el workspace DECLARADO por el perfil no cambio el desenlace: "
-        "el perfil no se esta comparando, y la divergencia no se detectaria"
+        "el perfil no se esta comparando, y la divergencia no se detectaria. "
+        f"Medido: perfil='{WS_PERFIL}' -> {a.codigo}/{a.valor!r}; "
+        f"perfil='{WS_OTRO}' -> {b.codigo}/{b.valor!r}"
+    )
+    assert a.codigo == autoridad.COD_PERFIL_CONFIRMADO, (
+        "con perfil y entorno diciendo lo mismo el resolvedor no lo reconocio "
+        f"como confirmacion: {a.diagnostico()}"
+    )
+    assert b.codigo == autoridad.COD_DIVERGENTE, (
+        "el perfil declara otra cosa que el entorno y no se llamo divergencia: "
+        f"{b.diagnostico()}"
     )
 
 
