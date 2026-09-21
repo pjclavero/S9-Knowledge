@@ -5,15 +5,28 @@ POR QUE ESTE FICHERO EXISTE, Y POR QUE NO BASTA LA SUITE SIN NAVEGADOR
 ----------------------------------------------------------------------
 `viewer/tests/test_next_url_open_redirect.py` mide la cabecera `Location` de la
 respuesta HTTP. Eso ya es mucho mas que preguntarle a `_safe_next()` que string
-devuelve, pero sigue sin ser la pregunta final, porque el defecto que motiva el
-microcarril es EXACTAMENTE un desacuerdo de interpretacion:
+devuelve, pero sigue sin ser la pregunta final, porque quien tiene la ultima
+palabra sobre a donde va el usuario no es nuestro parser: es el navegador. Aqui
+se mide el destino al que un Chromium de verdad acaba llegando.
 
-    `/\\evil.example/x` le parece una ruta interna a nuestro codigo y Chrome lo
-    normaliza a `//evil.example/x`, que es protocolo-relativo y SALE DEL SITIO.
+LA CAUSA, BIEN ATRIBUIDA (la primera version de este docstring la tenia mal)
+----------------------------------------------------------------------------
+Se decia aqui que `/\evil.example/x` escapa porque Chrome normaliza `\` a `/`.
+Por la cabecera `Location` ESO NO OCURRE, y esta medido: Starlette
+percent-encodea la backslash, el navegador recibe `/%5Cevil.example/x` y no hay
+ninguna backslash que normalizar. Esa normalizacion es real en otros contextos
+—un `href` crudo, por ejemplo—, pero no en este.
 
-Quien tiene la ultima palabra sobre a donde va el usuario no es nuestro parser:
-es el navegador. Asi que aqui se mide el destino al que un Chromium de verdad
-acaba llegando.
+Lo que SI escapa por esta superficie, medido con la defensa retirada en
+`test_browser_next_calibracion.py`, es la barra repetida: `///evil.example/x`.
+Un navegador salta todas las barras iniciales al entrar en la autoridad y lee
+`evil.example` como host. Por eso los negativos DE NAVEGADOR de este fichero
+son `///` y `////` y no la backslash: son los unicos que se pondrian rojos si
+la defensa cayera, y un negativo que no puede ponerse rojo no guarda nada.
+
+La backslash y sus codificaciones siguen siendo rechazos OBLIGATORIOS del
+validador —se miden sobre la cabecera, en la suite sin navegador, donde si
+discriminan—, pero no caben aqui como negativos.
 
 COMO SE OBSERVA LA FUGA SIN TOCAR LA RED
 ----------------------------------------
@@ -30,8 +43,10 @@ TECHO DECLARADO — QUE **NO** CUBRE ESTE FICHERO
 - Cubre `POST /login`. `POST /partida/select` y `GET /login` se miden por
   cabecera y por HTML en la suite sin navegador, NO aqui: este fichero no debe
   leerse como si les diera cobertura de navegador.
-- Mide la tabla por muestreo: el caso emblematico (`/\\`) y el que ya escapaba
-  tal cual (`///`). La tabla COMPLETA vive en la suite sin navegador.
+- Mide la tabla por muestreo, y solo los casos que DISCRIMINAN en esta
+  superficie (`///` y `////`). La tabla COMPLETA vive en la suite sin
+  navegador; cual de los casos discrimina y cual no, medido, en
+  `test_browser_next_calibracion.py`.
 - No prueba nada sobre autorizacion: que el destino sea interno no dice que el
   usuario pueda verlo.
 """
@@ -206,10 +221,8 @@ def test_navegador_vuelve_a_la_consola_filtrada(page, viewer_redir):
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("etiqueta,hostil", [
-    ("backslash", f"/\\{HOSTIL}/x"),
     ("tres barras", f"///{HOSTIL}/x"),
-    ("backslash codificada", f"/%5C{HOSTIL}/x"),
-    ("barras codificadas", f"/%2F%2F{HOSTIL}/x"),
+    ("cuatro barras", f"////{HOSTIL}/x"),
 ], ids=lambda v: v if isinstance(v, str) else str(v))
 def test_navegador_no_sale_del_producto(page, viewer_redir, etiqueta, hostil):
     fugas = _vigilar_salidas(page, viewer_redir)
@@ -219,8 +232,8 @@ def test_navegador_no_sale_del_producto(page, viewer_redir, etiqueta, hostil):
         f"REDIRECCION ABIERTA CONFIRMADA POR EL NAVEGADOR: con next={hostil!r} "
         f"[{etiqueta}] Chromium intento navegar a {fugas!r}, es decir, FUERA del "
         f"producto. Da igual que `_safe_next()` considerase esa cadena una ruta "
-        f"interna: quien interpreta `Location` es el navegador, y normaliza "
-        f"'\\\\' a '/'."
+        f"interna: quien interpreta `Location` es el navegador, y salta todas "
+        f"las barras iniciales al entrar en la autoridad."
     )
     assert page.url.startswith(viewer_redir.base_url), (
         f"REDIRECCION ABIERTA CONFIRMADA POR EL NAVEGADOR: con next={hostil!r} "

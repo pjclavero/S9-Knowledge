@@ -42,8 +42,20 @@ PW = "contrasena-de-laboratorio-1234567890-ABCdef"
 # ---------------------------------------------------------------------------
 
 ACEPTAR = [
+    ("raiz del producto", "/"),
     ("raiz de la consola", "/v3/review"),
+    ("consola con barra final", "/v3/review/"),
     ("consola filtrada", "/v3/review?workspace=alpha&job_id=job-A"),
+    ("un solo filtro", "/v3/review?workspace=alpha"),
+    ("filtro con valor codificado", "/v3/review?workspace=alpha%20beta&job_id=job-A"),
+    ("filtro con valor vacio", "/v3/review?workspace=alpha&job_id="),
+    ("otra consola con filtros", "/panel/sources?workspace=alpha&estado=pendiente"),
+    # D4: el fragmento se ACEPTA, y por eso esta aqui y no en RECHAZAR. Ver el
+    # razonamiento en `app/auth/next_url.py`: rechazarlo hacia que un `next`
+    # con ancla perdiese TAMBIEN los filtros, que es la regresion que el corte
+    # anterior acababa de arreglar.
+    ("ancla sola", "/v3/review#ficha-3"),
+    ("ancla con filtros", "/v3/review?workspace=alpha&job_id=job-A#ficha-3"),
 ]
 
 RECHAZAR = [
@@ -77,29 +89,51 @@ RECHAZAR = [
     ("cadena vacia", ""),
     ("solo espacios", "   "),
     ("porcentaje roto", "/v3/%zz"),
-    ("fragmento", "/v3/review#x"),
     ("subida de directorio", "/v3/../../etc/passwd"),
+    # D1 y D2. MEDIDO: ninguno de estos sale del origen. Se rechazan igual
+    # porque son cadenas que el navegador RESUELVE a otra cosa antes de pedir
+    # nada, y aceptar lo ambiguo es justo lo que este validador dice no hacer.
+    # Van en la tabla para que ese endurecimiento este probado y no solo
+    # declarado.
+    ("segmento punto", "/./x"),
+    ("punto y barra doble", "/.//x"),
+    ("punto y barra doble hostil", f"/.//{HOSTIL}/x"),
+    ("barra doble interior", "/v3//review"),
+    ("barra doble interior hostil", f"/v3//{HOSTIL}/x"),
+    ("subida relativa", "/v3/../x"),
+    # El fragmento se acepta, pero no con cualquier contenido:
+    ("ancla con backslash", f"/v3/review#\\{HOSTIL}"),
+    ("ancla con porcentaje roto", "/v3/review#%zz"),
 ]
 
-# Lo que un navegador leería como «otro origen». Si el Location empieza por
-# esto, hemos perdido: ya no importa lo que creyera nuestro código.
+# Un `Location` que empiece así ya no apunta a este producto: el navegador lo
+# lee como autoridad. `//` y `///` porque un navegador salta TODAS las barras
+# iniciales al entrar en la autoridad; `\` cruda porque ahí sí la normaliza.
 _PREFIJOS_FUERA = ("//", "/\\", "\\", "http://", "https://", "HTTP", "HTTPS")
 
 
 def _location_sale_del_sitio(location: str) -> bool:
-    """¿Este `Location` puede acabar fuera del producto en un navegador?
+    """¿Este `Location` CRUDO puede resolverse a otro origen en un navegador?
 
-    Se mira el valor CRUDO de la cabecera, que es lo que el navegador recibe.
-    Se incluye `/\\` porque Chrome y Firefox lo normalizan a `//`.
+    Es la pregunta fuerte, y sólo la responde el PREFIJO. Que el dominio del
+    atacante aparezca más adentro (`/v3//evil.example/x`) no saca a nadie del
+    sitio: eso es otra cosa, y la mide `_location_lleva_el_valor_hostil`.
+    Confundir las dos produciría un rojo que dice «redirección abierta» sobre
+    un caso que no lo es, y un rojo que miente sobre su causa no vale más que
+    uno sin causa.
     """
-    if location is None:
+    if not location:
         return False
-    if HOSTIL in location:
-        # El dominio hostil NUNCA debe aparecer en una cabecera de redirección,
-        # ni siquiera escapado: su sola presencia significa que el valor del
-        # atacante llegó hasta el Location.
-        return True
     return location.startswith(_PREFIJOS_FUERA)
+
+
+def _location_lleva_el_valor_hostil(location: str) -> bool:
+    """¿Llegó el valor del atacante hasta la cabecera, aunque no escape?
+
+    Más débil que la anterior y aun así exigible: el destino hostil no tiene
+    por qué aparecer en un `Location` bajo ninguna forma.
+    """
+    return bool(location) and HOSTIL in location
 
 
 # ---------------------------------------------------------------------------
@@ -183,9 +217,18 @@ def test_post_login_no_emite_location_externo(entorno, etiqueta, valor):
     )
     assert not _location_sale_del_sitio(location), (
         f"REDIRECCIÓN ABIERTA en POST /login: con next={valor!r} la cabecera "
-        f"Location vale {location!r}, que un navegador puede resolver FUERA del "
-        f"producto (Chrome y Firefox normalizan '\\\\' a '/'). Causa: "
-        f"[{etiqueta}] no fue rechazada por el validador por componentes."
+        f"Location vale {location!r}. Ese prefijo hace que un navegador lo "
+        f"resuelva contra OTRA autoridad y no contra la nuestra (salta todas "
+        f"las barras iniciales al entrar en la autoridad; y una '\\\\' cruda la "
+        f"normaliza a '/'). Causa: [{etiqueta}] no fue rechazada por el "
+        f"validador por componentes."
+    )
+    assert not _location_lleva_el_valor_hostil(location), (
+        f"VALOR HOSTIL EN LA CABECERA de POST /login: con next={valor!r} el "
+        f"Location vale {location!r}. Esto NO es por sí solo una redirección "
+        f"abierta —el prefijo sigue siendo interno—, pero el destino del "
+        f"atacante no debe llegar a una cabecera de redirección bajo ninguna "
+        f"forma. Causa: [{etiqueta}]."
     )
     assert location == "/", (
         f"[{etiqueta}] next={valor!r}: el destino hostil debía caer al destino "
@@ -223,11 +266,21 @@ def test_get_login_no_reinyecta_el_destino_hostil(entorno, etiqueta, valor):
     assert resp.status_code == 200, f"[{etiqueta}] GET /login devolvió {resp.status_code}"
     m = re.search(r'name="next" value="([^"]*)"', resp.text)
     assert m, f"[{etiqueta}] el formulario de login perdió su campo `next`"
-    renderizado = m.group(1)
-    assert HOSTIL not in renderizado, (
+    import html as _html
+    renderizado = _html.unescape(m.group(1))
+    # Comparación EXACTA contra el destino por defecto, no «ausencia del
+    # dominio». Comprobar sólo la ausencia deja pasar cualquier otra cosa que
+    # no sea `/`, y apoyarse en «Jinja ya escapa» es apoyarse en el escapado
+    # para una propiedad que no es de escapado sino de validación. El positivo
+    # de dos funciones más abajo ya comparaba exacto; esto lo iguala.
+    assert renderizado == "/", (
         f"TRANSPORTE HOSTIL en GET /login: con next={valor!r} el formulario "
-        f"renderiza value={renderizado!r}, que reintroduce el dominio externo "
-        f"en el siguiente POST. Causa: [{etiqueta}]."
+        f"renderiza value={renderizado!r} en vez del destino interno por "
+        f"defecto '/', con lo que el valor del atacante vuelve a viajar en el "
+        f"siguiente POST. Causa: [{etiqueta}]."
+    )
+    assert HOSTIL not in renderizado, (
+        f"[{etiqueta}] el dominio externo sigue presente: {renderizado!r}"
     )
 
 
@@ -277,12 +330,17 @@ def test_partida_select_no_emite_location_externo(entorno, etiqueta, valor):
         f"[{etiqueta}] /partida/select devolvió {resp.status_code}: {resp.text[:200]}"
     )
     location = resp.headers.get("location")
+    assert not _location_lleva_el_valor_hostil(location), (
+        f"VALOR HOSTIL EN LA CABECERA de POST /partida/select: con "
+        f"next={valor!r} el Location vale {location!r}. Causa: [{etiqueta}]."
+    )
     assert not _location_sale_del_sitio(location), (
         f"REDIRECCIÓN ABIERTA en POST /partida/select: con next={valor!r} el "
-        f"Location vale {location!r}, resoluble FUERA del producto por un "
+        f"Location vale {location!r}, resoluble contra OTRA autoridad por un "
         f"navegador. Causa: [{etiqueta}]. Esta superficie tenía su PROPIA copia "
-        f"de `_safe_next`: si sólo se arregló la de auth.py, la copia sigue "
-        f"abierta."
+        f"de `_safe_next` —funcionalmente IDÉNTICA a la de auth.py, no "
+        f"divergente: el riesgo era la duplicación, no una divergencia ya "
+        f"consumada—. Si sólo se arregló una de las dos, la otra sigue abierta."
     )
     assert location == "/", (
         f"[{etiqueta}] next={valor!r}: se esperaba caída al destino interno "

@@ -40,6 +40,33 @@ Los siete criterios:
    query. Un navegador no puede convertir una query en autoridad: lo que va
    detrás del primer ``?`` ya no puede volver a ser host.
 
+ENDURECIMIENTOS MÁS ALLÁ DE LOS SIETE CRITERIOS — DECLARADOS, NO IMPLÍCITOS
+---------------------------------------------------------------------------
+Estos tres los añade este módulo por su cuenta. Ninguno lo pedía el criterio;
+los tres son lectura del principio «lo ambiguo se rechaza». Se listan aquí
+porque un endurecimiento sin declarar es indistinguible de un accidente:
+
+- **Segmentos ``.`` y ``..``**, y **``//`` en mitad del path**. MEDIDO: ninguno
+  de los tres sale del origen. ``/.//evil.example/x`` se queda dentro. Pero los
+  tres son cadenas que el navegador RESUELVE a otra cosa antes de pedir nada, y
+  aceptar eso sería exactamente lo que este módulo dice no hacer. La barra
+  final (``/v3/review/``) no es ambigua y sí se acepta.
+- **Path no ASCII tras decodificar.**
+
+EL FRAGMENTO SE ACEPTA, Y ES UNA DECISIÓN, NO UN OLVIDO
+--------------------------------------------------------
+La primera versión de este módulo rechazaba todo ``next`` con ``#``. Era un
+error de acoplamiento, no de seguridad: ``/v3/review?workspace=alpha#ficha-3``
+caía a ``/`` y el operador perdía **el ancla y los filtros** — justo la
+regresión que el corte anterior acababa de arreglar, y que habría mordido en
+silencio el día que alguien enlazase a una ficha concreta.
+
+El fragmento se acepta porque los criterios 6 y 7 se le aplican igual que a la
+query, y con más margen todavía: **el fragmento ni siquiera viaja al
+servidor**, y en un ``Location`` sólo-path la autoridad la fija la URL base, de
+modo que nada detrás del ``#`` puede sustituirla. Se le exige lo mismo que a la
+query: sin controles, sin backslash cruda, sin porcentaje roto.
+
 TECHO DECLARADO — QUÉ **NO** VE ESTE VALIDADOR
 -----------------------------------------------
 - No valida que la ruta **exista** ni que el usuario tenga permiso sobre ella.
@@ -58,6 +85,20 @@ TECHO DECLARADO — QUÉ **NO** VE ESTE VALIDADOR
 - Al exigir path ASCII tras decodificar, **rechaza rutas internas legítimas que
   usaran caracteres no ASCII en el path**. Hoy no existe ninguna; si algún día
   existiese, esto la rompería en rojo (no la dejaría pasar en silencio).
+- **El trinquete de alcance de las pruebas sólo ve funciones llamadas
+  ``_safe_next``.** Una superficie nueva que llame directamente a
+  ``ruta_interna_o_defecto``, o que envuelva el validador con otro nombre, NO
+  aparece en ese inventario — y evitar justo eso es para lo que el trinquete
+  existe. Se declara porque un trinquete que se cree completo es peor que no
+  tenerlo.
+- **Que una redirección use este módulo no lo garantiza este módulo.** Queda
+  deuda ajena a este microcarril, DECLARADA y no arreglada aquí: **seis** sitios
+  construyen ``/login?next=…`` interpolando ``request.url.path`` sin codificar
+  (``routers/readonly.py`` ×2, ``routers/reviews_console.py``, ``main.py`` ×2 y
+  ``auth/dependencies.py``), mientras ``v3_review.py`` sí usa ``urlencode``.
+  El recuento es MEDIDO aquí, no heredado: la revisión decía tres. No es un escape —el prefijo
+  es fijo y el valor se revalida al volver por aquí—, pero es una incoherencia
+  que merece su propio corte.
 """
 from __future__ import annotations
 
@@ -117,8 +158,22 @@ def _componente_path_es_seguro(path: str) -> bool:
         return False
     if not path.isascii():
         return False
-    if any(seg == ".." for seg in path.split("/")):
-        return False
+    # SEGMENTOS. `..` y `.` son representaciones que el navegador RESUELVE
+    # antes de pedir nada, y un `//` en mitad del path es exactamente la misma
+    # ambigüedad que se rechaza al principio, sólo que más adentro. Ninguno de
+    # los tres sale del origen —está MEDIDO—, pero los tres son «una cadena
+    # que significa otra cosa cuando alguien la interpreta», que es lo que este
+    # módulo se niega a aceptar. Rechazarlos es la única lectura coherente del
+    # principio declarado arriba.
+    #
+    # El último segmento vacío SÍ se admite: es la barra final de `/v3/review/`,
+    # que no es ambigua sino una ruta con forma de directorio.
+    segmentos = path.split("/")[1:]
+    for indice, seg in enumerate(segmentos):
+        if seg in ("..", "."):
+            return False
+        if seg == "" and indice != len(segmentos) - 1:
+            return False
     return True
 
 
@@ -148,8 +203,6 @@ def ruta_interna_o_defecto(next_url: Optional[str]) -> str:
         return DESTINO_POR_DEFECTO
     if partes.netloc:                        # criterio 2
         return DESTINO_POR_DEFECTO
-    if partes.fragment or "#" in next_url:   # no declarado como necesario: fuera
-        return DESTINO_POR_DEFECTO
 
     # El path CRUDO, recortado a mano hasta el primer `?`. No se usa
     # `partes.path`: `urlsplit("///evil.example/x")` devuelve netloc vacío y
@@ -158,7 +211,7 @@ def ruta_interna_o_defecto(next_url: Optional[str]) -> str:
     # justo el escape que hay que cerrar, así que el criterio 3 se aplica sobre
     # lo que de verdad viaja. Criterio 7: el corte es por `?`, y lo que queda
     # detrás no interviene aquí.
-    path_crudo = next_url.split("?", 1)[0]
+    path_crudo = re.split(r"[?#]", next_url, maxsplit=1)[0]
     if not _componente_path_es_seguro(path_crudo):       # criterios 3 y 4
         return DESTINO_POR_DEFECTO
     if not _componente_path_es_seguro(partes.path):      # coherencia parser/crudo
@@ -166,14 +219,17 @@ def ruta_interna_o_defecto(next_url: Optional[str]) -> str:
     if not _path_decodificado_es_seguro(path_crudo):     # criterio 5
         return DESTINO_POR_DEFECTO
 
-    # Criterios 6 y 7: la query se permite COMO QUERY y no ha participado en
-    # nada de lo anterior. Se le exige sólo lo que puede romper el transporte
-    # de la cabecera (controles) o cambiar de significado en el navegador
-    # (backslash cruda). Su `%XX` NO se decodifica: no puede volver a ser host.
-    if partes.query:
-        if _tiene_control(partes.query) or "\\" in partes.query:
+    # Criterios 6 y 7 aplicados a la query Y AL FRAGMENTO. Ambos se permiten
+    # COMO LO QUE SON y ninguno ha participado en nada de lo anterior. Se les
+    # exige sólo lo que puede romper el transporte de la cabecera (controles) o
+    # cambiar de significado en el navegador (backslash cruda). Su `%XX` NO se
+    # decodifica: detrás del primer `?` o `#` nada puede volver a ser host.
+    for nombre, componente in (("query", partes.query), ("fragmento", partes.fragment)):
+        if not componente:
+            continue
+        if _tiene_control(componente) or "\\" in componente:
             return DESTINO_POR_DEFECTO
-        if _PORCENTAJE_ROTO.search(partes.query):
+        if _PORCENTAJE_ROTO.search(componente):
             return DESTINO_POR_DEFECTO
 
     return next_url
