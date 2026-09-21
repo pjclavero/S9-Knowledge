@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""CALIBRACION del control de navegador: cuales de sus negativos DISCRIMINAN.
+r"""CALIBRACION del control de navegador: cuales de sus negativos DISCRIMINAN.
 
 POR QUE EXISTE ESTE FICHERO
 ---------------------------

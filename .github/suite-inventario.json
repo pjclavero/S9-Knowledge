@@ -431,6 +431,7 @@
     "viewer/tests/browser/test_browser_backend_down.py",
     "viewer/tests/browser/test_browser_graph_ux.py",
     "viewer/tests/browser/test_browser_navigation.py",
+    "viewer/tests/browser/test_browser_next_calibracion.py",
     "viewer/tests/browser/test_browser_next_open_redirect.py",
     "viewer/tests/browser/test_browser_v3_review_filtros.py",
     "viewer/tests/browser/test_login_browser.py",
@@ -438,7 +439,7 @@
     "viewer/tests/test_graph_ux_v2.py",
     "viewer/tests/test_panel_apply_desde_la_ui.py"
   ],
-  "total": 8870,
+  "total": 8915,
   "modulos": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 526,
     "contracts/review-ingest/v1/tests/test_contracts_v1.py": 38,
@@ -701,7 +702,7 @@
     "viewer/tests/test_must_change_password.py": 23,
     "viewer/tests/test_neo4j_default_fail_closed.py": 2,
     "viewer/tests/test_neo4j_integration_authz.py": 45,
-    "viewer/tests/test_next_url_open_redirect.py": 101,
+    "viewer/tests/test_next_url_open_redirect.py": 146,
     "viewer/tests/test_p0_autoridad_admin_full.py": 27,
     "viewer/tests/test_p0_autoridad_admin_full_http.py": 7,
     "viewer/tests/test_panel_entities.py": 73,

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""E2E de navegador: `next` NUNCA saca al usuario del producto.
+r"""E2E de navegador: `next` NUNCA saca al usuario del producto.
 
 POR QUE ESTE FICHERO EXISTE, Y POR QUE NO BASTA LA SUITE SIN NAVEGADOR
 ----------------------------------------------------------------------
