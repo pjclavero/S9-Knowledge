@@ -544,9 +544,14 @@ def test_el_serializador_publica_el_signo_y_no_el_booleano_crudo():
     """
     from app.serializers import serialize_assertion
 
-    assert serialize_assertion({"negated": True})["signo"] == "HECHO_NEGADO"
-    assert serialize_assertion({"negated": False})["signo"] == "HECHO_AFIRMATIVO"
-    assert serialize_assertion({})["signo"] == "HECHO_SIGNO_NO_DISPONIBLE"
+    assert serialize_assertion({"negated": True})["signo"] == "HECHO_NEGADO", (
+        "el serializador ha dejado de publicar el signo de un hecho negado: "
+        "se cae antes de llegar a la plantilla")
+    assert serialize_assertion({"negated": False})["signo"] == "HECHO_AFIRMATIVO", (
+        "el serializador ha dejado de publicar el signo de un hecho "
+        "afirmativo: se cae antes de llegar a la plantilla")
+    assert serialize_assertion({})["signo"] == "HECHO_SIGNO_NO_DISPONIBLE", (
+        "el serializador normaliza la ausencia del signo; ausencia no es cero")
 
 
 def test_el_proyector_del_proveedor_de_neo4j_publica_el_signo():

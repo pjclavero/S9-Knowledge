@@ -103,7 +103,9 @@ MUTACIONES = [
         '        "signo": negation_code(assertion.get("negated")),',
         '        "signo": "",\n',
         f"{SUITE_SIGNO}::test_el_serializador_publica_el_signo_y_no_el_booleano_crudo",
-        "HECHO_NEGADO",
+        # Otra que esperaba un identificador. La cazó la autocalibración de
+        # este mismo arnés, no una lectura: eran TRES y yo veía dos.
+        "se cae antes de llegar a la plantilla",
     ),
     # -- 3. La consulta de procedencia no lo pide ------------------------
     Mutacion(
