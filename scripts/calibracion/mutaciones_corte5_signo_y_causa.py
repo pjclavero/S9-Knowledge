@@ -80,8 +80,12 @@ MUTACIONES = [
         PROVIDER,
         '        "negated": props.get("negated"),',
         '        # MUTADO: el signo se cae aqui\n',
-        f"{SUITE_SIGNO}::test_ficha_de_entidad_pinta_el_NO_de_un_hecho_negado",
-        "la ficha de entidad sigue publicando el predicado sin su signo",
+        # NO la prueba de pantalla: se midió y seguía VERDE. Las pantallas
+        # corren con un proveedor doble que no pasa por este proyector, así que
+        # la única red era la suite de Neo4j real —que no corre sin Docker—.
+        # La calibración lo cazó y por eso existe el caso de abajo.
+        f"{SUITE_SIGNO}::test_el_proyector_del_proveedor_de_neo4j_publica_el_signo",
+        "el hecho llega entero a la pantalla MENOS su significado",
     ),
     # -- 2. El serializador lo deja fuera --------------------------------
     Mutacion(

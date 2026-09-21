@@ -335,11 +335,19 @@ def test_resultado_NO_marca_como_negado_un_hecho_afirmativo(
         [_asercion(ID_AFIRMATIVO, False)], "signo-r2")
     assert r.status_code == 200, r.status_code
     bloque = _bloque_del_hecho(r.text, ID_AFIRMATIVO)
-    assert AFIRMATIVO in bloque, bloque
+    # EL ORDEN IMPORTA, y se midió. Con la marca invertida el primer `assert`
+    # que saltaba era el del atributo, cuyo mensaje es el bloque pelado: la
+    # calibración lo marcó como «roja, pero SIN su causa». La propiedad que
+    # este caso defiende va PRIMERA, con su frase.
     assert MARCA_NO not in bloque, (
         "un hecho AFIRMATIVO se está pintando con la marca de negación: "
         "invertir el signo es tan grave como perderlo")
-    assert NEGADO not in bloque, bloque
+    assert NEGADO not in bloque, (
+        "un hecho AFIRMATIVO lleva el código de negado: "
+        "invertir el signo es tan grave como perderlo")
+    assert AFIRMATIVO in bloque, (
+        "un hecho afirmativo no publica su signo: "
+        "invertir el signo es tan grave como perderlo")
 
 
 def test_resultado_dice_que_no_sabe_el_signo_cuando_el_campo_no_viene(
@@ -513,6 +521,32 @@ def test_el_serializador_publica_el_signo_y_no_el_booleano_crudo():
     assert serialize_assertion({"negated": True})["signo"] == "HECHO_NEGADO"
     assert serialize_assertion({"negated": False})["signo"] == "HECHO_AFIRMATIVO"
     assert serialize_assertion({})["signo"] == "HECHO_SIGNO_NO_DISPONIBLE"
+
+
+def test_el_proyector_del_proveedor_de_neo4j_publica_el_signo():
+    """La lista BLANCA del proveedor real, sin necesitar la base.
+
+    `_assertion_to_dict` recibe un nodo del driver y lo proyecta; un `dict`
+    normal sirve de nodo. Este caso existe porque la CALIBRACIÓN lo pidió:
+    quitar el campo de esa lista dejaba verdes todas las pruebas de pantalla
+    —usan un proveedor doble que no pasa por ahí— y la única red era la suite
+    de Neo4j real, que no corre sin Docker.
+
+    Lo que este caso NO dice es que el campo exista en el grafo: eso lo mide
+    `data-engine/app/tests/test_signo_de_negacion_writer_a_visor_neo4j.py`.
+    """
+    from app.providers.neo4j_provider import _assertion_to_dict
+
+    assert _assertion_to_dict({"assertion_id": "a", "negated": True})["negated"] is True, (
+        "el proyector del proveedor de Neo4j ha dejado de publicar el signo: "
+        "el hecho llega entero a la pantalla MENOS su significado")
+    assert _assertion_to_dict({"assertion_id": "a", "negated": False})["negated"] is False, (
+        "el proyector del proveedor de Neo4j ha dejado de publicar el signo")
+    # AUSENCIA: `None`, y NO `False`. Un `or False` en esa línea reintroduce el
+    # defecto en su forma simétrica y no lo vería ninguna otra prueba.
+    assert _assertion_to_dict({"assertion_id": "a"})["negated"] is None, (
+        "el proyector normaliza la ausencia del signo a «afirmativo»: "
+        "ausencia no es cero")
 
 
 def test_el_lector_de_procedencia_PIDE_el_signo_en_su_consulta():
