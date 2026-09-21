@@ -65,6 +65,11 @@ permanente del código.
     · test_el_rechazo_del_writer_llega_al_operador_con_su_motivo
     · test_la_consola_que_decide_acepta_la_corrida_puesta
     · test_las_cinco_ramas_del_desenlace_estan_cerradas
+    · test_el_estado_del_acuse_sale_de_una_tabla_declarada_y_no_de_una_regla
+      (D-3: enumera las DOS direcciones de `data-resultado-estado` sobre
+      `_resultado_del_trabajo`. La cara de PANTALLA de esta misma garantía sí
+      pide el HTML, y vive en el punto 1.e de
+      `test_una_ingesta_que_no_cosecha_nada_lo_DICE_en_la_pantalla`.)
 
   CALIBRAN LOS PROPIOS GUARDIANES, no el producto:
     · test_el_guardian_de_la_frase_no_se_esquiva_con_una_tilde
@@ -233,7 +238,8 @@ def _ingerir(operador, cola, fuentes, monkeypatch) -> tuple[str, dict]:
     """Una ingesta COMPLETA desde el panel. Devuelve (job_id, resultado)."""
     monkeypatch.setenv("S9K_INGEST_SOURCES_DIR", str(fuentes))
     pantalla = operador.get(SLOT_B.prefix)
-    assert pantalla.status_code == 200, pantalla.status_code
+    assert pantalla.status_code == 200, (
+        f"el panel de operaciones no abre: status {pantalla.status_code}")
     opciones = _opciones(pantalla.text)
     assert opciones, "el catálogo no ofrece ninguna fuente"
 
@@ -241,22 +247,28 @@ def _ingerir(operador, cola, fuentes, monkeypatch) -> tuple[str, dict]:
         "/panel/operations/ingestas",
         data={"fuente": opciones[0], "csrf_token": _csrf(pantalla.text)},
     )
-    assert envio.status_code == 303, envio.text[:300]
+    assert envio.status_code == 303, (
+        f"el alta de ingesta no redirige (PRG roto): status {envio.status_code}")
 
     store = jobs_client._load_job_store()
     pendientes = store.list_jobs(status="pending", db_path=str(cola))
-    assert len(pendientes) == 1, pendientes
+    assert len(pendientes) == 1, (
+        f"se esperaba exactamente 1 trabajo encolado y hay {len(pendientes)}: "
+        f"{[t.get('job_id') for t in pendientes]}")
     job_id = pendientes[0]["job_id"]
     assert _correr_worker(cola) == 1
     final = store.get_job(job_id, db_path=str(cola))
-    assert final["status"] == "complete", final.get("error_message")
+    assert final["status"] == "complete", (
+        f"el trabajo no terminó bien: status {final['status']!r}, "
+        f"causa {final.get('error_message')!r}")
     return job_id, json.loads(final["result_json"])
 
 
 def _acuse(operador, job_id):
     """La pantalla a la que el POST redirige. La que el operador VE."""
     respuesta = operador.get(f"{SLOT_B.prefix}?solicitado={job_id}")
-    assert respuesta.status_code == 200, respuesta.status_code
+    assert respuesta.status_code == 200, (
+        f"el acuse del trabajo no abre: status {respuesta.status_code}")
     return respuesta.text
 
 
@@ -301,9 +313,15 @@ def test_una_ingesta_que_no_cosecha_nada_lo_DICE_en_la_pantalla(
     # PRIMERO SE DEMUESTRA EL CASO: la corrida es de verdad una cosecha cero.
     # Sin esto el testigo se pondría verde con cualquier ingesta.
     resumen = resultado["resumen"]
-    assert not resumen["menciones"], resumen
-    assert not resumen["afirmaciones"], resumen
-    assert not resumen["en_revision"], resumen
+    assert not resumen["menciones"], (
+        f"el caso no es una cosecha cero: la corrida reconoció "
+        f"{resumen['menciones']} menciones")
+    assert not resumen["afirmaciones"], (
+        f"el caso no es una cosecha cero: la corrida extrajo "
+        f"{resumen['afirmaciones']} afirmaciones")
+    assert not resumen["en_revision"], (
+        f"el caso no es una cosecha cero: quedaron "
+        f"{resumen['en_revision']} en revisión")
 
     html = _acuse(operador, job_id)
 
@@ -323,15 +341,85 @@ def test_una_ingesta_que_no_cosecha_nada_lo_DICE_en_la_pantalla(
         "el motor declaró sus carencias y la pantalla no pinta ninguna: el "
         "motivo se sigue quedando en el log"
     )
-    assert "SIN_MENCIONES" in codigos, codigos
+    assert "SIN_MENCIONES" in codigos, (
+        "la pantalla no pinta SIN_MENCIONES, que es la carencia que explica "
+        f"por qué no se cosechó nada; carencias pintadas: {codigos!r}")
 
     # 1.c Y SE LEE COMO UNA FRASE, no como un código crudo.
-    assert "ningun nombre del texto figura en el glosario" in html, html[:400]
+    assert "ningun nombre del texto figura en el glosario" in html, (
+        "la carencia se pinta como código crudo y no como frase legible: "
+        f"códigos presentes {codigos!r}")
 
     # 1.d REPO PÚBLICO: el `detail` del motor NO cruza. Lleva `stop_reason` e
     # identificadores del grafo dentro, y la pantalla publica el CÓDIGO.
     assert str(fuente_muda) not in html
     assert "Traceback" not in html
+
+    # 1.e EL CONSUMIDOR DE MÁQUINA, CERRADO (D-3). `data-resultado-estado` y
+    # `data-resultado-code` son hermanos y responden a la misma pregunta. El
+    # código decía `INGEST_SIN_EXTRACCION` y el estado seguía diciendo `"ok"`:
+    # una afirmación de ÉXITO legible por programa que contradecía a su propio
+    # código hermano. Para el humano estaba cerrado —está MEDIDO que ninguna
+    # hoja de estilo colorea por este atributo, así que no había un verde que
+    # contradijera el texto—; lo que quedaba abierto era el programa que lo lee.
+    # EL MENSAJE DICE EL VALOR OBSERVADO, no el que se supone. La primera
+    # versión afirmaba «sigue publicando estado="ok"», y eso es FALSO cuando lo
+    # que hay es `estado="error"`: el veredicto acertaba y la prosa mentía, que
+    # es un rojo por la razón equivocada disfrazado de rojo legítimo.
+    _estado = re.search(r'data-resultado-estado="([^"]*)"', html)
+    assert 'data-resultado-estado="sin_resultado"' in html, (
+        "el acuse de una corrida que no cosechó NADA publica "
+        f"`estado={_estado.group(1)!r}` junto a `code=\"INGEST_SIN_EXTRACCION\"`: "
+        "un consumidor de máquina lee un desenlace que su propio código "
+        "hermano contradice"
+    )
+    assert 'data-resultado-estado="error"' not in html, (
+        "el error SIMÉTRICO: el trabajo NO falló, y marcarlo como error manda "
+        "al operador a buscar una avería que no existe"
+    )
+
+
+def test_el_estado_del_acuse_sale_de_una_tabla_declarada_y_no_de_una_regla(
+    real_app,
+):
+    """LAS DOS DIRECCIONES DE D-3, por ENUMERACIÓN.
+
+    La rama «terminó bien pero no trajo nada» no la produce el corpus de esta
+    suite salvo con la fuente muda, y la rama «terminó bien Y trajo algo» sí.
+    Se enumeran las dos aquí para que ninguna quede sin testigo, y se comprueba
+    que un código desconocido NO cambia el estado: la tabla es explícita, y un
+    código que no esté en ella deja el estado como estaba en vez de inventarse
+    un desenlace.
+    """
+    from app.routers.chassis_operations import (
+        ESTADO_POR_CODIGO, _resultado_del_trabajo,
+    )
+
+    def acuse(code: str) -> dict:
+        return _resultado_del_trabajo(
+            {"status": "complete", "result": json.dumps({"code": code, "message": "x"})}
+        )
+
+    _visto = acuse("INGEST_SIN_EXTRACCION")["estado"]
+    assert _visto == "sin_resultado", (
+        "una corrida sin extracción se publica con "
+        f"`estado={_visto!r}`, que no es el desenlace que su código declara "
+        "(`ok` la disfraza de éxito; `error` la disfraza de avería)"
+    )
+    assert acuse("INGEST_OK")["estado"] == "ok", (
+        "el error simétrico: una corrida que SÍ cosechó deja de decir que fue "
+        "bien, y el operador pierde la única confirmación que tenía"
+    )
+    assert acuse("UN_CODIGO_QUE_NADIE_DECLARO")["estado"] == "ok", (
+        "un código fuera de la tabla cambia el estado: eso es una regla "
+        "implícita, no una tabla declarada"
+    )
+    assert "INGEST_SIN_EXTRACCION" in ESTADO_POR_CODIGO, (
+        "la tabla ya no cubre el único código que la motivó"
+    )
+    assert "error" not in set(ESTADO_POR_CODIGO.values()), (
+        "la tabla convierte un trabajo que terminó en un fallo"
+    )
 
 
 def test_si_borro_el_bloque_de_carencias_este_testigo_se_pone_rojo(
@@ -385,7 +473,9 @@ def test_las_carencias_desconocidas_se_nombran_en_vez_de_desaparecer(
     vistas = chassis_operations._carencias_del_resultado(
         ["CARENCIA_QUE_NADIE_TRADUJO", "no es un codigo", ""]
     )
-    assert [v["code"] for v in vistas] == ["CARENCIA_QUE_NADIE_TRADUJO"], vistas
+    assert [v["code"] for v in vistas] == ["CARENCIA_QUE_NADIE_TRADUJO"], (
+        "una carencia sin traducción debe NOMBRARSE, no descartarse; "
+        f"vistas producidas: {vistas!r}")
 
 
 # ===========================================================================
@@ -409,8 +499,10 @@ def test_la_pantalla_no_afirma_que_una_decision_cambio(real_app):
         "`superseded` se llega por tres caminos y sólo uno es ése"
     )
     limitado = panel_errors.CATALOGO["PLAN_SUPERSEDED"]
-    assert "ya no es aplicable" in limitado, limitado
-    assert "volver a preparar" in limitado, limitado
+    assert "ya no es aplicable" in limitado, (
+        f"el aviso no dice que el plan dejó de ser aplicable: {limitado!r}")
+    assert "volver a preparar" in limitado, (
+        f"el aviso no dice qué hacer a continuación: {limitado!r}")
 
 
 def test_el_camino_del_apply_fallido_se_distingue_y_se_dice(real_app):
@@ -456,7 +548,9 @@ def test_el_camino_del_apply_fallido_se_distingue_y_se_dice(real_app):
     frase = __import__(
         "app.panel_errors", fromlist=["CATALOGO"]
     ).CATALOGO["PLAN_SUPERSEDED_TRAS_APPLY_FALLIDO"]
-    assert "no salio bien" in frase and "no se escribio nada" in frase, frase
+    assert "no salio bien" in frase and "no se escribio nada" in frase, (
+        "la frase del fallo de aplicación no dice ni que falló ni que no se "
+        f"escribió nada: {frase!r}")
 
 
 def test_el_rechazo_del_writer_llega_al_operador_con_su_motivo(real_app):
@@ -471,8 +565,10 @@ def test_el_rechazo_del_writer_llega_al_operador_con_su_motivo(real_app):
     from app.services import v3_apply
 
     for writer_code, publico in v3_apply.RECHAZOS_CON_CAUSA.items():
-        assert publico in v3_apply.CODIGOS, publico
-        assert publico in panel_errors.CATALOGO, publico
+        assert publico in v3_apply.CODIGOS, (
+            f"el código {publico!r} se publica pero el motor no lo declara")
+        assert publico in panel_errors.CATALOGO, (
+            f"el código {publico!r} se publica y el panel no sabe traducirlo")
         # El código INTERNO del writer no se publica como texto al operador.
         assert writer_code not in panel_errors.CATALOGO[publico]
 
@@ -486,7 +582,9 @@ def test_el_rechazo_del_writer_llega_al_operador_con_su_motivo(real_app):
     # Y NO PROMETE LO QUE NO SABE: el mismo código lo emite el writer cuando
     # faltan restricciones Y cuando no pudo consultarlas (grafo inalcanzable).
     esquema = panel_errors.CATALOGO["APPLY_REJECTED_ESQUEMA"]
-    assert "no se han podido comprobar" in esquema, esquema
+    assert "no se han podido comprobar" in esquema, (
+        "la pantalla no declara que las garantías del esquema quedaron sin "
+        f"comprobar: {esquema!r}")
 
 
 # ===========================================================================
@@ -510,10 +608,13 @@ def test_la_consola_que_decide_acepta_la_corrida_puesta(real_app):
     )
 
     decide = real_app.url_path_for("v3_review_queue")
-    assert str(decide).startswith("/v3/review"), decide
+    assert str(decide).startswith("/v3/review"), (
+        f"la consola que DECIDE ya no cuelga de /v3/review: {decide!r}")
     # La consola de SÓLO LECTURA sigue existiendo y sigue siendo OTRA.
     solo_lectura = real_app.url_path_for("chassis_review")
-    assert str(solo_lectura).startswith(SLOT_C.prefix), solo_lectura
+    assert str(solo_lectura).startswith(SLOT_C.prefix), (
+        f"la consola de sólo lectura se ha salido de {SLOT_C.prefix!r}: "
+        f"{solo_lectura!r}")
     assert str(decide) != str(solo_lectura)
 
 
@@ -538,9 +639,13 @@ def test_una_cosecha_esteril_no_se_anuncia_como_tranquilizadora(
     # EL CASO, DEMOSTRADO PRIMERO. Sin esto el testigo no distingue este
     # desenlace del doble cero que ya estaba cubierto.
     resumen = resultado["resumen"]
-    assert resumen["menciones"] > 0, resumen
-    assert not resumen["afirmaciones"], resumen
-    assert not resumen["en_revision"], resumen
+    assert resumen["menciones"] > 0, (
+        "el caso exige que SÍ se cosecharan menciones y el resumen dice "
+        f"{resumen['menciones']}")
+    assert not resumen["afirmaciones"], (
+        f"el caso exige 0 afirmaciones y el resumen dice {resumen['afirmaciones']}")
+    assert not resumen["en_revision"], (
+        f"el caso exige la cola vacía y quedaron {resumen['en_revision']}")
 
     html = _acuse(operador, job_id)
 
@@ -559,7 +664,9 @@ def test_una_cosecha_esteril_no_se_anuncia_como_tranquilizadora(
 
     # 3. Y EL MOTIVO ESTÁ, que es lo que convierte el vacío en accionable.
     codigos = _carencias_pintadas(html)
-    assert "SIN_CLAIMS" in codigos, codigos
+    assert "SIN_CLAIMS" in codigos, (
+        "la pantalla no pinta SIN_CLAIMS, que es lo que explica la cola vacía "
+        f"pese a haber cosechado; carencias pintadas: {codigos!r}")
 
 
 def test_las_cinco_ramas_del_desenlace_estan_cerradas(real_app):
@@ -606,7 +713,8 @@ def test_las_cinco_ramas_del_desenlace_estan_cerradas(real_app):
     assert not tranquiliza(mensaje), (
         "con DOS propuestas en la cola el acuse dice que no dejó nada que revisar"
     )
-    assert "2 propuestas revisables" in mensaje, mensaje
+    assert "2 propuestas revisables" in mensaje, (
+        f"el acuse no dice cuántas propuestas revisables dejó: {mensaje!r}")
 
     # 3. `None` NO ES CERO: sin cola exportada no se afirma que no quedó nada.
     codigo, mensaje = _desenlace(
@@ -653,7 +761,9 @@ def test_las_cinco_ramas_del_desenlace_estan_cerradas(real_app):
     )
     assert codigo == "INGEST_OK"
     assert isinstance(mensaje, str) and mensaje, "la rama sana no produce frase"
-    assert tranquiliza(mensaje), mensaje
+    assert tranquiliza(mensaje), (
+        "esta es la ÚNICA rama en la que la frase tranquilizadora es verdad y "
+        f"aun así no aparece: {mensaje!r}")
 
     # `SIN_ESCRITURA` NO es carencia de cosecha: se emite en toda corrida sana.
     assert "SIN_ESCRITURA" not in CARENCIAS_DE_COSECHA
@@ -693,8 +803,12 @@ def test_con_ABSTAIN_y_sin_REVIEW_el_acuse_no_se_contradice_a_si_mismo(
 
     # EL CASO, DEMOSTRADO PRIMERO: la región existe y es ésta.
     resumen = resultado["resumen"]
-    assert resumen["por_veredicto"].get("REVIEW", 0) == 0, resumen["por_veredicto"]
-    assert resumen["por_veredicto"].get("ABSTAIN", 0) > 0, resumen["por_veredicto"]
+    assert resumen["por_veredicto"].get("REVIEW", 0) == 0, (
+        "el caso exige que ninguna decisión quedara en REVIEW: "
+        f"{resumen['por_veredicto']!r}")
+    assert resumen["por_veredicto"].get("ABSTAIN", 0) > 0, (
+        "el caso exige al menos una abstención del motor: "
+        f"{resumen['por_veredicto']!r}")
     assert resumen["en_revision"] == 0, "el contador de REVIEW ya no es 0"
     propuestas = resumen["propuestas_de_revision"]
     assert propuestas, "sin propuestas en la cola no hay contradicción que medir"

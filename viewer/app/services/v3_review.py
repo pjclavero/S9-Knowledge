@@ -650,11 +650,35 @@ def _active_decisions(records: Iterable[dict[str, Any]]) -> dict[str, dict[str, 
 
 @dataclass(frozen=True)
 class QueueView:
+    """Lo que la pantalla muestra, y lo que hay detrás, SIN mezclarlos.
+
+    Tres cifras, cada una con una pregunta distinta y ninguna inventada:
+
+    * ``mostradas``  — cuántas fichas se están pintando AHORA MISMO. Es
+      exactamente ``len(items)``; no se estima ni se recalcula.
+    * ``remaining``  — cuántas propuestas del workspace siguen SIN decidir,
+      ignorando los filtros de pantalla. Es lo que queda por hacer.
+    * ``total``      — cuántas propuestas del workspace hay, decididas o no.
+
+    Las tres se calculan DESPUÉS de aplicar el ámbito de visibilidad
+    (``allowed.allows``), así que ninguna delata la existencia de propuestas
+    fuera del ámbito del lector. Un contador que cuente antes del recorte es
+    una fuga de existencia, no un detalle de presentación.
+
+    ``filtrado`` dice si hay algún filtro puesto. La cabecera lo necesita
+    porque «N de M» sin decir que hay un filtro es lo que producía el texto
+    falso «4 pendientes de 4» sobre una lista vacía.
+    """
+
     items: list[dict[str, Any]]
     remaining: int
     total: int
     sources: tuple[str, ...]
     decisions: tuple[str, ...]
+    #: Cuántas fichas se pintan con los filtros actuales.
+    mostradas: int = 0
+    #: ¿Hay algún filtro de pantalla puesto?
+    filtrado: bool = False
 
 
 def _scoped(scope: "VisibilityScope | None") -> "VisibilityScope":
@@ -757,6 +781,8 @@ class ReviewService:
             total=len(all_workspace),
             sources=sources,
             decisions=decisions,
+            mostradas=len(items),
+            filtrado=bool(source_id or engine_decision or job_id),
         )
 
     def present(
