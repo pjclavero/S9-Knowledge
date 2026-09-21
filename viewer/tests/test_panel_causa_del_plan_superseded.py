@@ -207,17 +207,37 @@ def test_la_inferencia_distingue_los_dos_casos_por_ENUMERACION():
     `()` —falso—, y decidir ahí haría que un apply fallido SIN notas se leyera
     como un cambio de decisión. La cuarta fila de esta tabla es ese caso, y es
     la razón de que la función mire la columna cruda.
+
+    NINGÚN `assert` DE AQUÍ VA SIN SU FRASE, y no es estilo. Tres de ellos la
+    llevaban implícita y enrojecían con la comparación pelada de pytest
+    (`assert 'PLAN_SUPERSE...' == 'PLAN_SUPERSEDED'`). Eso no sólo se lee mal:
+    el arnés de calibración daba por buena esa mutación porque buscaba el
+    substring `"PLAN_SUPERSEDED"`, ¡que aparece dentro de la propia comparación
+    pelada! El control que debía cazar el rojo mudo pasaba por coincidencia de
+    texto. Se arreglaron las dos mitades: la frase, aquí; el criterio, en el
+    calibrador.
     """
     from app.services.v3_apply import causa_de_superseded
 
-    assert causa_de_superseded({"apply_notes_json": '["EXEC_DRIVER_FAILURE"]'}) == CAUSA_APPLY
-    assert causa_de_superseded({"apply_notes_json": None}) == CAUSA_GENERICA
-    assert causa_de_superseded({}) == CAUSA_GENERICA
+    # NO SE CALLA LA CAUSA QUE SE SABE: con notas, hubo un apply que terminó mal.
+    assert causa_de_superseded(
+        {"apply_notes_json": '["EXEC_DRIVER_FAILURE"]'}) == CAUSA_APPLY, (
+        "una fila CON notas de apply no se está atribuyendo a la escritura "
+        "fallida que las escribió: vuelve el consejo en bucle")
+    # NO SE FABRICA LA CAUSA QUE NO SE SABE: sin notas no hubo `finish_apply`.
+    assert causa_de_superseded({"apply_notes_json": None}) == CAUSA_GENERICA, (
+        "una fila SIN notas de apply se está atribuyendo a un apply fallido: "
+        "eso es fabricar una causa que el dato no contiene")
+    assert causa_de_superseded({}) == CAUSA_GENERICA, (
+        "una fila sin la columna se está atribuyendo a un apply fallido: "
+        "eso es fabricar una causa que el dato no contiene")
     # EL CASO FINO: apply fallido que no emitió ni un código.
     assert causa_de_superseded({"apply_notes_json": "[]"}) == CAUSA_APPLY, (
         "un apply fallido sin notas se está leyendo como un cambio de "
         "decisión: la inferencia ha pasado a mirar la lista parseada")
-    assert causa_de_superseded(None) == CAUSA_GENERICA
+    assert causa_de_superseded(None) == CAUSA_GENERICA, (
+        "sin fila se está afirmando un apply fallido: "
+        "eso es fabricar una causa que el dato no contiene")
 
 
 def test_los_dos_codigos_de_causa_estan_declarados_y_se_saben_traducir():

@@ -361,9 +361,23 @@ def test_el_servicio_de_resultado_publica_el_signo_real(driver, aplicado):
 def test_A_no_pertenece_a_B_nunca_reaparece_como_A_pertenece_a_B(driver, aplicado):
     """«A no pertenece a B» nunca puede reaparecer como «A pertenece a B».
 
-    Se comprueba sobre la frase que la pantalla de resultado compone, con el
-    dato que salió del grafo: es la formulación del operador, verificada en el
-    único sitio donde puede fallar —cuando el signo ha hecho todo el viaje—.
+    QUÉ AÑADE, Y QUÉ NO. La frase la compone ESTE arnés, no el producto: la
+    plantilla vive en `resultado.html` y aquí no se renderiza nada. Así que
+    esto NO es un testigo de la pantalla y, como comprobación, es REDUNDANTE
+    con los dos casos anteriores —mide el mismo `negation_code` sobre las
+    mismas filas—.
+
+    Se queda por una razón distinta de medir: deja la regla del operador
+    escrita en forma ejecutable y junto al dato real, de modo que quien toque
+    esta zona lea la propiedad antes que la implementación. Quien comprueba que
+    el «NO» llega al HTML es `viewer/tests/test_panel_signo_de_negacion.py`
+    (con dobles, pero pidiendo la página).
+
+    Dicho sin adornos: no existe un solo test que recorra texto crudo -> HTML.
+    La propiedad se sostiene por COMPOSICIÓN de tres ficheros —extracción
+    (`test_knowledge_v3_e2e_global.py`), apply-a-lectura (este) y
+    lectura-a-pantalla (aquél)—, y conviene decirlo porque leído del tirón
+    parece que hay un E2E que no hay.
     """
     from app.labels import negation_code
     from app.providers.provenance_reader import ProvenanceReader

@@ -28,6 +28,16 @@ signo desde una fuente negativa: el proveedor y el lector son dobles. Eso lo
 mide `test_signo_de_negacion_writer_a_visor_neo4j.py`, contra Neo4j real y con
 el material escrito por el writer de verdad. Un verde aquí no sustituye a aquél.
 
+EL RECUENTO, MEDIDO: 24 casos recolectados aquí y 5 en
+`test_panel_causa_del_plan_superseded.py`. Se dice porque en un informe previo
+escribí «26+5» contándolos de memoria; el número sale de `--collect-only`.
+
+Y EL TECHO, DICHO ENTERO: no existe un solo test que recorra texto crudo ->
+HTML. La propiedad se sostiene por COMPOSICIÓN de tres ficheros —extracción
+(`test_knowledge_v3_e2e_global.py`), apply-a-lectura
+(`test_signo_de_negacion_writer_a_visor_neo4j.py`) y lectura-a-pantalla
+(éste)—. Leído del tirón parece que hay un E2E, y no lo hay.
+
 LOS TRES CASOS, Y LOS TRES SE COMPRUEBAN
 ========================================
     negated is True     -> NEGADO          la frase lleva «NO»
@@ -375,9 +385,14 @@ def test_resultado_distingue_los_tres_signos_en_la_MISMA_pagina(
         [_asercion(ID_NEGADO, True), _asercion(ID_AFIRMATIVO, False),
          _asercion(ID_SIN_SIGNO, _AUSENTE)], "signo-r4")
     assert r.status_code == 200, r.status_code
-    assert NEGADO in _bloque_del_hecho(r.text, ID_NEGADO)
-    assert AFIRMATIVO in _bloque_del_hecho(r.text, ID_AFIRMATIVO)
-    assert SIN_SIGNO in _bloque_del_hecho(r.text, ID_SIN_SIGNO)
+    assert NEGADO in _bloque_del_hecho(r.text, ID_NEGADO), (
+        "con los tres hechos delante, el negado no sale marcado como negado")
+    assert AFIRMATIVO in _bloque_del_hecho(r.text, ID_AFIRMATIVO), (
+        "con los tres hechos delante, el afirmativo no sale marcado como "
+        "afirmativo: o el marcado esta cableado o el signo se ha perdido")
+    assert SIN_SIGNO in _bloque_del_hecho(r.text, ID_SIN_SIGNO), (
+        "con los tres hechos delante, el que no trae signo no sale declarado "
+        "como tal; ausencia no es «afirmativo»")
 
 
 # ===========================================================================
@@ -404,7 +419,8 @@ def test_procedencia_no_contradice_a_su_propia_evidencia(
         "medir y esta prueba no vale")
     assert NEGADO in r.text, (
         "el hecho se pinta sin signo JUNTO a la evidencia que lo niega")
-    assert MARCA_NO in r.text, r.text[:600]
+    assert MARCA_NO in r.text, (
+        "la frase del hecho NO lleva el «NO»: el recuadro sigue afirmando lo que su propia cita literal niega")
 
 
 def test_procedencia_NO_marca_como_negado_un_hecho_afirmativo(
@@ -413,7 +429,8 @@ def test_procedencia_NO_marca_como_negado_un_hecho_afirmativo(
     r = _procedencia(real_app, entorno, monkeypatch, False, ID_AFIRMATIVO,
                      "signo-p2")
     assert r.status_code == 200, r.status_code
-    assert AFIRMATIVO in r.text, r.text[:600]
+    assert AFIRMATIVO in r.text, (
+        "un hecho afirmativo no publica su signo en la procedencia")
     assert MARCA_NO not in r.text, (
         "se ha pintado la marca de negación sobre un hecho afirmativo")
 
@@ -422,7 +439,8 @@ def test_procedencia_declara_el_signo_ausente(real_app, entorno, monkeypatch):
     r = _procedencia(real_app, entorno, monkeypatch, _AUSENTE, ID_SIN_SIGNO,
                      "signo-p3")
     assert r.status_code == 200, r.status_code
-    assert SIN_SIGNO in r.text, r.text[:600]
+    assert SIN_SIGNO in r.text, (
+        "un hecho sin el campo `negated` se publica como si su signo se conociera; ausencia no es «afirmativo»")
     assert "no consta si este hecho afirma o niega" in r.text
 
 
@@ -437,7 +455,8 @@ def test_ficha_de_entidad_pinta_el_NO_de_un_hecho_negado(real_app, entorno):
     bloque = _bloque_del_hecho(r.text, ID_NEGADO)
     assert NEGADO in bloque, (
         "la ficha de entidad sigue publicando el predicado sin su signo")
-    assert MARCA_NO in bloque, bloque
+    assert MARCA_NO in bloque, (
+        "la ficha pinta el predicado sin el «NO»: el operador lee lo contrario de lo que dice el dato")
 
 
 def test_ficha_de_entidad_NO_marca_como_negado_un_hecho_afirmativo(
@@ -446,7 +465,8 @@ def test_ficha_de_entidad_NO_marca_como_negado_un_hecho_afirmativo(
                           "signo-e2")
     assert r.status_code == 200, r.status_code
     bloque = _bloque_del_hecho(r.text, ID_AFIRMATIVO)
-    assert AFIRMATIVO in bloque, bloque
+    assert AFIRMATIVO in bloque, (
+        "un hecho afirmativo no publica su signo en la ficha de entidad")
     assert MARCA_NO not in bloque, (
         "la ficha marca como negado un hecho afirmativo")
 
@@ -456,7 +476,8 @@ def test_ficha_de_entidad_declara_el_signo_ausente(real_app, entorno):
                           "signo-e3")
     assert r.status_code == 200, r.status_code
     bloque = _bloque_del_hecho(r.text, ID_SIN_SIGNO)
-    assert SIN_SIGNO in bloque, bloque
+    assert SIN_SIGNO in bloque, (
+        "un hecho sin el campo `negated` se publica como si su signo se conociera; ausencia no es «afirmativo»")
     assert "no consta si este hecho afirma o niega" in bloque
 
 
@@ -467,9 +488,14 @@ def test_ficha_de_entidad_distingue_los_tres_en_la_MISMA_pagina(
         [_asercion(ID_NEGADO, True), _asercion(ID_AFIRMATIVO, False),
          _asercion(ID_SIN_SIGNO, _AUSENTE)], "signo-e4")
     assert r.status_code == 200, r.status_code
-    assert NEGADO in _bloque_del_hecho(r.text, ID_NEGADO)
-    assert AFIRMATIVO in _bloque_del_hecho(r.text, ID_AFIRMATIVO)
-    assert SIN_SIGNO in _bloque_del_hecho(r.text, ID_SIN_SIGNO)
+    assert NEGADO in _bloque_del_hecho(r.text, ID_NEGADO), (
+        "con los tres hechos delante, el negado no sale marcado como negado")
+    assert AFIRMATIVO in _bloque_del_hecho(r.text, ID_AFIRMATIVO), (
+        "con los tres hechos delante, el afirmativo no sale marcado como "
+        "afirmativo: o el marcado esta cableado o el signo se ha perdido")
+    assert SIN_SIGNO in _bloque_del_hecho(r.text, ID_SIN_SIGNO), (
+        "con los tres hechos delante, el que no trae signo no sale declarado "
+        "como tal; ausencia no es «afirmativo»")
 
 
 # ===========================================================================
@@ -550,9 +576,22 @@ def test_el_proyector_del_proveedor_de_neo4j_publica_el_signo():
 
 
 def test_el_lector_de_procedencia_PIDE_el_signo_en_su_consulta():
-    """La consulta real trae `negated`. Sin esto, el servicio recibe `None`
-    siempre y las dos pantallas de resultado dirían «no se sabe» para TODO —un
-    fallo cerrado, sí, pero que borraría el signo de todos los hechos."""
+    """RECORDATORIO, NO GARANTÍA. Léase el párrafo entero antes de confiar.
+
+    Esto CUENTA TEXTO: lee el código fuente del método y busca un substring.
+    Eso significa dos cosas, y las dos importan:
+
+      * pasaría con `a.negated AS negated` escrito en un COMENTARIO;
+      * fallaría ante un refactor legítimo que construyera el mismo `RETURN`
+        de otra forma —por concatenación, por una lista de campos, etc.—.
+
+    O sea que no establece la garantía: la establece
+    `test_signo_de_negacion_writer_a_visor_neo4j.py::test_el_lector_de_procedencia_trae_el_signo_desde_el_grafo`,
+    que EJECUTA la consulta contra un Neo4j real y mira el valor que vuelve.
+    Aquél es la evidencia; éste se queda porque aquél necesita Docker y no
+    corre en todas partes, y porque el día que alguien recorte el `RETURN` sin
+    pensarlo este rojo llega antes y dice dónde mirar.
+    """
     import inspect
 
     from app.providers.provenance_reader import ProvenanceReader
@@ -560,4 +599,6 @@ def test_el_lector_de_procedencia_PIDE_el_signo_en_su_consulta():
     fuente = inspect.getsource(ProvenanceReader.assertions_for_keys)
     assert "a.negated AS negated" in fuente, (
         "`assertions_for_keys` ha dejado de seleccionar `negated`: el signo se "
-        "pierde en el primer salto desde el grafo")
+        "pierde en el primer salto desde el grafo. Si ha sido un refactor "
+        "legítimo, la garantía la da la suite de Neo4j real y este recordatorio "
+        "hay que reescribirlo, no silenciarlo")

@@ -37,7 +37,46 @@ Se declara porque una red sin techo declarado se lee como completa:
      dan los testigos que piden el HTML
      (`viewer/tests/test_panel_signo_de_negacion.py`), no esta red;
   5. no dice si el signo se USA bien, sólo si VIAJA. Que una proyección lleve
-     `negated` no significa que su pantalla lo pinte.
+     `negated` no significa que su pantalla lo pinte;
+  6. NO VE LAS ARISTAS. Sus marcadores son claves de ASERCIÓN
+     (`assertion_id`, `subject_entity_id`…) y una relación proyectada no las
+     lleva, así que queda fuera de la red por construcción. Ver la deuda D-1.
+
+DEUDAS REGISTRADAS AQUÍ — NO SE ARREGLAN EN ESTE CORTE
+------------------------------------------------------
+D-1 · LA ARISTA PROYECTADA ES UN CUARTO CONSUMIDOR SIN SIGNO.
+
+    Una versión anterior de esta cabecera exculpaba
+    `writer/rollback.py:184` diciendo «un hecho negado nunca se proyecta como
+    arista», y lo apoyaba en `review_plan`, que devuelve
+    `PROJECTION_NEGATED_FACT`. ESA EXCULPACIÓN ERA DEMASIADO FUERTE PARA LA
+    CAPA EN QUE SE USABA, y un revisor independiente lo midió: dándole al
+    writer REAL un plan con una aserción `negated=true` Y un
+    `PROJECT_RELATION` para esa misma aserción, el resultado fue `APPLIED`,
+    `codes []`, y una arista `MEMBER_OF` en el grafo para un hecho negado.
+
+    O sea: la garantía vive en el PLANNER; `executor.py` valida el payload sin
+    consultar `negated` y no la reimpone. Además la arista NO lleva `negated`
+    en absoluto, y `relations_for_entity` la entrega — de ahí el techo 6.
+
+    POR QUÉ ES DEUDA Y NO ELEVACIÓN: un `DELETE_RELATIONSHIP` dice «borra
+    sujeto-predicado-objeto» y el signo no cambia esa acción, y hoy el
+    pipeline no produce ese plan. Pero QUE HOY NO SEA ALCANZABLE NO LO
+    CONVIERTE EN INVARIANTE: no hay ningún testigo que lo fije. Cerrarlo pide
+    o un testigo en el executor, o el signo en la arista — las dos cosas
+    tocan writer y esquema, que están congelados.
+
+D-2 · `DetalleEvidencia.signo` TIENE UN DEFECTO POR DEFECTO QUE NADIE USA.
+    Vale `NEGACION_NO_DISPONIBLE` y los DOS constructores del servicio pasan
+    `signo=` explícito, así que ese valor es código muerto: un fail-closed
+    decorativo. Se deja porque un tercer constructor futuro se apoyaría en él,
+    pero no cuenta como garantía y no debe leerse como tal.
+
+D-3 · UN DESPLIEGUE CON EL PROVEEDOR MOCK PINTARÍA «no consta» EN TODO.
+    La muestra de `mock_provider` no trae `negated`, y la conversión estricta
+    manda: los tres estados colapsarían en `HECHO_SIGNO_NO_DISPONIBLE`. Es
+    coherente y fail-closed —es justo lo que debe pasar cuando el dato no
+    está—, pero conviene saberlo antes de verlo en una demo.
 
 USO
 ---
@@ -202,8 +241,13 @@ def main() -> int:
         print(f"  SIN SIGNO  {h['tipo']:7s}  {h['ruta']}:{h['linea']}")
     print()
     print("Techo declarado: sólo diccionarios y Cypher LITERALES; no ve "
-          "plantillas Jinja, JavaScript, ni proyecciones construidas "
-          "dinámicamente. Ver la cabecera de este fichero.")
+          "plantillas Jinja, JavaScript, proyecciones construidas "
+          "dinámicamente NI ARISTAS (sus marcadores son claves de asercion).")
+    print("Deudas registradas, NO arregladas: D-1 la arista proyectada es un "
+          "cuarto consumidor sin signo y el executor no reimpone la garantia "
+          "del planner; D-2 el defecto de `DetalleEvidencia.signo` es codigo "
+          "muerto; D-3 con el proveedor mock todo saldria «no consta». "
+          "Ver la cabecera de este fichero.")
     return 0
 
 

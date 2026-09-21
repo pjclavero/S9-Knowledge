@@ -70,6 +70,15 @@ class Mutacion:
         self.prueba = prueba
         #: Fragmento que TIENE que aparecer en el fallo. Es lo que distingue
         #: «rojo por su causa» de «rojo por cualquier cosa».
+        #:
+        #: TIENE QUE SER UNA FRASE, NO UN IDENTIFICADOR — y esto lo COMPRUEBA
+        #: `_esperado_es_una_frase`, no la buena fe de quien escribe la tabla.
+        #: Se aprendió caro: la mutación de la causa del `superseded` esperaba
+        #: el substring `"PLAN_SUPERSEDED"`, que pytest imprime SOLO por
+        #: comparar dos cadenas (`assert 'PLAN_SUPERSE...' == 'PLAN_SUPERSEDED'`).
+        #: El rojo era MUDO y el calibrador lo daba por bueno por coincidencia
+        #: de texto: el guardián de los rojos sin causa tenía él mismo un rojo
+        #: sin causa dentro.
         self.esperado = esperado
 
 
@@ -114,6 +123,27 @@ MUTACIONES = [
         f"{SUITE_SIGNO}::test_resultado_pinta_el_NO_de_un_hecho_negado",
         "el operador sigue leyendo",
     ),
+    # -- 4b y 4c. LAS OTRAS DOS PLANTILLAS -------------------------------
+    # Estaban sin cubrir: nueve mutaciones y las tres superficies del corte
+    # tocaban SOLO `resultado.html`. Los testigos de las otras dos muerden
+    # —se comprobó— pero eso no estaba DEMOSTRADO, y una prueba que nadie ha
+    # visto ponerse roja es una declaración, no evidencia.
+    Mutacion(
+        "la ficha de entidad deja de pintar el «NO»",
+        PLANTILLA_FICHA,
+        """          {% if h.signo == 'HECHO_NEGADO' %}<strong data-role="marca-negacion">NO</strong>{% endif %}""",
+        "\n",
+        f"{SUITE_SIGNO}::test_ficha_de_entidad_pinta_el_NO_de_un_hecho_negado",
+        "el operador lee lo contrario de lo que dice el dato",
+    ),
+    Mutacion(
+        "la procedencia deja de pintar el «NO» junto a la cita que niega",
+        "viewer/app/templates/resultado/evidencia.html",
+        """      {% if detalle.signo == 'HECHO_NEGADO' %}<strong data-role="marca-negacion">NO</strong>{% endif %}""",
+        "\n",
+        f"{SUITE_SIGNO}::test_procedencia_no_contradice_a_su_propia_evidencia",
+        "el recuadro sigue afirmando lo que su propia cita literal niega",
+    ),
     # -- 5. EL ERROR SIMÉTRICO: todo negado ------------------------------
     Mutacion(
         "SENTIDO CONTRARIO: se marca como negado TODO hecho",
@@ -154,7 +184,10 @@ MUTACIONES = [
         '    return "PLAN_SUPERSEDED"',
         '    return "PLAN_SUPERSEDED_TRAS_APPLY_FALLIDO"\n',
         f"{SUITE_CAUSA}::test_la_inferencia_distingue_los_dos_casos_por_ENUMERACION",
-        "PLAN_SUPERSEDED",
+        # UNA FRASE, no el código. Con `"PLAN_SUPERSEDED"` esta mutación
+        # «pasaba» por el substring que pytest imprime al comparar dos cadenas:
+        # el rojo era mudo y el calibrador no lo veía.
+        "eso es fabricar una causa que el dato no contiene",
     ),
     # -- 9. La inferencia mira la lista PARSEADA -------------------------
     Mutacion(
@@ -171,6 +204,35 @@ MUTACIONES = [
         "la inferencia ha pasado a mirar la lista parseada",
     ),
 ]
+
+
+#: Identificadores que el producto ya imprime por su cuenta. Un `esperado` que
+#: sea uno de éstos —o esté contenido en uno— NO distingue un rojo con causa de
+#: uno mudo, porque pytest los echa en la comparación pelada.
+_NO_SON_CAUSA = (
+    "PLAN_SUPERSEDED", "PLAN_SUPERSEDED_TRAS_APPLY_FALLIDO",
+    "HECHO_NEGADO", "HECHO_AFIRMATIVO", "HECHO_SIGNO_NO_DISPONIBLE",
+    "negated", "signo", "True", "False", "None",
+)
+
+
+def _esperado_es_una_frase(esperado: str) -> str | None:
+    """¿Sirve este `esperado` para distinguir «rojo por su causa»? Motivo o None.
+
+    Se exige que sea PROSA: varias palabras y no un identificador que el
+    producto imprima solo. No garantiza que la frase sea la correcta —eso lo
+    decide quien escribe la tabla— pero SÍ impide la clase de criterio que ya
+    dejó pasar una mutación muda en este mismo fichero.
+    """
+    texto = esperado.strip()
+    if len(texto.split()) < 3:
+        return (f"{esperado!r} no es una frase (menos de tres palabras): un "
+                f"identificador lo imprime pytest solo al comparar")
+    for ident in _NO_SON_CAUSA:
+        if texto == ident or texto in ident:
+            return (f"{esperado!r} es un identificador que el producto imprime "
+                    f"por su cuenta; no distingue un rojo mudo de uno con causa")
+    return None
 
 
 def _purgar_pycache() -> None:
@@ -220,6 +282,16 @@ def main() -> int:
     if not _arbol_limpio():
         print("ÁRBOL SUCIO. Commitea antes: las mutaciones se revierten con "
               "`git checkout --` y se llevarían por delante tu trabajo.")
+        return 2
+
+    # EL CALIBRADOR SE CALIBRA A SÍ MISMO, ANTES DE MUTAR NADA. Si su criterio
+    # de «rojo por su causa» admite identificadores, sus verdes no valen.
+    flojos = [(i, motivo) for i, m in enumerate(MUTACIONES, 1)
+              if (motivo := _esperado_es_una_frase(m.esperado))]
+    if flojos:
+        print("CRITERIO DEMASIADO FLOJO — este arnés no puede certificar nada:")
+        for i, motivo in flojos:
+            print(f"  · mutación {i}: {motivo}")
         return 2
 
     _purgar_pycache()
