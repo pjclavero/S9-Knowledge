@@ -113,10 +113,14 @@ COD_FALLBACK = "WORKSPACE_AUTHORITY_ENV_FALLBACK"
 COD_DIVERGENTE = "WORKSPACE_AUTHORITY_DIVERGENT"
 COD_INDETERMINADO = "WORKSPACE_AUTHORITY_UNDETERMINED"
 COD_VARIOS_PERFILES = "WORKSPACE_AUTHORITY_MULTIPLE_PROFILES"
+#: No se pudo ni MIRAR el perfil (falta el catalogo del producto). AUSENCIA de
+#: medicion, que NO es ausencia de declaracion: por eso no cae en el fallback.
+COD_CATALOGO_INALCANZABLE = "WORKSPACE_AUTHORITY_CATALOG_UNAVAILABLE"
 
 #: Los codigos con los que NO hay workspace efectivo: todos ellos deniegan.
 CODIGOS_FAIL_CLOSED = frozenset(
-    {COD_DIVERGENTE, COD_INDETERMINADO, COD_VARIOS_PERFILES}
+    {COD_DIVERGENTE, COD_INDETERMINADO, COD_VARIOS_PERFILES,
+     COD_CATALOGO_INALCANZABLE}
 )
 
 
@@ -170,6 +174,12 @@ class Autoridad:
                 "(el contexto de visibilidad es un singleton), asi que no se "
                 "elige ninguno."
             )
+        if self.codigo == COD_CATALOGO_INALCANZABLE:
+            return (
+                f"{COD_CATALOGO_INALCANZABLE}: no se pudo cargar el catalogo "
+                "del producto, asi que no se pudo mirar si hay perfil de "
+                "boveda. NO se cae al entorno: no poder mirar no es no haber."
+            )
         if self.codigo == COD_INDETERMINADO:
             return (
                 f"{COD_INDETERMINADO}: no hay perfil de boveda legible y "
@@ -193,6 +203,15 @@ class Autoridad:
         )
 
 
+class CatalogoNoAlcanzable(RuntimeError):
+    """No se pudo cargar el catalogo del producto: no se pudo MIRAR el perfil.
+
+    Existe para que «no hay perfil» y «no pude mirar si lo hay» no se
+    confundan. Confundirlos mandaria al fallback del entorno justo cuando la
+    autoridad es indeterminable, que es el falso verde mas caro de este corte.
+    """
+
+
 class WorkspaceSinAutoridad(RuntimeError):
     """Se pidio el workspace efectivo y no hay uno resoluble.
 
@@ -209,7 +228,9 @@ def _limpio(valor: object) -> str:
     return valor.strip() if isinstance(valor, str) and valor.strip() else ""
 
 
-def declaraciones_de_perfil(env: Optional[dict] = None) -> list[str]:
+def declaraciones_de_perfil(
+    env: Optional[dict] = None, catalogo: object = None
+) -> list[str]:
     """Los workspaces DECLARADOS por los perfiles de boveda alcanzables.
 
     Devuelve la lista ORDENADA y SIN REPETIDOS de valores distintos. Lista
@@ -221,10 +242,16 @@ def declaraciones_de_perfil(env: Optional[dict] = None) -> list[str]:
     para eliminar.
     """
     entorno = env if env is not None else os.environ
-    try:
-        from app import sources_catalog  # noqa: PLC0415
-    except Exception:  # pragma: no cover - sin el catalogo no hay declaracion
-        return []
+    if catalogo is not None:
+        # Inyectado: el preflight de despliegue corre FUERA del paquete `app` y
+        # carga los modulos del producto por ruta. Se acepta el suyo en vez de
+        # re-derivar aqui la lectura del perfil, que seria la segunda verdad.
+        sources_catalog = catalogo
+    else:
+        try:
+            from app import sources_catalog  # noqa: PLC0415
+        except Exception as exc:
+            raise CatalogoNoAlcanzable(type(exc).__name__) from exc
 
     candidatos: list = []
     raiz_bovedas = sources_catalog.raiz_de_bovedas(entorno)
@@ -263,15 +290,25 @@ def declaracion_de_entorno(env: Optional[dict] = None) -> str:
     return _limpio(entorno.get(ENV_WORKSPACE_POR_DEFECTO))
 
 
-def resolver(env: Optional[dict] = None) -> Autoridad:
+def resolver(env: Optional[dict] = None, catalogo: object = None) -> Autoridad:
     """El workspace efectivo de este despliegue, con su procedencia.
 
     Es el UNICO punto que lo decide. Ver el contrato completo en el docstring
     del modulo; el resumen es: manda el perfil, el entorno es fallback, y si
     los dos hablan y no coinciden no manda ninguno.
     """
-    del_perfil = declaraciones_de_perfil(env)
     del_entorno = declaracion_de_entorno(env)
+    try:
+        del_perfil = declaraciones_de_perfil(env, catalogo)
+    except CatalogoNoAlcanzable:
+        return Autoridad(
+            valor="",
+            procedencia=PROCEDENCIA_NINGUNA,
+            codigo=COD_CATALOGO_INALCANZABLE,
+            declarado_por_perfil="",
+            declarado_por_entorno=del_entorno,
+            perfiles_legibles=0,
+        )
 
     if len(del_perfil) > 1:
         return Autoridad(
@@ -323,13 +360,13 @@ def resolver(env: Optional[dict] = None) -> Autoridad:
     )
 
 
-def exigir(env: Optional[dict] = None) -> Autoridad:
+def exigir(env: Optional[dict] = None, catalogo: object = None) -> Autoridad:
     """Como `resolver`, pero LEVANTA si no hay autoridad.
 
     Para los caminos que no pueden seguir sin ambito: antes de operar, no
     despues.
     """
-    autoridad = resolver(env)
+    autoridad = resolver(env, catalogo)
     if not autoridad.resuelto:
         raise WorkspaceSinAutoridad(autoridad)
     return autoridad
