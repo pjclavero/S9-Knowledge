@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Autoridad única del destino ``next``: ¿es una ruta interna de este producto?
+r"""Autoridad única del destino ``next``: ¿es una ruta interna de este producto?
 
 PROPIEDAD QUE CIERRA ESTE MÓDULO
 --------------------------------
@@ -7,13 +7,33 @@ PROPIEDAD QUE CIERRA ESTE MÓDULO
 representación equivalente puede convertirse en autoridad externa al
 interpretarla el navegador**.
 
-Esa última frase es la razón de ser del módulo. El defecto que lo motiva no es
-que ``/\\evil.example/x`` «parezca» una URL externa: es que Chrome y Firefox
-**normalizan ``\\`` a ``/``** al interpretar una cabecera ``Location`` o un
-``href``, con lo que ``/\\evil.example/x`` se convierte en ``//evil.example/x``,
-que es protocolo-relativo y **sale del sitio**. Lo mismo vale para ``///…``,
-que ya escapaba tal cual, y para cualquier codificación que se deshaga antes de
-esa interpretación.
+EL DEFECTO, DICHO CON PRECISIÓN (importa, porque se dijo mal dos veces)
+-----------------------------------------------------------------------
+El criterio anterior aceptaba ``///evil.example/x``, ``////…``, ``/\evil…`` y
+``/%2F%2F…`` y los emitía casi intactos en la cabecera ``Location``: el destino
+del atacante llegaba entero a una cabecera de redirección. La causa es que
+``urlsplit("///evil.example/x")`` devuelve ``netloc=''`` y
+``path='/evil.example/x'`` — **se come dos barras** y presenta como interna una
+cadena que no lo es.
+
+Lo que NO es el defecto, y se afirmó erróneamente dos veces antes de medirlo:
+
+- **No** es que Chrome normalice ``\`` a ``/`` en esta cabecera. Starlette
+  percent-encodea la backslash, así que el navegador recibe ``/%5Cevil…`` y no
+  hay ninguna backslash que normalizar. Esa normalización existe, pero en otros
+  contextos (un ``href`` crudo, un ``location.assign``), no aquí.
+- **Tampoco** es que ``///…`` saque a Chromium del sitio por esta vía. Se midió
+  con la defensa retirada y no lo hace; ``urljoin`` y ``httpx`` coinciden con
+  él. La medición está en
+  ``viewer/tests/browser/test_browser_next_calibracion.py``.
+
+Entonces, ¿por qué se cierra? Porque la propiedad que este módulo defiende es
+sobre la **representación**, no sobre el comportamiento de un motor en una
+versión: el valor del atacante no debe llegar a una cabecera de redirección
+bajo ninguna forma, hay clientes HTTP que se niegan incluso a parsear la
+cabecera resultante de ``////…``, y la misma cadena SÍ cambia de significado en
+los contextos donde la normalización ocurre. Apoyar una defensa en «hoy este
+navegador no lo explota» es exactamente el razonamiento que produjo el defecto.
 
 CRITERIO: POR COMPONENTES, NO POR LISTA DE CADENAS
 --------------------------------------------------
