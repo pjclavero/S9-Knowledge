@@ -63,9 +63,31 @@
       {% else %}
       <ul>
         {% for h in hechos %}
+        {#
+          EL SIGNO. `h.label` es la traduccion del PREDICADO y no dice nada
+          del signo: pintado solo, «pertenece a» es lo que el operador leyo
+          para un hecho cuyo dato decia «NO pertenece a». El «NO» va DENTRO
+          de la frase, y los tres estados llevan `data-signo` para que
+          tambien el error simetrico --marcar como negado lo afirmativo--
+          tenga donde ponerse rojo.
+        #}
+        {#
+          ORDEN DE LOS ATRIBUTOS, y no es cosmética. `data-divergencia-local`
+          va PEGADO a `data-assertion-id` porque el testigo G4 del carril M
+          los correlaciona con una sola expresión regular
+          (`data-assertion-id="..."\s+data-divergencia-local="true"`). Meter
+          el signo en medio dejó ese caso en rojo en CI —dos mil pruebas
+          verdes y ésa no— y con razón: la marca de divergencia dejaba de ser
+          atribuible a su hecho. El signo va detrás.
+        #}
         <li data-assertion-id="{{ h.assertion_id | e }}"
-            data-divergencia-local="{{ 'true' if h.es_divergencia_local else 'false' }}">
+            data-divergencia-local="{{ 'true' if h.es_divergencia_local else 'false' }}"
+            data-signo="{{ h.signo | e }}">
+          {% if h.signo == 'HECHO_NEGADO' %}<strong data-role="marca-negacion">NO</strong>{% endif %}
           <span data-field="predicado">{{ h.label | e }}</span>
+          {% if h.signo != 'HECHO_AFIRMATIVO' %}
+          <span class="badge" data-role="signo">{{ h.signo_label | e }}</span>
+          {% endif %}
           {% if h.es_divergencia_local %}
             {# La "indicacion de que es una divergencia local" que pide
                docs/v3/49 §2.5 punto 4. Sin esto, la partida veria su version

@@ -153,6 +153,17 @@ def _assertion_to_dict(record_node) -> dict[str, Any]:
         # su divergencia a la vez, que es justo lo que el requisito prohibe.
         "local_override_of": props.get("local_override_of"),
         "reason_code": props.get("reason_code"),
+        # --- EL SIGNO DEL HECHO. Sin este campo aqui, «X NO pertenece a Y»
+        # llegaba a la ficha de entidad como «X pertenece a Y»: el visor no
+        # perdia el hecho, perdia su SIGNIFICADO, y la pantalla se contradecia
+        # con la evidencia literal impresa tres lineas mas abajo.
+        #
+        # `props.get` devuelve `None` cuando la propiedad NO ESTA, y eso NO se
+        # normaliza a `False` aqui ni en ninguna capa de abajo: un hecho
+        # antiguo sin `negated` es «no se sabe», no «afirmativo»
+        # (`app.labels.negation_code`). Poner `or False` en esta linea
+        # reintroduce el defecto en su forma simetrica.
+        "negated": props.get("negated"),
         # --- Campos de AUTORIZACION (ver `_node_to_dict`).
         "workspace": props.get("workspace"),
         "scope": props.get("scope"),

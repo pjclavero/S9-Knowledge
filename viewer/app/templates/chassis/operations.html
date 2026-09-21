@@ -308,10 +308,29 @@
             {% endif %}
           {% endfor %}
         {% elif plan.estado == 'superseded' %}
-          <p data-plan-desenlace="superseded">
-            Una decisión cambió después de preparar lo aprobado, así que lo
-            preparado dejó de valer y no se ha aplicado nada. Vuelve a
-            prepararlo para incluir la decisión nueva.
+          {#
+            NO SE FABRICA LA CAUSA, Y TAMPOCO SE CALLA LA QUE SE SABE.
+
+            A `superseded` se llega por TRES caminos y esta rama contaba UNO:
+            «una decisión cambió… vuelve a prepararlo». Tras un apply rechazado
+            por el writer eso era falso —ninguna decisión había cambiado— y,
+            peor, el consejo era un BUCLE: un operador lo siguió (Preparar →
+            Añadir) y volvió a fallar idénticamente.
+
+            El producto YA sabía distinguirlo en el POST del segundo intento.
+            Aquí se usa esa misma inferencia (`v3_apply.causa_de_superseded`) y
+            su misma frase del catálogo cerrado. Cuando el dato NO distingue el
+            camino, sale el código genérico y la pantalla se limita a lo que se
+            sabe: el plan dejó de ser aplicable.
+          #}
+          <p data-plan-desenlace="superseded"
+             data-plan-causa="{{ plan.causa_superseded | e if plan.causa_superseded else 'PLAN_SUPERSEDED' }}">
+            {% if plan.causa_superseded_message %}
+              {{ plan.causa_superseded_message }}
+            {% else %}
+              El plan ya no es aplicable, así que no se ha aplicado nada. Es
+              necesario volver a preparar lo aprobado de esta ingesta.
+            {% endif %}
           </p>
         {% endif %}
 

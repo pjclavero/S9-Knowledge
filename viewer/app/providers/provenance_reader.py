@@ -188,6 +188,13 @@ class ProvenanceReader:
 
         Los extremos viajan porque son la llave de la autorizacion: el servicio
         no entrega la evidencia de una asercion cuyos extremos no pueda ver.
+
+        `negated` VIAJA, y no es decorado. Sin el en este `RETURN`, la pantalla
+        de resultado y la de procedencia pintaban «A predicado B» para un hecho
+        que dice exactamente lo contrario, y en la de procedencia lo pintaban
+        JUNTO a la cita literal que lo negaba. Cypher no distingue «la
+        propiedad no esta» de `null`: las dos llegan como `None`, y `None` es
+        el tercer estado --signo no disponible--, nunca `False`.
         """
         if not keys:
             return []
@@ -197,7 +204,8 @@ class ProvenanceReader:
             "RETURN DISTINCT a.assertion_id AS assertion_id, "
             "a.subject_entity_id AS subject_entity_id, "
             "a.object_entity_id AS object_entity_id, "
-            "a.predicate AS predicate, a.idempotency_key AS idempotency_key "
+            "a.predicate AS predicate, a.negated AS negated, "
+            "a.idempotency_key AS idempotency_key "
             "ORDER BY assertion_id"
         )
         with self._driver.session() as s:
