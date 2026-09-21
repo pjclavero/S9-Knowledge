@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Optional
-from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -21,6 +20,7 @@ from app.auth.config import get_auth_settings
 from app.auth.csrf import validate_csrf
 from app.auth.dependencies import require_authenticated_user
 from app.auth.models import User
+from app.auth.next_url import ruta_interna_o_defecto
 from app.authz import existencia
 
 router = APIRouter()
@@ -31,13 +31,9 @@ def _get_db_path() -> Path:
 
 
 def _safe_next(next_url: Optional[str]) -> str:
-    """Anti open-redirect: solo rutas relativas internas (mismo criterio que /login)."""
-    if not next_url:
-        return "/"
-    parsed = urlparse(next_url)
-    if parsed.scheme or parsed.netloc or not next_url.startswith("/"):
-        return "/"
-    return next_url
+    """Anti open-redirect: mismo criterio que ``/login`` porque es el MISMO
+    código, no una copia que dice serlo. Ver ``app.auth.next_url``."""
+    return ruta_interna_o_defecto(next_url)
 
 
 @router.post("/partida/select")

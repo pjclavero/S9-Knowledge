@@ -4,7 +4,6 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 from typing import Optional
-from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -22,6 +21,7 @@ from app.auth.csrf import (
 )
 from app.auth.dependencies import get_current_user, require_authenticated_user
 from app.auth.models import User
+from app.auth.next_url import ruta_interna_o_defecto
 from app.auth.passwords import hash_password, needs_rehash, validate_password, verify_password
 from app.auth.sessions import cookie_kwargs, create_session, revoke_session_by_token
 
@@ -43,17 +43,13 @@ def _get_db_path() -> Path:
 
 
 def _safe_next(next_url: Optional[str]) -> str:
-    """Anti open-redirect: solo acepta rutas relativas internas."""
-    if not next_url:
-        return "/"
-    parsed = urlparse(next_url)
-    # Rechazar si tiene esquema o netloc (URL absoluta)
-    if parsed.scheme or parsed.netloc:
-        return "/"
-    # Debe empezar por /
-    if not next_url.startswith("/"):
-        return "/"
-    return next_url
+    """Anti open-redirect: sólo rutas internas inequívocas.
+
+    La decisión vive entera en ``app.auth.next_url``, autoridad única y por
+    COMPONENTES. Aquí no se replica criterio: duplicarlo fue justamente lo que
+    dejó dos validadores divergentes (este y el de ``/partida/select``).
+    """
+    return ruta_interna_o_defecto(next_url)
 
 
 def _hash_ip(ip: Optional[str]) -> Optional[str]:

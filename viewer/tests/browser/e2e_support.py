@@ -24,6 +24,9 @@ from __future__ import annotations
 import os
 import socket
 import threading
+from contextlib import contextmanager
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import urlparse
 import time
 from contextlib import closing
 from dataclasses import dataclass, field
@@ -278,3 +281,83 @@ def is_denied(page: Page, viewer: ViewerServer, path: str) -> tuple[bool, int, s
 def is_allowed(page: Page, viewer: ViewerServer, path: str) -> bool:
     denied, status, _ = is_denied(page, viewer, path)
     return (not denied) and status == 200
+
+
+# ===========================================================================
+# ARNES DE FUGA: observar si el navegador SALE del producto, sin quedarse
+# ciego. Ver el techo de `test_browser_next_open_redirect.py`.
+# ===========================================================================
+#
+# EL ARNES ANTERIOR ESTABA CIEGO, Y ESTO ES LA CORRECCION.
+#
+# Se interceptaba con `page.route` y se anotaban las peticiones que no iban al
+# visor, contra un dominio hostil que NO RESUELVE. Parecia una virtud («la fuga
+# queda registrada aunque el navegador no llegue a cargar nada») y era justo el
+# defecto: la navegacion muere en la resolucion DNS, la lista queda VACIA, y
+# una lista vacia es indistinguible de «no ha salido».
+#
+# MEDIDO: con aquel arnes, `//evil.example/x` —protocolo-relativa, que escapa
+# en TODOS los instrumentos conocidos— se declaraba «dentro».
+#
+# Aqui el dominio hostil RESUELVE a un servidor trampa propio
+# (`--host-resolver-rules`), de modo que la peticion hostil llega de verdad y
+# se observa por la cabecera `Host` que recibe la trampa y por `page.url`.
+
+#: El dominio hostil de laboratorio. De ejemplo (RFC 2606): no existe fuera de
+#: la regla de resolucion que instala esta maquinaria.
+DOMINIO_HOSTIL = "evil.example"
+
+
+class _Trampa(BaseHTTPRequestHandler):
+    def do_GET(self):                                     # noqa: N802
+        self.server.capturado.append(                     # type: ignore[attr-defined]
+            (self.headers.get("Host", ""), self.path))
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html")
+        self.end_headers()
+        self.wfile.write(b"<html><body>TRAMPA</body></html>")
+
+    def log_message(self, *args):                         # silencio
+        pass
+
+
+@contextmanager
+def servidor_trampa():
+    """Un servidor que hace de `evil.example` y anota cada `Host` que recibe.
+
+    Es lo que convierte «no vi ninguna peticion» (ambiguo) en «recibi esta
+    peticion con este Host» (concluyente).
+    """
+    servidor = HTTPServer(("127.0.0.1", 0), _Trampa)
+    servidor.capturado = []                               # type: ignore[attr-defined]
+    hilo = threading.Thread(target=servidor.serve_forever, daemon=True)
+    hilo.start()
+    try:
+        yield servidor, int(servidor.server_address[1])
+    finally:
+        servidor.shutdown()
+        hilo.join(timeout=5)
+
+
+def navegador_que_resuelve_lo_hostil(playwright, puerto_trampa: int):
+    """Chromium con `evil.example` apuntando a la trampa.
+
+    Sin esto el navegador no puede llegar a ninguna parte y el arnes no puede
+    distinguir «no salio» de «salio y no resolvio».
+    """
+    return playwright.chromium.launch(args=[
+        f"--host-resolver-rules=MAP {DOMINIO_HOSTIL} 127.0.0.1:{puerto_trampa}",
+    ])
+
+
+def salio_del_producto(page, servidor):
+    """¿Acabo el navegador FUERA del producto? Devuelve (veredicto, evidencia).
+
+    Dos observaciones independientes, y basta una: el `Host` que recibio la
+    trampa, y el host de la URL final. Nunca una lista de peticiones abortadas.
+    """
+    hosts = {h.split(":")[0] for h, _ in servidor.capturado}
+    host_final = urlparse(page.url).hostname
+    evidencia = {"hosts_en_la_trampa": sorted(hosts), "url_final": page.url,
+                 "rutas_en_la_trampa": [r for _, r in servidor.capturado]}
+    return (DOMINIO_HOSTIL in hosts or host_final == DOMINIO_HOSTIL), evidencia
