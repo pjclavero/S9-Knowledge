@@ -49,6 +49,15 @@ TECHO DECLARADO
 - El control de arnes usa un validador IDENTIDAD (sin defensa ninguna), no el
   preexistente: el preexistente ya rechazaba `//evil…`, asi que con el no se
   puede comprobar si el arnes ve una fuga.
+- **Estas pruebas ERRORAN, no se saltan, si no hay chromium**, y es una
+  DECISIÓN, no un descuido. Lanzan su propio navegador (necesitan
+  `--host-resolver-rules`) en vez de pasar por la fixture `page` compartida,
+  que es la que trae el guardia de «chromium no disponible -> skip». En CI da
+  igual, porque chromium siempre está y la puerta prohíbe los skips; fuera de
+  CI, preferimos el error ruidoso. La lección entera de este microcarril es que
+  un verde incapaz de fallar no vale nada, y un módulo de seguridad que se
+  salta en silencio es exactamente eso. Si algún día molestara, el arreglo es
+  añadir el guardia aquí a propósito, no descubrirlo por accidente.
 """
 from __future__ import annotations
 
@@ -208,7 +217,7 @@ def test_con_la_defensa_retirada_el_navegador_SI_sale(
 def test_las_backslash_no_llegan_a_escapar_por_esta_superficie(
         pagina_con_trampa, viewer_calibracion, trampa, monkeypatch,
         etiqueta, hostil):
-    """Sin NINGUNA defensa siguen sin salir, porque Starlette las codifica.
+    r"""Sin NINGUNA defensa siguen sin salir, porque Starlette las codifica.
 
     Ojo con la lectura: esto NO dice que la backslash sea inofensiva. Bajo
     WHATWG `/\evil.example/x` crudo SI saca del sitio. Lo que dice es que POR

@@ -8,11 +8,23 @@ La suite de cabecera (`test_next_url_open_redirect.py`) comprueba el texto del
 pregunta de en medio, que es la que de verdad define «redirección abierta»:
 **¿un cliente que sigue la redirección acaba en otro origen?**
 
-Y hacía falta porque la ronda anterior se quedó SIN NINGÚN NEGATIVO, apoyándose
-en que Chromium no reproduce el escape. Eso era exactamente el razonamiento
-—«hoy este navegador no lo explota»— que el propio módulo denuncia. Chromium
-usa GURL, que no es conforme a WHATWG en todos los bordes: su comportamiento es
-un dato sobre un motor, no sobre la propiedad.
+Y hacía falta porque hubo una ronda que se quedó SIN NINGÚN NEGATIVO, apoyándose
+en que Chromium no reproducía el escape. Eso era exactamente el razonamiento
+—«hoy este navegador no lo explota»— que el propio módulo denuncia.
+
+Aquella premisa, además, resultó ser FALSA: el arnés de navegador estaba ciego
+—observaba peticiones abortadas contra un dominio que no resuelve— y por eso
+parecía que Chromium no salía. Con el arnés arreglado, **Chromium sale igual
+que curl, que `fetch` y que el parser WHATWG**. Se llegó a escribir aquí que
+Chromium usaba GURL y no era conforme a WHATWG «en todos los bordes»: esa frase
+era una hipótesis para explicar una medición equivocada, la medición ya está
+corregida, y la frase se ha borrado por falsa. Ver
+`tests/browser/test_browser_next_calibracion.py`.
+
+Este fichero sigue existiendo aunque el negativo de navegador ya exista, y por
+un motivo propio: mide la misma propiedad **sin depender de ningún motor**, con
+un cliente HTTP real. Dos testigos independientes de familias distintas para la
+misma afirmación.
 
 LAS DOS FAMILIAS DE INSTRUMENTO, Y POR QUÉ IMPORTA CUÁL SE USA
 ---------------------------------------------------------------
@@ -38,8 +50,9 @@ un cliente HTTP real, no un constructor de URL ni un resolutor de biblioteca.
 TECHO DECLARADO — QUÉ NO VE ESTE FICHERO
 -----------------------------------------
 - Un solo cliente: curl. No es «todos los clientes», es un testigo conforme y
-  real. La cobertura de motores de navegador la aporta (con su propio techo, y
-  con un resultado distinto) `tests/browser/test_browser_next_calibracion.py`.
+  real. La cobertura de navegador la aportan, con su propio techo y con el
+  MISMO resultado, `tests/browser/test_browser_next_open_redirect.py` y su
+  calibración.
 - Mide `POST /login`. No cubre `GET /login` ni `/partida/select`, que se miden
   por cabecera en `test_next_url_open_redirect.py`.
 - Usa `///evil.example/x` como testigo. `////…` NO sirve aquí: curl se niega a

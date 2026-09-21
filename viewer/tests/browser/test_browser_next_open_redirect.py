@@ -53,6 +53,15 @@ TECHO DECLARADO — QUE **NO** CUBRE ESTE FICHERO
   en el fichero de calibracion; su rechazo se mide sobre la cabecera.
 - No prueba nada sobre autorizacion: que el destino sea interno no dice que el
   usuario pueda verlo.
+- **Estas pruebas ERRORAN, no se saltan, si no hay chromium**, y es una
+  DECISIÓN, no un descuido. Lanzan su propio navegador (necesitan
+  `--host-resolver-rules`) en vez de pasar por la fixture `page` compartida,
+  que es la que trae el guardia de «chromium no disponible -> skip». En CI da
+  igual, porque chromium siempre está y la puerta prohíbe los skips; fuera de
+  CI, preferimos el error ruidoso. La lección entera de este microcarril es que
+  un verde incapaz de fallar no vale nada, y un módulo de seguridad que se
+  salta en silencio es exactamente eso. Si algún día molestara, el arreglo es
+  añadir el guardia aquí a propósito, no descubrirlo por accidente.
 """
 from __future__ import annotations
 
