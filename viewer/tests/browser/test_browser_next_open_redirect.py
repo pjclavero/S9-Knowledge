@@ -134,11 +134,23 @@ def _login_con_next(page, viewer: ViewerServer, next_valor: str):
     Codificado, el servidor recibe EXACTAMENTE la cadena que se quiere probar.
     """
     from urllib.parse import urlencode
+
+    from playwright.sync_api import TimeoutError as PWTimeout
+
     page.goto(viewer.url("/login?" + urlencode({"next": next_valor})))
     page.fill("#username", "s9reviewer")
     page.fill("#password", viewer.users["s9reviewer"]["password"])
     page.click("#login-submit")
-    page.wait_for_load_state("networkidle")
+    try:
+        page.wait_for_load_state("networkidle")
+    except PWTimeout:
+        # Si el navegador se fue a un destino que `_vigilar_salidas` aborta, la
+        # navegacion nunca queda «idle». Eso NO es el fallo que hay que
+        # reportar: el fallo es la fuga, y lo dice el `assert` del caso con su
+        # causa. Tragarse el timeout aqui evita que un rojo legitimo llegue
+        # disfrazado de «timeout esperando la red», que se lee igual que un
+        # rojo sin causa.
+        pass
     return page
 
 
