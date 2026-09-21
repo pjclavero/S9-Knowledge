@@ -183,3 +183,65 @@ def review_status_label(status: str | None) -> str:
     if etiqueta is None:
         return f"no reconocido ({status})"
     return etiqueta
+
+
+# ===========================================================================
+# EL SIGNO DE UN HECHO (negación) — AUTORIDAD ÚNICA
+# ===========================================================================
+# «Sela Marrec NO pertenece al Consejo de Umbra» no puede reaparecer en
+# ninguna pantalla como «Sela Marrec pertenece al Consejo de Umbra». El dato
+# que lo impide —`negated`— ya viaja desde la extracción hasta el nodo
+# `:V3Assertion`; lo que faltaba era que el visor lo publicara.
+#
+# TRES ESTADOS, NO DOS. Éste es el punto delicado del módulo:
+#
+#   negated is True     -> NEGADO         el hecho niega la relación
+#   negated is False    -> AFIRMATIVO     el hecho la afirma
+#   cualquier otra cosa -> NO_DISPONIBLE
+#
+# AUSENCIA NO ES CERO. Un hecho antiguo escrito antes de que el writer
+# estampara `negated`, una proyección que pierda el campo o un valor que no sea
+# booleano NO son «afirmativos»: son «no se sabe». Colapsar el tercer estado
+# sobre el segundo es exactamente el error simétrico del defecto —pintar como
+# afirmativo algo cuyo signo nadie ha leído— y por eso la conversión es
+# ESTRICTA (`is True` / `is False`) y no una verdad de Python: `1`, `"false"`,
+# `"no"` o `[]` no son booleanos y aquí no se interpretan.
+#
+# DECISIÓN DECLARADA para el tercer estado: la pantalla lo DICE, y no calla.
+# Callar sería indistinguible de «afirmativo», que es el defecto.
+
+#: Códigos publicables. Son códigos, no frases: la UI los traduce con
+#: `negation_label`, y un código que no se supiera traducir se NOMBRA.
+NEGACION_NEGADO = "HECHO_NEGADO"
+NEGACION_AFIRMATIVO = "HECHO_AFIRMATIVO"
+NEGACION_NO_DISPONIBLE = "HECHO_SIGNO_NO_DISPONIBLE"
+
+NEGACION_LABELS_ES = {
+    NEGACION_NEGADO: "este hecho NIEGA la relación",
+    NEGACION_AFIRMATIVO: "este hecho afirma la relación",
+    NEGACION_NO_DISPONIBLE: "no consta si este hecho afirma o niega la relación",
+}
+
+
+def negation_code(negated: object) -> str:
+    """El signo de un hecho, como CÓDIGO. Conversión estricta: ver arriba."""
+    if negated is True:
+        return NEGACION_NEGADO
+    if negated is False:
+        return NEGACION_AFIRMATIVO
+    return NEGACION_NO_DISPONIBLE
+
+
+def negation_label(code: str | None) -> str:
+    """Traducción del código. Un código desconocido se NOMBRA, no se descarta.
+
+    Descartarlo dejaría el hueco en blanco, y un hueco en blanco en esta
+    pantalla se lee como «afirmativo» — el error simétrico otra vez, ahora por
+    la puerta de atrás.
+    """
+    if not code:
+        return NEGACION_LABELS_ES[NEGACION_NO_DISPONIBLE]
+    etiqueta = NEGACION_LABELS_ES.get(code)
+    if etiqueta is None:
+        return f"signo no reconocido ({code})"
+    return etiqueta

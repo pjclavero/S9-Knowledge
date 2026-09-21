@@ -188,6 +188,51 @@ def _codigo_de_rechazo(rechazos) -> str:
     return "APPLY_REJECTED"
 
 
+def causa_de_superseded(fila) -> str:
+    """POR QUE quedo `superseded` esa fila de plan. UNA sola autoridad.
+
+    AL ESTADO `superseded` SE LLEGA POR TRES CAMINOS
+    ------------------------------------------------
+    1. una decision de OTRA corrida del workspace lo invalido
+       (`_supersede_sealed`),
+    2. la misma corrida se volvio a sellar,
+    3. un intento de APLICAR fallo y `record_apply_result(ok=False)` invalido
+       el plan.
+
+    El dato distingue el TERCERO de los otros dos, y solo ese: la columna
+    `apply_notes_json` la escribe UNICAMENTE `finish_apply` /
+    `record_apply_result`; ni el INSERT del sellado ni `_supersede_sealed` la
+    tocan. O sea: columna presente <=> hubo un apply que termino mal.
+
+    Entre el primero y el segundo NO HAY DATO QUE LOS SEPARE, y por eso los dos
+    salen con el codigo generico. No se fabrica la causa que falta.
+
+    POR QUE ESTA FUNCION EXISTE Y NO ES UNA LINEA REPETIDA
+    -----------------------------------------------------
+    Esta inferencia ya estaba resuelta —bien— en el POST del segundo intento, y
+    SOLO ahi: el render GET del mismo estado no la tenia, asi que la pantalla
+    seguia diciendo «una decision cambio... vuelve a prepararlo» tras un apply
+    rechazado. El operador siguio ese consejo (Preparar -> Añadir) y volvio a
+    fallar identicamente: el consejo era un BUCLE.
+
+    Al reunirlas hay que mirar la columna CRUDA, no las notas ya parseadas.
+    `record_apply_result` escribe `canonical(sorted(set(notes or ())))`, que
+    para una lista vacia es la cadena `"[]"`: presente y VERDADERA como cadena,
+    pero `()` una vez parseada. Decidir sobre la lista parseada haria que un
+    apply fallido SIN notas se leyera como un cambio de decision — el mismo
+    defecto de vuelta, en el caso mas dificil de ver.
+    """
+    if not fila:
+        return "PLAN_SUPERSEDED"
+    try:
+        crudo = fila["apply_notes_json"]
+    except (KeyError, IndexError, TypeError):
+        crudo = None
+    if crudo:
+        return "PLAN_SUPERSEDED_TRAS_APPLY_FALLIDO"
+    return "PLAN_SUPERSEDED"
+
+
 class ApplyError(RuntimeError):
     """Fallo EXPRESADO PARA UN OPERADOR: un código estable y nada más.
 
@@ -231,6 +276,7 @@ class EstadoDelPlan:
     __slots__ = (
         "estado", "aprobadas", "pendientes", "en_el_plan", "excluidas",
         "afirmaciones_escritas", "habilitado", "avisos", "apply_id",
+        "causa_superseded",
     )
 
     def __init__(
@@ -245,7 +291,15 @@ class EstadoDelPlan:
         habilitado: bool = False,
         avisos: tuple = (),
         apply_id: Optional[str] = None,
+        causa_superseded: Optional[str] = None,
     ):
+        #: POR QUE quedo `superseded`, cuando el dato lo distingue. Es un
+        #: CODIGO del catalogo (`PLAN_SUPERSEDED` o
+        #: `PLAN_SUPERSEDED_TRAS_APPLY_FALLIDO`), nunca una frase, y vale
+        #: `None` en cualquier otro estado. La distincion NO se inventa aqui:
+        #: la resuelve `causa_de_superseded`, que es la misma funcion que usa
+        #: el POST del segundo intento.
+        self.causa_superseded = causa_superseded
         self.apply_id = apply_id
         self.estado = estado
         self.aprobadas = aprobadas
@@ -289,6 +343,7 @@ class EstadoDelPlan:
             "aplicable": self.aplicable,
             "avisos": list(self.avisos),
             "apply_id": self.apply_id,
+            "causa_superseded": self.causa_superseded,
         }
 
 
@@ -747,6 +802,14 @@ class ReviewApplyService:
             afirmaciones_escritas=escritas,
             habilitado=habilitado,
             avisos=notas,
+            # LA CAUSA DEL `superseded`, EN EL GET Y NO SOLO EN EL POST.
+            # Se deriva de la MISMA fila que el estado --misma lectura-- y con
+            # la MISMA funcion que el segundo intento. En cualquier otro estado
+            # es `None`: no hay causa de algo que no ha pasado.
+            causa_superseded=(
+                causa_de_superseded(ultimo)
+                if estado == self.store.ESTADO_SUPERSEDIDO else None
+            ),
         )
 
     def _habilitado(self, workspace: str) -> bool:
@@ -982,9 +1045,10 @@ class ReviewApplyService:
                 # Sin notas NO se afirma cual de los otros dos caminos fue: no
                 # hay dato que lo distinga y la frase se limita a lo que se
                 # sabe (el plan dejo de ser aplicable).
-                if ultimo.get("apply_notes_json"):
-                    raise ApplyError("PLAN_SUPERSEDED_TRAS_APPLY_FALLIDO")
-                raise ApplyError("PLAN_SUPERSEDED")
+                # LA MISMA funcion que usa el render GET del estado. Tenerla
+                # duplicada era justamente el defecto: aqui se distinguia el
+                # apply fallido y la pantalla, no.
+                raise ApplyError(causa_de_superseded(ultimo))
 
         if not self._habilitado(workspace):
             # NO ES CULPA DEL OPERADOR: el despliegue no declara permiso de

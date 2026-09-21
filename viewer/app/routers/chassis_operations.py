@@ -670,8 +670,22 @@ def _plan_de_la_corrida(resultado: Optional[dict]) -> Optional[dict]:
                 # indisponibilidad ya habla el párrafo `no_disponible`—. Un
                 # quinto código que la pantalla no supiera pintar saldría en
                 # blanco, y un desenlace mudo se lee como «no hay nada».
-                "apply_id": None, "workspace": None, "resultado": "no_procede"}
+                "apply_id": None, "workspace": None, "resultado": "no_procede",
+                # Declarada, no omitida: una clave ausente se vuelve `Undefined`
+                # en Jinja y la rama del signo se apagaria EN SILENCIO.
+                "causa_superseded": None, "causa_superseded_message": None}
     vista = estado.to_dict()
+    # LA CAUSA DEL `superseded`, TRADUCIDA POR EL CATALOGO CERRADO.
+    #
+    # Se publica el CODIGO y su frase, y la frase sale de `panel_errors.CATALOGO`
+    # —la misma que ve quien pulsa «Añadir» y se lleva el error—. Escribir la
+    # prosa en la plantilla habria dejado dos textos para la misma causa, y el
+    # dia que uno cambiara la pantalla y el error dirian cosas distintas sobre
+    # el mismo plan, que es la version fina del defecto que este corte cierra.
+    codigo_causa = vista.get("causa_superseded")
+    vista["causa_superseded_message"] = (
+        panel_errors.CATALOGO.get(codigo_causa) if codigo_causa else None
+    )
     # La corrida viaja en el formulario, no en el cuerpo del estado: es la
     # única identidad que el POST necesita y ya es pública para el operador.
     vista["job_id"] = str(revision["job_id"])

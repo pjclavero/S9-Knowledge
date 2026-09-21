@@ -76,6 +76,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
+from app.labels import NEGACION_NO_DISPONIBLE, negation_code, negation_label
 from app.providers.provenance_reader import ProvenanceReader
 
 __all__ = [
@@ -306,6 +307,21 @@ class DetalleEvidencia:
     sujeto: dict
     objeto: Optional[dict]
     evidencias: Bloque
+    #: CODIGO del signo (`app.labels.negation_code`), nunca el booleano crudo.
+    #: Esta pantalla es la que imprime la cita literal debajo del hecho, asi
+    #: que es donde una negacion perdida se convierte en una CONTRADICCION
+    #: visible: el recuadro afirmaba lo que su propia evidencia negaba.
+    signo: str = NEGACION_NO_DISPONIBLE
+
+    @property
+    def signo_label(self) -> str:
+        """La traduccion del codigo, resuelta por la MISMA autoridad.
+
+        La plantilla no traduce: si tradujera, habria dos vocabularios --el de
+        `app.labels` y el de Jinja-- y el dia que uno cambiara el otro seguiria
+        diciendo lo de antes en una sola de las tres pantallas.
+        """
+        return negation_label(self.signo)
 
 
 # --------------------------------------------------------------------------
@@ -511,11 +527,18 @@ def _bloque_hechos(provider, reader, workspace, claves) -> Bloque:
             objeto = _entidad_visible(provider, a["object_entity_id"])
             if objeto is None:
                 continue
+        # EL SIGNO SE PROPAGA CON EL HECHO, en la MISMA fila y la misma
+        # lectura. Pedirlo aparte abriria una ventana en la que la pantalla
+        # nombrase un hecho y pintase el signo de otro. Se publica el CODIGO,
+        # que es lo que la plantilla sabe traducir; el booleano crudo no sale.
+        codigo = negation_code(a.get("negated"))
         filas.append({
             "assertion_id": a.get("assertion_id"),
             "predicate": a.get("predicate"),
             "sujeto": _ficha(sujeto),
             "objeto": _ficha(objeto) if objeto else None,
+            "signo": codigo,
+            "signo_label": negation_label(codigo),
         })
     return Bloque.leido(filas)
 
@@ -579,6 +602,7 @@ def detalle_de_asercion(
             predicate=elegida.get("predicate"), sujeto=_ficha(sujeto),
             objeto=_ficha(objeto) if objeto else None,
             evidencias=bloque,
+            signo=negation_code(elegida.get("negated")),
         )
 
     try:
@@ -631,4 +655,9 @@ def detalle_de_asercion(
         predicate=elegida.get("predicate"), sujeto=_ficha(sujeto),
         objeto=_ficha(objeto) if objeto else None,
         evidencias=Bloque.leido(filas),
+        # EL CAMINO CON EVIDENCIA. Es el OTRO retorno de esta funcion y tambien
+        # lleva el signo: dejarlo solo en `_ficha_con` habria dado una pantalla
+        # que dice el signo cuando NO hay cita y lo calla cuando SI la hay --
+        # justo al reves de donde hace falta.
+        signo=negation_code(elegida.get("negated")),
     )

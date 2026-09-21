@@ -114,10 +114,28 @@
     {% if resultado.hechos.filas %}
     <ul>
       {% for h in resultado.hechos.filas %}
-      <li data-assertion-id="{{ h.assertion_id | e }}">
+      {#
+        EL SIGNO DEL HECHO, EN LA FRASE Y NO SOLO EN UNA ETIQUETA.
+
+        Un hecho negado escrito sin el «NO» se lee como su contrario: «Sela
+        Marrec pertenece al Consejo de Umbra» cuando el dato dice justo lo
+        opuesto. Por eso la negacion entra DENTRO de la frase, no como adorno
+        al lado.
+
+        Tres estados, tres marcados distintos (`app.labels.negation_code`). El
+        afirmativo tambien lleva su `data-signo`: si solo se marcara el negado,
+        una mutacion que marcara TODO como negado --el error simetrico-- no
+        tendria donde ponerse roja.
+      #}
+      <li data-assertion-id="{{ h.assertion_id | e }}"
+          data-signo="{{ h.signo | e }}">
         {{ h.sujeto.nombre | e }}
+        {% if h.signo == 'HECHO_NEGADO' %}<strong data-role="marca-negacion">NO</strong>{% endif %}
         <strong>{{ h.predicate | e if h.predicate else 'relacionado con' }}</strong>
         {{ h.objeto.nombre | e if h.objeto else '' }}
+        {% if h.signo != 'HECHO_AFIRMATIVO' %}
+        <span class="badge" data-role="signo">{{ h.signo_label | e }}</span>
+        {% endif %}
         —
         <a href="{{ url_for('resultado_evidencia_de_hecho', apply_id=resultado.apply_id, assertion_id=h.assertion_id) }}?workspace={{ resultado.workspace | urlencode }}"
            data-role="ver-procedencia">ver de donde sale</a>

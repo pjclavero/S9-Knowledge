@@ -24,13 +24,23 @@
   <p><a href="{{ url_for('resultado_de_ejecucion', apply_id=detalle.apply_id) }}?workspace={{ detalle.workspace | urlencode }}"
         data-role="volver">Volver al resultado de la ejecucion</a></p>
 
-  <section class="panel" data-role="hecho">
+  {#
+    AQUI ES DONDE MAS DUELE PERDER EL SIGNO. Debajo de esta frase se imprime
+    la EVIDENCIA LITERAL, y un operador real vio «Sela Marrec MEMBER_OF
+    Consejo de Umbra» con la cita «Sela Marrec NO pertenece al Consejo de
+    Umbra» tres lineas mas abajo: el mismo recuadro afirmando y negando.
+  #}
+  <section class="panel" data-role="hecho" data-signo="{{ detalle.signo | e }}">
     <h2>El hecho</h2>
     <p data-field="frase">
       {{ detalle.sujeto.nombre | e }}
+      {% if detalle.signo == 'HECHO_NEGADO' %}<strong data-role="marca-negacion">NO</strong>{% endif %}
       <strong>{{ detalle.predicate | e if detalle.predicate else 'relacionado con' }}</strong>
       {{ detalle.objeto.nombre | e if detalle.objeto else '' }}
     </p>
+    {% if detalle.signo != 'HECHO_AFIRMATIVO' %}
+    <p class="badge" data-role="signo">{{ detalle.signo_label | e }}</p>
+    {% endif %}
     <ul>
       <li data-role="sujeto" data-entity-id="{{ detalle.sujeto.entity_id | e }}">
         {% if detalle.sujeto.entity_id %}

@@ -11,6 +11,8 @@ from typing import Any
 from app.labels import (
     entity_type_label,
     knowledge_layer_label,
+    negation_code,
+    negation_label,
     relation_label,
     review_status_label,
     visibility_label,
@@ -145,6 +147,14 @@ def serialize_assertion(assertion: dict[str, Any]) -> dict[str, Any]:
         "object_entity_id": assertion.get("object_entity_id") or "",
         "status": assertion.get("status") or "",
         "es_divergencia_local": isinstance(destino, str) and bool(destino),
+        # --- EL SIGNO. Se publica el CODIGO y su traduccion, nunca el booleano
+        # crudo: la plantilla no debe tener que decidir que hacer con un
+        # `None`, porque el dia que decida se decidira distinto en cada una de
+        # las tres pantallas. `negation_code` es la autoridad unica y trata la
+        # AUSENCIA como tercer estado declarado, no como `False`.
+        "negado": assertion.get("negated"),
+        "signo": negation_code(assertion.get("negated")),
+        "signo_label": negation_label(negation_code(assertion.get("negated"))),
         "confidence": confidence,
         "confidence_label": _confidence_label(confidence),
         "visibility": assertion.get("visibility") or "",
