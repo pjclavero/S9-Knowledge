@@ -188,7 +188,12 @@ def test_navegador_vuelve_a_la_consola_filtrada(page, viewer_redir):
         f"contexto en cada caducidad de sesion."
     )
     page.wait_for_selector("form.v3r-filters")
-    fichas = page.locator("[data-proposal-id]").count()
+    # `[data-review-item]`, que es como la consola `/v3/review` marca cada
+    # ficha. Un selector inventado cuenta 0 y da un rojo cuyo mensaje culpa al
+    # filtro: rojo por la razon equivocada. MEDIDO en CI: con
+    # `[data-proposal-id]` —que existe, pero en las plantillas del CHASIS, no
+    # en esta— este caso fallaba con «0 fichas» estando el producto bien.
+    fichas = page.locator("[data-review-item]").count()
     assert fichas == 2, (
         f"la consola filtrada cargo pero muestra {fichas} fichas y el "
         f"laboratorio sembro 2: el `next` llego pero el filtro no se aplico "
