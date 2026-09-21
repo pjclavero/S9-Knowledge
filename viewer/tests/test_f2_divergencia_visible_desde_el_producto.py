@@ -238,3 +238,77 @@ def test_simetrico_un_despliegue_sin_perfil_tampoco_avisa(entorno):
     _, token = _admin(auth_db, db_path)
     html, _ = _pantalla(_cliente(app, token))
     assert "aviso-autoridad-workspace" not in html
+
+
+# ---------------------------------------------------------------------------
+# LA SEXTA CONDICION, MEDIDA — «authz / reader resuelven el MISMO valor»
+# ---------------------------------------------------------------------------
+# NO se cumple, y esta prueba lo DEMUESTRA en vez de afirmarlo. Es la evidencia
+# de la elevacion: cerrarla obliga a cambiar lo que ES `allowed_workspaces`
+# —hoy un SINGLETON del despliegue derivado del entorno— y eso es un cambio de
+# modelo de autorizacion, no una correccion local. El encargo manda pararse ahi.
+#
+# LA POLITICA EFECTIVA, NO EL FICHERO: no se lee `context.py`, se construye el
+# contexto por el MISMO camino que la peticion (`authz/dependencies.py` pasa
+# `default_workspace=settings.S9K_DEFAULT_WORKSPACE`) y se IMPRIME el valor.
+
+def test_medicion_authz_resuelve_el_workspace_del_ENTORNO_no_el_del_perfil(entorno, capsys):
+    """MEDICION del hueco, con su valor efectivo impreso.
+
+    Si algun dia authz pasara a resolver el perfil, esta prueba se pondra ROJA
+    con el mensaje de abajo — y ese rojo sera la senal de que la sexta
+    condicion ya se puede cerrar, no un fallo.
+    """
+    from app.authz.context import build_viewer_context
+    from app.config import get_settings
+
+    db_path, auth_db, app, _ = entorno
+    _, token = _admin(auth_db, db_path)
+    # Se ejerce la pantalla para que el despliegue este realmente en pie.
+    _pantalla(_cliente(app, token))
+
+    # EL MISMO argumento que `authz/dependencies.py::viewer_context` entrega.
+    contexto = build_viewer_context(
+        role="viewer",
+        auth_enabled=True,
+        default_workspace=get_settings().S9K_DEFAULT_WORKSPACE,
+    )
+    efectivo = sorted(contexto.allowed_workspaces)
+    print(f"[F-2 MEDICION] allowed_workspaces efectivo = {efectivo}; "
+          f"perfil de boveda declara '{WS_PERFIL}'")
+
+    assert efectivo == [WS_ENTORNO], (
+        "cambio la resolucion de authz: ya no toma el workspace del ENTORNO. "
+        f"Medido {efectivo}. Si ahora toma el del perfil, la sexta condicion de "
+        "F-2 se puede cerrar y esta medicion sobra"
+    )
+    assert WS_PERFIL not in efectivo, (
+        "authz resuelve el workspace del PERFIL: la sexta condicion estaria "
+        "cumplida y habria que revisar todo lo que asume el singleton"
+    )
+
+
+def test_medicion_el_singleton_es_el_supuesto_que_bloquea(entorno):
+    """Y POR QUE no se arregla aqui: el contexto es un SINGLETON, por diseno.
+
+    `allowed_workspaces` tiene exactamente un elemento para TODO principal. Dar
+    al perfil la autoridad sobre este valor sin tocar el singleton solo mueve
+    cual es el unico elemento; darsela de verdad (varios ambitos alcanzables)
+    es el modelo usuario -> varios workspaces, expresamente diferido.
+    """
+    from app.authz.context import build_viewer_context
+    from app.config import get_settings
+
+    db_path, auth_db, app, _ = entorno
+    _admin(auth_db, db_path)
+
+    for rol in ("viewer", "reviewer", "admin"):
+        contexto = build_viewer_context(
+            role=rol, auth_enabled=True,
+            default_workspace=get_settings().S9K_DEFAULT_WORKSPACE,
+        )
+        assert len(contexto.allowed_workspaces) == 1, (
+            f"`allowed_workspaces` dejo de ser un singleton para el rol '{rol}': "
+            f"{sorted(contexto.allowed_workspaces)}. Todo lo que asume el "
+            "singleton hay que revisarlo a la vez, y eso NO cabe en F-2"
+        )
