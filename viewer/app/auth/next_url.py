@@ -7,7 +7,7 @@ PROPIEDAD QUE CIERRA ESTE MÓDULO
 representación equivalente puede convertirse en autoridad externa al
 interpretarla el navegador**.
 
-EL DEFECTO, DICHO CON PRECISIÓN (importa, porque se dijo mal dos veces)
+EL DEFECTO, DICHO CON PRECISIÓN (importa: se atribuyó mal TRES veces)
 -----------------------------------------------------------------------
 El criterio anterior aceptaba ``///evil.example/x``, ``////…``, ``/\evil…`` y
 ``/%2F%2F…`` y los emitía casi intactos en la cabecera ``Location``: el destino
@@ -16,41 +16,52 @@ del atacante llegaba entero a una cabecera de redirección. La causa es que
 ``path='/evil.example/x'`` — **se come dos barras** y presenta como interna una
 cadena que no lo es.
 
-**Y SÍ ES UNA REDIRECCIÓN ABIERTA DE VERDAD.** Medido con la defensa retirada,
-con el servidor emitiendo ``Location: ///evil.example/x`` intacto:
+**Y SÍ ES UNA REDIRECCIÓN ABIERTA DE VERDAD, TAMBIÉN EN EL NAVEGADOR.** Medido
+con la defensa retirada y el servidor emitiendo ``Location: ///evil.example/x``
+intacto, con el dominio hostil resolviendo a un servidor trampa propio para que
+la fuga se pueda observar:
 
-    curl -L  (cliente real siguiendo la redirección)  -> http://evil.example/x
-                          rc=6, «Could not resolve host: evil.example»
-    Node ``new URL(loc, base)``  (parser WHATWG)      -> http://evil.example/x
+    Chromium (Playwright)   -> http://evil.example/x, recibido con
+                               ``Host: evil.example`` en la trampa
+    curl -L                 -> http://evil.example/x
+    Node ``new URL()``      (WHATWG)  -> http://evil.example/x
+    Node ``fetch()`` follow (Fetch)   -> ENOTFOUND evil.example: hizo la
+                                        resolución, o sea, salió del origen
 
-Un cliente HTTP real **se va del producto**. WHATWG —el estándar que
-implementan los navegadores— salta todas las barras iniciales al entrar en la
-autoridad, y ``Location`` se resuelve con ese mismo parser (Fetch Standard).
-Reproducido en ``viewer/tests/test_next_url_redireccion_seguida.py``, cuyo
-negativo se pone rojo al retirar la defensa.
+Un navegador **se va del producto**. WHATWG salta todas las barras iniciales al
+entrar en la autoridad, y el Fetch Standard resuelve ``Location`` con ese mismo
+parser; Chromium coincide. Reproducido en
+``viewer/tests/browser/test_browser_next_open_redirect.py`` y en
+``viewer/tests/test_next_url_redireccion_seguida.py``, cuyos negativos se ponen
+rojos al retirar la defensa.
 
-Bajo WHATWG, ``/\evil.example/x`` **crudo también sale**
-(``new URL("/\evil.example/x", base)`` da ``http://evil.example/x``). Lo que lo
-neutraliza en ESTA ruta es únicamente que Starlette lo percent-encodea: el
-cliente nunca llega a ver la backslash. Es el transporte quien lo salva, no el
-validador — razón de más para que el validador la rechace.
+Bajo WHATWG, ``/\evil.example/x`` **crudo también sale**. Lo que lo neutraliza
+en ESTA ruta es únicamente que Starlette lo percent-encodea: el cliente nunca
+llega a ver la backslash. Es el transporte quien lo salva, no el validador —
+razón de más para que el validador la rechace.
 
 PRECISIONES SOBRE LO QUE SE DIJO MAL EN RONDAS ANTERIORES
 ----------------------------------------------------------
-- **No** es que Chrome normalice ``\`` a ``/`` en esta cabecera: Starlette la
-  codifica antes. Esa normalización es real, pero en otros contextos (un
-  ``href`` crudo, un ``location.assign``), no aquí.
-- **Chromium no reproduce el escape** de ``///…`` por esta cabecera; se midió
-  (``tests/browser/test_browser_next_calibracion.py``). Eso es un **outlier de
-  motor** —Chromium usa GURL, que no es conforme a WHATWG en todos los
-  bordes—, **no** una propiedad de «resolver un ``Location``».
-- La ronda anterior citó ``urljoin`` y ``httpx`` como si corroborasen a
-  Chromium. **No corroboran nada de esto**: implementan **RFC 3986**, y los dos
-  estándares difieren *exactamente* en ``///``. Usarlos para una pregunta de
-  navegador es medir con el instrumento de la familia equivocada.
+Tres veces se atribuyó mal la causa, y las tres se corrigieron midiendo:
 
-Por eso la propiedad que este módulo defiende es sobre la **representación**, y
-no sobre el comportamiento de un motor en una versión. Apoyar una defensa en «hoy este
+- **No** es que Chrome normalice ``\`` a ``/`` en esta cabecera: Starlette la
+  codifica antes. Esa normalización es real, pero sobre la cadena cruda.
+- Se dijo después que ``///`` **no** sacaba a Chromium del sitio y que por
+  tanto no existía negativo de navegador. **Falso, y la causa fue un ARNÉS
+  CIEGO**: observaba peticiones abortadas contra un dominio que no resuelve, de
+  modo que la navegación moría en DNS y la lista vacía se leía como «se quedó
+  dentro». Declaraba interno hasta ``//evil.example/x``, que escapa en todos
+  los instrumentos.
+- Se dijo entonces que Chromium era un **outlier de motor** frente a WHATWG.
+  Tampoco: con el arnés arreglado coincide exactamente. No había outlier,
+  había un instrumento que no veía.
+
+La lección quedó escrita como techo en el fichero de navegador: **todo arnés
+que mida ausencia lleva dentro de su propia tabla un control positivo de
+resultado conocido; si no lo detecta, sus ceros no valen.**
+
+La propiedad que este módulo defiende es sobre la **representación**, y no
+sobre el comportamiento de un motor en una versión. Apoyar una defensa en «hoy este
 navegador no lo explota» es exactamente el razonamiento que produjo el defecto.
 
 CRITERIO: POR COMPONENTES, NO POR LISTA DE CADENAS

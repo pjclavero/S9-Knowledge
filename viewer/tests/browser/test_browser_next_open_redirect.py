@@ -9,47 +9,48 @@ devuelve, pero sigue sin ser la pregunta final, porque quien tiene la ultima
 palabra sobre a donde va el usuario no es nuestro parser: es el navegador. Aqui
 se mide el destino al que un Chromium de verdad acaba llegando.
 
-LA CAUSA, BIEN ATRIBUIDA (la primera version de este docstring la tenia mal)
-----------------------------------------------------------------------------
-Se decia aqui que `/\evil.example/x` escapa porque Chrome normaliza `\` a `/`.
-Por la cabecera `Location` ESO NO OCURRE, y esta medido: Starlette
-percent-encodea la backslash, el navegador recibe `/%5Cevil.example/x` y no hay
-ninguna backslash que normalizar. Esa normalizacion es real en otros contextos
-—un `href` crudo, por ejemplo—, pero no en este.
+LA CAUSA, BIEN ATRIBUIDA (costo tres vueltas, y la tercera fue la medida)
+--------------------------------------------------------------------------
+Aqui se dijo primero que `/\evil.example/x` escapa porque Chrome normaliza `\`
+a `/`. Por la cabecera `Location` eso NO ocurre: Starlette percent-encodea la
+backslash, el navegador recibe `/%5Cevil.example/x` y no hay backslash que
+normalizar. La normalizacion es real —bajo WHATWG, `/\evil…` CRUDO si saca del
+sitio—, pero por esta ruta el navegador nunca la recibe cruda. Lo neutraliza el
+transporte, no el validador.
 
-Y al medirlo aparecio algo mas: por la cabecera `Location` ninguna de las
-representaciones hostiles saca a CHROMIUM del producto, ni siquiera
-`///evil.example/x`. Ojo con la lectura, porque la ronda anterior la hizo mal:
-eso NO significa que el caso no escape. Un cliente real (`curl -L`) y un parser
-WHATWG (`new URL`) SI se van a `http://evil.example/x` con esa misma cabecera;
-Chromium es el outlier. El negativo que discrimina vive por tanto fuera del
-navegador, en `viewer/tests/test_next_url_redireccion_seguida.py`.
+Despues se dijo que tampoco `///evil.example/x` sacaba a Chromium del sitio, y
+que por tanto no existia negativo de navegador posible. **Tambien era falso, y
+la causa era un ARNES CIEGO** (ver el techo). Con el arnes arreglado, Chromium
+SALE con `//`, `///` y `////`, igual que `curl`, `fetch` y el parser WHATWG. No
+habia outlier de motor: habia un instrumento que no veia.
 
-Este fichero conserva solo el POSITIVO —que si discrimina y es lo unico que un
-navegador aporta aqui de forma unica: que el destino interno y su query
-sobreviven al viaje real—. La medicion caso a caso de chromium, con la defensa
-retirada de verdad, esta en `test_browser_next_calibracion.py`, con su alcance
-declarado: «chromium, por esta cabecera, hoy».
+De modo que los negativos de navegador EXISTEN y estan aqui: `///` y `////`.
+Su calibracion —que se ponen rojos al retirar la defensa, y que el arnes es
+capaz de ver una fuga— vive en `test_browser_next_calibracion.py`.
 
-COMO SE OBSERVA LA FUGA SIN TOCAR LA RED
-----------------------------------------
-Se intercepta TODA peticion y se aborta la que no vaya a 127.0.0.1, anotandola.
-Dos consecuencias buenas: la prueba no depende de DNS ni sale a internet (el
-dominio es de ejemplo y no existe), y la fuga queda registrada aunque el
-navegador no llegue a cargar nada. Si `evil.example` aparece en esa lista, el
-usuario se habria ido: eso es la redireccion abierta.
+COMO SE OBSERVA LA FUGA
+-----------------------
+El dominio hostil RESUELVE a un servidor trampa propio
+(`--host-resolver-rules`), y la fuga se observa por la cabecera `Host` que
+recibe la trampa y por `page.url`. Ver `e2e_support.servidor_trampa`.
 
 TECHO DECLARADO — QUE **NO** CUBRE ESTE FICHERO
 -----------------------------------------------
-- Un unico motor: chromium. Nada dice de Firefox ni de Safari; la normalizacion
-  `\\` -> `/` la hacen tambien, pero aqui no se mide.
+- **TODO ARNES QUE MIDA AUSENCIA LLEVA UN CONTROL POSITIVO DE RESULTADO
+  CONOCIDO DENTRO DE LA PROPIA TABLA. Si el control conocido no se detecta, el
+  arnes esta ciego y sus ceros no valen.** Esta escrito como techo porque aqui
+  costo caro: el arnes anterior observaba peticiones abortadas contra un
+  dominio que NO RESUELVE, la navegacion moria en DNS, la lista quedaba vacia y
+  eso se leia como «se quedo dentro». Declaraba interno hasta
+  `//evil.example/x`, que escapa en todos los instrumentos. Lo que lo destapo
+  no fue razonar mejor, sino meter en la tabla un caso cuyo resultado se sabia
+  de antemano. El control vive ahora en `test_browser_next_calibracion.py`.
+- Un unico motor: chromium. Nada dice de Firefox ni de Safari.
 - Cubre `POST /login`. `POST /partida/select` y `GET /login` se miden por
-  cabecera y por HTML en la suite sin navegador, NO aqui: este fichero no debe
-  leerse como si les diera cobertura de navegador.
-- **No cubre ningun caso hostil**: no hay negativo que discrimine en esta
-  superficie, y esta medido. Todo el rechazo se mide en la suite sin navegador.
-  Este fichero cubre EXCLUSIVAMENTE que el destino interno legitimo sobrevive
-  al navegador con su query.
+  cabecera y por HTML en la suite sin navegador, NO aqui.
+- Los negativos son `///` y `////`. La backslash y sus codificaciones NO
+  discriminan por esta superficie (Starlette las codifica), y eso esta medido
+  en el fichero de calibracion; su rechazo se mide sobre la cabecera.
 - No prueba nada sobre autorizacion: que el destino sea interno no dice que el
   usuario pueda verlo.
 """
@@ -60,13 +61,21 @@ from typing import Iterator
 
 import pytest
 
-from e2e_support import ViewerServer, start_viewer
+from e2e_support import (
+    DOMINIO_HOSTIL,
+    ViewerServer,
+    navegador_que_resuelve_lo_hostil,
+    salio_del_producto,
+    servidor_trampa,
+    start_viewer,
+)
 
 WORKSPACE = "browser-redir"
 CORRIDA = "job-redir-A"
 
-#: Dominio de ejemplo (RFC 2606). No existe y no se resuelve nunca.
-HOSTIL = "evil.example"
+#: Dominio de ejemplo (RFC 2606). Solo resuelve dentro de este laboratorio,
+#: y a la trampa: ver `e2e_support.servidor_trampa`.
+HOSTIL = DOMINIO_HOSTIL
 
 _ALMACEN_SEMBRADO: dict[str, str] = {}
 
@@ -146,58 +155,65 @@ def _el_almacen_sembrado_manda(viewer_redir, monkeypatch):
 def _login_con_next(page, viewer: ViewerServer, next_valor: str):
     """Login por el formulario real, con `next` CODIFICADO en la query.
 
-    Se codifica a proposito: `do_login` de `e2e_support` interpola el valor
-    crudo, asi que un destino con `?` y `&` —justo el positivo que hay que
-    defender— se partiria en parametros sueltos y la prueba mediria otra cosa.
-    Codificado, el servidor recibe EXACTAMENTE la cadena que se quiere probar.
+    Se codifica a proposito: interpolar el valor crudo partiria en parametros
+    sueltos un destino con `?` y `&` —justo el positivo que hay que defender— y
+    la prueba mediria otra cosa.
     """
     from urllib.parse import urlencode
 
-    from playwright.sync_api import TimeoutError as PWTimeout
+    from playwright.sync_api import Error as PlaywrightError
 
     page.goto(viewer.url("/login?" + urlencode({"next": next_valor})))
     page.fill("#username", "s9reviewer")
     page.fill("#password", viewer.users["s9reviewer"]["password"])
     page.click("#login-submit")
     try:
-        page.wait_for_load_state("networkidle")
-    except PWTimeout:
-        # Si el navegador se fue a un destino que `_vigilar_salidas` aborta, la
-        # navegacion nunca queda «idle». Eso NO es el fallo que hay que
-        # reportar: el fallo es la fuga, y lo dice el `assert` del caso con su
-        # causa. Tragarse el timeout aqui evita que un rojo legitimo llegue
-        # disfrazado de «timeout esperando la red», que se lee igual que un
-        # rojo sin causa.
+        page.wait_for_load_state("networkidle", timeout=10000)
+    except PlaywrightError:
+        # Que la navegacion no llegue a estabilizarse NO es el resultado: el
+        # resultado lo dicen la trampa y `page.url`, que ya estan observados.
         pass
     return page
 
 
-def _vigilar_salidas(page, viewer: ViewerServer) -> list:
-    """Aborta y anota toda peticion que no vaya al propio visor."""
-    fugas: list = []
+@pytest.fixture()
+def trampa():
+    with servidor_trampa() as (servidor, puerto):
+        yield servidor, puerto
 
-    def _manejar(route, request):
-        if request.url.startswith(viewer.base_url):
-            route.continue_()
-        else:
-            fugas.append(request.url)
-            route.abort()
 
-    page.route("**/*", _manejar)
-    return fugas
+@pytest.fixture()
+def pagina_con_trampa(trampa):
+    """Chromium propio con `evil.example` resolviendo a la trampa.
+
+    No sirve la fixture `browser` compartida: hace falta
+    `--host-resolver-rules`, que es lo que impide que el arnes quede ciego.
+    """
+    from playwright.sync_api import sync_playwright
+
+    _servidor, puerto = trampa
+    with sync_playwright() as p:
+        navegador = navegador_que_resuelve_lo_hostil(p, puerto)
+        try:
+            contexto = navegador.new_context()
+            yield contexto.new_page()
+        finally:
+            navegador.close()
 
 
 # ---------------------------------------------------------------------------
 # POSITIVO
 # ---------------------------------------------------------------------------
 
-def test_navegador_vuelve_a_la_consola_filtrada(page, viewer_redir):
+def test_navegador_vuelve_a_la_consola_filtrada(pagina_con_trampa, viewer_redir,
+                                                trampa):
     """Login con `next` = consola filtrada -> el navegador aterriza AHI."""
     destino = f"/v3/review?workspace={WORKSPACE}&job_id={CORRIDA}"
-    fugas = _vigilar_salidas(page, viewer_redir)
-    _login_con_next(page, viewer_redir, destino)
+    servidor, _ = trampa
+    page = _login_con_next(pagina_con_trampa, viewer_redir, destino)
 
-    assert not fugas, f"la sesion de laboratorio salio del visor: {fugas}"
+    salio, evidencia = salio_del_producto(page, servidor)
+    assert not salio, f"la sesion de laboratorio salio del visor: {evidencia!r}"
     assert page.url == viewer_redir.url(destino), (
         f"EL DESTINO INTERNO NO SOBREVIVIO AL NAVEGADOR: tras el login la URL "
         f"efectiva es {page.url!r} y se esperaba {viewer_redir.url(destino)!r}. "
@@ -206,11 +222,6 @@ def test_navegador_vuelve_a_la_consola_filtrada(page, viewer_redir):
         f"contexto en cada caducidad de sesion."
     )
     page.wait_for_selector("form.v3r-filters")
-    # `[data-review-item]`, que es como la consola `/v3/review` marca cada
-    # ficha. Un selector inventado cuenta 0 y da un rojo cuyo mensaje culpa al
-    # filtro: rojo por la razon equivocada. MEDIDO en CI: con
-    # `[data-proposal-id]` —que existe, pero en las plantillas del CHASIS, no
-    # en esta— este caso fallaba con «0 fichas» estando el producto bien.
     fichas = page.locator("[data-review-item]").count()
     assert fichas == 2, (
         f"la consola filtrada cargo pero muestra {fichas} fichas y el "
@@ -220,24 +231,29 @@ def test_navegador_vuelve_a_la_consola_filtrada(page, viewer_redir):
 
 
 # ---------------------------------------------------------------------------
-# NEGATIVOS: AQUI NO, Y NO PORQUE NO HAGAN FALTA
+# NEGATIVOS. Existen, discriminan, y estan calibrados en
+# `test_browser_next_calibracion.py` —que ademas comprueba que el arnes no
+# esta ciego antes de que ningun «no salio» de aqui signifique algo—.
 # ---------------------------------------------------------------------------
-#
-# Este fichero tuvo cuatro negativos de navegador y eran testigos VACUOS: con
-# la defensa retirada seguian verdes. Se comprobo caso a caso en
-# `test_browser_next_calibracion.py`, que retira la defensa de verdad —y lo
-# DEMUESTRA leyendo la cabecera con socket crudo antes de mirar al navegador—.
-#
-# Pero la conclusion que se saco entonces —«no hay negativo posible»— era
-# falsa, y apoyarse en ella era el «hoy este navegador no lo explota» que el
-# propio modulo denuncia. `Location: ///evil.example/x` SI saca del sitio a un
-# cliente real: `curl -L` acaba en `http://evil.example/x`. Chromium no lo
-# reproduce porque usa GURL, que no es conforme a WHATWG en todos los bordes.
-#
-# El negativo existe, discrimina y esta calibrado en las dos direcciones; lo
-# que pasa es que NO NECESITA NAVEGADOR y por eso no vive aqui:
-#
-#     viewer/tests/test_next_url_redireccion_seguida.py
-#
-# Lo que este fichero aporta de forma unica es el POSITIVO: que el destino
-# interno legitimo y su query sobreviven al viaje de un navegador real.
+
+@pytest.mark.parametrize("etiqueta,hostil", [
+    ("tres barras", f"///{HOSTIL}/x"),
+    ("cuatro barras", f"////{HOSTIL}/x"),
+], ids=["tres barras", "cuatro barras"])
+def test_navegador_no_sale_del_producto(pagina_con_trampa, viewer_redir, trampa,
+                                        etiqueta, hostil):
+    servidor, _ = trampa
+    page = _login_con_next(pagina_con_trampa, viewer_redir, hostil)
+
+    salio, evidencia = salio_del_producto(page, servidor)
+    assert not salio, (
+        f"REDIRECCION ABIERTA CONFIRMADA POR EL NAVEGADOR: con next={hostil!r} "
+        f"[{etiqueta}] Chromium acabo FUERA del producto. Evidencia: "
+        f"{evidencia!r}. Da igual que `_safe_next()` considerase esa cadena una "
+        f"ruta interna: quien interpreta `Location` es el navegador, y salta "
+        f"todas las barras iniciales al entrar en la autoridad."
+    )
+    assert page.url.startswith(viewer_redir.base_url), (
+        f"[{etiqueta}] la URL efectiva tras el login es {page.url!r}, que no "
+        f"pertenece al origen del producto ({viewer_redir.base_url!r})."
+    )
