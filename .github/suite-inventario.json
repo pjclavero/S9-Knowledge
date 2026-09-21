@@ -60,7 +60,6 @@
     "data-engine/app/tests/test_knowledge_v3_tanda3_integracion_neo4j_real.py": "CONDICIONAL",
     "data-engine/app/tests/test_knowledge_v3_tanda4_integracion_neo4j_real.py": "CONDICIONAL",
     "data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py": "CONDICIONAL",
-    "data-engine/app/tests/test_signo_de_negacion_writer_a_visor_neo4j.py": "CONDICIONAL",
     "deploy/tests/test_resolve_release_commit.py": "CONDICIONAL",
     "tests/wave2b/test_external_nvidia_live.py": "CONDICIONAL",
     "tests/wave2b/test_local_llm_ollama_live.py": "CONDICIONAL",
@@ -69,7 +68,8 @@
     "viewer/tests/test_integracion_tanda11_recorrido_completo.py": "CONDICIONAL",
     "viewer/tests/test_multipartida_divergencia_local_neo4j.py": "CONDICIONAL",
     "viewer/tests/test_neo4j_integration_authz.py": "CONDICIONAL",
-    "viewer/tests/test_resultado_procedencia_neo4j_real.py": "CONDICIONAL"
+    "viewer/tests/test_resultado_procedencia_neo4j_real.py": "CONDICIONAL",
+    "viewer/tests/test_signo_de_negacion_writer_a_visor_neo4j.py": "CONDICIONAL"
   },
   "condiciones": {
     "data-engine/app/tests/test_equipo5a_partida_y_esquema_neo4j_real.py": "not LIVE",
@@ -87,7 +87,6 @@
     "data-engine/app/tests/test_knowledge_v3_tanda3_integracion_neo4j_real.py": "not LIVE",
     "data-engine/app/tests/test_knowledge_v3_tanda4_integracion_neo4j_real.py": "not LIVE",
     "data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py": "not LIVE",
-    "data-engine/app/tests/test_signo_de_negacion_writer_a_visor_neo4j.py": "not LIVE",
     "deploy/tests/test_resolve_release_commit.py": "shutil.which('git') is None",
     "tests/wave2b/test_external_nvidia_live.py": "not (_LIVE and _ENABLED and _KEY)",
     "tests/wave2b/test_local_llm_ollama_live.py": "not (_LIVE and _endpoint_reachable(_ENDPOINT))",
@@ -96,7 +95,8 @@
     "viewer/tests/test_integracion_tanda11_recorrido_completo.py": "not URI or not PASSWORD",
     "viewer/tests/test_multipartida_divergencia_local_neo4j.py": "not URI or not PASSWORD",
     "viewer/tests/test_neo4j_integration_authz.py": "not URI or not PASSWORD",
-    "viewer/tests/test_resultado_procedencia_neo4j_real.py": "not URI or not PASSWORD"
+    "viewer/tests/test_resultado_procedencia_neo4j_real.py": "not URI or not PASSWORD",
+    "viewer/tests/test_signo_de_negacion_writer_a_visor_neo4j.py": "not URI or not PASSWORD"
   },
   "en_pie": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 77,
@@ -398,6 +398,7 @@
     "viewer/tests/test_schema_compat_refuse_to_start.py": 16,
     "viewer/tests/test_scope_probe_is_not_evaluated_as_content.py": 6,
     "viewer/tests/test_serializers.py": 8,
+    "viewer/tests/test_signo_de_negacion_writer_a_visor_neo4j.py": 6,
     "viewer/tests/test_t1_party_t2_revelacion.py": 15,
     "viewer/tests/test_v3_decision_controles.py": 3,
     "viewer/tests/test_v3_decision_efectiva.py": 10,
@@ -433,7 +434,6 @@
     "data-engine/app/tests/test_knowledge_v3_tanda3_integracion_neo4j_real.py",
     "data-engine/app/tests/test_knowledge_v3_tanda4_integracion_neo4j_real.py",
     "data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py",
-    "data-engine/app/tests/test_signo_de_negacion_writer_a_visor_neo4j.py",
     "viewer/tests/browser/test_browser_accessibility.py",
     "viewer/tests/browser/test_browser_auth_flows.py",
     "viewer/tests/browser/test_browser_backend_down.py",
@@ -447,7 +447,7 @@
     "viewer/tests/test_graph_ux_v2.py",
     "viewer/tests/test_panel_apply_desde_la_ui.py"
   ],
-  "total": 8948,
+  "total": 8954,
   "modulos": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 526,
     "contracts/review-ingest/v1/tests/test_contracts_v1.py": 38,
@@ -744,6 +744,7 @@
     "viewer/tests/test_schema_compat_refuse_to_start.py": 16,
     "viewer/tests/test_scope_probe_is_not_evaluated_as_content.py": 9,
     "viewer/tests/test_serializers.py": 8,
+    "viewer/tests/test_signo_de_negacion_writer_a_visor_neo4j.py": 6,
     "viewer/tests/test_t1_party_t2_revelacion.py": 29,
     "viewer/tests/test_v3_decision_controles.py": 3,
     "viewer/tests/test_v3_decision_efectiva.py": 11,

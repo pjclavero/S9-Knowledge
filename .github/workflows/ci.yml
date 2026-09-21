@@ -382,12 +382,26 @@ jobs:
           # esta linea saldria SKIPPED en `test-viewer` con rc=0 y el job verde,
           # y entonces la unica evidencia sobre Neo4j real seria un skip -- que
           # es, literalmente, ninguna.
+          # El SEPTIMO es el SIGNO de un hecho (`negated`, Corte 5). Va aqui por
+          # una razon MEDIDA, no por simetria: estuvo en `data-engine/app/tests`
+          # y el job `Data Engine Tests` lo tumbo con
+          # `ModuleNotFoundError: No module named 'pydantic_settings'`, porque
+          # ese job instala `data-engine/requirements.txt` y NO el del visor.
+          # Cinco de sus seis casos importan `app.*`; el sexto no, y pasaba --
+          # o sea que la mitad verde disimulaba la mitad rota.
+          #
+          # Este paso es el UNICO que tiene a la vez las dos cosas que hacen
+          # falta: dependencias del visor Y Neo4j efimero. Fuera de esta linea
+          # saldria SKIPPED en `test-viewer` con rc=0 y el job verde, y el
+          # unico sitio donde se observa que el signo SOBREVIVE al viaje
+          # (writer real -> grafo -> proveedor -> lector) seria un skip.
           out="$(python -m pytest viewer/tests/test_neo4j_integration_authz.py \
                                   viewer/tests/test_contrato_paneles_neo4j.py \
                                   viewer/tests/test_contrato_writer_a_visor_neo4j.py \
                                   viewer/tests/test_integracion_tanda11_recorrido_completo.py \
                                   viewer/tests/test_resultado_procedencia_neo4j_real.py \
                                   viewer/tests/test_multipartida_divergencia_local_neo4j.py \
+                                  viewer/tests/test_signo_de_negacion_writer_a_visor_neo4j.py \
                                   -v --no-header 2>&1)"
           rc=$?
           set -e
