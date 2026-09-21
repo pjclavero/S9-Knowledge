@@ -17,12 +17,19 @@ percent-encodea la backslash, el navegador recibe `/%5Cevil.example/x` y no hay
 ninguna backslash que normalizar. Esa normalizacion es real en otros contextos
 —un `href` crudo, por ejemplo—, pero no en este.
 
-Y al medirlo aparecio algo mas: por la cabecera `Location` **ninguna** de las
-representaciones hostiles saca a Chromium del producto, ni siquiera
-`///evil.example/x`. Por eso este fichero se quedo SIN NEGATIVOS —ver el bloque
-del final— y solo conserva el positivo, que si discrimina. La medicion, caso a
-caso y con la defensa retirada de verdad, esta en
-`test_browser_next_calibracion.py`.
+Y al medirlo aparecio algo mas: por la cabecera `Location` ninguna de las
+representaciones hostiles saca a CHROMIUM del producto, ni siquiera
+`///evil.example/x`. Ojo con la lectura, porque la ronda anterior la hizo mal:
+eso NO significa que el caso no escape. Un cliente real (`curl -L`) y un parser
+WHATWG (`new URL`) SI se van a `http://evil.example/x` con esa misma cabecera;
+Chromium es el outlier. El negativo que discrimina vive por tanto fuera del
+navegador, en `viewer/tests/test_next_url_redireccion_seguida.py`.
+
+Este fichero conserva solo el POSITIVO —que si discrimina y es lo unico que un
+navegador aporta aqui de forma unica: que el destino interno y su query
+sobreviven al viaje real—. La medicion caso a caso de chromium, con la defensa
+retirada de verdad, esta en `test_browser_next_calibracion.py`, con su alcance
+declarado: «chromium, por esta cabecera, hoy».
 
 COMO SE OBSERVA LA FUGA SIN TOCAR LA RED
 ----------------------------------------
@@ -213,23 +220,24 @@ def test_navegador_vuelve_a_la_consola_filtrada(page, viewer_redir):
 
 
 # ---------------------------------------------------------------------------
-# NEGATIVOS: NO HAY, Y ESO ESTA MEDIDO
+# NEGATIVOS: AQUI NO, Y NO PORQUE NO HAGAN FALTA
 # ---------------------------------------------------------------------------
 #
-# Este fichero tuvo cuatro negativos de navegador. Eran testigos VACUOS: con la
-# defensa retirada seguian verdes, asi que no guardaban nada. Se comprobo caso
-# a caso en `test_browser_next_calibracion.py`, que retira la defensa de
-# verdad —y lo DEMUESTRA leyendo la cabecera con socket crudo antes de mirar al
-# navegador— y mide a donde va Chromium: con ninguna de las seis
-# representaciones sale del producto.
+# Este fichero tuvo cuatro negativos de navegador y eran testigos VACUOS: con
+# la defensa retirada seguian verdes. Se comprobo caso a caso en
+# `test_browser_next_calibracion.py`, que retira la defensa de verdad —y lo
+# DEMUESTRA leyendo la cabecera con socket crudo antes de mirar al navegador—.
 #
-# La razon es que resolver un `Location` no es construir una URL: por esta via
-# Chromium deja `///evil.example/x` dentro del origen, y la backslash ni
-# siquiera llega al navegador porque Starlette la percent-encodea.
+# Pero la conclusion que se saco entonces —«no hay negativo posible»— era
+# falsa, y apoyarse en ella era el «hoy este navegador no lo explota» que el
+# propio modulo denuncia. `Location: ///evil.example/x` SI saca del sitio a un
+# cliente real: `curl -L` acaba en `http://evil.example/x`. Chromium no lo
+# reproduce porque usa GURL, que no es conforme a WHATWG en todos los bordes.
 #
-# De modo que aqui no hay negativo que poner. Poner uno seria exhibir un verde
-# que no prueba nada. El defecto se mide donde SI discrimina —la cabecera, en
-# `viewer/tests/test_next_url_open_redirect.py`, 84 rojos al retirar la
-# defensa— y la vacuidad de esta superficie queda como trinquete en el fichero
-# de calibracion, que se pondra rojo el dia que alguna de estas cadenas SI
-# saque a un navegador del sitio.
+# El negativo existe, discrimina y esta calibrado en las dos direcciones; lo
+# que pasa es que NO NECESITA NAVEGADOR y por eso no vive aqui:
+#
+#     viewer/tests/test_next_url_redireccion_seguida.py
+#
+# Lo que este fichero aporta de forma unica es el POSITIVO: que el destino
+# interno legitimo y su query sobreviven al viaje de un navegador real.

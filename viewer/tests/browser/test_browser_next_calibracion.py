@@ -25,24 +25,44 @@ sale del producto con ninguna de las seis representaciones**:
     /\evil.example/x       /\\evil.example/x
     /%5Cevil.example/x     /%2F%2Fevil.example/x
 
-Dos lecturas, ambas utiles:
+CHROMIUM ES UN OUTLIER, NO LA REGLA. ESTO SE MIDIO DESPUES Y CORRIGE
+LA CONCLUSION QUE ESTE FICHERO SACABA ANTES
+---------------------------------------------------------------------
+La primera version de este docstring concluia que «resolver un `Location` no es
+lo mismo que construir una URL», y lo apoyaba en que `urljoin` y `httpx` dejan
+`///evil.example/x` dentro del origen. **Esa corroboracion era de la familia
+equivocada y la conclusion, falsa.**
 
-1. Resolver un `Location` NO es lo mismo que construir una URL. `urljoin` y
-   `httpx` tambien dejan `///evil.example/x` dentro del origen, y Chromium
-   coincide con ellos por esta via. La normalizacion de la backslash, ademas,
-   no llega a plantearse: Starlette PERCENT-ENCODEA la backslash y el navegador
-   nunca ve una que normalizar.
-2. Por tanto **no existe un negativo de navegador para este defecto**, y
-   `test_browser_next_open_redirect.py` NO TIENE NEGATIVOS: los cuatro que tuvo
-   eran testigos vacuos —verdes pasara lo que pasara— y se han retirado en vez
-   de maquillarse. Donde el defecto SI se mide y SI discrimina es en la
-   cabecera, en `viewer/tests/test_next_url_open_redirect.py`, cuyo control
-   sensible se pone rojo 84 veces al retirar la defensa.
+`urljoin` y `httpx` implementan **RFC 3986**. Los navegadores implementan
+**WHATWG**, y el Fetch Standard resuelve `Location` con ESE parser. Los dos
+estandares difieren *exactamente* en `///`. Medido, con el mismo servidor y la
+misma defensa retirada:
 
-Que Chromium no salga no absuelve al validador: el `Location` seguia llevando
-una referencia fuera del sitio, hay clientes HTTP que la resuelven asi —el
-propio httpx se NIEGA a parsear `////…`—, y la propiedad que se defiende es
-sobre la representacion, no sobre un motor concreto.
+    curl -L  (cliente real que sigue la redireccion)  -> http://evil.example/x
+                             rc=6, «Could not resolve host: evil.example»
+    Node `new URL(loc, base)`  (parser WHATWG)        -> http://evil.example/x
+    urljoin / httpx            (RFC 3986)             -> se quedan dentro
+
+Asi que `Location: ///evil.example/x` **SI saca del sitio** a clientes reales y
+a implementaciones conformes del estandar que siguen los navegadores. Lo que no
+lo reproduce es Chromium por esta cabecera —usa GURL, que no es conforme a
+WHATWG en todos los bordes—, y eso es un dato sobre un MOTOR, no sobre la
+propiedad.
+
+Bajo WHATWG, ademas, `/\evil.example/x` **crudo tambien sale**. Lo que lo
+neutraliza aqui es unicamente que Starlette lo percent-encodea: el cliente
+nunca ve la backslash. Lo salva el transporte, no el validador.
+
+QUE SE SIGUE DE ESTO PARA LAS PRUEBAS
+--------------------------------------
+- Los cuatro negativos que tuvo `test_browser_next_open_redirect.py` eran
+  vacuos **para chromium**, y por eso se retiraron de ahi.
+- El negativo de verdad vive en
+  `viewer/tests/test_next_url_redireccion_seguida.py`: curl siguiendo la
+  redireccion, que SI se pone rojo al retirar la defensa y acaba en
+  `http://evil.example/x`.
+- Este fichero NO sustituye a aquel negativo y no debe leerse como tal. Es un
+  trinquete de alcance estrecho: «chromium, por esta cabecera, hoy».
 
 TECHO DECLARADO
 ---------------
@@ -50,8 +70,12 @@ TECHO DECLARADO
   de la misma cadena en un `href`, un `<meta refresh>` o un `location.assign`,
   donde la normalizacion de la backslash SI ocurre.
 - Mide `POST /login`. No cubre `/partida/select` ni `GET /login`.
-- No prueba la defensa: prueba que las pruebas de navegador de la defensa NO
-  podrian ponerse rojas, que es justo por lo que no existen.
+- No prueba la defensa, y NO ES el negativo del microcarril: registra que un
+  motor concreto no reproduce el escape. El negativo que discrimina es
+  `viewer/tests/test_next_url_redireccion_seguida.py`.
+- Su alcance es «chromium, por esta cabecera, hoy». Apoyar en el la ausencia de
+  negativos seria el «hoy este navegador no lo explota» que el propio modulo
+  denuncia; por eso ya no se apoya nada en el.
 """
 from __future__ import annotations
 

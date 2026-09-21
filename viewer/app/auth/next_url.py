@@ -16,23 +16,41 @@ del atacante llegaba entero a una cabecera de redirección. La causa es que
 ``path='/evil.example/x'`` — **se come dos barras** y presenta como interna una
 cadena que no lo es.
 
-Lo que NO es el defecto, y se afirmó erróneamente dos veces antes de medirlo:
+**Y SÍ ES UNA REDIRECCIÓN ABIERTA DE VERDAD.** Medido con la defensa retirada,
+con el servidor emitiendo ``Location: ///evil.example/x`` intacto:
 
-- **No** es que Chrome normalice ``\`` a ``/`` en esta cabecera. Starlette
-  percent-encodea la backslash, así que el navegador recibe ``/%5Cevil…`` y no
-  hay ninguna backslash que normalizar. Esa normalización existe, pero en otros
-  contextos (un ``href`` crudo, un ``location.assign``), no aquí.
-- **Tampoco** es que ``///…`` saque a Chromium del sitio por esta vía. Se midió
-  con la defensa retirada y no lo hace; ``urljoin`` y ``httpx`` coinciden con
-  él. La medición está en
-  ``viewer/tests/browser/test_browser_next_calibracion.py``.
+    curl -L  (cliente real siguiendo la redirección)  -> http://evil.example/x
+                          rc=6, «Could not resolve host: evil.example»
+    Node ``new URL(loc, base)``  (parser WHATWG)      -> http://evil.example/x
 
-Entonces, ¿por qué se cierra? Porque la propiedad que este módulo defiende es
-sobre la **representación**, no sobre el comportamiento de un motor en una
-versión: el valor del atacante no debe llegar a una cabecera de redirección
-bajo ninguna forma, hay clientes HTTP que se niegan incluso a parsear la
-cabecera resultante de ``////…``, y la misma cadena SÍ cambia de significado en
-los contextos donde la normalización ocurre. Apoyar una defensa en «hoy este
+Un cliente HTTP real **se va del producto**. WHATWG —el estándar que
+implementan los navegadores— salta todas las barras iniciales al entrar en la
+autoridad, y ``Location`` se resuelve con ese mismo parser (Fetch Standard).
+Reproducido en ``viewer/tests/test_next_url_redireccion_seguida.py``, cuyo
+negativo se pone rojo al retirar la defensa.
+
+Bajo WHATWG, ``/\evil.example/x`` **crudo también sale**
+(``new URL("/\evil.example/x", base)`` da ``http://evil.example/x``). Lo que lo
+neutraliza en ESTA ruta es únicamente que Starlette lo percent-encodea: el
+cliente nunca llega a ver la backslash. Es el transporte quien lo salva, no el
+validador — razón de más para que el validador la rechace.
+
+PRECISIONES SOBRE LO QUE SE DIJO MAL EN RONDAS ANTERIORES
+----------------------------------------------------------
+- **No** es que Chrome normalice ``\`` a ``/`` en esta cabecera: Starlette la
+  codifica antes. Esa normalización es real, pero en otros contextos (un
+  ``href`` crudo, un ``location.assign``), no aquí.
+- **Chromium no reproduce el escape** de ``///…`` por esta cabecera; se midió
+  (``tests/browser/test_browser_next_calibracion.py``). Eso es un **outlier de
+  motor** —Chromium usa GURL, que no es conforme a WHATWG en todos los
+  bordes—, **no** una propiedad de «resolver un ``Location``».
+- La ronda anterior citó ``urljoin`` y ``httpx`` como si corroborasen a
+  Chromium. **No corroboran nada de esto**: implementan **RFC 3986**, y los dos
+  estándares difieren *exactamente* en ``///``. Usarlos para una pregunta de
+  navegador es medir con el instrumento de la familia equivocada.
+
+Por eso la propiedad que este módulo defiende es sobre la **representación**, y
+no sobre el comportamiento de un motor en una versión. Apoyar una defensa en «hoy este
 navegador no lo explota» es exactamente el razonamiento que produjo el defecto.
 
 CRITERIO: POR COMPONENTES, NO POR LISTA DE CADENAS

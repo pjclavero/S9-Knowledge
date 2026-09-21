@@ -268,19 +268,22 @@ def test_get_login_no_reinyecta_el_destino_hostil(entorno, etiqueta, valor):
     assert m, f"[{etiqueta}] el formulario de login perdió su campo `next`"
     import html as _html
     renderizado = _html.unescape(m.group(1))
-    # Comparación EXACTA contra el destino por defecto, no «ausencia del
-    # dominio». Comprobar sólo la ausencia deja pasar cualquier otra cosa que
-    # no sea `/`, y apoyarse en «Jinja ya escapa» es apoyarse en el escapado
-    # para una propiedad que no es de escapado sino de validación. El positivo
-    # de dos funciones más abajo ya comparaba exacto; esto lo iguala.
-    assert renderizado == "/", (
-        f"TRANSPORTE HOSTIL en GET /login: con next={valor!r} el formulario "
-        f"renderiza value={renderizado!r} en vez del destino interno por "
-        f"defecto '/', con lo que el valor del atacante vuelve a viajar en el "
-        f"siguiente POST. Causa: [{etiqueta}]."
-    )
+    # ORDEN DELIBERADO: primero la comprobación DÉBIL (¿llegó el dominio del
+    # atacante?) y después la FUERTE (¿es exactamente el destino por defecto?).
+    # Al revés, la débil no podría fallar nunca por su cuenta —la fuerte la
+    # implica— y seria un testigo inerte: un `assert` que se lee como cobertura
+    # sin poder aportar un solo rojo propio. Así, cada una puede enrojecer sola
+    # y cada rojo dice una cosa distinta.
     assert HOSTIL not in renderizado, (
-        f"[{etiqueta}] el dominio externo sigue presente: {renderizado!r}"
+        f"TRANSPORTE HOSTIL en GET /login: con next={valor!r} el formulario "
+        f"renderiza value={renderizado!r}, que reintroduce el dominio externo "
+        f"en el siguiente POST. Causa: [{etiqueta}]."
+    )
+    assert renderizado == "/", (
+        f"DESTINO NO SANEADO en GET /login: con next={valor!r} el formulario "
+        f"renderiza value={renderizado!r} en vez del destino interno por "
+        f"defecto '/'. No lleva el dominio del atacante, pero tampoco es lo "
+        f"que el validador debía dejar. Causa: [{etiqueta}]."
     )
 
 
