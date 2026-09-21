@@ -14,7 +14,7 @@ from app.auth.csrf import get_csrf_token_for_session, validate_csrf
 from app.auth.dependencies import require_admin
 from app.auth.models import ROLES, User
 from app.auth.passwords import hash_password, validate_password
-from app.authz import existencia
+from app.authz import autoridad_workspace, existencia
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -404,6 +404,11 @@ async def admin_partidas(
     db_path = _get_db_path()
     auth_db.ensure_migrated(db_path)
     ws = existencia.workspace_canonico()
+    # CORTE F-2: la divergencia entre las DOS autoridades efectivas se detecta
+    # AQUI, al pintar, y no solo en el preflight de despliegue —que un arranque
+    # cualquiera no ejecuta—. Sin esto el operador ve un campo de solo lectura
+    # con un workspace, teclea el otro y recibe un 400 sin ninguna explicacion.
+    divergencia = autoridad_workspace.resolver()
     with auth_db.get_conn(db_path) as conn:
         users = auth_db.list_users(conn)
         access = auth_db.list_partida_access(conn)
@@ -421,6 +426,13 @@ async def admin_partidas(
             "users": users,
             "access": access,
             "workspace_canonico": ws,
+            "autoridad_workspace": {
+                "codigo": divergencia.codigo,
+                "diagnostico": divergencia.diagnostico(),
+                "procedencia": divergencia.procedencia,
+                "declarado_por_perfil": divergencia.declarado_por_perfil,
+                "diverge": divergencia.diverge,
+            },
             "partidas_conocidas": partidas_conocidas,
             "admin": admin,
             "csrf_token": _get_csrf(request, session.id if session else 0),
@@ -464,13 +476,25 @@ async def admin_partidas_grant(
     # el workspace REAL. El formulario ya no pide el ambito, pero la guarda vive
     # AQUI: un POST directo sin pasar por la pantalla se rechaza igual.
     if not existencia.es_workspace_canonico(workspace):
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Ese workspace no existe en este despliegue. Las concesiones "
-                "solo pueden crearse en el workspace efectivo."
-            ),
+        # CORTE F-2 — LA CAUSA, NO SOLO EL PORTAZO. Con los valores de fabrica
+        # este 400 lo recibia precisamente quien teclea el workspace DONDE ESTA
+        # EL CONOCIMIENTO, porque el perfil de la boveda y el entorno declaran
+        # cosas distintas. El rechazo sigue siendo el mismo (fail-closed, y la
+        # unidad de control del Corte 1 no se toca): lo que cambia es que ahora
+        # dice POR QUE, con un CODIGO traducible.
+        #
+        # NO SE FABRICA CAUSALIDAD: solo se nombra la divergencia cuando el
+        # workspace rechazado es EXACTAMENTE el que declara el perfil. En
+        # cualquier otro caso —un nombre inventado, una errata— este codigo no
+        # sabe por que se tecleo eso y no lo inventa.
+        resuelta = autoridad_workspace.resolver()
+        detalle = (
+            "Ese workspace no existe en este despliegue. Las concesiones "
+            "solo pueden crearse en el workspace efectivo."
         )
+        if resuelta.diverge and workspace == resuelta.declarado_por_perfil:
+            detalle = f"{detalle} {resuelta.diagnostico()}"
+        raise HTTPException(status_code=400, detail=detalle)
 
     tope = (max_visible_session or "").strip()
     if tope:

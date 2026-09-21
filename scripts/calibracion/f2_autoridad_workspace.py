@@ -1,0 +1,281 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Calibración del Corte F-2 — autoridad canónica del workspace.
+
+QUÉ ES ESTO
+-----------
+Cada garantía de F-2 se revierte DENTRO DEL PRODUCTO, se corre la prueba que
+debería protegerla y se exige que se ponga roja **por su causa**: se comprueba
+el MENSAJE del fallo, no el color. Un rojo con un valor pelado
+(`assert 'a' == 'b'`) se lee exactamente igual que un rojo sin causa.
+
+LA MUTACIÓN QUE EL ENCARGO PIDE POR SU NOMBRE
+---------------------------------------------
+«Quitar la comparación del perfil → el gate debe ponerse ROJO» es la mutación 1
+(en el resolvedor) y la mutación 4 (en el preflight de despliegue). Las demás
+cubren los otros cuatro negativos y el SIMÉTRICO.
+
+EL ARNÉS SE CALIBRA A SÍ MISMO, y por dos vías
+----------------------------------------------
+1. **Criterio**: antes de mutar nada comprueba que cada `esperado` es PROSA y
+   no un identificador que pytest imprima solo al comparar. Un criterio que
+   admite identificadores no distingue un rojo mudo de uno con causa.
+2. **Control nulo**: la mutación 0 cambia un COMENTARIO —no puede alterar el
+   comportamiento— y tiene que dejar la suite VERDE. Si esa sale roja, el
+   instrumento está roto o el árbol contaminado, y NINGÚN rojo de la tabla
+   significa nada. Es el control positivo de resultado conocido que toda tabla
+   que mide ausencias tiene que llevar dentro.
+
+USO
+---
+    python3 scripts/calibracion/f2_autoridad_workspace.py
+
+Requiere árbol limpio: las mutaciones se revierten con `git checkout --`, que
+se lleva por delante cualquier cambio sin commitear del fichero mutado.
+"""
+from __future__ import annotations
+
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[2]
+
+RESOLVEDOR = "viewer/app/authz/autoridad_workspace.py"
+PREFLIGHT = "deploy/scripts/preflight_ensayo_rc.py"
+PLANTILLA = "viewer/app/templates/auth/admin/partidas.html"
+
+SUITE = "viewer/tests/test_f2_autoridad_canonica_workspace.py"
+SUITE_PREFLIGHT = "deploy/tests/test_preflight_ensayo_rc.py"
+SUITE_PANTALLA = "viewer/tests/test_f2_divergencia_visible_desde_el_producto.py"
+
+
+@dataclass(frozen=True)
+class Mutacion:
+    nombre: str
+    fichero: str
+    viejo: str
+    nuevo: str
+    prueba: str
+    #: Frase que TIENE que aparecer en el fallo. Para el control nulo, `None`:
+    #: ahí lo que se exige es que la prueba siga VERDE.
+    esperado: str | None
+
+
+CONTROL_NULO = Mutacion(
+    nombre="CONTROL NULO — tocar un comentario no puede cambiar nada",
+    fichero=RESOLVEDOR,
+    viejo="# --- Procedencias ---",
+    nuevo="# --- Procedencias (comentario tocado por el calibrador) ---",
+    prueba=SUITE,
+    esperado=None,
+)
+
+
+MUTACIONES: list[Mutacion] = [
+    Mutacion(
+        nombre="1 · se QUITA la comparación del perfil: el resolvedor deja de "
+               "mirarlo y el entorno vuelve a ser la autoridad",
+        fichero=RESOLVEDOR,
+        viejo="        del_perfil = declaraciones_de_perfil(env, catalogo)",
+        nuevo="        del_perfil = []",
+        prueba=f"{SUITE}::test_n5_el_resultado_depende_de_la_declaracion_del_perfil",
+        esperado="el perfil no se esta comparando",
+    ),
+    Mutacion(
+        nombre="2 · la divergencia deja de fallar cerrada: con las dos "
+               "autoridades discrepando se elige la del entorno",
+        fichero=RESOLVEDOR,
+        viejo="            return Autoridad(\n                valor=\"\",\n"
+              "                procedencia=PROCEDENCIA_NINGUNA,\n"
+              "                codigo=COD_DIVERGENTE,",
+        nuevo="            return Autoridad(\n                valor=del_entorno,\n"
+              "                procedencia=PROCEDENCIA_NINGUNA,\n"
+              "                codigo=COD_DIVERGENTE,",
+        prueba=f"{SUITE}::test_n2_divergencia_no_resuelve_y_nombra_las_dos_declaraciones",
+        esperado="eso es escoger en silencio",
+    ),
+    Mutacion(
+        nombre="3 · el fallback del entorno se sella como si fuera una "
+               "declaración del perfil: la procedencia deja de distinguir",
+        fichero=RESOLVEDOR,
+        viejo="            valor=del_entorno,\n            procedencia=PROCEDENCIA_FALLBACK,",
+        nuevo="            valor=del_entorno,\n            procedencia=PROCEDENCIA_PERFIL,",
+        prueba=f"{SUITE}::test_n3_el_fallback_solo_se_usa_cuando_NO_hay_perfil_y_se_sella",
+        esperado="no podria distinguir una declaracion de una herencia",
+    ),
+    Mutacion(
+        nombre="4 · se QUITA la comparación del perfil en el PREFLIGHT: vuelve "
+               "a comparar tres declaraciones y da por buena la cuarta",
+        fichero=PREFLIGHT,
+        viejo="        declaradas = autoridad.declaraciones_de_perfil(dict(ctx.env), catalogo)",
+        nuevo="        declaradas = [ctx.workspace]",
+        prueba=f"{SUITE_PREFLIGHT}::test_f2_el_preflight_no_re_deriva_la_lectura_del_perfil",
+        esperado="ya no pregunta al resolvedor canonico del producto",
+    ),
+    Mutacion(
+        nombre="5 · la pantalla deja de avisar: el operador vuelve a ver un "
+               "workspace y a recibir un 400 sin explicación",
+        fichero=PLANTILLA,
+        viejo='data-testid="aviso-autoridad-workspace"',
+        nuevo='data-testid="aviso-desactivado-por-el-calibrador"',
+        prueba=f"{SUITE_PANTALLA}::test_la_pantalla_de_partidas_avisa_de_la_divergencia",
+        esperado="la pantalla NO avisa de que las dos autoridades",
+    ),
+    Mutacion(
+        nombre="6 · SIMÉTRICO — el gate se pone rojo SIEMPRE, también con una "
+               "configuración legítima: un gate así no guarda, molesta",
+        fichero=RESOLVEDOR,
+        viejo="        if del_entorno and del_entorno != unico:",
+        nuevo="        if True:",
+        prueba=f"{SUITE}::test_simetrico_las_configuraciones_legitimas_resuelven",
+        esperado="configuracion legitima (solo perfil) bloqueada",
+    ),
+]
+
+
+#: Lo que el producto imprime por su cuenta y por tanto NO distingue causa.
+_NO_SON_CAUSA = (
+    "WORKSPACE_AUTHORITY_DIVERGENT", "WORKSPACE_AUTHORITY_PROFILE",
+    "WORKSPACE_AUTHORITY_ENV_FALLBACK", "WORKSPACE_AUTHORITY_UNDETERMINED",
+    "PERFIL_DE_BOVEDA", "FALLBACK_ENTORNO", "SIN_AUTORIDAD",
+    "S9K_DEFAULT_WORKSPACE", "ROJO", "VERDE", "True", "False", "None",
+)
+
+
+def _esperado_es_una_frase(esperado: str) -> str | None:
+    texto = esperado.strip()
+    if len(texto.split()) < 3:
+        return (f"{esperado!r} no es una frase (menos de tres palabras): un "
+                f"identificador lo imprime pytest solo al comparar")
+    for ident in _NO_SON_CAUSA:
+        if texto == ident or texto in ident:
+            return (f"{esperado!r} es un identificador que el producto imprime "
+                    f"por su cuenta; no distingue un rojo mudo de uno con causa")
+    return None
+
+
+def _purgar_pycache() -> None:
+    subprocess.run(
+        ["find", str(REPO), "-name", "__pycache__", "-type", "d",
+         "-prune", "-exec", "rm", "-rf", "{}", "+"],
+        check=False, capture_output=True,
+    )
+
+
+def _arbol_limpio() -> bool:
+    r = subprocess.run(["git", "-C", str(REPO), "status", "--porcelain",
+                        "--untracked-files=no"],
+                       capture_output=True, text=True, check=True)
+    return not r.stdout.strip()
+
+
+def _leer(ruta: str) -> str:
+    return (REPO / ruta).read_text(encoding="utf-8")
+
+
+def _restaurar(ruta: str, original: str) -> None:
+    """Y se verifica POR EFECTO, no porque el comando dijera que lo hizo."""
+    subprocess.run(["git", "-C", str(REPO), "checkout", "--", ruta], check=True)
+    if _leer(ruta) != original:
+        raise SystemExit(
+            f"RESTAURACIÓN FALLIDA en {ruta}: el árbol ha quedado mutado. "
+            f"Revísalo a mano ANTES de seguir.")
+
+
+def _correr(prueba: str) -> tuple[int, str]:
+    r = subprocess.run(
+        [sys.executable, "-m", "pytest", prueba, "-q", "-p", "no:randomly",
+         "--no-header"],
+        cwd=str(REPO), capture_output=True, text=True,
+    )
+    return r.returncode, r.stdout + r.stderr
+
+
+def _aplicar(m: Mutacion) -> tuple[str, str | None]:
+    """Devuelve `(original, error)`. `error` no `None` = no se mutó nada."""
+    original = _leer(m.fichero)
+    if m.viejo not in original:
+        return original, (f"el texto a mutar ya no está en {m.fichero}: esta "
+                          f"mutación no está mutando NADA")
+    (REPO / m.fichero).write_text(
+        original.replace(m.viejo, m.nuevo, 1), encoding="utf-8")
+    return original, None
+
+
+def main() -> int:
+    if not _arbol_limpio():
+        print("ÁRBOL SUCIO. Commitea antes: las mutaciones se revierten con "
+              "`git checkout --` y se llevarían por delante tu trabajo.")
+        return 2
+
+    # AUTOCALIBRACIÓN 1 — el criterio.
+    flojos = [(i, motivo) for i, m in enumerate(MUTACIONES, 1)
+              if (motivo := _esperado_es_una_frase(m.esperado or ""))]
+    if flojos:
+        print("CRITERIO DEMASIADO FLOJO — este arnés no puede certificar nada:")
+        for i, motivo in flojos:
+            print(f"  · mutación {i}: {motivo}")
+        return 2
+
+    _purgar_pycache()
+
+    # AUTOCALIBRACIÓN 2 — el control nulo, ANTES de la tabla.
+    print(f"[0] {CONTROL_NULO.nombre}")
+    original, error = _aplicar(CONTROL_NULO)
+    if error:
+        print(f"   ANCLA PERDIDA — {error}")
+        return 2
+    _purgar_pycache()
+    try:
+        rc, salida = _correr(CONTROL_NULO.prueba)
+    finally:
+        _restaurar(CONTROL_NULO.fichero, original)
+        _purgar_pycache()
+    if rc != 0:
+        print("   ROJA CON UNA MUTACIÓN INOCUA — el instrumento no sirve: "
+              "ningún rojo de la tabla significaría nada.")
+        print(salida[-2000:])
+        return 2
+    print("   verde, como tenía que ser: el instrumento distingue")
+
+    fallos = []
+    for i, m in enumerate(MUTACIONES, 1):
+        print(f"\n[{i}/{len(MUTACIONES)}] {m.nombre}")
+        original, error = _aplicar(m)
+        if error:
+            fallos.append(f"{i}. {error}")
+            print("   ANCLA PERDIDA — la mutación no se aplicó")
+            continue
+        _purgar_pycache()
+        try:
+            rc, salida = _correr(m.prueba)
+        finally:
+            _restaurar(m.fichero, original)
+            _purgar_pycache()
+
+        if rc == 0:
+            fallos.append(f"{i}. la prueba SIGUIÓ VERDE con la garantía "
+                          f"revertida ({m.prueba})")
+            print("   VERDE CON LA MUTACIÓN PUESTA — la prueba no protege nada")
+        elif m.esperado not in salida:
+            fallos.append(f"{i}. roja, pero SIN su causa. Se esperaba "
+                          f"{m.esperado!r} en el fallo")
+            print(f"   ROJA POR OTRA RAZÓN — no aparece {m.esperado!r}")
+        else:
+            print("   roja, y por su causa")
+
+    print("\n" + "=" * 74)
+    if fallos:
+        print(f"CALIBRACIÓN FALLIDA: {len(fallos)} de {len(MUTACIONES)}")
+        for f in fallos:
+            print(f"  · {f}")
+        return 1
+    print(f"CALIBRACIÓN OK: {len(MUTACIONES)}/{len(MUTACIONES)} rojas por su "
+          f"causa, con el control nulo verde")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
