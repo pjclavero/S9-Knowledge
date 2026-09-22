@@ -401,3 +401,30 @@ def test_R3_un_workspace_inventado_SIGUE_rechazandose(entorno):
         "la unidad de control del Corte 1 se ha relajado: un workspace "
         f"inventado ya no se rechaza ({r.status_code})"
     )
+
+
+def test_R3_con_perfil_y_entorno_de_acuerdo_todo_funciona(entorno):
+    """EL SIMETRICO DEL NEGATIVO ANTI-REGRESION, y la mitad que le da sentido.
+
+    Con `A == B` el producto funciona **aunque el entorno vuelva a gobernar**.
+    Por eso el defecto es INVISIBLE con los valores alineados, y por eso la
+    unica prueba capaz de cazarlo es una que conserve la divergencia puesta.
+
+    El arnes de calibracion corre esta prueba CON la mutacion 10 aplicada y
+    exige que siga VERDE (`CONTROLES_VERDES`). Si se pusiera roja, significaria
+    que la prueba que caza el defecto no necesitaba la divergencia — y entonces
+    no estaria midiendo lo que dice medir.
+    """
+    from app.config import get_settings
+
+    _db, _auth, _app, fuentes = entorno
+    (fuentes / "perfil-operador.json").write_text(
+        json.dumps({"workspace": WS_ENTORNO}), encoding="utf-8"
+    )
+    get_settings.cache_clear()
+
+    contexto = _contexto_de_la_peticion()
+    assert sorted(contexto.allowed_workspaces) == [WS_ENTORNO], (
+        "con perfil y entorno DE ACUERDO el producto no resuelve ese valor: "
+        f"{sorted(contexto.allowed_workspaces)}"
+    )

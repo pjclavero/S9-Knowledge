@@ -47,6 +47,7 @@ PREFLIGHT = "deploy/scripts/preflight_ensayo_rc.py"
 PLANTILLA = "viewer/app/templates/_aviso_autoridad_workspace.html"
 PLANTILLA_REVIEW = "viewer/app/templates/v3_review.html"
 ROUTER_OPS = "viewer/app/routers/chassis_operations.py"
+DEPENDENCIAS = "viewer/app/authz/dependencies.py"
 
 SUITE = "viewer/tests/test_f2_autoridad_canonica_workspace.py"
 SUITE_PREFLIGHT = "deploy/tests/test_preflight_ensayo_rc.py"
@@ -167,7 +168,46 @@ MUTACIONES: list[Mutacion] = [
         prueba=f"{SUITE_PANTALLA}::test_D1_simetrico_sin_divergencia_ninguna_pantalla_avisa",
         esperado="se avisa de una divergencia que no existe en",
     ),
+    # ---------------------------------------------------------------------
+    # RONDA 3 · EL NEGATIVO ANTI-REGRESIÓN
+    # ---------------------------------------------------------------------
+    # Éste es el que evita que dentro de seis meses alguien "simplifique" el
+    # resolvedor y REINTRODUZCA LAS DOS AUTORIDADES mientras toda la
+    # configuración de fábrica coincide. Con A == B el defecto es INVISIBLE,
+    # así que la única prueba que puede cazarlo es una que mantenga la
+    # divergencia puesta. Su simétrico está en `CONTROLES_VERDES`.
+    Mutacion(
+        nombre="10 · el ENTORNO vuelve a gobernar `allowed_workspaces`: se "
+               "reintroducen las dos autoridades",
+        fichero=DEPENDENCIAS,
+        viejo="        default_workspace=_workspace_canonico_de_la_peticion(settings),",
+        nuevo="        default_workspace=settings.S9K_DEFAULT_WORKSPACE,",
+        prueba=f"{SUITE_PANTALLA}::test_R3_authz_resuelve_el_workspace_del_PERFIL_con_la_divergencia_puesta",
+        esperado="la autorizacion NO resuelve el workspace del perfil",
+    ),
 ]
+
+
+#: MUTACIONES QUE **NO** DEBEN PONER ROJA A SU PRUEBA.
+#:
+#: RONDA 3. El simétrico del negativo anti-regresión, y es la mitad que da
+#: sentido a la otra: con el entorno gobernando otra vez, una configuración
+#: COHERENTE (A == B) sigue funcionando. Eso es precisamente lo que hace
+#: invisible al defecto — y por lo que la prueba que lo caza tiene que
+#: conservar la divergencia.
+CONTROLES_VERDES: list = []
+
+
+def _controles_verdes():
+    return [
+        (
+            "10-sim · con el entorno gobernando otra vez, A == B SIGUE "
+            "funcionando: por eso el defecto es invisible con los valores "
+            "alineados",
+            MUTACIONES[-1],
+            f"{SUITE_PANTALLA}::test_R3_con_perfil_y_entorno_de_acuerdo_todo_funciona",
+        ),
+    ]
 
 
 #: Lo que el producto imprime por su cuenta y por tanto NO distingue causa.
@@ -275,7 +315,31 @@ def main() -> int:
         return 2
     print("   verde, como tenía que ser: el instrumento distingue")
 
+    # AUTOCALIBRACION 3 — los controles que deben seguir VERDES con la
+    # mutacion puesta. Sin ellos, "se pone roja" no distingue una prueba que
+    # caza el defecto de una que se rompe con cualquier cosa.
     fallos = []
+    for nombre, m, prueba in _controles_verdes():
+        print(f"\n[V] {nombre}")
+        original, error = _aplicar(m)
+        if error:
+            fallos.append(f"V. {error}")
+            print("   ANCLA PERDIDA")
+            continue
+        _purgar_pycache()
+        try:
+            rc, salida = _correr(prueba)
+        finally:
+            _restaurar(m.fichero, original)
+            _purgar_pycache()
+        if rc != 0:
+            fallos.append(f"V. {nombre}: se puso ROJA y deberia seguir verde "
+                          f"({prueba})")
+            print("   ROJA — el defecto NO es invisible con A == B, asi que "
+                  "la prueba que lo caza no necesitaba la divergencia")
+        else:
+            print("   verde con la mutacion puesta, como tenia que ser")
+
     for i, m in enumerate(MUTACIONES, 1):
         print(f"\n[{i}/{len(MUTACIONES)}] {m.nombre}")
         original, error = _aplicar(m)
@@ -308,7 +372,8 @@ def main() -> int:
             print(f"  · {f}")
         return 1
     print(f"CALIBRACIÓN OK: {len(MUTACIONES)}/{len(MUTACIONES)} rojas por su "
-          f"causa, con el control nulo verde")
+          f"causa, {len(_controles_verdes())} control(es) simetrico(s) verde(s) "
+          f"y el control nulo verde")
     return 0
 
 
