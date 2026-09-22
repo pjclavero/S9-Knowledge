@@ -24,7 +24,7 @@ import unicodedata
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Optional, Sequence
 
-from app.labels import negation_code, negation_label
+from app.labels import negation_code, negation_kind_label, negation_label
 from app.services.v3_review import VALID_ENGINE_DECISIONS, reason_label
 
 
@@ -176,7 +176,13 @@ def row_view(item: dict[str, Any]) -> dict[str, Any]:
         # ausente NO es `false`.
         "signo": negation_code(negated),
         "signo_label": negation_label(negation_code(negated)),
+        #: LA CLASE, con su código y su traducción. Subirla a fila propia la
+        #: convierte en campo de primera clase, y la regla de la casa es
+        #: publicar códigos Y traducirlos: `SIMPLE` o `CESSATION` en crudo son
+        #: vocabulario del motor. El código se conserva para la máquina;
+        #: `negation_kind_label` NOMBRA el que no sepa traducir.
         "negation_kind": _clean(negation_kind),
+        "clase_negacion_label": negation_kind_label(_clean(negation_kind)),
         "temporal_status": _clean(claim.get("temporal_status")),
         "epistemic_status": _clean(claim.get("epistemic_status")),
         "claim_scope": _clean(claim.get("scope")),
@@ -225,7 +231,71 @@ def row_view(item: dict[str, Any]) -> dict[str, Any]:
         "human_decision": _clean((item.get("active_decision") or {}).get("human_decision")),
         "decided_at": _clean((item.get("active_decision") or {}).get("timestamp")),
         "reviewer": _clean((item.get("active_decision") or {}).get("reviewer")),
+        # QUÉ CORRIGIÓ la persona, junto a quién decidió y cuándo. `record()`
+        # firma el `before`/`after` en el acta, y sin esta línea ese registro
+        # no se le mostraría a NADIE: sería auditoría que sólo existe dentro
+        # del hash. Aquí es donde se lee.
+        "correcciones": _correcciones_legibles(
+            (item.get("active_decision") or {}).get("correction_changes")
+        ),
+        # AUSENCIA != CERO, también aquí. Un acta ANTERIOR a este campo no trae
+        # la clave, y una lista vacía sería indistinguible de «aprobó sin
+        # tocar nada» — que es una afirmación sobre lo que hizo la persona y
+        # que ese acta no soporta. Este booleano separa las dos cosas.
+        "correcciones_declaradas": isinstance(
+            (item.get("active_decision") or {}).get("correction_changes"), dict
+        ),
     }
+
+
+#: Rótulos de los campos que el operador puede corregir. No se derivan del
+#: nombre técnico: `subject_canonical_name` no es una frase.
+_CAMPO_CORREGIBLE_ES = {
+    "predicate": "Predicado",
+    "direction": "Dirección",
+    "negated": "Negación",
+    "scope": "Alcance",
+}
+
+
+def _valor_corregido(campo: str, valor: Any, presente: bool = True) -> str:
+    """Un extremo del cambio, EN EL VOCABULARIO DE LA PANTALLA.
+
+    `negated` es booleano en el acta y aquí NO se pinta `True`/`False`: pasa
+    por la autoridad única del signo, la misma que el resto del producto. Un
+    `before`/`after` en crudo sería publicar el dato interno en la cara del
+    operador justo en el sitio donde se le explica lo que hizo.
+    """
+    if not presente:
+        return "sin declarar en la propuesta"
+    if campo == "negated":
+        return negation_label(negation_code(valor))
+    texto = _clean(valor)
+    return texto if texto is not None else "no disponible"
+
+
+def _correcciones_legibles(cambios: Any) -> list[dict[str, str]]:
+    """`correction_changes` del acta, en filas que una persona puede leer.
+
+    Ausencia de la clave -> lista vacía, que la plantilla dice con palabras.
+    Un acta anterior a este campo NO se presenta como «no corrigió nada»: se
+    presenta como que no lo declara.
+    """
+    if not isinstance(cambios, dict):
+        return []
+    filas: list[dict[str, str]] = []
+    for campo, cambio in sorted(cambios.items()):
+        if not isinstance(cambio, dict):
+            continue
+        filas.append({
+            "campo": campo,
+            "campo_label": _CAMPO_CORREGIBLE_ES.get(campo, campo),
+            "antes": _valor_corregido(
+                campo, cambio.get("before"), bool(cambio.get("before_present", True))
+            ),
+            "despues": _valor_corregido(campo, cambio.get("after")),
+        })
+    return filas
 
 
 def review_explanation(row: dict[str, Any]) -> list[str]:

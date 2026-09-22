@@ -242,6 +242,31 @@ def consola(tmp_path, corpus, lector_por_dependencia):
 # ---------------------------------------------------------------------------
 # AYUDAS DE LECTURA DEL HTML SERVIDO
 # ---------------------------------------------------------------------------
+def _ahora_utc():
+    """El mismo reloj que estampa el servicio (`_now`), con un pelo de holgura.
+
+    La holgura no es para que pase: es porque el borde de la ventana y el
+    `datetime.now()` del servidor pueden caer en el mismo microsegundo, y un
+    `<=` estricto sobre relojes distintos produce un rojo que no es del
+    producto. Un segundo no deja pasar ninguna fecha FALSA de las que este
+    caso persigue —fijas, de otro día, o de otro año—.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    return datetime.now(timezone.utc) - timedelta(seconds=0)
+
+
+def _instante(marca: str):
+    """Lee la marca del acta EXIGIENDO la forma que el servicio escribe."""
+    from datetime import datetime
+
+    assert isinstance(marca, str) and marca.endswith("Z"), (
+        f"EL `timestamp` DEL ACTA NO ES UNA MARCA UTC ISO-8601: {marca!r}. "
+        f"Sin forma conocida no se puede decir si el momento es el real."
+    )
+    return datetime.fromisoformat(marca.replace("Z", "+00:00"))
+
+
 _TARJETA = re.compile(r"<article class=\"v3r-item\".*?</article>", re.S)
 _SIGNO = re.compile(r"<dt>Negación</dt>\s*<dd[^>]*data-signo=\"([^\"]*)\"[^>]*>(.*?)</dd>", re.S)
 
@@ -535,6 +560,33 @@ class TestELaOtraTarjetaDondeTambienSeDecide:
             app_real.dependency_overrides.clear()
             os.environ.pop(slot_flag_env(slot), None)
 
+    def test_la_clase_de_negacion_se_publica_TRADUCIDA(self, corpus):
+        """La clase es campo de primera clase: código Y traducción.
+
+        Este corte la sube a fila propia («Clase de negación»), y la regla de
+        la casa es publicar códigos y traducirlos. `SIMPLE` o `CESSATION` en
+        crudo son vocabulario del motor, no español para quien decide.
+        """
+        from app.labels import NEGACION_CLASE_LABELS_ES, negation_kind_label
+
+        fila = row_view(corpus["negado"])
+        assert fila["clase_negacion_label"] == NEGACION_CLASE_LABELS_ES["UNKNOWN"], (
+            f"LA CLASE NO SE TRADUCE: {fila['clase_negacion_label']!r}."
+        )
+        # Y una clase que el visor NO conozca se NOMBRA, no se descarta: un
+        # hueco en blanco aquí se lee como «no hay nada que saber».
+        assert negation_kind_label("CLASE_QUE_NO_EXISTE") == (
+            "clase no reconocida (CLASE_QUE_NO_EXISTE)"
+        ), (
+            "UNA CLASE DESCONOCIDA SE DESCARTA EN VEZ DE NOMBRARSE. El motor "
+            "puede añadir clases; cuando lo haga, la pantalla tiene que "
+            "decirlo, no callar."
+        )
+        for codigo in ("SIMPLE", "CESSATION", "NOT_YET", "NEVER", "SCOPE_AMBIGUOUS"):
+            assert negation_kind_label(codigo) != codigo, (
+                f"La clase {codigo!r} se publica EN CRUDO."
+            )
+
     def test_el_campo_negacion_de_la_consola_no_se_derrumba_por_la_clase(self, corpus):
         """CONTROL POSITIVO: la causa vieja, ejecutada, sí se derrumba.
 
@@ -729,15 +781,126 @@ class TestDLaCorreccionRealNoSePierde:
             f"propuesta decía null»: {acta['correction_changes']!r}"
         )
 
-    def test_el_autor_el_momento_y_el_ambito_de_la_correccion_son_reales(self, consola):
-        _, actas = self._decidir(consola, "tarjeta-negado", {"negated": "false"})
-        acta = actas[0]
-        for campo in ("reviewer", "timestamp", "workspace", "proposal_id"):
-            assert acta.get(campo), (
-                f"EL ACTA DE UNA CORRECCIÓN REAL NO DICE {campo!r}. Sin autor, "
-                f"momento y ámbito, «hubo una corrección» no es auditable."
+    def test_el_autor_el_momento_y_el_ambito_de_la_correccion_son_LOS_REALES(
+        self, tmp_path, corpus, lector_por_dependencia
+    ):
+        """No que estén RELLENOS: que sean LOS QUE DE VERDAD OCURRIERON.
+
+        La versión anterior de este caso hacía `assert acta.get(campo)` sobre
+        cuatro campos, y con ese listón habría pasado con un `reviewer`
+        equivocado y un `timestamp` falso: comprobaba que no estaban vacíos
+        mientras su nombre prometía que eran reales. Un testigo así no puede
+        ponerse rojo por la causa que dice vigilar, y en el cruce contra las
+        once mutaciones era el ÚNICO de este fichero que no enrojecía nunca.
+
+        Ahora cada campo se compara contra el hecho observable que lo produjo:
+
+            reviewer   -> la identidad que la petición LLEVABA (se instala una
+                          distintiva, así que un autor fijado a mano no cuela)
+            timestamp  -> DENTRO de la ventana real [antes, después] del POST
+            workspace  -> el de la tarjeta decidida, y no otro de los presentes
+            proposal_id-> el que el formulario envió, leído del HTML servido
+
+        El `record_hash` no se comprueba «que exista»: se RECALCULA y tiene que
+        coincidir, porque una firma que no se verifica no firma nada.
+        """
+        import app.main  # noqa: F401
+        from app.services.v3_review import _canonical, _sha256
+
+        AUTOR = "operadora-de-guardia"
+
+        proposals = tmp_path / "proposals"
+        proposals.mkdir()
+        for nombre, doc in corpus.items():
+            (proposals / f"{nombre}.json").write_text(
+                json.dumps(doc, ensure_ascii=False), encoding="utf-8"
             )
-        assert acta["record_hash"], "El acta de la corrección no está firmada."
+        decisiones = tmp_path / "actas" / "decisiones.jsonl"
+        decisiones.parent.mkdir()
+        service = ReviewService(proposals, decisiones)
+        original = router_module._service
+        router_module._service = lambda: service
+
+        api = FastAPI()
+
+        class _Usuario:
+            username = AUTOR
+
+        @api.middleware("http")
+        async def _con_identidad(request, call_next):
+            # La identidad entra POR DONDE ENTRA EN PRODUCCIÓN
+            # (`request.state.user`, que es lo que lee `_reviewer`), no
+            # sustituyendo `_reviewer`: sustituirlo mediría el arnés.
+            request.state.user = _Usuario()
+            return await call_next(request)
+
+        api.include_router(router_module.router)
+        api.dependency_overrides[get_visibility_scope] = lambda: UNRESTRICTED
+        api.dependency_overrides[get_filtered_provider] = lambda: get_provider()
+        try:
+            cliente = TestClient(api)
+            ws = corpus["negado"]["workspace"]
+            html = cliente.get(f"/v3/review?workspace={ws}").text
+            datos = _formulario_tal_cual(_tarjeta_de(html, "tarjeta-negado"))
+            datos["human_decision"] = "APPROVE"
+            datos["negated"] = "false"
+
+            antes = _ahora_utc()
+            respuesta = cliente.post(
+                "/v3/review/decide", data=datos, follow_redirects=False
+            )
+            despues = _ahora_utc()
+            assert respuesta.status_code == 303, respuesta.text[:300]
+            actas = read_history(decisiones)
+        finally:
+            router_module._service = original
+
+        assert len(actas) == 1
+        acta = actas[0]
+
+        # AUTOR: el que la petición llevaba, no uno cualquiera.
+        assert acta["reviewer"] == AUTOR, (
+            f"EL ACTA ATRIBUYE LA CORRECCIÓN A {acta['reviewer']!r} Y LA HIZO "
+            f"{AUTOR!r}. La cadena de auditoría firma un autor que no es quien "
+            f"decidió: es la misma especie de mentira que F-7, ahora sobre el "
+            f"QUIÉN en vez de sobre el QUÉ."
+        )
+
+        # MOMENTO: dentro de la ventana real en la que ocurrió el POST.
+        momento = _instante(acta["timestamp"])
+        assert antes <= momento <= despues, (
+            f"EL ACTA FECHA LA CORRECCIÓN EN {acta['timestamp']!r}, FUERA DE "
+            f"LA VENTANA EN QUE DE VERDAD SE DECIDIÓ "
+            f"[{antes.isoformat()}, {despues.isoformat()}]. Un momento que no "
+            f"es el momento no sirve para reconstruir lo que pasó."
+        )
+
+        # ÁMBITO: el de la tarjeta decidida, y NO otro de los que hay en la cola.
+        assert acta["workspace"] == ws, (
+            f"EL ACTA SITÚA LA CORRECCIÓN EN {acta['workspace']!r} Y SE DECIDIÓ "
+            f"EN {ws!r}."
+        )
+        assert acta["proposal_id"] == datos["proposal_id"], (
+            f"EL ACTA DICE HABER CORREGIDO {acta['proposal_id']!r} Y EL "
+            f"FORMULARIO ENVIÓ {datos['proposal_id']!r}: el registro apunta a "
+            f"una propuesta distinta de la que la persona tenía delante."
+        )
+        assert acta["source_id"] == "tarjeta-negado", acta["source_id"]
+
+        # Y LA CORRECCIÓN QUE FIRMA ES LA QUE SE HIZO.
+        assert acta["correction_changes"] == {
+            "negated": {"before": True, "before_present": True, "after": False}
+        }, acta["correction_changes"]
+
+        # FIRMA: se RECALCULA, no se comprueba que exista.
+        sin_firma = {k: v for k, v in acta.items() if k != "record_hash"}
+        assert acta["record_hash"] == _sha256(sin_firma), (
+            "EL `record_hash` NO CUBRE EL CONTENIDO DEL ACTA: recalculado sobre "
+            "lo que el registro dice, no coincide con lo firmado. Una firma que "
+            "no se puede recomputar no ata el autor, ni el momento, ni la "
+            "corrección a nada."
+        )
+        assert _canonical(sin_firma)  # el registro es serializable de forma estable
 
 
 # ===========================================================================
@@ -836,6 +999,146 @@ def test_correct_que_reenvia_la_propuesta_intacta_se_rechaza(consola):
         "El `CORRECT` vacío se rechazó en la respuesta pero SÍ dejó acta: el "
         "rechazo es cosmético."
     )
+
+
+# ===========================================================================
+# `correction_changes` TIENE LECTOR: SE LE MUESTRA A UNA PERSONA
+# ===========================================================================
+class TestElBeforeAfterLlegaAUnaPersona:
+    """Un registro que nadie lee no es auditoría, es un campo write-only.
+
+    El `before`/`after` se firma en el acta —eso ya lo miden los casos de la
+    pieza D—, pero si no se pinta en ninguna parte, «nada se rompe si el
+    registro no la trae» es trivialmente cierto: no hay quien la traiga a
+    nadie. Su lector es la ficha de `/panel/review`, en la misma sección donde
+    ya se dice QUIÉN decidió y CUÁNDO; aquí se añade el QUÉ.
+    """
+
+    def _fila_decidida(self, corpus, cambios):
+        """Una fila con decisión humana activa y los cambios dados."""
+        item = dict(corpus["negado"])
+        item["active_decision"] = {
+            "human_decision": "APPROVE",
+            "reviewer": "operadora-de-guardia",
+            "timestamp": "2026-09-22T10:00:00Z",
+            **({} if cambios is _SIN_CLAVE else {"correction_changes": cambios}),
+        }
+        return row_view(item)
+
+    def test_una_correccion_real_se_le_ENSEÑA_al_operador(self, corpus):
+        fila = self._fila_decidida(corpus, {
+            "negated": {"before": True, "before_present": True, "after": False},
+        })
+        assert fila["correcciones"] == [{
+            "campo": "negated",
+            "campo_label": "Negación",
+            "antes": NEGACION_LABELS_ES[NEGACION_NEGADO],
+            "despues": NEGACION_LABELS_ES[NEGACION_AFIRMATIVO],
+        }], (
+            f"EL `before`/`after` NO LLEGA A LA PANTALLA: {fila['correcciones']!r}. "
+            f"Firmado en el acta y enseñado a nadie es un campo write-only."
+        )
+
+    def test_el_before_after_NO_se_pinta_en_crudo(self, corpus):
+        """`True` -> `False` sería publicar el dato interno en la cara.
+
+        El signo tiene autoridad única en todo el producto; el sitio donde se
+        le explica al operador lo que hizo no es la excepción.
+        """
+        fila = self._fila_decidida(corpus, {
+            "negated": {"before": False, "before_present": True, "after": True},
+        })
+        pintado = fila["correcciones"][0]
+        assert pintado["antes"] not in ("False", "True", False, True), (
+            f"EL EXTREMO `antes` SE PINTA EN CRUDO: {pintado['antes']!r}."
+        )
+        assert pintado["despues"] == NEGACION_LABELS_ES[NEGACION_NEGADO], pintado
+
+    def test_ausente_en_la_propuesta_se_DICE_y_no_se_disfraza_de_valor(self, corpus):
+        fila = self._fila_decidida(corpus, {
+            "negated": {"before": None, "before_present": False, "after": False},
+        })
+        assert fila["correcciones"][0]["antes"] == "sin declarar en la propuesta", (
+            f"UN `before` AUSENTE SE PINTA COMO SI FUERA UN VALOR: "
+            f"{fila['correcciones'][0]['antes']!r}. Ausencia no es cero "
+            f"tampoco cuando se explica la corrección."
+        )
+
+    def test_un_acta_SIN_el_campo_no_dice_que_no_se_corrigio_nada(self, corpus):
+        """AUSENCIA != CERO en el lector.
+
+        Un acta anterior a este campo no trae la clave. Presentarla como
+        «decidió sin modificar» sería afirmar algo sobre lo que hizo la
+        persona que ese acta NO soporta — exactamente el pecado de F-7, ahora
+        del lado de la lectura.
+        """
+        antigua = self._fila_decidida(corpus, _SIN_CLAVE)
+        assert antigua["correcciones"] == []
+        assert antigua["correcciones_declaradas"] is False, (
+            "UN ACTA QUE NO DECLARA LOS CAMBIOS SE PRESENTA COMO SI LOS "
+            "DECLARARA VACÍOS: indistinguible de «no corrigió nada»."
+        )
+        moderna = self._fila_decidida(corpus, {})
+        assert moderna["correcciones"] == []
+        assert moderna["correcciones_declaradas"] is True, (
+            "UN ACTA QUE SÍ DECLARA «ningún cambio» se confunde con una que "
+            "no declara nada, y entonces el campo nuevo no sirve para nada."
+        )
+
+    def test_la_ficha_SERVIDA_enseña_el_cambio(self, tmp_path, corpus, monkeypatch,
+                                               lector_por_dependencia):
+        """Y se pide LA PANTALLA, que es donde el defecto de origen vivía."""
+        import os
+
+        from app.chassis import FEATURE_SLOTS, slot_flag_env
+        from app.main import app as app_real
+        from app.routers import chassis_review as panel
+
+        slot = next(s for s in FEATURE_SLOTS if s.key == "C")
+        negado = corpus["negado"]
+        proposals = tmp_path / "proposals"
+        proposals.mkdir(parents=True)
+        (proposals / "package.json").write_text(
+            json.dumps({"items": [negado]}, ensure_ascii=False), encoding="utf-8"
+        )
+        decisiones = tmp_path / "actas" / "decisiones.jsonl"
+        decisiones.parent.mkdir()
+        servicio = ReviewService(proposals, decisiones)
+        # La decisión se GRABA por el camino de verdad, no se fabrica: así lo
+        # que la pantalla enseña viene del mismo `record()` que lo firma.
+        servicio.record(
+            proposal_id=negado["proposal_id"], workspace=negado["workspace"],
+            reviewer="operadora-de-guardia", human_decision="APPROVE",
+            request_id="req-lectura", correction={"negated": False},
+        )
+        monkeypatch.setattr(panel, "_service", lambda: servicio)
+        monkeypatch.setenv(slot_flag_env(slot), "true")
+        lector_por_dependencia(app_real)
+        try:
+            cliente = TestClient(app_real)
+            respuesta = cliente.get(
+                f"{slot.prefix}/item/{negado['proposal_id']}",
+                params={"workspace": negado["workspace"]},
+            )
+            assert respuesta.status_code == 200, respuesta.text[:300]
+            texto = respuesta.text
+        finally:
+            app_real.dependency_overrides.clear()
+            os.environ.pop(slot_flag_env(slot), None)
+
+        assert 'data-role="correcciones-humanas"' in texto, (
+            "LA FICHA SERVIDA NO TIENE DÓNDE ENSEÑAR LO QUE SE MODIFICÓ: el "
+            "`before`/`after` vuelve a ser un campo que sólo vive en el hash."
+        )
+        assert NEGACION_LABELS_ES[NEGACION_NEGADO] in texto, texto[:400]
+        assert NEGACION_LABELS_ES[NEGACION_AFIRMATIVO] in texto, (
+            "EL CAMBIO NO APARECE EN LA PANTALLA SERVIDA: el operador no ve "
+            "de qué a qué se corrigió el hecho que está mirando."
+        )
+
+
+#: Centinela: «el acta NO trae la clave», que no es lo mismo que traerla vacía.
+_SIN_CLAVE = object()
 
 
 # ===========================================================================

@@ -208,6 +208,103 @@ MUTACIONES: tuple[Mutacion, ...] = (
         dice="SE PERDIÓ UNA DECISIÓN HUMANA POR CONFUNDIR AUSENTE CON `False`",
         porque="AUSENCIA != CERO, ahora del lado de la acción del operador.",
     ),
+    # ---- LA CLASE SE TRADUCE, Y EL before/after TIENE LECTOR --------------
+    Mutacion(
+        nombre="la-clase-se-publica-en-crudo",
+        fichero=CONSOLA,
+        viejo='"clase_negacion_label": negation_kind_label(_clean(negation_kind)),',
+        nuevo='"clase_negacion_label": _clean(negation_kind) or "",',
+        caen=("test_la_clase_de_negacion_se_publica_TRADUCIDA",),
+        dice="LA CLASE NO SE TRADUCE",
+        porque=(
+            "Subirla a fila propia la hace campo de primera clase; publicarla "
+            "en crudo (`SIMPLE`, `CESSATION`) es soltar vocabulario del motor "
+            "en la cara de quien decide."
+        ),
+    ),
+    Mutacion(
+        nombre="el-before-after-no-llega-a-nadie",
+        fichero=CONSOLA,
+        viejo='        "correcciones": _correcciones_legibles(\n            (item.get("active_decision") or {}).get("correction_changes")\n        ),',
+        nuevo='        "correcciones": [],',
+        caen=(
+            "test_una_correccion_real_se_le_ENSEÑA_al_operador",
+            "test_el_before_after_NO_se_pinta_en_crudo",
+            "test_ausente_en_la_propuesta_se_DICE_y_no_se_disfraza_de_valor",
+            "test_la_ficha_SERVIDA_enseña_el_cambio",
+        ),
+        dice="EL `before`/`after` NO LLEGA A LA PANTALLA",
+        porque=(
+            "Sin lector, `correction_changes` es write-only: firmado en el "
+            "acta y enseñado a nadie. «Nada se rompe si el registro no la "
+            "trae» es trivialmente cierto cuando no hay quien la lea."
+        ),
+    ),
+    Mutacion(
+        nombre="el-acta-sin-el-campo-finge-que-no-se-corrigio",
+        fichero=CONSOLA,
+        viejo='        "correcciones_declaradas": isinstance(\n            (item.get("active_decision") or {}).get("correction_changes"), dict\n        ),',
+        nuevo='        "correcciones_declaradas": True,',
+        caen=("test_un_acta_SIN_el_campo_no_dice_que_no_se_corrigio_nada",),
+        dice="UN ACTA QUE NO DECLARA LOS CAMBIOS SE PRESENTA COMO SI LOS",
+        porque=(
+            "AUSENCIA != CERO del lado de la LECTURA: un acta anterior al "
+            "campo se presentaría como «decidió sin modificar», que es una "
+            "afirmación sobre la persona que ese acta no soporta. F-7 otra "
+            "vez, ahora leyendo."
+        ),
+    ),
+    Mutacion(
+        nombre="el-before-after-se-pinta-en-crudo",
+        fichero=CONSOLA,
+        viejo='    if campo == "negated":\n        return negation_label(negation_code(valor))',
+        nuevo='    if campo == "negated":\n        return str(valor)',
+        caen=("test_el_before_after_NO_se_pinta_en_crudo",),
+        dice="EL EXTREMO `antes` SE PINTA EN CRUDO",
+        porque="El signo tiene autoridad única; explicar la corrección no es la excepción.",
+    ),
+    # ---- EL ACTA NO MIENTE SOBRE QUIÉN NI SOBRE CUÁNDO -------------------
+    # Estas tres existen porque el revisor cruzó los once listados de rojos
+    # contra los 22 casos y encontró que UNO no enrojecía nunca: el que decía
+    # comprobar que «el autor, el momento y el ámbito son reales» y sólo
+    # comprobaba que no estaban vacíos. El caso se reescribió para comparar
+    # contra lo que de verdad ocurrió, y aquí están sus mutaciones: sin ellas,
+    # la reescritura sería otra promesa sin calibrar.
+    Mutacion(
+        nombre="el-acta-firma-otro-autor",
+        fichero=SERVICIO,
+        viejo='                "timestamp": _now(),\n                "reviewer": reviewer,',
+        nuevo='                "timestamp": _now(),\n                "reviewer": "reviewer-local",',
+        caen=("test_el_autor_el_momento_y_el_ambito_de_la_correccion_son_LOS_REALES",),
+        dice="EL ACTA ATRIBUYE LA CORRECCIÓN A",
+        porque=(
+            "La misma especie de mentira que F-7, ahora sobre el QUIÉN: la "
+            "cadena firma un autor que no es quien decidió. Con el listón "
+            "anterior (`assert acta.get(campo)`) esto pasaba en verde."
+        ),
+    ),
+    Mutacion(
+        nombre="el-acta-miente-el-momento",
+        fichero=SERVICIO,
+        viejo='                "timestamp": _now(),\n                "reviewer": reviewer,',
+        nuevo='                "timestamp": "2020-01-01T00:00:00Z",\n                "reviewer": reviewer,',
+        caen=("test_el_autor_el_momento_y_el_ambito_de_la_correccion_son_LOS_REALES",),
+        dice="EL ACTA FECHA LA CORRECCIÓN EN",
+        porque="Un momento que no es el momento no reconstruye lo que pasó.",
+    ),
+    Mutacion(
+        nombre="la-firma-no-cubre-el-acta",
+        fichero=SERVICIO,
+        viejo='            record["record_hash"] = _sha256(record)',
+        nuevo='            record["record_hash"] = _sha256({"x": record["decision_id"]})',
+        caen=("test_el_autor_el_momento_y_el_ambito_de_la_correccion_son_LOS_REALES",),
+        dice="EL `record_hash` NO CUBRE EL CONTENIDO DEL ACTA",
+        porque=(
+            "Una firma que no se puede recomputar no ata el autor, ni el "
+            "momento, ni la corrección a nada. `assert acta['record_hash']` "
+            "—que existiera— seguía verde con esto puesto."
+        ),
+    ),
     Mutacion(
         nombre="correct-vacio-se-acepta",
         fichero=SERVICIO,

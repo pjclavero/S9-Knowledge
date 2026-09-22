@@ -63,8 +63,13 @@
           servidor con `app.labels.negation_code`. -#}
       <dt>Negación</dt>
       <dd data-signo="{{ row.signo | e }}">{{ row.signo_label | e }}</dd>
+      {#- LA CLASE SE TRADUCE. Subirla a fila propia la convierte en campo de
+          primera clase, y aquí se publican CÓDIGOS Y SU TRADUCCIÓN: `SIMPLE` o
+          `CESSATION` en crudo son vocabulario del motor. El código viaja en
+          `data-clase` para la máquina; una clase que no se sepa traducir se
+          NOMBRA (`negation_kind_label`), no se descarta. -#}
       <dt>Clase de negación</dt>
-      <dd>{{ row.negation_kind | e if row.negation_kind else 'no disponible' }}</dd>
+      <dd data-clase="{{ row.negation_kind | e if row.negation_kind else '' }}">{{ row.clase_negacion_label | e }}</dd>
       <dt>Temporalidad</dt><dd>{{ row.temporal_status | e if row.temporal_status else 'no disponible' }}</dd>
       <dt>Epistémico</dt><dd>{{ row.epistemic_status | e if row.epistemic_status else 'no disponible' }}</dd>
     </dl>
@@ -100,6 +105,25 @@
        ({{ row.reviewer | e if row.reviewer else 'revisor no declarado' }},
         {{ row.decided_at | e if row.decided_at else 'fecha no declarada' }})
        {% else %}Sin decisión humana registrada.{% endif %}</p>
+    {#- QUÉ CORRIGIÓ, junto a quién y cuándo. El `before`/`after` lo firma el
+        acta; si no se pintara aquí, sería auditoría que sólo vive dentro del
+        hash y que nadie llega a leer. Un acta SIN el campo no se presenta como
+        «no corrigió nada»: se dice que no lo declara. -#}
+    {% if row.human_decision %}
+    <h3>Qué modificó</h3>
+    {% if row.correcciones %}
+    <ul data-role="correcciones-humanas">
+      {% for c in row.correcciones %}
+      <li data-campo="{{ c.campo | e }}">{{ c.campo_label | e }}:
+        <s>{{ c.antes | e }}</s> &rarr; <strong>{{ c.despues | e }}</strong></li>
+      {% endfor %}
+    </ul>
+    {% elif row.correcciones_declaradas %}
+    <p data-role="correcciones-humanas">Decidió sin modificar la propuesta.</p>
+    {% else %}
+    <p data-role="correcciones-humanas">Esta acta no declara qué se modificó.</p>
+    {% endif %}
+    {% endif %}
   </section>
 </main>
 {% endblock %}
