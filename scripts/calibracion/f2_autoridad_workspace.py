@@ -49,6 +49,8 @@ PLANTILLA_REVIEW = "viewer/app/templates/v3_review.html"
 ROUTER_OPS = "viewer/app/routers/chassis_operations.py"
 DEPENDENCIAS = "viewer/app/authz/dependencies.py"
 CATALOGO = "viewer/app/sources_catalog.py"
+ERRORES = "viewer/app/panel_errors.py"
+CONFIG = "viewer/app/config.py"
 
 SUITE = "viewer/tests/test_f2_autoridad_canonica_workspace.py"
 SUITE_PREFLIGHT = "deploy/tests/test_preflight_ensayo_rc.py"
@@ -212,6 +214,56 @@ MUTACIONES: list[Mutacion] = [
         prueba=f"{SUITE_PANTALLA}::test_R4_el_cartel_dice_que_manda_el_PERFIL_no_el_entorno",
         esperado="el cartel no dice que la declaracion del entorno NO gobierna",
     ),
+    # ---------------------------------------------------------------------
+    # RONDA 6 · LAS MUTACIONES DE LA RONDA 5, QUE SE DECLARARON Y NO EXISTIAN
+    # ---------------------------------------------------------------------
+    # Las pruebas de O1/O3 si estaban y pasaban; lo que faltaba era ESTO: lo
+    # que las pone rojas. Se calibraron en un guion de /tmp y se informaron
+    # como si vivieran en el repositorio. Una prueba que nadie ha visto
+    # ponerse roja es una declaracion; una mutacion que no esta en el arbol
+    # no es ni eso.
+    Mutacion(
+        nombre="13 · el alta vuelve a emitir el codigo con DOS causas: el "
+               "operador de fabrica se va a mirar el paquete, que esta bien",
+        fichero=ROUTER_OPS,
+        viejo='        return _fallo("SOURCE_WORKSPACE_UNDECLARED")',
+        nuevo='        return _fallo("SOURCE_PACKAGE_INVALID")',
+        prueba=f"{SUITE_PANTALLA}::test_R5_O1_el_workspace_sin_declarar_tiene_CODIGO_PROPIO",
+        esperado="no emite ningun codigo propio",
+    ),
+    Mutacion(
+        nombre="14 · el codigo propio existe pero comparte la frase del "
+               "paquete roto: separar el codigo y no el texto no separa nada "
+               "para quien lo lee",
+        fichero=ERRORES,
+        viejo='    "SOURCE_WORKSPACE_UNDECLARED":\n        "Esta fuente no tiene workspace declarado',
+        nuevo='    "SOURCE_WORKSPACE_UNDECLARED":\n        "El paquete de la fuente no es valido. Esta fuente no tiene workspace declarado',
+        prueba=f"{SUITE_PANTALLA}::test_R5_O1_el_codigo_propio_TIENE_TRADUCCION_y_dice_que_hacer",
+        esperado="la frase no dice QUE HACER",
+    ),
+    # LA PIEZA 5 DEL OPERADOR, que es una PROHIBICION y hasta hoy no tenia
+    # ningun guardian: nadie estaba alineando los defaults, pero nada lo
+    # habria impedido manana.
+    Mutacion(
+        nombre="15 · SE ALINEAN LOS DEFAULTS: el entorno deja de declarar y "
+               "la divergencia se ESCONDE en vez de eliminarse. Es la "
+               "prohibicion explicita de este corte",
+        fichero=CONFIG,
+        viejo='    S9K_DEFAULT_WORKSPACE: str = "leyenda"',
+        nuevo='    S9K_DEFAULT_WORKSPACE: str = ""',
+        prueba=f"{SUITE_PANTALLA}::test_R5_O3_MEDIDO_unset_no_calla_al_entorno_y_la_cadena_vacia_si",
+        esperado="retirar la variable YA calla al entorno",
+    ),
+    Mutacion(
+        nombre="16 · el cartel vuelve al consejo INALCANZABLE («retirala»): "
+               "el operador que hace lo intuitivo sigue viendo el aviso y "
+               "cree que el producto no funciona",
+        fichero=PLANTILLA,
+        viejo="corrígela, o déjala <strong>en blanco</strong>",
+        nuevo="corrígela o retírala.<!--",
+        prueba=f"{SUITE_PANTALLA}::test_R5_O3_el_consejo_del_cartel_ES_ALCANZABLE",
+        esperado="no dice que hay que dejar la variable EN BLANCO",
+    ),
 ]
 
 
@@ -225,20 +277,35 @@ MUTACIONES: list[Mutacion] = [
 CONTROLES_VERDES: list = []
 
 
+def _por_numero(n: int) -> Mutacion:
+    """RONDA 6. Los controles verdes referenciaban `MUTACIONES[-1]` y `[-2]`.
+
+    Al anadir las mutaciones 11 y 12 esos indices se desplazaron EN SILENCIO:
+    el control «10-sim» llevaba dos rondas aplicando la mutacion 12 (el
+    cartel) en vez de la 10 (el entorno gobernando), de modo que seguia verde
+    sin comprobar lo que su nombre dice. Un control verde equivocado no
+    enrojece nunca: no avisa de nada. Se referencia por NUMERO.
+    """
+    for m in MUTACIONES:
+        if m.nombre.split(" ")[0] == str(n):
+            return m
+    raise LookupError(f"no hay mutacion {n}")
+
+
 def _controles_verdes():
     return [
         (
             "10-sim · con el entorno gobernando otra vez, A == B SIGUE "
             "funcionando: por eso el defecto es invisible con los valores "
             "alineados",
-            MUTACIONES[-1],
+            _por_numero(10),
             f"{SUITE_PANTALLA}::test_R3_con_perfil_y_entorno_de_acuerdo_todo_funciona",
         ),
         (
             "11-sim · con la guarda de la ubicación QUITADA, una bóveda "
             "DECLARADA sigue derivando su workspace: la guarda no es lo que "
             "hace funcionar el caso legítimo",
-            MUTACIONES[-2],
+            _por_numero(11),
             f"{SUITE_PANTALLA}::test_R4_SIMETRICO_con_ubicacion_declarada_la_ingesta_SI_deriva",
         ),
     ]
