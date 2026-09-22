@@ -274,7 +274,7 @@ def _v3_proposal(proposal_id: str, *, workspace: str, partida_id: str | None) ->
         "proposal": {
             "subject": "Ariadna", "predicate": "PROTECTS", "object": "Bruma",
             "direction": "SUBJECT_TO_OBJECT",
-            "negation": {"negated": False, "type": "NONE"},
+            "negated": False, "negation_kind": "NONE",
             "scope": "durante el invierno",
         },
         "engine_decision": {"decision": "REVIEW", "reason_codes": ["AMBIGUOUS_PREDICATE"]},
