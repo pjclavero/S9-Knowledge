@@ -1,0 +1,33 @@
+{#
+  AVISO DE DIVERGENCIA DE AUTORIDAD DE WORKSPACE — partial UNICO.
+
+  RONDA 2 · D1. Se incluye desde TODA pantalla donde la divergencia puede hacer
+  dano: `/admin/partidas` (donde el dano es un 400 recuperable), `/v3/review`
+  (donde el dano es una decision humana que MUTA material de otro workspace) y
+  el panel de operaciones (donde se lanza la ingesta que decide donde acaba el
+  conocimiento).
+
+  Una divergencia que se nota en una pantalla y sigue silenciosa en las otras
+  NO cumple la condicion. Por eso el cartel es uno solo y se INCLUYE, no se
+  copia: copiarlo garantizaba que la cuarta pantalla naciera muda.
+
+  Sin divergencia no se pinta NADA — el simetrico.
+  Ni rutas ni secretos: solo el CODIGO y lo que declara cada autoridad.
+#}
+{% if autoridad_workspace and autoridad_workspace.diverge %}
+<div class="alert alert-error" role="alert" data-testid="aviso-autoridad-workspace"
+     data-codigo="{{ autoridad_workspace.codigo | e }}">
+  <strong>{{ autoridad_workspace.codigo | e }}</strong>
+  <p style="margin:.4rem 0 0;">{{ autoridad_workspace.diagnostico | e }}</p>
+  <p style="margin:.4rem 0 0;">Esta instalación resuelve
+  <code>{{ autoridad_workspace.declarado_por_perfil | e }}</code> en todo el
+  producto —permisos, partidas, revisión, apply y grafo—: lo declara el perfil
+  de la bóveda, que es la autoridad. La configuración del entorno declara
+  <code>{{ autoridad_workspace.declarado_por_entorno | e }}</code>, que
+  <strong>no gobierna nada</strong>, pero sigue siendo una discrepancia sin
+  resolver: corrígela, o déjala <strong>en blanco</strong>
+  (<code>S9K_DEFAULT_WORKSPACE=</code>). Retirar la variable del entorno
+  <em>no</em> basta: el valor por defecto de la configuración vuelve a
+  declararla y el aviso seguiría aquí.</p>
+</div>
+{% endif %}

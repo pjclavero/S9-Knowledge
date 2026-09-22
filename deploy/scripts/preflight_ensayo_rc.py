@@ -722,7 +722,38 @@ def arbol_declarado(ctx: Contexto) -> Resultado:
                      f"el arbol ejecuta el commit declarado ({obtenido[:12]})")
 
 
+def _autoridad_workspace(raiz: Path = REPO_ROOT):
+    return _cargar(
+        "_s9k_autoridad_workspace",
+        raiz / "viewer" / "app" / "authz" / "autoridad_workspace.py",
+    )
+
+
 def aislamiento_workspace(ctx: Contexto) -> Resultado:
+    """Las CUATRO declaraciones del workspace, comparadas de una vez.
+
+    CORTE F-2. Hasta este corte aqui se comparaban TRES:
+
+        S9K_DEFAULT_WORKSPACE  (lo que pinta el visor)
+        S9K_WRITER_WORKSPACE   (donde el writer puede escribir)
+        el workspace del ENSAYO (`--workspace`)
+
+    Faltaba la cuarta, que es precisamente la que decide donde acaba el
+    conocimiento: **el workspace DECLARADO por el perfil de la boveda**. Esa
+    declaracion viaja perfil -> ambito de la fuente -> paquete de propuestas ->
+    `/v3/review` -> `v3_apply` -> writer -> Neo4j, y con los valores de fabrica
+    NO coincide con la del entorno. `fuentes_pobladas` carga el mismo catalogo,
+    pero solo para CONTAR fuentes: nunca lee el workspace declarado, asi que
+    esta divergencia pasaba entera por el preflight.
+
+    No se re-deriva aqui la lectura del perfil: se usa el resolvedor canonico
+    del producto (`viewer/app/authz/autoridad_workspace.py`), inyectandole el
+    catalogo que este guion ya sabe cargar por ruta. Derivarla otra vez seria
+    crear la quinta declaracion.
+
+    PENDIENTE, no VERDE, cuando no se pudo mirar el perfil: no poder mirar no
+    es que coincida.
+    """
     por_defecto = ctx.env.get("S9K_DEFAULT_WORKSPACE")
     escritor = ctx.env.get("S9K_WRITER_WORKSPACE")
     if not por_defecto:
@@ -734,8 +765,44 @@ def aislamiento_workspace(ctx: Contexto) -> Resultado:
             "el workspace del ensayo, el que pinta el visor y aquel en el que el "
             "writer puede escribir NO son el mismo: el ensayo podria leer en uno y "
             "escribir en otro sin que se note")
+
+    try:
+        autoridad = _autoridad_workspace()
+        catalogo = _sources_catalog()
+    except Exception as exc:  # noqa: BLE001
+        return Resultado("aislamiento.workspace", PENDIENTE,
+                         "las tres declaraciones de entorno coinciden, pero no se "
+                         "pudo cargar el resolvedor del producto para mirar la "
+                         f"CUARTA (la del perfil de boveda): {type(exc).__name__}")
+    try:
+        declaradas = autoridad.declaraciones_de_perfil(dict(ctx.env), catalogo)
+    except Exception as exc:  # noqa: BLE001
+        return Resultado("aislamiento.workspace", PENDIENTE,
+                         "no se pudo leer la declaracion del perfil de boveda: "
+                         f"{type(exc).__name__}")
+
+    if not declaradas:
+        # AUSENCIA DECLARADA. No hay perfil legible, asi que el recorrido de
+        # ingesta no arrancaria: sin workspace declarado el alta falla cerrado.
+        return Resultado("aislamiento.workspace", ROJO,
+                         "ningun perfil de boveda declara workspace: el alta de "
+                         "fuente falla cerrada y el ensayo no puede ingerir nada")
+    if len(declaradas) > 1:
+        return Resultado("aislamiento.workspace", ROJO,
+                         f"{len(declaradas)} perfiles de boveda declaran workspaces "
+                         "DISTINTOS: el despliegue resuelve uno solo y el ensayo "
+                         "escribiria en el que le toque a cada fuente")
+    if declaradas[0] != ctx.workspace:
+        return Resultado(
+            "aislamiento.workspace", ROJO,
+            "el perfil de la boveda declara un workspace DISTINTO del ensayo: el "
+            "conocimiento se materializaria en el workspace del perfil, y el visor, "
+            "el writer y el ensayo miran otro. Es la divergencia que no produce "
+            "ningun error: pantalla vacia y operador tranquilo")
+
     return Resultado("aislamiento.workspace", VERDE,
-                     "visor, writer y ensayo hablan del mismo workspace")
+                     "perfil de boveda, visor, writer y ensayo hablan del mismo "
+                     "workspace (cuatro declaraciones, una sola)")
 
 
 def autenticacion_activa(ctx: Contexto) -> Resultado:

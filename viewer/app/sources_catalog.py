@@ -53,8 +53,9 @@ puerta trasera del invariante, y estas son las tres razones, comprobables:
      que aplica el estampador—, asi que no puede sobreexponer nada;
   2. lleva `regla="catalogo-plano-sin-boveda"`, que se PINTA en la pantalla:
      no se disfraza de ruta clasificada, se ve que no lo es;
-  3. no trae `workspace`, y el alta lo vuelve a EXIGIR (`SOURCE_PACKAGE_INVALID`
-     si el perfil no lo declara), asi que tampoco inventa ambito.
+  3. no trae `workspace`, y el alta lo vuelve a EXIGIR
+     (`SOURCE_WORKSPACE_UNDECLARED` si el perfil no lo declara), asi que
+     tampoco inventa ambito.
 
 Lo que NO debe hacerse con el: usarlo para «rellenar» un ambito en modo boveda.
 Si una ruta no se sabe clasificar, la respuesta es un rechazo con su motivo, no
@@ -124,6 +125,8 @@ __all__ = [
     "AMBITO_PLANO",
     "MOTIVO_AUXILIAR",
     "ENV_RAIZ_BOVEDAS",
+    "ENV_DIRECTORIO_DE_FUENTES",
+    "ubicacion_declarada",
     "ENV_EXIGIR_MONTAJE",
 ]
 
@@ -249,6 +252,45 @@ def directorio_de_fuentes(env: Optional[dict] = None) -> Path:
         return Path(crudo)
     # `viewer/app/sources_catalog.py` -> raiz del repositorio.
     return Path(__file__).resolve().parents[2] / "examples" / "ingesta-v3"
+
+
+#: Variable con la que el operador declara donde estan las fuentes cuando no
+#: hay arbol de bovedas.
+ENV_DIRECTORIO_DE_FUENTES = "S9K_INGEST_SOURCES_DIR"
+
+
+def ubicacion_declarada(env: Optional[dict] = None) -> bool:
+    """¿Ha DECLARADO el operador donde esta la boveda de este despliegue?
+
+    EL MATERIAL DE EJEMPLO DEL REPOSITORIO NO ES UNA DECLARACION
+    ------------------------------------------------------------
+    `directorio_de_fuentes()` cae en `examples/ingesta-v3/` cuando no se
+    declara nada, y ese directorio trae un `perfil-operador.json`. Sin este
+    predicado, el workspace de un fichero de EJEMPLO gobierna un despliegue.
+
+    Este predicado es la UNICA definicion de «hay boveda declarada», y lo
+    consultan LOS DOS LADOS del camino:
+
+      - la autoridad de workspace (`authz/autoridad_workspace.py`), para no
+        dejar que el perfil del ejemplo mande en los permisos;
+      - el catalogo de fuentes (`listar_fuentes`), para no derivar de el el
+        ambito de una ingesta.
+
+    Tenerlo en un solo lado fue exactamente el defecto: authz respetaba la
+    regla y la ingesta segui­a derivando del ejemplo, con lo que la DOBLE
+    AUTORIDAD volvia intacta y ademas muda. Medido con la configuracion de
+    fabrica: authz `leyenda`, ambito de la fuente `ws-cofradia`.
+
+    Es coherente con lo que el preflight ya exige por su cuenta:
+    `S9K_INGEST_SOURCES_DIR` sin declarar es ROJO porque «el catalogo caeria en
+    los ejemplos del repositorio».
+    """
+    entorno = env if env is not None else os.environ
+    for clave in (ENV_RAIZ_BOVEDAS, ENV_DIRECTORIO_DE_FUENTES):
+        valor = entorno.get(clave)
+        if isinstance(valor, str) and valor.strip():
+            return True
+    return False
 
 
 def raiz_de_bovedas(env: Optional[dict] = None) -> Optional[Path]:
@@ -493,6 +535,14 @@ def listar_fuentes(env: Optional[dict] = None) -> list[FuenteDisponible]:
     # porque `FuenteDisponible` no admite fuentes sin el: aqui se ve que el
     # invariante no tiene puerta trasera ni siquiera en el camino heredado.
     try:
+        if not ubicacion_declarada(env):
+            # EL OTRO LADO DE LA MISMA REGLA. Sin ubicacion declarada, el
+            # perfil que hay bajo `examples/` es material del repositorio, no
+            # una declaracion del operador: no da ambito a nada. El ambito se
+            # queda SIN workspace y el alta falla cerrada con su codigo
+            # (`SOURCE_WORKSPACE_UNDECLARED`), que es donde el operador ya sabe
+            # leerlo. AUSENCIA DECLARADA, no cero.
+            raise ValueError("ubicacion de boveda sin declarar")
         ambito_plano = AMBITO_PLANO.con_workspace(_workspace_declarado(perfil_raiz))
     except (OSError, ValueError):
         # Sin perfil legible no hay workspace declarado. Se conserva el ambito

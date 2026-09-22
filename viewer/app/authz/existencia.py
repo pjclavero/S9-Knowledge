@@ -83,10 +83,19 @@ def workspace_canonico() -> str:
     tratan eso como DENEGAR (fail-closed), igual que ya hacía
     `_still_has_access`: sin ámbito efectivo no se concede acceso.
     """
-    from app.config import get_settings
+    # RONDA 3: la autoridad es el PERFIL DE LA BOVEDA, no el entorno.
+    #
+    # Este es el otro extremo del mismo hueco que `authz/dependencies.py`:
+    # mientras esto leyera el entorno, `/admin/partidas` seguia ofreciendo un
+    # workspace distinto de aquel donde acaba el conocimiento, y conceder
+    # acceso al workspace real devolvia 400.
+    #
+    # La unidad de control del Corte 1 NO cambia: sigue habiendo UN workspace
+    # canonico y sigue siendo comparacion exacta. Lo que cambia es quien lo
+    # declara. Y `""` (sin autoridad resoluble) sigue significando DENEGAR.
+    from app.authz import autoridad_workspace  # noqa: PLC0415
 
-    ws = get_settings().S9K_DEFAULT_WORKSPACE
-    return ws.strip() if isinstance(ws, str) and ws.strip() else ""
+    return autoridad_workspace.resolver_por_peticion().valor
 
 
 def es_workspace_canonico(workspace: Optional[str]) -> bool:

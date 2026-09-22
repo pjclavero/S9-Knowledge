@@ -214,7 +214,8 @@ trasera del invariante, y por tres razones comprobables:
 2. lleva `regla="catalogo-plano-sin-boveda"`, que **se pinta**: no se disfraza de
    ruta clasificada;
 3. **no trae `workspace`**, y el alta lo vuelve a exigir
-   (`SOURCE_PACKAGE_INVALID` si el perfil no lo declara): tampoco inventa ámbito.
+   (`SOURCE_WORKSPACE_UNDECLARED` si el perfil no lo declara): tampoco inventa
+   ámbito.
 
 **Lo que no debe hacerse con él**: usarlo para «rellenar» un ámbito en modo
 bóveda. Si una ruta no se sabe clasificar, la respuesta es un rechazo con su

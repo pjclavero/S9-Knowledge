@@ -808,6 +808,13 @@ def _context(request, user, **extra) -> dict:
     este repo).
     """
     ctx = slot_context(SLOT, user, items=extra.pop("items", None), error=extra.pop("error", None))
+    # RONDA 2 · D1: el aviso de divergencia de autoridad de workspace entra por
+    # AQUI, que es el unico punto por el que pasan todas las pantallas de este
+    # panel. Ponerlo en cada `TemplateResponse` garantizaba que la siguiente
+    # naciera muda, que es exactamente como nacieron estas.
+    from app.authz import autoridad_workspace  # noqa: PLC0415
+
+    ctx["autoridad_workspace"] = autoridad_workspace.aviso_para_pantalla()
     ctx.update(extra)
     return ctx
 
@@ -1007,7 +1014,14 @@ def solicitar_ingesta(
     workspace = ambito.workspace
     if not workspace:
         # Fuente clasificada pero sin workspace DECLARADO: no se adivina.
-        return _fallo("SOURCE_PACKAGE_INVALID")
+        #
+        # RONDA 5 · O1. Esto NO es `SOURCE_PACKAGE_INVALID`. Los dos fallos
+        # son fail-closed, pero le piden al operador cosas DISTINTAS: uno
+        # dice «el paquete esta roto» y este dice «no has declarado donde
+        # esta tu boveda», que es la configuracion de fabrica y se arregla
+        # declarando la ubicacion, no tocando el paquete. Un codigo que
+        # carga las dos causas manda a mirar el fichero equivocado.
+        return _fallo("SOURCE_WORKSPACE_UNDECLARED")
 
     # 5. Se encola en la cola QUE YA EXISTE.
     try:

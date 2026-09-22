@@ -23,6 +23,18 @@ from app.services.v3_glossary_candidates import GlossaryCandidateStore
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+
+def _aviso_autoridad():
+    """RONDA 2 · D1. Esta pantalla estaba MUDA ante la divergencia.
+
+    Y es la peor de las tres para estarlo: aqui el dano no es un 400
+    recuperable, sino una decision humana que MUTA material de un workspace que
+    el revisor no puede ver — el defecto nº2 que el propio corte documenta.
+    """
+    from app.authz import autoridad_workspace  # noqa: PLC0415
+
+    return autoridad_workspace.aviso_para_pantalla()
 router = APIRouter(prefix="/v3/review", tags=["v3-review"])
 _RANK = {"admin": 3, "reviewer": 2, "viewer": 1}
 
@@ -173,7 +185,8 @@ def glossary_candidates(
         return templates.TemplateResponse(
             request, "v3_glossary_candidates.html",
             {"auth_user": guard, "workspaces": [], "workspace": None, "items": [],
-             "almacen": store_unavailable_view(exc)},
+             "almacen": store_unavailable_view(exc),
+             "autoridad_workspace": _aviso_autoridad()},
         )
     selected = workspace or (workspaces[0] if len(workspaces) == 1 else None)
     if selected and selected not in workspaces:
@@ -182,7 +195,8 @@ def glossary_candidates(
     return templates.TemplateResponse(
         request, "v3_glossary_candidates.html",
         {"auth_user": guard, "workspaces": workspaces, "workspace": selected,
-         "items": items, "almacen": None},
+         "items": items, "almacen": None,
+         "autoridad_workspace": _aviso_autoridad()},
     )
 
 
@@ -247,6 +261,7 @@ def queue(
             "almacen": almacen,
             "request_id": str(uuid.uuid4()),
             "notice": notice,
+            "autoridad_workspace": _aviso_autoridad(),
         },
     )
 

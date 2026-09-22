@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import json
 import os
 import sys
 import stat
@@ -58,6 +59,11 @@ def entorno(tmp_path: Path) -> dict:
     fuentes = tmp_path / "fuentes"
     fuentes.mkdir()
     (fuentes / "cronica-de-ejemplo.md").write_text("texto\n", encoding="utf-8")
+    # CORTE F-2: la CUARTA declaracion del workspace. Hasta este corte el
+    # entorno feliz de este fixture no tenia perfil de boveda y el preflight
+    # salia verde igual: exactamente la declaracion que no se miraba.
+    (fuentes / "perfil-operador.json").write_text(
+        json.dumps({"workspace": WS}), encoding="utf-8")
     (raiz / "scanner").mkdir()
     secreto = tmp_path / "secrets" / "neo4j_password"
     secreto.parent.mkdir()
@@ -628,3 +634,95 @@ def test_la_declaracion_de_apply_es_la_del_producto():
                     constantes[destino.id] = nodo.value.value
     assert constantes.get("ENV_ALLOW_REAL_INGEST") == "S9K_ALLOW_REAL_INGEST"
     assert constantes.get("ENV_WRITER_WORKSPACE") == "S9K_WRITER_WORKSPACE"
+
+
+# ---------------------------------------------------------------------------
+# CORTE F-2 — la CUARTA declaracion: el perfil de la boveda
+# ---------------------------------------------------------------------------
+# El diagnostico previo verifico que `fuentes_pobladas` carga el catalogo solo
+# para CONTAR fuentes y nunca lee `_workspace_declarado`. De modo que el perfil
+# —la declaracion que de verdad decide donde acaba el conocimiento— no la
+# miraba nadie en el preflight. Estas pruebas la fijan, cada una con su causa.
+
+def test_f2_control_positivo_el_entorno_feliz_tiene_las_cuatro(entorno):
+    """CONTROL POSITIVO de la tabla de abajo.
+
+    Si el fixture NO tuviera perfil, todos los rojos siguientes saldrian rojos
+    por la razon equivocada (ausencia de perfil) y esta tabla no mediria nada.
+    """
+    r = _correr(entorno)["aislamiento.workspace"]
+    assert r.estado == pf.VERDE, r.detalle
+    assert "cuatro declaraciones" in r.detalle
+
+
+def test_f2_perfil_en_otro_workspace_da_rojo_y_dice_la_causa(entorno):
+    """LA divergencia del corte: tres declaraciones de acuerdo y el perfil no.
+
+    Antes de F-2 esto salia VERDE: el ensayo arrancaba, ingeria, y el
+    conocimiento se materializaba en el workspace del perfil mientras visor y
+    writer miraban otro. Sin un solo error.
+    """
+    perfil = Path(entorno["S9K_INGEST_SOURCES_DIR"]) / "perfil-operador.json"
+    perfil.write_text(json.dumps({"workspace": "ws-de-la-boveda"}), encoding="utf-8")
+
+    r = _correr(entorno)["aislamiento.workspace"]
+    assert r.estado == pf.ROJO
+    # EL MENSAJE, no el color: tiene que nombrar al perfil como la declaracion
+    # discrepante, o el operador mirara las variables de entorno y las vera bien.
+    assert "perfil de la boveda" in r.detalle
+    assert "DISTINTO" in r.detalle
+
+
+def test_f2_sin_perfil_da_rojo_porque_el_alta_falla_cerrada(entorno):
+    """AUSENCIA != CERO: «no hay perfil» no es «el workspace por defecto»."""
+    (Path(entorno["S9K_INGEST_SOURCES_DIR"]) / "perfil-operador.json").unlink()
+
+    r = _correr(entorno)["aislamiento.workspace"]
+    assert r.estado == pf.ROJO
+    assert "ningun perfil" in r.detalle
+
+
+def test_f2_perfil_ilegible_da_rojo_y_no_cae_al_entorno(entorno):
+    """Un perfil corrupto NO hereda el workspace del entorno."""
+    perfil = Path(entorno["S9K_INGEST_SOURCES_DIR"]) / "perfil-operador.json"
+    perfil.write_text("{esto no es json", encoding="utf-8")
+
+    assert _correr(entorno)["aislamiento.workspace"].estado == pf.ROJO
+
+
+def test_f2_dos_bovedas_discordantes_dan_rojo(entorno, tmp_path):
+    """Modo boveda con dos juegos que declaran workspaces distintos."""
+    raiz = tmp_path / "bovedas"
+    for carpeta, ws in (("juego-uno", WS), ("juego-dos", "ws-otro")):
+        (raiz / carpeta).mkdir(parents=True)
+        (raiz / carpeta / "perfil-operador.json").write_text(
+            json.dumps({"workspace": ws}), encoding="utf-8")
+    entorno["S9K_VAULT_ROOT"] = str(raiz)
+
+    r = _correr(entorno)["aislamiento.workspace"]
+    assert r.estado == pf.ROJO
+    assert "DISTINTOS" in r.detalle
+
+
+def test_f2_el_preflight_no_re_deriva_la_lectura_del_perfil(entorno):
+    """La comprobacion usa el resolvedor del producto, no una copia.
+
+    Si alguien vuelve a leer el JSON aqui a mano, aparece la QUINTA
+    declaracion y esta prueba se pone roja diciendolo. Techo declarado: esta es
+    una red AST sobre el cuerpo de `aislamiento_workspace`; NO ve un alias
+    (`from x import y as z`) ni una lectura escondida tras otra funcion de este
+    mismo modulo.
+    """
+    fuente = Path(pf.__file__).read_text(encoding="utf-8")
+    arbol = ast.parse(fuente)
+    funcion = next(
+        n for n in ast.walk(arbol)
+        if isinstance(n, ast.FunctionDef) and n.name == "aislamiento_workspace")
+    llamadas = {
+        n.func.attr for n in ast.walk(funcion)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+    }
+    assert "declaraciones_de_perfil" in llamadas, (
+        "la comprobacion ya no pregunta al resolvedor canonico del producto")
+    assert "loads" not in llamadas and "read_text" not in llamadas, (
+        "se esta leyendo el perfil a mano: eso es una declaracion mas, no una menos")
