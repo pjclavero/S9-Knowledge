@@ -82,6 +82,27 @@ Y EL TECHO, DICHO ENTERO
 * La app es la real (`app.main` importado, routers y plantillas reales), pero
   el lector se instala por dependencia (`lector_por_dependencia`): esto NO mide
   autorización.
+
+* **EL INVENTARIO DE CONSUMIDORES ES PROSA, NO GUARDA.** Se barrieron las
+  plantillas y hoy hay cinco superficies de signo —tres del corte anterior y
+  las dos que este cierra—, todas sobre `app.labels.negation_code`. Pero
+  **nada impide que una SEXTA superficie repita el defecto**, y ése es
+  exactamente el modo de fallo que originó este corte: alguien pinta el signo
+  por su cuenta, leyendo la clave que le parezca. Está MITIGADO POR
+  CONSTRUCCIÓN —el signo se calcula en el servidor, en los dos embudos
+  (`ReviewService.present` y `review_console_v2.row_view`), así que una
+  pantalla nueva que consuma esos embudos lo recibe ya resuelto— pero **NO
+  ESTÁ VIGILADO**: no existe ninguna prueba que falle si mañana aparece una
+  plantilla que lo derive por su cuenta. Queda dicho con estas palabras.
+
+* **TRES DOBLES MÁS DIVERGEN DEL PRODUCTOR POR OMISIÓN**, y se nombran en vez
+  de contarse: `test_corte_altas_de_entidad.py`, `test_v3_decision_efectiva.py`
+  y `test_v3_review_storage.py` construyen una propuesta **sin `negated`**,
+  campo que el exportador real SIEMPRE escribe. Hoy no pueden fabricar un
+  verde falso —la ausencia se pinta «No disponible», que es lo correcto— así
+  que es DEUDA MENOR, no defecto. Se registra para que no se descubra dos
+  veces. (Barrido: de los ficheros del visor que construyen un `"proposal"`,
+  son exactamente esos tres los que omiten el campo.)
 """
 from __future__ import annotations
 

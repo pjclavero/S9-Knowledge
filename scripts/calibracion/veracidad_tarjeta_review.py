@@ -298,7 +298,16 @@ MUTACIONES: tuple[Mutacion, ...] = (
         viejo='            record["record_hash"] = _sha256(record)',
         nuevo='            record["record_hash"] = _sha256({"x": record["decision_id"]})',
         caen=("test_el_autor_el_momento_y_el_ambito_de_la_correccion_son_LOS_REALES",),
-        dice="EL `record_hash` NO CUBRE EL CONTENIDO DEL ACTA",
+        #: EL MENSAJE ES EL DEL PRODUCTO, NO EL DE MI ASERCIÓN, y conviene
+        #: decir por qué en vez de retocar el esperado hasta que case.
+        #: `read_history` RECALCULA el hash de cada registro al leerlo, así que
+        #: con esta mutación el fallo salta UNA CAPA ANTES de llegar a la
+        #: comprobación del test: la guarda del producto gana la carrera. La
+        #: causa es exactamente la que esta mutación introduce —la firma no
+        #: cubre el acta—, sólo que la nombra el producto. La aserción del
+        #: caso se queda como segunda red INDEPENDIENTE: si algún día
+        #: `read_history` dejara de verificar, ella seguiría mirando.
+        dice="hash inválido en entrada",
         porque=(
             "Una firma que no se puede recomputar no ata el autor, ni el "
             "momento, ni la corrección a nada. `assert acta['record_hash']` "
