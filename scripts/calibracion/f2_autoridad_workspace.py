@@ -156,7 +156,7 @@ MUTACIONES: list[Mutacion] = [
         viejo='    ctx["autoridad_workspace"] = autoridad_workspace.aviso_para_pantalla()',
         nuevo='    ctx["autoridad_workspace"] = None',
         prueba=f"{SUITE_PANTALLA}::test_D1_el_panel_de_operaciones_avisa_de_la_divergencia",
-        esperado="sigue MUDO",
+        esperado="el panel de operaciones sigue MUDO",
     ),
     Mutacion(
         nombre="9 · SIMÉTRICO de las anteriores — el cartel se pinta SIEMPRE, "

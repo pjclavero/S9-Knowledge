@@ -495,3 +495,31 @@ def test_D1_el_aviso_de_las_nuevas_pantallas_no_publica_rutas(revisor, entorno):
     html = _html(revisor, "/v3/review")
     assert str(fuentes) not in html
     assert "perfil-operador.json" not in html
+
+
+def test_D1_los_acuses_de_sellado_y_apply_aterrizan_en_pantalla_avisada(
+    operador_cliente, paneles_on
+):
+    """LOS ACUSES ENTRAN, y no hacia falta una superficie nueva. MEDIDO.
+
+    `chassis_operations.py:989` y `:1111` construyen el destino de los POST de
+    sellado y de apply como `url_for('chassis_operations') + "?aviso=<CODIGO>"`.
+    Es decir: el acuse NO es una pantalla propia — es un parametro sobre EL
+    PANEL, que es justo la pantalla a la que este corte le acaba de poner el
+    aviso. Asi que el operador que acaba de sellar o de aplicar aterriza viendo
+    la divergencia.
+
+    Esto se MIDE en vez de declararse: se pide la pantalla con la forma exacta
+    de la URL de aterrizaje y se comprueba que el cartel esta. Si alguien
+    moviera los acuses a una pantalla propia, esta prueba seguiria verde y
+    dejaria de cubrir el caso — por eso se nombra el limite aqui, en vez de
+    fingir que cubre todos los acuses posibles.
+    """
+    for codigo in ("PLAN_SEALED", "PLAN_SEALED_SIN_PROYECCION", "PLAN_APPLIED",
+                   "APPLY_NOT_ENABLED"):
+        html = _html(operador_cliente, f"/panel/operations?aviso={codigo}")
+        assert "aviso-autoridad-workspace" in html, (
+            f"tras el acuse '{codigo}' el operador aterriza en una pantalla que "
+            "NO avisa de la divergencia: acaba de decidir sobre un ambito que "
+            "puede no ser el que cree"
+        )
