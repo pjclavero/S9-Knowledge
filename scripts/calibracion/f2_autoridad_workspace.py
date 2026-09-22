@@ -87,17 +87,17 @@ MUTACIONES: list[Mutacion] = [
         esperado="el perfil no se esta comparando",
     ),
     Mutacion(
-        nombre="2 · la divergencia deja de fallar cerrada: con las dos "
-               "autoridades discrepando se elige la del entorno",
+        nombre="2 · se repone EL DEFECTO DE LA RONDA 3: ante la divergencia "
+               "se vuelve a devolver vacío, es decir, a denegar todo",
         fichero=RESOLVEDOR,
-        viejo="            return Autoridad(\n                valor=\"\",\n"
-              "                procedencia=PROCEDENCIA_NINGUNA,\n"
+        viejo="            return Autoridad(\n                valor=unico,\n"
+              "                procedencia=PROCEDENCIA_PERFIL,\n"
               "                codigo=COD_DIVERGENTE,",
-        nuevo="            return Autoridad(\n                valor=del_entorno,\n"
-              "                procedencia=PROCEDENCIA_NINGUNA,\n"
+        nuevo="            return Autoridad(\n                valor=\"\",\n"
+              "                procedencia=PROCEDENCIA_PERFIL,\n"
               "                codigo=COD_DIVERGENTE,",
         prueba=f"{SUITE}::test_n2_divergencia_no_resuelve_y_nombra_las_dos_declaraciones",
-        esperado="eso es escoger en silencio",
+        esperado="con perfil y entorno discrepando NO manda el perfil",
     ),
     Mutacion(
         nombre="3 · el fallback del entorno se sella como si fuera una "
@@ -127,13 +127,13 @@ MUTACIONES: list[Mutacion] = [
         esperado="la pantalla NO avisa de que las dos autoridades",
     ),
     Mutacion(
-        nombre="6 · SIMÉTRICO — el gate se pone rojo SIEMPRE, también con una "
-               "configuración legítima: un gate así no guarda, molesta",
+        nombre="6 · SIMÉTRICO — el resolvedor llama divergencia a que el "
+               "entorno DIGA LO MISMO: un gate que se queja siempre no guarda",
         fichero=RESOLVEDOR,
         viejo="        if del_entorno and del_entorno != unico:",
-        nuevo="        if True:",
-        prueba=f"{SUITE}::test_simetrico_las_configuraciones_legitimas_resuelven",
-        esperado="configuracion legitima (solo perfil) bloqueada",
+        nuevo="        if del_entorno:",
+        prueba=f"{SUITE_PANTALLA}::test_D1_simetrico_sin_divergencia_ninguna_pantalla_avisa",
+        esperado="se avisa de una divergencia que no existe en",
     ),
     # ---------------------------------------------------------------------
     # RONDA 2 · D4 — el arnés no podía ver el silencio de las otras pantallas

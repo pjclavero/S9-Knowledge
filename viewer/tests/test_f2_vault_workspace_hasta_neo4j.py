@@ -239,6 +239,37 @@ def test_f2_el_workspace_del_perfil_es_el_que_acaba_en_neo4j(
     del documento  # el recuento por workspace es lo que este corte afirma
     assert escritas, "no hay ni una afirmacion en el workspace del perfil"
 
+    # ESLABON 5 (RONDA 3) — AUTHZ Y READER RESUELVEN EL MISMO WORKSPACE.
+    #
+    # Esto es lo que en las rondas 1 y 2 estaba ABIERTO y se elevo: el
+    # conocimiento se materializaba en el workspace del perfil mientras la
+    # autorizacion resolvia el del entorno. Se comprueba AQUI, en el mismo
+    # ensayo y con la divergencia puesta, porque la 1a y la 5a condicion son el
+    # mismo hueco visto por los dos extremos: o se cierran juntas o no se
+    # cierra ninguna.
+    from app.authz import existencia
+    from app.authz.dependencies import _workspace_canonico_de_la_peticion
+    from app.authz.context import build_viewer_context
+
+    assert existencia.workspace_canonico() == W, (
+        "el workspace canonico del despliegue NO es el del perfil: "
+        f"{existencia.workspace_canonico()!r} != {W!r}"
+    )
+    contexto = build_viewer_context(
+        role="reviewer", auth_enabled=True,
+        default_workspace=_workspace_canonico_de_la_peticion(get_settings()),
+    )
+    assert sorted(contexto.allowed_workspaces) == [W], (
+        "la autorizacion resuelve un workspace distinto de aquel donde acaba "
+        f"el conocimiento: allowed_workspaces={sorted(contexto.allowed_workspaces)}, "
+        f"grafo={sorted(por_workspace)}. Es el hueco que este corte cierra"
+    )
+    assert W_ENTORNO not in contexto.allowed_workspaces
+    assert len(contexto.allowed_workspaces) == 1, (
+        "`allowed_workspaces` dejo de ser un singleton: eso es el cambio de "
+        "modelo vetado para F-2"
+    )
+
 
 @neo4j_real
 def test_f2_control_negativo_sin_alinear_el_writer_no_se_escribe_nada(
