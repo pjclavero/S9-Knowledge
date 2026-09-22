@@ -120,12 +120,23 @@ def test_n2_divergencia_no_resuelve_y_nombra_las_dos_declaraciones(boveda_plana)
     env = {**boveda_plana, "S9K_DEFAULT_WORKSPACE": WS_OTRO}
     resultado = autoridad.resolver(env)
 
+    # RONDA 3 — EL VEREDICTO Y EL DIAGNOSTICO, A LA VEZ.
+    #
+    # Antes esto exigia `valor == ""`. Era la semantica defectuosa: convertia
+    # un diagnostico de configuracion en una denegacion total del producto.
+    # Ahora manda el perfil Y se sigue reportando la discrepancia.
     assert resultado.codigo == autoridad.COD_DIVERGENTE
-    assert resultado.valor == "", (
-        "con las dos autoridades hablando y diciendo cosas distintas se eligio "
-        f"'{resultado.valor}': eso es escoger en silencio, que es el defecto"
+    assert resultado.valor == WS_PERFIL, (
+        "con perfil y entorno discrepando NO manda el perfil: el resolvedor "
+        f"devolvio '{resultado.valor}'. O el entorno sigue gobernando, o se "
+        "vuelve a tratar la divergencia como una ausencia de autoridad"
     )
-    assert resultado.procedencia == autoridad.PROCEDENCIA_NINGUNA
+    assert resultado.resuelto and resultado.configuracion_divergente, (
+        "`resuelto` y `diverge` han dejado de ser ortogonales: el resolvedor "
+        "no puede decir «workspace efectivo = A» y «configuracion divergente "
+        "= si» al mismo tiempo, que es justo lo que este corte hace posible"
+    )
+    assert resultado.procedencia == autoridad.PROCEDENCIA_PERFIL
 
     mensaje = resultado.diagnostico()
     # EL MENSAJE ES LA PRUEBA. Un fail-closed sin diagnostico es exactamente lo
@@ -136,15 +147,33 @@ def test_n2_divergencia_no_resuelve_y_nombra_las_dos_declaraciones(boveda_plana)
         f"saber que corregir: {mensaje!r}"
     )
     assert "S9K_DEFAULT_WORKSPACE" in mensaje
-    # NO SE FABRICA CAUSALIDAD: el modulo no sabe cual esta mal y no lo dice.
-    assert "no se elige por ti" in mensaje
+    # El diagnostico dice QUIEN manda y que la otra declaracion sigue sin
+    # resolver. NO SE FABRICA CAUSALIDAD: no dice cual de las dos esta mal.
+    assert "MANDA EL PERFIL" in mensaje
+    assert "NO gobierna" in mensaje
 
 
-def test_n2_exigir_levanta_con_el_codigo_antes_de_operar(boveda_plana):
-    env = {**boveda_plana, "S9K_DEFAULT_WORKSPACE": WS_OTRO}
+def test_n2_exigir_NO_levanta_por_una_divergencia_pero_SI_por_una_ausencia(
+    boveda_plana, sin_perfil
+):
+    """RONDA 3. `exigir` distingue ausencia de autoridad de discrepancia.
+
+    Antes levantaba ante la divergencia, que es la misma confusion: una
+    discrepancia NO es una ausencia de autoridad. Hay autoridad —el perfil— y
+    hay anomalia, y son cosas distintas.
+    """
+    divergente = {**boveda_plana, "S9K_DEFAULT_WORKSPACE": WS_OTRO}
+    resuelta = autoridad.exigir(divergente)
+    assert resuelta.valor == WS_PERFIL, (
+        "`exigir` deja de resolver ante una discrepancia: vuelve a tratar un "
+        "diagnostico de configuracion como una denegacion"
+    )
+    assert resuelta.configuracion_divergente
+
+    # Y lo que SI es una ausencia sigue levantando.
     with pytest.raises(autoridad.WorkspaceSinAutoridad) as fallo:
-        autoridad.exigir(env)
-    assert fallo.value.codigo == autoridad.COD_DIVERGENTE
+        autoridad.exigir(dict(sin_perfil))
+    assert fallo.value.codigo == autoridad.COD_INDETERMINADO
     # Ni rutas ni secretos en el texto que puede acabar en un log o en pantalla.
     assert str(fallo.value).count("/") == 0, (
         f"el diagnostico publica una ruta interna: {fallo.value}"
@@ -209,7 +238,9 @@ def test_n4_el_entorno_no_puede_imponer_un_workspace_ajeno(boveda_plana, intruso
         "entorno: el entorno volvio a ser autoridad"
     )
     assert resultado.codigo == autoridad.COD_DIVERGENTE
-    assert resultado.valor == ""
+    # RONDA 3: manda el perfil. Que el entorno no imponga NO significa que no
+    # se resuelva: significa que resuelve el otro.
+    assert resultado.valor == WS_PERFIL
 
 
 def test_n4_dos_bovedas_con_workspaces_distintos_no_eligen_una(tmp_path):
@@ -275,11 +306,13 @@ def test_n5_el_resultado_depende_de_la_declaracion_del_perfil(tmp_path):
     # del perfil— hacia saltar el mudo antes que el que lleva el mensaje, y la
     # prueba se ponia roja sin decir por que. Lo encontro la autocalibracion
     # del arnes, no una lectura del codigo: por eso se deja escrito.
-    assert (a.valor, b.valor) == (WS_PERFIL, ""), (
+    assert (a.valor, b.valor) == (WS_PERFIL, WS_OTRO), (
         "cambiar el workspace DECLARADO por el perfil no cambio el desenlace: "
         "el perfil no se esta comparando, y la divergencia no se detectaria. "
         f"Medido: perfil='{WS_PERFIL}' -> {a.codigo}/{a.valor!r}; "
-        f"perfil='{WS_OTRO}' -> {b.codigo}/{b.valor!r}"
+        f"perfil='{WS_OTRO}' -> {b.codigo}/{b.valor!r}. "
+        "RONDA 3: cada uno resuelve AL SUYO; lo que cambia con el perfil es "
+        "el veredicto, no solo el diagnostico"
     )
     assert a.codigo == autoridad.COD_PERFIL_CONFIRMADO, (
         "con perfil y entorno diciendo lo mismo el resolvedor no lo reconocio "

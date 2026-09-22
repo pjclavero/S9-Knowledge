@@ -118,9 +118,16 @@ COD_VARIOS_PERFILES = "WORKSPACE_AUTHORITY_MULTIPLE_PROFILES"
 COD_CATALOGO_INALCANZABLE = "WORKSPACE_AUTHORITY_CATALOG_UNAVAILABLE"
 
 #: Los codigos con los que NO hay workspace efectivo: todos ellos deniegan.
+#:
+#: RONDA 3. `COD_DIVERGENTE` **ya no esta aqui**, y esa es la correccion del
+#: corte. Devolver `""` ante una discrepancia trataba la divergencia como un
+#: error que impide resolver, y dejaba el producto inservible con la
+#: configuracion de fabrica (medido: `allowed_workspaces == set()`, 60 rojos).
+#: Una discrepancia no es una ausencia de autoridad: es una autoridad —el
+#: perfil— y una declaracion secundaria que no coincide. Manda el perfil, y la
+#: discrepancia SE REPORTA en vez de gobernar.
 CODIGOS_FAIL_CLOSED = frozenset(
-    {COD_DIVERGENTE, COD_INDETERMINADO, COD_VARIOS_PERFILES,
-     COD_CATALOGO_INALCANZABLE}
+    {COD_INDETERMINADO, COD_VARIOS_PERFILES, COD_CATALOGO_INALCANZABLE}
 )
 
 
@@ -142,13 +149,54 @@ class Autoridad:
     #: Cuantos perfiles legibles se encontraron (0, 1 o mas).
     perfiles_legibles: int = 0
 
+    # -----------------------------------------------------------------
+    # EL VEREDICTO Y EL DIAGNOSTICO SON DOS COSAS, Y SE LEEN POR SEPARADO
+    # -----------------------------------------------------------------
+    # RONDA 3. El vicio de forma que habia aqui era mezclarlos en un solo
+    # valor: `valor=""` significaba a la vez «no resuelvo» y «hay una
+    # anomalia», de modo que el resolvedor NO PODIA reportar la discrepancia
+    # sin dejar de resolver — y un diagnostico de configuracion se convertia en
+    # una denegacion total del producto.
+    #
+    # Ahora son ortogonales, y el estado `resuelto=True` + `diverge=True` es
+    # legitimo y esperado: «workspace efectivo = A» y «configuracion divergente
+    # = si» a la vez.
+
     @property
     def resuelto(self) -> bool:
+        """EL VEREDICTO: ¿hay workspace efectivo? Nada mas."""
         return bool(self.valor)
 
     @property
     def diverge(self) -> bool:
+        """EL DIAGNOSTICO: ¿el entorno contradice al perfil? Nada mas.
+
+        AUSENCIA NO ES DIVERGENCIA, y se decide aqui en voz alta:
+
+          - `WORKSPACE_AUTHORITY_DIVERGENT` = hay perfil Y el entorno dice otra
+            cosa. HAY autoridad (el perfil) y HAY anomalia. `diverge` es True y
+            `resuelto` tambien.
+          - `WORKSPACE_AUTHORITY_UNDETERMINED` / `..._CATALOG_UNAVAILABLE` =
+            NO hay perfil, o no se pudo mirar. Eso NO es una discrepancia: es
+            una ausencia. `diverge` es False, y `resuelto` tambien False.
+          - `..._MULTIPLE_PROFILES` = varias bovedas discordantes. Tampoco es
+            «el entorno contradice»: es que no hay UNA autoridad. `diverge`
+            False, `resuelto` False.
+
+        Confundirlos haria que un despliegue sin bovedas se pintase como
+        «configuracion divergente», que es exactamente la clase de falso aviso
+        que el simetrico existe para impedir.
+        """
         return self.codigo == COD_DIVERGENTE
+
+    @property
+    def configuracion_divergente(self) -> bool:
+        """Alias explicito de `diverge`, para leerlo junto a `resuelto`.
+
+        `autoridad.resuelto and autoridad.configuracion_divergente` es el
+        estado que este corte hace posible y que antes era irrepresentable.
+        """
+        return self.diverge
 
     def diagnostico(self) -> str:
         """Frase para el operador. Sin rutas, sin texto del motor, sin secretos.
@@ -160,11 +208,11 @@ class Autoridad:
             return (
                 f"{COD_DIVERGENTE}: el perfil de la boveda declara "
                 f"'{self.declarado_por_perfil}' y {ENV_WORKSPACE_POR_DEFECTO} "
-                f"declara '{self.declarado_por_entorno}'. El perfil es la "
-                "autoridad canonica y el entorno solo puede ser fallback, asi "
-                "que con las dos hablando y diciendo cosas distintas no se "
-                "resuelve ningun workspace. Corrige una de las dos "
-                "declaraciones; no se elige por ti."
+                f"declara '{self.declarado_por_entorno}'. MANDA EL PERFIL: el "
+                f"workspace efectivo es '{self.valor}' en todo el producto "
+                "—permisos, revision, apply y grafo—. La declaracion del "
+                "entorno NO gobierna nada, pero sigue siendo una discrepancia "
+                "sin resolver: corrigela o retirala."
             )
         if self.codigo == COD_VARIOS_PERFILES:
             return (
@@ -253,21 +301,7 @@ def declaraciones_de_perfil(
         except Exception as exc:
             raise CatalogoNoAlcanzable(type(exc).__name__) from exc
 
-    candidatos: list = []
-    raiz_bovedas = sources_catalog.raiz_de_bovedas(entorno)
-    if raiz_bovedas is not None:
-        try:
-            carpetas = sorted(
-                p for p in raiz_bovedas.iterdir() if p.is_dir()
-            )
-        except OSError:
-            carpetas = []
-        candidatos.extend(c / sources_catalog.NOMBRE_PERFIL for c in carpetas)
-    else:
-        candidatos.append(
-            sources_catalog.directorio_de_fuentes(entorno)
-            / sources_catalog.NOMBRE_PERFIL
-        )
+    candidatos = _candidatos_de_perfil(entorno, sources_catalog)
 
     valores: list[str] = []
     for perfil in candidatos:
@@ -284,10 +318,156 @@ def declaraciones_de_perfil(
     return sorted(valores)
 
 
+#: Variable con la que el operador declara DONDE estan las fuentes cuando no
+#: hay arbol de bovedas. Sin ella, `sources_catalog.directorio_de_fuentes()`
+#: cae en `examples/ingesta-v3` DEL REPOSITORIO.
+ENV_DIRECTORIO_DE_FUENTES = "S9K_INGEST_SOURCES_DIR"
+
+
+def _candidatos_de_perfil(entorno, sources_catalog) -> list:
+    """Las rutas de perfil que este despliegue DECLARA. Sin leerlas.
+
+    EL MATERIAL DE EJEMPLO DEL REPOSITORIO NO ES UNA DECLARACION DEL OPERADOR
+    ------------------------------------------------------------------------
+    RONDA 3, y es una decision de contrato, no un apano para la suite.
+
+    Al hacer del perfil la autoridad efectiva aparecio esto: si el operador no
+    declara NI `S9K_VAULT_ROOT` NI `S9K_INGEST_SOURCES_DIR`, el resolvedor de
+    rutas del producto cae en `examples/ingesta-v3/` del propio repositorio —y
+    ese directorio trae un `perfil-operador.json`—. Con la regla ingenua, el
+    workspace de un fichero de EJEMPLO habria pasado a gobernar los permisos de
+    un despliegue entero. Medido: 142 pruebas rojas, y no por la semantica
+    nueva, sino por esto.
+
+    Asi que la autoridad del perfil exige que el operador haya DECLARADO donde
+    esta la boveda. Si no lo ha declarado no hay perfil que valga: la lista sale
+    vacia y el llamante lo trata como AUSENCIA —con lo que manda el fallback del
+    entorno, que es el contrato ya declarado en el docstring del modulo—.
+
+    Esto es coherente con lo que el preflight ya exige por su cuenta:
+    `S9K_INGEST_SOURCES_DIR` sin declarar es ROJO precisamente porque «el
+    catalogo caeria en los ejemplos del repositorio».
+
+    AUSENCIA != DIVERGENCIA: un despliegue que no declara boveda no tiene una
+    discrepancia, tiene una ausencia, y no se le pinta ningun aviso.
+    """
+    raiz_bovedas = sources_catalog.raiz_de_bovedas(entorno)
+    if raiz_bovedas is not None:
+        try:
+            carpetas = sorted(p for p in raiz_bovedas.iterdir() if p.is_dir())
+        except OSError:
+            carpetas = []
+        return [c / sources_catalog.NOMBRE_PERFIL for c in carpetas]
+    if not _limpio(entorno.get(ENV_DIRECTORIO_DE_FUENTES)):
+        # El operador no ha declarado donde estan las fuentes. No hay perfil
+        # con autoridad: lo que haya en el arbol del repositorio no lo es.
+        return []
+    return [
+        sources_catalog.directorio_de_fuentes(entorno)
+        / sources_catalog.NOMBRE_PERFIL
+    ]
+
+
+#: Cache de la resolucion POR FIRMA DEL ARBOL DE PERFILES.
+#:
+#: RONDA 3. `resolver()` pasa a correr en una dependencia de FastAPI, es decir
+#: EN CADA PETICION, y eso es E/S de disco por peticion: medido, 176 us en modo
+#: plano y 611 us con un arbol de 12 bovedas. Con la cache queda en el coste de
+#: un `stat()` por perfil candidato.
+#:
+#: LA FIRMA NO TIENE TECHO DE CONTENIDO: incluye `mtime_ns` y `st_size` de CADA
+#: perfil candidato, asi que editar un perfil invalida la entrada. Lo que la
+#: firma NO ve es un cambio que no toque ni el listado de carpetas ni ninguno
+#: de esos ficheros — por construccion, eso no puede cambiar la declaracion.
+#: Se declara aqui porque una cache de autoridad que se quede rancia seria peor
+#: que el coste que ahorra.
+_CACHE_RESOLUCION: dict = {}
+#: Tope del diccionario: es una cache de proceso, no puede crecer sin limite.
+_CACHE_MAXIMO = 64
+
+
+def _firma_del_arbol(entorno, sources_catalog) -> tuple:
+    """`stat()` de cada perfil candidato. Sin abrir ni parsear ninguno."""
+    firma = []
+    for ruta in _candidatos_de_perfil(entorno, sources_catalog):
+        try:
+            st = ruta.stat()
+            firma.append((str(ruta), st.st_mtime_ns, st.st_size))
+        except OSError:
+            firma.append((str(ruta), None, None))
+    return tuple(firma)
+
+
+def resolver_por_peticion(env: Optional[dict] = None) -> Autoridad:
+    """Como `resolver()`, pero apto para llamarse en CADA peticion.
+
+    Mismo resultado, con la lectura de los perfiles cacheada por la firma del
+    arbol. Los caminos que tienen que ver la verdad sin intermediarios —el
+    preflight de despliegue y el diagnostico— siguen usando `resolver()`.
+
+    Si la firma no se puede calcular (no hay catalogo), se degrada a
+    `resolver()`, que ya sabe fallar cerrado con su codigo.
+    """
+    # `env` SE PROPAGA TAL CUAL, incluido `None`. Sustituirlo aqui por
+    # `os.environ` parecia inocuo y no lo era: `resolver()` distingue «me han
+    # pasado un entorno explicito» de «resuelve para el producto», y solo en el
+    # segundo caso consulta el defecto de `Settings`. Al pasarle `os.environ`
+    # se perdia ese defecto y el workspace efectivo salia vacio -> DENEGAR.
+    # Sintoma medido: `/reviews` en 404 con `settings='leyenda'` y
+    # `canonico=''`.
+    entorno_para_firma = env if env is not None else os.environ
+    try:
+        from app import sources_catalog  # noqa: PLC0415
+
+        firma = _firma_del_arbol(entorno_para_firma, sources_catalog)
+    except Exception:
+        return resolver(env)
+
+    # La clave mira la declaracion EFECTIVA de entorno (que incluye el defecto
+    # de `Settings`), no la variable cruda: si no, dos estados distintos
+    # compartirian entrada.
+    clave = (firma, declaracion_de_entorno(env))
+    cacheada = _CACHE_RESOLUCION.get(clave)
+    if cacheada is not None:
+        return cacheada
+    resuelta = resolver(env)
+    if len(_CACHE_RESOLUCION) >= _CACHE_MAXIMO:
+        _CACHE_RESOLUCION.clear()
+    _CACHE_RESOLUCION[clave] = resuelta
+    return resuelta
+
+
 def declaracion_de_entorno(env: Optional[dict] = None) -> str:
-    """Lo que declara el entorno. `""` si no declara nada."""
-    entorno = env if env is not None else os.environ
-    return _limpio(entorno.get(ENV_WORKSPACE_POR_DEFECTO))
+    """Lo que declara el entorno. `""` si no declara nada.
+
+    REGRESION REAL, CAZADA Y CORREGIDA (ronda 3)
+    --------------------------------------------
+    Esto leia `os.environ` PELADO. Pero la declaracion de entorno del producto
+    no es la variable cruda: es `Settings.S9K_DEFAULT_WORKSPACE`, que TIENE UN
+    DEFECTO (`"leyenda"`) y por tanto declara algo aunque la variable no este.
+
+    Al cablear authz a este resolvedor, un despliegue sin la variable —toda la
+    suite heredada— pasaba de resolver `"leyenda"` a resolver `""`, es decir a
+    DENEGAR. Sintoma medido: `/reviews` devolvia 404 porque el workspace
+    efectivo era cadena vacia. 14 pruebas ajenas en rojo por esto, y ninguna
+    tenia nada que ver con la semantica nueva.
+
+    Cuando el llamante pasa un `env` EXPLICITO (el preflight, las pruebas), ese
+    diccionario es la verdad y no se consulta nada mas: si no declara, no
+    declara. El defecto de `Settings` solo entra cuando se esta resolviendo
+    para el PRODUCTO, que es cuando `env is None`.
+    """
+    if env is not None:
+        return _limpio(env.get(ENV_WORKSPACE_POR_DEFECTO))
+    crudo = _limpio(os.environ.get(ENV_WORKSPACE_POR_DEFECTO))
+    if crudo:
+        return crudo
+    try:
+        from app.config import get_settings  # noqa: PLC0415
+
+        return _limpio(get_settings().S9K_DEFAULT_WORKSPACE)
+    except Exception:
+        return ""
 
 
 def resolver(env: Optional[dict] = None, catalogo: object = None) -> Autoridad:
@@ -323,9 +503,25 @@ def resolver(env: Optional[dict] = None, catalogo: object = None) -> Autoridad:
     if del_perfil:
         unico = del_perfil[0]
         if del_entorno and del_entorno != unico:
+            # RONDA 3 — LA CORRECCION DEL CORTE.
+            #
+            # Antes esto devolvia `""`: se trataba la discrepancia como un
+            # error que impide resolver. Eso NO elimina la doble autoridad, la
+            # convierte en una denegacion total.
+            #
+            # Lo correcto es lo que el operador nombro: el perfil ES la
+            # autoridad, el entorno pasa a declaracion secundaria que NO
+            # gobierna, y la discrepancia se REPORTA. Se resuelve al perfil y
+            # se conserva `COD_DIVERGENTE`, que es lo que mantiene el aviso en
+            # las tres pantallas y el rojo del preflight.
+            #
+            # Esto NO es alinear los valores para que la divergencia deje de
+            # verse (lo que la pieza 5 prohibe): los dos valores siguen siendo
+            # distintos y siguen viendose. Lo que cambia es que uno de los dos
+            # deja de ser autoridad.
             return Autoridad(
-                valor="",
-                procedencia=PROCEDENCIA_NINGUNA,
+                valor=unico,
+                procedencia=PROCEDENCIA_PERFIL,
                 codigo=COD_DIVERGENTE,
                 declarado_por_perfil=unico,
                 declarado_por_entorno=del_entorno,

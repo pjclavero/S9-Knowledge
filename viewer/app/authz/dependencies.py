@@ -128,11 +128,43 @@ def get_visibility_context(request: Request) -> ViewerContext:
     return build_viewer_context(
         role=role,
         auth_enabled=auth_enabled,
-        default_workspace=settings.S9K_DEFAULT_WORKSPACE,
+        # RONDA 3 — EL CABLEADO QUE CIERRA LA 1a Y LA 5a A LA VEZ.
+        #
+        # Aqui se leia `settings.S9K_DEFAULT_WORKSPACE` DIRECTAMENTE, y ese era
+        # el extremo de authz del mismo hueco: el conocimiento se materializaba
+        # en el workspace del perfil y la autorizacion resolvia el del entorno.
+        #
+        # `allowed_workspaces` SIGUE SIENDO UN SINGLETON —el resolvedor
+        # devuelve UN valor, nunca un conjunto—: no se abre pluralidad de
+        # workspaces. Lo unico que cambia es DE DONDE sale ese unico valor.
+        default_workspace=_workspace_canonico_de_la_peticion(settings),
         active_partida=active_partida,
         max_visible_session=tope,
         active_character=personaje,
     )
+
+
+def _workspace_canonico_de_la_peticion(settings) -> str:
+    """El workspace efectivo de ESTA peticion, con el perfil como autoridad.
+
+    RONDA 3. Se usa la variante cacheada por firma del arbol: esto corre en
+    cada peticion y sin cache seria E/S de disco por peticion (medido: 176 us
+    en modo plano, 611 us con 12 bovedas; con cache, 72 y 243).
+
+    INVERSION DE CAPAS, DECLARADA: `authz` pasa a depender de `sources_catalog`
+    a traves de `autoridad_workspace`. Es deliberado y es el precio de tener
+    UNA sola autoridad: la alternativa es que authz siga teniendo la suya, que
+    es exactamente el defecto. La dependencia es de UN SOLO SENTIDO
+    (`sources_catalog` no conoce `authz`) y esta acotada a este resolvedor.
+
+    FALLA CERRADO: si no hay autoridad resoluble el resolvedor devuelve `""`, y
+    `""` es lo que el resto del codigo ya trata como denegar. No se cae al
+    entorno por nuestra cuenta: el fallback al entorno lo decide el CONTRATO
+    del resolvedor (solo cuando no hay perfil), no este llamante.
+    """
+    from app.authz import autoridad_workspace  # noqa: PLC0415
+
+    return autoridad_workspace.resolver_por_peticion().valor
 
 
 def _progresion_de_campana(
