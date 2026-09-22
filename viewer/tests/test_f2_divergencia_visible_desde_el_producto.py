@@ -887,6 +887,16 @@ def test_R5_O1_el_codigo_propio_TIENE_TRADUCCION_y_dice_que_hacer():
         "la traduccion es la misma que la del paquete roto: separar el codigo "
         "y no la frase no separa nada para quien lo lee"
     )
+    # RONDA 6. Distinta NO basta, y lo enseno el calibrador: una frase que
+    # EMPIEZA diciendo «el paquete no es valido» y luego anade el consejo
+    # bueno es distinta de la otra y contiene «declara», asi que pasaba las
+    # dos comprobaciones anteriores — y sigue mandando al operador a mirar un
+    # paquete que esta perfecto. La causa ajena no puede aparecer.
+    assert CATALOGO["SOURCE_PACKAGE_INVALID"].rstrip(".") not in frase, (
+        "la traduccion sigue afirmando que el paquete no es valido: el "
+        "operador de fabrica tiene el paquete bien y lo que le falta es "
+        "declarar donde esta su boveda"
+    )
 
 
 def test_R5_O3_el_consejo_del_cartel_ES_ALCANZABLE():
