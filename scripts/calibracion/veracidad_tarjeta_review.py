@@ -50,6 +50,7 @@ VISOR = RAIZ / "viewer"
 SERVICIO = VISOR / "app" / "services" / "v3_review.py"
 CONSOLA = VISOR / "app" / "services" / "review_console_v2.py"
 PLANTILLA = VISOR / "app" / "templates" / "v3_review.html"
+PANEL = VISOR / "app" / "templates" / "chassis" / "review_item.html"
 SUITE = "tests/test_veracidad_de_la_tarjeta_de_review.py"
 
 
@@ -113,9 +114,25 @@ MUTACIONES: tuple[Mutacion, ...] = (
         fichero=CONSOLA,
         viejo='"signo": negation_code(negated),\n        "signo_label": negation_label(negation_code(negated)),',
         nuevo='"signo": negation_code(_clean(negation_kind)),\n        "signo_label": negation_label(negation_code(_clean(negation_kind))),',
-        caen=("test_la_consola_publica_el_signo_y_no_la_clase_de_negacion",),
+        caen=(
+            "test_la_consola_publica_el_signo_y_no_la_clase_de_negacion",
+            "test_la_ficha_SERVIDA_de_la_consola_dice_el_signo",
+        ),
         dice="LA SEGUNDA TARJETA PUBLICA",
         porque="El defecto de /panel/review: la CLASE bajo el rótulo del SIGNO.",
+    ),
+    Mutacion(
+        nombre="la-ficha-de-la-consola-vuelve-a-pintar-la-clase",
+        fichero=PANEL,
+        viejo='<dd data-signo="{{ row.signo | e }}">{{ row.signo_label | e }}</dd>',
+        nuevo="<dd>{{ row.negation_kind | e if row.negation_kind else 'no disponible' }}</dd>",
+        caen=("test_la_ficha_SERVIDA_de_la_consola_dice_el_signo",),
+        dice="EL CAMPO «Negación» DE LA FICHA SERVIDA NO PUBLICA EL CÓDIGO",
+        porque=(
+            "LA PLANTILLA de /panel/review vuelve a como estaba. Es la mitad "
+            "que `row_view` no puede vigilar: antes de este corte el `negated` "
+            "YA se calculaba bien y aun así la pantalla decía «no disponible»."
+        ),
     ),
     # ---- PIEZA C: F-7, la corrección fantasma ---------------------------
     Mutacion(

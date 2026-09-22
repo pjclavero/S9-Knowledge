@@ -480,6 +480,61 @@ class TestELaOtraTarjetaDondeTambienSeDecide:
             "valor, revisa que el rótulo «Negación» siga siendo el SIGNO."
         )
 
+    def test_la_ficha_SERVIDA_de_la_consola_dice_el_signo(self, tmp_path, corpus,
+                                                          monkeypatch,
+                                                          lector_por_dependencia):
+        """Y en esta tarjeta también se PIDE LA PANTALLA, no el diccionario.
+
+        `row_view` ya calculaba bien el `negated` ANTES de este corte y aun así
+        la pantalla decía «no disponible»: el dato correcto no llegaba al
+        marcado. Afirmar sobre `row_view` habría sido exactamente el verde
+        falso que dejó vivir el defecto, así que aquí se hace un GET del HTML.
+        """
+        import os
+
+        from app.chassis import FEATURE_SLOTS, slot_flag_env
+        from app.main import app as app_real
+        from app.routers import chassis_review as panel
+
+        slot = next(s for s in FEATURE_SLOTS if s.key == "C")
+        negado = corpus["negado"]
+        proposals = tmp_path / "proposals"
+        proposals.mkdir(parents=True)
+        (proposals / "package.json").write_text(
+            json.dumps({"items": [negado]}, ensure_ascii=False), encoding="utf-8"
+        )
+        servicio = ReviewService(proposals, tmp_path / "actas" / "decisiones.jsonl")
+        monkeypatch.setattr(panel, "_service", lambda: servicio)
+        monkeypatch.setenv(slot_flag_env(slot), "true")
+        lector_por_dependencia(app_real)
+        try:
+            cliente = TestClient(app_real)
+            url = f"{slot.prefix}/item/{negado['proposal_id']}"
+            respuesta = cliente.get(url, params={"workspace": negado["workspace"]})
+            assert respuesta.status_code == 200, (
+                f"La ficha de la consola no se sirvió ({respuesta.status_code}) "
+                f"en {url}: {respuesta.text[:300]}"
+            )
+            m = re.search(
+                r"<dt>Negación</dt>\s*<dd[^>]*data-signo=\"([^\"]*)\"[^>]*>(.*?)</dd>",
+                respuesta.text, re.S,
+            )
+            assert m is not None, (
+                "EL CAMPO «Negación» DE LA FICHA SERVIDA NO PUBLICA EL CÓDIGO "
+                "DEL SIGNO. La pantalla volvió a un texto sin autoridad detrás."
+            )
+            assert m.group(1) == NEGACION_NEGADO, (
+                f"LA FICHA SERVIDA DE /panel/review PINTA {m.group(1)!r} PARA "
+                f"UN HECHO NEGADO. Es la segunda tarjeta donde se decide, y "
+                f"decía «no disponible» por pintar la CLASE en vez del SIGNO."
+            )
+            assert _html.unescape(m.group(2)).strip() == (
+                NEGACION_LABELS_ES[NEGACION_NEGADO]
+            )
+        finally:
+            app_real.dependency_overrides.clear()
+            os.environ.pop(slot_flag_env(slot), None)
+
     def test_el_campo_negacion_de_la_consola_no_se_derrumba_por_la_clase(self, corpus):
         """CONTROL POSITIVO: la causa vieja, ejecutada, sí se derrumba.
 
