@@ -44,7 +44,9 @@ REPO = Path(__file__).resolve().parents[2]
 
 RESOLVEDOR = "viewer/app/authz/autoridad_workspace.py"
 PREFLIGHT = "deploy/scripts/preflight_ensayo_rc.py"
-PLANTILLA = "viewer/app/templates/auth/admin/partidas.html"
+PLANTILLA = "viewer/app/templates/_aviso_autoridad_workspace.html"
+PLANTILLA_REVIEW = "viewer/app/templates/v3_review.html"
+ROUTER_OPS = "viewer/app/routers/chassis_operations.py"
 
 SUITE = "viewer/tests/test_f2_autoridad_canonica_workspace.py"
 SUITE_PREFLIGHT = "deploy/tests/test_preflight_ensayo_rc.py"
@@ -115,7 +117,7 @@ MUTACIONES: list[Mutacion] = [
         esperado="ya no pregunta al resolvedor canonico del producto",
     ),
     Mutacion(
-        nombre="5 · la pantalla deja de avisar: el operador vuelve a ver un "
+        nombre="5 · el cartel deja de avisar: el operador vuelve a ver un "
                "workspace y a recibir un 400 sin explicación",
         fichero=PLANTILLA,
         viejo='data-testid="aviso-autoridad-workspace"',
@@ -131,6 +133,39 @@ MUTACIONES: list[Mutacion] = [
         nuevo="        if True:",
         prueba=f"{SUITE}::test_simetrico_las_configuraciones_legitimas_resuelven",
         esperado="configuracion legitima (solo perfil) bloqueada",
+    ),
+    # ---------------------------------------------------------------------
+    # RONDA 2 · D4 — el arnés no podía ver el silencio de las otras pantallas
+    # ---------------------------------------------------------------------
+    # Ninguna de las seis mutaciones anteriores detectaba que `/v3/review` y el
+    # panel de operaciones estuvieran MUDOS, porque el aviso nunca existió allí:
+    # no había nada que quitar. Ahora que existe, se puede quitar — y duele.
+    Mutacion(
+        nombre="7 · se quita el aviso de /v3/review: la pantalla donde el daño "
+               "es una MUTACIÓN de material ajeno vuelve al silencio",
+        fichero=PLANTILLA_REVIEW,
+        viejo='  {% include "_aviso_autoridad_workspace.html" %}\n',
+        nuevo="",
+        prueba=f"{SUITE_PANTALLA}::test_D1_la_cola_de_revision_avisa_de_la_divergencia",
+        esperado="sigue MUDA ante la divergencia",
+    ),
+    Mutacion(
+        nombre="8 · se quita el aviso del panel de operaciones: desde donde se "
+               "lanza la ingesta ya no se ve la divergencia",
+        fichero=ROUTER_OPS,
+        viejo='    ctx["autoridad_workspace"] = autoridad_workspace.aviso_para_pantalla()',
+        nuevo='    ctx["autoridad_workspace"] = None',
+        prueba=f"{SUITE_PANTALLA}::test_D1_el_panel_de_operaciones_avisa_de_la_divergencia",
+        esperado="sigue MUDO",
+    ),
+    Mutacion(
+        nombre="9 · SIMÉTRICO de las anteriores — el cartel se pinta SIEMPRE, "
+               "también sin divergencia, en las tres pantallas",
+        fichero=RESOLVEDOR,
+        viejo="    resuelta = resolver(env, catalogo)\n    if not resuelta.diverge:\n        return None",
+        nuevo="    resuelta = resolver(env, catalogo)\n    if False:\n        return None",
+        prueba=f"{SUITE_PANTALLA}::test_D1_simetrico_sin_divergencia_ninguna_pantalla_avisa",
+        esperado="se avisa de una divergencia que no existe en",
     ),
 ]
 

@@ -808,6 +808,13 @@ def _context(request, user, **extra) -> dict:
     este repo).
     """
     ctx = slot_context(SLOT, user, items=extra.pop("items", None), error=extra.pop("error", None))
+    # RONDA 2 · D1: el aviso de divergencia de autoridad de workspace entra por
+    # AQUI, que es el unico punto por el que pasan todas las pantallas de este
+    # panel. Ponerlo en cada `TemplateResponse` garantizaba que la siguiente
+    # naciera muda, que es exactamente como nacieron estas.
+    from app.authz import autoridad_workspace  # noqa: PLC0415
+
+    ctx["autoridad_workspace"] = autoridad_workspace.aviso_para_pantalla()
     ctx.update(extra)
     return ctx
 

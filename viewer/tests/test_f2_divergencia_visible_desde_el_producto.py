@@ -312,3 +312,186 @@ def test_medicion_el_singleton_es_el_supuesto_que_bloquea(entorno):
             f"{sorted(contexto.allowed_workspaces)}. Todo lo que asume el "
             "singleton hay que revisarlo a la vez, y eso NO cabe en F-2"
         )
+
+
+# ===========================================================================
+# RONDA 2 · D1 — LAS OTRAS DOS PANTALLAS, QUE ESTABAN MUDAS
+# ===========================================================================
+# El aviso existia en `/admin/partidas` y en NINGUNA otra parte. `/v3/review` y
+# el panel de operaciones seguian en silencio — y `/v3/review` es la peor de
+# las tres para estarlo: aqui el dano no es un 400 recuperable, sino una
+# decision humana que MUTA material de un workspace que el revisor no ve.
+#
+# LOS TESTIGOS DE UNA PANTALLA PIDEN LA PANTALLA: todo lo de abajo es un GET
+# del HTML. Ningun diccionario de servicio.
+
+
+@pytest.fixture
+def revisor(entorno):
+    """Sesion de revisor sobre el MISMO despliegue divergente."""
+    from app.auth.passwords import hash_password
+    from app.auth.sessions import create_session
+
+    db_path, auth_db, app, _ = entorno
+    with auth_db.get_conn(db_path) as conn:
+        usuario = auth_db.create_user(
+            conn, username="rev", display_name="Rev",
+            password_hash=hash_password("TestPass_1234567890!"), role="reviewer",
+        )
+        token, _ = create_session(conn, usuario)
+    return _cliente(app, token)
+
+
+@pytest.fixture
+def paneles_on():
+    """Enciende el hueco B por su LETRA, que es lo unico que el chasis acepta."""
+    import os as _os
+    from app.config import get_settings
+
+    previos = {k: _os.environ.get(k) for k in ("S9K_PANEL_B_ENABLED",)}
+    _os.environ["S9K_PANEL_B_ENABLED"] = "true"
+    get_settings.cache_clear()
+    yield
+    for k, v in previos.items():
+        if v is None:
+            _os.environ.pop(k, None)
+        else:
+            _os.environ[k] = v
+    get_settings.cache_clear()
+
+
+def _html(cliente, ruta: str) -> str:
+    r = cliente.get(ruta)
+    assert r.status_code == 200, f"{ruta} -> {r.status_code}"
+    return r.text
+
+
+def test_D1_la_cola_de_revision_avisa_de_la_divergencia(revisor):
+    """LA PANTALLA DONDE EL DANO ES UNA MUTACION, no un 400.
+
+    Si esta prueba se pone roja, el revisor vuelve a decidir sobre material de
+    otro workspace sin una sola senal.
+    """
+    html = _html(revisor, "/v3/review")
+
+    assert "aviso-autoridad-workspace" in html, (
+        "/v3/review sigue MUDA ante la divergencia: es la pantalla con las "
+        "unicas escrituras de dominio y la que el propio corte senala como "
+        "sitio donde un revisor muta material de un workspace que no ve"
+    )
+    assert "WORKSPACE_AUTHORITY_DIVERGENT" in html
+    assert WS_PERFIL in html and WS_ENTORNO in html, (
+        "el aviso no nombra las dos declaraciones: el revisor no puede saber "
+        "de que ambito es lo que tiene delante"
+    )
+
+
+def test_D1_el_panel_de_operaciones_avisa_de_la_divergencia(operador_cliente, paneles_on):
+    """Donde se lanza la ingesta que decide DONDE acaba el conocimiento."""
+    html = _html(operador_cliente, "/panel/operations")
+
+    assert "aviso-autoridad-workspace" in html, (
+        "el panel de operaciones sigue MUDO: desde aqui se lanza la ingesta "
+        "que materializa en el workspace del perfil mientras el visor mira otro"
+    )
+    assert "WORKSPACE_AUTHORITY_DIVERGENT" in html
+
+
+@pytest.fixture
+def operador_cliente(entorno):
+    db_path, auth_db, app, _ = entorno
+    _, token = _admin(auth_db, db_path)
+    return _cliente(app, token)
+
+
+def test_D1_las_TRES_pantallas_avisan_a_la_vez(operador_cliente, revisor, paneles_on):
+    """La condicion 2 es sobre EL PRODUCTO, no sobre una pantalla.
+
+    «Una divergencia que se nota en una pantalla y sigue silenciosa en las
+    otras no cumple la condicion.» Esta prueba es esa frase, ejecutable.
+    """
+    mudas = []
+    for cliente, ruta in (
+        (operador_cliente, "/admin/partidas"),
+        (revisor, "/v3/review"),
+        (operador_cliente, "/panel/operations"),
+    ):
+        if "aviso-autoridad-workspace" not in _html(cliente, ruta):
+            mudas.append(ruta)
+    assert not mudas, f"pantallas que siguen mudas ante la divergencia: {mudas}"
+
+
+def test_D1_el_aviso_tiene_UN_solo_productor(entorno):
+    """Y no cuatro copias, que es como nacio el hueco.
+
+    TECHO DECLARADO: es una red AST sobre las plantillas y sobre el modulo de
+    autoridad. NO ve un aviso montado a mano en un router sin usar el partial
+    ni el productor; para eso esta la tabla de pantallas de arriba, que mira el
+    HTML servido.
+    """
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parents[1] / "app" / "templates"
+    con_testid = sorted(
+        p.relative_to(raiz).as_posix()
+        for p in raiz.rglob("*.html")
+        if "aviso-autoridad-workspace" in p.read_text(encoding="utf-8")
+    )
+    assert con_testid == ["_aviso_autoridad_workspace.html"], (
+        "el cartel esta duplicado en plantillas: la siguiente pantalla nacera "
+        f"muda o con otro texto. Lo llevan: {con_testid}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# SIMETRICO de D1 — ninguna de las tres molesta si la configuracion es legitima
+# ---------------------------------------------------------------------------
+
+def test_D1_simetrico_sin_divergencia_ninguna_pantalla_avisa(
+    entorno, operador_cliente, revisor, paneles_on
+):
+    """Un gate que se pone rojo siempre no guarda, molesta — en las TRES."""
+    from app.config import get_settings
+
+    _db, _auth, _app, fuentes = entorno
+    (fuentes / "perfil-operador.json").write_text(
+        json.dumps({"workspace": WS_ENTORNO}), encoding="utf-8"
+    )
+    get_settings.cache_clear()
+
+    ruidosas = []
+    for cliente, ruta in (
+        (operador_cliente, "/admin/partidas"),
+        (revisor, "/v3/review"),
+        (operador_cliente, "/panel/operations"),
+    ):
+        if "aviso-autoridad-workspace" in _html(cliente, ruta):
+            ruidosas.append(ruta)
+    assert not ruidosas, (
+        f"se avisa de una divergencia que no existe en: {ruidosas}"
+    )
+
+
+def test_D1_simetrico_las_tres_pantallas_siguen_sirviendo_200(
+    operador_cliente, revisor, paneles_on
+):
+    """CONTROL POSITIVO: el aviso no rompe ni bloquea lo que ya funcionaba.
+
+    Sin esto, todas las pruebas de ausencia de aviso saldrian verdes si las
+    pantallas hubieran pasado a devolver 500 o 302.
+    """
+    for cliente, ruta in (
+        (operador_cliente, "/admin/partidas"),
+        (revisor, "/v3/review"),
+        (operador_cliente, "/panel/operations"),
+    ):
+        r = cliente.get(ruta)
+        assert r.status_code == 200, f"{ruta} dejo de servirse: {r.status_code}"
+
+
+def test_D1_el_aviso_de_las_nuevas_pantallas_no_publica_rutas(revisor, entorno):
+    """Repo publico: codigos, no rutas ni nombres de fichero internos."""
+    _db, _auth, _app, fuentes = entorno
+    html = _html(revisor, "/v3/review")
+    assert str(fuentes) not in html
+    assert "perfil-operador.json" not in html

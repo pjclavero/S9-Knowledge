@@ -11,18 +11,7 @@
     (lore compartido) — nunca material de una partida ajena.
   </p>
 
-  {# CORTE F-2: el aviso que faltaba. Antes, con las dos autoridades
-     diciendo cosas distintas, esta pantalla enseñaba un workspace y el
-     conocimiento estaba en otro, sin una sola señal. #}
-  {% if autoridad_workspace and autoridad_workspace.diverge %}
-    <div class="alert alert-error" role="alert" data-testid="aviso-autoridad-workspace">
-      <strong>{{ autoridad_workspace.codigo | e }}</strong>
-      <p style="margin:.4rem 0 0;">{{ autoridad_workspace.diagnostico | e }}</p>
-      <p style="margin:.4rem 0 0;">Mientras siga así, una concesión en
-      <code>{{ autoridad_workspace.declarado_por_perfil | e }}</code> —el workspace
-      donde acaba el conocimiento— se rechazará desde esta pantalla.</p>
-    </div>
-  {% endif %}
+  {% include "_aviso_autoridad_workspace.html" %}
 
   {% if errors %}
     <div class="alert alert-error" role="alert">

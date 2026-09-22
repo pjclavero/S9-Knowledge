@@ -370,3 +370,37 @@ def exigir(env: Optional[dict] = None, catalogo: object = None) -> Autoridad:
     if not autoridad.resuelto:
         raise WorkspaceSinAutoridad(autoridad)
     return autoridad
+
+
+def aviso_para_pantalla(env: Optional[dict] = None, catalogo: object = None):
+    """El aviso de divergencia que pinta CUALQUIER pantalla, o `None`.
+
+    RONDA 2 · D1. Antes este aviso lo montaba `routers/admin.py` a mano, y por
+    eso existia en UNA pantalla y en ninguna otra: `/v3/review` y el panel de
+    operaciones seguian MUDOS. Y `/v3/review` es justamente donde el dano no es
+    un 400 recuperable sino **una decision humana que MUTA material de otro
+    workspace** — el defecto nº2 que este mismo corte documenta.
+
+    Aqui vive el UNICO productor. Quien quiera avisar lo pide; no lo rearma.
+    Devolver `None` cuando no hay divergencia es lo que mantiene el SIMETRICO:
+    una configuracion coherente no ve ni un adorno.
+
+    NO FABRICA CAUSALIDAD: dice que HAY dos declaraciones y cuales son. No
+    atribuye a la divergencia ninguna accion concreta del operador — esa
+    atribucion se hace, y solo con COMPARACION EXACTA, en el punto de operacion
+    (`admin.py::admin_partidas_grant`), no en un cartel.
+
+    Devuelve un diccionario de CODIGOS y valores ya declarados; nunca una ruta,
+    un secreto ni texto libre del motor.
+    """
+    resuelta = resolver(env, catalogo)
+    if not resuelta.diverge:
+        return None
+    return {
+        "codigo": resuelta.codigo,
+        "diagnostico": resuelta.diagnostico(),
+        "procedencia": resuelta.procedencia,
+        "declarado_por_perfil": resuelta.declarado_por_perfil,
+        "declarado_por_entorno": resuelta.declarado_por_entorno,
+        "diverge": True,
+    }

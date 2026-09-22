@@ -408,7 +408,9 @@ async def admin_partidas(
     # AQUI, al pintar, y no solo en el preflight de despliegue —que un arranque
     # cualquiera no ejecuta—. Sin esto el operador ve un campo de solo lectura
     # con un workspace, teclea el otro y recibe un 400 sin ninguna explicacion.
-    divergencia = autoridad_workspace.resolver()
+    # RONDA 2 · D1: el aviso lo monta el PRODUCTOR UNICO, no esta pantalla.
+    # Armarlo aqui fue lo que dejo `/v3/review` y el panel de operaciones mudos.
+    aviso = autoridad_workspace.aviso_para_pantalla()
     with auth_db.get_conn(db_path) as conn:
         users = auth_db.list_users(conn)
         access = auth_db.list_partida_access(conn)
@@ -426,13 +428,7 @@ async def admin_partidas(
             "users": users,
             "access": access,
             "workspace_canonico": ws,
-            "autoridad_workspace": {
-                "codigo": divergencia.codigo,
-                "diagnostico": divergencia.diagnostico(),
-                "procedencia": divergencia.procedencia,
-                "declarado_por_perfil": divergencia.declarado_por_perfil,
-                "diverge": divergencia.diverge,
-            },
+            "autoridad_workspace": aviso,
             "partidas_conocidas": partidas_conocidas,
             "admin": admin,
             "csrf_token": _get_csrf(request, session.id if session else 0),

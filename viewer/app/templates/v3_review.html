@@ -3,6 +3,7 @@
 {% block head %}<link rel="stylesheet" href="/static/css/v3-review.css">{% endblock %}
 {% block body %}
 <main class="v3r-shell">
+  {% include "_aviso_autoridad_workspace.html" %}
   {% if notice == "STALE_REVIEW" %}
   <p role="alert" class="v3r-error">La propuesta cambió desde que la viste. No se registró tu decisión; revisa la versión actual.</p>
   {% endif %}

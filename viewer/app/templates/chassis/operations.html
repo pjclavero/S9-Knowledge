@@ -42,6 +42,7 @@
   ahí no existe ni `url_for` ni una fila de verdad.
 #}
 {% if ops is not defined %}{{ super() }}{% else %}
+{% include "_aviso_autoridad_workspace.html" %}
 <main class="container" data-slot="{{ slot.key }}" data-console="true">
   <h1>{{ slot.title }}</h1>
 
