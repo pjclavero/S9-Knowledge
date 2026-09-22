@@ -48,6 +48,7 @@ PLANTILLA = "viewer/app/templates/_aviso_autoridad_workspace.html"
 PLANTILLA_REVIEW = "viewer/app/templates/v3_review.html"
 ROUTER_OPS = "viewer/app/routers/chassis_operations.py"
 DEPENDENCIAS = "viewer/app/authz/dependencies.py"
+CATALOGO = "viewer/app/sources_catalog.py"
 
 SUITE = "viewer/tests/test_f2_autoridad_canonica_workspace.py"
 SUITE_PREFLIGHT = "deploy/tests/test_preflight_ensayo_rc.py"
@@ -185,6 +186,32 @@ MUTACIONES: list[Mutacion] = [
         prueba=f"{SUITE_PANTALLA}::test_R3_authz_resuelve_el_workspace_del_PERFIL_con_la_divergencia_puesta",
         esperado="la autorizacion NO resuelve el workspace del perfil",
     ),
+    # ---------------------------------------------------------------------
+    # RONDA 4 · LA REGLA DE LA UBICACIÓN DECLARADA, EN EL LADO DE LA INGESTA
+    # ---------------------------------------------------------------------
+    # La regla estaba aplicada a un solo lado. Quitar la guarda del lado de la
+    # ingesta no ponía roja NINGUNA prueba de F-2: lo único que la sujetaba
+    # eran ~142 rojos colaterales en pruebas ajenas, que es daño incidental,
+    # no un testigo. Ahora tiene el suyo.
+    Mutacion(
+        nombre="11 · la INGESTA vuelve a derivar el ámbito del perfil de "
+               "`examples/`: la doble autoridad, íntegra y muda",
+        fichero=CATALOGO,
+        viejo="        if not ubicacion_declarada(env):",
+        nuevo="        if False:",
+        prueba=f"{SUITE_PANTALLA}::test_R4_sin_ubicacion_declarada_NO_hay_dos_autoridades",
+        esperado="sigue derivando el ambito del perfil",
+    ),
+    # Y el cartel, que decía lo contrario de lo que hace el producto.
+    Mutacion(
+        nombre="12 · el cartel vuelve a atribuir permisos y partidas al "
+               "ENTORNO: señala al operador el lado equivocado",
+        fichero=PLANTILLA,
+        viejo="<strong>no gobierna nada</strong>",
+        nuevo="<strong>gobierna los permisos</strong>",
+        prueba=f"{SUITE_PANTALLA}::test_R4_el_cartel_dice_que_manda_el_PERFIL_no_el_entorno",
+        esperado="el cartel no dice que la declaracion del entorno NO gobierna",
+    ),
 ]
 
 
@@ -206,6 +233,13 @@ def _controles_verdes():
             "alineados",
             MUTACIONES[-1],
             f"{SUITE_PANTALLA}::test_R3_con_perfil_y_entorno_de_acuerdo_todo_funciona",
+        ),
+        (
+            "11-sim · con la guarda de la ubicación QUITADA, una bóveda "
+            "DECLARADA sigue derivando su workspace: la guarda no es lo que "
+            "hace funcionar el caso legítimo",
+            MUTACIONES[-2],
+            f"{SUITE_PANTALLA}::test_R4_SIMETRICO_con_ubicacion_declarada_la_ingesta_SI_deriva",
         ),
     ]
 

@@ -49,12 +49,20 @@ discutir:
   - Hay perfil legible y el entorno **calla** -> manda el perfil.
   - Hay perfil legible y el entorno dice **lo mismo** -> manda el perfil
     (el entorno no aporta autoridad: solo confirma).
-  - Hay perfil legible y el entorno dice **otra cosa** -> NO se elige ninguno.
-    `valor = ""`, codigo `WORKSPACE_AUTHORITY_DIVERGENT`. Fail-closed CON
-    diagnostico, que es lo que faltaba.
-  - **No hay perfil** (ausente o ilegible) y el entorno habla -> se usa el
-    entorno, procedencia `FALLBACK_ENTORNO`. El fallback esta PERMITIDO por
-    este contrato, y por eso se dice.
+  - Hay perfil legible y el entorno dice **otra cosa** -> MANDA EL PERFIL.
+    `valor` = el del perfil, procedencia `PERFIL_DE_BOVEDA`, y codigo
+    `WORKSPACE_AUTHORITY_DIVERGENT`: se RESUELVE y se REPORTA a la vez.
+    Devolver `""` aqui —como se hacia antes— convertia un diagnostico de
+    configuracion en una denegacion total del producto, y no eliminaba la doble
+    autoridad: la disfrazaba. El veredicto y el diagnostico son ORTOGONALES.
+  - **No hay perfil** (ausente, ilegible, o SIN UBICACION DECLARADA) y el
+    entorno habla -> se usa el entorno, procedencia `FALLBACK_ENTORNO`. El
+    fallback esta PERMITIDO por este contrato, y por eso se dice.
+    «Sin ubicacion declarada» es la regla de `sources_catalog.ubicacion_declarada`:
+    si el operador no dijo donde esta la boveda, el perfil que hay bajo
+    `examples/` es material del repositorio y no gobierna nada — NI AQUI NI EN
+    LA INGESTA. Los dos lados consultan el MISMO predicado; aplicarlo a uno
+    solo reintroducia la doble autoridad, y ademas muda.
   - No hay perfil y el entorno calla -> `valor = ""`,
     `WORKSPACE_AUTHORITY_UNDETERMINED`. Sin ambito no se concede nada.
   - Hay **varios** perfiles con workspaces distintos (arbol de bovedas con mas
@@ -318,12 +326,6 @@ def declaraciones_de_perfil(
     return sorted(valores)
 
 
-#: Variable con la que el operador declara DONDE estan las fuentes cuando no
-#: hay arbol de bovedas. Sin ella, `sources_catalog.directorio_de_fuentes()`
-#: cae en `examples/ingesta-v3` DEL REPOSITORIO.
-ENV_DIRECTORIO_DE_FUENTES = "S9K_INGEST_SOURCES_DIR"
-
-
 def _candidatos_de_perfil(entorno, sources_catalog) -> list:
     """Las rutas de perfil que este despliegue DECLARA. Sin leerlas.
 
@@ -358,9 +360,13 @@ def _candidatos_de_perfil(entorno, sources_catalog) -> list:
         except OSError:
             carpetas = []
         return [c / sources_catalog.NOMBRE_PERFIL for c in carpetas]
-    if not _limpio(entorno.get(ENV_DIRECTORIO_DE_FUENTES)):
-        # El operador no ha declarado donde estan las fuentes. No hay perfil
-        # con autoridad: lo que haya en el arbol del repositorio no lo es.
+    if not sources_catalog.ubicacion_declarada(entorno):
+        # El operador no ha declarado donde esta la boveda. No hay perfil con
+        # autoridad: lo que haya en el arbol del repositorio no lo es.
+        #
+        # EL PREDICADO ES EL DEL CATALOGO, no una copia. Tenerlo aqui por
+        # separado fue lo que permitio aplicar la regla a un solo lado del
+        # camino: authz la respetaba y la ingesta no.
         return []
     return [
         sources_catalog.directorio_de_fuentes(entorno)
@@ -368,73 +374,52 @@ def _candidatos_de_perfil(entorno, sources_catalog) -> list:
     ]
 
 
-#: Cache de la resolucion POR FIRMA DEL ARBOL DE PERFILES.
+#: LA CACHE DE RESOLUCION SE RETIRO, Y ESTA ES LA RAZON MEDIDA
+#: -----------------------------------------------------------
+#: Hubo aqui una cache por FIRMA del arbol de perfiles (`mtime_ns` + `st_size`,
+#: y despues tambien `st_ctime_ns`). Servia para no hacer E/S de disco en cada
+#: peticion.
 #:
-#: RONDA 3. `resolver()` pasa a correr en una dependencia de FastAPI, es decir
-#: EN CADA PETICION, y eso es E/S de disco por peticion: medido, 176 us en modo
-#: plano y 611 us con un arbol de 12 bovedas. Con la cache queda en el coste de
-#: un `stat()` por perfil candidato.
+#: EL COSTE REAL, SIN CACHE, MEDIDO EN ESTA MAQUINA:
+#:     sin boveda declarada (la configuracion de fabrica) :   3.6 us
+#:     boveda plana declarada, un perfil                  :  50.9 us
+#:     arbol de bovedas declarado, doce juegos            : 584.8 us
+#: El caso de fabrica no toca el disco en absoluto: sin ubicacion declarada no
+#: hay perfil candidato que mirar.
 #:
-#: LA FIRMA NO TIENE TECHO DE CONTENIDO: incluye `mtime_ns` y `st_size` de CADA
-#: perfil candidato, asi que editar un perfil invalida la entrada. Lo que la
-#: firma NO ve es un cambio que no toque ni el listado de carpetas ni ninguno
-#: de esos ficheros — por construccion, eso no puede cambiar la declaracion.
-#: Se declara aqui porque una cache de autoridad que se quede rancia seria peor
-#: que el coste que ahorra.
-_CACHE_RESOLUCION: dict = {}
-#: Tope del diccionario: es una cache de proceso, no puede crecer sin limite.
-_CACHE_MAXIMO = 64
-
-
-def _firma_del_arbol(entorno, sources_catalog) -> tuple:
-    """`stat()` de cada perfil candidato. Sin abrir ni parsear ninguno."""
-    firma = []
-    for ruta in _candidatos_de_perfil(entorno, sources_catalog):
-        try:
-            st = ruta.stat()
-            firma.append((str(ruta), st.st_mtime_ns, st.st_size))
-        except OSError:
-            firma.append((str(ruta), None, None))
-    return tuple(firma)
+#: Se retira porque **ninguna firma basada en `stat()` es fiable aqui**, y se
+#: midio en esta misma maquina:
+#:
+#:   1. Con `mtime_ns` + `st_size`: reescribir el perfil con un valor DEL MISMO
+#:      TAMANO y restaurar el mtime con `os.utime` dejaba la cache sirviendo la
+#:      autoridad VIEJA. No es exotico: `rsync -a`, `cp -p`, `tar -x` y toda
+#:      restauracion de copia preservan mtime, y las bovedas llegan por carpeta
+#:      sincronizada.
+#:   2. Anadir `st_ctime_ns` —que `os.utime` no puede restaurar— parecia
+#:      cerrarlo, y en una prueba suelta lo cerraba. Pero **la granularidad de
+#:      `ctime` en este sistema de ficheros es de UN SEGUNDO**: dos escrituras
+#:      dentro del mismo segundo producen exactamente el mismo `st_ctime_ns`, y
+#:      la cache volvia a quedarse rancia. Medido:
+#:          f1 = (..., 1790064485256000000, 24, 1790064485256000000)
+#:          f2 = (..., 1790064485256000000, 24, 1790064485256000000)
+#:      La version de una sola prueba pasaba solo porque cruzaba el tic.
+#:
+#: Esto es la autoridad de AUTORIZACION: una respuesta rancia autoriza sobre un
+#: workspace que ya nadie declara. Entre 100 us y una garantia que solo se
+#: cumple si el reloj cae bien, se elige la garantia. El coste queda DECLARADO
+#: y medido, no escondido; si algun dia molesta, el remedio correcto es cachear
+#: con invalidacion explicita (un evento de recarga), no adivinar por `stat()`.
 
 
 def resolver_por_peticion(env: Optional[dict] = None) -> Autoridad:
-    """Como `resolver()`, pero apto para llamarse en CADA peticion.
+    """El workspace efectivo de ESTA peticion. Sin cache, a proposito.
 
-    Mismo resultado, con la lectura de los perfiles cacheada por la firma del
-    arbol. Los caminos que tienen que ver la verdad sin intermediarios —el
-    preflight de despliegue y el diagnostico— siguen usando `resolver()`.
-
-    Si la firma no se puede calcular (no hay catalogo), se degrada a
-    `resolver()`, que ya sabe fallar cerrado con su codigo.
+    Se conserva como punto de entrada propio —y no se sustituye por `resolver`
+    en los llamantes— para que el coste por peticion siga teniendo un nombre al
+    que apuntar, y para que quien vuelva a plantear una cache lea primero por
+    que se quito la anterior (ver el comentario de arriba).
     """
-    # `env` SE PROPAGA TAL CUAL, incluido `None`. Sustituirlo aqui por
-    # `os.environ` parecia inocuo y no lo era: `resolver()` distingue «me han
-    # pasado un entorno explicito» de «resuelve para el producto», y solo en el
-    # segundo caso consulta el defecto de `Settings`. Al pasarle `os.environ`
-    # se perdia ese defecto y el workspace efectivo salia vacio -> DENEGAR.
-    # Sintoma medido: `/reviews` en 404 con `settings='leyenda'` y
-    # `canonico=''`.
-    entorno_para_firma = env if env is not None else os.environ
-    try:
-        from app import sources_catalog  # noqa: PLC0415
-
-        firma = _firma_del_arbol(entorno_para_firma, sources_catalog)
-    except Exception:
-        return resolver(env)
-
-    # La clave mira la declaracion EFECTIVA de entorno (que incluye el defecto
-    # de `Settings`), no la variable cruda: si no, dos estados distintos
-    # compartirian entrada.
-    clave = (firma, declaracion_de_entorno(env))
-    cacheada = _CACHE_RESOLUCION.get(clave)
-    if cacheada is not None:
-        return cacheada
-    resuelta = resolver(env)
-    if len(_CACHE_RESOLUCION) >= _CACHE_MAXIMO:
-        _CACHE_RESOLUCION.clear()
-    _CACHE_RESOLUCION[clave] = resuelta
-    return resuelta
+    return resolver(env)
 
 
 def declaracion_de_entorno(env: Optional[dict] = None) -> str:
@@ -474,8 +459,10 @@ def resolver(env: Optional[dict] = None, catalogo: object = None) -> Autoridad:
     """El workspace efectivo de este despliegue, con su procedencia.
 
     Es el UNICO punto que lo decide. Ver el contrato completo en el docstring
-    del modulo; el resumen es: manda el perfil, el entorno es fallback, y si
-    los dos hablan y no coinciden no manda ninguno.
+    del modulo; el resumen es: manda el perfil; el entorno es fallback SOLO
+    cuando no hay perfil; y si los dos hablan y no coinciden, sigue mandando el
+    perfil y la discrepancia se REPORTA (`WORKSPACE_AUTHORITY_DIVERGENT`), que
+    no es lo mismo que dejar de resolver.
     """
     del_entorno = declaracion_de_entorno(env)
     try:

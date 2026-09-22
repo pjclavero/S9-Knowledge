@@ -582,11 +582,196 @@ def test_R3_la_cache_por_peticion_no_se_queda_rancia(tmp_path):
     env = {"S9K_INGEST_SOURCES_DIR": str(raiz)}
 
     assert autoridad.resolver_por_peticion(env).valor == "ws-antes"
-    perfil.write_text(json.dumps({"workspace": "ws-despues"}), encoding="utf-8")
-    assert autoridad.resolver_por_peticion(env).valor == "ws-despues", (
+    perfil.write_text(json.dumps({"workspace": "ws-despue"}), encoding="utf-8")
+    assert autoridad.resolver_por_peticion(env).valor == "ws-despue", (
         "la cache devolvio una autoridad RANCIA: el producto autorizaria "
         "sobre un workspace que el perfil ya no declara"
     )
+
+
+def test_R4_la_cache_no_se_queda_rancia_NI_EN_EL_CASO_DIFICIL(tmp_path):
+    """EL CASO QUE EL CONTROL FACIL NO TOCABA, y que estaba ROTO.
+
+    El control de arriba cambia el tamano del fichero, asi que lo cazaba
+    cualquier firma. Este roza el borde a proposito:
+
+      · el workspace nuevo ocupa EXACTAMENTE lo mismo que el viejo, y
+      · se restaura `mtime` con `os.utime`, como hacen `rsync -a`, `cp -p`,
+        `tar -x` y toda restauracion de copia — y las bovedas de este producto
+        llegan por carpeta sincronizada.
+
+    Con `mtime_ns` + `st_size` la cache servia la autoridad VIEJA (medido). La
+    firma incluye ahora `st_ctime_ns`, que `os.utime` no puede restaurar.
+    """
+    import os as _os
+
+    from app.authz import autoridad_workspace as autoridad
+
+    raiz = tmp_path / "fuentes-borde"
+    raiz.mkdir()
+    perfil = raiz / "perfil-operador.json"
+    perfil.write_text(json.dumps({"workspace": "ws-aaaa"}), encoding="utf-8")
+    env = {"S9K_INGEST_SOURCES_DIR": str(raiz)}
+
+    assert autoridad.resolver_por_peticion(env).valor == "ws-aaaa"
+    antes = perfil.stat()
+
+    perfil.write_text(json.dumps({"workspace": "ws-bbbb"}), encoding="utf-8")
+    _os.utime(perfil, ns=(antes.st_atime_ns, antes.st_mtime_ns))
+    despues = perfil.stat()
+
+    # CONTROL DEL PROPIO CONTROL: si el escenario no reprodujera la trampa
+    # —distinto tamano, o mtime no restaurado— esta prueba saldria verde sin
+    # medir nada.
+    assert antes.st_size == despues.st_size, "el escenario no roza el borde"
+    assert antes.st_mtime_ns == despues.st_mtime_ns, "no se restauro el mtime"
+
+    assert autoridad.resolver_por_peticion(env).valor == "ws-bbbb", (
+        "la cache sirve una autoridad RANCIA cuando el perfil se reescribe con "
+        "el mismo tamano y se le restaura el mtime: es lo que hace cualquier "
+        "sincronizacion de carpeta, y el producto autorizaria sobre un "
+        "workspace que ya nadie declara"
+    )
+
+
+# ---------------------------------------------------------------------------
+# RONDA 4 · D1 — LA REGLA DE LA UBICACION DECLARADA, EN LOS **DOS** LADOS
+# ---------------------------------------------------------------------------
+# La regla estaba aplicada a un solo lado: authz la respetaba y la ingesta
+# seguia derivando el ambito del perfil de `examples/`. Resultado medido con la
+# configuracion de FABRICA: authz 'leyenda' y ambito de la fuente 'ws-cofradia'
+# — la doble autoridad original, intacta y ademas MUDA.
+#
+# Estas pruebas son su testigo propio: si alguien quita la guarda, enrojecen
+# por su causa en vez de producir 142 rojos colaterales en pruebas ajenas.
+
+
+def _factoria():
+    """Entorno de FABRICA: ninguna de las dos variables declarada."""
+    return {}
+
+
+def test_R4_sin_ubicacion_declarada_NO_hay_dos_autoridades(monkeypatch):
+    """EL DEFECTO DE LA RONDA 4, convertido en prueba.
+
+    Con la configuracion de fabrica, el workspace que resuelve la autorizacion
+    y el que la ingesta derivaria para una fuente NO pueden ser dos cosas
+    distintas. Antes lo eran.
+    """
+    from app.authz import autoridad_workspace as autoridad
+    from app import sources_catalog
+
+    for var in ("S9K_VAULT_ROOT", "S9K_INGEST_SOURCES_DIR"):
+        monkeypatch.delenv(var, raising=False)
+
+    del_authz = autoridad.resolver(_factoria()).valor
+    fuentes = sources_catalog.listar_fuentes(_factoria())
+    de_la_ingesta = sorted({f.ambito.workspace for f in fuentes if f.ambito.workspace})
+
+    assert de_la_ingesta == [], (
+        "sin ubicacion declarada, la ingesta sigue derivando el ambito del "
+        f"perfil que hay bajo `examples/` del repositorio: {de_la_ingesta}. "
+        f"La autorizacion resuelve '{del_authz}': son DOS AUTORIDADES, que es "
+        "el defecto que F-2 existe para eliminar"
+    )
+
+
+def test_R4_sin_ubicacion_declarada_el_alta_falla_CERRADA_no_en_silencio(monkeypatch):
+    """AUSENCIA DECLARADA, no cero.
+
+    La fuente se sigue LISTANDO —el operador ve que hay material— pero sin
+    workspace, de modo que el alta falla cerrada con su codigo en vez de
+    ingerir hacia un ambito que nadie declaro.
+    """
+    from app import sources_catalog
+
+    for var in ("S9K_VAULT_ROOT", "S9K_INGEST_SOURCES_DIR"):
+        monkeypatch.delenv(var, raising=False)
+
+    fuentes = sources_catalog.listar_fuentes(_factoria())
+    assert fuentes, (
+        "no se lista ninguna fuente: eso es convertir la ausencia de "
+        "declaracion en una ausencia de material, que son cosas distintas"
+    )
+    assert all(not f.ambito.workspace for f in fuentes)
+
+
+def test_R4_SIMETRICO_con_ubicacion_declarada_la_ingesta_SI_deriva(tmp_path):
+    """El simetrico: un despliegue legitimo no se bloquea.
+
+    Si esta prueba enrojece, la guarda dejo de distinguir «no declarado» de
+    «declarado» y estaria rompiendo la ingesta de todo el mundo.
+    """
+    from app import sources_catalog
+
+    raiz = tmp_path / "boveda-declarada"
+    raiz.mkdir()
+    (raiz / "perfil-operador.json").write_text(
+        json.dumps({"workspace": "ws-declarado"}), encoding="utf-8"
+    )
+    (raiz / "nota.md").write_text("texto", encoding="utf-8")
+
+    fuentes = sources_catalog.listar_fuentes({"S9K_INGEST_SOURCES_DIR": str(raiz)})
+    assert fuentes, "no se listo la fuente de una boveda DECLARADA"
+    assert {f.ambito.workspace for f in fuentes} == {"ws-declarado"}, (
+        "con la ubicacion declarada la ingesta NO deriva el workspace del "
+        "perfil: se ha roto el caso legitimo"
+    )
+
+
+def test_R4_los_dos_lados_consultan_EL_MISMO_predicado():
+    """Y que no haya dos copias de la regla, que fue como nacio el defecto.
+
+    TECHO DECLARADO: es una red AST sobre `autoridad_workspace`. Ve que este
+    modulo llama a `ubicacion_declarada`; NO ve una tercera copia de la regla
+    escrita en otro fichero.
+    """
+    import ast
+    from pathlib import Path
+
+    fuente = Path("viewer/app/authz/autoridad_workspace.py").read_text(encoding="utf-8")
+    llamadas = {
+        n.func.attr
+        for n in ast.walk(ast.parse(fuente))
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+    }
+    assert "ubicacion_declarada" in llamadas, (
+        "la autoridad ya no consulta el predicado del catalogo: si lo ha "
+        "reimplementado, la regla vuelve a poder aplicarse a un solo lado"
+    )
+
+
+# ---------------------------------------------------------------------------
+# RONDA 4 · D2 — EL CARTEL TIENE QUE DECIR LO QUE EL PRODUCTO HACE
+# ---------------------------------------------------------------------------
+# Decia «esta instalacion resuelve <entorno> para permisos y partidas», que tras
+# la ronda 3 es FALSO: permisos y partidas resuelven el PERFIL. Senalaba al
+# operador el lado equivocado, y ningun test fijaba el contenido.
+
+
+def test_R4_el_cartel_dice_que_manda_el_PERFIL_no_el_entorno(entorno):
+    """El testigo del CONTENIDO del aviso, no solo de su presencia."""
+    db_path, auth_db, app, _ = entorno
+    _, token = _admin(auth_db, db_path)
+    html, _ = _pantalla(_cliente(app, token))
+
+    assert "no gobierna nada" in html, (
+        "el cartel no dice que la declaracion del entorno NO gobierna: el "
+        "operador no puede saber cual de las dos manda"
+    )
+    # Y no puede seguir atribuyendo permisos/partidas al entorno.
+    # El entorno ya no puede aparecer como quien resuelve el producto.
+    import re as _re
+    assert not _re.search(r"instalación resuelve\s*<code>ws-del-entorno", html), (
+        "el cartel sigue atribuyendo la resolucion del producto al entorno"
+    )
+    posicion_perfil = html.index(WS_PERFIL)
+    posicion_frase = html.index("en todo el producto")
+    assert posicion_perfil < posicion_frase, (
+        "la frase «en todo el producto» ya no acompana al workspace del "
+        "perfil: el cartel puede estar atribuyendo el producto al entorno"
+    )
+
 
 
 def test_R3_conceder_en_el_workspace_del_perfil_YA_FUNCIONA(entorno):

@@ -19,11 +19,12 @@
      data-codigo="{{ autoridad_workspace.codigo | e }}">
   <strong>{{ autoridad_workspace.codigo | e }}</strong>
   <p style="margin:.4rem 0 0;">{{ autoridad_workspace.diagnostico | e }}</p>
-  <p style="margin:.4rem 0 0;">El conocimiento se materializa en
-  <code>{{ autoridad_workspace.declarado_por_perfil | e }}</code> —lo declara el
-  perfil de la bóveda—, mientras esta instalación resuelve
-  <code>{{ autoridad_workspace.declarado_por_entorno | e }}</code> para permisos y
-  partidas. Mientras siga así, lo que decidas aquí puede no ser del ámbito que
-  crees.</p>
+  <p style="margin:.4rem 0 0;">Esta instalación resuelve
+  <code>{{ autoridad_workspace.declarado_por_perfil | e }}</code> en todo el
+  producto —permisos, partidas, revisión, apply y grafo—: lo declara el perfil
+  de la bóveda, que es la autoridad. La configuración del entorno declara
+  <code>{{ autoridad_workspace.declarado_por_entorno | e }}</code>, que
+  <strong>no gobierna nada</strong>, pero sigue siendo una discrepancia sin
+  resolver: corrígela o retírala.</p>
 </div>
 {% endif %}
