@@ -339,6 +339,30 @@ def _pytest(selector: str | None = None) -> subprocess.CompletedProcess:
     return subprocess.run(orden, cwd=VISOR, capture_output=True, text=True)
 
 
+def _casos_del_fichero() -> set[str]:
+    """Los casos que la suite RECOLECTA. No una lista escrita aquí a mano.
+
+    Una lista a mano se desactualiza en silencio y el cruce empezaría a dar
+    por calibrado un testigo que ya no existe —o a no ver uno nuevo—.
+    """
+    r = subprocess.run(
+        [sys.executable, "-m", "pytest", SUITE, "--collect-only", "-q",
+         "--color=no", "-p", "no:randomly"],
+        cwd=VISOR, capture_output=True, text=True,
+    )
+    casos = {
+        linea.split("::")[-1].split("[")[0].strip()
+        for linea in r.stdout.splitlines() if "::" in linea
+    }
+    if not casos:
+        raise AssertionError(
+            "EL CRUCE NO RECOLECTÓ NINGÚN CASO. Sin casos, «ninguno sin "
+            "calibrar» sería verdad por vacío: el cruce no puede pasar así.\n"
+            + r.stdout[-2000:] + r.stderr[-2000:]
+        )
+    return casos
+
+
 def _purgar_pycache() -> None:
     for d in RAIZ.rglob("__pycache__"):
         if ".git" not in d.parts:
@@ -387,6 +411,8 @@ def main() -> int:
     # El recuento sale del FICHERO, no del plan.
     total = len(seleccionadas)
     fallos: list[str] = []
+    #: TODOS los rojos vistos, acumulados para el cruce final.
+    rojos_vistos: set[str] = set()
     print(f"{total} mutaciones declaradas en este fichero.\n")
 
     for mut in seleccionadas:
@@ -437,6 +463,7 @@ def main() -> int:
                 print(f"  RESULTADO  rojo, pero NO cayeron {faltan}")
             else:
                 print(f"  ROJOS      {len(rojos)}: {rojos}")
+            rojos_vistos.update(rojos)
 
             if mut.dice not in salida:
                 fallos.append(
@@ -468,6 +495,34 @@ def main() -> int:
               "el árbol tocado y sus resultados no valen.")
         print(final.stdout[-3000:])
         return 3
+
+    # -------------------------------------------------------------------
+    # EL CRUCE: ¿queda algún testigo que NINGUNA mutación enrojezca?
+    # -------------------------------------------------------------------
+    # Esto existe porque un revisor lo hizo a mano y encontró uno: un caso que
+    # decía comprobar que «el autor, el momento y el ámbito son reales» y sólo
+    # comprobaba que no estaban vacíos. Ninguna mutación lo tocaba, así que
+    # nada lo delataba — un testigo que no puede ponerse rojo certifica
+    # cualquier cosa, y es justo la especie que este programa persigue.
+    #
+    # Se hace aquí, con los rojos REALES de la corrida de arriba y con la
+    # colección REAL del fichero (no con una lista escrita a mano), y sólo
+    # cuando se han corrido TODAS las mutaciones: con `--solo` el cruce no
+    # significaría nada y por eso se omite.
+    if not args.solo:
+        casos = _casos_del_fichero()
+        huerfanos = sorted(casos - rojos_vistos)
+        print(f"CRUCE: {len(casos)} casos recolectados, "
+              f"{len(casos) - len(huerfanos)} enrojecen con alguna mutación.")
+        if huerfanos:
+            for h in huerfanos:
+                print(f"  ::SIN CALIBRAR:: {h}")
+            fallos.append(
+                f"{len(huerfanos)} testigo(s) que NINGUNA mutación enrojece: "
+                f"{huerfanos}. O comprueban algo que nada puede romper, o su "
+                f"nombre promete más de lo que miden. Dales su mutación o "
+                f"cámbiales el nombre."
+            )
 
     if fallos:
         print(f"CALIBRACIÓN FALLIDA — {len(fallos)} de {total} mutaciones:")
