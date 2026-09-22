@@ -35,6 +35,35 @@ EL TECHO DE ESTE CALIBRADOR, dicho entero:
     dice mutar existe y cambió: si el código se mueve, el calibrador falla en
     voz alta en vez de callar.
   * No mide autorización, ni Neo4j, ni el writer.
+
+EL TECHO DEL CRUCE (la puerta de «ningún testigo sin calibrar»), aparte:
+  * EL COLATERAL CUENTA COMO CALIBRACIÓN. El cruce compara los casos
+    recolectados contra los rojos REALES, vengan de donde vengan. Medido sobre
+    este árbol: de 28 casos recolectados, 22 están declarados como objetivo en
+    algún `caen` y 6 se calibran SÓLO por rojo colateral —nunca los apunta
+    ninguna mutación, caen de rebote con otra—. Son:
+    `test_el_campo_negacion_de_la_consola_no_se_derrumba_por_la_clase`,
+    `test_el_lector_de_la_tarjeta_no_es_una_clave_inventada`,
+    `test_fabricar_una_correccion_sin_cambio_reabre_F7`,
+    `test_la_evidencia_literal_negativa_acompana_al_signo_negado`,
+    `test_quitar_la_captura_del_cambio_deja_el_acta_sin_before_after` y
+    `test_un_acta_antigua_y_una_nueva_encadenan_sin_migracion`.
+    Así que lo que la puerta demuestra es FALSABILIDAD, no PUNTERÍA: que cada
+    testigo PUEDE ponerse rojo, no que alguien haya escrito la mutación que lo
+    apunta. (Un revisor independiente contó 20/8 con otro criterio de recuento;
+    la cifra de aquí sale de cruzar los `caen` por AST contra `--collect-only`.)
+  * MIRA UN SOLO FICHERO. `SUITE` es una constante única: un fichero de test
+    NUEVO del mismo corte sería INVISIBLE para el cruce, que seguiría diciendo
+    «ninguno sin calibrar» sobre el fichero de siempre. La puerta no descubre
+    suites; hay que añadirlas aquí a mano.
+  * COLAPSA LA PARAMETRIZACIÓN (`split("[")[0]`): todos los casos de un
+    `parametrize` cuentan como UNO. Basta con que un parámetro enrojezca para
+    que el caso entero pase por calibrado.
+  * UN TESTIGO SALTADO SE MARCARÍA HUÉRFANO. `--collect-only` recolecta los
+    `skip`, pero un caso saltado no puede enrojecer con ninguna mutación: hoy
+    falla CERRADO —la puerta se pone roja— pero el día que alguien meta un
+    `skipif` condicional legítimo, ese rojo será un FALSO POSITIVO y habrá que
+    distinguir «saltado» de «no calibrable».
 """
 from __future__ import annotations
 

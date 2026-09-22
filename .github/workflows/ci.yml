@@ -1061,6 +1061,22 @@ jobs:
           S9K_ALLOW_REAL_INGEST: ""
         run: python3 .github/scripts/calibra_desarme.py
 
+      # Y la calibracion del corte «veracidad de la tarjeta de Review», que
+      # ademas de mutar CRUZA los casos recolectados contra los rojos reales y
+      # falla si algun testigo no enrojece con ninguna mutacion. Estaba en el
+      # arbol y su PRESENCIA la trinquetea `check_suite_inventory.py`, pero
+      # NINGUN job la ejecutaba: una puerta que nadie ejecuta es prosa con mas
+      # lineas. Medido en local: 67 s de reloj sobre un job que ya tarda ~1h22m.
+      #
+      # Muta el arbol de trabajo (sustitucion de texto exacto sobre el fuente
+      # del visor) y lo restaura, como los de arriba. Las dependencias del
+      # visor ya estan instaladas por el paso del carril J.
+      - name: La tarjeta de Review se pone ROJA ante cada defecto (y ningun testigo sin calibrar)
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/veracidad_tarjeta_review.py
+
   # Instalado desde .github/ci-fragments/check-env-reproducibility.yml. Si un
   # merge se lleva por delante este bloque, el fragmento es la copia canonica.
   check-env-reproducibility:
