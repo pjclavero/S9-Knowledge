@@ -781,3 +781,73 @@ def test_correct_que_reenvia_la_propuesta_intacta_se_rechaza(consola):
         "El `CORRECT` vacío se rechazó en la respuesta pero SÍ dejó acta: el "
         "rechazo es cosmético."
     )
+
+
+# ===========================================================================
+# LA CADENA DE AUDITORÍA NO SE ROMPE, Y ESO SE MIDE
+# ===========================================================================
+def test_un_acta_antigua_y_una_nueva_encadenan_sin_migracion(tmp_path, corpus):
+    """`correction_changes` es ADITIVA: no hay migración que hacer.
+
+    Esto no se razona, se ejecuta. Se escribe a mano un registro con la forma
+    ANTERIOR a este corte —sin la clave, con su `record_hash` calculado sin
+    ella—, se encadena encima uno nuevo por el camino de siempre, y se pide a
+    `read_history` que verifique la cadena ENTERA. Si añadir el campo obligara
+    a recalcular hashes o a migrar, este caso se pondría rojo, y el corte
+    tendría que pararse y elevarse en vez de seguir.
+    """
+    from app.services.v3_review import _canonical, _sha256
+
+    doc = corpus["negado"]
+    proposals = tmp_path / "proposals"
+    proposals.mkdir()
+    (proposals / "a.json").write_text(
+        json.dumps(doc, ensure_ascii=False), encoding="utf-8"
+    )
+    decisiones = tmp_path / "actas" / "decisiones.jsonl"
+    decisiones.parent.mkdir()
+    service = ReviewService(proposals, decisiones)
+
+    antigua = {
+        "decision_id": "human:antigua", "request_id": "req-antigua",
+        "timestamp": "2026-01-01T00:00:00Z", "reviewer": "operador",
+        "workspace": doc["workspace"], "source_id": doc["source_id"],
+        "episode_id": doc["episode_id"], "proposal_id": doc["proposal_id"],
+        "proposal": json.loads(_canonical(doc)),
+        "expected_proposal_hash": "x", "actual_proposal_hash": "x",
+        "engine_decision": {}, "effective_decision": None,
+        "shadow_decision": None, "human_decision": "APPROVE",
+        "correction": {}, "rationale": "", "ontology_version": None,
+        "engine_version": None, "prompt_version": None,
+        "supersedes_decision_id": None, "previous_hash": None,
+    }
+    antigua["record_hash"] = _sha256(antigua)
+    assert "correction_changes" not in antigua, (
+        "El acta «antigua» de este caso trae la clave nueva: entonces no es "
+        "antigua y no prueba nada sobre la compatibilidad."
+    )
+    service.store.append_decision_and_outbox(antigua, None)
+    with decisiones.open("a", encoding="utf-8", newline="\n") as fh:
+        fh.write(_canonical(antigua) + "\n")
+
+    nueva = service.record(
+        proposal_id=doc["proposal_id"], workspace=doc["workspace"],
+        reviewer="operador", human_decision="APPROVE", request_id="req-nueva",
+        expected_proposal_hash=None, correction={"negated": False},
+    )
+    assert nueva["previous_hash"] == antigua["record_hash"], (
+        "LA CADENA SE PARTIÓ EN LA JUNTA: el acta nueva no engancha con la "
+        "antigua."
+    )
+    historia = read_history(decisiones)
+    assert len(historia) == 2, (
+        f"`read_history` verificó {len(historia)} registros en vez de 2: o "
+        f"rechazó la cadena mixta, o se dejó uno sin mirar."
+    )
+    assert "correction_changes" not in historia[0], (
+        "El registro antiguo cambió de forma al releerlo: eso sería una "
+        "migración silenciosa."
+    )
+    assert historia[1]["correction_changes"] == {
+        "negated": {"before": True, "before_present": True, "after": False}
+    }
