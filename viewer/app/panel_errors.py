@@ -89,6 +89,16 @@ CATALOGO: dict[str, str] = {
         "y eligela de la lista actualizada.",
     "SOURCE_PACKAGE_INVALID":
         "El paquete de la fuente no es valido.",
+    # RONDA 5 · O1. Causa PROPIA, separada de «el paquete esta roto»: aqui el
+    # paquete puede estar perfecto y lo que falta es la DECLARACION de donde
+    # vive la boveda. La frase dice que hacer, y lo que hay que hacer no es
+    # tocar el paquete.
+    "SOURCE_WORKSPACE_UNDECLARED":
+        "Esta fuente no tiene workspace declarado, asi que no se sabe a que "
+        "ambito pertenece el material y no se ingiere nada. Declara donde "
+        "esta tu boveda (S9K_VAULT_ROOT o S9K_INGEST_SOURCES_DIR) y escribe "
+        "el workspace en su perfil de operador: nadie puede adivinarlo por el "
+        "nombre de la carpeta.",
     "SOURCE_CATALOG_UNAVAILABLE":
         "No se puede consultar el catalogo de fuentes en este despliegue. "
         "Avisa a quien administra el servicio.",

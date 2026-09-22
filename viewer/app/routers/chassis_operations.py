@@ -1014,7 +1014,14 @@ def solicitar_ingesta(
     workspace = ambito.workspace
     if not workspace:
         # Fuente clasificada pero sin workspace DECLARADO: no se adivina.
-        return _fallo("SOURCE_PACKAGE_INVALID")
+        #
+        # RONDA 5 · O1. Esto NO es `SOURCE_PACKAGE_INVALID`. Los dos fallos
+        # son fail-closed, pero le piden al operador cosas DISTINTAS: uno
+        # dice «el paquete esta roto» y este dice «no has declarado donde
+        # esta tu boveda», que es la configuracion de fabrica y se arregla
+        # declarando la ubicacion, no tocando el paquete. Un codigo que
+        # carga las dos causas manda a mirar el fichero equivocado.
+        return _fallo("SOURCE_WORKSPACE_UNDECLARED")
 
     # 5. Se encola en la cola QUE YA EXISTE.
     try:

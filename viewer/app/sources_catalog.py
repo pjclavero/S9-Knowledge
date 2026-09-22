@@ -53,8 +53,9 @@ puerta trasera del invariante, y estas son las tres razones, comprobables:
      que aplica el estampador—, asi que no puede sobreexponer nada;
   2. lleva `regla="catalogo-plano-sin-boveda"`, que se PINTA en la pantalla:
      no se disfraza de ruta clasificada, se ve que no lo es;
-  3. no trae `workspace`, y el alta lo vuelve a EXIGIR (`SOURCE_PACKAGE_INVALID`
-     si el perfil no lo declara), asi que tampoco inventa ambito.
+  3. no trae `workspace`, y el alta lo vuelve a EXIGIR
+     (`SOURCE_WORKSPACE_UNDECLARED` si el perfil no lo declara), asi que
+     tampoco inventa ambito.
 
 Lo que NO debe hacerse con el: usarlo para «rellenar» un ambito en modo boveda.
 Si una ruta no se sabe clasificar, la respuesta es un rechazo con su motivo, no
@@ -539,7 +540,7 @@ def listar_fuentes(env: Optional[dict] = None) -> list[FuenteDisponible]:
             # perfil que hay bajo `examples/` es material del repositorio, no
             # una declaracion del operador: no da ambito a nada. El ambito se
             # queda SIN workspace y el alta falla cerrada con su codigo
-            # (`SOURCE_PACKAGE_INVALID`), que es donde el operador ya sabe
+            # (`SOURCE_WORKSPACE_UNDECLARED`), que es donde el operador ya sabe
             # leerlo. AUSENCIA DECLARADA, no cero.
             raise ValueError("ubicacion de boveda sin declarar")
         ambito_plano = AMBITO_PLANO.con_workspace(_workspace_declarado(perfil_raiz))

@@ -25,6 +25,9 @@
   de la bóveda, que es la autoridad. La configuración del entorno declara
   <code>{{ autoridad_workspace.declarado_por_entorno | e }}</code>, que
   <strong>no gobierna nada</strong>, pero sigue siendo una discrepancia sin
-  resolver: corrígela o retírala.</p>
+  resolver: corrígela, o déjala <strong>en blanco</strong>
+  (<code>S9K_DEFAULT_WORKSPACE=</code>). Retirar la variable del entorno
+  <em>no</em> basta: el valor por defecto de la configuración vuelve a
+  declararla y el aviso seguiría aquí.</p>
 </div>
 {% endif %}

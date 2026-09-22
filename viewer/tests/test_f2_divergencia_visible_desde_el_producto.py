@@ -837,3 +837,103 @@ def test_R3_con_perfil_y_entorno_de_acuerdo_todo_funciona(entorno):
         "con perfil y entorno DE ACUERDO el producto no resuelve ese valor: "
         f"{sorted(contexto.allowed_workspaces)}"
     )
+
+
+# ---------------------------------------------------------------------------
+# RONDA 5 · ACABADOS
+# ---------------------------------------------------------------------------
+
+
+def test_R5_O1_el_workspace_sin_declarar_tiene_CODIGO_PROPIO():
+    """Un fail-closed que dice POR QUE, no un codigo con dos causas.
+
+    `SOURCE_PACKAGE_INVALID` significaba a la vez «el paquete esta roto» y «no
+    has declarado donde esta tu boveda». En configuracion de fabrica el
+    operador recibia el primero y se iba a mirar el fichero equivocado.
+    """
+    import ast
+    from pathlib import Path
+
+    fuente = Path("viewer/app/routers/chassis_operations.py").read_text(encoding="utf-8")
+    arbol = ast.parse(fuente)
+
+    # La guarda de «sin workspace» NO puede emitir el codigo del paquete roto.
+    codigos = [
+        n.args[0].value
+        for n in ast.walk(arbol)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Name)
+        and n.func.id == "_fallo"
+        and n.args
+        and isinstance(n.args[0], ast.Constant)
+    ]
+    assert "SOURCE_WORKSPACE_UNDECLARED" in codigos, (
+        "el alta no emite ningun codigo propio para «sin workspace "
+        "declarado»: vuelve a cargar dos causas en un solo codigo"
+    )
+
+
+def test_R5_O1_el_codigo_propio_TIENE_TRADUCCION_y_dice_que_hacer():
+    """Explicado en `docs/65` pero no en pantalla no cuenta: el operador no lee el repo."""
+    from app.panel_errors import CATALOGO
+
+    frase = CATALOGO.get("SOURCE_WORKSPACE_UNDECLARED", "")
+    assert frase, "el codigo nuevo no tiene traduccion: saldria crudo en pantalla"
+    assert "declara" in frase.lower(), (
+        "la frase no dice QUE HACER; un fail-closed que no dice por que "
+        "queda a medias"
+    )
+    assert frase != CATALOGO["SOURCE_PACKAGE_INVALID"], (
+        "la traduccion es la misma que la del paquete roto: separar el codigo "
+        "y no la frase no separa nada para quien lo lee"
+    )
+
+
+def test_R5_O3_el_consejo_del_cartel_ES_ALCANZABLE():
+    """La trampa: `unset` NO basta, porque el defecto de `Settings` vuelve a declarar.
+
+    Medido, no supuesto: con la variable retirada el entorno sigue declarando
+    'leyenda'; solo la cadena vacia lo calla. Un cartel que aconseje «retirala»
+    manda al operador a hacer algo que no funciona.
+    """
+    from pathlib import Path
+
+    cartel = Path("viewer/app/templates/_aviso_autoridad_workspace.html").read_text(
+        encoding="utf-8"
+    )
+    assert "en blanco" in cartel, (
+        "el cartel no dice que hay que dejar la variable EN BLANCO: el "
+        "operador que haga lo intuitivo (`unset`) seguira viendo el aviso"
+    )
+    assert "no</em> basta" in cartel or "no bastan" in cartel, (
+        "el cartel no advierte de que retirar la variable no basta"
+    )
+
+
+def test_R5_O3_MEDIDO_unset_no_calla_al_entorno_y_la_cadena_vacia_si(monkeypatch):
+    """El control de la afirmacion anterior: se mide la conducta, no el texto."""
+    from app.authz.autoridad_workspace import declaracion_de_entorno
+    from app.config import get_settings
+
+    # `Settings` se cachea, y es asi como lo ve el producto: se construye una
+    # vez al arrancar el proceso. Por eso la declaracion se cambia ANTES de
+    # construirlo, que es lo que hace un operador al reiniciar el servicio.
+    monkeypatch.delenv("S9K_DEFAULT_WORKSPACE", raising=False)
+    get_settings.cache_clear()
+    retirada = declaracion_de_entorno(None)
+
+    monkeypatch.setenv("S9K_DEFAULT_WORKSPACE", "")
+    get_settings.cache_clear()
+    en_blanco = declaracion_de_entorno(None)
+
+    get_settings.cache_clear()
+
+    assert retirada, (
+        "retirar la variable YA calla al entorno: entonces el consejo del "
+        "cartel sobra y esta advirtiendo de una trampa que no existe"
+    )
+    assert en_blanco == "", (
+        "dejar la variable en blanco NO calla al entorno: el consejo del "
+        "cartel es INALCANZABLE y el operador no tiene forma de resolver la "
+        "discrepancia"
+    )

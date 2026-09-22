@@ -59,7 +59,7 @@ La regla se aplica **en los dos lados del camino, con el mismo predicado**:
   del entorno, declarado como tal;
 * **ingesta** — `listar_fuentes()` no deriva el ámbito de ese perfil. La fuente
   se **sigue listando** (hay material) pero **sin workspace**, de modo que el
-  alta falla cerrada con `SOURCE_PACKAGE_INVALID`.
+  alta falla cerrada con `SOURCE_WORKSPACE_UNDECLARED`.
 
 Aplicarla a un solo lado reintroducía la doble autoridad íntegra, y además
 **muda**. Medido con la configuración de fábrica antes de corregirlo:
@@ -87,10 +87,18 @@ repositorio».
 El resolvedor corre en la dependencia de visibilidad, es decir en cada petición.
 Hubo una caché por firma `stat()` y **se retiró**: se midió que ninguna firma
 basada en `stat()` es fiable aquí — con `mtime`+`size` basta restaurar el mtime
-(`rsync -a`, `cp -p`, `tar -x`) y con `ctime` añadido la granularidad de este
-sistema de ficheros es de **un segundo**, así que dos escrituras en el mismo
-segundo vuelven a dejarla rancia. Siendo la autoridad de autorización, se
-prefiere la garantía. Coste medido:
+(`rsync -a`, `cp -p`, `tar -x`) y con `ctime` añadido la granularidad sigue
+siendo demasiado gruesa.
+
+**La granularidad, medida** (80.000 reescrituras del mismo fichero,
+`st_ctime_ns` tras cada una): **534 valores distintos, salto mínimo y mediano
+de 4,0 ms** — es decir, unas 150 escrituras consecutivas comparten sello. No
+es «un segundo», como decía una versión anterior de este documento por
+suposición y no por medida; son 4 ms, y 4 ms bastan de sobra para que dos
+reescrituras del mismo tamaño dejen la caché rancia. La conclusión no cambia,
+pero en un documento cuya tesis es «medido, no supuesto» la cifra tiene que
+ser la medida. Siendo la autoridad de autorización, se prefiere la garantía.
+Coste medido:
 
 | configuración | coste |
 |---|---|
@@ -107,3 +115,33 @@ explícita**, no adivinar por `stat()`.
 deliberado: es el precio de tener **una** autoridad, y la alternativa es que
 authz conserve la suya, que es el defecto. La dependencia es de un solo sentido
 y está acotada a un resolvedor.
+
+## Cómo se retira la declaración del entorno
+
+El cartel aconseja corregir la declaración del entorno **o dejarla en blanco**,
+y esa segunda mitad tiene una trampa que conviene decir en voz alta: **retirar
+la variable (`unset`) no basta**. El entorno habla siempre, porque cuando la
+variable no está el valor sale del defecto de `Settings`. Medido:
+
+| acción | `declaracion_de_entorno(None)` |
+|---|---|
+| `env -u S9K_DEFAULT_WORKSPACE` | `'leyenda'` — **sigue declarando** |
+| `S9K_DEFAULT_WORKSPACE=` | `''` — deja de declarar |
+
+`Settings` se construye una vez por proceso, así que el cambio surte efecto al
+**reiniciar el servicio**, no en caliente. Un operador que haga lo intuitivo
+seguirá viendo el cartel y creerá que no funciona, así que el propio cartel lo
+dice. Los defectos **no se alinearon**
+—eso escondería la divergencia— y el camino para silenciarla es declarar la
+cadena vacía.
+
+## Dos fallos cerrados, dos causas, dos códigos
+
+`SOURCE_PACKAGE_INVALID` cargaba dos causas en el alta de fuente: «el perfil no
+es un fichero» y «la fuente no trae workspace declarado». Los dos son
+fail-closed, pero le piden al operador cosas distintas, y en configuración de
+fábrica el operador recibía un código que **también** significa «el paquete
+está roto» y le mandaba a mirar el fichero equivocado. El segundo caso tiene
+ahora su propio código, `SOURCE_WORKSPACE_UNDECLARED`, con su traducción en
+pantalla: es la misma distinción que ya se defendió en el 400 de
+`/admin/partidas` —un fail-closed que dice **por qué**—, y estaba a medias.
