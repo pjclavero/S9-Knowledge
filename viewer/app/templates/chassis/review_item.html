@@ -56,7 +56,15 @@
       <dt>Predicado</dt><dd>{{ row.predicate | e if row.predicate else 'no disponible' }}</dd>
       <dt>Objeto</dt><dd>{{ row.object | e if row.object else 'no disponible' }}</dd>
       <dt>Dirección</dt><dd>{{ row.direction | e if row.direction else 'no disponible' }}</dd>
-      <dt>Negación</dt><dd>{{ row.negation_kind | e if row.negation_kind else 'no disponible' }}</dd>
+      {#- EL SIGNO Y LA CLASE SON DOS COSAS. Este campo pintaba la CLASE de
+          negación (`negation_kind`: SIMPLE, CESSATION…) bajo el rótulo
+          «Negación», así que un hecho NEGADO cuya clase el motor no resolvió
+          («UNKNOWN») salía como «no disponible». El signo lo produce el
+          servidor con `app.labels.negation_code`. -#}
+      <dt>Negación</dt>
+      <dd data-signo="{{ row.signo | e }}">{{ row.signo_label | e }}</dd>
+      <dt>Clase de negación</dt>
+      <dd>{{ row.negation_kind | e if row.negation_kind else 'no disponible' }}</dd>
       <dt>Temporalidad</dt><dd>{{ row.temporal_status | e if row.temporal_status else 'no disponible' }}</dd>
       <dt>Epistémico</dt><dd>{{ row.epistemic_status | e if row.epistemic_status else 'no disponible' }}</dd>
     </dl>

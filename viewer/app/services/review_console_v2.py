@@ -24,6 +24,7 @@ import unicodedata
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Optional, Sequence
 
+from app.labels import negation_code, negation_label
 from app.services.v3_review import VALID_ENGINE_DECISIONS, reason_label
 
 
@@ -161,6 +162,20 @@ def row_view(item: dict[str, Any]) -> dict[str, Any]:
         "object": _clean(claim.get("object")),
         "direction": _clean(claim.get("direction")),
         "negated": negated,
+        # EL SIGNO, TAMBIÉN EN ESTA TARJETA. La consola `/panel/review` es la
+        # SEGUNDA superficie donde se decide, y pintaba en su campo «Negación»
+        # el `negation_kind` —la CLASE de negación, no el signo—. Medido sobre
+        # el paquete que escribe el exportador real: `negated=True` con
+        # `negation_kind="UNKNOWN"`, que `_clean` convierte en ausencia, así
+        # que un hecho NEGADO salía como «Negación: no disponible». El
+        # `negated` correcto ya se calculaba aquí arriba y no llegaba a la
+        # pantalla.
+        #
+        # Misma autoridad que la otra tarjeta y que las otras tres pantallas
+        # (`app.labels.negation_code`): tres estados, conversión estricta,
+        # ausente NO es `false`.
+        "signo": negation_code(negated),
+        "signo_label": negation_label(negation_code(negated)),
         "negation_kind": _clean(negation_kind),
         "temporal_status": _clean(claim.get("temporal_status")),
         "epistemic_status": _clean(claim.get("epistemic_status")),
