@@ -131,6 +131,44 @@ Lo negado **si** se propone: leer "no vive" y proponer `LIVES_IN` marcado como
 negado es leer bien el texto. Lo que no puede pasar es que salga como afirmacion
 plana.
 
+La ventana de negacion se mide desde el **principio del sintagma sujeto**, no
+desde la frase de relacion. Medirla desde la relacion hacia que la LONGITUD DEL
+NOMBRE del sujeto decidiera si la negacion se leia: "Ni siquiera Kael vive en
+Valdor" salia `negated=True` y "Ni siquiera Daiki Oharu lidera la Casa del
+Ciervo" salia `negated=False`, con decision ACCEPT y plan aprobado. No era un
+defecto de "ni siquiera": el mismo cue se perdia a distancia ("Tampoco <nombre
+de tres tokens> lidera…"). El acotado a la CLAUSULA (`clause_scoped=True`) es
+lo que impide que el negador de otra clausula contamine la relacion; la ventana
+solo puede RESTAR respecto de ese acotado, nunca ampliarlo (`clause_start`
+camina hacia DELANTE desde `lo`, asi que ampliar `lo` no puede cruzar una
+conjuncion ni puntuacion).
+
+**Esto NO garantiza la propiedad "una negacion nunca acaba materializada como
+afirmacion". Cierra UNA fuente de distancia, la del sintagma sujeto, no la
+distancia.** La ventana sigue siendo de `NEGATION_WINDOW` tokens contados desde
+el sujeto, asi que cualquier material intercalado entre el negador y el sujeto
+vuelve a dejar el cue fuera. Medido sobre el arreglo:
+
+| Texto | Salida |
+|---|---|
+| "Ni siquiera, en el ocaso de la guerra, Ilaria Vandreth dirige la Casa del Ciervo" | `negated=False`, sin revision, decision ACCEPT, **plan aprobado** con `CREATE_ASSERTION` + `PROJECT_RELATION` |
+| "Nunca, que se sepa, Kael vive en Valdor" | `negated=False`, sin revision |
+
+Es la MISMA firma del defecto, es **preexistente** (idéntica en la base), no
+depende de las comas (sin ellas sale igual, luego no es la barrera de clausula)
+y **afecta tambien a sujetos de un token**, de modo que no es un residuo del
+caso largo. Queda ABIERTO y declarado, no resuelto.
+
+En la otra direccion hay una clase **fail-safe** conocida: "No obstante
+⟨sujeto⟩ lidera…" sin coma sale `negated=True` + `review_required=True`. Nunca
+materializa una afirmacion falsa, y la base solo acertaba con sujetos largos
+por accidente de ventana corta.
+
+Y, para no dejarlo en el aire: `negation_window` **no se pasa en ningun sitio
+de `data-engine/app`**, asi que la rama de ventana de `payload.analyze_context`
+es codigo muerto y existe **exactamente UNA lectura de negacion con ventana en
+produccion**, la de este parrafo.
+
 Ademas lee el contexto: negacion (`NEGATION_CUES` en los 3 tokens previos),
 epistemicidad (`se rumorea`, `quiza`, `planea`… → `RUMORED` / `HYPOTHETICAL` /
 `INTENDED`, siempre con `review_required=True`) y temporalidad de la frase.
