@@ -199,12 +199,17 @@ def test_las_variantes_declaradas_salen_negadas_y_pidiendo_revision(texto):
 
 
 #: CONTROLES POSITIVOS — el riesgo simetrico. Ninguna puede salir negada.
-#: "siquiera" suelto (sin "ni") NO es negacion; una aposicion larga tampoco.
+#: "siquiera" suelto (sin "ni") NO es negacion; y el ultimo es el que vigila
+#: el ARREGLO PEREZOSO: abrir la ventana a la frase entera SIN acotarla a la
+#: clausula (`clause_scoped=False`) hace que ese "Nunca" de la primera
+#: clausula niegue una relacion de la segunda. Medido: con esa mutacion puesta
+#: sale `negated=True`.
 CONTROLES_AFIRMATIVOS: tuple[str, ...] = (
     "Daiki Oharu Kensei lidera la Casa del Ciervo.",
     "Kael siquiera vive en Valdor.",
     "Daiki Oharu lidera la Casa del Ciervo.",
     "Kael vive en Valdor.",
+    "Nunca hubo dudas: Daiki Oharu Kensei lidera la Casa del Ciervo.",
 )
 
 

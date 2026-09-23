@@ -121,17 +121,40 @@ MUTACIONES: tuple[Mutacion, ...] = (
         ),
     ),
     Mutacion(
-        nombre="la-ventana-se-abre-a-la-frase-entera",
+        nombre="la-ventana-se-abre-y-deja-de-acotarse-a-la-clausula",
         fichero=EXTRACTOR,
         viejo="            lo=max(sentence.first_token, negation_anchor - NEGATION_WINDOW),",
-        nuevo="            lo=sentence.first_token,\n            # ventana abierta",
+        nuevo="            lo=sentence.first_token,",
+        extra=((EXTRACTOR, "            clause_scoped=True,", "            clause_scoped=False,"),),
         caen=("test_ninguna_frase_afirmativa_empieza_a_marcarse_como_negada",),
         dice="SE INVENTO UNA NEGACION SOBRE UNA FRASE AFIRMATIVA",
         porque=(
-            "EL RIESGO SIMÉTRICO, y el arreglo perezoso que lo causa: abrir "
-            "la ventana a toda la frase arregla las negativas y empieza a "
-            "negar afirmaciones. Si este control no enrojeciera aquí, el "
-            "verde del corte no diría nada sobre la otra dirección."
+            "EL RIESGO SIMÉTRICO, y el arreglo perezoso que lo causa. OJO AL "
+            "`extra`: abrir SÓLO `lo` a la frase entera NO cambia NADA "
+            "medible —`clause_scoped=True` ya acota a la cláusula, así que "
+            "esa mitad de la mutación cae en CAPA MUERTA y ningún control "
+            "puede enrojecer con ella, ni debe—. Lo que de verdad invierte "
+            "una afirmación es quitar el acotado a la cláusula, y por eso las "
+            "dos van juntas. HALLAZGO: `NEGATION_WINDOW` sólo puede RESTAR "
+            "respecto de la cláusula; ampliarlo es inerte."
+        ),
+    ),
+    Mutacion(
+        nombre="todo-pide-revision-y-el-instrumento-deja-de-alcanzar",
+        fichero=EXTRACTOR,
+        viejo="        review = bool(\n            (negated and not self.negation_policy_at_engine)",
+        nuevo="        review = bool(\n            True or (negated and not self.negation_policy_at_engine)",
+        caen=(
+            "test_la_misma_frase_en_afirmativo_SI_llega_al_plan",
+            "test_ninguna_frase_afirmativa_empieza_a_marcarse_como_negada",
+        ),
+        dice="LA CADENA NO MATERIALIZA NI SIQUIERA LA FRASE AFIRMATIVA",
+        porque=(
+            "CALIBRA EL CONTROL DEL INSTRUMENTO. Si todo pidiera revisión, "
+            "nada llegaría al plan y el caso decisivo estaría verde por no "
+            "alcanzar el punto peligroso, no porque la negación se respete. "
+            "Sin esta mutación ese control era un testigo que nada podía "
+            "poner rojo."
         ),
     ),
     Mutacion(
@@ -160,7 +183,7 @@ MUTACIONES: tuple[Mutacion, ...] = (
         nombre="lo-negado-deja-de-pedir-revision",
         fichero=EXTRACTOR,
         viejo="            (negated and not self.negation_policy_at_engine)\n",
-        nuevo="",
+        nuevo="            False\n",
         caen=(
             "test_el_par_minimo_se_sostiene_con_el_sujeto_corto_y_con_el_largo",
             "test_las_variantes_declaradas_salen_negadas_y_pidiendo_revision",
