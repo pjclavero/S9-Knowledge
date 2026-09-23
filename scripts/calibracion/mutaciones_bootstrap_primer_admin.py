@@ -221,7 +221,7 @@ MUTACIONES: tuple[Mutacion, ...] = (
     Mutacion(
         nombre="el-login-vuelve-a-fingir-credenciales-incorrectas",
         fichero=RUTAS_AUTH,
-        viejo="        return not bootstrap.estado_instalacion(_get_db_path()).completado",
+        viejo="        return not bootstrap.estado_instalacion(db_path).completado",
         nuevo="        return False",
         caen=("test_B_login_no_finge_credenciales_incorrectas",
               "test_compat_instalacion_v3_sin_usuarios_queda_PENDIENTE"),
