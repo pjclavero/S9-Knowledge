@@ -1077,6 +1077,19 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/veracidad_tarjeta_review.py
 
+      # Y la calibracion del corte «bootstrap web del primer administrador».
+      # Toca AUTENTICACION: cada condicion de seguridad tiene aqui su mutacion
+      # y el rojo tiene que DECIR SU CAUSA. Cruza ademas los casos recolectados
+      # contra los rojos reales. Muta el arbol de trabajo (sustitucion de texto
+      # exacto sobre el fuente del visor) y lo restaura por efecto, como los de
+      # arriba. Las dependencias del visor ya estan instaladas por el paso del
+      # carril J.
+      - name: El bootstrap del primer administrador se pone ROJO ante cada defecto
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/mutaciones_bootstrap_primer_admin.py
+
   # Instalado desde .github/ci-fragments/check-env-reproducibility.yml. Si un
   # merge se lleva por delante este bloque, el fragmento es la copia canonica.
   check-env-reproducibility:

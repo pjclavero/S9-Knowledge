@@ -14,7 +14,7 @@ from typing import Generator, Optional
 
 from app.auth.models import AuditEvent, PartidaAccess, Session, User
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 _DB_PATH_DEFAULT = "viewer/state/auth.db"
 _local = threading.local()
@@ -174,6 +174,31 @@ _DDL_V3_ALTER = [
     "ALTER TABLE partida_access ADD COLUMN character_id TEXT",
 ]
 
+#: v4 -- ESTADO DE INSTALACION, persistente e IRREVERSIBLE.
+#:
+#: `bootstrap_completed` responde «¿ya se creo el primer administrador de esta
+#: instalacion?». NO se deriva de `count_active_admins() == 0`: esa cuenta baja
+#: si alguien elimina o desactiva al ultimo administrador, y entonces la puerta
+#: anonima de bootstrap se REABRIRIA sobre una instalacion con datos. El estado
+#: se sella una vez y no se vuelve a abrir.
+#:
+#: La clave es PRIMARY KEY a proposito: es el candado de exclusion mutua que
+#: hace ATOMICA la creacion del primer administrador (dos peticiones
+#: simultaneas -> la segunda choca con IntegrityError, no con una lectura
+#: obsoleta).
+_DDL_V4_CREATE = [
+    """
+    CREATE TABLE IF NOT EXISTS install_state (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        set_at TEXT NOT NULL
+    )
+    """,
+]
+
+#: Clave del sello de bootstrap dentro de `install_state`.
+BOOTSTRAP_KEY = "bootstrap_completed"
+
 
 # ---------------------------------------------------------------------------
 # Migraciones
@@ -269,6 +294,24 @@ def migrate(db_path: Optional[Path] = None) -> None:
                     except sqlite3.OperationalError as exc:
                         if "duplicate column" not in str(exc).lower():
                             raise
+
+            # v4: sello de instalacion. COMPATIBILIDAD HACIA ATRAS -- una base
+            # que YA tiene usuarios (p.ej. administradores creados por la CLI
+            # antes de que existiese esta pantalla) queda con el bootstrap
+            # CERRADO, no abierto. Abrirlo seria regalar una puerta anonima de
+            # creacion de administrador a toda instalacion ya desplegada.
+            if current < 4:
+                for stmt in _DDL_V4_CREATE:
+                    conn.execute(stmt)
+                ya_hay_usuarios = conn.execute(
+                    "SELECT COUNT(*) FROM users"
+                ).fetchone()[0] > 0
+                if ya_hay_usuarios:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO install_state (key, value, set_at) "
+                        "VALUES (?, 'true', ?)",
+                        (BOOTSTRAP_KEY, _utcnow()),
+                    )
 
             conn.execute(
                 "INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, ?)",
@@ -431,7 +474,7 @@ def verify_persisted_password(db_path: Path, user_id: int, password: str) -> boo
 # CRUD de usuarios
 # ---------------------------------------------------------------------------
 
-def create_user(
+def insert_user_row(
     conn: sqlite3.Connection,
     username: str,
     display_name: str,
@@ -439,7 +482,13 @@ def create_user(
     role: str = "viewer",
     must_change_password: bool = False,
     created_by: Optional[str] = None,
-) -> User:
+) -> int:
+    """Inserta la fila de usuario SIN commit y devuelve su id.
+
+    Existe para que el alta del primer administrador pueda ocurrir DENTRO de la
+    misma transaccion que sella el bootstrap, sin abrir un segundo sistema de
+    usuarios: es exactamente el INSERT que usa `create_user`.
+    """
     now = _utcnow()
     cur = conn.execute(
         """
@@ -450,8 +499,25 @@ def create_user(
         """,
         (username, display_name, password_hash, role, int(must_change_password), now, now, created_by),
     )
+    return int(cur.lastrowid)
+
+
+def create_user(
+    conn: sqlite3.Connection,
+    username: str,
+    display_name: str,
+    password_hash: str,
+    role: str = "viewer",
+    must_change_password: bool = False,
+    created_by: Optional[str] = None,
+) -> User:
+    user_id = insert_user_row(
+        conn, username=username, display_name=display_name,
+        password_hash=password_hash, role=role,
+        must_change_password=must_change_password, created_by=created_by,
+    )
     conn.commit()
-    return get_user_by_id(conn, cur.lastrowid)
+    return get_user_by_id(conn, user_id)
 
 
 def get_user_by_id(conn: sqlite3.Connection, user_id: int) -> Optional[User]:

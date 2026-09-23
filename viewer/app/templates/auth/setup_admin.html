@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configuración inicial — S9 Knowledge</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">S9 Knowledge · Visor</div>
+  </header>
+
+  <main style="max-width:480px;margin:3rem auto;padding:1rem;">
+    <h2>Configuración inicial</h2>
+
+    <p>
+      Esta instalación todavía no tiene ningún administrador. Crea aquí el
+      primero y después inicia sesión con él.
+    </p>
+    <p>
+      <strong>Esta pantalla se cierra para siempre en cuanto se cree.</strong>
+      No volverá a estar disponible, ni siquiera si más adelante se elimina o
+      se desactiva ese administrador.
+    </p>
+
+    {% if errors %}
+      <div class="alert alert-error" role="alert">
+        <ul style="margin:0;padding-left:1.2rem;">
+          {% for err in errors %}
+            <li>{{ err | e }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    {#
+      No hay campo de rol, y no es una omisión de la plantilla: el endpoint
+      tampoco acepta ninguno. Esta operación crea por definición el primer
+      administrador, así que el navegador no tiene nada que decidir.
+    #}
+    <form method="post" action="{{ setup_path | e }}" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token | e }}">
+
+      <div class="field">
+        <label for="username">Usuario</label>
+        <input id="username" type="text" name="username"
+               autocomplete="username" autocapitalize="none" autocorrect="off"
+               spellcheck="false" autofocus required>
+      </div>
+
+      <div class="field">
+        <label for="display_name">Nombre visible</label>
+        <input id="display_name" type="text" name="display_name" autocomplete="name">
+        <small>Opcional: si lo dejas vacío se usa el nombre de usuario.</small>
+      </div>
+
+      <div class="field">
+        <label for="password">Contraseña</label>
+        <input id="password" type="password" name="password"
+               autocomplete="new-password" required minlength="12">
+        <small>Mínimo 12 caracteres, y distinta del nombre de usuario.</small>
+      </div>
+
+      <button type="submit" class="btn btn-primary">Crear administrador</button>
+    </form>
+  </main>
+</body>
+</html>

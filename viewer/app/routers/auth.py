@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from app.auth import audit, db as auth_db
+from app.auth import audit, bootstrap, db as auth_db
 from app.auth.config import get_auth_settings
 from app.auth.csrf import (
     LOGIN_CSRF_COOKIE,
@@ -73,6 +73,30 @@ def _get_ip(request: Request) -> Optional[str]:
     return request.client.host if request.client else None
 
 
+
+# ---------------------------------------------------------------------------
+# Bootstrap pendiente: el login NO finge «credenciales incorrectas»
+# ---------------------------------------------------------------------------
+
+def _bootstrap_pendiente() -> bool:
+    """True si esta instalacion aun no ha creado su primer administrador.
+
+    Un fallo de almacenamiento devuelve False a proposito: el login sigue su
+    camino normal (y fallara cerrado por si mismo). Lo que NO se hace es
+    mandar a nadie a la configuracion inicial porque la base no se deja leer:
+    eso convertiria un disco roto en una invitacion a crear un administrador.
+    """
+    try:
+        return not bootstrap.estado_instalacion(_get_db_path()).completado
+    except bootstrap.BootstrapStorageError:
+        import logging
+        logging.getLogger("s9k.auth").error(
+            "[%s] estado de instalacion indeterminado durante el login",
+            bootstrap.AUTH_STORE_UNAVAILABLE,
+        )
+        return False
+
+
 # ---------------------------------------------------------------------------
 # GET /login
 # ---------------------------------------------------------------------------
@@ -97,6 +121,10 @@ async def login_page(
     message: Optional[str] = None,
 ):
     cfg = get_auth_settings()
+    # Instalacion sin primer administrador: aqui no hay ninguna credencial que
+    # acertar. Se conduce EXPLICITAMENTE a la configuracion inicial.
+    if cfg.S9K_AUTH_ENABLED and _bootstrap_pendiente():
+        return RedirectResponse(url="/setup/admin", status_code=303)
     token = issue_login_csrf(cfg.S9K_CSRF_SECRET)
     response = templates.TemplateResponse(
         request,
@@ -125,6 +153,11 @@ async def login_submit(
     next: str = Form(default="/"),
 ):
     cfg = get_auth_settings()
+    # Mismo criterio que el GET, comprobado otra vez en el servidor: sin primer
+    # administrador, responder «Usuario o contrasena incorrectos» seria mentir
+    # sobre la causa y dejar al operador probando credenciales que no existen.
+    if cfg.S9K_AUTH_ENABLED and _bootstrap_pendiente():
+        return RedirectResponse(url="/setup/admin", status_code=303)
     db_path = _get_db_path()
     # Fail-closed sin recrear: si la DB desapareció en caliente, el login
     # falla; ensure_migrated (via sqlite3.connect) crearía una base vacía.

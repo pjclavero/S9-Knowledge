@@ -156,7 +156,23 @@ def enforce_auth_security(cfg: AuthSettings) -> None:
     problems: List[SecurityProblem] = []
     problems += validate_csrf_secret(cfg.S9K_CSRF_SECRET)
     problems += validate_password_backend()
-    problems += validate_auth_db_path(cfg.S9K_AUTH_DB_PATH)
+
+    # AUTH_DB_PATH_MISSING dejo de ser fatal: es el estado «primera
+    # instalacion». El arranque la crea (vacia, sin usuarios y con el bootstrap
+    # PENDIENTE) y el producto muestra la configuracion inicial por HTTP en vez
+    # de abortar con RC=3 y cero superficie. Lo que NO cambia: la ruta vacia y
+    # la ruta relativa siguen abortando, y una base que EXISTE y no se puede
+    # leer sigue impidiendo el arranque (`ensure_migrated` ->
+    # `SchemaCompatibilityError`). Ausencia no es error, y error no es ausencia.
+    for problem in validate_auth_db_path(cfg.S9K_AUTH_DB_PATH):
+        if problem.code == AUTH_DB_PATH_MISSING:
+            log.info(
+                "[%s] no hay base de autenticacion todavia: se tratara como "
+                "primera instalacion y se ofrecera la configuracion inicial.",
+                AUTH_DB_PATH_MISSING,
+            )
+            continue
+        problems.append(problem)
 
     # Cookies: no debe desactivarse Secure en producción (solo aviso, no aborta,
     # porque un entorno de desarrollo legítimo puede requerir HTTP directo).

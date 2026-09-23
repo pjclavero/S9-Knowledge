@@ -1,0 +1,260 @@
+"""Estado de instalacion y alta del PRIMER administrador.
+
+QUE PROBLEMA CIERRA
+-------------------
+La propiedad que el producto no tenia:
+
+    instalacion -> abrir navegador -> crear primer administrador ->
+    iniciar sesion -> entrar al producto
+
+sin tocar un terminal. Antes: sin `auth.db` el proceso abortaba con RC=3 y
+CERO superficie HTTP, y con la base creada y sin usuarios el `/login` era
+indistinguible del normal (respondia «usuario o contrasena incorrectos» a
+credenciales inventadas, que es mentir sobre la causa).
+
+EL MODELO DE ESTADO, y por que NO es `count_active_admins() == 0`
+-----------------------------------------------------------------
+`count_active_admins() == 0` es una CUENTA VIVA: baja cuando alguien elimina o
+desactiva al ultimo administrador. Si la puerta de bootstrap dependiese de
+ella, quedarse sin administradores REABRIRIA una puerta anonima de creacion de
+administrador sobre una instalacion con datos reales. Eso es un agujero.
+
+El estado es PERSISTENTE e IRREVERSIBLE, y vive en la fila
+`install_state['bootstrap_completed']` (esquema v4):
+
+    auth.db inexistente -> ensure_migrated() -> PENDIENTE -> /setup/admin abierto
+    crear primer admin  -> TRANSACCION ATOMICA: sello + admin
+    -> COMPLETADO -> /setup/admin cerrado PARA SIEMPRE -> login normal
+
+La recuperacion de «me he quedado sin administradores» sera otro mecanismo
+explicito. Nunca la reapertura de esta puerta.
+
+AUSENCIA != ERROR
+-----------------
+`estado_instalacion` distingue tres desenlaces, no dos. La base ausente (o
+existente y sin ninguna tabla) es PRIMERA INSTALACION. Una base que existe
+pero no se puede leer, no es SQLite, o no dice que version tiene, NO es una
+primera instalacion: es un fallo de almacenamiento, y se responde fail-closed
+con diagnostico. Quien se salta esta distincion convierte un disco roto en
+«bienvenido, cree su administrador» sobre datos que siguen ahi.
+"""
+from __future__ import annotations
+
+import sqlite3
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
+
+from app.auth import db as auth_db
+from app.auth import schema_compat
+from app.auth.db import BOOTSTRAP_KEY
+from app.auth.models import User
+
+# ---------------------------------------------------------------------------
+# Codigos ESTABLES. Son API: la prueba que sostiene una garantia comprueba el
+# CODIGO, nunca la redaccion. Repo publico: ni rutas, ni trazas, ni str(exc).
+# ---------------------------------------------------------------------------
+
+#: Estados de instalacion.
+BOOTSTRAP_PENDIENTE = "BOOTSTRAP_PENDIENTE"
+BOOTSTRAP_COMPLETADO = "BOOTSTRAP_COMPLETADO"
+
+#: Fallo de almacenamiento del estado de instalacion (condicion fail-closed).
+AUTH_STORE_UNAVAILABLE = "AUTH_STORE_UNAVAILABLE"
+
+#: Rechazos del alta del primer administrador.
+BOOTSTRAP_YA_COMPLETADO = "BOOTSTRAP_YA_COMPLETADO"
+BOOTSTRAP_USUARIO_VACIO = "BOOTSTRAP_USUARIO_VACIO"
+BOOTSTRAP_USUARIO_DUPLICADO = "BOOTSTRAP_USUARIO_DUPLICADO"
+
+#: Rol del primer administrador. NO es un dato del formulario: esta operacion
+#: crea POR DEFINICION un administrador, asi que el navegador no decide nada.
+ROL_PRIMER_ADMIN = "admin"
+
+
+class BootstrapStorageError(RuntimeError):
+    """El estado de instalacion NO se pudo determinar: fail-closed.
+
+    Lleva `code` estable. El detalle tecnico va al log del servidor, nunca al
+    cliente.
+    """
+
+    def __init__(self, message: str, code: str = AUTH_STORE_UNAVAILABLE):
+        super().__init__(message)
+        self.code = code
+
+
+class BootstrapCerrado(RuntimeError):
+    """El bootstrap ya estaba completado: el alta se rechaza."""
+
+    code = BOOTSTRAP_YA_COMPLETADO
+
+
+@dataclass(frozen=True)
+class EstadoInstalacion:
+    """Lo que el servidor sabe de la instalacion, en una pieza.
+
+    `completado` es el unico dato que decide si `/setup/admin` existe.
+    `base_existia` sirve para el diagnostico, no para la decision.
+    """
+
+    completado: bool
+    base_existia: bool
+
+    @property
+    def codigo(self) -> str:
+        return BOOTSTRAP_COMPLETADO if self.completado else BOOTSTRAP_PENDIENTE
+
+
+# ---------------------------------------------------------------------------
+# Lectura del sello
+# ---------------------------------------------------------------------------
+
+def bootstrap_completado(conn: sqlite3.Connection) -> bool:
+    """True si el sello esta puesto en esta conexion ya abierta.
+
+    Una tabla `install_state` ausente significa que la base es anterior a la
+    v4 y todavia no ha migrado; aqui NO se asume «pendiente» por ausencia: se
+    propaga como fallo de almacenamiento, porque quien lee esto ya paso por
+    `ensure_migrated` y la tabla tiene que estar.
+    """
+    try:
+        row = conn.execute(
+            "SELECT value FROM install_state WHERE key = ?", (BOOTSTRAP_KEY,)
+        ).fetchone()
+    except sqlite3.DatabaseError as exc:
+        raise BootstrapStorageError(
+            f"install_state no consultable: {exc}"
+        ) from exc
+    if row is None:
+        return False
+    return str(row[0]).lower() == "true"
+
+
+def estado_instalacion(db_path: Path) -> EstadoInstalacion:
+    """Estado de instalacion leido del SERVIDOR, o fail-closed con diagnostico.
+
+    Tres desenlaces, no dos:
+
+    * base ausente / fichero vacio / base sin tablas -> PRIMERA INSTALACION:
+      se crea (migra) y queda PENDIENTE;
+    * base valida -> se lee el sello;
+    * base ilegible, no-SQLite, sin version o fuera de rango ->
+      :class:`BootstrapStorageError`. NO es una primera instalacion.
+    """
+    path = Path(db_path)
+    existia = path.exists() and path.stat().st_size > 0
+
+    try:
+        schema_compat.assert_compatible(path)
+        auth_db.ensure_migrated(path)
+    except schema_compat.SchemaCompatibilityError as exc:
+        raise BootstrapStorageError(
+            f"esquema de auth no utilizable [{exc.code}]: {exc}"
+        ) from exc
+    except (sqlite3.DatabaseError, OSError) as exc:
+        raise BootstrapStorageError(
+            f"almacen de auth inaccesible: {exc}"
+        ) from exc
+
+    try:
+        with auth_db.get_conn(path) as conn:
+            completado = bootstrap_completado(conn)
+    except sqlite3.DatabaseError as exc:
+        raise BootstrapStorageError(f"almacen de auth inaccesible: {exc}") from exc
+
+    return EstadoInstalacion(completado=completado, base_existia=existia)
+
+
+# ---------------------------------------------------------------------------
+# Sellado
+# ---------------------------------------------------------------------------
+
+def marcar_completado(conn: sqlite3.Connection) -> None:
+    """Sella el bootstrap sin crear usuario (camino de la CLI).
+
+    Idempotente. Se usa cuando el primer administrador se crea por otra via
+    legitima —`cli.auth create-admin`— para que esa instalacion NO quede con
+    la puerta anonima abierta.
+    """
+    conn.execute(
+        "INSERT OR IGNORE INTO install_state (key, value, set_at) VALUES (?, 'true', ?)",
+        (BOOTSTRAP_KEY, auth_db._utcnow()),
+    )
+    conn.commit()
+
+
+def crear_primer_admin(
+    db_path: Path,
+    *,
+    username: str,
+    display_name: str,
+    password_hash: str,
+    must_change_password: bool = False,
+) -> User:
+    """Crea el primer administrador Y sella el bootstrap, ATOMICAMENTE.
+
+    La exclusion mutua NO es «leer el estado y luego escribir» (eso deja una
+    ventana entre la lectura y la escritura por la que caben dos navegadores):
+    es la PRIMARY KEY de `install_state`. La transaccion empieza con
+    ``BEGIN IMMEDIATE`` —toma el candado de escritura antes de nada— e inserta
+    el sello PRIMERO. La segunda peticion concurrente choca con
+    `IntegrityError` y se rechaza; su usuario no llega a existir porque el
+    rollback deshace la transaccion entera.
+
+    El rol no se recibe: lo fija :data:`ROL_PRIMER_ADMIN`.
+    """
+    username = (username or "").strip()
+    if not username:
+        raise ValueError(BOOTSTRAP_USUARIO_VACIO)
+
+    path = Path(db_path)
+    conn = sqlite3.connect(str(path), check_same_thread=False, timeout=30.0)
+    conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA foreign_keys=ON")
+        # isolation_level=None: el control de la transaccion es explicito, sin
+        # BEGIN implicito de sqlite3 que abriria en modo DEFERRED.
+        conn.isolation_level = None
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            try:
+                conn.execute(
+                    "INSERT INTO install_state (key, value, set_at) VALUES (?, 'true', ?)",
+                    (BOOTSTRAP_KEY, auth_db._utcnow()),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise BootstrapCerrado(
+                    "el bootstrap ya estaba completado en esta instalacion"
+                ) from exc
+
+            try:
+                user_id = auth_db.insert_user_row(
+                    conn,
+                    username=username,
+                    display_name=display_name or username,
+                    password_hash=password_hash,
+                    role=ROL_PRIMER_ADMIN,
+                    must_change_password=must_change_password,
+                    created_by="setup",
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ValueError(BOOTSTRAP_USUARIO_DUPLICADO) from exc
+
+            conn.execute("COMMIT")
+        except BaseException:
+            conn.execute("ROLLBACK")
+            raise
+
+        user = auth_db.get_user_by_id(conn, user_id)
+    finally:
+        conn.close()
+
+    assert user is not None  # recien insertado dentro de la transaccion
+    return user
+
+
+def hay_admin_activo(db_path: Path) -> bool:
+    """Utilidad de diagnostico. NO decide si /setup/admin existe."""
+    with auth_db.get_conn(Path(db_path)) as conn:
+        return auth_db.count_active_admins(conn) > 0

@@ -36,6 +36,26 @@ ninguno se deriva del mensaje, ni por concatenación ni por parseo.
 `CSRF_SECRET_LOW_ENTROPY`, `PASSWORD_BACKEND_NOT_ALLOWED`,
 `AUTH_DB_PATH_EMPTY`, `AUTH_DB_PATH_NOT_ABSOLUTE`, `AUTH_DB_PATH_MISSING`.
 
+`AUTH_DB_PATH_MISSING` **ya no aborta el arranque**: es el estado «primera
+instalación». El arranque crea la base (vacía, sin usuarios y con el bootstrap
+PENDIENTE) y el producto ofrece `/setup/admin` por HTTP en vez de terminar con
+RC=3 y cero superficie. Los otros dos siguen abortando, y una base que EXISTE y
+no se puede leer sigue impidiendo el arranque por `app.auth.schema_compat`.
+**Ausencia no es error, y error no es ausencia.**
+
+### `app.auth.bootstrap`
+
+`BOOTSTRAP_PENDIENTE`, `BOOTSTRAP_COMPLETADO`, `AUTH_STORE_UNAVAILABLE`,
+`BOOTSTRAP_YA_COMPLETADO`, `BOOTSTRAP_USUARIO_VACIO`,
+`BOOTSTRAP_USUARIO_DUPLICADO`.
+
+El estado de instalación es **persistente e irreversible**: vive en
+`install_state['bootstrap_completed']` (esquema `auth.db` v4) y **no** se
+deriva de `count_active_admins()`. Quedarse sin administradores **no** reabre
+`/setup/admin`; la recuperación de ese caso será un mecanismo explícito aparte.
+`AUTH_STORE_UNAVAILABLE` es el fail-closed de la condición «una base corrupta o
+inaccesible NO es una primera instalación».
+
 **Longitud mínima y entropía mínima del secreto CSRF son dos propiedades
 independientes**, con código propio cada una. Antes las cubría un solo caso
 (`"corto123"`: 8 caracteres, 7 distintos) que disparaba las dos a la vez, así

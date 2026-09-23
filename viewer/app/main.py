@@ -37,6 +37,7 @@ from app.deps import get_default_workspace, get_provider
 from app.jobs_client import jobs_db_status, scoped_counts, scoped_job, scoped_jobs
 from app.providers.base import GraphProvider
 from app.routers import auth as auth_router
+from app.routers import setup as setup_router
 from app.routers import admin as admin_router
 from app.routers import health_admin as health_router
 from app.routers import partida as partida_router
@@ -121,6 +122,11 @@ app.include_router(api_entities.router, dependencies=[Depends(require_api_authen
 app.include_router(api_graph.router, dependencies=[Depends(require_api_authenticated_user)])
 app.include_router(api_jobs.router, dependencies=[Depends(require_api_authenticated_user)])
 app.include_router(auth_router.router)
+# Configuracion inicial (primer administrador). Anonima A PROPOSITO y solo
+# mientras el bootstrap este PENDIENTE: la propia ruta comprueba el estado
+# persistente en el servidor, en GET y en POST, y responde 404 cuando ya se
+# completo. Ver app/routers/setup.py y app/auth/bootstrap.py.
+app.include_router(setup_router.router)
 app.include_router(admin_router.router)
 app.include_router(health_router.router)
 app.include_router(readonly_router.router)
@@ -244,6 +250,18 @@ async def _startup_auth() -> None:
     enforce_auth_security(cfg)
     if cfg.S9K_AUTH_ENABLED:
         p = Path(cfg.S9K_AUTH_DB_PATH)
+        # PRIMERA INSTALACION: si la base NO EXISTE, se crea aqui y el servicio
+        # ARRANCA mostrando la configuracion inicial. Antes esto abortaba el
+        # arranque con RC=3 y cero superficie HTTP, y el unico aviso quedaba
+        # sepultado bajo el traceback: un traceback no es una experiencia de
+        # producto. La base recien creada no tiene usuarios ni sello de
+        # bootstrap, asi que nadie puede autenticarse: lo unico disponible es
+        # /setup/admin.
+        #
+        # AUSENCIA != ERROR: una base que existe pero no se puede leer, no es
+        # SQLite o no dice su version NO pasa por aqui como «instalacion
+        # nueva»: `ensure_migrated` levanta y el arranque sigue abortando.
+        p.parent.mkdir(parents=True, exist_ok=True)
         auth_db.ensure_migrated(p)
         # Identidad sanitizada de la base realmente abierta: comparable con
         # `cli.auth db-identity` para demostrar que es el mismo fichero.
