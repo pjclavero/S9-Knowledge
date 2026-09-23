@@ -79,6 +79,17 @@ def test_login_unknown_user_generic_message(conn, tmp_db, monkeypatch):
     except Exception:
         pass
 
+    # La instalación tiene que estar PROVISIONADA para que «usuario
+    # inexistente» signifique algo: sobre una base sin ningún usuario el
+    # producto ya no finge un error de credenciales, conduce a /setup/admin
+    # (bootstrap del primer administrador). Lo que aquí se mide es el mensaje
+    # genérico del login normal, así que primero hay un usuario real.
+    from app.auth import db as auth_db
+    from app.auth.passwords import hash_password
+    auth_db.create_user(conn, username="usuario_existente",
+                        display_name="Usuario Existente",
+                        password_hash=hash_password("otra_clave_larga_123"))
+
     from app.main import app
     from app.auth.csrf import LOGIN_CSRF_COOKIE
     from fastapi.testclient import TestClient

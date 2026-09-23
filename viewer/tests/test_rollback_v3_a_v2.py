@@ -33,9 +33,17 @@ class _BuildNMenos1:
         monkeypatch.setattr(schema_compat, "MAX_SUPPORTED_SCHEMA", max_soportado)
 
 
+#: La version que ESTA build escribe. Antes aqui habia un 3 escrito a mano, y
+#: subir el esquema ponia rojo el procedimiento de rollback sin que el
+#: procedimiento hubiese cambiado. Lo que se prueba es «N sobre N-1», no «4
+#: sobre 3».
+VERSION_ACTUAL = auth_db.SCHEMA_VERSION
+VERSION_N_MENOS_1 = auth_db.SCHEMA_VERSION - 1
+
+
 def _crear_base_v3(path: Path) -> Path:
     auth_db.migrate(path)
-    assert schema_compat.read_schema_version(path) == 3
+    assert schema_compat.read_schema_version(path) == VERSION_ACTUAL
     return path
 
 
@@ -62,7 +70,7 @@ def _copia_v2(origen: Path, destino: Path) -> Path:
 def test_orden_incorrecto_codigo_n_menos_1_sobre_base_v3_no_arranca(tmp_path, monkeypatch):
     """Paso 3 (restaurar) omitido: el proceso se niega a abrir escrituras."""
     db = _crear_base_v3(tmp_path / "auth.db")
-    _BuildNMenos1(monkeypatch, max_soportado=2)
+    _BuildNMenos1(monkeypatch, max_soportado=VERSION_N_MENOS_1)
 
     with pytest.raises(schema_compat.SchemaCompatibilityError) as exc:
         auth_db.ensure_migrated(db)
@@ -70,13 +78,13 @@ def test_orden_incorrecto_codigo_n_menos_1_sobre_base_v3_no_arranca(tmp_path, mo
     # arrancar sobre una base por encima del máximo soportado), no la
     # redacción del aviso al operador.
     assert exc.value.code == schema_compat.SCHEMA_ABOVE_MAX_SUPPORTED
-    assert exc.value.schema_version == 3
+    assert exc.value.schema_version == VERSION_ACTUAL
 
 
 def test_orden_correcto_restaurar_v2_antes_de_arrancar(tmp_path, monkeypatch):
     """Con la base v2 ya restaurada, la misma build N-1 arranca sin quejarse."""
     _crear_base_v3(tmp_path / "auth.db")
-    _BuildNMenos1(monkeypatch, max_soportado=2)
+    _BuildNMenos1(monkeypatch, max_soportado=VERSION_N_MENOS_1)
 
     # Paso 3 del procedimiento: restaurar la copia v2 EN EL SITIO de la v3.
     restaurada = _copia_v2(tmp_path / "auth.db", tmp_path / "auth_restaurada.db")
@@ -91,7 +99,7 @@ def test_la_secuencia_completa_en_el_orden_documentado(tmp_path, monkeypatch):
 
     # (1) parar el servicio: no hay proceso en la prueba.
     # (2) desplegar código N-1.
-    _BuildNMenos1(monkeypatch, max_soportado=2)
+    _BuildNMenos1(monkeypatch, max_soportado=VERSION_N_MENOS_1)
     # (2b) si alguien arrancase AQUÍ, se rehúsa. Esa es la red de seguridad.
     with pytest.raises(schema_compat.SchemaCompatibilityError):
         auth_db.ensure_migrated(activa)

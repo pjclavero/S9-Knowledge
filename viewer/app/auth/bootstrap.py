@@ -122,13 +122,25 @@ def bootstrap_completado(conn: sqlite3.Connection) -> bool:
         row = conn.execute(
             "SELECT value FROM install_state WHERE key = ?", (BOOTSTRAP_KEY,)
         ).fetchone()
+        if row is not None and str(row[0]).lower() == "true":
+            return True
+        # SEGUNDA CONDICION, y solo CIERRA: una base que ya tiene usuarios esta
+        # provisionada, venga su sello de donde venga. Cubre a quien creo
+        # usuarios por un camino que no sella (la CLI de alta de usuario
+        # corriente, un aprovisionamiento propio) sobre una base ya v4, donde
+        # la migracion no tuvo ocasion de sellar.
+        #
+        # Esto NO es `count_active_admins() == 0` con otro nombre: es monotona
+        # en la direccion segura. Solo puede pasar de PENDIENTE a COMPLETADO,
+        # nunca al reves, porque el sello persistente manda. Borrar o
+        # desactivar al ultimo administrador deja el sello puesto y la puerta
+        # cerrada.
+        hay_usuarios = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] > 0
     except sqlite3.DatabaseError as exc:
         raise BootstrapStorageError(
             f"install_state no consultable: {exc}"
         ) from exc
-    if row is None:
-        return False
-    return str(row[0]).lower() == "true"
+    return bool(hay_usuarios)
 
 
 def estado_instalacion(db_path: Path) -> EstadoInstalacion:

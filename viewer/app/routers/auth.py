@@ -86,8 +86,16 @@ def _bootstrap_pendiente() -> bool:
     mandar a nadie a la configuracion inicial porque la base no se deja leer:
     eso convertiria un disco roto en una invitacion a crear un administrador.
     """
+    db_path = _get_db_path()
+    if not db_path.exists():
+        # La base desaparecio con el proceso vivo. NO se consulta el estado:
+        # `estado_instalacion` migra —es decir, CREA— y eso convertiria un
+        # borrado en caliente en una «primera instalacion» con la puerta de
+        # bootstrap abierta. El login sigue su camino y falla cerrado por si
+        # mismo, que es la conducta que ya tenia.
+        return False
     try:
-        return not bootstrap.estado_instalacion(_get_db_path()).completado
+        return not bootstrap.estado_instalacion(db_path).completado
     except bootstrap.BootstrapStorageError:
         import logging
         logging.getLogger("s9k.auth").error(

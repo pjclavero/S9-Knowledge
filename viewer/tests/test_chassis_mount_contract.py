@@ -380,6 +380,13 @@ ANON_ALLOWED_PATHS = frozenset({
     "/logout",      # cerrar sesión sin sesión es inofensivo
     "/static",      # activos estáticos
     "/favicon.ico",
+    # La configuración inicial: crear el PRIMER administrador. Es anónima por
+    # necesidad —no hay todavía ninguna credencial con la que autenticarse— y
+    # lo es SÓLO mientras el bootstrap está pendiente: en cuanto se completa,
+    # el estado persistente (`install_state`) hace que GET y POST respondan
+    # 404. Esa conducta, y el que quedarse sin administradores NO la reabra,
+    # las sostiene `tests/test_bootstrap_primer_admin.py`.
+    "/setup/admin",
 })
 
 

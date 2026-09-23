@@ -29,13 +29,28 @@ PW_VALIDA = "clave-ficticia-de-pruebas-1"
 # Utillaje
 # ---------------------------------------------------------------------------
 
+#: Secreto CSRF propio de esta suite. NO se confia en el del conftest: otra
+#: suite del visor POPEA `S9K_CSRF_SECRET` al terminar, la configuracion cae
+#: entonces al valor por defecto del repo y `enforce_auth_security` aborta el
+#: arranque. Este fichero arranca la aplicacion de verdad en casi todos sus
+#: casos, asi que fija el suyo y lo devuelve. Es ficticio y no es de produccion.
+CSRF_DE_ESTA_SUITE = "secreto-csrf-ficticio-solo-para-esta-suite-1234567890"
+
+
 @pytest.fixture(autouse=True)
 def _entorno_limpio():
     from app.auth.config import get_auth_settings
+    previos = {k: os.environ.get(k)
+               for k in ("S9K_CSRF_SECRET", "S9K_SESSION_SECURE")}
     get_auth_settings.cache_clear()
     yield
     for k in ("S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH"):
         os.environ.pop(k, None)
+    for k, v in previos.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
     get_auth_settings.cache_clear()
 
 
@@ -43,6 +58,11 @@ def _activar(db_path: Path) -> None:
     from app.auth.config import get_auth_settings
     os.environ["S9K_AUTH_ENABLED"] = "true"
     os.environ["S9K_AUTH_DB_PATH"] = str(db_path)
+    os.environ["S9K_CSRF_SECRET"] = CSRF_DE_ESTA_SUITE
+    # El cliente de test habla http://testserver: una cookie Secure no se
+    # reenviaria y el double-submit del CSRF fallaria con 403. Otra suite POPEA
+    # esta variable al terminar, asi que no basta con el valor del conftest.
+    os.environ["S9K_SESSION_SECURE"] = "false"
     get_auth_settings.cache_clear()
 
 
@@ -244,12 +264,16 @@ def test_cond1_quedarse_sin_administradores_NO_reabre_la_puerta(tmp_path):
 
 
 def test_cond1_lo_que_decide_es_el_SELLO_y_no_otra_cosa(tmp_path):
-    """Control POSITIVO del test anterior.
+    """Control POSITIVO del test anterior, y la regla de cierre en dos tramos.
 
     Un 404 puede salir por el motivo equivocado (ruta mal montada, guarda que
-    siempre corta). Aqui se retira EL SELLO de `install_state` dejando la base
-    igual en todo lo demas, y la pantalla vuelve: eso demuestra que el 404 de
-    arriba lo producia el sello y no un apagado generico.
+    siempre corta). Aqui se demuestra que el 404 lo produce el ESTADO:
+
+    * quitado el sello pero CON usuarios en la base, sigue cerrado --la segunda
+      condicion, la que solo cierra: una base provisionada esta provisionada
+      aunque su sello venga de otro camino--;
+    * quitados el sello Y los usuarios, la pantalla VUELVE. Eso es una base
+      vacia de verdad, y es lo unico que reabre.
     """
     db = tmp_path / "auth.db"
     _activar(db)
@@ -262,10 +286,21 @@ def test_cond1_lo_que_decide_es_el_SELLO_y_no_otra_cosa(tmp_path):
         con.commit()
         con.close()
 
+        con_usuarios = c.get("/setup/admin")
+        assert con_usuarios.status_code == 404, (
+            "SIN SELLO PERO CON USUARIOS LA PUERTA SE ABRE: una base ya "
+            f"provisionada no es una primera instalacion. Respondio "
+            f"{con_usuarios.status_code}")
+
+        con = sqlite3.connect(str(db))
+        con.execute("DELETE FROM users")
+        con.commit()
+        con.close()
+
         vuelta = c.get("/setup/admin")
         assert vuelta.status_code == 200, (
-            "RETIRAR EL SELLO NO REABRE LA PANTALLA: el 404 anterior no lo "
-            f"producia el sello. Respondio {vuelta.status_code}")
+            "UNA BASE REALMENTE VACIA NO REABRE LA PANTALLA: el 404 anterior "
+            f"no lo producia el estado. Respondio {vuelta.status_code}")
 
 
 # ---------------------------------------------------------------------------
@@ -680,6 +715,8 @@ def test_sin_auth_activa_la_pantalla_no_existe(tmp_path):
     from app.auth.config import get_auth_settings
     os.environ["S9K_AUTH_ENABLED"] = "false"
     os.environ["S9K_AUTH_DB_PATH"] = str(tmp_path / "auth.db")
+    os.environ["S9K_CSRF_SECRET"] = CSRF_DE_ESTA_SUITE
+    os.environ["S9K_SESSION_SECURE"] = "false"
     get_auth_settings.cache_clear()
     with _con_arranque() as c:
         assert c.get("/setup/admin").status_code == 404
