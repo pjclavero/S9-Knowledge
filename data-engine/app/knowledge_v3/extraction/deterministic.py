@@ -775,9 +775,23 @@ class DeterministicExtractor(Extractor):
         ):
             abstain([_cues.CODE_NEGATION_SCOPE], [subject_id], [object_id])
             return
+        # La ventana se ancla en el PRINCIPIO DEL SINTAGMA SUJETO, no en la
+        # frase de relacion. Anclarla en la relacion hacia que la longitud del
+        # nombre del sujeto decidiera si la negacion se leia o no: con
+        # `first - NEGATION_WINDOW`, "Ni siquiera Kael vive en Valdor" salia
+        # `negated=True` (3 tokens) y "Ni siquiera Daiki Oharu lidera la Casa
+        # del Ciervo" salia `negated=False` (4 tokens), es decir, una frase
+        # NEGATIVA entraba al grafo como AFIRMACION plana y materializable.
+        # No es un defecto de "ni siquiera": el mismo cue se pierde a distancia
+        # ("Tampoco Daiki Oharu Kensei lidera..."). El negador que afecta a la
+        # relacion precede al sujeto o al verbo, nunca cae en medio del nombre
+        # propio, asi que medir desde el sujeto es lo que describe la lengua.
+        # La ventana sigue siendo corta y `clause_scoped=True` sigue acotando
+        # la busqueda a la CLAUSULA: esto no la abre a la frase entera.
+        negation_anchor = min(first, subject_hit.first_token)
         negacion = _cues.classify_negation(
             tokens,
-            lo=max(sentence.first_token, first - NEGATION_WINDOW),
+            lo=max(sentence.first_token, negation_anchor - NEGATION_WINDOW),
             hi=sentence.last_token + 1,
             focus=first,
             source_text=text,
