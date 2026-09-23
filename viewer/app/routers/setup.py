@@ -151,11 +151,17 @@ def setup_admin_page(request: Request):
 @router.post(SETUP_PATH)
 def setup_admin_submit(
     request: Request,
-    username: str = Form(...),
+    # NINGUN campo es `Form(...)` obligatorio, y NO es descuido. Un campo
+    # obligatorio que falta produce un 422 de validacion ANTES de que corra la
+    # guarda, es decir: la comprobacion de estado en servidor no llega a
+    # ejecutarse. Medido con el censo de rutas de este repo, que clasifico este
+    # POST como «422 validacion antes del guardian» -> sonda inconcluyente. Con
+    # los campos opcionales la guarda es SIEMPRE lo primero, y lo que falta se
+    # responde con la pantalla y su mensaje, no con un volcado de validacion.
+    username: str = Form(default=""),
     display_name: str = Form(default=""),
-    password: str = Form(...),
-    csrf_token: str = Form(...),
-    must_change_password: bool = Form(default=False),
+    password: str = Form(default=""),
+    csrf_token: str = Form(default=""),
 ):
     # El POST NO confia en que el GET se haya hecho: repite la comprobacion.
     cortar = _guarda(request)
@@ -178,6 +184,8 @@ def setup_admin_submit(
     errores: list[str] = []
     if not username:
         errores.append("El nombre de usuario no puede estar vacio.")
+    if not password:
+        errores.append("La contrasena no puede estar vacia.")
     # LAS MISMAS REGLAS que /admin/users/new: la misma funcion, no una copia.
     errores += validate_password(password, username)
     if errores:
@@ -193,7 +201,12 @@ def setup_admin_submit(
             username=username,
             display_name=display_name.strip() or username,
             password_hash=pw_hash,
-            must_change_password=must_change_password,
+            # Quien acaba de elegir esta contrasena no tiene nada que cambiar:
+            # no se entrego por ningun canal de reparto. Y un campo `bool` mas
+            # en el formulario es un campo mas que puede llegar con un valor
+            # que no parsea, y entonces la validacion del cuerpo responde 422
+            # ANTES de la guarda de estado.
+            must_change_password=False,
         )
     except bootstrap.BootstrapCerrado:
         # Carrera perdida: otro navegador acaba de crear el primer
