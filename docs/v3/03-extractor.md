@@ -131,6 +131,16 @@ Lo negado **si** se propone: leer "no vive" y proponer `LIVES_IN` marcado como
 negado es leer bien el texto. Lo que no puede pasar es que salga como afirmacion
 plana.
 
+La ventana de negacion se mide desde el **principio del sintagma sujeto**, no
+desde la frase de relacion. Medirla desde la relacion hacia que la LONGITUD DEL
+NOMBRE del sujeto decidiera si la negacion se leia: "Ni siquiera Kael vive en
+Valdor" salia `negated=True` y "Ni siquiera Daiki Oharu lidera la Casa del
+Ciervo" salia `negated=False`, con decision ACCEPT y plan aprobado. No era un
+defecto de "ni siquiera": el mismo cue se perdia a distancia ("Tampoco <nombre
+de tres tokens> lidera…"). El acotado a la CLAUSULA (`clause_scoped=True`) es
+lo que impide que el negador de otra clausula contamine la relacion; la ventana
+solo puede RESTAR respecto de ese acotado, nunca ampliarlo.
+
 Ademas lee el contexto: negacion (`NEGATION_CUES` en los 3 tokens previos),
 epistemicidad (`se rumorea`, `quiza`, `planea`… → `RUMORED` / `HYPOTHETICAL` /
 `INTENDED`, siempre con `review_required=True`) y temporalidad de la frase.
