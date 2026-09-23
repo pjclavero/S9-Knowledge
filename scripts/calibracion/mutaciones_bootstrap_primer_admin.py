@@ -57,6 +57,11 @@ SEGURIDAD = VIEWER / "app" / "auth" / "security.py"
 RUTAS_AUTH = VIEWER / "app" / "routers" / "auth.py"
 SUITE = "tests/test_bootstrap_primer_admin.py"
 
+#: La mitad de la regla de cierre que vive en `bootstrap_completado`.
+CLAUSULA_USUARIOS = (
+    '        hay_usuarios = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] > 0'
+)
+
 
 @dataclass(frozen=True)
 class Mutacion:
@@ -242,8 +247,16 @@ MUTACIONES: tuple[Mutacion, ...] = (
         porque=(
             "El caso real y más peligroso: una instalación desplegada, con "
             "administradores creados por CLI, migrando a v4 y quedando con el "
-            "bootstrap ABIERTO."
+            "bootstrap ABIERTO. La protección es DOBLE a propósito (el sello "
+            "que pone la migración y la condición «ya hay usuarios», que sólo "
+            "cierra), así que la mutación retira LAS DOS: quitar una sola deja "
+            "la suite verde, y eso no sería un control ciego sino redundancia "
+            "declarada. Cuál sostiene qué por separado lo dice la mutación "
+            "`la-segunda-condicion-que-solo-cierra-desaparece`."
         ),
+        extra=((BOOT,
+                '        hay_usuarios = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] > 0',
+                "        hay_usuarios = False"),),
     ),
     Mutacion(
         nombre="provisionar-por-cli-deja-la-puerta-abierta",
@@ -258,7 +271,28 @@ MUTACIONES: tuple[Mutacion, ...] = (
         dice="PROVISIONAR POR CLI DEJA LA PUERTA ANONIMA ABIERTA",
         porque=(
             "`cli.auth create-admin` sigue siendo una vía vigente: si no "
-            "sella, la instalación queda sirviendo /setup/admin a cualquiera."
+            "sella, la instalación queda sirviendo /setup/admin a cualquiera. "
+            "Misma protección doble que la mutación anterior, y por eso se "
+            "retiran las dos mitades."
+        ),
+        extra=((BOOT,
+                '        hay_usuarios = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] > 0',
+                "        hay_usuarios = False"),),
+    ),
+    Mutacion(
+        nombre="la-segunda-condicion-que-solo-cierra-desaparece",
+        fichero=BOOT,
+        viejo=CLAUSULA_USUARIOS,
+        nuevo="        hay_usuarios = False",
+        caen=("test_cond1_lo_que_decide_es_el_SELLO_y_no_otra_cosa",),
+        dice="SIN SELLO PERO CON USUARIOS LA PUERTA SE ABRE",
+        porque=(
+            "Aísla la mitad que las dos mutaciones de arriba retiran junto con "
+            "el sello: una base con usuarios y sin sello —lo que deja un alta "
+            "por un camino que no sella sobre una base ya v4— no es una "
+            "primera instalación. Esta condición sólo CIERRA: no puede "
+            "reabrir nada, y por eso no es `count_active_admins()` con otro "
+            "nombre."
         ),
     ),
     # ---- QUE NO SE CIERRE DE MÁS ----------------------------------------
