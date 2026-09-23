@@ -16,6 +16,7 @@
   ],
   "criticos": [
     "data-engine/app/tests/test_full_human_review.py",
+    "data-engine/app/tests/test_negacion_a_distancia_no_materializable.py",
     "data-engine/app/tests/test_safe_writer.py",
     "deploy/tests/test_preflight_ensayo_rc.py",
     "viewer/tests/test_api.py",
@@ -237,6 +238,7 @@
     "data-engine/app/tests/test_media_transcriber.py": 5,
     "data-engine/app/tests/test_media_worker.py": 3,
     "data-engine/app/tests/test_multimedia_contract.py": 28,
+    "data-engine/app/tests/test_negacion_a_distancia_no_materializable.py": 7,
     "data-engine/app/tests/test_nvidia_shadow_probe.py": 9,
     "data-engine/app/tests/test_ollama_shadow_probe.py": 9,
     "data-engine/app/tests/test_props_reservadas_de_autorizacion.py": 4,
@@ -455,7 +457,7 @@
     "viewer/tests/test_graph_ux_v2.py",
     "viewer/tests/test_panel_apply_desde_la_ui.py"
   ],
-  "total": 9042,
+  "total": 9067,
   "modulos": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 526,
     "contracts/review-ingest/v1/tests/test_contracts_v1.py": 38,
@@ -587,6 +589,7 @@
     "data-engine/app/tests/test_media_transcriber.py": 5,
     "data-engine/app/tests/test_media_worker.py": 3,
     "data-engine/app/tests/test_multimedia_contract.py": 43,
+    "data-engine/app/tests/test_negacion_a_distancia_no_materializable.py": 25,
     "data-engine/app/tests/test_nvidia_shadow_probe.py": 9,
     "data-engine/app/tests/test_ollama_shadow_probe.py": 9,
     "data-engine/app/tests/test_props_reservadas_de_autorizacion.py": 16,
