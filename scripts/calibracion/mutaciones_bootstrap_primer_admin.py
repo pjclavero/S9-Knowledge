@@ -238,7 +238,7 @@ MUTACIONES: tuple[Mutacion, ...] = (
         viejo="                if ya_hay_usuarios:",
         nuevo="                if False:",
         caen=("test_compat_instalacion_con_admin_de_CLI_queda_CERRADA",),
-        dice="DESPIERTA\nE         CON LA PUERTA ANONIMA ABIERTA",
+        dice="CON LA PUERTA ANONIMA ABIERTA",
         porque=(
             "El caso real y más peligroso: una instalación desplegada, con "
             "administradores creados por CLI, migrando a v4 y quedando con el "
