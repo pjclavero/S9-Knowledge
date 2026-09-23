@@ -103,7 +103,7 @@ def _propuesta(pid: str) -> dict:
                      "literal_text": literal},
         "proposal": {"subject": "Ariadna", "predicate": "PROTECTS",
                      "object": "Bruma", "direction": "SUBJECT_TO_OBJECT",
-                     "negation": {"negated": False, "type": "NONE"}},
+                     "negated": False, "negation_kind": "NONE"},
         "engine_decision": {"decision": "REVIEW",
                             "reason_codes": ["AMBIGUOUS_PREDICATE"]},
         "ontology_version": "bruma-ontology-v1",

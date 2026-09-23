@@ -232,6 +232,47 @@ def negation_code(negated: object) -> str:
     return NEGACION_NO_DISPONIBLE
 
 
+#: LA CLASE DE NEGACIÓN, que NO es el signo.
+#:
+#: El signo dice SI la frase niega; la clase dice CÓMO. Son dos campos y en la
+#: ficha del chasis ahora son dos filas, porque antes la clase se pintaba bajo
+#: el rótulo «Negación» y un hecho negado cuya clase el motor no resolvió salía
+#: como «no disponible».
+#:
+#: Al subir la clase a campo de primera clase hay que aplicarle la regla de la
+#: casa: se publican CÓDIGOS y se TRADUCEN. `SIMPLE`, `CESSATION` o `NOT_YET`
+#: en crudo son vocabulario del motor, no español para quien decide.
+#:
+#: El vocabulario es el de `knowledge_v3.engine.negation` (SIMPLE, NEVER,
+#: CESSATION, NOT_YET, SCOPE_AMBIGUOUS) más el `UNKNOWN` que el exportador
+#: escribe cuando no la resolvió. NO se importa de allí: el visor no depende
+#: del motor. Si el motor añadiera una clase, aquí NO se descarta —se NOMBRA—,
+#: que es justo lo que hace `negation_kind_label`.
+NEGACION_CLASE_LABELS_ES = {
+    "SIMPLE": "negación simple",
+    "NEVER": "negación absoluta (nunca)",
+    "CESSATION": "cese (hubo relación y terminó)",
+    "NOT_YET": "todavía no",
+    "SCOPE_AMBIGUOUS": "alcance ambiguo",
+    "UNKNOWN": "no consta de qué clase",
+}
+
+
+def negation_kind_label(kind: str | None) -> str:
+    """Traducción de la CLASE. Una clase desconocida se NOMBRA, no se descarta.
+
+    Descartarla dejaría el hueco en blanco, y en esta pantalla un hueco en
+    blanco se lee como «no hay nada que saber» — que es la misma puerta de
+    atrás que el signo tiene cerrada.
+    """
+    if not kind:
+        return NEGACION_CLASE_LABELS_ES["UNKNOWN"]
+    etiqueta = NEGACION_CLASE_LABELS_ES.get(str(kind).strip().upper())
+    if etiqueta is None:
+        return f"clase no reconocida ({kind})"
+    return etiqueta
+
+
 def negation_label(code: str | None) -> str:
     """Traducción del código. Un código desconocido se NOMBRA, no se descarta.
 

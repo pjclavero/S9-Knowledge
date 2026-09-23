@@ -47,7 +47,15 @@ def proposal(
             "predicate": "PROTECTS",
             "object": "Bruma",
             "direction": "SUBJECT_TO_OBJECT",
-            "negation": {"negated": False, "type": "NONE"},
+            # LA FORMA DEL EXPORTADOR REAL, no una inventada aquí. Este doble
+            # traía `negation: {negated: …}` ANIDADO, una forma que
+            # `knowledge_v3.review_export` no escribe: el campo es `negated`,
+            # PLANO, junto a `negation_kind`. Esa divergencia entre el doble y
+            # el productor es la que dejó vivir el defecto de la tarjeta —la
+            # plantilla leía `proposal.negation` y aquí SIEMPRE encontraba algo,
+            # así que ninguna prueba de este fichero lo vio nunca—.
+            "negated": False,
+            "negation_kind": "NONE",
             "scope": "durante el invierno",
         },
         "engine_decision": {

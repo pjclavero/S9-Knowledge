@@ -15,9 +15,10 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 from app.authz.scope import UNRESTRICTED, VisibilityScope
+from app.labels import negation_code, negation_label
 from app.services.v3_glossary_candidates import GlossaryCandidateStore
 from app.services.v3_review_store import SQLiteReviewStore
 
@@ -162,6 +163,9 @@ REQUEST_ID_REUSED = "REQUEST_ID_REUSED"
 PROPOSAL_NOT_FOUND = "PROPOSAL_NOT_FOUND"
 SUPERSEDED_DECISION_MISMATCH = "SUPERSEDED_DECISION_MISMATCH"
 NO_ACTIVE_DECISION = "NO_ACTIVE_DECISION"
+#: `CORRECT` cuyos campos coinciden TODOS con la propuesta: no hay corrección
+#: que registrar, y fabricar una sería el defecto F-7 por la otra puerta.
+CORRECTION_WITHOUT_CHANGE = "CORRECTION_WITHOUT_CHANGE"
 STALE_REVIEW = "STALE_REVIEW"
 
 HISTORY_INTEGRITY = "HISTORY_INTEGRITY"
@@ -315,6 +319,103 @@ def _evidence_parts(proposal: dict[str, Any]) -> tuple[str, str, str]:
         raise ReviewError("evidence.literal_text no coincide con los offsets",
                           EVIDENCE_LITERAL_MISMATCH)
     return episode_text[:start], literal, episode_text[end:]
+
+
+# ===========================================================================
+# F-7 — EL ACTA NO AFIRMA UNA CORRECCIÓN QUE EL REVISOR NO HIZO
+# ===========================================================================
+# EL DEFECTO, medido por HTTP: pulsar «Aprobar» sin tocar nada, con el
+# formulario TAL COMO LO MANDA EL NAVEGADOR, grababa en el acta
+#
+#     "human_decision": "APPROVE"   junto a   "correction": {"scope": "not_available"}
+#
+# El campo Alcance del formulario viene precargado con `item.proposal.scope`, y
+# el exportador real escribe ahí el literal `not_available` cuando el claim no
+# trae alcance. El navegador lo reenvía —hace lo que debe— y el servidor lo
+# recogía como CORRECCIÓN DEL HUMANO. La cadena `decision_audit`, encadenada
+# por hash, firmaba así una afirmación FALSA sobre lo que hizo la persona.
+#
+# LA REGLA, y es de servidor: una corrección existe cuando el valor enviado
+# DIFIERE del que traía la propuesta. Nada más. No se parchea el formulario
+# —quitar el `value=` dejaría la pantalla peor y el siguiente consumidor con el
+# mismo agujero—: se compara aquí, en `record()`, que es el embudo por el que
+# pasan la ruta HTML y cualquier llamador programático.
+#
+# AUSENCIA NO ES CERO, también aquí. Si la propuesta NO trae `negated` y el
+# operador marca «Afirmativa», eso SÍ es una corrección real (ausente -> False)
+# y se registra como tal. Colapsar ausente sobre `False` perdería una decisión
+# humana legítima, que es el error simétrico de la corrección fantasma.
+
+#: Campos de corrección que tienen contrapartida en la propuesta y, por tanto,
+#: se pueden COMPARAR. Los demás campos del formulario (alias observado, forma
+#: hablada, tipo sugerido, error OCR/ASR…) son aportación del humano sin
+#: original contra el que medir: si vienen rellenos, son suyos, y se conservan.
+CAMPOS_COMPARABLES_CON_LA_PROPUESTA = ("predicate", "direction", "negated", "scope")
+
+
+def _correccion_efectiva(
+    correction: Mapping[str, Any] | None,
+    claim: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+    """Separa lo que el humano CAMBIÓ de lo que sólo reenvió igual.
+
+    Devuelve `(correction, changes)`:
+
+    * `correction` conserva la forma de siempre —campo -> valor nuevo—, porque
+      la consume `_glossary_outbox_payload` y el resto del producto. Lo único
+      que cambia es que ya no lleva campos idénticos a la propuesta.
+    * `changes` es el `before`/`after` REAL de cada campo comparable que sí
+      cambió. El autor, el momento y el ámbito no se duplican aquí: ya están en
+      el acta (`reviewer`, `timestamp`, `workspace`), y el `record_hash` los
+      firma junto con esto.
+
+    Un campo comparable AUSENTE del formulario (el operador dejó «Mantener») no
+    llega hasta aquí: la ruta lo descarta antes. Lo que sí llega —y es el caso
+    del defecto— es el campo RELLENO con el mismo valor que ya tenía.
+    """
+    efectiva: dict[str, Any] = {}
+    cambios: dict[str, dict[str, Any]] = {}
+    for campo, valor in (correction or {}).items():
+        if campo not in CAMPOS_COMPARABLES_CON_LA_PROPUESTA:
+            # Sin original contra el que comparar: es aportación del humano.
+            efectiva[campo] = valor
+            continue
+        anterior = claim.get(campo, _AUSENTE)
+        if anterior is not _AUSENTE and _mismo_valor(anterior, valor):
+            # IDÉNTICO A LA PROPUESTA -> no es una corrección. Se cae.
+            continue
+        efectiva[campo] = valor
+        cambios[campo] = {
+            "before": None if anterior is _AUSENTE else anterior,
+            #: Distingue «la propuesta decía `null`» de «la propuesta no traía
+            #: el campo». Sin esto, el acta no podría afirmar cuál de las dos.
+            "before_present": anterior is not _AUSENTE,
+            "after": valor,
+        }
+    return efectiva, cambios
+
+
+class _Ausente:
+    """Centinela: «la propuesta no trae este campo». No es `None` ni `False`."""
+
+    def __repr__(self) -> str:  # pragma: no cover - diagnóstico
+        return "<AUSENTE>"
+
+
+_AUSENTE = _Ausente()
+
+
+def _mismo_valor(anterior: Any, nuevo: Any) -> bool:
+    """Igualdad ESTRICTA en el tipo, para que `False` no iguale a `0` ni a `""`.
+
+    `True == 1` en Python, y un `negated` comparado a la ligera contra un `1`
+    heredado diría «no cambió» cuando sí. Se exige el mismo tipo booleano.
+    """
+    if isinstance(anterior, bool) or isinstance(nuevo, bool):
+        return anterior is nuevo
+    if isinstance(anterior, str) and isinstance(nuevo, str):
+        return anterior.strip() == nuevo.strip()
+    return anterior == nuevo
 
 
 def reason_label(code: str) -> str:
@@ -791,6 +892,10 @@ class ReviewService:
         active_decision: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         before, literal, after = _evidence_parts(proposal)
+        #: La PROPUESTA en sí (sujeto/predicado/objeto/dirección/`negated`…).
+        #: Es lo que la plantilla llama `item.proposal`, y lo que `record()`
+        #: llama `claim`: el mismo diccionario, un solo nombre para los dos.
+        claim = proposal.get("proposal") or {}
         engine = proposal.get("engine_decision") or {}
         metadata = proposal.get("metadata") or {}
         reconciliation = metadata.get("reconciliation") or {}
@@ -819,6 +924,29 @@ class ReviewService:
             "predicate_alternatives": predicate_alternatives,
             "direction_alternatives": direction_alternatives,
             "active_decision": active_decision,
+            # EL SIGNO, EN LA PANTALLA DONDE SE DECIDE.
+            #
+            # El corte del signo de negación cerró resultado, procedencia y
+            # ficha de entidad, y dejó JUSTO ésta: la tarjeta de Review pintaba
+            # `item.proposal.negation`, una clave que el exportador real
+            # (`knowledge_v3.review_export`) no escribe —el campo se llama
+            # `negated`, plano—, así que el `default("No disponible")` de la
+            # plantilla disparaba SIEMPRE, para `true` y para `false`. La
+            # tarjeta se contradecía dentro del mismo recuadro: abajo, en prosa,
+            # `NEGATED_CLAIM` decía «la frase niega la relación en vez de
+            # afirmarla».
+            #
+            # No se inventa vocabulario: la AUTORIDAD ÚNICA es
+            # `app.labels.negation_code`, la misma que sirve a las otras tres
+            # pantallas, con su conversión ESTRICTA de tres estados. Ausente no
+            # es `false`: es «no disponible», y se dice.
+            #
+            # Y se calcula AQUÍ, en el servidor, no en Jinja: `present()` es el
+            # único punto por el que pasan la pantalla y la API, así que una
+            # superficie nueva no puede volver a leer el campo antiguo por su
+            # cuenta.
+            "signo": negation_code(claim.get("negated")),
+            "signo_label": negation_label(negation_code(claim.get("negated"))),
         }
         # CERO CONOCIMIENTO INTERNO. `plan_context_by_run` es el ancla de
         # estado del grafo y la procedencia de la fuente: material del
@@ -892,6 +1020,23 @@ class ReviewService:
                 raise ReviewError("la decisión supersedida no pertenece a esta propuesta y workspace",
                                   SUPERSEDED_DECISION_MISMATCH)
 
+            # F-7. La corrección se decide CONTRA LA PROPUESTA QUE SE ESTÁ
+            # DECIDIENDO, y aquí es el único sitio donde las dos están juntas y
+            # ya verificadas (existe, es del workspace, el hash coincide). Ver
+            # `_correccion_efectiva`.
+            correction, correction_changes = _correccion_efectiva(
+                correction, proposal.get("proposal") or {}
+            )
+            if human_decision == "CORRECT" and not correction:
+                # Un `CORRECT` que reenvía la propuesta intacta no es una
+                # corrección. Antes la ruta HTTP sólo miraba que el formulario
+                # trajera ALGO relleno, y `scope=not_available` bastaba para
+                # colarlo: se habría grabado un `CORRECT` con `correction` vacío.
+                raise ReviewError(
+                    "CORRECT sin ningún campo distinto de la propuesta",
+                    CORRECTION_WITHOUT_CHANGE,
+                )
+
             engine_decision = proposal.get("engine_decision") or {}
             record: dict[str, Any] = {
                 "decision_id": f"human:{uuid.uuid4()}",
@@ -910,6 +1055,13 @@ class ReviewService:
                 "shadow_decision": engine_decision.get("shadow_decision"),
                 "human_decision": human_decision,
                 "correction": correction or {},
+                #: EL `before`/`after` REAL de cada campo que el humano cambió.
+                #: Va DENTRO del registro, así que el `record_hash` de abajo lo
+                #: firma: el acta afirma exactamente lo que ocurrió, ni más
+                #: —la corrección fantasma— ni menos.
+                #: Clave nueva y aditiva: los registros anteriores no la traen,
+                #: sus `record_hash` no se recalculan y la cadena no se toca.
+                "correction_changes": correction_changes,
                 "rationale": rationale.strip(),
                 "ontology_version": (
                     proposal.get("ontology_version")

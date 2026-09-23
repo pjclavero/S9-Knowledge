@@ -174,7 +174,13 @@
             <dt>Predicado</dt><dd>{{ item.proposal.predicate | default("No disponible") | e }}</dd>
             <dt>Objeto</dt><dd>{{ item.proposal.object | default("No disponible") | e }}</dd>
             <dt>Dirección</dt><dd>{{ item.proposal.direction | default("No disponible") | e }}</dd>
-            <dt>Negación</dt><dd>{{ item.proposal.negation | default("No disponible") | e }}</dd>
+            {#- EL SIGNO SALE DEL SERVIDOR, NO DE JINJA. `item.signo_label` lo
+                produce `ReviewService.present()` con `app.labels.negation_code`,
+                la misma autoridad que las otras tres pantallas. Aquí no puede
+                volver a haber un `default(...)` que tape la ausencia del campo:
+                leer una clave equivocada era EXACTAMENTE el defecto. -#}
+            <dt>Negación</dt>
+            <dd data-signo="{{ item.signo | e }}">{{ item.signo_label | e }}</dd>
           </dl>
         </section>
 
