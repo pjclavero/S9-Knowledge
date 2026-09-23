@@ -38,6 +38,24 @@ EL TECHO DE ESTE FICHERO, dicho entero:
   * No usa el tercer estado. Este corte es `True` frente a `False`; la
     negacion de alcance ambiguo (`SCOPE_AMBIGUOUS`) y el predicado fuera del
     perfil estan elevados aparte y NO se tocan aqui.
+  * **ESTE FICHERO NO GARANTIZA LA PROPIEDAD ENTERA.** Cierra UNA fuente de
+    distancia —la longitud del sintagma sujeto—, no la distancia. La ventana
+    sigue siendo de `NEGATION_WINDOW` tokens desde el sujeto, asi que
+    cualquier material intercalado entre el negador y el sujeto reproduce la
+    firma exacta del defecto. Medido sobre este mismo HEAD:
+
+        "Ni siquiera, en el ocaso de la guerra, Ilaria Vandreth dirige la
+         Casa del Ciervo."
+            -> negated=False, sin revision, ACCEPT, PLAN APROBADO con
+               CREATE_ASSERTION + PROJECT_RELATION
+
+        "Nunca, que se sepa, Kael vive en Valdor."
+            -> negated=False, sin revision
+
+    Es PREEXISTENTE (idéntico en la base), no depende de las comas —sin ellas
+    sale igual, luego no es la barrera de clausula— y afecta TAMBIEN a
+    sujetos de un token. Queda declarado y ABIERTO. Ningun caso de aqui lo
+    cubre, y ninguno finge cubrirlo.
 """
 from __future__ import annotations
 
@@ -137,6 +155,16 @@ def test_el_par_minimo_se_sostiene_con_el_sujeto_corto_y_con_el_largo(texto, neg
             f"UNA FRASE AFIRMATIVA SALIO MARCADA COMO NEGADA: {texto!r} "
             f"produjo negated=True. Es el defecto SIMETRICO: arreglar las "
             f"negativas no puede inventar negaciones donde no las hay."
+        )
+        # La segunda asercion NO es decorativa: sin ella estos tres
+        # parametros eran TESTIGOS MUDOS —ninguna mutacion del calibrador
+        # podia enrojecerlos— y el cruce los daba por calibrados sin serlo,
+        # porque colapsa la parametrizacion. Lo encontro la revision
+        # independiente contando a granularidad de PARAMETRO (22/25), no de
+        # caso (7/7). Ahora miden lo mismo que sus gemelos de
+        # `CONTROLES_AFIRMATIVOS`.
+        assert claim.review_required is False, (
+            f"UNA AFIRMACION PLANA PIDIENDO REVISION: {texto!r}."
         )
 
 

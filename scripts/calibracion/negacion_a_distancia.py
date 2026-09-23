@@ -34,7 +34,14 @@ EL TECHO DE ESTE CALIBRADOR, dicho entero:
   * MIRA UNA SOLA SUITE (`SUITE`, constante única). Un fichero de test nuevo
     del mismo corte sería INVISIBLE para el cruce. Hay que añadirlo aquí.
   * COLAPSA LA PARAMETRIZACIÓN (`split("[")[0]`): todos los parámetros de un
-    `parametrize` cuentan como UN caso. Basta con que uno enrojezca.
+    `parametrize` cuentan como UN caso. Basta con que uno enrojezca. **LA
+    CIFRA QUE IMPRIME EL CRUCE ES LA COLAPSADA, y por tanto OPTIMISTA.** La
+    revisión independiente contó a granularidad de PARÁMETRO y encontró
+    22/25, no 7/7: tres parámetros afirmativos de `PARES_MINIMOS` eran
+    TESTIGOS MUDOS —su rama `else` sólo afirmaba `negated is False`, sin la
+    aserción de `review_required` que cubre a sus gemelos—. Ya están
+    igualados, pero el techo se queda escrito: quien lea «7/7» tiene que
+    saber que son casos, no parámetros.
   * NO mide el writer con `--apply`, ni Neo4j real, ni la frontera semántica.
 """
 from __future__ import annotations
