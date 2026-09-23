@@ -168,8 +168,8 @@ MUTACIONES: tuple[Mutacion, ...] = (
     Mutacion(
         nombre="el-endpoint-acepta-un-rol-del-formulario",
         fichero=SETUP,
-        viejo="    must_change_password: bool = Form(default=False),\n):",
-        nuevo="    must_change_password: bool = Form(default=False),\n    role: str = Form(default=\"viewer\"),\n):",
+        viejo='    csrf_token: str = Form(default=""),\n):',
+        nuevo='    csrf_token: str = Form(default=""),\n    role: str = Form(default="viewer"),\n):',
         caen=("test_cond5_el_endpoint_no_declara_ningun_parametro_de_rol",),
         dice="EL ENDPOINT DEL BOOTSTRAP DECLARA UN PARAMETRO DE ROL",
         porque=(
