@@ -833,20 +833,30 @@ def test_cond7_la_distincion_es_DESAPARECIO_no_NO_EXISTE(tmp_path):
         f"base ausente SIN evidencia de que existiera respondio {r.status_code}")
     assert db.exists(), "la configuracion inicial tenia que haber creado la base"
 
-    # SEGUNDA PIERNA: el fichero esta, pero VACIO. Es «no utilizable» igual que
-    # el ausente, y sigue sin haber evidencia de que fuera de nadie: tambien es
-    # una primera instalacion. Decidir por `not base_utilizable(...)` --el
-    # arreglo facil de la ronda 4-- la cerraria.
-    db2 = tmp_path / "otra" / "auth.db"
-    db2.parent.mkdir()
-    db2.write_bytes(b"")
-    _activar(db2)
-    c2 = _cliente()
-    r2 = c2.get("/setup/admin")
-    assert r2.status_code == 200, (
+
+def test_cond7_sin_arranque_un_fichero_vacio_TAMBIEN_es_primera_instalacion(tmp_path):
+    """El gemelo del de arriba para la ronda 4, y va APARTE a proposito.
+
+    Estaba escrito como una segunda pierna del testigo anterior y asi no
+    servia: la mutacion tumbaba la PRIMERA pierna y el rojo hablaba de otra
+    cosa. Un control que no puede decir SU causa no distingue las dos
+    simplificaciones que vigila este par.
+
+    El fichero esta, pero VACIO. Es «no utilizable» igual que el ausente, y
+    sigue sin haber evidencia de que fuera de nadie: tambien es una primera
+    instalacion. Decidir por `not base_utilizable(...)` la cerraria.
+    """
+    db = tmp_path / "auth.db"
+    db.write_bytes(b"")
+    _activar(db)
+    assert db.stat().st_size == 0
+
+    c = _cliente()  # SIN arranque, que es donde se observa
+    r = c.get("/setup/admin")
+    assert r.status_code == 200, (
         "EL FICHERO VACIO DE UNA INSTALACION NUEVA SE ESTA LEYENDO COMO "
-        f"PERDIDA: /setup/admin respondio {r2.status_code}")
-    assert db2.stat().st_size > 0, "la configuracion inicial no migro la base vacia"
+        f"PERDIDA: /setup/admin respondio {r.status_code}")
+    assert db.stat().st_size > 0, "la configuracion inicial no migro la base vacia"
 
 
 def test_cond7_tras_el_arranque_la_base_existe_SIEMPRE(tmp_path):

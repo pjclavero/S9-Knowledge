@@ -247,7 +247,7 @@ MUTACIONES: tuple[Mutacion, ...] = (
         fichero=SETUP,
         viejo="    if bootstrap.base_desaparecida(_db_path()):",
         nuevo="    if not bootstrap.base_utilizable(_db_path()):",
-        caen=("test_cond7_la_distincion_es_DESAPARECIO_no_NO_EXISTE",),
+        caen=("test_cond7_sin_arranque_un_fichero_vacio_TAMBIEN_es_primera_instalacion",),
         dice="EL FICHERO VACIO DE UNA INSTALACION NUEVA SE ESTA LEYENDO COMO PERDIDA",
         porque=(
             "El par simétrico del de arriba, y la razón por la que el arreglo "
