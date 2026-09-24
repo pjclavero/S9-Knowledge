@@ -88,6 +88,25 @@ def test_default_de_fabrica_auth_activada(instalacion_de_fabrica):
     )
 
 
+def test_auth_db_path_vacio_resuelve_a_ruta_absoluta_del_repo():
+    """Sin fijar S9K_AUTH_DB_PATH (el estado tras `cp .env.example .env`
+    literal, que trae la clave vacía), la ruta debe resolver a un absoluto
+    anclado al repo, NO a la ruta relativa histórica."""
+    from app.auth.config import AuthSettings, DEFAULT_AUTH_DB_PATH
+    cfg = AuthSettings()
+    assert cfg.S9K_AUTH_DB_PATH == DEFAULT_AUTH_DB_PATH
+    assert Path(cfg.S9K_AUTH_DB_PATH).is_absolute()
+
+
+def test_auth_db_path_explicitamente_vacio_tambien_resuelve():
+    """`.env.example` fija `S9K_AUTH_DB_PATH=` (vacío, explícito): debe
+    resolver igual que si no estuviera la línea."""
+    os.environ["S9K_AUTH_DB_PATH"] = ""
+    from app.auth.config import AuthSettings, DEFAULT_AUTH_DB_PATH
+    cfg = AuthSettings()
+    assert cfg.S9K_AUTH_DB_PATH == DEFAULT_AUTH_DB_PATH
+
+
 def test_env_example_del_viewer_trae_auth_enabled_true():
     plantilla = Path(__file__).resolve().parents[1] / ".env.example"
     texto = plantilla.read_text(encoding="utf-8")
@@ -118,6 +137,7 @@ def test_csrf_secret_persiste_entre_arranques(instalacion_de_fabrica):
     from app.auth.config import get_auth_settings
     cfg1 = get_auth_settings()
     secreto1 = cfg1.S9K_CSRF_SECRET
+    assert secreto1, "el primer arranque debe dejar un secreto no vacío"
     get_auth_settings.cache_clear()
     cfg2 = get_auth_settings()
     assert cfg2.S9K_CSRF_SECRET == secreto1, (
