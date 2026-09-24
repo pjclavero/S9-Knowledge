@@ -215,16 +215,17 @@ MUTACIONES: tuple[Mutacion, ...] = (
         fichero=BOOT,
         viejo="    if _base_lista_en is None:\n        return False",
         nuevo="    if True:\n        return not Path(db_path).exists()",
-        caen=("test_cond7_la_distincion_es_DESAPARECIO_no_NO_EXISTE",
-              "test_A_sin_base_el_servicio_arranca_y_muestra_configuracion_inicial",
-              "test_cond7_base_ausente_SI_es_primera_instalacion"),
+        caen=("test_cond7_la_distincion_es_DESAPARECIO_no_NO_EXISTE",),
         dice="LA GUARDA DE LA BASE DESAPARECIDA SE ESTA COMIENDO EL ESTADO A",
         porque=(
             "El arreglo fácil de la mutación anterior --«si el fichero no está, "
-            "503»-- cierra también la instalación NUEVA, que es justo la "
-            "propiedad de este corte. Este par de mutaciones fija que la "
-            "distinción es «existía al arrancar y ha desaparecido», no «no "
-            "existe»."
+            "503»-- cierra también la instalación NUEVA. OJO CON DÓNDE SE "
+            "OBSERVA, porque la primera versión de este par salió VERDE CON EL "
+            "DEFECTO y este arnés lo cazó: tras un arranque normal la base ya "
+            "existe cuando llega la petición, así que `not exists()` no muerde "
+            "nunca por ese camino. Se ve en un proceso que atiende SIN haber "
+            "ejecutado su arranque y con la base ausente: ahí no hay evidencia "
+            "de que existiera, y la ausencia es una primera instalación."
         ),
     ),
     # ---- CONDICIÓN 7: AUSENCIA != ERROR ---------------------------------

@@ -797,24 +797,56 @@ def test_cond7_la_base_que_DESAPARECE_EN_CALIENTE_no_es_una_primera_instalacion(
 
 
 def test_cond7_la_distincion_es_DESAPARECIO_no_NO_EXISTE(tmp_path):
-    """El control que impide arreglar lo de arriba rompiendo el estado A.
+    """El control que impide arreglar lo de arriba con un «no existe» a secas.
 
-    La guarda facil --«si el fichero no esta, 503»-- cerraria tambien la
-    instalacion NUEVA, que es justo el caso que este corte existe para
-    resolver. La distincion tiene que ser «existia al arrancar y ha
-    desaparecido», y eso no esta en el disco: lo sabe el proceso.
+    PRIMERO, LO QUE UN CONTROL MAL PLANTEADO NO VE, porque el arnes de
+    calibracion lo dijo de este mismo testigo en su primera version: pedir
+    `/setup/admin` DESPUES de un arranque normal NO distingue las dos guardas.
+    El arranque crea la base, asi que en ese camino el fichero SIEMPRE existe
+    cuando llega la peticion y `not exists()` no muerde nunca. Aquel testigo
+    salia verde con el defecto puesto: era un control ciego.
 
-    ROJO SI: alguien cambia `base_desaparecida` por un `not p.exists()`.
+    DONDE SI SE VE: en un proceso que atiende SIN haber ejecutado su arranque
+    --`TestClient` sin su gestor de contexto, que es exactamente lo que pasa
+    cuando alguien monta la aplicacion por su cuenta-- y con la base ausente.
+    Ahi no hay ninguna evidencia de que la base existiera jamas, y la premisa
+    autorizada de este corte es que la ausencia ES una primera instalacion:
+    `/setup/admin` debe servirse y crear la base. Una guarda por «no existe»
+    responderia 503 y se comeria el estado A.
+
+    Es decir: la guarda se apoya en EVIDENCIA --«yo la deje ahi»--, no en la
+    ausencia, que no prueba nada.
+
+    ROJO SI: `base_desaparecida` pasa a decidir por `not p.exists()`.
     """
-    db = tmp_path / "no-existe-todavia" / "auth.db"
+    # La carpeta existe y el fichero no: se aisla la pregunta «hay evidencia de
+    # que esta base existiera?». Crear la CARPETA es cosa del arranque
+    # (`main.py` la crea antes de migrar) y no es lo que aqui se mide.
+    db = tmp_path / "auth.db"
+    _activar(db)
+    assert not db.exists()
+
+    c = _cliente()  # SIN arranque: el proceso no sabe nada de ninguna base
+    r = c.get("/setup/admin")
+    assert r.status_code == 200, (
+        "LA GUARDA DE LA BASE DESAPARECIDA SE ESTA COMIENDO EL ESTADO A: una "
+        f"base ausente SIN evidencia de que existiera respondio {r.status_code}")
+    assert db.exists(), "la configuracion inicial tenia que haber creado la base"
+
+
+def test_cond7_tras_el_arranque_la_base_existe_SIEMPRE(tmp_path):
+    """El techo declarado del testigo de arriba, medido en vez de supuesto.
+
+    Sostiene la afirmacion «despues de un arranque normal el fichero siempre
+    existe cuando llega la peticion», que es la razon por la que el control
+    positivo tiene que prescindir del arranque para ver algo.
+    """
+    db = tmp_path / "ni-carpeta" / "auth.db"
     _activar(db)
     assert not db.exists()
     with _con_arranque() as c:
-        r = c.get("/setup/admin")
-        assert r.status_code == 200, (
-            "LA GUARDA DE LA BASE DESAPARECIDA SE ESTA COMIENDO EL ESTADO A: "
-            f"una instalacion nueva respondio {r.status_code}")
-    assert db.exists(), "el arranque tenia que haber creado la base"
+        assert db.exists(), "el arranque no dejo la base en su sitio"
+        assert c.get("/setup/admin").status_code == 200
 
 
 
