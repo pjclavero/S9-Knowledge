@@ -186,12 +186,28 @@ def slot_flag_env(slot: "FeatureSlot") -> str:
 def slot_enabled(slot: "FeatureSlot", env: Optional[dict] = None) -> bool:
     """¿Está encendido este hueco? Fallo cerrado ante ausencia o valor raro.
 
-    Se lee del entorno en CADA llamada a propósito: un flag cacheado al importar
-    convierte "apagar el panel" en "reiniciar el proceso y esperar".
-    """
-    import os
+    Autoridad ÚNICA del valor efectivo: ``app.config.effective_env_value``,
+    la misma que consulta ``resultado._encendido`` para su propio interruptor.
+    Antes de esto había DOS lecturas de "¿qué dice `.env`?": ésta, que leía
+    ``os.environ`` a pelo y por tanto nunca veía lo que el operador escribía
+    en ``viewer/.env`` (pydantic-settings NO exporta ese fichero al entorno
+    del proceso), y la de ``Settings``/``AuthSettings``, que sí lo honraba.
+    El operador que activa auth desde `.env` y ve que SÍ se aplica deduce —
+    razonablemente y mal— que los paneles se gobiernan igual; con dos
+    autoridades, la segunda ganaba en silencio (404 sin aviso).
 
-    raw = (env if env is not None else os.environ).get(slot_flag_env(slot))
+    ``env`` sigue existiendo para quien quiera fijar el universo exacto de
+    variables a mano (calibración, pruebas unitarias que no tocan disco ni
+    `os.environ`): con él puesto, ni el entorno del proceso ni `.env` se
+    consultan. Se lee en CADA llamada a propósito: un flag cacheado al
+    importar convierte "apagar el panel" en "reiniciar el proceso y esperar".
+    """
+    if env is not None:
+        raw = env.get(slot_flag_env(slot))
+    else:
+        from app.config import effective_env_value
+
+        raw = effective_env_value(slot_flag_env(slot))
     if raw is None:
         return False
     return raw.strip().lower() in FLAG_ON_VALUES
