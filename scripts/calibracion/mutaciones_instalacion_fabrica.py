@@ -152,38 +152,36 @@ MUTACIONES: tuple[Mutacion, ...] = (
     Mutacion(
         nombre="el-permiso-del-fichero-de-secreto-deja-de-ser-0600",
         fichero=CSRF_BOOTSTRAP,
-        viejo="        fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)",
-        nuevo="        fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)",
+        viejo="            os.chmod(tmp_path, 0o600)",
+        nuevo="            os.chmod(tmp_path, 0o644)",
         caen=("test_csrf_secret_se_autogenera_sin_terminal",),
         dice="permisos del secreto CSRF deben ser 0600",
         porque=(
             "El secreto CSRF en disco con permisos legibles por cualquier "
-            "cuenta del sistema deja de ser un secreto."
-        ),
-        extra=(
-            (CSRF_BOOTSTRAP,
-             "        os.chmod(tmp_path, 0o600)",
-             "        os.chmod(tmp_path, 0o644)"),
+            "cuenta del sistema deja de ser un secreto. `mkstemp` ya crea "
+            "el temporal en 0600, pero el `chmod` explícito es lo que "
+            "documenta y fija la garantía con independencia del umask del "
+            "proceso: quitarlo debe enrojecer."
         ),
     ),
     Mutacion(
         nombre="un-fichero-de-secreto-vacio-se-acepta-tal-cual",
         fichero=CSRF_BOOTSTRAP,
         viejo=(
-            "            existing = secret_path.read_text(encoding=\"utf-8\").strip()\n"
-            "            if existing:\n"
-            "                return existing"
+            "    texto = secret_path.read_text(encoding=\"utf-8\").strip()\n"
+            "    return texto or None"
         ),
         nuevo=(
-            "            existing = secret_path.read_text(encoding=\"utf-8\")\n"
-            "            return existing"
+            "    texto = secret_path.read_text(encoding=\"utf-8\")\n"
+            "    return texto"
         ),
-        caen=("test_secreto_csrf_vacio_en_disco_se_regenera",),
+        caen=("test_secreto_csrf_solo_espacios_en_disco_no_se_acepta_como_valido",),
         dice="AssertionError",
         porque=(
-            "Un fichero de secreto truncado a cero bytes (disco lleno a "
-            "mitad de escritura, por ejemplo) debe regenerarse, no colarse "
-            "como CSRF_SECRET_EMPTY silencioso."
+            "Sin el `.strip()`, un residuo de sólo espacios/salto de línea "
+            "(escritura interrumpida a medias) se aceptaría como secreto "
+            "válido tal cual: una cadena de baja entropía, trivialmente "
+            "adivinable, en vez de regenerarse."
         ),
     ),
     Mutacion(
@@ -216,18 +214,27 @@ MUTACIONES: tuple[Mutacion, ...] = (
         nombre="la-reclamacion-del-secreto-vuelve-a-ser-leer-generar-pisar",
         fichero=CSRF_BOOTSTRAP,
         viejo=(
-            "            try:\n"
-            "                os.link(str(tmp_path), str(secret_path))\n"
-            "            except FileExistsError:\n"
-            "                # Otro proceso ganó la carrera: su fichero está COMPLETO\n"
-            "                # (sólo se puede reclamar el nombre tras terminar de\n"
-            "                # escribir el temporal), así que se relee en vez de\n"
-            "                # quedarse con el secreto propio, que ya no coincidiría\n"
-            "                # con el que usarán los demás procesos.\n"
-            "                ganador = _leer_secreto_existente(secret_path)\n"
-            "                if not ganador:\n"
-            "                    raise\n"
-            "                return ganador"
+            "            for _intento in range(_MAX_INTENTOS_RECLAMACION):\n"
+            "                try:\n"
+            "                    os.link(str(tmp_path), str(secret_path))\n"
+            "                    break\n"
+            "                except FileExistsError:\n"
+            "                    ganador = _leer_secreto_existente(secret_path)\n"
+            "                    if ganador:\n"
+            "                        return ganador\n"
+            "                    # Vacío/corrupto TODAVÍA en este instante: residuo de un\n"
+            "                    # disco lleno a mitad de una escritura anterior, no un\n"
+            "                    # ganador. Se retira y se reintenta la reclamación.\n"
+            "                    try:\n"
+            "                        secret_path.unlink()\n"
+            "                    except FileNotFoundError:\n"
+            "                        pass\n"
+            "            else:\n"
+            "                raise CsrfSecretBootstrapError(\n"
+            "                    \"no se pudo reclamar el secreto CSRF tras \"\n"
+            "                    f\"{_MAX_INTENTOS_RECLAMACION} intentos: residuo vacío \"\n"
+            "                    \"persistente en disco\"\n"
+            "                )"
         ),
         nuevo="            os.replace(str(tmp_path), str(secret_path))",
         caen=("test_ocho_hilos_a_la_vez_no_producen_secretos_divergentes",),

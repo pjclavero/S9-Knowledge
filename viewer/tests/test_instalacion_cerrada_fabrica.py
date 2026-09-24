@@ -367,3 +367,20 @@ def test_secreto_csrf_vacio_en_disco_se_regenera(instalacion_de_fabrica):
     resultado = resolve_csrf_secret("", str(instalacion_de_fabrica / "auth.db"))
     assert resultado, "un fichero vacío debe regenerar el secreto, no devolver vacío"
     assert len(resultado) >= 32
+
+
+def test_secreto_csrf_solo_espacios_en_disco_no_se_acepta_como_valido(instalacion_de_fabrica):
+    """Un fichero con sólo espacios/salto de línea (residuo de una escritura
+    interrumpida a medias) tampoco es un secreto válido: `strip()` debe
+    vaciarlo antes de decidir, no aceptar la cadena de espacios tal cual
+    (sería un secreto CSRF de baja entropía, trivialmente adivinable)."""
+    secreto_path = instalacion_de_fabrica / ".csrf_secret"
+    secreto_path.parent.mkdir(parents=True, exist_ok=True)
+    secreto_path.write_text("   \n", encoding="utf-8")
+
+    from app.auth.csrf_bootstrap import resolve_csrf_secret
+    resultado = resolve_csrf_secret("", str(instalacion_de_fabrica / "auth.db"))
+    assert resultado.strip() == resultado, (
+        "el secreto usado no puede ser una cadena de espacios sin recortar"
+    )
+    assert len(resultado) >= 32
