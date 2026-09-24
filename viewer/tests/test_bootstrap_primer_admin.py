@@ -850,6 +850,106 @@ def test_cond7_tras_el_arranque_la_base_existe_SIEMPRE(tmp_path):
 
 
 
+
+
+def test_cond7_la_base_TRUNCADA_en_caliente_tampoco_es_una_primera_instalacion(tmp_path):
+    """UN ALMACENAMIENTO QUE FALLA NO SIEMPRE BORRA: A VECES TRUNCA.
+
+    Preguntar solo si el fichero «esta» deja el hueco abierto, y se midio por
+    HTTP sobre el codigo anterior, proceso vivo e instalacion CERRADA:
+
+        GET /setup/admin (estado C)            -> 404
+        [auth.db truncado a 0 bytes, NO borrado]
+        GET /setup/admin                       -> 200  *** PUERTA SERVIDA ***
+        tablas recreadas: schema_version, users, sqlite_sequence...
+
+    Es la misma clase de accidente que el borrado --disco lleno a mitad de
+    escritura, `cp` o restauracion que crea el fichero antes de rellenarlo,
+    contenedor que recrea un bind mount-- y las tres dejan el fichero PRESENTE
+    Y VACIO.
+
+    Se ejercitan las DOS formas de «presente pero inservible»: cero bytes y
+    SQLite valida sin ninguna tabla.
+
+    ROJO SI: el predicado vuelve a mirar solo la existencia del fichero.
+    """
+    db = tmp_path / "auth.db"
+    _activar(db)
+    with _con_arranque() as c:
+        assert _crear_admin_por_pantalla(c).status_code == 303
+        assert c.get("/setup/admin").status_code == 404
+
+        for sufijo in ("-wal", "-shm"):
+            p = Path(str(db) + sufijo)
+            if p.exists():
+                p.unlink()
+
+        # (a) truncada a cero. El fichero SIGUE AHI.
+        db.write_bytes(b"")
+        assert db.exists() and db.stat().st_size == 0
+
+        g = c.get("/setup/admin")
+        assert g.status_code == 503, (
+            "LA BASE TRUNCADA EN CALIENTE SE ESTA LEYENDO COMO PRIMERA "
+            f"INSTALACION: /setup/admin respondio {g.status_code}")
+        assert db.stat().st_size == 0, (
+            "LA GUARDA RECREO LAS TABLAS SOBRE LA BASE TRUNCADA")
+        assert "AUTH_STORE_UNAVAILABLE" in g.text
+        assert str(tmp_path) not in g.text, "se ha filtrado una ruta del servidor"
+
+        pp = c.post("/setup/admin", data={
+            "username": "intruso-ficticio", "password": PW_VALIDA, "csrf_token": "x"})
+        assert pp.status_code == 503, pp.status_code
+        assert db.stat().st_size == 0
+
+        # (b) SQLite valida y SIN TABLAS: el fichero pesa, pero no hay nada.
+        con = sqlite3.connect(str(db))
+        con.execute("CREATE TABLE t (x INTEGER)")
+        con.execute("DROP TABLE t")
+        con.commit()
+        con.close()
+        assert db.stat().st_size > 0
+        vacia = sqlite3.connect(str(db))
+        assert vacia.execute(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table'").fetchone()[0] == 0
+        vacia.close()
+
+        g2 = c.get("/setup/admin")
+        assert g2.status_code == 503, (
+            "LA BASE SIN TABLAS SE ESTA LEYENDO COMO PRIMERA INSTALACION: "
+            f"/setup/admin respondio {g2.status_code}")
+
+
+def test_cond7_el_estado_A_con_un_fichero_de_cero_bytes_SIGUE_abriendo(tmp_path):
+    """EL PAR SIMETRICO, y la razon por la que el arreglo no es «si no es
+    utilizable, 503».
+
+    Una instalacion NUEVA en la que alguien dejo el fichero creado y vacio
+    --un `touch`, un volumen que se monta con el fichero ya presente-- sigue
+    siendo una primera instalacion: el arranque la migra y la configuracion
+    inicial tiene que servirse.
+
+    Lo que autoriza el 503 no es el ESTADO DEL FICHERO, es que ESTE PROCESO lo
+    dejo listo y ya no lo esta.
+
+    ROJO SI: la guarda decide por `not base_utilizable(...)` en vez de por
+    `base_desaparecida(...)`.
+    """
+    db = tmp_path / "auth.db"
+    db.write_bytes(b"")
+    assert db.exists() and db.stat().st_size == 0
+    _activar(db)
+
+    with _con_arranque() as c:
+        r = c.get("/setup/admin")
+        assert r.status_code == 200, (
+            "EL FICHERO VACIO DE UNA INSTALACION NUEVA SE ESTA LEYENDO COMO "
+            f"PERDIDA: /setup/admin respondio {r.status_code}")
+        assert "Configuración inicial" in r.text
+        assert _crear_admin_por_pantalla(c).status_code == 303
+
+
+
 # ---------------------------------------------------------------------------
 # COMPATIBILIDAD HACIA ATRAS
 # ---------------------------------------------------------------------------

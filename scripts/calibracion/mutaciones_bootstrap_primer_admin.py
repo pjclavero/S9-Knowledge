@@ -228,6 +228,35 @@ MUTACIONES: tuple[Mutacion, ...] = (
             "de que existiera, y la ausencia es una primera instalación."
         ),
     ),
+    Mutacion(
+        nombre="la-base-truncada-no-cuenta-como-perdida",
+        fichero=BOOT,
+        viejo="    if not p.exists() or p.stat().st_size == 0:",
+        nuevo="    if not p.exists():",
+        caen=("test_cond7_la_base_TRUNCADA_en_caliente_tampoco_es_una_primera_instalacion",),
+        dice="LA BASE TRUNCADA EN CALIENTE SE ESTA LEYENDO COMO PRIMERA",
+        porque=(
+            "Un almacenamiento que falla no siempre borra: a veces TRUNCA. Con "
+            "la guarda preguntando sólo si el fichero está, la base a cero "
+            "bytes vuelve a servir la configuración inicial y las tablas se "
+            "recrean. Medido: 404 -> truncar -> 200."
+        ),
+    ),
+    Mutacion(
+        nombre="la-guarda-se-come-el-estado-A-con-fichero-vacio",
+        fichero=SETUP,
+        viejo="    if bootstrap.base_desaparecida(_db_path()):",
+        nuevo="    if not bootstrap.base_utilizable(_db_path()):",
+        caen=("test_cond7_el_estado_A_con_un_fichero_de_cero_bytes_SIGUE_abriendo",),
+        dice="EL FICHERO VACIO DE UNA INSTALACION NUEVA SE ESTA LEYENDO COMO PERDIDA",
+        porque=(
+            "El par simétrico del de arriba, y la razón por la que el arreglo "
+            "no se puede escribir como «si la base no es utilizable, 503»: eso "
+            "cierra también el arranque en limpio sobre un fichero que alguien "
+            "dejó creado y vacío. Lo que autoriza el 503 no es el estado del "
+            "fichero, es que ESTE PROCESO lo dejó listo y ya no lo está."
+        ),
+    ),
     # ---- CONDICIÓN 7: AUSENCIA != ERROR ---------------------------------
     Mutacion(
         nombre="un-almacen-ilegible-se-lee-como-instalacion-nueva",

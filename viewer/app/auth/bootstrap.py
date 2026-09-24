@@ -92,26 +92,62 @@ def registrar_base_lista(db_path: Path) -> None:
     _base_lista_en = str(Path(db_path))
 
 
-def base_desaparecida(db_path: Path) -> bool:
-    """True si la base que este proceso dejo lista YA NO ESTA.
+def base_utilizable(db_path: Path) -> bool:
+    """True si en esa ruta hay una base de la que se pueda partir.
 
-    NO es «no existe»: sobre una instalacion nueva la base tampoco existe, y
-    ahi la ausencia SI es una primera instalacion legitima --es el estado A de
-    este corte, y `/setup/admin` tiene que crearla--. La distincion es
-    «existia al arrancar y ha desaparecido», y eso solo lo sabe el proceso.
+    Es la MISMA nocion que `estado_instalacion` usa para decidir si esta ante
+    una primera instalacion --fichero ausente, de cero bytes, o base sin
+    ninguna tabla-- y por eso se define aqui una sola vez, en vez de repetir
+    el criterio en dos sitios que luego divergen.
+
+    UN ALMACENAMIENTO QUE FALLA NO SIEMPRE BORRA: A VECES TRUNCA. Un disco que
+    se llena a mitad de escritura, un `cp` o una restauracion que crea el
+    fichero antes de rellenarlo, un contenedor que recrea un bind mount: las
+    tres dejan el fichero PRESENTE Y VACIO. Preguntar solo si «existe» deja
+    ese hueco abierto, y se midio: con la base truncada a 0 bytes y el proceso
+    vivo, `/setup/admin` volvia a servirse y las tablas se recreaban.
+
+    Una base ILEGIBLE cuenta como utilizable a efectos de esta funcion --es
+    decir: NO es una primera instalacion--, porque su desenlace correcto es el
+    fail-closed con diagnostico de `estado_instalacion`, no esta guarda.
+    """
+    p = Path(db_path)
+    if not p.exists() or p.stat().st_size == 0:
+        return False
+    try:
+        return schema_compat.read_schema_version(p) is not None
+    except schema_compat.SchemaCompatibilityError:
+        return True
+
+
+def base_desaparecida(db_path: Path) -> bool:
+    """True si la base que este proceso dejo lista YA NO ES UTILIZABLE.
+
+    «Desaparecida» incluye el fichero borrado, el fichero truncado a cero y el
+    fichero presente pero sin ninguna tabla: los tres son el mismo accidente
+    visto desde la aplicacion, y los tres dejarian que `estado_instalacion`
+    fabricase una base nueva.
+
+    NO es «no existe» ni «no es utilizable» a secas: sobre una instalacion
+    nueva la base tampoco existe --o existe vacia, porque alguien toco el
+    fichero antes de arrancar-- y ahi esa ausencia SI es una primera
+    instalacion legitima; es el estado A de este corte, y `/setup/admin` tiene
+    que crearla. La distincion es «ESTABA LISTA AL ARRANCAR y ya no lo esta», y
+    eso no esta en el disco: lo sabe el proceso.
 
     Por que importa: `estado_instalacion` MIGRA, es decir CREA. Sin esta
-    comprobacion, borrar `auth.db` con el servicio vivo --un volumen
+    comprobacion, perder `auth.db` con el servicio vivo --un volumen
     desmontado, una restauracion a medias, un `S9K_AUTH_DB_PATH` que deja de
     resolver-- hace que la guarda de `/setup/admin` fabrique una base vacia y
     vuelva a servir la pantalla de configuracion inicial, anonima, con los
-    datos reales del producto detras. Medido por HTTP sobre el codigo anterior:
-    GET /setup/admin -> 200 y la base recreada.
+    datos reales del producto detras. Medido por HTTP sobre el codigo anterior,
+    por las dos vias: borrado -> 200 y base recreada; truncado a 0 bytes -> 200
+    y tablas recreadas.
     """
     if _base_lista_en is None:
         return False
     p = Path(db_path)
-    return str(p) == _base_lista_en and not p.exists()
+    return str(p) == _base_lista_en and not base_utilizable(p)
 
 
 class BootstrapStorageError(RuntimeError):
@@ -235,7 +271,7 @@ def estado_instalacion(db_path: Path) -> EstadoInstalacion:
       :class:`BootstrapStorageError`. NO es una primera instalacion.
     """
     path = Path(db_path)
-    existia = path.exists() and path.stat().st_size > 0
+    existia = base_utilizable(path)
 
     try:
         schema_compat.assert_compatible(path)
