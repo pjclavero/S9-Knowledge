@@ -85,8 +85,17 @@ es la del **entorno del proceso**: si esa misma clave existe ahí (por
 `export`, por `docker run -e`, o por `EnvironmentFile=` en el `.service` de
 producción), manda ella, aunque valga cadena vacía; `.env` sólo se consulta
 cuando el entorno no dice nada de esa clave. La comparación de nombres de
-clave es insensible a mayúsculas/minúsculas en ambos canales, igual que hace
-`pydantic-settings`. Esto no siempre fue así para los interruptores de panel:
+clave es insensible a mayúsculas/minúsculas en ambos canales: misma librería
+(`dotenv_values`) y misma precedencia POR CLAVE que `pydantic-settings`. Esto
+NO se extiende al empate: si la MISMA clave aparece escrita dos veces con
+distinta caja en el mismo `.env` (por ejemplo `S9K_AUTH_ENABLED` y
+`s9k_auth_enabled` a la vez), este visor elige SIEMPRE la ortografía
+canónica en mayúsculas, mientras que `pydantic-settings` toma la última
+línea del fichero -no determinista frente a un reordenamiento-. Es una
+elección deliberada, no un descuido: preferir la canónica es predecible con
+independencia del orden de las líneas, que es justo lo que un `.env`
+manualmente editado no garantiza. Esto no siempre fue así para los
+interruptores de panel:
 hasta el corte "el `.env` gobierna lo que dice gobernar", `S9K_PANEL_*_ENABLED`
 en `.env` se ignoraba EN SILENCIO (404 sin aviso) porque se leía sólo del
 entorno del proceso, nunca del fichero —ver `docs/69` §1 ter para el detalle

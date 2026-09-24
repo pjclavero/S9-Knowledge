@@ -121,12 +121,20 @@ Cada hueco tiene su variable de entorno, `S9K_PANEL_<KEY>_ENABLED`
   `deploy/ansible/roles/viewer/tasks/main.yml` falla a propósito si encuentra
   un `.env` dentro de la release).
 - **La comparación de nombres de clave es insensible a mayúsculas/minúsculas**,
-  en el entorno del proceso y en `.env`, igual que `pydantic-settings`
+  en el entorno del proceso y en `.env`: misma librería (`dotenv_values`) y
+  misma precedencia POR CLAVE que `pydantic-settings`
   (`case_sensitive=False`, el default de `Settings`/`AuthSettings`). Sin esto,
   `s9k_panel_c_enabled=true` en minúsculas en `.env` dejaba la auth aplicada
   (`AuthSettings` sí es insensible a mayúsculas) y el panel apagado EN
   SILENCIO — la misma firma del defecto original, por caja de la clave en vez
   de por fichero.
+  **La paridad NO cubre el empate**: si la misma clave aparece escrita dos
+  veces con distinta caja en el mismo `.env`, este visor elige SIEMPRE la
+  ortografía canónica en mayúsculas; `pydantic-settings` en cambio toma la
+  última línea del fichero, lo que lo hace no determinista frente a un simple
+  reordenamiento de líneas. Elección deliberada: la canónica es predecible
+  con independencia del orden, y ese orden es justo lo que un `.env` editado
+  a mano no garantiza.
 - **Techo declarado de `S9K_PANEL_RESULTADO_ENABLED`** (`/panel/resultado`,
   no es un hueco del chasis pero comparte la misma autoridad): encendida y
   apagada son indistinguibles por HTTP cuando el identificador pedido no
