@@ -230,7 +230,7 @@ MUTACIONES: tuple[Mutacion, ...] = (
             "                return ganador"
         ),
         nuevo="            os.replace(str(tmp_path), str(secret_path))",
-        caen=("test_ocho_procesos_a_la_vez_no_producen_secretos_divergentes",),
+        caen=("test_ocho_hilos_a_la_vez_no_producen_secretos_divergentes",),
         dice="LA CARRERA DEL BOOTSTRAP DEL SECRETO CSRF PRODUJO SECRETOS DIVERGENTES",
         porque=(
             "`os.replace` pisa el destino incondicionalmente: con varios "

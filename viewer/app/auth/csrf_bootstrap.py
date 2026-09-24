@@ -37,6 +37,7 @@ from __future__ import annotations
 import logging
 import os
 import secrets
+import tempfile
 from pathlib import Path
 
 log = logging.getLogger("s9k.auth.csrf_bootstrap")
@@ -46,6 +47,12 @@ CSRF_SECRET_FILENAME = ".csrf_secret"
 
 #: Bytes de entropía del secreto generado (antes de codificar en url-safe).
 _GENERATED_SECRET_BYTES = 48
+
+#: Reintentos de la reclamación del fichero ante un residuo vacío que
+#: reaparece (dos hilos/procesos limpiando y regenerando a la vez). Un
+#: número, no un bucle sin límite: si esto no converge en unos pocos
+#: intentos, algo más está mal y hay que fallar cerrado, no colgarse.
+_MAX_INTENTOS_RECLAMACION = 10
 
 
 class CsrfSecretBootstrapError(RuntimeError):
@@ -103,7 +110,6 @@ def resolve_csrf_secret(configured_secret: str, auth_db_path: str) -> str:
         return ""
 
     secret_path = secret_file_path(auth_db_path)
-    tmp_path = secret_path.with_name(f"{secret_path.name}.tmp-{os.getpid()}")
     try:
         existente = _leer_secreto_existente(secret_path)
         if existente:
@@ -111,33 +117,55 @@ def resolve_csrf_secret(configured_secret: str, auth_db_path: str) -> str:
 
         secret_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Un residuo vacío/corrupto (disco lleno a mitad de una escritura
-        # anterior, por ejemplo) NO reclama el nombre: se retira antes de
-        # competir por crearlo. `FileNotFoundError` aquí sólo significa que
-        # otro proceso ya lo retiró, o que nunca existió: no es un fallo.
-        try:
-            secret_path.unlink()
-        except FileNotFoundError:
-            pass
-
+        # `mkstemp`, no `f".tmp-{os.getpid()}"`: el PID identifica un
+        # PROCESO, no un HILO. Varios hilos del MISMO proceso (un servidor
+        # ASGI multi-hilo, o estos mismos hilos de test) comparten PID, así
+        # que un nombre basado sólo en él colisiona entre hilos —cada uno
+        # menos uno recibiría `FileExistsError` al crear su propio temporal,
+        # antes incluso de llegar a la reclamación por `os.link`—. `mkstemp`
+        # garantiza unicidad real entre procesos e hilos.
         new_secret = secrets.token_urlsafe(_GENERATED_SECRET_BYTES)
-        fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        fd, tmp_name = tempfile.mkstemp(
+            dir=str(secret_path.parent), prefix=f"{secret_path.name}.tmp-",
+        )
+        tmp_path = Path(tmp_name)
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
                 fh.write(new_secret)
             os.chmod(tmp_path, 0o600)
-            try:
-                os.link(str(tmp_path), str(secret_path))
-            except FileExistsError:
-                # Otro proceso ganó la carrera: su fichero está COMPLETO
-                # (sólo se puede reclamar el nombre tras terminar de
-                # escribir el temporal), así que se relee en vez de
-                # quedarse con el secreto propio, que ya no coincidiría
-                # con el que usarán los demás procesos.
-                ganador = _leer_secreto_existente(secret_path)
-                if not ganador:
-                    raise
-                return ganador
+
+            # RECLAMACIÓN por reintento acotado, NUNCA por un `unlink()`
+            # incondicional antes de competir: un `unlink()` a ciegas del
+            # destino "porque antes lo vimos vacío" puede borrar el fichero
+            # de OTRO hilo/proceso que acaba de ganar la carrera un instante
+            # antes (visto de verdad: con el unlink incondicional, un
+            # tercer hilo podía leer el secreto del ganador A justo antes de
+            # que un hilo B lo desalojara y lo sustituyera por el suyo — tres
+            # secretos "correctos" por separado, divergentes entre sí). Aquí
+            # sólo se retira el residuo si, EN EL MOMENTO de fallar el link,
+            # sigue estando vacío/corrupto; si no, es un ganador legítimo y
+            # se relee, sin tocarlo.
+            for _intento in range(_MAX_INTENTOS_RECLAMACION):
+                try:
+                    os.link(str(tmp_path), str(secret_path))
+                    break
+                except FileExistsError:
+                    ganador = _leer_secreto_existente(secret_path)
+                    if ganador:
+                        return ganador
+                    # Vacío/corrupto TODAVÍA en este instante: residuo de un
+                    # disco lleno a mitad de una escritura anterior, no un
+                    # ganador. Se retira y se reintenta la reclamación.
+                    try:
+                        secret_path.unlink()
+                    except FileNotFoundError:
+                        pass
+            else:
+                raise CsrfSecretBootstrapError(
+                    "no se pudo reclamar el secreto CSRF tras "
+                    f"{_MAX_INTENTOS_RECLAMACION} intentos: residuo vacío "
+                    "persistente en disco"
+                )
         finally:
             tmp_path.unlink(missing_ok=True)
 
