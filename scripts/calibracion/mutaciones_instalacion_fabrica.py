@@ -228,30 +228,8 @@ MUTACIONES: tuple[Mutacion, ...] = (
     Mutacion(
         nombre="la-reclamacion-del-secreto-vuelve-a-ser-leer-generar-pisar",
         fichero=CSRF_BOOTSTRAP,
-        viejo=(
-            "            for _intento in range(_MAX_INTENTOS_RECLAMACION):\n"
-            "                try:\n"
-            "                    os.link(str(tmp_path), str(secret_path))\n"
-            "                    break\n"
-            "                except FileExistsError:\n"
-            "                    ganador = _leer_secreto_existente(secret_path)\n"
-            "                    if ganador:\n"
-            "                        return ganador\n"
-            "                    # Vacío/corrupto TODAVÍA en este instante: residuo de un\n"
-            "                    # disco lleno a mitad de una escritura anterior, no un\n"
-            "                    # ganador. Se retira y se reintenta la reclamación.\n"
-            "                    try:\n"
-            "                        secret_path.unlink()\n"
-            "                    except FileNotFoundError:\n"
-            "                        pass\n"
-            "            else:\n"
-            "                raise CsrfSecretBootstrapError(\n"
-            "                    \"no se pudo reclamar el secreto CSRF tras \"\n"
-            "                    f\"{_MAX_INTENTOS_RECLAMACION} intentos: residuo vacío \"\n"
-            "                    \"persistente en disco\"\n"
-            "                )"
-        ),
-        nuevo="            os.replace(str(tmp_path), str(secret_path))",
+        viejo="                    os.link(str(tmp_path), str(secret_path))",
+        nuevo="                    os.replace(str(tmp_path), str(secret_path))",
         caen=("test_ocho_hilos_a_la_vez_no_producen_secretos_divergentes",),
         dice="LA CARRERA DEL BOOTSTRAP DEL SECRETO CSRF PRODUJO SECRETOS DIVERGENTES",
         porque=(
