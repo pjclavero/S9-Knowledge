@@ -1090,6 +1090,25 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/mutaciones_bootstrap_primer_admin.py
 
+      # Y la calibracion del corte S-3 «el .env gobierna lo que dice
+      # gobernar». Cubre las cinco formas de romper la propiedad: los dos
+      # lectores directos de os.environ que este corte elimino
+      # (chassis.slot_enabled y resultado._encendido), que
+      # effective_env_value deje de mirar `.env`, que la precedencia
+      # entorno>`.env` se invierta, y la clave 14/14 de la ronda 2 de
+      # revision (mayusculas/minusculas: pydantic-settings es insensible y
+      # esta autoridad tiene que serlo tambien, o la misma firma del defecto
+      # original reaparece por caja de la clave). Sin este paso, las dos
+      # guardas AST de test_s3_env_gobierna_paneles.py contra la
+      # reintroduccion de os.environ podrian pudrirse sin que nadie se
+      # entere: estan en la suite, pero nada re-ejecuta la calibracion que
+      # demuestra que siguen mordiendo.
+      - name: El .env gobierna los paneles: se pone ROJO ante cada defecto (S-3)
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/mutaciones_s3_env_gobierna_paneles.py
+
   # Instalado desde .github/ci-fragments/check-env-reproducibility.yml. Si un
   # merge se lleva por delante este bloque, el fragmento es la copia canonica.
   check-env-reproducibility:

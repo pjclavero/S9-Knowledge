@@ -381,6 +381,78 @@ def test_plantilla_sin_editar_deja_los_cuatro_paneles_apagados(monkeypatch, tmp_
 
 
 # ---------------------------------------------------------------------------
+# 5 bis) RONDA 2 · clave 14/14: mayúsculas/minúsculas (paridad con
+# pydantic-settings, `case_sensitive=False`)
+# ---------------------------------------------------------------------------
+#
+# Reproducido por el revisor, mismo `.env`, sólo la CAJA de la clave cambiada:
+# en minúsculas, `Settings`/`AuthSettings` (pydantic-settings, insensible a
+# mayúsculas) seguían viendo la auth encendida, pero `effective_env_value`
+# (antes de este arreglo) comparaba con `==` exacto y no la veía -> el panel
+# se apagaba EN SILENCIO. Firma idéntica al defecto original: dos lecturas
+# del mismo fichero, una se aplica, la otra no, sin log ni aviso.
+
+def test_env_en_minusculas_enciende_el_panel_igual_que_en_mayusculas(tmp_path):
+    """LA MUTACIÓN: `S9K_PANEL_G_ENABLED` escrito en minúsculas en `.env`.
+    Antes del arreglo de mayúsculas, esto daba 404 (silencioso) aunque
+    `S9K_AUTH_ENABLED` -leído por `AuthSettings`, insensible a mayúsculas- sí
+    se aplicara. Control positivo simétrico: la MISMA clave en mayúsculas
+    (la de la plantilla) sigue funcionando -no se rompe el caso de fábrica-.
+    """
+    lineas_minusculas = _ENV_FABRICA_SIN_AUTH + ("s9k_panel_g_enabled=true",)
+    servidor = _arrancar_como_operador(tmp_path, lineas_minusculas)
+    try:
+        codigo_minusculas = servidor.get(PANEL_PATH["S9K_PANEL_G_ENABLED"])
+    finally:
+        servidor.detener()
+
+    lineas_mayusculas = _ENV_FABRICA_SIN_AUTH + ("S9K_PANEL_G_ENABLED=true",)
+    servidor2 = _arrancar_como_operador(tmp_path, lineas_mayusculas)
+    try:
+        codigo_mayusculas = servidor2.get(PANEL_PATH["S9K_PANEL_G_ENABLED"])
+    finally:
+        servidor2.detener()
+
+    assert codigo_minusculas == 200, (
+        f"`s9k_panel_g_enabled=true` (minúsculas) en `.env` dio "
+        f"{codigo_minusculas}, no 200: la clave en minúsculas no gobernó el "
+        "panel aunque pydantic-settings SÍ es insensible a mayúsculas para "
+        "S9K_AUTH_ENABLED -exactamente la misma firma que el 404 en "
+        "silencio de bcd9e59, ahora por caja de la clave."
+    )
+    assert codigo_mayusculas == 200, (
+        "el par simétrico se rompió: la clave en MAYÚSCULAS (la de la "
+        "plantilla real) debe seguir encendiendo el panel."
+    )
+
+
+def test_effective_env_value_es_insensible_a_mayusculas_en_env_y_en_dotenv(monkeypatch, tmp_path):
+    """Unidad, sin subproceso: cubre además el caso del ENTORNO del proceso
+    (no sólo `.env`), y el caso vacío (`""`) mencionado por el revisor."""
+    from app.config import effective_env_value
+
+    monkeypatch.delenv("S9K_PANEL_G_ENABLED", raising=False)
+    monkeypatch.chdir(tmp_path)
+
+    (tmp_path / ".env").write_text("s9k_panel_g_enabled=true\n", encoding="utf-8")
+    assert effective_env_value("S9K_PANEL_G_ENABLED") == "true", (
+        "`.env` en minúsculas debe resolver igual que en mayúsculas"
+    )
+
+    monkeypatch.setenv("s9k_panel_g_enabled", "false")
+    assert effective_env_value("S9K_PANEL_G_ENABLED") == "false", (
+        "una variable de ENTORNO en minúsculas debe ganar sobre `.env`, "
+        "igual que en mayúsculas"
+    )
+
+    monkeypatch.setenv("s9k_panel_g_enabled", "")
+    assert effective_env_value("S9K_PANEL_G_ENABLED") == "", (
+        "el entorno en minúsculas a cadena vacía sigue siendo 'está puesta' "
+        "y debe ganar sobre `.env`, igual que ya se exige para mayúsculas"
+    )
+
+
+# ---------------------------------------------------------------------------
 # 6) Regresión: ninguna de las dos funciones vuelve a leer `os.environ` a pelo
 # ---------------------------------------------------------------------------
 

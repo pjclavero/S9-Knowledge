@@ -120,6 +120,21 @@ Cada hueco tiene su variable de entorno, `S9K_PANEL_<KEY>_ENABLED`
   trajera un `viewer/.env` propio no puede pisarlo (por eso
   `deploy/ansible/roles/viewer/tasks/main.yml` falla a propósito si encuentra
   un `.env` dentro de la release).
+- **La comparación de nombres de clave es insensible a mayúsculas/minúsculas**,
+  en el entorno del proceso y en `.env`, igual que `pydantic-settings`
+  (`case_sensitive=False`, el default de `Settings`/`AuthSettings`). Sin esto,
+  `s9k_panel_c_enabled=true` en minúsculas en `.env` dejaba la auth aplicada
+  (`AuthSettings` sí es insensible a mayúsculas) y el panel apagado EN
+  SILENCIO — la misma firma del defecto original, por caja de la clave en vez
+  de por fichero.
+- **Techo declarado de `S9K_PANEL_RESULTADO_ENABLED`** (`/panel/resultado`,
+  no es un hueco del chasis pero comparte la misma autoridad): encendida y
+  apagada son indistinguibles por HTTP cuando el identificador pedido no
+  existe (mismo 404, mismo cuerpo, a propósito: "un recurso no autorizado es
+  indistinguible de uno inexistente"). Verificar por HTTP que esta clave
+  concreta gobierna la pantalla exigiría un `apply_id` real en un almacén de
+  procedencia; no se ha ejercido ese camino. Sólo está probado a nivel de
+  unidad (`resultado._encendido()` directo).
 
 Plantilla de despliegue: `viewer/.env.example`.
 

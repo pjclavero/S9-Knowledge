@@ -24,6 +24,26 @@ __all__ = [
 DOTENV_FILENAME = ".env"
 
 
+def _valor_insensible_a_mayusculas(mapa, name: str) -> Optional[str]:
+    """Busca ``name`` en ``mapa`` igual que lo hace `pydantic-settings` con
+    `case_sensitive=False` (el default, y el que usan `Settings` y
+    `AuthSettings`): coincidencia exacta primero, y si no hay, la primera
+    clave cuyo `casefold()` coincida. Sin esto, `S9K_AUTH_ENABLED=true` y
+    `s9k_auth_enabled=true` en el MISMO `.env` producen dos lecturas
+    distintas de "¿está encendida la auth?" según quién lea la variable —
+    exactamente la clase de defecto que esta autoridad única existe para
+    eliminar, ahora también en mayúsculas/minúsculas y no sólo en presencia
+    de `os.environ` frente a `.env`.
+    """
+    if name in mapa:
+        return mapa[name]
+    objetivo = name.casefold()
+    for clave, valor in mapa.items():
+        if clave.casefold() == objetivo:
+            return valor
+    return None
+
+
 def effective_env_value(name: str) -> Optional[str]:
     """Valor EFECTIVO de ``name``: autoridad única para "¿qué dice `.env`?".
 
@@ -41,6 +61,13 @@ def effective_env_value(name: str) -> Optional[str]:
          consulta si el paso 1 no dio nada.
       3. Ninguno de los dos define la variable -> ``None``.
 
+    En cada paso, la búsqueda es INSENSIBLE A MAYÚSCULAS/MINÚSCULAS
+    (`_valor_insensible_a_mayusculas`), igual que `pydantic-settings` con
+    `case_sensitive=False`. Sin esto, `.env` en minúsculas dejaba la auth
+    (leída por `Settings`) encendida y el panel (leído aquí) apagado en
+    silencio: la MISMA firma que el defecto original, sólo que por
+    mayúsculas en vez de por fichero.
+
     SIN CACHÉ a propósito, igual que `slot_enabled`/`_encendido`: un operador
     que edita `.env` y reinicia el proceso tiene que ver el cambio, y una
     variable de entorno cacheada al importar convertiría "editar el fichero"
@@ -49,13 +76,14 @@ def effective_env_value(name: str) -> Optional[str]:
     camino de una petición HTTP local; el coste es aceptable frente a la
     alternativa de un flag que miente tras el primer arranque.
     """
-    if name in os.environ:
-        return os.environ[name]
+    valor_entorno = _valor_insensible_a_mayusculas(os.environ, name)
+    if valor_entorno is not None:
+        return valor_entorno
     try:
         valores = dotenv_values(DOTENV_FILENAME)
     except OSError:
         return None
-    return valores.get(name)
+    return _valor_insensible_a_mayusculas(valores, name)
 
 
 class Settings(BaseSettings):
