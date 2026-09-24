@@ -1103,7 +1103,7 @@ jobs:
       # reintroduccion de os.environ podrian pudrirse sin que nadie se
       # entere: estan en la suite, pero nada re-ejecuta la calibracion que
       # demuestra que siguen mordiendo.
-      - name: El .env gobierna los paneles: se pone ROJO ante cada defecto (S-3)
+      - name: "El .env gobierna los paneles: se pone ROJO ante cada defecto (S-3)"
         env:
           S9K_ALLOW_REAL_INGEST: ""
           PYTHONDONTWRITEBYTECODE: '1'
