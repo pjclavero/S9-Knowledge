@@ -79,6 +79,40 @@ BOOTSTRAP_USUARIO_DUPLICADO = "BOOTSTRAP_USUARIO_DUPLICADO"
 #: crea POR DEFINICION un administrador, asi que el navegador no decide nada.
 ROL_PRIMER_ADMIN = "admin"
 
+#: Ruta de la base que ESTE PROCESO dejo lista al arrancar, o None si el
+#: arranque no llego a correr. Es memoria de proceso a proposito: no hay nada
+#: en disco que distinga «la base no existe todavia» de «la base existia y ha
+#: desaparecido», y esa distincion es justo la que hace falta.
+_base_lista_en: Optional[str] = None
+
+
+def registrar_base_lista(db_path: Path) -> None:
+    """El arranque declara que dejo la base en su sitio. Lo llama `_startup_auth`."""
+    global _base_lista_en
+    _base_lista_en = str(Path(db_path))
+
+
+def base_desaparecida(db_path: Path) -> bool:
+    """True si la base que este proceso dejo lista YA NO ESTA.
+
+    NO es «no existe»: sobre una instalacion nueva la base tampoco existe, y
+    ahi la ausencia SI es una primera instalacion legitima --es el estado A de
+    este corte, y `/setup/admin` tiene que crearla--. La distincion es
+    «existia al arrancar y ha desaparecido», y eso solo lo sabe el proceso.
+
+    Por que importa: `estado_instalacion` MIGRA, es decir CREA. Sin esta
+    comprobacion, borrar `auth.db` con el servicio vivo --un volumen
+    desmontado, una restauracion a medias, un `S9K_AUTH_DB_PATH` que deja de
+    resolver-- hace que la guarda de `/setup/admin` fabrique una base vacia y
+    vuelva a servir la pantalla de configuracion inicial, anonima, con los
+    datos reales del producto detras. Medido por HTTP sobre el codigo anterior:
+    GET /setup/admin -> 200 y la base recreada.
+    """
+    if _base_lista_en is None:
+        return False
+    p = Path(db_path)
+    return str(p) == _base_lista_en and not p.exists()
+
 
 class BootstrapStorageError(RuntimeError):
     """El estado de instalacion NO se pudo determinar: fail-closed.

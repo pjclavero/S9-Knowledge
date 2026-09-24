@@ -741,6 +741,83 @@ def test_cond7_base_ausente_SI_es_primera_instalacion(tmp_path):
             f"/setup/admin respondio {r.status_code}")
 
 
+
+
+def test_cond7_la_base_que_DESAPARECE_EN_CALIENTE_no_es_una_primera_instalacion(tmp_path):
+    """LA OTRA MITAD DE LA REGRESION, que estaba cerrada solo en `/login`.
+
+    `estado_instalacion` MIGRA, es decir CREA. La guarda de `/setup/admin` la
+    llamaba sin mas, asi que borrar `auth.db` con el servicio VIVO --un volumen
+    desmontado, una restauracion a medias, un `S9K_AUTH_DB_PATH` que deja de
+    resolver-- hacia que la guarda fabricase una base vacia y volviese a servir
+    la configuracion inicial, anonima, con los datos del producto detras.
+    Medido por HTTP sobre el codigo anterior, mismo proceso vivo:
+
+        GET /setup/admin (bootstrap completado) -> 404
+        [rm auth.db]
+        GET /login                              -> 200  base recreada: NO
+        POST /login                             -> 303 auth_unavailable · NO
+        GET /setup/admin                        -> 200  *** base RECREADA ***
+
+    Ahora el proceso recuerda que dejo la base en su sitio al arrancar, y lo
+    que desaparece despues NO puede confundirse con una instalacion nueva.
+
+    ROJO SI: se retira esa guarda, o se sustituye por un «no existe» a secas
+    --que romperia el estado A, y por eso lo vigila el testigo de al lado--.
+    """
+    db = tmp_path / "auth.db"
+    _activar(db)
+    with _con_arranque() as c:
+        assert _crear_admin_por_pantalla(c).status_code == 303
+        assert c.get("/setup/admin").status_code == 404
+
+        for sufijo in ("", "-wal", "-shm"):
+            p = Path(str(db) + sufijo)
+            if p.exists():
+                p.unlink()
+        assert not db.exists()
+
+        g = c.get("/setup/admin")
+        assert g.status_code == 503, (
+            "LA BASE QUE DESAPARECIO EN CALIENTE SE ESTA LEYENDO COMO PRIMERA "
+            f"INSTALACION: /setup/admin respondio {g.status_code}")
+        assert not db.exists(), (
+            "LA GUARDA RECREO LA BASE: `estado_instalacion` migra, y migrar es "
+            "crear")
+        assert "AUTH_STORE_UNAVAILABLE" in g.text
+        assert "S9K_AUTH_DB_PATH" in g.text, "la pantalla no nombra la variable"
+        assert str(tmp_path) not in g.text, "se ha filtrado una ruta del servidor"
+
+        pp = c.post("/setup/admin", data={
+            "username": "intruso-ficticio", "password": PW_VALIDA, "csrf_token": "x"})
+        assert pp.status_code == 503, (
+            "EL POST NO COMPRUEBA LA DESAPARICION DE LA BASE: "
+            f"respondio {pp.status_code}")
+        assert not db.exists()
+
+
+def test_cond7_la_distincion_es_DESAPARECIO_no_NO_EXISTE(tmp_path):
+    """El control que impide arreglar lo de arriba rompiendo el estado A.
+
+    La guarda facil --«si el fichero no esta, 503»-- cerraria tambien la
+    instalacion NUEVA, que es justo el caso que este corte existe para
+    resolver. La distincion tiene que ser «existia al arrancar y ha
+    desaparecido», y eso no esta en el disco: lo sabe el proceso.
+
+    ROJO SI: alguien cambia `base_desaparecida` por un `not p.exists()`.
+    """
+    db = tmp_path / "no-existe-todavia" / "auth.db"
+    _activar(db)
+    assert not db.exists()
+    with _con_arranque() as c:
+        r = c.get("/setup/admin")
+        assert r.status_code == 200, (
+            "LA GUARDA DE LA BASE DESAPARECIDA SE ESTA COMIENDO EL ESTADO A: "
+            f"una instalacion nueva respondio {r.status_code}")
+    assert db.exists(), "el arranque tenia que haber creado la base"
+
+
+
 # ---------------------------------------------------------------------------
 # COMPATIBILIDAD HACIA ATRAS
 # ---------------------------------------------------------------------------

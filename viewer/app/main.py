@@ -263,6 +263,11 @@ async def _startup_auth() -> None:
         # nueva»: `ensure_migrated` levanta y el arranque sigue abortando.
         p.parent.mkdir(parents=True, exist_ok=True)
         auth_db.ensure_migrated(p)
+        # A partir de aqui la base EXISTE. Se anota, y lo que la haga
+        # desaparecer con el proceso vivo deja de poder confundirse con una
+        # primera instalacion. Ver `bootstrap.base_desaparecida`.
+        from app.auth import bootstrap as _bootstrap
+        _bootstrap.registrar_base_lista(p)
         # Identidad sanitizada de la base realmente abierta: comparable con
         # `cli.auth db-identity` para demostrar que es el mismo fichero.
         import logging

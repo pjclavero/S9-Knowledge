@@ -194,6 +194,39 @@ MUTACIONES: tuple[Mutacion, ...] = (
             "puerta de atrás: el mínimo se relaja sólo aquí y nadie se entera."
         ),
     ),
+    # ---- CONDICIÓN 7: la base que ESTABA y ya no está --------------------
+    Mutacion(
+        nombre="la-guarda-no-mira-si-la-base-desaparecio-en-caliente",
+        fichero=SETUP,
+        viejo="    if bootstrap.base_desaparecida(_db_path()):",
+        nuevo="    if False:",
+        caen=("test_cond7_la_base_que_DESAPARECE_EN_CALIENTE_no_es_una_primera_instalacion",),
+        dice="LA BASE QUE DESAPARECIO EN CALIENTE SE ESTA LEYENDO COMO PRIMERA",
+        porque=(
+            "Era la mitad que el PR afirmaba haber cerrado y sólo cerraba en "
+            "`/login`. Sin la guarda, `estado_instalacion` migra --y migrar es "
+            "CREAR--, así que un borrado en caliente devuelve la pantalla de "
+            "configuración inicial, anónima, sobre una instalación con datos y "
+            "SIN necesidad de reiniciar."
+        ),
+    ),
+    Mutacion(
+        nombre="la-guarda-confunde-DESAPARECIO-con-NO-EXISTE",
+        fichero=BOOT,
+        viejo="    if _base_lista_en is None:\n        return False",
+        nuevo="    if True:\n        return not Path(db_path).exists()",
+        caen=("test_cond7_la_distincion_es_DESAPARECIO_no_NO_EXISTE",
+              "test_A_sin_base_el_servicio_arranca_y_muestra_configuracion_inicial",
+              "test_cond7_base_ausente_SI_es_primera_instalacion"),
+        dice="LA GUARDA DE LA BASE DESAPARECIDA SE ESTA COMIENDO EL ESTADO A",
+        porque=(
+            "El arreglo fácil de la mutación anterior --«si el fichero no está, "
+            "503»-- cierra también la instalación NUEVA, que es justo la "
+            "propiedad de este corte. Este par de mutaciones fija que la "
+            "distinción es «existía al arrancar y ha desaparecido», no «no "
+            "existe»."
+        ),
+    ),
     # ---- CONDICIÓN 7: AUSENCIA != ERROR ---------------------------------
     Mutacion(
         nombre="un-almacen-ilegible-se-lee-como-instalacion-nueva",

@@ -79,11 +79,25 @@ def _cookie_kwargs(cfg) -> dict:
     }
 
 
-def _pantalla_almacen(request: Request) -> HTMLResponse:
+#: El otro desenlace del mismo codigo: la base que ESTABA y ya no esta. Se
+#: dice distinto porque la causa es distinta y lo que el operador tiene que
+#: mirar tambien: aqui no hay nada que reparar en la base, hay que averiguar
+#: quien se la llevo.
+ALMACEN_DESAPARECIDO = (
+    "El almacen de autenticacion ESTABA y HA DESAPARECIDO con el servicio en "
+    "marcha. Esto NO es una instalacion nueva: este proceso arranco con una "
+    "base y ya no la encuentra, asi que no se ofrece crear ningun "
+    "administrador. Lo habitual es un almacenamiento que se ha desmontado, una "
+    "restauracion a medias, o un S9K_AUTH_DB_PATH que ha dejado de resolver al "
+    "mismo sitio. Reponga la base y reinicie el servicio."
+)
+
+
+def _pantalla_almacen(request: Request, mensaje: str = ALMACEN_NO_DISPONIBLE) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "auth/setup_error.html",
-        {"codigo": bootstrap.AUTH_STORE_UNAVAILABLE, "mensaje": ALMACEN_NO_DISPONIBLE},
+        {"codigo": bootstrap.AUTH_STORE_UNAVAILABLE, "mensaje": mensaje},
         status_code=503,
     )
 
@@ -99,6 +113,19 @@ def _guarda(request: Request):
         # pantalla no existe. Si existiese, crearia usuarios en una base que
         # nadie consulta y dejaria el sello puesto para cuando se active.
         raise HTTPException(status_code=404)
+    # LA BASE QUE ESTABA Y YA NO ESTA no es una primera instalacion. Va ANTES
+    # de `estado_instalacion` porque esa funcion MIGRA, es decir CREA: si se
+    # la deja llegar, fabrica una base vacia y la pantalla vuelve a servirse.
+    # Y no se comprueba «no existe» a secas, porque el estado A legitimo --la
+    # instalacion nueva-- exige justamente que se cree.
+    if bootstrap.base_desaparecida(_db_path()):
+        log.error(
+            "[%s] la base de autenticacion desaparecio con el proceso vivo: "
+            "configuracion inicial denegada (fail-closed).",
+            bootstrap.AUTH_STORE_UNAVAILABLE,
+        )
+        return _pantalla_almacen(request, ALMACEN_DESAPARECIDO)
+
     try:
         estado = bootstrap.estado_instalacion(_db_path())
     except bootstrap.BootstrapStorageError as exc:
