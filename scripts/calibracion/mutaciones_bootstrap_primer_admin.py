@@ -247,14 +247,19 @@ MUTACIONES: tuple[Mutacion, ...] = (
         fichero=SETUP,
         viejo="    if bootstrap.base_desaparecida(_db_path()):",
         nuevo="    if not bootstrap.base_utilizable(_db_path()):",
-        caen=("test_cond7_el_estado_A_con_un_fichero_de_cero_bytes_SIGUE_abriendo",),
+        caen=("test_cond7_la_distincion_es_DESAPARECIO_no_NO_EXISTE",),
         dice="EL FICHERO VACIO DE UNA INSTALACION NUEVA SE ESTA LEYENDO COMO PERDIDA",
         porque=(
             "El par simétrico del de arriba, y la razón por la que el arreglo "
             "no se puede escribir como «si la base no es utilizable, 503»: eso "
-            "cierra también el arranque en limpio sobre un fichero que alguien "
-            "dejó creado y vacío. Lo que autoriza el 503 no es el estado del "
-            "fichero, es que ESTE PROCESO lo dejó listo y ya no lo está."
+            "cierra también la instalación en limpio sobre un fichero que "
+            "alguien dejó creado y vacío. Lo que autoriza el 503 no es el "
+            "estado del fichero, es que ESTE PROCESO lo dejó listo y ya no lo "
+            "está. DÓNDE SE OBSERVA, otra vez: no después de un arranque "
+            "normal --que migra el fichero vacío y lo deja utilizable antes de "
+            "la primera petición, y por eso el testigo de regresión del estado "
+            "A con 0 bytes NO ve esta mutación--, sino en un proceso que "
+            "atiende sin haber arrancado."
         ),
     ),
     # ---- CONDICIÓN 7: AUSENCIA != ERROR ---------------------------------

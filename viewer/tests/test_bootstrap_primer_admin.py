@@ -833,6 +833,21 @@ def test_cond7_la_distincion_es_DESAPARECIO_no_NO_EXISTE(tmp_path):
         f"base ausente SIN evidencia de que existiera respondio {r.status_code}")
     assert db.exists(), "la configuracion inicial tenia que haber creado la base"
 
+    # SEGUNDA PIERNA: el fichero esta, pero VACIO. Es «no utilizable» igual que
+    # el ausente, y sigue sin haber evidencia de que fuera de nadie: tambien es
+    # una primera instalacion. Decidir por `not base_utilizable(...)` --el
+    # arreglo facil de la ronda 4-- la cerraria.
+    db2 = tmp_path / "otra" / "auth.db"
+    db2.parent.mkdir()
+    db2.write_bytes(b"")
+    _activar(db2)
+    c2 = _cliente()
+    r2 = c2.get("/setup/admin")
+    assert r2.status_code == 200, (
+        "EL FICHERO VACIO DE UNA INSTALACION NUEVA SE ESTA LEYENDO COMO "
+        f"PERDIDA: /setup/admin respondio {r2.status_code}")
+    assert db2.stat().st_size > 0, "la configuracion inicial no migro la base vacia"
+
 
 def test_cond7_tras_el_arranque_la_base_existe_SIEMPRE(tmp_path):
     """El techo declarado del testigo de arriba, medido en vez de supuesto.
