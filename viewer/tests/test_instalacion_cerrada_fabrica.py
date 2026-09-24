@@ -355,31 +355,23 @@ def test_ocho_hilos_a_la_vez_no_producen_secretos_divergentes(tmp_path):
     assert len(en_disco) >= 32
 
 
-def test_secreto_csrf_vacio_en_disco_se_regenera(instalacion_de_fabrica):
-    """Un fichero de secreto presente pero vacío/corrupto no es un secreto
-    válido: se trata como ausente y se regenera, en vez de arrancar con un
-    CSRF_SECRET vacío."""
+@pytest.mark.parametrize("contenido_residual", ["", "   \n"], ids=["vacio", "solo-espacios"])
+def test_secreto_csrf_vacio_en_disco_se_regenera(instalacion_de_fabrica, contenido_residual):
+    """Un fichero de secreto presente pero vacío/corrupto (cero bytes, o
+    sólo espacios/salto de línea de una escritura interrumpida a medias) no
+    es un secreto válido: se trata como ausente y se regenera, en vez de
+    arrancar con un CSRF_SECRET vacío o aceptar una cadena de espacios como
+    si fuera un secreto (sería de baja entropía, trivialmente adivinable).
+    `strip()` es lo que distingue "sólo espacios" de "de verdad vacío"; sin
+    él, el caso de espacios se colaría tal cual.
+    """
     secreto_path = instalacion_de_fabrica / ".csrf_secret"
     secreto_path.parent.mkdir(parents=True, exist_ok=True)
-    secreto_path.write_text("", encoding="utf-8")
+    secreto_path.write_text(contenido_residual, encoding="utf-8")
 
     from app.auth.csrf_bootstrap import resolve_csrf_secret
     resultado = resolve_csrf_secret("", str(instalacion_de_fabrica / "auth.db"))
-    assert resultado, "un fichero vacío debe regenerar el secreto, no devolver vacío"
-    assert len(resultado) >= 32
-
-
-def test_secreto_csrf_solo_espacios_en_disco_no_se_acepta_como_valido(instalacion_de_fabrica):
-    """Un fichero con sólo espacios/salto de línea (residuo de una escritura
-    interrumpida a medias) tampoco es un secreto válido: `strip()` debe
-    vaciarlo antes de decidir, no aceptar la cadena de espacios tal cual
-    (sería un secreto CSRF de baja entropía, trivialmente adivinable)."""
-    secreto_path = instalacion_de_fabrica / ".csrf_secret"
-    secreto_path.parent.mkdir(parents=True, exist_ok=True)
-    secreto_path.write_text("   \n", encoding="utf-8")
-
-    from app.auth.csrf_bootstrap import resolve_csrf_secret
-    resultado = resolve_csrf_secret("", str(instalacion_de_fabrica / "auth.db"))
+    assert resultado, "un residuo vacío/corrupto debe regenerar el secreto, no devolver vacío"
     assert resultado.strip() == resultado, (
         "el secreto usado no puede ser una cadena de espacios sin recortar"
     )

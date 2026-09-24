@@ -175,7 +175,7 @@ MUTACIONES: tuple[Mutacion, ...] = (
             "    texto = secret_path.read_text(encoding=\"utf-8\")\n"
             "    return texto"
         ),
-        caen=("test_secreto_csrf_solo_espacios_en_disco_no_se_acepta_como_valido",),
+        caen=("test_secreto_csrf_vacio_en_disco_se_regenera",),
         dice="AssertionError",
         porque=(
             "Sin el `.strip()`, un residuo de sólo espacios/salto de línea "
