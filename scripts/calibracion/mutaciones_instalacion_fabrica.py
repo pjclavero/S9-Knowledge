@@ -19,8 +19,12 @@ los rojos REALES.
 TECHO DE ESTE CALIBRADOR:
   * Muta por SUSTITUCIÓN DE TEXTO EXACTO. No ve alias ni una segunda copia de
     la misma lógica en otro módulo.
-  * MIRA UNA SOLA SUITE (`SUITE`).
-  * No mide despliegue real, ni systemd, ni el reverse proxy.
+  * MIRA DOS SUITES (`SUITES`): la del corte y el testigo E2E barato de
+    `tests/browser/` (sin Chromium, sólo exige el paquete `playwright`
+    instalado para que ese directorio colecte).
+  * No mide despliegue real, ni systemd, ni el reverse proxy, ni el recorrido
+    de navegador de verdad (eso lo mide `test_browser_auth_flows.py`, fuera
+    de este calibrador).
 """
 from __future__ import annotations
 
@@ -38,7 +42,18 @@ CSRF_BOOTSTRAP = VIEWER / "app" / "auth" / "csrf_bootstrap.py"
 SCHEMA_COMPAT = VIEWER / "app" / "auth" / "schema_compat.py"
 MAIN = VIEWER / "app" / "main.py"
 ENV_EXAMPLE = VIEWER / ".env.example"
+BROWSER_CONFTEST = VIEWER / "tests" / "browser" / "conftest.py"
+
+#: DOS suites, no una: la del corte propiamente dicho, y el testigo BARATO
+#: (sin Playwright/Chromium: sólo `urllib` contra el servidor real de
+#: módulo) de que el ancla `S9K_AUTH_ENABLED=false` de `tests/conftest.py`
+#: sigue sobrescrita en `tests/browser/` (ver `conftest.py` de ese
+#: directorio y `test_e2e_servidor_no_queda_sin_auth.py`). Collectarlo NO
+#: exige Chromium utilizable, sólo que el paquete `playwright` esté
+#: instalado (la condición de colección del propio directorio).
 SUITE = "tests/test_instalacion_cerrada_fabrica.py"
+SUITE_E2E_SIN_NAVEGADOR = "tests/browser/test_e2e_servidor_no_queda_sin_auth.py"
+SUITES = (SUITE, SUITE_E2E_SIN_NAVEGADOR)
 
 
 @dataclass(frozen=True)
@@ -308,11 +323,65 @@ MUTACIONES: tuple[Mutacion, ...] = (
             "significa que lo desconocido nunca colapsa a 'primera vez'."
         ),
     ),
+    Mutacion(
+        nombre="el-ancla-de-la-suite-de-unidad-vuelve-a-pisar-el-e2e",
+        fichero=BROWSER_CONFTEST,
+        viejo=(
+            "@pytest.fixture(autouse=True)\n"
+            "def _s9k_auth_enabled_linea_base_false():\n"
+            "    \"\"\"SOBRESCRIBE, sólo en este árbol, el ancla `S9K_AUTH_ENABLED=false`\n"
+            "    autouse de `tests/conftest.py` (mismo nombre de fixture: pytest resuelve\n"
+            "    la de este `conftest.py`, más cercano al test, en lugar de la del padre).\n"
+            "\n"
+            "    El resto de la suite (unidad) SÍ necesita ese ancla — está pensada para\n"
+            "    medir el default previo y, sin ella, el primer test que \"restaurase\"\n"
+            "    retirando la variable dejaría el resto de la sesión con auth activada\n"
+            "    por defecto sin que nada lo dijera.\n"
+            "\n"
+            "    Pero `viewer` (fixture de módulo, en este mismo fichero) arranca el\n"
+            "    servidor real en un HILO del MISMO proceso, no en un subproceso aislado:\n"
+            "    comparte `os.environ` y el `lru_cache` de `get_auth_settings` con el\n"
+            "    proceso de test. El ancla es FUNCTION-scoped y se ejecuta ANTES de cada\n"
+            "    test individual, así que pisaba el `S9K_AUTH_ENABLED=true` que\n"
+            "    `start_viewer()` (en `e2e_support.py`) ya había fijado al arrancar el\n"
+            "    servidor de MÓDULO: el servidor E2E quedaba corriendo sin auth y todos\n"
+            "    los clics contra el login no llegaban a ningún sitio protegido.\n"
+            "    Medido: con el ancla puesta, `test_browser_auth_flows.py` caía 16/22;\n"
+            "    retirada aquí, vuelve a 22/22.\n"
+            "\n"
+            "    Esto no es un no-op decorativo: es la ausencia deliberada del ancla en\n"
+            "    el árbol donde el laboratorio (esta fixture) y el producto (el servidor\n"
+            "    real) tienen que coincidir en la misma variable.\n"
+            "    \"\"\"\n"
+            "    yield"
+        ),
+        nuevo=(
+            "@pytest.fixture(autouse=True)\n"
+            "def _s9k_auth_enabled_linea_base_false():\n"
+            "    import os\n"
+            "    from app.auth.config import get_auth_settings\n"
+            "    os.environ[\"S9K_AUTH_ENABLED\"] = \"false\"\n"
+            "    get_auth_settings.cache_clear()\n"
+            "    yield"
+        ),
+        caen=("test_el_servidor_e2e_de_modulo_exige_autenticacion",),
+        dice="EL SERVIDOR E2E DE MODULO RESPONDE 200 ANONIMO",
+        porque=(
+            "Si el ancla de la suite de unidad vuelve a colarse en "
+            "`tests/browser/`, el servidor E2E de módulo (un hilo del "
+            "mismo proceso, comparte `os.environ` y el `lru_cache` de "
+            "`get_auth_settings`) queda corriendo sin auth. Sin este "
+            "testigo barato, eso se ve como 16 timeouts de clic en "
+            "`test_browser_auth_flows.py` — o como 16 `errors` mudos en "
+            "una máquina sin Chromium — nunca como un mensaje que nombre "
+            "la causa."
+        ),
+    ),
 )
 
 
 def _pytest(selector: str | None = None) -> subprocess.CompletedProcess:
-    orden = [sys.executable, "-m", "pytest", SUITE, "-q", "-p", "no:randomly",
+    orden = [sys.executable, "-m", "pytest", *SUITES, "-q", "-p", "no:randomly",
              "--color=no"]
     if selector:
         orden += ["-k", selector]
@@ -321,7 +390,7 @@ def _pytest(selector: str | None = None) -> subprocess.CompletedProcess:
 
 def _casos_del_fichero() -> set[str]:
     r = subprocess.run(
-        [sys.executable, "-m", "pytest", SUITE, "--collect-only", "-q",
+        [sys.executable, "-m", "pytest", *SUITES, "--collect-only", "-q",
          "--color=no", "-p", "no:randomly"],
         cwd=VIEWER, capture_output=True, text=True,
     )
@@ -372,7 +441,7 @@ def main() -> int:
         print("ABORTA: la suite YA está roja sin mutar.")
         print(base.stdout[-3000:])
         return 2
-    print(f"BASE VERDE. {SUITE}\n")
+    print(f"BASE VERDE. {', '.join(SUITES)}\n")
 
     total = len(seleccionadas)
     fallos: list[str] = []
@@ -420,7 +489,13 @@ def main() -> int:
                 )
                 print(f"  RESULTADO  rojo, pero NO cayeron {faltan}")
             else:
-                print(f"  ROJOS      {len(rojos)}: {sorted(set(r.split('[')[0] for r in rojos))}")
+                # Colapsado por NOMBRE de caso (sin la parametrización entre
+                # corchetes) antes de contar: el recuento tiene que coincidir
+                # con la lista que se imprime a su lado, no con las líneas
+                # crudas de pytest (que repiten el mismo caso una vez por
+                # cada parámetro).
+                casos_rojos = sorted(set(r.split("[")[0] for r in rojos))
+                print(f"  ROJOS      {len(casos_rojos)}: {casos_rojos}")
             rojos_vistos.update(r.split("[")[0] for r in rojos)
 
             if mut.dice not in salida:

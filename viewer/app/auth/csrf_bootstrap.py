@@ -150,16 +150,37 @@ def resolve_csrf_secret(configured_secret: str, auth_db_path: str) -> str:
                     os.link(str(tmp_path), str(secret_path))
                     break
                 except FileExistsError:
+                    try:
+                        inodo_residuo = os.stat(secret_path)
+                    except FileNotFoundError:
+                        inodo_residuo = None
                     ganador = _leer_secreto_existente(secret_path)
                     if ganador:
                         return ganador
                     # Vacío/corrupto TODAVÍA en este instante: residuo de un
                     # disco lleno a mitad de una escritura anterior, no un
                     # ganador. Se retira y se reintenta la reclamación.
-                    try:
-                        secret_path.unlink()
-                    except FileNotFoundError:
-                        pass
+                    #
+                    # Ventana residual, más estrecha (no bulletproof: dos
+                    # `stat()` separados, no un único fd bloqueado): entre
+                    # `inodo_residuo` y este `unlink()` otro hilo/proceso
+                    # podría haber retirado el mismo residuo vacío y
+                    # reclamado el nombre con SU secreto ya. Comparar el
+                    # inodo antes de retirar evita borrar ese fichero ajeno:
+                    # si cambió, ya no es el residuo que se leyó vacío, así
+                    # que no se toca (el siguiente intento del bucle lo
+                    # relee y, si ahora tiene contenido, lo devuelve).
+                    if inodo_residuo is not None:
+                        try:
+                            actual = os.stat(secret_path)
+                            mismo_fichero = (
+                                (actual.st_dev, actual.st_ino)
+                                == (inodo_residuo.st_dev, inodo_residuo.st_ino)
+                            )
+                            if mismo_fichero:
+                                secret_path.unlink()
+                        except FileNotFoundError:
+                            pass
             else:
                 raise CsrfSecretBootstrapError(
                     "no se pudo reclamar el secreto CSRF tras "

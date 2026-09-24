@@ -16,6 +16,35 @@ from typing import Callable, Iterator, Optional
 
 import pytest
 
+
+@pytest.fixture(autouse=True)
+def _s9k_auth_enabled_linea_base_false():
+    """SOBRESCRIBE, sólo en este árbol, el ancla `S9K_AUTH_ENABLED=false`
+    autouse de `tests/conftest.py` (mismo nombre de fixture: pytest resuelve
+    la de este `conftest.py`, más cercano al test, en lugar de la del padre).
+
+    El resto de la suite (unidad) SÍ necesita ese ancla — está pensada para
+    medir el default previo y, sin ella, el primer test que "restaurase"
+    retirando la variable dejaría el resto de la sesión con auth activada
+    por defecto sin que nada lo dijera.
+
+    Pero `viewer` (fixture de módulo, en este mismo fichero) arranca el
+    servidor real en un HILO del MISMO proceso, no en un subproceso aislado:
+    comparte `os.environ` y el `lru_cache` de `get_auth_settings` con el
+    proceso de test. El ancla es FUNCTION-scoped y se ejecuta ANTES de cada
+    test individual, así que pisaba el `S9K_AUTH_ENABLED=true` que
+    `start_viewer()` (en `e2e_support.py`) ya había fijado al arrancar el
+    servidor de MÓDULO: el servidor E2E quedaba corriendo sin auth y todos
+    los clics contra el login no llegaban a ningún sitio protegido.
+    Medido: con el ancla puesta, `test_browser_auth_flows.py` caía 16/22;
+    retirada aquí, vuelve a 22/22.
+
+    Esto no es un no-op decorativo: es la ausencia deliberada del ancla en
+    el árbol donde el laboratorio (esta fixture) y el producto (el servidor
+    real) tienen que coincidir en la misma variable.
+    """
+    yield
+
 pytest.importorskip("playwright.sync_api", reason="Playwright no instalado: SKIP, no PASS")
 
 from playwright.sync_api import Browser, Error as PlaywrightError, Page, sync_playwright  # noqa: E402
