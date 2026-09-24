@@ -191,7 +191,14 @@ def _entorno_limpio():
 
     claves = ("S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_DEFAULT_WORKSPACE")
     previos = {k: os.environ.get(k) for k in claves}
-    os.environ.pop("S9K_AUTH_ENABLED", None)
+    # Opt-out EXPLÍCITO, no ausencia: desde "instalación cerrada de fábrica"
+    # el default de `S9K_AUTH_ENABLED` es `true`, así que retirar la
+    # variable ya NO desactiva la autenticación (ver docs/75 § supersesión).
+    # Antes de esta corrección, retirarla aquí dejaba estos 13 tests
+    # corriendo con auth ACTIVADA por defecto sin que nada lo dijera; los 13
+    # seguían en verde por casualidad (no ejercen rutas protegidas), pero el
+    # modo cambió en silencio.
+    os.environ["S9K_AUTH_ENABLED"] = "false"
     os.environ["S9K_DEFAULT_WORKSPACE"] = WS
     get_settings.cache_clear()
     get_auth_settings.cache_clear()

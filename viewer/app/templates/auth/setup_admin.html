@@ -23,6 +23,13 @@
       No volverá a estar disponible, ni siquiera si más adelante se elimina o
       se desactiva ese administrador.
     </p>
+    <p>
+      <small>¿El formulario falla con un error 403 al enviarlo sobre
+      <code>http://</code> (sin cifrar)? Es Safari: a diferencia de Chrome,
+      Firefox o Edge, no acepta la cookie de seguridad en <code>localhost</code>
+      o <code>127.0.0.1</code> sin HTTPS. Usa otro navegador, o sirve esta
+      instalación por HTTPS.</small>
+    </p>
 
     {% if errors %}
       <div class="alert alert-error" role="alert">

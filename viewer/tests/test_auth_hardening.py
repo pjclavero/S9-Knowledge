@@ -110,13 +110,20 @@ def test_api_viewer_authenticated_ok(auth_env, path):
 
 
 def test_api_public_when_auth_disabled(tmp_path):
-    """Con auth desactivada las APIs siguen siendo públicas (sin cambios)."""
-    os.environ.pop("S9K_AUTH_ENABLED", None)
+    """Con auth desactivada las APIs siguen siendo públicas (sin cambios).
+
+    Desde el corte "instalación cerrada de fábrica" el default de
+    `S9K_AUTH_ENABLED` es `true`: RETIRAR la variable ya no equivale a
+    desactivarla. Este test mide el opt-out EXPLÍCITO (`false`), que es el
+    que sigue existiendo para desarrollo/laboratorio.
+    """
+    os.environ["S9K_AUTH_ENABLED"] = "false"
     from app.auth.config import get_auth_settings
     get_auth_settings.cache_clear()
     client = _client()
     resp = client.get("/api/status", headers={"accept": "application/json"})
     assert resp.status_code == 200
+    os.environ.pop("S9K_AUTH_ENABLED", None)
     get_auth_settings.cache_clear()
 
 

@@ -217,6 +217,16 @@ datos SQLite de runtime, `.env` con secretos ni archivos fuente pesados (PDF/aud
 3. El visor (`viewer/`) requiere Python 3.11+ y se sirve con uvicorn.
    Servicio systemd: `s9-knowledge-viewer.service`.
 
+**El visor arranca cerrado de fábrica.** `viewer/.env.example` trae
+`S9K_AUTH_ENABLED=true`: copiarlo a `.env` y arrancar sin tocar nada más deja
+login/sesiones exigidos, con `/setup/admin` accesible sólo mientras no exista
+ningún administrador (una única pantalla, se cierra sola al crearlo). El
+secreto CSRF no hace falta fabricarlo a mano: si `S9K_CSRF_SECRET` está
+vacío, el proceso lo genera y lo persiste en disco la primera vez. Ver
+`viewer/README.md` § Instalación cerrada de fábrica para el detalle, y
+`docs/75-autoridad-unica-admin-full.md` § supersesión para por qué el default
+anterior era el contrario.
+
 ## Seguridad
 
 - No se versionan secretos (`.env`, tokens, claves, certificados) ni datos de
