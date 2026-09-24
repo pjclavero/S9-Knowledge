@@ -213,6 +213,34 @@ MUTACIONES: tuple[Mutacion, ...] = (
         ),
     ),
     Mutacion(
+        nombre="la-reclamacion-del-secreto-vuelve-a-ser-leer-generar-pisar",
+        fichero=CSRF_BOOTSTRAP,
+        viejo=(
+            "            try:\n"
+            "                os.link(str(tmp_path), str(secret_path))\n"
+            "            except FileExistsError:\n"
+            "                # Otro proceso ganó la carrera: su fichero está COMPLETO\n"
+            "                # (sólo se puede reclamar el nombre tras terminar de\n"
+            "                # escribir el temporal), así que se relee en vez de\n"
+            "                # quedarse con el secreto propio, que ya no coincidiría\n"
+            "                # con el que usarán los demás procesos.\n"
+            "                ganador = _leer_secreto_existente(secret_path)\n"
+            "                if not ganador:\n"
+            "                    raise\n"
+            "                return ganador"
+        ),
+        nuevo="            os.replace(str(tmp_path), str(secret_path))",
+        caen=("test_ocho_procesos_a_la_vez_no_producen_secretos_divergentes",),
+        dice="LA CARRERA DEL BOOTSTRAP DEL SECRETO CSRF PRODUJO SECRETOS DIVERGENTES",
+        porque=(
+            "`os.replace` pisa el destino incondicionalmente: con varios "
+            "procesos arrancando a la vez sobre una instalación nueva, cada "
+            "uno genera su propio secreto y sólo el último en escribir "
+            "coincide con el fichero. Los demás firman con un secreto que "
+            "ya no vale: CSRF y sesiones fallan de forma intermitente."
+        ),
+    ),
+    Mutacion(
         nombre="env-example-vuelve-a-traer-auth-desactivada",
         fichero=ENV_EXAMPLE,
         viejo="S9K_AUTH_ENABLED=true",

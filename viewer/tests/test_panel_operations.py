@@ -473,7 +473,9 @@ def test_sin_auth_no_reaparece_el_comportamiento_permisivo(
     with_jobs(material)
 
     # -- Mitad A: sin auth, sin principal, sin datos ------------------------
-    os.environ.pop("S9K_AUTH_ENABLED", None)
+    # Explícito, no ausencia: desde "instalación cerrada de fábrica" el
+    # default es `true`, así que retirar la variable ya no desactiva auth.
+    os.environ["S9K_AUTH_ENABLED"] = "false"
     from app.auth.config import get_auth_settings
     get_auth_settings.cache_clear()
     ambito = anon_scope()

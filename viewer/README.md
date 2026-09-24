@@ -55,18 +55,38 @@ Copiar `.env.example` a `.env` y arrancar, sin editar nada más, deja el visor
 **con autenticación activada** (`S9K_AUTH_ENABLED=true` es el default de la
 plantilla y del código). No hace falta abrir un terminal para fabricar un
 secreto CSRF: si `S9K_CSRF_SECRET` está vacío, el propio proceso lo genera la
-primera vez y lo persiste en disco (junto a la auth DB, fuera del repo, con
-permisos `0600`); los arranques siguientes reutilizan ese mismo secreto.
+primera vez y lo persiste en disco (junto a la auth DB, en
+`viewer/state/.csrf_secret` por defecto, con permisos `0600`); los arranques
+siguientes reutilizan ese mismo secreto. **Ese fichero vive DENTRO del árbol
+del repositorio**, aunque `state/` está en `.gitignore` y por tanto nunca
+entra en un `git add`/`commit`: un `tar`, `zip` o `rsync` del directorio
+completo (por ejemplo, para un backup o para mover la instalación a otra
+máquina) SÍ lo incluye. Si se empaqueta el árbol para algo que no sea git,
+excluir `state/` explícitamente — igual que `output/`, `logs/` o `staging/`
+(ver § Seguridad del README raíz).
 
 Con la base de autenticación recién creada y sin ningún usuario, sólo
-`http://127.0.0.1:8088/setup/admin` es accesible de forma anónima: es la
-pantalla de una sola pantalla para crear el primer administrador. En cuanto
-se crea, esa ruta se cierra sola (devuelve 404 para siempre, incluso por
-`curl`) y el resto de la aplicación pasa a exigir login.
+`http://127.0.0.1:8088/setup/admin` es accesible de forma anónima: es una
+única pantalla para crear el primer administrador. En cuanto se crea, esa
+ruta se cierra sola (devuelve 404 para siempre, incluso por `curl`) y el
+resto de la aplicación pasa a exigir login.
 
 `S9K_AUTH_ENABLED=false` sigue existiendo como interruptor explícito para
 desarrollo/laboratorio (sin login, comportamiento previo a este corte): es
 una decisión deliberada de quien instala, no lo que trae la plantilla.
+
+**Nota sobre Safari y cookies `Secure` en loopback.** La plantilla apunta a
+`http://127.0.0.1:8088` (HTTP plano) y trae `S9K_SESSION_SECURE=true`. Esto
+funciona en Chrome, Firefox y Edge porque tratan `127.0.0.1`/`localhost` como
+"origen potencialmente confiable" y aceptan/envían cookies `Secure` sobre
+HTTP ahí (especificación W3C Secure Contexts, CIDR `127.0.0.0/8`; ver también
+[MDN — Cookies: atributo Secure](https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies#secure)).
+**Safari es la excepción declarada por MDN**: no aplica esa excepción de
+loopback, así que un `POST /setup/admin` desde Safari sobre HTTP plano
+perdería la cookie CSRF. Si se necesita soportar Safari en local, servir por
+HTTPS (aunque sea con un certificado autofirmado) o poner
+`S9K_SESSION_SECURE=false` a mano — una decisión explícita de quien instala,
+no el default.
 
 ## Pruebas manuales (curl / PowerShell)
 

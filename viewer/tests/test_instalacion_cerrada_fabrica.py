@@ -15,6 +15,7 @@ del rojo diga la causa.
 """
 from __future__ import annotations
 
+import multiprocessing as mp
 import os
 import re
 import stat
@@ -295,6 +296,54 @@ def test_fallo_de_escritura_del_secreto_csrf_es_fail_closed(tmp_path):
             resolve_csrf_secret("", str(db_path))
     finally:
         os.chmod(solo_lectura, 0o700)
+
+
+def _worker_resolve_csrf_secret(db_path: str, barrera, cola) -> None:
+    """Función de nivel de módulo: `multiprocessing` (spawn/fork) necesita
+    poder importarla por nombre en el proceso hijo."""
+    barrera.wait()
+    from app.auth.csrf_bootstrap import resolve_csrf_secret
+    cola.put(resolve_csrf_secret("", db_path))
+
+
+def test_ocho_procesos_a_la_vez_no_producen_secretos_divergentes(tmp_path):
+    """CARRERA DEL BOOTSTRAP DEL SECRETO. ROJO SI: la reclamación del fichero
+    vuelve a ser «leer, generar, pisar con `os.replace`».
+
+    Ocho PROCESOS reales (no hilos del mismo intérprete) sueltos a la vez tras
+    una barrera, sobre el mismo `S9K_AUTH_DB_PATH` de una instalación nueva
+    (`uvicorn --workers N`, gunicorn, o varios contenedores arrancando contra
+    el mismo volumen). Si la reclamación fuera «leer si existe, si no generar
+    y `os.replace`», cada proceso que no viera el fichero generaría SU PROPIO
+    secreto y el último en escribir ganaría en disco mientras los demás
+    seguirían firmando EN MEMORIA con un secreto que ya no coincide: CSRF y
+    sesiones fallarían de forma intermitente. Con la reclamación por
+    `os.link`, los ocho procesos deben devolver EXACTAMENTE el mismo secreto,
+    y ese secreto debe ser el que quedó en disco.
+    """
+    db_path = str(tmp_path / "auth.db")
+    n = 8
+    ctx = mp.get_context("fork")
+    barrera = ctx.Barrier(n)
+    cola = ctx.Queue()
+    procesos = [ctx.Process(target=_worker_resolve_csrf_secret, args=(db_path, barrera, cola))
+                for _ in range(n)]
+    for p in procesos:
+        p.start()
+    for p in procesos:
+        p.join(timeout=60)
+
+    resultados = [cola.get() for _ in range(n)]
+    distintos = set(resultados)
+    assert len(distintos) == 1, (
+        "LA CARRERA DEL BOOTSTRAP DEL SECRETO CSRF PRODUJO SECRETOS "
+        f"DIVERGENTES: {len(distintos)} valores distintos entre {n} procesos. "
+        "Con varios workers arrancando a la vez sobre una instalación nueva, "
+        "CSRF y sesiones fallarían de forma intermitente."
+    )
+    en_disco = Path(db_path).parent.joinpath(".csrf_secret").read_text(encoding="utf-8").strip()
+    assert en_disco in distintos
+    assert len(en_disco) >= 32
 
 
 def test_secreto_csrf_vacio_en_disco_se_regenera(instalacion_de_fabrica):
