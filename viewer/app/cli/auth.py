@@ -29,6 +29,7 @@ _VIEWER_ROOT = _HERE.parents[3]  # viewer/
 if str(_VIEWER_ROOT) not in sys.path:
     sys.path.insert(0, str(_VIEWER_ROOT))
 
+from app.auth import bootstrap
 from app.auth import audit, db as auth_db
 from app.auth.config import get_auth_settings
 from app.auth.models import ROLES
@@ -85,6 +86,10 @@ def cmd_create_admin(args: argparse.Namespace) -> int:
         audit.log(conn, audit.USER_CREATED, "success",
                   user_id=user.id, username_snapshot=user.username,
                   metadata={"created_by": "cli", "role": "admin"})
+        # Crear el primer administrador por CLI TAMBIEN cierra el bootstrap.
+        # Si no, una instalacion provisionada por terminal se quedaria con la
+        # puerta anonima de /setup/admin abierta.
+        bootstrap.marcar_completado(conn)
     print(f"Admin '{username}' creado (id={user.id}).")
     return 0
 

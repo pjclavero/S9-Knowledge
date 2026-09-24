@@ -31,6 +31,13 @@ def auth_env(tmp_path):
     get_auth_settings.cache_clear()
     from app.auth import db as auth_db_mod
     auth_db_mod.ensure_migrated(db_path)
+    # La instalacion queda PROVISIONADA: estas pruebas miden el login normal,
+    # y sobre una instalacion sin primer administrador el producto ya no finge
+    # un error de credenciales, conduce a /setup/admin. Se sella el bootstrap,
+    # que es justo lo que deja una instalacion ya puesta en marcha.
+    from app.auth import bootstrap as _bootstrap
+    with auth_db_mod.get_conn(db_path) as _c:
+        _bootstrap.marcar_completado(_c)
     yield db_path
     for k in ("S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_AUTH_EXPOSE_DOCS"):
         os.environ.pop(k, None)

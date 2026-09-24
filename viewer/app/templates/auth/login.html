@@ -14,6 +14,12 @@
   <main style="max-width:400px;margin:4rem auto;padding:1rem;">
     <h2>Iniciar sesión</h2>
 
+    {% if message == "bootstrap_ok" %}
+      <div class="alert alert-success" role="status">
+        Administrador creado. Inicia sesión con esas credenciales.
+      </div>
+    {% endif %}
+
     {% if error == "invalid_credentials" %}
       <div class="alert alert-error" role="alert">
         Usuario o contraseña incorrectos.

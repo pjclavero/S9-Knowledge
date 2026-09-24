@@ -13,6 +13,13 @@ _CSRF_SESSION_KEY = "_csrf_token"
 # una sesión. El mismo valor firmado va en el campo oculto del formulario.
 LOGIN_CSRF_COOKIE = "_s9k_login_csrf"
 
+# Cookie equivalente para la configuracion inicial. Es OTRA cookie y otro
+# `purpose` firmado a proposito: un token emitido para /login no vale en
+# /setup/admin ni al reves. Dos formularios anonimos distintos no comparten
+# credencial anti-CSRF.
+SETUP_CSRF_COOKIE = "_s9k_setup_csrf"
+SETUP_PURPOSE = "setup"
+
 # Vida del token de login (segundos): un token filtrado no debe ser eterno.
 LOGIN_CSRF_MAX_AGE = 3600
 
@@ -26,12 +33,12 @@ def generate_csrf_token() -> str:
 # CSRF de login (stateless, firmado y temporal, ligado al navegador por cookie)
 # ---------------------------------------------------------------------------
 
-def _login_sig(secret: str, ts: str, nonce: str) -> str:
-    msg = f"login:{ts}:{nonce}".encode("utf-8")
+def _login_sig(secret: str, ts: str, nonce: str, purpose: str = "login") -> str:
+    msg = f"{purpose}:{ts}:{nonce}".encode("utf-8")
     return hmac.new(secret.encode("utf-8"), msg, hashlib.sha256).hexdigest()
 
 
-def issue_login_csrf(secret: str) -> str:
+def issue_login_csrf(secret: str, *, purpose: str = "login") -> str:
     """Emite un token de login firmado: ``<ts>.<nonce>.<hmac>``.
 
     Se coloca simultáneamente en la cookie ``LOGIN_CSRF_COOKIE`` y en el campo
@@ -40,7 +47,7 @@ def issue_login_csrf(secret: str) -> str:
     """
     ts = str(int(time.time()))
     nonce = secrets.token_urlsafe(24)
-    sig = _login_sig(secret, ts, nonce)
+    sig = _login_sig(secret, ts, nonce, purpose)
     return f"{ts}.{nonce}.{sig}"
 
 
@@ -51,6 +58,7 @@ def validate_login_csrf(
     secret: str,
     max_age: int = LOGIN_CSRF_MAX_AGE,
     now: Optional[int] = None,
+    purpose: str = "login",
 ) -> bool:
     """Valida el token CSRF de login.
 
@@ -68,7 +76,7 @@ def validate_login_csrf(
     if len(parts) != 3:
         return False
     ts, nonce, sig = parts
-    expected = _login_sig(secret, ts, nonce)
+    expected = _login_sig(secret, ts, nonce, purpose)
     if not hmac.compare_digest(sig, expected):
         return False
     try:

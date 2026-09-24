@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configuración inicial no disponible — S9 Knowledge</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">S9 Knowledge · Visor</div>
+  </header>
+
+  <main style="max-width:560px;margin:3rem auto;padding:1rem;">
+    <h2>Configuración inicial no disponible</h2>
+
+    <div class="alert alert-error" role="alert">
+      <p><strong>{{ codigo | e }}</strong></p>
+      <p>{{ mensaje | e }}</p>
+    </div>
+
+    <p>
+      El detalle técnico queda registrado en el servidor, junto a este mismo
+      código, para quien administra el servicio.
+    </p>
+  </main>
+</body>
+</html>

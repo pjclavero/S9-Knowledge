@@ -55,6 +55,13 @@ def auth_env(tmp_path):
     get_auth_settings.cache_clear()
     from app.auth import db as auth_db
     auth_db.ensure_migrated(db_path)
+    # La instalacion queda PROVISIONADA: estas pruebas miden el login normal,
+    # y sobre una instalacion sin primer administrador el producto ya no finge
+    # un error de credenciales, conduce a /setup/admin. Se sella el bootstrap,
+    # que es justo lo que deja una instalacion ya puesta en marcha.
+    from app.auth import bootstrap as _bootstrap
+    with auth_db.get_conn(db_path) as _c:
+        _bootstrap.marcar_completado(_c)
     return db_path
 
 

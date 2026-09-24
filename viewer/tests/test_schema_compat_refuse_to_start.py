@@ -239,7 +239,8 @@ def test_v3_aporta_el_control_que_n_menos_1_no_conoce(tmp_path):
 def test_la_puerta_cubre_el_arranque_no_cada_acceso(tmp_path):
     """Caracteriza el limite REAL, no el que nos gustaria tener.
 
-    Documenta el hueco P-5: sobre una base v4, `ensure_migrated` rehusa pero
+    Documenta el hueco P-5: sobre una base POR ENCIMA del maximo soportado
+    (SCHEMA_VERSION + 1, no un numero escrito a mano), `ensure_migrated` rehusa pero
     `get_conn` entrega datos. Hoy no es alcanzable en el servicio porque el
     arranque aborta antes de atender ninguna peticion; queda anotado como
     superviviente en docs/65 seccion 8.
@@ -248,7 +249,10 @@ def test_la_puerta_cubre_el_arranque_no_cada_acceso(tmp_path):
     auth_db.migrate(db)
     conn = sqlite3.connect(db)
     conn.execute("DELETE FROM schema_version")
-    conn.execute("INSERT INTO schema_version VALUES (4, '2026-01-01T00:00:00')")
+    conn.execute(
+        "INSERT INTO schema_version VALUES (?, '2026-01-01T00:00:00')",
+        (auth_db.SCHEMA_VERSION + 1,),
+    )
     conn.commit()
     conn.close()
 

@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from app.auth import audit, db as auth_db
+from app.auth import audit, bootstrap, db as auth_db
 from app.auth.config import get_auth_settings
 from app.auth.csrf import (
     LOGIN_CSRF_COOKIE,
@@ -73,6 +73,38 @@ def _get_ip(request: Request) -> Optional[str]:
     return request.client.host if request.client else None
 
 
+
+# ---------------------------------------------------------------------------
+# Bootstrap pendiente: el login NO finge «credenciales incorrectas»
+# ---------------------------------------------------------------------------
+
+def _bootstrap_pendiente() -> bool:
+    """True si esta instalacion aun no ha creado su primer administrador.
+
+    Un fallo de almacenamiento devuelve False a proposito: el login sigue su
+    camino normal (y fallara cerrado por si mismo). Lo que NO se hace es
+    mandar a nadie a la configuracion inicial porque la base no se deja leer:
+    eso convertiria un disco roto en una invitacion a crear un administrador.
+    """
+    db_path = _get_db_path()
+    if not db_path.exists():
+        # La base desaparecio con el proceso vivo. NO se consulta el estado:
+        # `estado_instalacion` migra —es decir, CREA— y eso convertiria un
+        # borrado en caliente en una «primera instalacion» con la puerta de
+        # bootstrap abierta. El login sigue su camino y falla cerrado por si
+        # mismo, que es la conducta que ya tenia.
+        return False
+    try:
+        return not bootstrap.estado_instalacion(db_path).completado
+    except bootstrap.BootstrapStorageError:
+        import logging
+        logging.getLogger("s9k.auth").error(
+            "[%s] estado de instalacion indeterminado durante el login",
+            bootstrap.AUTH_STORE_UNAVAILABLE,
+        )
+        return False
+
+
 # ---------------------------------------------------------------------------
 # GET /login
 # ---------------------------------------------------------------------------
@@ -97,6 +129,10 @@ async def login_page(
     message: Optional[str] = None,
 ):
     cfg = get_auth_settings()
+    # Instalacion sin primer administrador: aqui no hay ninguna credencial que
+    # acertar. Se conduce EXPLICITAMENTE a la configuracion inicial.
+    if cfg.S9K_AUTH_ENABLED and _bootstrap_pendiente():
+        return RedirectResponse(url="/setup/admin", status_code=303)
     token = issue_login_csrf(cfg.S9K_CSRF_SECRET)
     response = templates.TemplateResponse(
         request,
@@ -119,12 +155,23 @@ async def login_page(
 @router.post("/login")
 async def login_submit(
     request: Request,
-    username: str = Form(...),
-    password: str = Form(...),
-    csrf_token: str = Form(...),
+    # Mismo criterio que `/setup/admin`, y por la misma razon medida: un campo
+    # `Form(...)` obligatorio que falta produce un 422/400 de validacion ANTES
+    # de que corra ninguna guarda, asi que la comprobacion de estado --«esta
+    # instalacion no tiene primer administrador»-- no llegaria a ejecutarse y
+    # el operador recibiria un error de formulario en vez de la pantalla de
+    # configuracion inicial. Lo que falte se responde abajo, con su mensaje.
+    username: str = Form(default=""),
+    password: str = Form(default=""),
+    csrf_token: str = Form(default=""),
     next: str = Form(default="/"),
 ):
     cfg = get_auth_settings()
+    # Mismo criterio que el GET, comprobado otra vez en el servidor: sin primer
+    # administrador, responder «Usuario o contrasena incorrectos» seria mentir
+    # sobre la causa y dejar al operador probando credenciales que no existen.
+    if cfg.S9K_AUTH_ENABLED and _bootstrap_pendiente():
+        return RedirectResponse(url="/setup/admin", status_code=303)
     db_path = _get_db_path()
     # Fail-closed sin recrear: si la DB desapareció en caliente, el login
     # falla; ensure_migrated (via sqlite3.connect) crearía una base vacía.
@@ -156,6 +203,14 @@ async def login_submit(
         )
         resp.set_cookie(value=fresh, **_login_cookie_kwargs(cfg))
         return resp
+
+    # Formulario incompleto: repinta la pagina con su mensaje, como antes.
+    # Antes lo producia el manejador de RequestValidationError de `main.py`,
+    # que ya no se dispara porque los campos dejaron de ser obligatorios para
+    # que la guarda de bootstrap corra primero. La conducta observable --400 y
+    # `campos_incompletos`-- es la misma; lo que cambia es QUIEN la decide.
+    if not username or not password:
+        return _login_error("campos_incompletos", 400)
 
     # CSRF de login real: token firmado + temporal + double-submit contra cookie.
     cookie_token = request.cookies.get(LOGIN_CSRF_COOKIE)
