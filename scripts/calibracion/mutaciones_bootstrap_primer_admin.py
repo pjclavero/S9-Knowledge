@@ -57,10 +57,13 @@ SEGURIDAD = VIEWER / "app" / "auth" / "security.py"
 RUTAS_AUTH = VIEWER / "app" / "routers" / "auth.py"
 SUITE = "tests/test_bootstrap_primer_admin.py"
 
-#: La mitad de la regla de cierre que vive en `bootstrap_completado`.
-CLAUSULA_USUARIOS = (
-    '        hay_usuarios = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] > 0'
-)
+#: La mitad de la regla de cierre que vive en `bootstrap_completado`: la
+#: inferencia por efecto. Se muta su USO, no la funcion `hay_usuarios`, porque
+#: lo que se quiere retirar es la consecuencia, no la consulta.
+CLAUSULA_USUARIOS = "    if not hay_usuarios(conn):\n        return False"
+
+#: Lo que hace IRREVERSIBLE a esa inferencia: persistir el sello.
+PERSISTIR_EL_SELLO = "        marcar_completado(conn)"
 
 
 @dataclass(frozen=True)
@@ -222,6 +225,22 @@ MUTACIONES: tuple[Mutacion, ...] = (
             "excepción que lo aborta."
         ),
     ),
+    # ---- D1: el login comprueba el estado ANTES de validar el cuerpo ----
+    Mutacion(
+        nombre="el-login-vuelve-a-validar-el-cuerpo-antes-de-la-guarda",
+        fichero=RUTAS_AUTH,
+        viejo='    csrf_token: str = Form(default=""),\n    next: str = Form(default="/"),',
+        nuevo='    csrf_token: str = Form(...),\n    next: str = Form(default="/"),',
+        caen=("test_D1_el_login_comprueba_el_estado_ANTES_de_validar_el_cuerpo",),
+        dice="EL LOGIN VALIDA EL CUERPO ANTES DE SU GUARDA",
+        porque=(
+            "Un campo obligatorio que falta produce un error de validacion "
+            "ANTES de que corra ninguna guarda: el operador de una instalacion "
+            "sin administrador recibe un error de formulario en vez de la "
+            "pantalla de configuracion inicial. Es el mismo patron que "
+            "`/setup/admin` ya evitaba."
+        ),
+    ),
     # ---- ESTADO B: el login conduce -------------------------------------
     Mutacion(
         nombre="el-login-vuelve-a-fingir-credenciales-incorrectas",
@@ -254,9 +273,7 @@ MUTACIONES: tuple[Mutacion, ...] = (
             "declarada. Cuál sostiene qué por separado lo dice la mutación "
             "`la-segunda-condicion-que-solo-cierra-desaparece`."
         ),
-        extra=((BOOT,
-                '        hay_usuarios = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] > 0',
-                "        hay_usuarios = False"),),
+        extra=((BOOT, CLAUSULA_USUARIOS, "    if True:\n        return False"),),
     ),
     Mutacion(
         nombre="provisionar-por-cli-deja-la-puerta-abierta",
@@ -275,24 +292,40 @@ MUTACIONES: tuple[Mutacion, ...] = (
             "Misma protección doble que la mutación anterior, y por eso se "
             "retiran las dos mitades."
         ),
-        extra=((BOOT,
-                '        hay_usuarios = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] > 0',
-                "        hay_usuarios = False"),),
+        extra=((BOOT, CLAUSULA_USUARIOS, "    if True:\n        return False"),),
     ),
     Mutacion(
-        nombre="la-segunda-condicion-que-solo-cierra-desaparece",
+        nombre="la-inferencia-por-efecto-desaparece",
         fichero=BOOT,
         viejo=CLAUSULA_USUARIOS,
-        nuevo="        hay_usuarios = False",
-        caen=("test_cond1_lo_que_decide_es_el_SELLO_y_no_otra_cosa",),
+        nuevo="    if True:\n        return False",
+        caen=("test_cond1_lo_que_decide_es_el_SELLO_y_no_otra_cosa",
+              "test_cond1_un_alta_por_un_camino_que_NO_sella_TAMPOCO_reabre",
+              "test_cond1_una_instalacion_con_un_unico_viewer_queda_CERRADA"),
         dice="SIN SELLO PERO CON USUARIOS LA PUERTA SE ABRE",
         porque=(
             "Aísla la mitad que las dos mutaciones de arriba retiran junto con "
             "el sello: una base con usuarios y sin sello —lo que deja un alta "
             "por un camino que no sella sobre una base ya v4— no es una "
-            "primera instalación. Esta condición sólo CIERRA: no puede "
-            "reabrir nada, y por eso no es `count_active_admins()` con otro "
-            "nombre."
+            "primera instalación."
+        ),
+    ),
+    # ---- EL AGUJERO QUE LA REVISION INDEPENDIENTE ENCONTRO (E1) ----------
+    Mutacion(
+        nombre="la-inferencia-deja-de-persistir-el-sello",
+        fichero=BOOT,
+        viejo=PERSISTIR_EL_SELLO,
+        nuevo="        pass",
+        caen=("test_cond1_un_alta_por_un_camino_que_NO_sella_TAMPOCO_reabre",),
+        dice="LA INFERENCIA NO PERSISTIO EL SELLO",
+        porque=(
+            "ESTE ES EL DEFECTO REAL QUE SE COLO EN LA RONDA 1, y el arnes NO "
+            "LO VEIA: la mutacion de arriba prueba que la inferencia CIERRA, "
+            "no que sea IRREVERSIBLE. Sin persistir el sello, «hay usuarios» "
+            "es una cuenta viva: sobre una base v4 sin sello --una instalacion "
+            "nacida ya en v4 nunca pasa por la migracion que sella-- un alta "
+            "por `create-user` cierra la puerta y un `DELETE FROM users` la "
+            "vuelve a abrir, anonima, sobre una instalacion con datos."
         ),
     ),
     # ---- QUE NO SE CIERRE DE MÁS ----------------------------------------

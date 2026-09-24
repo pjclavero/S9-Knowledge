@@ -155,9 +155,15 @@ async def login_page(
 @router.post("/login")
 async def login_submit(
     request: Request,
-    username: str = Form(...),
-    password: str = Form(...),
-    csrf_token: str = Form(...),
+    # Mismo criterio que `/setup/admin`, y por la misma razon medida: un campo
+    # `Form(...)` obligatorio que falta produce un 422/400 de validacion ANTES
+    # de que corra ninguna guarda, asi que la comprobacion de estado --«esta
+    # instalacion no tiene primer administrador»-- no llegaria a ejecutarse y
+    # el operador recibiria un error de formulario en vez de la pantalla de
+    # configuracion inicial. Lo que falte se responde abajo, con su mensaje.
+    username: str = Form(default=""),
+    password: str = Form(default=""),
+    csrf_token: str = Form(default=""),
     next: str = Form(default="/"),
 ):
     cfg = get_auth_settings()
@@ -197,6 +203,14 @@ async def login_submit(
         )
         resp.set_cookie(value=fresh, **_login_cookie_kwargs(cfg))
         return resp
+
+    # Formulario incompleto: repinta la pagina con su mensaje, como antes.
+    # Antes lo producia el manejador de RequestValidationError de `main.py`,
+    # que ya no se dispara porque los campos dejaron de ser obligatorios para
+    # que la guarda de bootstrap corra primero. La conducta observable --400 y
+    # `campos_incompletos`-- es la misma; lo que cambia es QUIEN la decide.
+    if not username or not password:
+        return _login_error("campos_incompletos", 400)
 
     # CSRF de login real: token firmado + temporal + double-submit contra cookie.
     cookie_token = request.cookies.get(LOGIN_CSRF_COOKIE)

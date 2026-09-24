@@ -56,6 +56,23 @@ deriva de `count_active_admins()`. Quedarse sin administradores **no** reabre
 `AUTH_STORE_UNAVAILABLE` es el fail-closed de la condición «una base corrupta o
 inaccesible NO es una primera instalación».
 
+El predicado tiene **dos mitades**: el sello y la inferencia «esta base ya
+tiene usuarios», que cubre las altas por caminos que no sellan
+(`cli.auth create-user`, `/admin/users/new`). **La inferencia ESCRIBE el
+sello**, y eso es lo que la hace irreversible: sin persistirla sería una cuenta
+viva, y una revisión independiente lo midió por HTTP sobre este repositorio
+—base v4 sin sello, alta por `create_user`, `DELETE FROM users`, y la puerta
+anónima **volvía a abrirse** sobre una instalación con datos—. Una versión
+anterior de este párrafo afirmaba que esa mitad «sólo cierra y no puede reabrir
+nada»: **era falso**, y está corregido aquí porque quien lee la documentación
+se fía de ella.
+
+**Coste declarado**: como cierra cualquier usuario, una instalación con usuarios
+pero **sin ningún administrador** se queda sin camino web para crear el primero
+y hay que usar la CLI. Se elige a conciencia —seguridad antes que ergonomía— y
+lo fija
+`viewer/tests/test_bootstrap_primer_admin.py::test_cond1_una_instalacion_con_un_unico_viewer_queda_CERRADA`.
+
 **Longitud mínima y entropía mínima del secreto CSRF son dos propiedades
 independientes**, con código propio cada una. Antes las cubría un solo caso
 (`"corto123"`: 8 caracteres, 7 distintos) que disparaba las dos a la vez, así
