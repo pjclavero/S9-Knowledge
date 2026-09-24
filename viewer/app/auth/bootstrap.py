@@ -112,6 +112,12 @@ def base_utilizable(db_path: Path) -> bool:
     fail-closed con diagnostico de `estado_instalacion`, no esta guarda.
     """
     p = Path(db_path)
+    # Atajo barato para el caso comun --ausente o de cero bytes-- que ademas
+    # dice a las claras que el tamano cuenta. NO es lo unico que lo cubre:
+    # `read_schema_version` ya devuelve None para esos dos casos, asi que esta
+    # linea es redundante A PROPOSITO y no sostiene la garantia ella sola. Lo
+    # dice el arnes de calibracion, que con esta linea quitada sigue VERDE: la
+    # mutacion que vigila esto retira la DECISION entera, no una de sus mitades.
     if not p.exists() or p.stat().st_size == 0:
         return False
     try:

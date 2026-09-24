@@ -65,6 +65,18 @@ CLAUSULA_USUARIOS = "    if not hay_usuarios(conn):\n        return False"
 #: Lo que hace IRREVERSIBLE a esa inferencia: persistir el sello.
 PERSISTIR_EL_SELLO = "        marcar_completado(conn)"
 
+#: La DECISION entera de «esta ruta tiene una base de la que partir». Se muta
+#: completa, no una de sus mitades: el atajo por tamano es redundante con
+#: `read_schema_version`, y mutarlo solo a el deja la suite verde --medido--.
+PREDICADO_UTILIZABLE = (
+    "    if not p.exists() or p.stat().st_size == 0:\n"
+    "        return False\n"
+    "    try:\n"
+    "        return schema_compat.read_schema_version(p) is not None\n"
+    "    except schema_compat.SchemaCompatibilityError:\n"
+    "        return True"
+)
+
 
 @dataclass(frozen=True)
 class Mutacion:
@@ -231,15 +243,16 @@ MUTACIONES: tuple[Mutacion, ...] = (
     Mutacion(
         nombre="la-base-truncada-no-cuenta-como-perdida",
         fichero=BOOT,
-        viejo="    if not p.exists() or p.stat().st_size == 0:",
-        nuevo="    if not p.exists():",
+        viejo=PREDICADO_UTILIZABLE,
+        nuevo="    return Path(db_path).exists()",
         caen=("test_cond7_la_base_TRUNCADA_en_caliente_tampoco_es_una_primera_instalacion",),
         dice="LA BASE TRUNCADA EN CALIENTE SE ESTA LEYENDO COMO PRIMERA",
         porque=(
             "Un almacenamiento que falla no siempre borra: a veces TRUNCA. Con "
-            "la guarda preguntando sólo si el fichero está, la base a cero "
-            "bytes vuelve a servir la configuración inicial y las tablas se "
-            "recrean. Medido: 404 -> truncar -> 200."
+            "la guarda preguntando sólo si el fichero está --que es "
+            "exactamente el predicado de la ronda 3, el que esta mutación "
+            "repone-- la base a cero bytes vuelve a servir la configuración "
+            "inicial y las tablas se recrean. Medido: 404 -> truncar -> 200."
         ),
     ),
     Mutacion(
