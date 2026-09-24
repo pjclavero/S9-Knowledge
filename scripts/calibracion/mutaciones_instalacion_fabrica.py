@@ -36,7 +36,7 @@ VIEWER = RAIZ / "viewer"
 CONFIG = VIEWER / "app" / "auth" / "config.py"
 CSRF_BOOTSTRAP = VIEWER / "app" / "auth" / "csrf_bootstrap.py"
 SCHEMA_COMPAT = VIEWER / "app" / "auth" / "schema_compat.py"
-REVIEWS_CONSOLE = VIEWER / "app" / "routers" / "reviews_console.py"
+MAIN = VIEWER / "app" / "main.py"
 ENV_EXAMPLE = VIEWER / ".env.example"
 SUITE = "tests/test_instalacion_cerrada_fabrica.py"
 
@@ -75,14 +75,12 @@ MUTACIONES: tuple[Mutacion, ...] = (
         fichero=CONFIG,
         viejo='    S9K_AUTH_DB_PATH: str = DEFAULT_AUTH_DB_PATH',
         nuevo='    S9K_AUTH_DB_PATH: str = "viewer/state/auth.db"',
-        caen=(
-            "test_csrf_secret_se_autogenera_sin_terminal",
-            "test_setup_admin_accesible_mientras_bootstrap_pendiente",
-        ),
-        dice="AUTH_DB_PATH_NOT_ABSOLUTE",
+        caen=("test_auth_db_path_vacio_resuelve_a_ruta_absoluta_del_repo",),
+        dice="AssertionError",
         porque=(
             "Con auth activa por defecto, una ruta relativa por defecto "
-            "vuelve a abortar el arranque de fábrica: exactamente el "
+            "volvería a abortar el arranque de fábrica (AUTH_DB_PATH_NOT_ABSOLUTE) "
+            "en cuanto alguien no fije `S9K_AUTH_DB_PATH`: exactamente el "
             "terminal que este corte existe para evitar."
         ),
     ),
@@ -101,15 +99,12 @@ MUTACIONES: tuple[Mutacion, ...] = (
             "    def _resolver_ruta_por_defecto(self) -> \"AuthSettings\":\n"
             "        return self"
         ),
-        caen=(
-            "test_csrf_secret_se_autogenera_sin_terminal",
-            "test_setup_admin_accesible_mientras_bootstrap_pendiente",
-        ),
-        dice="AUTH_DB_PATH_EMPTY",
+        caen=("test_auth_db_path_explicitamente_vacio_tambien_resuelve",),
+        dice="AssertionError",
         porque=(
             "La plantilla trae `S9K_AUTH_DB_PATH=` vacío a propósito: sin "
-            "este validador, la ruta vacía llega tal cual y el arranque "
-            "aborta por AUTH_DB_PATH_EMPTY en vez de resolver un default "
+            "este validador, la ruta vacía llegaría tal cual y el arranque "
+            "abortaría por AUTH_DB_PATH_EMPTY en vez de resolver un default "
             "absoluto."
         ),
     ),
@@ -233,14 +228,18 @@ MUTACIONES: tuple[Mutacion, ...] = (
     ),
     Mutacion(
         nombre="el-opt-out-deja-de-dejar-pasar-al-anonimo",
-        fichero=REVIEWS_CONSOLE,
+        fichero=MAIN,
         viejo=(
-            "    \"\"\"reviewer+: público con auth off; 302 /login anónimo; 403 rol insuficiente.\"\"\"\n"
-            "    if not get_auth_settings().S9K_AUTH_ENABLED:\n"
+            "    \"\"\"Para rutas que requieren reviewer o superior.\"\"\"\n"
+            "    from fastapi.responses import RedirectResponse as _RR\n"
+            "    cfg = get_auth_settings()\n"
+            "    if not cfg.S9K_AUTH_ENABLED:\n"
             "        return None"
         ),
         nuevo=(
-            "    \"\"\"reviewer+: público con auth off; 302 /login anónimo; 403 rol insuficiente.\"\"\"\n"
+            "    \"\"\"Para rutas que requieren reviewer o superior.\"\"\"\n"
+            "    from fastapi.responses import RedirectResponse as _RR\n"
+            "    cfg = get_auth_settings()\n"
             "    if False:\n"
             "        return None"
         ),
