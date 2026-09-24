@@ -271,7 +271,10 @@ def _entorno_limpio():
 
     previos = {k: os.environ.get(k) for k in
                ("S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_DEFAULT_WORKSPACE")}
-    os.environ.pop("S9K_AUTH_ENABLED", None)
+    # Opt-out EXPLÍCITO, no ausencia: desde "instalación cerrada de fábrica"
+    # el default de `S9K_AUTH_ENABLED` es `true`, así que retirar la variable
+    # ya no basta para desactivarla (ver docs/75 § supersesión).
+    os.environ["S9K_AUTH_ENABLED"] = "false"
     os.environ["S9K_DEFAULT_WORKSPACE"] = WS
     get_settings.cache_clear()
     get_auth_settings.cache_clear()

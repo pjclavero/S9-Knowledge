@@ -36,11 +36,49 @@ os.environ.setdefault(
 # por defecto". Los tests del validador de secreto crean su propia config.
 import secrets as _secrets  # noqa: E402
 os.environ.setdefault("S9K_CSRF_SECRET", _secrets.token_urlsafe(48))
+# Desde el corte "instalación cerrada de fábrica", S9K_AUTH_ENABLED por
+# defecto en PRODUCTO es `true`. La suite existente es, a propósito, el
+# "laboratorio" al que la regla del corte le reserva `false` como opt-out
+# EXPLÍCITO: cientos de tests de este árbol se escribieron asumiendo el
+# comportamiento anónimo previo y no son el objeto de este corte (que es
+# `tests/test_instalacion_cerrada_fabrica.py`, cuyo fixture retira
+# explícitamente este valor para medir el default real del producto). Fijarlo
+# aquí evita que el primer test que dispare `get_auth_settings()` congele
+# `true` en el `lru_cache` del proceso para el resto de la sesión.
+os.environ.setdefault("S9K_AUTH_ENABLED", "false")
 # El TestClient habla HTTP (http://testserver); una cookie Secure no se
 # reenviaría, rompiendo el round-trip de la cookie CSRF de login. En el entorno
 # de test desactivamos Secure por defecto; el test dedicado de "cookie Secure"
 # lo activa explícitamente e inspecciona la cabecera Set-Cookie.
 os.environ.setdefault("S9K_SESSION_SECURE", "false")
+
+
+@pytest.fixture(autouse=True)
+def _s9k_auth_enabled_linea_base_false():
+    """Ancla `S9K_AUTH_ENABLED=false` en CADA test de este árbol, no sólo al
+    importar el módulo.
+
+    `os.environ.setdefault(...)` de arriba sólo fija el valor la PRIMERA vez
+    que se importa `conftest`. Muchos tests activan auth temporalmente y
+    "restauran" con `os.environ.pop("S9K_AUTH_ENABLED", None)`: eso BORRA la
+    variable en vez de devolverla a `false`, y desde el corte "instalación
+    cerrada de fábrica" el default de `AuthSettings` es `true`. Sin este
+    ancla, el primer test que hiciera ese pop dejaría el resto de la SESIÓN
+    con auth activada por defecto — exactamente lo que la mayoría de esta
+    suite no espera (fue escrita contra el default previo, `false`).
+
+    Al ser autouse y vivir en `conftest.py`, pytest lo ejecuta ANTES que los
+    fixtures autouse/no-autouse del propio módulo de test, así que un test
+    que necesite el default REAL del producto (sin este ancla) puede retirar
+    la variable en su propio fixture — exactamente lo que hace
+    `test_instalacion_cerrada_fabrica.py`.
+    """
+    from app.auth.config import get_auth_settings
+
+    os.environ["S9K_AUTH_ENABLED"] = "false"
+    get_auth_settings.cache_clear()
+    yield
+    get_auth_settings.cache_clear()
 
 
 @pytest.fixture

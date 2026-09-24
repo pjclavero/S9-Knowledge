@@ -400,3 +400,43 @@ redescubra creyendo que eran desconocidas.
 - **`S9K_AUTH_ENABLED` sigue valiendo `False` por defecto.** Que la barrera esté
   apagada por defecto es una decisión de despliegue discutible y no se ha
   tocado; lo que se ha cerrado es que apagarla **conceda la potestad máxima**.
+
+---
+
+## 4. SUPERSESIÓN: el default pasa a `True` (corte «instalación cerrada de fábrica»)
+
+Las dos afirmaciones de arriba —`S9K_AUTH_ENABLED` vale `False` por defecto
+(§3) y que siga así "es una decisión de despliegue discutible y no se ha
+tocado" (§3.4)— quedan **explícitamente supersedidas** por un corte posterior.
+No se corrigen en silencio: se explica por qué eran ciertas entonces y por qué
+dejan de serlo ahora.
+
+**Por qué era `False` entonces.** En el momento de este documento el visor era
+una **herramienta de operador** alrededor del motor de datos: no había forma
+de crear un administrador sin tocar la base a mano o usar la CLI, así que
+poner `S9K_AUTH_ENABLED=true` por defecto habría dejado a cualquiera que
+copiara `.env.example` con un producto **inarrancable** (el arranque abortaba
+sin `S9K_CSRF_SECRET`) o, si se forzaba, **sin ninguna vía para entrar**
+(ningún usuario, ninguna pantalla de alta). Apagarlo por defecto era la única
+forma de que el visor arrancara y sirviera algo.
+
+**Por qué cambia ahora.** El bootstrap web del primer administrador (PR #247,
+`app/routers/setup.py` + `app/auth/bootstrap.py`, sello irreversible
+`install_state`) cerró exactamente ese hueco: una instalación nueva puede
+crear su primer administrador desde el navegador, sin terminal, sin CLI y sin
+tocar la base a mano. Con esa vía ya construida, mantener `False` por defecto
+dejó de ser "la única forma de arrancar" y pasó a ser, simplemente, **producto
+sin auth por defecto en un repositorio público**: `.env.example` enviaba
+`S9K_AUTH_ENABLED=false`, y activarlo a mano tampoco bastaba porque el
+arranque abortaba por `S9K_CSRF_SECRET` vacío — exigía abrir un terminal y
+fabricar un secreto, lo que en la práctica significa que **nadie lo hacía**.
+
+El corte «instalación cerrada de fábrica» (ver PR asociado a este mismo
+commit) cambia el default de producto y de `.env.example` a
+`S9K_AUTH_ENABLED=true`, y resuelve `S9K_CSRF_SECRET` vacío generándolo y
+persistiéndolo en disco automáticamente (`app/auth/csrf_bootstrap.py`) en vez
+de exigir un paso manual. `False` **no desaparece**: sigue siendo un opt-out
+explícito y legítimo para desarrollo o laboratorio — lo que deja de ser es el
+estado al copiar la plantilla sin editar nada. La cadena `admin_full` que este
+documento cierra (§2) no se toca: activar auth por defecto no debilita el
+sello de `install_state` ni abre un segundo camino hacia la potestad máxima.

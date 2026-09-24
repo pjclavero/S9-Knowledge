@@ -49,6 +49,25 @@ http://127.0.0.1:8088
 `.env.example` es el valor por defecto: no hace falta tocar nada para probar
 con datos de ejemplo.
 
+### Instalación cerrada de fábrica
+
+Copiar `.env.example` a `.env` y arrancar, sin editar nada más, deja el visor
+**con autenticación activada** (`S9K_AUTH_ENABLED=true` es el default de la
+plantilla y del código). No hace falta abrir un terminal para fabricar un
+secreto CSRF: si `S9K_CSRF_SECRET` está vacío, el propio proceso lo genera la
+primera vez y lo persiste en disco (junto a la auth DB, fuera del repo, con
+permisos `0600`); los arranques siguientes reutilizan ese mismo secreto.
+
+Con la base de autenticación recién creada y sin ningún usuario, sólo
+`http://127.0.0.1:8088/setup/admin` es accesible de forma anónima: es la
+pantalla de una sola pantalla para crear el primer administrador. En cuanto
+se crea, esa ruta se cierra sola (devuelve 404 para siempre, incluso por
+`curl`) y el resto de la aplicación pasa a exigir login.
+
+`S9K_AUTH_ENABLED=false` sigue existiendo como interruptor explícito para
+desarrollo/laboratorio (sin login, comportamiento previo a este corte): es
+una decisión deliberada de quien instala, no lo que trae la plantilla.
+
 ## Pruebas manuales (curl / PowerShell)
 
 ```powershell
