@@ -135,17 +135,9 @@ MUTACIONES: tuple[Mutacion, ...] = (
         fichero=CHASSIS_OPERATIONS,
         viejo=(
             "            if not alcanzable:\n"
-            "                # AUSENCIA, no cero: se escribió (lo dice `afirmaciones_escritas`\n"
-            "                # en otro bloque de esta misma pantalla) y este producto no\n"
-            "                # sabe llevarte hasta ello. Nunca se publica un enlace que hoy\n"
-            "                # respondería 404.\n"
-            "                return {\"resultado\": \"sin_identidad\", \"apply_id\": None,\n"
-            "                        \"workspace\": None}\n"
         ),
         nuevo=(
             "            if False:\n"
-            "                return {\"resultado\": \"sin_identidad\", \"apply_id\": None,\n"
-            "                        \"workspace\": None}\n"
         ),
         caen=(
             "test_camino_sin_identidad_cuando_NO_alcanzable",
@@ -165,17 +157,11 @@ MUTACIONES: tuple[Mutacion, ...] = (
             "        reader = reader_for(provider)\n"
             "        if reader is not None:\n"
             "            alcanzable = result_provenance.alcanzable_para(\n"
-            "                provider, reader, workspace, estado.apply_id,\n"
-            "            )\n"
-            "            if not alcanzable:\n"
         ),
         nuevo=(
             "        reader = reader_for(provider)\n"
-            "        alcanzable = result_provenance.alcanzable_para(\n"
-            "            provider, reader, workspace, estado.apply_id,\n"
-            "        )\n"
             "        if True:\n"
-            "            if not alcanzable:\n"
+            "            alcanzable = result_provenance.alcanzable_para(\n"
         ),
         caen=(
             "test_camino_sigue_disponible_sin_lector_de_procedencia",
