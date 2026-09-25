@@ -1109,6 +1109,29 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/mutaciones_s3_env_gobierna_paneles.py
 
+      # Y la calibracion del corte S-1 «el resultado que se ofrece es el
+      # resultado que hay». Cubre las cuatro formas de romper la propiedad:
+      # que `alcanzable_para` deje de exigir autorizacion de workspace (el
+      # defecto original: un apply sin `:Entity` volveria a leerse como
+      # alcanzable), que deje de mirar si el apply dejo marca en
+      # `reader.operations_of_apply`, que el consumidor
+      # (`chassis_operations._camino_al_resultado`) deje de actuar sobre ese
+      # resultado y siga ofreciendo el enlace muerto, y que trate la AUSENCIA
+      # de lector de procedencia como negativa en vez de indeterminada -lo que
+      # romperia cualquier despliegue sin backend de grafo real-. Mide la
+      # LOGICA de decision contra objetos de mentira, sin Docker: la
+      # materializacion contra un grafo Neo4j real la miden los casos
+      # `@neo4j_real` de `test_panel_apply_desde_la_ui.py`
+      # (`test_S1_sin_alta_aprobada_el_panel_YA_NO_OFRECE_un_enlace_muerto` y
+      # `test_SIN_ALTA_APROBADA_el_destino_niega_el_apply_que_acaba_de_ocurrir`),
+      # que corren en el job de la suite combinada con
+      # `S9K_WRITER_NEO4J_REAL=1`.
+      - name: "El resultado que se ofrece es el resultado que hay: se pone ROJO ante cada defecto (S-1)"
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/mutaciones_s1_resultado_sin_enlace_muerto.py
+
   # Instalado desde .github/ci-fragments/check-env-reproducibility.yml. Si un
   # merge se lleva por delante este bloque, el fragmento es la copia canonica.
   check-env-reproducibility:
