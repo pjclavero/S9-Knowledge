@@ -125,11 +125,12 @@ from app import jobs_client, panel_errors, sources_catalog
 from app.auth.config import get_auth_settings
 from app.auth.csrf import get_csrf_token_for_session, validate_csrf
 from app.auth.models import User
-from app.authz.dependencies import get_visibility_scope
+from app.authz.dependencies import get_filtered_provider, get_visibility_scope
 from app.authz.scope import VisibilityScope
 from app.chassis import FEATURE_SLOTS, capabilities_for_slot, slot_enabled
 from app.health import storage as health_storage
 from app.health.models import HealthStatus
+from app.providers.base import GraphProvider
 from app.routers.chassis_slot import slot_context, slot_guard
 
 #: Registro de AUDITORIA de las capacidades de escritura de este panel.
@@ -631,7 +632,7 @@ def _resultado_del_trabajo(job: Optional[dict]) -> Optional[dict]:
             "carencias": []}
 
 
-def _plan_de_la_corrida(resultado: Optional[dict]) -> Optional[dict]:
+def _plan_de_la_corrida(resultado: Optional[dict], provider: GraphProvider) -> Optional[dict]:
     """El estado de LO APROBADO de esta corrida. Sin conocimiento interno.
 
     Se deriva de la atribución de corrida que el acuse de la ingesta ya
@@ -689,7 +690,7 @@ def _plan_de_la_corrida(resultado: Optional[dict]) -> Optional[dict]:
     # La corrida viaja en el formulario, no en el cuerpo del estado: es la
     # única identidad que el POST necesita y ya es pública para el operador.
     vista["job_id"] = str(revision["job_id"])
-    vista.update(_camino_al_resultado(estado, workspace))
+    vista.update(_camino_al_resultado(estado, workspace, provider))
     return vista
 
 
@@ -707,15 +708,13 @@ def _plan_de_la_corrida(resultado: Optional[dict]) -> Optional[dict]:
 CAMINOS_AL_RESULTADO = ("no_procede", "disponible", "sin_identidad", "apagado")
 
 
-def _camino_al_resultado(estado, workspace: str) -> dict:
-    """¿Se puede llegar desde «aplicado» hasta lo que se aplicó? (Corte 3).
+def _camino_al_resultado(estado, workspace: str, provider: GraphProvider) -> dict:
+    """¿Se puede llegar desde «aplicado» hasta lo que se aplicó? (Corte 3, S-1).
 
-    EL DEFECTO, MEDIDO sobre el HTML real que servía `/panel/operations` con
-    un plan en `applied`: el bloque del plan no contenía NI UN SOLO enlace.
-    La operación terminaba, la pantalla decía «ya forma parte del
-    conocimiento» y ahí se acababa el producto. Para ver QUÉ se escribió, de
-    dónde venía y con qué evidencia había que salir a la línea de comandos o
-    a Neo4j Browser — justo lo que el programa llama USABLE = no.
+    EL DEFECTO ORIGINAL (Corte 3), MEDIDO sobre el HTML real que servía
+    `/panel/operations` con un plan en `applied`: el bloque del plan no
+    contenía NI UN SOLO enlace. La operación terminaba, la pantalla decía «ya
+    forma parte del conocimiento» y ahí se acababa el producto.
 
     NO SE CONSTRUYE NADA NUEVO. La pantalla de resultado y la de evidencia ya
     existían, montadas y con su autorización; el `apply_id` ya estaba en la
@@ -723,36 +722,50 @@ def _camino_al_resultado(estado, workspace: str) -> dict:
 
     NI HABILITAR NI FINGIR, la misma regla que los botones de este panel: el
     enlace sólo se ofrece cuando la pantalla de destino se sirve de verdad en
-    este despliegue. Si no, se NOMBRA la situación en vez de ofrecer un enlace
-    que siempre daría 404.
+    este despliegue Y cuando ese destino concreto va a RESPONDER. Si no, se
+    NOMBRA la situación en vez de ofrecer un enlace que siempre daría 404.
 
-    Y AQUÍ ESTÁ EL LÍMITE DE ESA REGLA, DICHO EN VOZ ALTA PORQUE HOY MUERDE.
-    Esta función comprueba que el destino esté SERVIDO; no comprueba que vaya
-    a RESPONDER. Con el bloqueo que este corte midió —el recorrido
-    revisión->apply no crea nodos `:Entity`, y el ámbito del lector se deriva
-    de ellos—, el destino contesta 404 a la ejecución que acaba de ocurrir.
-    Es decir: el panel pinta `disponible` y ofrece un enlace que HOY SIEMPRE
-    FALLA, de modo que este corte incumple en la práctica su propia regla.
+    S-1 CIERRA EL LÍMITE QUE EL CORTE 3 DEJÓ ESCRITO EN VOZ ALTA: aquella
+    versión sólo comprobaba que el destino estuviera SERVIDO
+    (`esta_encendida()`), nunca que fuera a RESPONDER para ESTA ejecución. Con
+    el recorrido revisión->apply que no crea `:Entity` sin alta aprobada, el
+    ámbito del lector no incluía el workspace y el destino contestaba 404 a la
+    ejecución que acababa de ocurrir: el panel pintaba `disponible` y ofrecía
+    un enlace que SIEMPRE fallaba.
 
-    DÓNDE VIVE EL ARREGLO, medido por INTERVENCIÓN (un solo `:Entity` con
-    `entity_id` inyectado: ámbito [] -> ['ws-…'], destino 404 -> 200): NO en la
-    semántica de autorización, que no se toca. El plan de la UI emite sólo
-    `CREATE_ASSERTION` y `PROJECT_RELATION`; `review_plan` se niega a emitir
-    `CREATE_ENTITY` y lo dice por escrito —exige un alta aprobada por una
-    persona (`pipeline/entity_decisions.py`)—. Lo que falta es esa superficie
-    de decisión en el recorrido, no una tubería.
+    DÓNDE VIVE EL ARREGLO, y dónde NO. Sigue sin tocarse la semántica de
+    autorización de altas: el plan de la UI sigue emitiendo sólo
+    `CREATE_ASSERTION`/`PROJECT_RELATION` sin alta aprobada, y eso es
+    exactamente lo que S-1 tiene prohibido remediar (docs/92). Lo que se
+    arregla es la REPRESENTACIÓN del desenlace: antes de ofrecer el enlace se
+    pregunta, con la MISMA autoridad que ya decide el 404 en el destino
+    (`result_provenance.alcanzable_para`, que reutiliza
+    `PolicyFilteredProvider.workspaces()` y `reader.operations_of_apply` — no
+    hay una segunda política), si ESE apply concreto va a resolver. Si no va a
+    resolver, el desenlace pasa a `sin_identidad`: vocabulario que YA existía
+    y que YA describe la propiedad exacta que falta aquí — «se escribió y no
+    consta con qué identidad llegar hasta ello» —, así que no hace falta un
+    quinto código que la plantilla tuviera que aprender a pintar. Lo que se
+    escribió de verdad (`plan.afirmaciones_escritas`) sigue publicándose en
+    otro bloque de esta misma pantalla: `sin_identidad` no oculta que hubo
+    conocimiento nuevo, sólo retira el enlace que hoy sería un 404.
 
-    NO SE TAPA CON UNA COMPROBACIÓN NUEVA CONTRA EL GRAFO. Preguntarle al grafo
-    desde aquí antes de pintar el enlace es maquinaria nueva —y una consulta
-    más por carga de pantalla— para esconder un defecto que vive en otra capa.
-    Mientras tanto la situación se DECLARA, que es lo que permite decidir el
-    orden de los cortes con la información delante.
+    QUÉ NO SE COMPRUEBA A PROPÓSITO. Cuando no hay lector de procedencia
+    (`reader_for(provider)` es `None` — despliegues sin backend de grafo real,
+    incluida esta misma suite fuera de `neo4j_real`) no hay manera de saber si
+    el destino resolverá, y no tratarlo como «inalcanzable» de oficio: se
+    conserva el desenlace previo (`disponible`) en vez de fabricar un
+    `sin_identidad` sin haber preguntado nada. Es la misma doctrina que ya
+    aplicaba `esta_encendida()`: lo indeterminado no se disfraza de negativo.
+    Cualquier EXCEPCIÓN al preguntar sí se trata como fallo cerrado y degrada
+    a `apagado`, igual que la consulta del interruptor.
 
     AUTORIZACIÓN: aquí no se concede nada. El destino conserva su guarda de
     rol y su filtrado por política — quien no pueda ver una entidad, una
     relación o una evidencia seguirá sin verla, porque quien filtra es el
     servicio del destino y no este enlace. Lo único que viaja es la identidad
-    de la ejecución y el ámbito en el que ocurrió.
+    de la ejecución y el ámbito en el que ocurrió, y la pregunta que se le hace
+    al proveedor filtrado es la misma que el destino se haría de todos modos.
     """
     if estado.estado not in ("applied", "partial"):
         return {"resultado": "no_procede", "apply_id": None, "workspace": None}
@@ -776,6 +789,30 @@ def _camino_al_resultado(estado, workspace: str) -> dict:
         panel_errors.registrar("RESULTADO_PANEL_NO_CONSULTABLE", exc)
         servida = False
     if not servida:
+        return {"resultado": "apagado", "apply_id": None, "workspace": None}
+    # S-1: el destino se SIRVE, pero eso ya no basta. Se pregunta si ESTE
+    # apply concreto RESOLVERÁ, con la misma autoridad que usa el destino
+    # (`result_provenance.alcanzable_para`). Sin lector de procedencia
+    # (despliegues/tests sin backend de grafo real) no se puede preguntar y se
+    # conserva el desenlace previo: lo indeterminado no se trata como negativo.
+    try:
+        from app.providers.provenance_reader import reader_for  # noqa: PLC0415
+        from app.services import result_provenance  # noqa: PLC0415
+
+        reader = reader_for(provider)
+        if reader is not None:
+            alcanzable = result_provenance.alcanzable_para(
+                provider, reader, workspace, estado.apply_id,
+            )
+            if not alcanzable:
+                # AUSENCIA, no cero: se escribió (lo dice `afirmaciones_escritas`
+                # en otro bloque de esta misma pantalla) y este producto no
+                # sabe llevarte hasta ello. Nunca se publica un enlace que hoy
+                # respondería 404.
+                return {"resultado": "sin_identidad", "apply_id": None,
+                        "workspace": None}
+    except Exception as exc:  # noqa: BLE001 - la pantalla no se cae por esto
+        panel_errors.registrar("RESULTADO_PANEL_NO_CONSULTABLE", exc)
         return {"resultado": "apagado", "apply_id": None, "workspace": None}
     # `workspace` sale con el enlace porque el DESTINO lo necesita para no
     # enseñar el resultado de otro ámbito: sin él cae al workspace por defecto
@@ -834,6 +871,7 @@ def chassis_operations(
     aviso: Optional[str] = Query(default=None),
     user=Depends(slot_guard(SLOT)),
     scope: VisibilityScope = Depends(get_visibility_scope),
+    provider: GraphProvider = Depends(get_filtered_provider),
 ):
     denegado = _authorize(request, user)
     if denegado is not None:
@@ -907,7 +945,7 @@ def chassis_operations(
             # es la continuación del mismo recorrido: el acuse de la ingesta ya
             # enlaza a SU revisión, y aquí se dice qué se puede hacer con lo
             # que se aprobó allí.
-            plan=_plan_de_la_corrida(desenlace),
+            plan=_plan_de_la_corrida(desenlace, provider),
             # LAS ALTAS DE ENTIDAD PENDIENTES. Solo el RECUENTO y el enlace:
             # la evidencia vive en su propia pantalla, que es donde se decide.
             # Ponerla aqui llenaria la consola de fragmentos de fuente que

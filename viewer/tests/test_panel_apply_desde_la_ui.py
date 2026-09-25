@@ -3287,18 +3287,33 @@ def visor_sobre_el_grafo(real_app, grafo_real):
 
 
 @neo4j_real
-def test_tras_un_apply_REAL_el_acuse_ofrece_el_camino_con_su_identidad(
+def test_S1_sin_alta_aprobada_el_panel_YA_NO_OFRECE_un_enlace_muerto(
     real_app, paneles_on, resultado_on, cola, operador, almacenes, grafo,
     visor_sobre_el_grafo, monkeypatch
 ):
-    """LO QUE SÍ CIERRA ESTE CORTE, ejercido contra un grafo de verdad.
+    """LA PROPIEDAD DE S-1, EJERCIDA CONTRA UN GRAFO DE VERDAD.
 
-    fuente -> ingesta -> revisión -> aprobar -> sellar -> APLICAR DE VERDAD ->
-    el acuse de «aplicado» OFRECE el camino, y lo ofrece con la identidad
-    durable que el almacén registró para ESA ejecución.
+    ESTE CASO CAMBIÓ DE VEREDICTO, Y SE DICE AQUÍ PARA QUE NO SE LEA AL REVÉS.
+    Su versión anterior se llamaba «...OFRECE EL CAMINO CON SU IDENTIDAD» y
+    afirmaba `codigos == ["disponible"]` sobre EXACTAMENTE este recorrido —
+    aprobar una propuesta, sellar, aplicar, SIN aprobar ningún alta—. Eso era
+    el defecto que S-1 cierra, no una propiedad que hubiera que conservar: el
+    recorrido revisión->apply sin alta aprobada no crea `:Entity`, el ámbito
+    del lector no incluye el workspace, y el enlace que aquel test celebraba
+    como «el camino» respondía SIEMPRE 404 (ver el caso hermano,
+    `test_SIN_ALTA_APROBADA_el_destino_niega_el_apply_que_acaba_de_ocurrir`,
+    que fija esa causa con Cypher propio).
 
-    Todo por HTTP. Lo que NO afirma este caso es que el destino entregue el
-    contenido: eso se midió, no se cumple hoy, y tiene su propio caso abajo.
+    LO QUE ESTE CASO AFIRMA AHORA: fuente -> ingesta -> revisión -> aprobar ->
+    sellar -> APLICAR DE VERDAD (sin alta) -> el acuse de «aplicado» dice
+    `sin_identidad` y NO publica ningún enlace. AUSENCIA, no silencio: se
+    escribió conocimiento nuevo (el bloque del plan ya dice cuántas
+    afirmaciones se escribieron, en otro párrafo de esta misma pantalla) y el
+    producto no sabe llevar al operador hasta él — que es justo el vocabulario
+    que `sin_identidad` ya tenía reservado para esto.
+
+    ROJA ASÍ: `AssertionError: ... codigos == ['disponible']` (el enlace
+    muerto ha vuelto) o `AssertionError: ... el bloque publica un enlace`.
     """
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
     assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
@@ -3306,27 +3321,42 @@ def test_tras_un_apply_REAL_el_acuse_ofrece_el_camino_con_su_identidad(
 
     fila = _fila_de_plan(almacenes["base"])
     assert fila["state"] == "applied", fila["state"]
-    assert fila["apply_id"], "sin identidad durable no hay nada que enlazar"
+    assert fila["apply_id"], "sin identidad durable no hay nada que medir"
+
+    # SE ESCRIBIÓ DE VERDAD: control positivo de que este caso no mide un
+    # apply vacío. Sin esto, un `sin_identidad` sería tan barato de conseguir
+    # como no escribir nada.
+    with grafo.session() as sesion:
+        censo = {f["l"]: f["c"] for f in sesion.run(
+            "MATCH (n) UNWIND labels(n) AS l RETURN l, count(*) AS c")}
+    assert censo.get("V3Assertion"), (
+        "el apply no dejó ninguna afirmación: sin conocimiento escrito este "
+        f"caso mediría un apply vacío, no el defecto de S-1 ({censo})")
+    assert censo.get("Entity", 0) == 0, (
+        "YA HAY nodos `:Entity` tras el recorrido sin alta aprobada "
+        f"({censo}): el gatillo de este caso ha cambiado, reléelo entero")
 
     bloque = _bloque_plan(_panel(operador, job_id))
     camino = _camino(bloque)
-    assert camino["codigos"] == ["disponible"], (
-        "tras un apply REAL el acuse no ofrece camino a lo aplicado: "
-        f"{camino['codigos']}")
-    destino = _primer_enlace(camino)
-    assert fila["apply_id"] in destino, (
-        "el enlace no lleva la identidad durable que el almacén registró para "
-        f"este apply: destino={destino} registrada={fila['apply_id']}")
+    assert camino["codigos"] == ["sin_identidad"], (
+        "tras un apply REAL sin alta aprobada el panel sigue ofreciendo un "
+        f"desenlace distinto de la ausencia: {camino['codigos']}")
+    assert not camino["enlaces"], (
+        "el panel publica un enlace hacia un resultado que el ámbito del "
+        f"lector no alcanza: {camino['enlaces']}")
+    assert 'data-role="ver-lo-aplicado"' not in camino["texto"], (
+        "S-1: el panel sigue ofreciendo el enlace muerto"
+    )
 
-    # Y la identidad enlazada es la que el GRAFO tiene marcada, no sólo la que
-    # el almacén anotó. Las dos autoridades, y coinciden.
+    # Y la identidad de ESTE apply, aunque no se enlace, es la que el GRAFO
+    # tiene marcada: la ausencia de camino no es una ausencia de escritura.
     with grafo.session() as sesion:
         marcadas = [f["aid"] for f in sesion.run(
             "MATCH (o:V3AppliedOperation {workspace: $ws}) "
             "RETURN DISTINCT o.apply_id AS aid", ws="ws-cofradia")]
     assert marcadas == [fila["apply_id"]], (
-        "la identidad que el panel enlaza no es la que el grafo tiene marcada: "
-        f"enlazada={fila['apply_id']} en el grafo={marcadas}")
+        "la identidad del apply que no se pudo enlazar no es la que el grafo "
+        f"tiene marcada: registrada={fila['apply_id']} en el grafo={marcadas}")
 
 
 @neo4j_real
@@ -3354,10 +3384,19 @@ def test_SIN_ALTA_APROBADA_el_destino_niega_el_apply_que_acaba_de_ocurrir(
     `test_E2E_aprobar_el_alta_hace_que_el_destino_deje_de_dar_404`
     (`test_corte_altas_de_entidad.py`), que con el alta aprobada llega a 200.
 
-    Este caso NO celebra un comportamiento: lo DENUNCIA. Se aplica de verdad,
-    se sigue el enlace que el panel publica —el correcto, con la identidad
-    correcta— y la pantalla de destino responde **404 RESULT_NOT_FOUND** sobre
-    la ejecución que acaba de ocurrir.
+    Este caso NO celebra un comportamiento: lo DENUNCIA. Se aplica de verdad y
+    la pantalla de destino, pedida con la identidad y el ámbito correctos de
+    ESTA ejecución, responde **404 RESULT_NOT_FOUND**.
+
+    S-1 CIERRA LA MITAD DE ESTE DEFECTO, Y SE DICE AQUÍ CUÁL. El panel YA NO
+    publica un enlace hacia este destino —eso lo fija
+    `test_S1_sin_alta_aprobada_el_panel_YA_NO_OFRECE_un_enlace_muerto`, el
+    caso hermano de arriba—, así que aquí el destino ya no se alcanza
+    SIGUIENDO el enlace del panel: se construye a mano, con la MISMA identidad
+    y el MISMO ámbito que el panel habría publicado antes del arreglo. Este
+    caso demuestra que ocultar el enlace fue lo correcto y no una
+    coincidencia: el destino sigue negando de verdad la ejecución, así que un
+    panel que hubiera seguido ofreciéndolo habría seguido mintiendo.
 
     LA CAUSA, MEDIDA y no supuesta:
 
@@ -3414,12 +3453,19 @@ def test_SIN_ALTA_APROBADA_el_destino_niega_el_apply_que_acaba_de_ocurrir(
     releerlo entero. Un `skip` aquí sería un verde sin haber mirado.
     """
     from app.providers.provenance_reader import reader_for
+    from app.routers.resultado import RUTA_RESULTADO
 
     job_id, _ = _aprobar_una(operador, cola, almacenes, monkeypatch)
     assert _aviso_de(_sellar(operador, job_id)) == SELLADO_DEL_ARNES
     assert _aviso_de(_aplicar(operador, job_id)) == "PLAN_APPLIED"
     fila = _fila_de_plan(almacenes["base"])
-    destino = _primer_enlace(_camino(_bloque_plan(_panel(operador, job_id))))
+    assert fila["apply_id"], "sin identidad durable no hay destino que construir"
+    # CONSTRUIDO A MANO, NO SEGUIDO DEL PANEL. Desde S-1 el panel ya NO
+    # publica este enlace (ver el caso hermano de arriba); este caso mide el
+    # destino en sí, con la MISMA identidad y el MISMO ámbito que el panel
+    # habría publicado antes del arreglo.
+    ruta = real_app.url_path_for(RUTA_RESULTADO, apply_id=fila["apply_id"])
+    destino = f"{ruta}?workspace=ws-cofradia"
 
     # 1. EL APPLY ESTÁ, y el lector de procedencia lo alcanza sin problemas.
     lector = reader_for(visor_sobre_el_grafo)
@@ -3465,3 +3511,15 @@ def test_SIN_ALTA_APROBADA_el_destino_niega_el_apply_que_acaba_de_ocurrir(
     assert "RESULT_NOT_FOUND" in pantalla.text, (
         "el destino niega por una causa DISTINTA de la medida; un rojo por la "
         f"razón equivocada se lee igual que éste: {pantalla.text[:200]}")
+
+    # 5. S-1: Y EL PANEL YA NO OFRECE ESTE DESTINO COMO SI FUERA UN CAMINO.
+    #    Sin esto, el 404 de arriba seguiría siendo legítimo el día que
+    #    alguien reintrodujera el enlace muerto: el destino seguiría negando
+    #    lo mismo y este caso seguiría verde sin haberlo visto.
+    camino = _camino(_bloque_plan(_panel(operador, job_id)))
+    assert camino["codigos"] == ["sin_identidad"], (
+        "el panel ofrece un desenlace distinto de la ausencia sobre un apply "
+        f"que el paso 4 demuestra que el destino niega: {camino['codigos']}")
+    assert not camino["enlaces"], (
+        "S-1: el panel vuelve a publicar el enlace muerto que el paso 4 "
+        f"demuestra que da 404: {camino['enlaces']}")
