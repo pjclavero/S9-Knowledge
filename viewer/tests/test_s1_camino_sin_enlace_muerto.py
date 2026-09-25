@@ -323,6 +323,7 @@ def test_camino_apply_id_malformado_es_identidad_ausente_y_no_pregunta(monkeypat
     """
     from app.routers import chassis_operations as panel_ops
 
+    _encender_resultado(monkeypatch)
     llamado = []
 
     import app.providers.provenance_reader as pr_mod
