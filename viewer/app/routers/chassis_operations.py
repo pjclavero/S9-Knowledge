@@ -715,16 +715,46 @@ CAMINOS_AL_RESULTADO = ("no_procede", "disponible", "sin_identidad", "apagado")
 #: EXPLICACIÓN de por qué no lo hay, y sólo tiene sentido dentro de ese
 #: desenlace.
 #:
-#: `identidad_ausente`  -- la fila `applied`/`partial` no tiene un `apply_id`
-#:                         con forma válida (columna NULL o basura). Aquí SÍ
-#:                         es cierto que «no consta con qué identidad».
-#: `ambito_no_alcanza`   -- el `apply_id` EXISTE y está registrado en las dos
-#:                         autoridades (almacén y grafo): lo que falta es que
-#:                         el ámbito del lector lo alcance (sin `:Entity`,
-#:                         `provider.workspaces()` no incluye el workspace).
-#:                         Decir aquí «no consta con qué identidad» sería
-#:                         FALSO -la identidad consta, y de sobra- y mandaría
-#:                         al operador a avisar de un dato que sí está.
+#: `identidad_ausente`  -- la fila `applied`/`partial` NO tiene un `apply_id`
+#:                         con forma válida: la columna está a NULL/vacía O
+#:                         tiene basura sin forma de identidad durable
+#:                         (`es_apply_id` la rechaza). Las dos cosas se tratan
+#:                         IGUAL a propósito -RONDA 3 DE REVISIÓN: una versión
+#:                         anterior sólo enrutaba aquí lo `falsy`, y un valor
+#:                         PRESENTE pero malformado se colaba hasta
+#:                         `alcanzable_para`, fallaba en SU guarda de forma y
+#:                         salía etiquetado `ambito_no_alcanza` -la MISMA
+#:                         frase falsa que el residual 1 vino a eliminar,
+#:                         desplazada de sitio: la pantalla habría dicho «la
+#:                         identidad está registrada» sobre una columna sin
+#:                         identidad legible-. Aquí SÍ es cierto que «no
+#:                         consta con qué identidad».
+#: `ambito_no_alcanza`   -- el `apply_id` tiene forma VÁLIDA y está registrado
+#:                         en las dos autoridades (almacén y grafo): lo que
+#:                         falta es que el ámbito del lector lo alcance (sin
+#:                         `:Entity`, `provider.workspaces()` no incluye el
+#:                         workspace). Decir aquí «no consta con qué
+#:                         identidad» sería FALSO -la identidad consta, y de
+#:                         sobra- y mandaría al operador a avisar de un dato
+#:                         que sí está.
+#:
+#: ALCANZABILIDAD DEL VALOR "PRESENTE PERO MALFORMADO", DICHA CON HONESTIDAD
+#: (RONDA 3). El ÚNICO llamador de `_camino_al_resultado` es
+#: `_plan_de_la_corrida`, con un `estado.apply_id` que sale SIEMPRE de
+#: `ReviewApplyService().estado()` (`v3_apply.py`), que YA filtra por
+#: `es_apply_id` antes de devolverlo (`identidad = bruto if es_apply_id(bruto)
+#: else None`): por ese camino, `estado.apply_id` sólo puede ser `None` o una
+#: cadena con forma válida, nunca basura truthy. No se ha demostrado -ni se
+#: afirma aquí- que el producto pueda escribir basura en esa columna y que
+#: llegue viva hasta aquí. La guarda de forma de ESTA función es, hoy,
+#: DEFENSA EN PROFUNDIDAD deliberada y no una rama que un corpus del árbol
+#: pueda alcanzar: la MISMA doctrina, y la MISMA guarda, que `v3_apply.py`
+#: documenta para su propio filtrado («se conserva como defensa en
+#: profundidad DELIBERADA, no como código muerto»). `_camino_al_resultado`
+#: acepta `estado` por FORMA (duck typing), no por tipo declarado, así que
+#: perder esta guarda dejaría a cualquier llamador futuro -o a una regresión
+#: en el filtrado de `v3_apply.py`- expuesto otra vez a la frase falsa que el
+#: residual 1 vino a eliminar.
 CAUSAS_SIN_IDENTIDAD = ("identidad_ausente", "ambito_no_alcanza")
 
 
@@ -809,9 +839,20 @@ def _camino_al_resultado(estado, workspace: str, provider: GraphProvider) -> dic
     if estado.estado not in ("applied", "partial"):
         return {"resultado": "no_procede", "apply_id": None, "workspace": None,
                 "causa_sin_identidad": None}
-    if not estado.apply_id:
+    from app.services.result_provenance import es_apply_id  # noqa: PLC0415
+
+    if not estado.apply_id or not es_apply_id(estado.apply_id):
         # AQUÍ SÍ es cierto que «no consta con qué identidad»: la columna no
-        # tiene un `apply_id` con forma válida. Nada que buscar en el grafo.
+        # tiene un `apply_id` con forma válida -ausente O con basura-. Nada
+        # que buscar en el grafo.
+        #
+        # RONDA 3 DE REVISIÓN: el `or not es_apply_id(...)` es EL ARREGLO. Sin
+        # él, un valor PRESENTE pero malformado pasaba de largo esta guarda,
+        # llegaba a `alcanzable_para`, fallaba en SU guarda de forma (la
+        # primera de las tres) y salía etiquetado `ambito_no_alcanza` -la
+        # MISMA frase falsa que el residual 1 vino a eliminar, desplazada de
+        # sitio: la pantalla habría dicho «la identidad está registrada»
+        # sobre una columna sin identidad legible-.
         return {"resultado": "sin_identidad", "apply_id": None, "workspace": None,
                 "causa_sin_identidad": "identidad_ausente"}
     try:

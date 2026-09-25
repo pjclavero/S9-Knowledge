@@ -271,9 +271,9 @@ def test_camino_apagado_si_la_pregunta_de_alcanzabilidad_revienta(monkeypatch):
 
 
 def test_camino_sin_identidad_previo_no_pregunta_por_alcanzabilidad(monkeypatch):
-    """Cuando YA falta el `apply_id` (fila con basura en la columna), el
-    camino se cierra ANTES de llegar a preguntar por alcanzabilidad: no hay
-    nada que preguntar sobre una identidad que no existe."""
+    """Cuando YA falta el `apply_id` (columna `None`), el camino se cierra
+    ANTES de llegar a preguntar por alcanzabilidad: no hay nada que preguntar
+    sobre una identidad que no existe."""
     from app.routers import chassis_operations as panel_ops
 
     llamado = []
@@ -290,6 +290,57 @@ def test_camino_sin_identidad_previo_no_pregunta_por_alcanzabilidad(monkeypatch)
 
     vista = panel_ops._camino_al_resultado(estado, "ws-cofradia", provider)
     assert vista["resultado"] == "sin_identidad"
+    assert vista["causa_sin_identidad"] == "identidad_ausente", (
+        "causa incorrecta para una fila sin apply_id: "
+        f"{vista['causa_sin_identidad']!r}"
+    )
     assert not llamado, (
         "se preguntó por alcanzabilidad sobre un apply sin identidad durable"
+    )
+
+
+def test_camino_apply_id_malformado_es_identidad_ausente_y_no_pregunta(monkeypatch):
+    """RONDA 3 · ARREGLO 1. Un `apply_id` PRESENTE pero con basura (sin forma
+    de identidad durable) tiene que caer en `identidad_ausente`, NO en
+    `ambito_no_alcanza` -eso sería la misma frase falsa que el residual 1
+    quitó, desplazada de sitio: la pantalla diría «la identidad está
+    registrada» sobre una columna sin identidad legible-.
+
+    Es el CONTROL POSITIVO que falta al lado del caso `None` de arriba: los
+    dos valores que hoy enrutan a `identidad_ausente` (ausente y malformado),
+    con el mismo par simétrico (no se pregunta por alcanzabilidad -no hay
+    nada que preguntar sobre una identidad que no tiene forma-).
+
+    Se declara la ALCANZABILIDAD real de este estado en el docstring de
+    `CAUSAS_SIN_IDENTIDAD`: el único llamador de `_camino_al_resultado`
+    (`_plan_de_la_corrida`) recibe `estado.apply_id` ya filtrado por
+    `es_apply_id` en `ReviewApplyService().estado()`, así que HOY esta rama es
+    defensa en profundidad, no una rama que un corpus del árbol alcance. Este
+    test la ejerce igualmente porque `_camino_al_resultado` acepta `estado`
+    por forma, no por tipo, y perder esta guarda expondría de nuevo la frase
+    falsa el día que cualquier otro llamador -o una regresión en
+    `v3_apply.py`- deje de filtrar antes de llamar.
+    """
+    from app.routers import chassis_operations as panel_ops
+
+    llamado = []
+
+    import app.providers.provenance_reader as pr_mod
+
+    def _no_deberia_llamarse(provider):
+        llamado.append(True)
+        return _LectorDeMentira([{"idempotency_key": "k1"}])
+
+    monkeypatch.setattr(pr_mod, "reader_for", _no_deberia_llamarse)
+    provider = _ProveedorDeMentira(("ws-cofradia",))
+    estado = _EstadoDeMentira(estado="applied", apply_id="no-es-un-apply-id")
+
+    vista = panel_ops._camino_al_resultado(estado, "ws-cofradia", provider)
+    assert vista["resultado"] == "sin_identidad"
+    assert vista["causa_sin_identidad"] == "identidad_ausente", (
+        "un apply_id malformado se está etiquetando como problema de ámbito, "
+        f"no de identidad: {vista['causa_sin_identidad']!r}"
+    )
+    assert not llamado, (
+        "se preguntó por alcanzabilidad sobre un apply_id sin forma válida"
     )

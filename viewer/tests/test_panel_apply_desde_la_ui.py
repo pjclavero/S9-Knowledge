@@ -3028,6 +3028,26 @@ def test_escrito_y_sin_identidad_durable_se_dice_AUSENTE_y_no_se_calla(
     sabe llevar. Las dos salidas fáciles son falsas: enlazar igualmente (a un
     identificador que no existe) y no decir nada (que se lee como «no hay nada
     que ver»). La pantalla lo NOMBRA.
+
+    RONDA 3 · ARREGLO 2: es el TESTIGO RENDERIZADO de la rama
+    `identidad_ausente` (la que imprime la frase «no consta con qué
+    identidad»). Hasta ahora sólo se comprobaba a nivel de diccionario
+    (`test_camino_sin_identidad_causa_identidad_ausente_cuando_falta_el_apply_id`,
+    en `test_s1_camino_sin_enlace_muerto.py`); aquí se pide el HTML real y se
+    exige la frase exacta que el operador lee, y que NO aparezca la frase de
+    la otra causa (`ambito_no_alcanza`) ni su atributo.
+
+    NOTA DE ALCANZABILIDAD: `_vista_aplicada(..., apply_id="no-es-un-apply-id")`
+    escribe esa cadena en el ALMACÉN, pero `ReviewApplyService().estado()` la
+    filtra por `es_apply_id` ANTES de construir `EstadoDelPlan`
+    (`v3_apply.py`), así que lo que `_camino_al_resultado` recibe es
+    `estado.apply_id = None` -el caso «ausente», no el «malformado pero
+    presente»-. El control positivo de ESE otro caso (que
+    `_camino_al_resultado` etiquete `identidad_ausente` y no
+    `ambito_no_alcanza` cuando el valor SÍ llega malformado) vive a nivel de
+    función en `test_camino_apply_id_malformado_es_identidad_ausente_y_no_pregunta`,
+    porque el único llamador real de esta función ya filtra antes de
+    invocarla y no hay corpus HTTP que deje pasar basura viva hasta aquí.
     """
     _, fila, bloque = _vista_aplicada(
         operador, cola, almacenes, monkeypatch, apply_id="no-es-un-apply-id")
@@ -3045,6 +3065,24 @@ def test_escrito_y_sin_identidad_durable_se_dice_AUSENTE_y_no_se_calla(
     )
     # Y la cadena inválida NO se publica: sería material del almacén en la UI.
     assert "no-es-un-apply-id" not in bloque["texto"]
+
+    # EL TEXTO EXACTO de la causa `identidad_ausente`, renderizado de verdad.
+    assert 'data-sin-identidad-causa="identidad_ausente"' in camino["texto"], (
+        f"el panel no marca la causa como identidad ausente: {camino['texto'][:400]}"
+    )
+    assert "no consta con qué identidad" in camino["texto"], (
+        "aquí SÍ debería aparecer esta frase -es cierta para este caso- y no "
+        f"aparece: {camino['texto'][:400]}"
+    )
+    # Y la frase/atributo de la OTRA causa no se cuela aquí.
+    assert 'data-sin-identidad-causa="ambito_no_alcanza"' not in camino["texto"], (
+        "el panel etiqueta como ámbito una fila que en realidad no tiene "
+        f"identidad: {camino['texto'][:400]}"
+    )
+    assert "el ámbito del lector no llega" not in camino["texto"], (
+        "se cuela la frase de la otra causa sobre un apply sin identidad "
+        f"durable: {camino['texto'][:400]}"
+    )
 
 
 def test_con_la_pantalla_de_destino_APAGADA_se_dice_y_no_se_ofrece_un_404(

@@ -11,7 +11,7 @@ cada vez, y comprueba:
     1. que los casos que DEBÍAN caer cayeron, y
     2. que el MENSAJE del rojo dice la causa.
 
-Cubre las cuatro formas en que la propiedad puede volver a romperse:
+Cubre las seis formas en que la propiedad puede volver a romperse:
 
     1. `alcanzable_para` deja de mirar `_workspace_autorizado` (el defecto
        original de S-1: un apply con operaciones pero sin `:Entity` volvería a
@@ -28,6 +28,16 @@ Cubre las cuatro formas en que la propiedad puede volver a romperse:
        desenlace se volvería `sin_identidad` en vez de conservar el previo,
        rompiendo el resto de la suite de este panel con una guarda que no
        puede preguntar nada.
+    5. (RONDA 3) `_camino_al_resultado` deja de filtrar un `apply_id`
+       PRESENTE pero malformado antes de preguntar por alcanzabilidad: se
+       colaría hasta `alcanzable_para`, fallaría en SU guarda de forma y
+       saldría etiquetado `ambito_no_alcanza` -la misma frase falsa que el
+       residual 1 de la ronda 2 vino a eliminar («la identidad está
+       registrada»), desplazada sobre una columna sin identidad legible.
+    6. (RONDA 3) la causa publicada para una fila SIN `apply_id` se
+       intercambia por la de la otra rama (`ambito_no_alcanza` en vez de
+       `identidad_ausente`): la misma clase de frase falsa, en la dirección
+       contraria.
 
 LAS MUTACIONES SE REFERENCIAN POR NOMBRE. EL RECUENTO SALE DEL FICHERO
 (`len(MUTACIONES)`). EL CRUCE compara los casos que la suite RECOLECTA contra
@@ -173,6 +183,50 @@ MUTACIONES: tuple[Mutacion, ...] = (
             "Tratar esa AUSENCIA como negativa convertiría cada `disponible` "
             "existente en `sin_identidad` en cuanto faltara Neo4j, rompiendo "
             "el resto del panel con una guarda ciega."
+        ),
+    ),
+    Mutacion(
+        nombre="camino-no-filtra-apply-id-malformado",
+        fichero=CHASSIS_OPERATIONS,
+        viejo=(
+            "    if not estado.apply_id or not es_apply_id(estado.apply_id):\n"
+        ),
+        nuevo=(
+            "    if not estado.apply_id:\n"
+        ),
+        caen=(
+            "test_camino_apply_id_malformado_es_identidad_ausente_y_no_pregunta",
+        ),
+        dice="un apply_id malformado se está etiquetando como problema de ámbito",
+        porque=(
+            "RONDA 3 DE REVISIÓN: sin este filtro, un `apply_id` PRESENTE pero "
+            "con basura (sin forma de identidad durable) pasaba de largo esta "
+            "guarda, llegaba a `alcanzable_para`, fallaba en SU guarda de "
+            "forma y salía etiquetado `ambito_no_alcanza` -la MISMA frase "
+            "falsa que el residual 1 vino a eliminar («la identidad está "
+            "registrada»), desplazada de sitio sobre una columna sin "
+            "identidad legible."
+        ),
+    ),
+    Mutacion(
+        nombre="camino-causa-erronea-para-identidad-ausente",
+        fichero=CHASSIS_OPERATIONS,
+        viejo=(
+            "                \"causa_sin_identidad\": \"identidad_ausente\"}\n"
+        ),
+        nuevo=(
+            "                \"causa_sin_identidad\": \"ambito_no_alcanza\"}\n"
+        ),
+        caen=(
+            "test_camino_sin_identidad_causa_identidad_ausente_cuando_falta_el_apply_id",
+            "test_camino_sin_identidad_previo_no_pregunta_por_alcanzabilidad",
+        ),
+        dice="causa incorrecta para una fila sin apply_id",
+        porque=(
+            "Un defecto de copiar-y-pegar entre las dos ramas de `sin_identidad` "
+            "haría que una fila SIN apply_id -donde sí es cierto que «no consta "
+            "la identidad»- se etiquetara como problema de ámbito: la MISMA "
+            "clase de frase falsa, en la dirección contraria."
         ),
     ),
 )
