@@ -75,6 +75,41 @@ resto de la aplicación pasa a exigir login.
 desarrollo/laboratorio (sin login, comportamiento previo a este corte): es
 una decisión deliberada de quien instala, no lo que trae la plantilla.
 
+**Lo que `.env` gobierna, y con qué precedencia.** Para las claves que el
+proceso principal del visor (`app.main:app`, vía `Settings`/`AuthSettings` o
+vía `app.config.effective_env_value`) lee de configuración —`S9K_AUTH_ENABLED`
+entre ellas, los cuatro `S9K_PANEL_<KEY>_ENABLED` del chasis (ver
+`docs/69-chasis-de-montaje.md`) y `S9K_PANEL_RESULTADO_ENABLED`— editar
+`viewer/.env` y reiniciar SE APLICA. La única variable que le gana a `.env`
+es la del **entorno del proceso**: si esa misma clave existe ahí (por
+`export`, por `docker run -e`, o por `EnvironmentFile=` en el `.service` de
+producción), manda ella, aunque valga cadena vacía; `.env` sólo se consulta
+cuando el entorno no dice nada de esa clave. La comparación de nombres de
+clave es insensible a mayúsculas/minúsculas en ambos canales: misma librería
+(`dotenv_values`) y misma precedencia POR CLAVE que `pydantic-settings`. Esto
+NO se extiende al empate: si la MISMA clave aparece escrita dos veces con
+distinta caja en el mismo `.env` (por ejemplo `S9K_AUTH_ENABLED` y
+`s9k_auth_enabled` a la vez), este visor elige SIEMPRE la ortografía
+canónica en mayúsculas, mientras que `pydantic-settings` toma la última
+línea del fichero -no determinista frente a un reordenamiento-. Es una
+elección deliberada, no un descuido: preferir la canónica es predecible con
+independencia del orden de las líneas, que es justo lo que un `.env`
+manualmente editado no garantiza. Esto no siempre fue así para los
+interruptores de panel:
+hasta el corte "el `.env` gobierna lo que dice gobernar", `S9K_PANEL_*_ENABLED`
+en `.env` se ignoraba EN SILENCIO (404 sin aviso) porque se leía sólo del
+entorno del proceso, nunca del fichero —ver `docs/69` §1 ter para el detalle
+y la causa.
+
+**Esta garantía es del proceso principal, no del repositorio entero.**
+`viewer/app/health/runner.py` (el healthcheck, un proceso/servicio aparte,
+`s9-knowledge-healthcheck.service`) lee `S9K_AUTH_ENABLED` y otras claves de
+`os.environ` directamente, con el mismo defecto de clase que este corte
+corrigió en el chasis y en `resultado`: `.env` no lo gobierna, sólo el
+entorno del proceso del healthcheck. Es deuda conocida, fuera del alcance de
+este corte (no se toca `runner.py` aquí): no asumas que editar `viewer/.env`
+cambia lo que reporta el healthcheck.
+
 **Nota sobre Safari y cookies `Secure` en loopback.** La plantilla apunta a
 `http://127.0.0.1:8088` (HTTP plano) y trae `S9K_SESSION_SECURE=true`. Esto
 funciona en Chrome, Firefox y Edge porque tratan `127.0.0.1`/`localhost` como

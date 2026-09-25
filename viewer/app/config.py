@@ -1,10 +1,89 @@
 """Configuración del visor S9 Knowledge, leída de variables de entorno / .env."""
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Optional
 
+from dotenv import dotenv_values
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+__all__ = [
+    "Settings",
+    "get_settings",
+    "effective_env_value",
+]
+
+#: Mismo fichero que consultan `Settings`/`AuthSettings` (`env_file=".env"`):
+#: relativo al directorio de trabajo del proceso, NO a la ubicación de este
+#: módulo. Una única constante para que quien lea variables "gobernadas por
+#: `.env`" fuera de un modelo `BaseSettings` (por ejemplo, un interruptor
+#: leído en caliente en cada petición) consulte el MISMO fichero, con la
+#: MISMA regla de precedencia, en vez de inventar una tercera lectura.
+DOTENV_FILENAME = ".env"
+
+
+def _valor_insensible_a_mayusculas(mapa, name: str) -> Optional[str]:
+    """Busca ``name`` en ``mapa`` igual que lo hace `pydantic-settings` con
+    `case_sensitive=False` (el default, y el que usan `Settings` y
+    `AuthSettings`): coincidencia exacta primero, y si no hay, la primera
+    clave cuyo `casefold()` coincida. Sin esto, `S9K_AUTH_ENABLED=true` y
+    `s9k_auth_enabled=true` en el MISMO `.env` producen dos lecturas
+    distintas de "¿está encendida la auth?" según quién lea la variable —
+    exactamente la clase de defecto que esta autoridad única existe para
+    eliminar, ahora también en mayúsculas/minúsculas y no sólo en presencia
+    de `os.environ` frente a `.env`.
+    """
+    if name in mapa:
+        return mapa[name]
+    objetivo = name.casefold()
+    for clave, valor in mapa.items():
+        if clave.casefold() == objetivo:
+            return valor
+    return None
+
+
+def effective_env_value(name: str) -> Optional[str]:
+    """Valor EFECTIVO de ``name``: autoridad única para "¿qué dice `.env`?".
+
+    Precedencia, la misma que aplica `pydantic-settings` a `Settings` y
+    `AuthSettings` (y la misma que exige el despliegue real, donde
+    `EnvironmentFile=` de systemd sigue mandando sobre cualquier plantilla):
+
+      1. **Entorno del proceso** (`os.environ`). Si la variable está puesta
+         ahí —aunque sea a cadena vacía—, gana. Este es el canal que systemd
+         usa en producción (`viewer/systemd/s9-knowledge-viewer.service`,
+         `EnvironmentFile=/etc/s9-knowledge/viewer.env`) y el que un
+         operador de laboratorio usa con `export` o `docker run -e`.
+      2. **`.env`** en el directorio de trabajo del proceso —el mismo fichero
+         y la misma ruta relativa que usan `Settings`/`AuthSettings`—. Sólo se
+         consulta si el paso 1 no dio nada.
+      3. Ninguno de los dos define la variable -> ``None``.
+
+    En cada paso, la búsqueda es INSENSIBLE A MAYÚSCULAS/MINÚSCULAS
+    (`_valor_insensible_a_mayusculas`), igual que `pydantic-settings` con
+    `case_sensitive=False`. Sin esto, `.env` en minúsculas dejaba la auth
+    (leída por `Settings`) encendida y el panel (leído aquí) apagado en
+    silencio: la MISMA firma que el defecto original, sólo que por
+    mayúsculas en vez de por fichero.
+
+    SIN CACHÉ a propósito, igual que `slot_enabled`/`_encendido`: un operador
+    que edita `.env` y reinicia el proceso tiene que ver el cambio, y una
+    variable de entorno cacheada al importar convertiría "editar el fichero"
+    en "editar el fichero y además tocar el código". Releer `.env` en cada
+    llamada es una lectura de fichero pequeña (unas pocas líneas) en el
+    camino de una petición HTTP local; el coste es aceptable frente a la
+    alternativa de un flag que miente tras el primer arranque.
+    """
+    valor_entorno = _valor_insensible_a_mayusculas(os.environ, name)
+    if valor_entorno is not None:
+        return valor_entorno
+    try:
+        valores = dotenv_values(DOTENV_FILENAME)
+    except OSError:
+        return None
+    return _valor_insensible_a_mayusculas(valores, name)
 
 
 class Settings(BaseSettings):

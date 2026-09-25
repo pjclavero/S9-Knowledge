@@ -41,7 +41,6 @@ Apagado por defecto, que es lo correcto para produccion.
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -98,8 +97,17 @@ def _encendido() -> bool:
       * `getattr` con respaldo VACIO conserva la semantica exacta cuando el
         chasis esta entero, y cuando no lo esta no enciende NADA. La ausencia
         de la fuente de la verdad no puede ser permiso: falla cerrado.
+
+    El VALOR se resuelve con `app.config.effective_env_value`: la misma
+    autoridad unica que usa `chassis.slot_enabled` para sus cuatro huecos.
+    Antes de esto, esta funcion leia `os.environ` directamente y nunca veia
+    lo que el operador escribia en `viewer/.env` -- exactamente el mismo
+    defecto que tenian los huecos C/B/F/G, corregido aqui a la vez porque es
+    la MISMA propiedad ("lo que dice `.env` gobierna").
     """
-    raw = os.environ.get(FLAG_ENV)
+    from app.config import effective_env_value
+
+    raw = effective_env_value(FLAG_ENV)
     if raw is None:
         return False
     valores = getattr(chassis, "FLAG_ON_VALUES", frozenset())

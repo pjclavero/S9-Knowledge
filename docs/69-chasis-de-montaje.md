@@ -98,8 +98,51 @@ Cada hueco tiene su variable de entorno, `S9K_PANEL_<KEY>_ENABLED`
   roto de siempre. Es la **única** omisión que `nav_for` admite —hueco declarado
   y explícitamente apagado—; cualquier otro enlace sin ruta sigue levantando
   `ChassisContractError`.
-- El valor se lee del entorno en **cada petición**: apagar un panel no exige
-  reiniciar el proceso.
+- El valor se lee en **cada petición**: apagar un panel no exige reiniciar
+  el proceso.
+- **`viewer/.env` GOBIERNA este interruptor** (corte "el `.env` gobierna lo
+  que dice gobernar"). Copiar `S9K_PANEL_C_ENABLED=true` a `.env` y reiniciar
+  enciende el panel C, igual que `S9K_AUTH_ENABLED` enciende la
+  autenticación. Esto **no era cierto antes de ese corte**: `slot_enabled`
+  leía `os.environ` sin pasar nunca por `.env` (pydantic-settings no exporta
+  el fichero al entorno del proceso), así que un operador que seguía al pie
+  de la letra "instalación cerrada de fábrica" —copiar la plantilla, poner
+  los cuatro a `true`, arrancar— veía **404 en silencio**, sin log ni aviso,
+  mientras la auth del mismo fichero sí se aplicaba. Autoridad única ahora:
+  `app.config.effective_env_value`, la misma que usa
+  `resultado._encendido` para `S9K_PANEL_RESULTADO_ENABLED`.
+- **Precedencia**: entorno del proceso primero (si la variable existe ahí
+  —aunque sea a cadena vacía— gana, sin mirar `.env`); si el entorno no la
+  define, se lee `.env`; si ninguno la define, apagado. Esto no es un detalle
+  interno: es lo que mantiene vivo el despliegue real, donde
+  `s9-knowledge-viewer.service` fija estas variables por
+  `EnvironmentFile=/etc/s9-knowledge/viewer.env` y una release que además
+  trajera un `viewer/.env` propio no puede pisarlo (por eso
+  `deploy/ansible/roles/viewer/tasks/main.yml` falla a propósito si encuentra
+  un `.env` dentro de la release).
+- **La comparación de nombres de clave es insensible a mayúsculas/minúsculas**,
+  en el entorno del proceso y en `.env`: misma librería (`dotenv_values`) y
+  misma precedencia POR CLAVE que `pydantic-settings`
+  (`case_sensitive=False`, el default de `Settings`/`AuthSettings`). Sin esto,
+  `s9k_panel_c_enabled=true` en minúsculas en `.env` dejaba la auth aplicada
+  (`AuthSettings` sí es insensible a mayúsculas) y el panel apagado EN
+  SILENCIO — la misma firma del defecto original, por caja de la clave en vez
+  de por fichero.
+  **La paridad NO cubre el empate**: si la misma clave aparece escrita dos
+  veces con distinta caja en el mismo `.env`, este visor elige SIEMPRE la
+  ortografía canónica en mayúsculas; `pydantic-settings` en cambio toma la
+  última línea del fichero, lo que lo hace no determinista frente a un simple
+  reordenamiento de líneas. Elección deliberada: la canónica es predecible
+  con independencia del orden, y ese orden es justo lo que un `.env` editado
+  a mano no garantiza.
+- **Techo declarado de `S9K_PANEL_RESULTADO_ENABLED`** (`/panel/resultado`,
+  no es un hueco del chasis pero comparte la misma autoridad): encendida y
+  apagada son indistinguibles por HTTP cuando el identificador pedido no
+  existe (mismo 404, mismo cuerpo, a propósito: "un recurso no autorizado es
+  indistinguible de uno inexistente"). Verificar por HTTP que esta clave
+  concreta gobierna la pantalla exigiría un `apply_id` real en un almacén de
+  procedencia; no se ha ejercido ese camino. Sólo está probado a nivel de
+  unidad (`resultado._encendido()` directo).
 
 Plantilla de despliegue: `viewer/.env.example`.
 

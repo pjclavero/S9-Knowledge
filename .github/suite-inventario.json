@@ -47,6 +47,7 @@
     "viewer/tests/test_provider_authz_fields_contract.py",
     "viewer/tests/test_registro_de_autorizacion.py",
     "viewer/tests/test_registro_es_especificacion_ejecutable.py",
+    "viewer/tests/test_s3_env_gobierna_paneles.py",
     "viewer/tests/test_serializers.py",
     "viewer/tests/test_v3_review_almacen_no_disponible.py",
     "viewer/tests/test_vault_descubrimiento_ambito.py",
@@ -408,6 +409,7 @@
     "viewer/tests/test_reviews_contaminacion_anidada.py": 3,
     "viewer/tests/test_reviews_forma_real_pipeline_state.py": 5,
     "viewer/tests/test_rollback_v3_a_v2.py": 4,
+    "viewer/tests/test_s3_env_gobierna_paneles.py": 12,
     "viewer/tests/test_saturacion_grafo_caracterizacion.py": 4,
     "viewer/tests/test_schema_compat_refuse_to_start.py": 16,
     "viewer/tests/test_scope_probe_is_not_evaluated_as_content.py": 6,
@@ -463,7 +465,7 @@
     "viewer/tests/test_graph_ux_v2.py",
     "viewer/tests/test_panel_apply_desde_la_ui.py"
   ],
-  "total": 9120,
+  "total": 9132,
   "modulos": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 526,
     "contracts/review-ingest/v1/tests/test_contracts_v1.py": 38,
@@ -762,6 +764,7 @@
     "viewer/tests/test_reviews_contaminacion_anidada.py": 8,
     "viewer/tests/test_reviews_forma_real_pipeline_state.py": 5,
     "viewer/tests/test_rollback_v3_a_v2.py": 4,
+    "viewer/tests/test_s3_env_gobierna_paneles.py": 12,
     "viewer/tests/test_saturacion_grafo_caracterizacion.py": 6,
     "viewer/tests/test_schema_compat_refuse_to_start.py": 16,
     "viewer/tests/test_scope_probe_is_not_evaluated_as_content.py": 9,
