@@ -123,7 +123,7 @@ MUTACIONES: tuple[Mutacion, ...] = (
         caen=(
             "test_no_alcanzable_si_el_reader_no_ve_ninguna_operacion",
         ),
-        dice="assert False is True",
+        dice="assert True is False",
         porque=(
             "Si dejara de importar el CONTENIDO de `operations_of_apply` y "
             "sólo mirara que no reviente, un apply sin ninguna marca en este "
