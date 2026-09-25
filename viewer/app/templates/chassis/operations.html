@@ -394,12 +394,34 @@
                data-role="ver-lo-aplicado">Ver qué se añadió y de dónde sale</a>
           </p>
         {% elif plan.resultado == 'sin_identidad' %}
-          <p data-plan-resultado="sin_identidad">
+          {#
+            RONDA 2 · RESIDUAL 1. `sin_identidad` cubre DOS causas y sólo una
+            de ellas es «no consta con qué identidad»: decir esa frase en la
+            otra causa sería FALSO -la identidad SÍ consta, en el almacén y
+            en el grafo- y mandaría al operador a avisar a administración por
+            un dato que no falta. `plan.causa_sin_identidad` distingue cuál
+            es, y el `else` (identidad ausente o causa no reconocida) es el
+            fallo CERRADO: ante una causa que esta plantilla no sepa nombrar,
+            se prefiere la frase más conservadora, no una que afirme de más.
+          #}
+          {% if plan.causa_sin_identidad == 'ambito_no_alcanza' %}
+          <p data-plan-resultado="sin_identidad" data-sin-identidad-causa="ambito_no_alcanza">
+            Se escribió —<strong>la identidad de esta ejecución está
+            registrada</strong>—, pero <strong>el ámbito del lector no llega
+            hasta la pantalla que lo enseña</strong>: sin un alta de entidad
+            aprobada para lo escrito, el ámbito de esa ejecución no aparece
+            reconocido, así que desde aquí no se puede llegar a lo que se
+            añadió. No es que falte la identidad ni que no haya nada: es que
+            falta el camino de vuelta hasta ella.
+          </p>
+          {% else %}
+          <p data-plan-resultado="sin_identidad" data-sin-identidad-causa="identidad_ausente">
             Se escribió, pero <strong>no consta con qué identidad</strong>, así
             que desde aquí no se puede llegar a lo que se añadió. No es que no
             haya nada: es que falta el dato para alcanzarlo. Avisa a quien
             administra el servicio.
           </p>
+          {% endif %}
         {% elif plan.resultado == 'apagado' %}
           <p data-plan-resultado="apagado">
             La pantalla que enseña lo aplicado y su procedencia

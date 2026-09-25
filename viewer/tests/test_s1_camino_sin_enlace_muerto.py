@@ -102,7 +102,14 @@ def test_no_alcanzable_si_el_reader_no_ve_ninguna_operacion():
 
     provider = _ProveedorDeMentira(("ws-cofradia",))
     reader = _LectorDeMentira([])
-    assert sp.alcanzable_para(provider, reader, "ws-cofradia", APPLY_ID) is False
+    resultado = sp.alcanzable_para(provider, reader, "ws-cofradia", APPLY_ID)
+    # RONDA 2 · RESIDUAL 2: mensaje PROPIO, no el `assert ... is False`
+    # genérico de pytest -ese repr casaría con cualquier fallo `is False` de
+    # este fichero y no diría CUÁL es la causa.
+    assert resultado is False, (
+        "alcanzable_para() dio alcanzable=True para un apply sin ninguna "
+        f"operación registrada en este workspace: {resultado!r}"
+    )
 
 
 def test_no_alcanzable_con_identificador_sin_forma_de_apply_id():
@@ -198,6 +205,28 @@ def test_camino_sin_identidad_cuando_NO_alcanzable(monkeypatch):
     )
     assert vista["apply_id"] is None, (
         "no se publica una identidad sobre la que no hay camino"
+    )
+    # RONDA 2 · RESIDUAL 1: la CAUSA de este `sin_identidad` es que el ámbito
+    # no alcanza, NO que falte la identidad -que en este caso SÍ existe
+    # (`estado.apply_id` está puesto)-. Sin este campo, la plantilla no tiene
+    # cómo distinguir esta causa de la de `identidad_ausente`.
+    assert vista["causa_sin_identidad"] == "ambito_no_alcanza", (
+        f"la causa publicada no es la real: {vista['causa_sin_identidad']!r}"
+    )
+
+
+def test_camino_sin_identidad_causa_identidad_ausente_cuando_falta_el_apply_id():
+    """LA OTRA CAUSA de `sin_identidad`: aquí SÍ es cierto que no consta la
+    identidad -la fila no tiene un `apply_id` con forma válida-, y la causa
+    publicada tiene que decir eso y no `ambito_no_alcanza`."""
+    from app.routers import chassis_operations as panel_ops
+
+    estado = _EstadoDeMentira(estado="applied", apply_id=None)
+    vista = panel_ops._camino_al_resultado(estado, "ws-cofradia", object())
+    assert vista["resultado"] == "sin_identidad"
+    assert vista["causa_sin_identidad"] == "identidad_ausente", (
+        f"causa incorrecta para una fila sin apply_id: "
+        f"{vista['causa_sin_identidad']!r}"
     )
 
 

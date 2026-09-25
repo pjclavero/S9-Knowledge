@@ -3348,6 +3348,25 @@ def test_S1_sin_alta_aprobada_el_panel_YA_NO_OFRECE_un_enlace_muerto(
         "S-1: el panel sigue ofreciendo el enlace muerto"
     )
 
+    # RONDA 2 · RESIDUAL 1. `sin_identidad` cubre dos causas y ÉSTA no es
+    # «no consta con qué identidad» -la identidad SÍ consta, en el almacén y
+    # más abajo se comprueba que también en el grafo-. Decir esa frase aquí
+    # sería FALSO y mandaría al operador a avisar a administración por un
+    # dato que no falta: la causa real es que el ÁMBITO no alcanza el
+    # destino, y la pantalla tiene que decirlo.
+    assert 'data-sin-identidad-causa="ambito_no_alcanza"' in camino["texto"], (
+        "el panel no distingue esta causa (ámbito) de la de identidad "
+        f"ausente: {camino['texto'][:400]}")
+    assert "no consta con qué identidad" not in camino["texto"], (
+        "el panel afirma que no consta la identidad sobre un apply cuya "
+        "identidad SÍ está registrada: es la frase falsa que el residual 1 "
+        "de la ronda 2 exige eliminar de este caso"
+    )
+    assert "el ámbito del lector no llega" in camino["texto"], (
+        "el panel no explica la causa REAL (el ámbito, no la identidad) al "
+        f"operador: {camino['texto'][:400]}"
+    )
+
     # Y la identidad de ESTE apply, aunque no se enlace, es la que el GRAFO
     # tiene marcada: la ausencia de camino no es una ausencia de escritura.
     with grafo.session() as sesion:

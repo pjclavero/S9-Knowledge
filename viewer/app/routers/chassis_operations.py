@@ -707,6 +707,26 @@ def _plan_de_la_corrida(resultado: Optional[dict], provider: GraphProvider) -> O
 #:                   existe y el camino está cerrado por configuración.
 CAMINOS_AL_RESULTADO = ("no_procede", "disponible", "sin_identidad", "apagado")
 
+#: RONDA 2 · RESIDUAL 1. `sin_identidad` cubre DOS causas DISTINTAS y la
+#: pantalla tiene que decir la que es, no siempre la misma frase. Vocabulario
+#: CERRADO, igual que `CAMINOS_AL_RESULTADO`, y NO un quinto código de
+#: `resultado`: la propiedad que cierra este corte es "hay o no hay camino",
+#: y eso lo sigue diciendo `sin_identidad` solo. `causa_sin_identidad` es la
+#: EXPLICACIÓN de por qué no lo hay, y sólo tiene sentido dentro de ese
+#: desenlace.
+#:
+#: `identidad_ausente`  -- la fila `applied`/`partial` no tiene un `apply_id`
+#:                         con forma válida (columna NULL o basura). Aquí SÍ
+#:                         es cierto que «no consta con qué identidad».
+#: `ambito_no_alcanza`   -- el `apply_id` EXISTE y está registrado en las dos
+#:                         autoridades (almacén y grafo): lo que falta es que
+#:                         el ámbito del lector lo alcance (sin `:Entity`,
+#:                         `provider.workspaces()` no incluye el workspace).
+#:                         Decir aquí «no consta con qué identidad» sería
+#:                         FALSO -la identidad consta, y de sobra- y mandaría
+#:                         al operador a avisar de un dato que sí está.
+CAUSAS_SIN_IDENTIDAD = ("identidad_ausente", "ambito_no_alcanza")
+
 
 def _camino_al_resultado(estado, workspace: str, provider: GraphProvider) -> dict:
     """¿Se puede llegar desde «aplicado» hasta lo que se aplicó? (Corte 3, S-1).
@@ -760,6 +780,25 @@ def _camino_al_resultado(estado, workspace: str, provider: GraphProvider) -> dic
     Cualquier EXCEPCIÓN al preguntar sí se trata como fallo cerrado y degrada
     a `apagado`, igual que la consulta del interruptor.
 
+    FRONTERA DECLARADA (RONDA 2 DE REVISIÓN), Y NO UN HUECO POR DESCUBRIR.
+    Con el proveedor de grafo por DEFECTO de fábrica (`S9K_GRAPH_PROVIDER`
+    distinto de un backend real — sin `Neo4jGraphProvider`, `reader_for`
+    devuelve `None`) esta guarda NO PREGUNTA, por lo de arriba, y el panel
+    sigue ofreciendo `disponible` con su enlace. Si ese despliegue tuviera de
+    verdad el mismo bloqueo que S-1 cierra (assertion > 0, entity == 0), el
+    destino no respondería el 404 `RESULT_NOT_FOUND` de este corte: respondería
+    **503** con el código estable `PROVENANCE_READER_UNAVAILABLE`
+    (`result_provenance.ProcedenciaNoDisponible`, ver
+    `app/routers/resultado.py`), cuyo texto es «este despliegue no puede
+    consultar la procedencia» — una frase que NO invita a concluir «no se
+    escribió nada», al contrario que el 404 que S-1 sí cierra. Ese caso queda
+    FUERA de la propiedad de este corte a propósito: no hay Neo4j real del que
+    leer `provider.workspaces()` ni `operations_of_apply`, así que no hay nada
+    que esta guarda pudiera preguntarle. Cerrarlo (si algún día hiciera falta)
+    exigiría una fuente de verdad distinta para "hay o no hay conocimiento
+    escrito" que no dependiera del backend de grafo, y eso es un corte propio,
+    no una línea de éste.
+
     AUTORIZACIÓN: aquí no se concede nada. El destino conserva su guarda de
     rol y su filtrado por política — quien no pueda ver una entidad, una
     relación o una evidencia seguirá sin verla, porque quien filtra es el
@@ -768,9 +807,13 @@ def _camino_al_resultado(estado, workspace: str, provider: GraphProvider) -> dic
     al proveedor filtrado es la misma que el destino se haría de todos modos.
     """
     if estado.estado not in ("applied", "partial"):
-        return {"resultado": "no_procede", "apply_id": None, "workspace": None}
+        return {"resultado": "no_procede", "apply_id": None, "workspace": None,
+                "causa_sin_identidad": None}
     if not estado.apply_id:
-        return {"resultado": "sin_identidad", "apply_id": None, "workspace": None}
+        # AQUÍ SÍ es cierto que «no consta con qué identidad»: la columna no
+        # tiene un `apply_id` con forma válida. Nada que buscar en el grafo.
+        return {"resultado": "sin_identidad", "apply_id": None, "workspace": None,
+                "causa_sin_identidad": "identidad_ausente"}
     try:
         from app.routers import resultado as pantalla_resultado  # noqa: PLC0415
 
@@ -789,7 +832,8 @@ def _camino_al_resultado(estado, workspace: str, provider: GraphProvider) -> dic
         panel_errors.registrar("RESULTADO_PANEL_NO_CONSULTABLE", exc)
         servida = False
     if not servida:
-        return {"resultado": "apagado", "apply_id": None, "workspace": None}
+        return {"resultado": "apagado", "apply_id": None, "workspace": None,
+                "causa_sin_identidad": None}
     # S-1: el destino se SIRVE, pero eso ya no basta. Se pregunta si ESTE
     # apply concreto RESOLVERÁ, con la misma autoridad que usa el destino
     # (`result_provenance.alcanzable_para`). Sin lector de procedencia
@@ -809,18 +853,28 @@ def _camino_al_resultado(estado, workspace: str, provider: GraphProvider) -> dic
                 # en otro bloque de esta misma pantalla) y este producto no
                 # sabe llevarte hasta ello. Nunca se publica un enlace que hoy
                 # respondería 404.
+                #
+                # RONDA 2 · RESIDUAL 1. La identidad EXISTE -está en el
+                # almacén y en el grafo, la misma que un momento antes se negó
+                # a enlazar por prudencia- y decir «no consta» sería FALSO:
+                # mandaría al operador a avisar a administración por un dato
+                # que no falta. La causa real es `ambito_no_alcanza`: sin
+                # `:Entity`, `provider.workspaces()` no incluye el workspace
+                # donde se escribió.
                 return {"resultado": "sin_identidad", "apply_id": None,
-                        "workspace": None}
+                        "workspace": None,
+                        "causa_sin_identidad": "ambito_no_alcanza"}
     except Exception as exc:  # noqa: BLE001 - la pantalla no se cae por esto
         panel_errors.registrar("RESULTADO_PANEL_NO_CONSULTABLE", exc)
-        return {"resultado": "apagado", "apply_id": None, "workspace": None}
+        return {"resultado": "apagado", "apply_id": None, "workspace": None,
+                "causa_sin_identidad": None}
     # `workspace` sale con el enlace porque el DESTINO lo necesita para no
     # enseñar el resultado de otro ámbito: sin él cae al workspace por defecto
     # del despliegue, y eso sería llevar al operador a una ejecución que no es
     # la suya. No es conocimiento interno nuevo: es la misma atribución de
     # corrida (`job_id` + `workspace`) que el acuse de la ingesta ya publica.
     return {"resultado": "disponible", "apply_id": estado.apply_id,
-            "workspace": workspace}
+            "workspace": workspace, "causa_sin_identidad": None}
 
 
 def _authorize(request: Request, user):
