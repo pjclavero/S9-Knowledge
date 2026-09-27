@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Generator, Optional
 
+from app import config
 from app.auth.models import AuditEvent, PartidaAccess, Session, User
 
 SCHEMA_VERSION = 4
@@ -24,7 +25,13 @@ _local = threading.local()
 # ---------------------------------------------------------------------------
 
 def _db_path() -> Path:
-    raw = os.environ.get("S9K_AUTH_DB_PATH", _DB_PATH_DEFAULT)
+    # `config.effective_env_value`, no `os.environ` a pelo: un operador que
+    # declara S9K_AUTH_DB_PATH sólo en `.env` (sin exportarlo) debe llegar a
+    # la MISMA base de datos que ve `AuthSettings` (que sí lo lee via
+    # `env_file=".env"`) — de lo contrario esta capa abre un `auth.db` en la
+    # ruta de fabrica mientras el resto de la app cree que usa otra.
+    valor = config.effective_env_value("S9K_AUTH_DB_PATH")
+    raw = valor if valor is not None else _DB_PATH_DEFAULT
     p = Path(raw)
     p.parent.mkdir(parents=True, exist_ok=True)
     return p
