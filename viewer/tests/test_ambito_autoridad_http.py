@@ -375,12 +375,15 @@ def test_la_pagina_del_grafo_arranca_en_lo_que_dice_la_autoridad_no_el_entorno(
     c = _cliente(app, auth_db, db_path, role=rol, usuario="quien")
     r = c.get("/graph")
     assert r.status_code == 200, r.text[:200]
+    # El orden importa: si la pagina trae el valor del ENTORNO, el diagnostico
+    # que tiene que salir es ese y no "falta el de la autoridad", que describe
+    # el sintoma y no la causa.
+    assert WS not in r.text, (
+        f"SEGUNDO LECTOR DEL ENTORNO: /graph inyecta {WS!r} para el rol "
+        f"{rol}, que es lo que declara S9K_DEFAULT_WORKSPACE, en vez de lo "
+        f"que resolvio la autoridad canonica ({WS_DEL_PERFIL!r}). Es la "
+        f"regresion que costo el corte F-2."
+    )
     assert WS_DEL_PERFIL in r.text, (
         f"/graph no inyecta el workspace de la AUTORIDAD para el rol {rol}"
-    )
-    assert WS not in r.text, (
-        f"SEGUNDO LECTOR DEL ENTORNO: /graph inyecta {WS!r}, que es lo que "
-        f"declara S9K_DEFAULT_WORKSPACE, en vez de lo que resolvio la "
-        f"autoridad canonica ({WS_DEL_PERFIL!r}). Es la regresion que costo "
-        f"el corte F-2."
     )
