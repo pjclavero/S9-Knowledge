@@ -10,14 +10,19 @@ MENSAJE del fallo, no el color).
 
 LO QUE ESTE CORTE CIERRA
 -------------------------
-`PolicyFilteredProvider.graph()` y `.list_entities()` delegaban el `workspace`
-del llamante directamente al provider base, a diferencia de `.entity()` (que
-ya reautorizaba con `_scope_workspaces()`). Lo único que salvaba el caso era
-el filtro nodo a nodo de `VisibilityPolicy.can_view`. `/api/graph` además
-aceptaba el `workspace` del CLIENTE tal cual (`workspace or
-get_default_workspace()`), sin compararlo contra la autoridad del servidor, y
-cuando esa autoridad no resolvía ningún ámbito, la respuesta salía 200 con
-`workspace: "leyenda"` -- un fail-closed que no se veía como tal.
+La propiedad tiene dos mitades y las dos son del PRODUCTO, no de un endpoint:
+
+  1. el ámbito de una consulta lo decide la autoridad del servidor, nunca un
+     valor que fabrique el cliente ni el entorno;
+  2. cuando la autoridad no resuelve, la respuesta no puede presentarse como
+     un workspace normal y vacío.
+
+En el proveedor filtrado, la reautorización del ámbito vivía sólo en `graph()`
+y `list_entities()`: los helpers `_visible_nodes` / `_visible_graph` llamaban
+al provider base directamente, así que `search`, `entity_types`,
+`list_sources`, `source_detail`, `counts` y `quality_metrics` seguían
+entregando el workspace ajeno con el filtro nodo a nodo apagado. En la capa
+HTTP, trece sitios repetían `workspace or S9K_DEFAULT_WORKSPACE`.
 
 EL ARNÉS SE CALIBRA A SÍ MISMO
 -------------------------------
@@ -25,6 +30,14 @@ EL ARNÉS SE CALIBRA A SÍ MISMO
    imprima solo al comparar.
 2. **Control nulo**: la mutación 0 toca un comentario y tiene que dejar la
    suite VERDE.
+3. **Ninguna mutación inerte**: toda mutación nombra un caso concreto de
+   pytest (`fichero::nombre`) y ese caso SE EJECUTA. Una que sólo comprobara
+   que la sustitución de texto ocurrió es un `grep` disfrazado -- no puede
+   ponerse roja, luego no mide nada -- y `_mutaciones_sin_prueba_ejecutable`
+   lo rechaza antes de empezar.
+4. **Node obligatorio**: dos mutaciones corren la especificación JS. Sin Node
+   ese caso se auto-omitiría con rc=0 y el arnés leería un falso verde, así
+   que aborta.
 
 USO
 ---
