@@ -16,6 +16,7 @@ from app.auth import db as auth_db
 from app.auth.config import get_auth_settings
 from app.auth.csrf import get_csrf_token_for_session
 from app.auth.sessions import get_valid_session
+from app.authz import existencia
 
 log = logging.getLogger("s9k.auth.middleware")
 
@@ -107,8 +108,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
                             request.state.user = user
                             request.state.session = session
                             request.state.active_partida = session.active_partida
-                            request.state.user_partidas = auth_db.list_partida_access(
-                                conn, user_id=user.id
+                            # S1: la misma autoridad que /partida/select, no una
+                            # lectura paralela sin filtrar por workspace -- ver
+                            # app.authz.existencia.partidas_seleccionables.
+                            request.state.user_partidas = existencia.partidas_seleccionables(
+                                conn, user, existencia.workspace_canonico(),
                             )
                             # Token CSRF: derivado del session_hash para no requerir DB
                             csrf_raw = hmac.new(

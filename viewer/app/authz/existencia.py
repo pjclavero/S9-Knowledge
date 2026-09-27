@@ -133,3 +133,49 @@ def partida_existe(
     from app.auth import db as auth_db
 
     return auth_db.partida_exists(conn, workspace.strip(), partida_id)
+
+
+def partidas_seleccionables(conn: sqlite3.Connection, user, workspace: Optional[str]) -> list:
+    """¿Qué partidas puede ELEGIR `user` ahora mismo, en `workspace`?
+
+    S1. Antes de esta función el selector de `base.html` se pintaba con
+    ``auth_db.list_partida_access(conn, user_id=user.id)`` -- SIN filtrar por
+    workspace -- mientras ``/partida/select`` autorizaba con
+    ``user_allowed_partidas(..., workspace=canónico)``. El resultado medido:
+    una concesión hecha en un workspace ajeno al canónico seguía apareciendo en
+    el selector, y elegirla daba 403 ("No tienes asignada esa partida").
+
+    Esta función es la ÚNICA respuesta a "¿qué puede elegir este usuario?":
+    tanto pintar el selector (`AuthMiddleware`) como decidir si aceptar una
+    elección (`routers.partida.select_partida`) pasan por aquí. Una segunda
+    interpretación paralela de la misma pregunta es exactamente la divergencia
+    que este corte cierra -- no se repite.
+
+    Sin workspace efectivo determinable (fail-closed, igual que el resto de
+    este módulo): ninguna partida es seleccionable.
+
+    Un admin no tiene por qué tener concesiones propias (`admin_full`), pero
+    tampoco puede fijar una partida inventada -- ver `partida_existe` -- así
+    que su lista es la de partidas que EXISTEN canónicamente en el workspace
+    (concedidas a cualquier usuario), no solo las suyas. Deduplicada por
+    `partida_id`: la misma partida puede estar concedida a varios usuarios y
+    el selector pinta una opción por partida, no por fila de concesión.
+    """
+    if not workspace or not isinstance(workspace, str) or not workspace.strip():
+        return []
+    from app.auth import db as auth_db
+
+    ws = workspace.strip()
+    if getattr(user, "is_admin", None) is not None and user.is_admin():
+        filas = auth_db.list_partida_access(conn, workspace=ws)
+    else:
+        filas = auth_db.list_partida_access(conn, user_id=user.id, workspace=ws)
+
+    vistas: set[str] = set()
+    resultado = []
+    for fila in filas:
+        if fila.partida_id in vistas:
+            continue
+        vistas.add(fila.partida_id)
+        resultado.append(fila)
+    return resultado
