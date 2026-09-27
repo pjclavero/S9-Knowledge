@@ -63,12 +63,12 @@ async def select_partida(
     with auth_db.get_conn(db_path) as conn:
         if chosen is not None:
             if not user.is_admin():
-                # Fail-closed: sin workspace efectivo determinable, no se concede acceso.
-                allowed = (
-                    auth_db.user_allowed_partidas(conn, user.id, workspace=workspace)
-                    if workspace and isinstance(workspace, str) and workspace.strip()
-                    else []
-                )
+                # S1: misma autoridad que pinta el selector -- fail-closed sin
+                # workspace efectivo determinable, sin repetir aquí ese cálculo.
+                allowed = [
+                    a.partida_id
+                    for a in existencia.partidas_seleccionables(conn, user, workspace)
+                ]
                 if chosen not in allowed:
                     raise HTTPException(
                         status_code=403,

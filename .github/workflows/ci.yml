@@ -1132,6 +1132,23 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/mutaciones_s1_resultado_sin_enlace_muerto.py
 
+      # Y la calibracion del corte S-1 «el selector no ofrece lo que el
+      # producto rechaza» (multipartida). Cubre cuatro formas de romper la
+      # propiedad: el defecto original (el middleware vuelve a pintar el
+      # selector sin filtrar por workspace), que la autoridad compartida
+      # `existencia.partidas_seleccionables` pierda ese filtro para un
+      # usuario normal, que el admin pierda concesiones de otros usuarios en
+      # el workspace canonico, y que la partida activa invalidada sobreviva
+      # en `sessions.active_partida` (`_clear_active_partida` como no-op).
+      # Corre tambien sobre `test_multipartida_m5a_adversarial.py`: ese
+      # mecanismo ya existia para la ultima forma, y aqui queda calibrado por
+      # primera vez en vez de descansar en que la suite general lo ejercite.
+      - name: "El selector usa la misma autoridad que /partida/select: se pone ROJO ante cada defecto (S-1 multipartida)"
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/mutaciones_s1_selector_misma_autoridad.py
+
   # Instalado desde .github/ci-fragments/check-env-reproducibility.yml. Si un
   # merge se lleva por delante este bloque, el fragmento es la copia canonica.
   check-env-reproducibility:
