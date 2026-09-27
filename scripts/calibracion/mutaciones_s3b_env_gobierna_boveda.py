@@ -100,7 +100,7 @@ MUTACIONES: tuple[Mutacion, ...] = (
         fichero=AUTH_DB,
         viejo=(
             "    valor = config.effective_env_value(\"S9K_AUTH_DB_PATH\")\n"
-            "    raw = valor if valor is not None else _DB_PATH_DEFAULT\n"
+            "    raw = valor if (valor is not None and valor.strip()) else _DB_PATH_DEFAULT\n"
         ),
         nuevo=(
             "    import os as _os\n\n"
@@ -116,6 +116,28 @@ MUTACIONES: tuple[Mutacion, ...] = (
             "operador que declara `S9K_AUTH_DB_PATH` sólo en `.env` vería "
             "`AuthSettings` resolver una ruta y esta capa de bajo nivel "
             "abrir otra distinta — dos autoridades sobre la misma base."
+        ),
+    ),
+    Mutacion(
+        nombre="auth-db-path-vacia-se-toma-por-valor",
+        fichero=AUTH_DB,
+        viejo=(
+            "    raw = valor if (valor is not None and valor.strip()) else _DB_PATH_DEFAULT\n"
+        ),
+        nuevo=(
+            "    raw = valor if valor is not None else _DB_PATH_DEFAULT\n"
+        ),
+        caen=(
+            "test_auth_db_path_de_la_plantilla_literal_no_es_un_directorio",
+        ),
+        dice="una clave PRESENTE PERO VACÍA se está tomando por una ruta declarada",
+        porque=(
+            "RONDA 2. `viewer/.env.example` trae `S9K_AUTH_DB_PATH=` EN "
+            "BLANCO (línea activa, no comentada): `effective_env_value` "
+            "devuelve `''`, no `None`, para esa clave. Comparar sólo contra "
+            "`None` no basta — `Path('')` es el directorio de trabajo, no un "
+            "fichero — y con la plantilla LITERAL (sin que ningún test la "
+            "sobrescriba) `_db_path()` deja de apuntar a una base de datos."
         ),
     ),
     Mutacion(
@@ -135,6 +157,31 @@ MUTACIONES: tuple[Mutacion, ...] = (
             "La MISMA firma, en el healthcheck operativo: si `S9K_NEO4J_URI` "
             "sólo está en `.env`, el healthcheck auditaría un Neo4j distinto "
             "del que la aplicación usa de verdad."
+        ),
+    ),
+    Mutacion(
+        nombre="health-runner-auth-db-path-vacia-se-toma-por-valor",
+        fichero=HEALTH_RUNNER,
+        viejo=(
+            "    valor = config.effective_env_value(name)\n"
+            "    if valor is not None and valor.strip():\n"
+            "        return valor\n"
+            "    return default\n"
+        ),
+        nuevo=(
+            "    valor = config.effective_env_value(name)\n"
+            "    return valor if valor is not None else default\n"
+        ),
+        caen=(
+            "test_health_runner_auth_db_path_de_la_plantilla_literal_no_es_un_directorio",
+        ),
+        dice="una clave presente-pero-vacía se tomó por un valor declarado",
+        porque=(
+            "RONDA 2, MISMA firma en el healthcheck: con la plantilla "
+            "literal (`S9K_AUTH_DB_PATH=` en blanco), `_gob_ruta` sin la "
+            "comprobación de `.strip()` ofrecería `db_path=''` en vez del "
+            "default de fábrica de `AuthSettings` — el healthcheck "
+            "reportaría una base inexistente que no es tal."
         ),
     ),
 )
