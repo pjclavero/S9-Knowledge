@@ -34,6 +34,7 @@ Requiere árbol limpio: las mutaciones se revierten con `git checkout --`.
 """
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -43,10 +44,16 @@ REPO = Path(__file__).resolve().parents[2]
 
 FILTERED_PROVIDER = "viewer/app/authz/filtered_provider.py"
 API_GRAPH = "viewer/app/api/graph.py"
+AMBITO = "viewer/app/authz/ambito.py"
+READONLY = "viewer/app/routers/readonly.py"
+MAIN = "viewer/app/main.py"
 GRAPH_JS = "viewer/app/static/js/graph.js"
+GRAPH_CORE_JS = "viewer/app/static/js/graph-core.js"
 
 SUITE_PROVIDER = "viewer/tests/test_authz_filtered_provider.py"
 SUITE_HTTP = "viewer/tests/test_p0_autoridad_admin_full_http.py"
+SUITE_AMBITO = "viewer/tests/test_ambito_autoridad_http.py"
+SUITE_JS = "viewer/tests/test_graph_ux_v2.py"
 
 
 @dataclass(frozen=True)
@@ -70,52 +77,145 @@ CONTROL_NULO = Mutacion(
 
 
 MUTACIONES: list[Mutacion] = [
+    # --- los OCHO caminos del proveedor -----------------------------------
     Mutacion(
         nombre="1 · `graph()` deja de reautorizar el ámbito: vuelve a "
                "delegar el workspace del llamante sin comprobarlo",
         fichero=FILTERED_PROVIDER,
-        viejo="        if not self._ctx.admin_full and workspace not in self._ctx.allowed_workspaces:\n"
-              "            return [], []\n        nodes, edges = self._base.graph(",
-        nuevo="        nodes, edges = self._base.graph(",
-        prueba=f"{SUITE_PROVIDER}::test_graph_no_consulta_workspace_ajeno_aunque_el_filtro_nodo_a_nodo_este_apagado",
-        esperado="con el filtro nodo a nodo desactivado",
+        viejo="        # Reautorización del ámbito (ver `_ambito_autorizado`).\n"
+              "        if not self._ambito_autorizado(workspace):\n"
+              "            return [], []\n"
+              "        nodes, edges = self._base.graph(workspace, limit=_ALL, entity_type=entity_type, q=q)",
+        nuevo="        nodes, edges = self._base.graph(workspace, limit=_ALL, entity_type=entity_type, q=q)",
+        prueba=f"{SUITE_PROVIDER}::test_ningun_metodo_entrega_el_workspace_ajeno_con_el_filtro_apagado",
+        esperado="FUGA DE AMBITO en `graph`",
     ),
     Mutacion(
-        nombre="2 · `list_entities()` deja de reautorizar el ámbito: mismo "
-               "defecto en el segundo consumidor",
+        nombre="2 · `list_entities()` deja de reautorizar el ámbito",
         fichero=FILTERED_PROVIDER,
-        viejo="        if not self._ctx.admin_full and workspace not in self._ctx.allowed_workspaces:\n"
-              "            return [], 0\n        items, _ = self._base.list_entities(",
-        nuevo="        items, _ = self._base.list_entities(",
-        prueba=f"{SUITE_PROVIDER}::test_list_entities_no_consulta_workspace_ajeno_aunque_el_filtro_nodo_a_nodo_este_apagado",
-        esperado="con el filtro nodo a nodo desactivado",
+        viejo="        # Reautorización del ámbito (ver `_ambito_autorizado`).\n"
+              "        if not self._ambito_autorizado(workspace):\n"
+              "            return [], 0",
+        nuevo="",
+        prueba=f"{SUITE_PROVIDER}::test_ningun_metodo_entrega_el_workspace_ajeno_con_el_filtro_apagado",
+        esperado="FUGA DE AMBITO en `list_entities`",
     ),
     Mutacion(
-        nombre="3 · `/api/graph` vuelve a aceptar el parámetro del cliente "
-               "como ámbito de un `viewer`, en vez de la autoridad",
-        fichero=API_GRAPH,
-        viejo="    if len(canonicos) != 1:\n"
-              "        # Vacío = autoridad sin resolver. Más de uno no debería ocurrir hoy\n"
-              "        # (`allowed_workspaces` es un singleton por contrato), pero tampoco\n"
-              "        # hay en ese caso UN ámbito único que devolver sin elegir por el\n"
-              "        # cliente, así que se trata igual: sin ámbito.\n"
-              "        return None\n    return next(iter(canonicos))",
-        nuevo="    return solicitado or next(iter(canonicos), None)",
-        prueba=f"{SUITE_HTTP}::test_el_control_de_autorizacion_COLAPSA_en_api_graph",
-        esperado="FUGA DE AMBITO",
+        nombre="3 · `_visible_nodes` vuelve a llamar al provider base sin "
+               "reautorizar (arrastra entity_types, list_sources y source_detail)",
+        fichero=FILTERED_PROVIDER,
+        viejo="        if not self._ambito_autorizado(workspace):\n"
+              "            return []\n"
+              "        nodes, _ = self._base.list_entities(workspace, limit=_ALL, offset=0)",
+        nuevo="        nodes, _ = self._base.list_entities(workspace, limit=_ALL, offset=0)",
+        prueba=f"{SUITE_PROVIDER}::test_ningun_metodo_entrega_el_workspace_ajeno_con_el_filtro_apagado",
+        esperado="FUGA DE AMBITO en `entity_types`",
     ),
     Mutacion(
-        nombre="4 · el cliente vuelve a fabricar un workspace de repuesto "
+        nombre="4 · `_visible_graph` vuelve a llamar al provider base sin "
+               "reautorizar (arrastra counts y quality_metrics)",
+        fichero=FILTERED_PROVIDER,
+        viejo="        if not self._ambito_autorizado(workspace):\n"
+              "            return [], []\n"
+              "        nodes, edges = self._base.graph(workspace, limit=_ALL)",
+        nuevo="        nodes, edges = self._base.graph(workspace, limit=_ALL)",
+        prueba=f"{SUITE_PROVIDER}::test_ningun_metodo_entrega_el_workspace_ajeno_con_el_filtro_apagado",
+        esperado="FUGA DE AMBITO en `counts`",
+    ),
+    Mutacion(
+        nombre="5 · `search()` deja de reautorizar el ámbito",
+        fichero=FILTERED_PROVIDER,
+        viejo="        if not self._ambito_autorizado(workspace):\n"
+              "            return []\n"
+              "        raw = self._base.search(workspace, q, limit=_ALL)",
+        nuevo="        raw = self._base.search(workspace, q, limit=_ALL)",
+        prueba=f"{SUITE_PROVIDER}::test_ningun_metodo_entrega_el_workspace_ajeno_con_el_filtro_apagado",
+        esperado="FUGA DE AMBITO en `search`",
+    ),
+    Mutacion(
+        nombre="6 · la reautorización se retira ENTERA: control de que el "
+               "control positivo de los ocho sigue midiendo algo",
+        fichero=FILTERED_PROVIDER,
+        viejo="        return self._ctx.admin_full or workspace in self._ctx.allowed_workspaces",
+        nuevo="        return False",
+        prueba=f"{SUITE_PROVIDER}::test_control_positivo_los_ocho_siguen_viendo_el_workspace_propio",
+        esperado="el banco no esta midiendo una ausencia",
+    ),
+
+    # --- la autoridad del ÁMBITO, por HTTP ---------------------------------
+    Mutacion(
+        nombre="7 · la autoridad vuelve a aceptar el parámetro del cliente "
+               "para un no-admin (el defecto original, ahora en un solo sitio)",
+        fichero=AMBITO,
+        viejo="    if len(canonicos) != 1:",
+        nuevo="    if solicitado:\n        return solicitado\n    if len(canonicos) != 1:",
+        prueba=f"{SUITE_AMBITO}::test_el_parametro_ajeno_NO_decide_el_ambito_de_un_no_admin",
+        esperado="FUGA DE AMBITO en /api/search",
+    ),
+    Mutacion(
+        nombre="8 · el fail-closed deja de verse: sin ámbito se devuelve la "
+               "cadena vacía en vez de 409",
+        fichero=AMBITO,
+        viejo="    ws = ambito_de_la_peticion(ctx, solicitado)\n"
+              "    if ws is None:\n"
+              "        raise HTTPException(status_code=ESTADO_SIN_AMBITO, detail=MENSAJE_SIN_AMBITO)\n"
+              "    return ws",
+        nuevo="    return ambito_de_la_peticion(ctx, solicitado) or \"\"",
+        prueba=f"{SUITE_AMBITO}::test_sin_autoridad_resuelta_ningun_endpoint_finge_un_workspace_vacio",
+        esperado="presenta el fail-closed como un workspace normal y vacio",
+    ),
+    Mutacion(
+        nombre="9 · `admin_full` pierde su selector declarado de workspace",
+        fichero=AMBITO,
+        viejo="        return solicitado or next(iter(canonicos), None)",
+        nuevo="        return next(iter(canonicos), None)",
+        prueba=f"{SUITE_AMBITO}::test_admin_full_conserva_el_selector_de_workspace",
+        esperado="el selector que la decision declarada le concede",
+    ),
+    Mutacion(
+        nombre="10 · las pantallas HTML vuelven a pintar la falta de ámbito "
+               "como una página normal y vacía",
+        fichero=READONLY,
+        viejo="        status_code=409,\n    )",
+        nuevo="        status_code=200,\n    )",
+        prueba=f"{SUITE_AMBITO}::test_las_pantallas_HTML_usan_el_mismo_criterio",
+        esperado="con la autoridad sin resolver",
+    ),
+    Mutacion(
+        nombre="11 · `/graph` vuelve a leer el ENTORNO para `admin_full`: el "
+               "segundo lector fuera de la autoridad (regresión de F-2)",
+        fichero=MAIN,
+        viejo="    return next(iter(scope.ctx.allowed_workspaces), \"\")\n"
+              "\n\n@app.get(\"/graph\", response_class=HTMLResponse)",
+        nuevo="    if scope.ctx.admin_full:\n"
+              "        return get_settings().S9K_DEFAULT_WORKSPACE\n"
+              "    return next(iter(scope.ctx.allowed_workspaces), \"\")\n"
+              "\n\n@app.get(\"/graph\", response_class=HTMLResponse)",
+        prueba=f"{SUITE_AMBITO}::test_la_pagina_del_grafo_arranca_en_lo_que_dice_la_autoridad_no_el_entorno",
+        esperado="SEGUNDO LECTOR DEL ENTORNO",
+    ),
+
+    # --- el cliente ---------------------------------------------------------
+    Mutacion(
+        nombre="12 · el cliente vuelve a fabricar un workspace de repuesto "
                "cuando el servidor no le da ninguno",
         fichero=GRAPH_JS,
         viejo='  var workspace = window.S9K_WORKSPACE || "";',
         nuevo='  var workspace = window.S9K_WORKSPACE || "leyenda";',
-        prueba="viewer/tests/js/graph_core_spec.js",
-        # Este fichero es JS, sin corredor pytest: se marca como
-        # "verificación estática" (ver `_verificar` más abajo) porque lo que
-        # hay que demostrar es que el patrón `|| "leyenda"` no reaparece en el
-        # árbol, no que un test de pytest se ponga rojo.
-        esperado=None,
+        prueba=f"{SUITE_JS}::test_el_cliente_no_fabrica_un_workspace_de_repuesto",
+        esperado="fabrica un workspace de repuesto",
+    ),
+    Mutacion(
+        nombre="13 · el 409 pierde su familia propia en el cliente: la falta "
+               "de ámbito se pinta como un error genérico",
+        fichero=GRAPH_CORE_JS,
+        viejo='    if (code === 409) return "no_scope";\n',
+        nuevo="",
+        # Corre la especificacion JS DE VERDAD con Node (es el mismo fichero
+        # que ejecuta el job «Especificacion JS del grafo (Node obligatorio)»).
+        # La ronda 1 declaro aqui una prueba que NUNCA se corria.
+        prueba=f"{SUITE_JS}::test_graph_core_js_spec",
+        esperado="la especificación JS ha fallado",
     ),
 ]
 
@@ -174,14 +274,45 @@ def _esperado_es_una_frase(esperado: str) -> str | None:
     return None
 
 
-def _es_mutacion_estatica(m: Mutacion) -> bool:
-    return m.fichero == GRAPH_JS
+def _mutaciones_sin_prueba_ejecutable(mutaciones: list[Mutacion]) -> list[str]:
+    """Ninguna mutación puede quedarse en «comprobar que el texto cambió».
+
+    La ronda 1 tenía una que hacía exactamente eso: sustituía texto, comprobaba
+    que la sustitución había ocurrido y declaraba un fichero de prueba que NO
+    se ejecutaba nunca. Eso es un `grep` disfrazado: no puede ponerse roja, así
+    que no mide nada. Este gate lo impide por construcción -- toda mutación
+    declara un caso de pytest concreto (`fichero::nombre`) y ese caso se corre.
+    """
+    malas = []
+    for i, m in enumerate(mutaciones, 1):
+        if "::" not in m.prueba:
+            malas.append(f"mutación {i}: `{m.prueba}` no nombra un caso "
+                         f"concreto de pytest, así que no ejecuta nada")
+        if not m.esperado:
+            malas.append(f"mutación {i}: sin causa esperada, sólo mediría el "
+                         f"color del fallo")
+    return malas
 
 
 def main() -> int:
+    if shutil.which("node") is None:
+        # Sin Node, `test_graph_core_js_spec` se auto-omite y pytest sale
+        # rc=0: el calibrador leeria «verde con la mutacion puesta» y no
+        # sabria distinguirlo de una garantia rota. Mejor no medir que medir
+        # mal.
+        print("FALTA NODE: la mutacion del cliente no se puede calibrar y su "
+              "caso se omitiria en silencio. Instala Node y repite.")
+        return 2
     if not _arbol_limpio():
         print("ÁRBOL SUCIO. Commitea antes: las mutaciones se revierten con "
               "`git checkout --` y se llevarían por delante tu trabajo.")
+        return 2
+
+    inertes = _mutaciones_sin_prueba_ejecutable(MUTACIONES)
+    if inertes:
+        print("MUTACIONES QUE NO EJECUTAN NADA:")
+        for motivo in inertes:
+            print(f"  · {motivo}")
         return 2
 
     flojos = [(i, motivo) for i, m in enumerate(MUTACIONES, 1)
@@ -218,22 +349,6 @@ def main() -> int:
         if error:
             fallos.append(f"{i}. {error}")
             print("   ANCLA PERDIDA — la mutación no se aplicó")
-            continue
-
-        if _es_mutacion_estatica(m):
-            # Verificación estática: tras la mutación, el patrón peligroso
-            # ("|| \"leyenda\"") tiene que estar presente. Es el negativo del
-            # ojo humano, no de un test runner de JS (no hay uno en CI para
-            # este fichero); demuestra que ANTES de esta mutación el patrón NO
-            # estaba, y que revertirla lo hace reaparecer.
-            mutado = _leer(m.fichero)
-            _restaurar(m.fichero, original)
-            if m.nuevo in mutado and m.nuevo not in original:
-                print("   confirmado: la mutación reintroduce el patrón "
-                      "peligroso, ausente en el árbol real")
-            else:
-                fallos.append(f"{i}. la mutación no cambió lo que debía en {m.fichero}")
-                print("   MUTACIÓN INERTE")
             continue
 
         _purgar_pycache()

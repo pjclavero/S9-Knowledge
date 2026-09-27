@@ -338,10 +338,26 @@ test("errores: cada status HTTP tiene su familia", () => {
   assert.strictEqual(core.errorKindForStatus(401), "unauthenticated");
   assert.strictEqual(core.errorKindForStatus(403), "forbidden");
   assert.strictEqual(core.errorKindForStatus(404), "not_found");
+  // 409 = la autoridad del servidor no ha resuelto ningun workspace para esta
+  // sesion. Tiene familia PROPIA: si cayera en "unknown" el usuario leeria un
+  // error generico en vez de la unica causa que hay.
+  assert.strictEqual(core.errorKindForStatus(409), "no_scope");
   assert.strictEqual(core.errorKindForStatus(503), "unavailable");
   assert.strictEqual(core.errorKindForStatus(504), "timeout");
   assert.strictEqual(core.errorKindForStatus(0), "network");
   assert.strictEqual(core.errorKindForStatus(418), "unknown");
+});
+
+test("errores: la falta de ambito tiene mensaje propio y distinto de los demas", () => {
+  const kind = core.errorKindForStatus(409);
+  const sinAmbito = core.ERROR_MESSAGES[kind];
+  assert.ok(sinAmbito && sinAmbito.length > 0,
+    "un 409 sin mensaje propio se pinta como un error generico");
+  Object.keys(core.ERROR_MESSAGES).forEach((k) => {
+    if (k === kind) return;
+    assert.notStrictEqual(core.ERROR_MESSAGES[k], sinAmbito,
+      "«sin ambito» dice lo mismo que " + k + ": entonces no se distingue");
+  });
 });
 
 test("errores: el mensaje al usuario no filtra rutas, trazas ni códigos", () => {

@@ -243,3 +243,74 @@ def test_admin_si_puede_pedir_otro_workspace_por_graph(base):
     prov = PolicyFilteredProvider(base, _admin())
     nodes, _ = prov.graph(OTRA_BOVEDA)
     assert any(n["id"] == "otra_boveda_node" for n in nodes)
+
+
+# --- RONDA 2: LOS OCHO CAMINOS, NO DOS ------------------------------------
+#
+# La ronda 1 cerro `graph()` y `list_entities()`. Un barrido posterior midio
+# que los SEIS restantes seguian entregando el workspace ajeno al provider
+# base con el filtro de politica apagado: `search`, `entity_types`,
+# `list_sources`, `source_detail`, `counts` y `quality_metrics`. Causa: los
+# helpers `_visible_nodes` / `_visible_graph` llamaban al base directamente y
+# se saltaban las dos guardas nuevas.
+#
+# La tabla mide los OCHO de una vez, y cada fila trae su CONTROL POSITIVO: sin
+# el, "devolver vacio siempre" pasaria por arreglo.
+
+FUENTE_AJENA = "sesion_gamma_lab"
+FUENTE_PROPIA = "sesion_01_lab"
+
+
+def _cuanto_ve(prov, ws, fuente):
+    """Cuanto entrega cada metodo para `ws`. 0 = nada."""
+    return {
+        "graph": lambda: len(prov.graph(ws)[0]),
+        "list_entities": lambda: prov.list_entities(ws, limit=1000)[1],
+        "search": lambda: len(prov.search(ws, "a")),
+        "entity_types": lambda: sum(t["count"] for t in prov.entity_types(ws)),
+        "list_sources": lambda: len(prov.list_sources(ws)),
+        "source_detail": lambda: (
+            0 if prov.source_detail(ws, fuente) is None
+            else prov.source_detail(ws, fuente)["entity_count"]
+        ),
+        "counts": lambda: prov.counts(ws)[0],
+        "quality_metrics": lambda: prov.quality_metrics(ws)["total_entities"],
+    }
+
+
+LOS_OCHO_METODOS = [
+    "graph", "list_entities", "search", "entity_types",
+    "list_sources", "source_detail", "counts", "quality_metrics",
+]
+
+
+@pytest.mark.parametrize("metodo", LOS_OCHO_METODOS)
+def test_ningun_metodo_entrega_el_workspace_ajeno_con_el_filtro_apagado(base, metodo):
+    prov = PolicyFilteredProvider(base, _viewer_bryn(), policy=_PoliticaQueLoAprueebaTodo())
+    visto = _cuanto_ve(prov, OTRA_BOVEDA, FUENTE_AJENA)[metodo]()
+    assert visto == 0, (
+        f"FUGA DE AMBITO en `{metodo}`: con el filtro nodo a nodo desactivado "
+        f"entrego {visto} elementos de un workspace fuera de "
+        f"`allowed_workspaces`. La proteccion dependia de una sola capa."
+    )
+
+
+@pytest.mark.parametrize("metodo", LOS_OCHO_METODOS)
+def test_control_positivo_los_ocho_siguen_viendo_el_workspace_propio(base, metodo):
+    """Sin esta mitad, un `return []` incondicional pasaria la tabla de arriba."""
+    prov = PolicyFilteredProvider(base, _viewer_bryn(), policy=_PoliticaQueLoAprueebaTodo())
+    visto = _cuanto_ve(prov, WS, FUENTE_PROPIA)[metodo]()
+    assert visto > 0, (
+        f"el control positivo de `{metodo}` no ve NADA de su propio "
+        f"workspace: el banco no esta midiendo una ausencia, esta ciego"
+    )
+
+
+@pytest.mark.parametrize("metodo", LOS_OCHO_METODOS)
+def test_admin_full_conserva_el_acceso_por_los_ocho_caminos(base, metodo):
+    """`admin_full` no esta sujeto a esta reautorizacion (docs/75)."""
+    prov = PolicyFilteredProvider(base, _admin())
+    assert _cuanto_ve(prov, OTRA_BOVEDA, FUENTE_AJENA)[metodo]() > 0, (
+        f"`{metodo}` le ha retirado a `admin_full` un acceso que la decision "
+        f"declarada le concede"
+    )

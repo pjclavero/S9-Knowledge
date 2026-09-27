@@ -490,3 +490,27 @@ def test_calibracion_js_romper_el_aviso_pone_la_sonda_en_ROJO(tmp_path):
     intacto = tmp_path / "revertido.js"
     intacto.write_text(fuente, encoding="utf-8")
     assert _corre_sonda(intacto).returncode == 0
+
+
+def test_el_cliente_no_fabrica_un_workspace_de_repuesto():
+    """`graph.js` no puede inventar un workspace cuando el servidor no da uno.
+
+    Se parsea la EXPRESION de inicializacion, no se cuenta texto: lo que se
+    afirma es que el operando de reserva de `window.S9K_WORKSPACE || ...` es la
+    cadena vacia. Con un `|| "leyenda"` ahi, un principal con la autoridad sin
+    resolver volvia a pedir el workspace de fabrica por su cuenta.
+
+    TECHO DECLARADO: esto mira el fuente de `graph.js`, no su ejecucion.
+    `graph.js` es DOM + vis-network y no se puede cargar en el arnes de Node
+    (`graph_core_spec.js` cubre `graph-core.js`, que si es logica pura). La
+    ejecucion real de esta linea la cubre la bateria de navegador.
+    """
+    fuente = GRAPH_JS.read_text(encoding="utf-8")
+    m = re.search(r"var\s+workspace\s*=\s*window\.S9K_WORKSPACE\s*\|\|\s*([^;]+);",
+                  fuente)
+    assert m, "no se encuentra la inicializacion de `workspace` en graph.js"
+    reserva = m.group(1).strip()
+    assert reserva in ('""', "''"), (
+        f"el cliente fabrica un workspace de repuesto ({reserva}) cuando el "
+        f"servidor no le da ninguno: el ambito volveria a elegirlo el cliente"
+    )

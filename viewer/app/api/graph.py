@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.authz.ambito import MENSAJE_SIN_AMBITO, ambito_de_la_peticion
 from app.authz.dependencies import get_filtered_provider, get_visibility_scope
 from app.authz.scope import VisibilityScope
 from app.deps import get_graph_limit
@@ -14,38 +15,15 @@ router = APIRouter()
 
 
 def _ambito_de_la_peticion(scope: VisibilityScope, solicitado: str | None) -> str | None:
-    """El workspace que se consulta de verdad. Lo decide la autoridad del
-    servidor, nunca el parámetro que fabrique el cliente.
+    """El workspace que se consulta de verdad. Delega en la autoridad ÚNICA.
 
-    ``allowed_workspaces`` es el ámbito ya resuelto por la autoridad canónica
-    en ``authz/dependencies.py`` (perfil, con el entorno como fallback SOLO
-    cuando el resolvedor lo decide así) -- singleton, o vacío si la autoridad
-    está sin resolver.
-
-    Para ``admin_full`` el parámetro del cliente sigue siendo un SELECTOR, no
-    una concesión: un admin ya ve todo (docs/75), así que elegir qué workspace
-    mirar no amplía nada que no tuviera. Para cualquier otro rol, el parámetro
-    NO SE MIRA para decidir el ámbito -- solo lo que la autoridad ya resolvió
-    cuenta -- y esto es justo lo que cierra el corte: antes ``workspace or
-    get_default_workspace()`` aceptaba el valor del cliente tal cual, sin
-    comparar nada contra la autoridad.
-
-    Devuelve ``None`` cuando no hay ningún workspace que ofrecer: ni siquiera
-    ``admin_full`` recibe uno inventado por este resolvedor. El llamante trata
-    ``None`` como FALTA DE ÁMBITO, no como "el workspace por defecto está
-    vacío".
+    La lógica vivía aquí, dentro de este endpoint, y eso era el defecto de la
+    primera ronda: la propiedad quedaba cerrada para `/api/graph` y abierta
+    para el resto del producto. Ahora vive en `app.authz.ambito`, que es lo que
+    usan también `api/entities.py` y `routers/readonly.py`. Este envoltorio se
+    conserva porque hay pruebas que lo invocan por nombre.
     """
-    canonicos = scope.ctx.allowed_workspaces
-    if scope.ctx.admin_full:
-        canonico = next(iter(canonicos), None)
-        return solicitado or canonico
-    if len(canonicos) != 1:
-        # Vacío = autoridad sin resolver. Más de uno no debería ocurrir hoy
-        # (`allowed_workspaces` es un singleton por contrato), pero tampoco
-        # hay en ese caso UN ámbito único que devolver sin elegir por el
-        # cliente, así que se trata igual: sin ámbito.
-        return None
-    return next(iter(canonicos))
+    return ambito_de_la_peticion(scope.ctx, solicitado)
 
 
 @router.get("/api/graph")
@@ -67,7 +45,7 @@ def api_graph(
         # ámbito" de "ámbito vacío".
         raise HTTPException(
             status_code=409,
-            detail="No hay un ámbito de workspace determinado para esta sesión.",
+            detail=MENSAJE_SIN_AMBITO,
         )
     # Se pide SIN TOPE y se recorta aquí. No es un rodeo: es la única forma de
     # saber cuánto se ha dejado fuera. El proveedor filtrado ya materializa el

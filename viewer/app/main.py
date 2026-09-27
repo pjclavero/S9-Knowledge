@@ -684,15 +684,20 @@ def _workspace_inicial_del_grafo(scope: VisibilityScope) -> str:
     inyectaba el valor del entorno para TODO principal, autenticado o no, con
     ámbito resuelto o sin él.
 
-    `admin_full` conserva el default del entorno como CONVENIENCIA de arranque
-    (un admin puede pedir cualquier otro con `?workspace=`; no es una
-    concesión). Para el resto, el único valor legítimo es el que la autoridad
-    canónica ya resolvió en `allowed_workspaces` -- y si no resolvió ninguno,
-    se manda vacío: el cliente ya no fabrica un "leyenda" de repuesto
-    (`graph.js`), y `/api/graph` responde 409 en vez de un workspace vacío.
+    UN SOLO LECTOR, TAMBIÉN PARA `admin_full`. La ronda anterior dejaba aquí
+    `get_settings().S9K_DEFAULT_WORKSPACE` para el admin, y eso era un SEGUNDO
+    lector del entorno fuera de la autoridad -- la regresión exacta que costó
+    el corte F-2 (docs/v3/65). No hacía falta: `allowed_workspaces` ya contiene
+    ese mismo singleton, resuelto por la autoridad canónica, que además prefiere
+    el perfil de la bóveda cuando los dos divergen. Ahora el admin arranca en lo
+    que la autoridad resolvió, y si quiere otro workspace lo pide con
+    `?workspace=` -- el SELECTOR de admin, declarado en `app.authz.ambito` y en
+    docs/v3/65.
+
+    Si la autoridad no resolvió ninguno, se manda vacío: el cliente ya no
+    fabrica un "leyenda" de repuesto (`graph.js`) y `/api/graph` responde 409
+    en vez de un workspace vacío.
     """
-    if scope.ctx.admin_full:
-        return get_settings().S9K_DEFAULT_WORKSPACE
     return next(iter(scope.ctx.allowed_workspaces), "")
 
 
