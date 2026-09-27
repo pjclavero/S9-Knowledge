@@ -75,14 +75,14 @@ MUTACIONES = [
         "viewer/app/presentacion_etiquetas.py",
         "    if workspace not in _normaliza_ambito(ambito_permitido):\n"
         "        return workspace\n\n"
-        "    carpeta = _carpeta_de_juego(workspace, env)\n"
+        "    carpeta = _carpeta_de_juego(workspace, env, lector)\n"
         "    if carpeta is None:\n"
         "        return workspace\n\n"
-        "    datos = _leer_json_objeto(carpeta / sources_catalog.NOMBRE_PERFIL)",
-        "    carpeta = _carpeta_de_juego(workspace, env)\n"
+        "    datos = _leer_json_objeto(carpeta / sources_catalog.NOMBRE_PERFIL, lector)",
+        "    carpeta = _carpeta_de_juego(workspace, env, lector)\n"
         "    if carpeta is None:\n"
         "        return workspace\n\n"
-        "    datos = _leer_json_objeto(carpeta / sources_catalog.NOMBRE_PERFIL)",
+        "    datos = _leer_json_objeto(carpeta / sources_catalog.NOMBRE_PERFIL, lector)",
         ["test_fuera_de_ambito_no_confirma_ni_niega_existencia"],
         "assert",
     ),
