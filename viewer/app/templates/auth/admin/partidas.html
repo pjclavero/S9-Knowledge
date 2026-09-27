@@ -43,27 +43,50 @@
       en un workspace inventado se guardaba, se mostraba aquí abajo como viva, y
       hacía «existir» esa partida también en el workspace real.</small>
     </div>
+    {% if not catalogo_disponible %}
+      <div class="alert alert-error" role="alert" id="aviso_boveda_no_disponible">
+        <p>
+          No se puede consultar la bóveda para saber qué partidas existen en
+          <code>{{ workspace_canonico | e }}</code>{% if catalogo_detalle %}: {{ catalogo_detalle | e }}{% endif %}.
+        </p>
+        <p>
+          Sin poder consultarla no hay ninguna opción segura que ofrecer aquí:
+          conceder acceso a un identificador tecleado a mano es exactamente la
+          circularidad que este formulario deja de permitir. Resuelve primero
+          el acceso a la bóveda (montaje, configuración de
+          <code>S9K_VAULT_ROOT</code>) y vuelve a esta pantalla.
+        </p>
+      </div>
+    {% elif not partidas_descubribles %}
+      <div class="alert" role="status" id="aviso_boveda_vacia">
+        <p>
+          Todavía no hay ninguna partida que la bóveda de <code>{{ workspace_canonico | e }}</code>
+          reconozca: el árbol no tiene material clasificable bajo una carpeta
+          de partida.
+        </p>
+        <p>
+          No hay nada que teclear aquí para arreglarlo: una partida se crea
+          añadiendo su primer material a la bóveda, no escribiendo su nombre
+          en este formulario. El camino es
+          <a href="/panel/operations">la consola de operador — alta de fuentes</a>:
+          cuando una fuente clasificada como partida entra por ahí, esta
+          pantalla la ofrece.
+        </p>
+      </div>
+    {% else %}
     <div class="field">
       <label for="partida_id">Partida</label>
-      <input id="partida_id" type="text" name="partida_id" list="partidas_existentes"
-             placeholder="partida:mesa1" required>
-      <datalist id="partidas_existentes">
-        {% for pid in partidas_conocidas %}
-          <option value="{{ pid | e }}"></option>
+      <select id="partida_id" name="partida_id" required>
+        <option value="" disabled selected>— elige una partida —</option>
+        {% for pid in partidas_descubribles %}
+          <option value="{{ pid | e }}">{{ pid | e }}</option>
         {% endfor %}
-      </datalist>
-      <small id="aviso_partidas_conocidas">
-        {% if partidas_conocidas %}
-          Partidas con alguna concesión en <code>{{ workspace_canonico | e }}</code>:
-          {% for pid in partidas_conocidas %}<code>{{ pid | e }}</code>{% if not loop.last %}, {% endif %}{% endfor %}.
-        {% else %}
-          Todavía no hay ninguna partida con concesiones en
-          <code>{{ workspace_canonico | e }}</code>.
-        {% endif %}
-        <strong>Ojo:</strong> este producto no tiene censo de partidas. Esta
-        lista son las partidas ya concedidas, no las que existen: escribir un
-        identificador nuevo la crea, y una errata es indistinguible de una
-        partida nueva. Compruébalo contra la carpeta de la bóveda.
+      </select>
+      <small>
+        Estas son las partidas que la bóveda de <code>{{ workspace_canonico | e }}</code>
+        reconoce REALMENTE ahora mismo (recorrido del árbol, no un eco de
+        concesiones anteriores): solo se puede elegir una de esta lista, y el
+        servidor vuelve a comprobarlo aunque el formulario se manipule.
       </small>
     </div>
     <div class="field">
@@ -81,6 +104,7 @@
       conoce en particular no se le concede.</small>
     </div>
     <button type="submit" class="btn btn-primary">Conceder</button>
+    {% endif %}
   </form>
 
   <h3 style="margin-top:2rem;">Asignaciones existentes</h3>

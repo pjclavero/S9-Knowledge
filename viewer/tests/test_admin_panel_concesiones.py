@@ -19,6 +19,11 @@ import re
 
 import pytest
 
+from boveda_seis_a import crear_boveda_minima
+
+WS = "juego:pruebas"
+PARTIDA = "partida:alfa"
+
 
 @pytest.fixture
 def entorno(tmp_path):
@@ -27,8 +32,14 @@ def entorno(tmp_path):
 
     os.environ["S9K_AUTH_ENABLED"] = "true"
     os.environ["S9K_AUTH_DB_PATH"] = str(tmp_path / "auth.db")
-    os.environ["S9K_DEFAULT_WORKSPACE"] = "juego:pruebas"
+    os.environ["S9K_DEFAULT_WORKSPACE"] = WS
     os.environ["S9K_CSRF_SECRET"] = "clave-csrf-larga-y-aleatoria-de-test-1234567890"
+    # CORTE 6A: `/admin/partidas/grant` valida `partida_id` contra la bóveda
+    # real; sin ella, esta suite (que concede una partida por HTTP) rechazaría
+    # con 400 lo que antes aceptaba con 302.
+    boveda = crear_boveda_minima(tmp_path / "bovedas", WS, PARTIDA)
+    os.environ["S9K_VAULT_ROOT"] = str(boveda)
+    os.environ["S9K_VAULT_REQUIRE_MOUNT"] = "0"
     get_auth_settings.cache_clear()
     get_settings.cache_clear()
 
@@ -41,14 +52,10 @@ def entorno(tmp_path):
     yield db_path, auth_db, app
 
     for k in ("S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_DEFAULT_WORKSPACE",
-              "S9K_CSRF_SECRET"):
+              "S9K_CSRF_SECRET", "S9K_VAULT_ROOT", "S9K_VAULT_REQUIRE_MOUNT"):
         os.environ.pop(k, None)
     get_auth_settings.cache_clear()
     get_settings.cache_clear()
-
-
-WS = "juego:pruebas"
-PARTIDA = "partida:alfa"
 
 
 def _cliente_admin(auth_db, db_path, app):

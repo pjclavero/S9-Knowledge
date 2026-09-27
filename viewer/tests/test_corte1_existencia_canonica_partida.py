@@ -22,6 +22,8 @@ import re
 
 import pytest
 
+from boveda_seis_a import crear_boveda_minima
+
 WS = "juego:real"
 WS_AJENO = "juego:otro"
 WS_FANTASMA = "juego:inventado-no-existe"
@@ -38,6 +40,14 @@ def entorno(tmp_path):
     os.environ["S9K_AUTH_DB_PATH"] = str(tmp_path / "auth.db")
     os.environ["S9K_DEFAULT_WORKSPACE"] = WS
     os.environ["S9K_CSRF_SECRET"] = "clave-csrf-larga-y-aleatoria-de-test-1234567890"
+    # CORTE 6A: `PARTIDA` en `WS` tiene que ser DESCUBRIBLE de verdad en la
+    # bóveda, o `/admin/partidas/grant` la rechaza -- esa es la propiedad que
+    # este corte cierra. Sin perfil de bóveda, `workspace_canonico()` cae al
+    # entorno (`S9K_DEFAULT_WORKSPACE`), así que el workspace del perfil debe
+    # ser el MISMO `WS` para que la autoridad no diverja.
+    boveda = crear_boveda_minima(tmp_path / "bovedas", WS, PARTIDA)
+    os.environ["S9K_VAULT_ROOT"] = str(boveda)
+    os.environ["S9K_VAULT_REQUIRE_MOUNT"] = "0"
     get_auth_settings.cache_clear()
     get_settings.cache_clear()
 
@@ -50,7 +60,7 @@ def entorno(tmp_path):
     yield db_path, auth_db, app
 
     for k in ("S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_DEFAULT_WORKSPACE",
-              "S9K_CSRF_SECRET"):
+              "S9K_CSRF_SECRET", "S9K_VAULT_ROOT", "S9K_VAULT_REQUIRE_MOUNT"):
         os.environ.pop(k, None)
     get_auth_settings.cache_clear()
     get_settings.cache_clear()
@@ -381,25 +391,35 @@ def test_el_formulario_ya_no_pide_el_workspace_de_memoria(entorno):
     )
 
 
-def test_la_pantalla_ofrece_las_partidas_ya_concedidas_y_dice_que_no_son_un_censo(entorno):
+def test_la_pantalla_ofrece_las_partidas_de_la_boveda_real_no_un_eco_de_concesiones(entorno):
+    """CORTE 6A: la lista ya NO sale de `partida_access` (eco de concesiones,
+    y por tanto circular: para conceder la primera había que teclearla). Sale
+    de la bóveda real. Una fila fantasma sembrada directamente en la tabla, SIN
+    pasar por el árbol, no debe aparecer -- lo contrario del contrato viejo.
+    """
     db_path, auth_db, app = entorno
     _, jugadora, tok = _usuarios(auth_db, db_path)
-    _sembrar_fantasma(auth_db, db_path, jugadora.id, WS, PARTIDA)
+    # Fantasma: una concesión existente que NO corresponde a nada en el árbol,
+    # en el workspace canónico Y en otro. Ninguna de las dos debe colarse.
+    _sembrar_fantasma(auth_db, db_path, jugadora.id, WS, "partida:solo-en-la-tabla")
     _sembrar_fantasma(auth_db, db_path, jugadora.id, WS_AJENO, "partida:ajena")
     c = _cliente(app, tok)
     _, html = _csrf(c)
 
-    assert 'list="partidas_existentes"' in html, (
-        "el campo Partida sigue pidiendo el identificador de memoria: no hay "
-        "lista, ni desplegable, ni ninguna pantalla que diga qué partidas hay"
-    )
     assert f'<option value="{PARTIDA}">' in html, (
-        "la pantalla no ofrece la partida que sí existe en este workspace"
+        "la pantalla no ofrece la partida que SÍ existe en la bóveda de este "
+        "workspace"
+    )
+    assert '<option value="partida:solo-en-la-tabla">' not in html, (
+        "la pantalla ofrece una partida que sólo existe como fila de "
+        "`partida_access`, no en el árbol: eso es el eco circular que este "
+        "corte cierra"
     )
     assert '<option value="partida:ajena">' not in html, (
-        "la pantalla ofrece partidas de otro workspace como si fueran de éste"
+        "la pantalla ofrece una partida que sólo existe como fila de "
+        "`partida_access` de OTRO workspace, no en el árbol de éste"
     )
-    assert "no tiene censo de partidas" in html, (
-        "la pantalla presenta la lista como si fuera un censo: eso es una "
-        "falsa confirmación, que es justo lo que este corte cierra"
+    assert "recorrido del árbol" in html and "eco de" in html and "concesiones" in html, (
+        "la pantalla ya no dice de dónde sale la lista, o volvió a fingir "
+        "que es la misma lectura de siempre"
     )

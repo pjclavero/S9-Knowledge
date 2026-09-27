@@ -14,6 +14,7 @@ from app.auth.csrf import get_csrf_token_for_session, validate_csrf
 from app.auth.dependencies import require_admin
 from app.auth.models import ROLES, User
 from app.auth.passwords import hash_password, validate_password
+from app import sources_catalog
 from app.authz import autoridad_workspace, existencia
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -414,13 +415,34 @@ async def admin_partidas(
     with auth_db.get_conn(db_path) as conn:
         users = auth_db.list_users(conn)
         access = auth_db.list_partida_access(conn)
-    # CORTE 1: la pantalla deja de pedir identificadores de memoria. Lo que
-    # ofrece NO es un censo —no existe— sino las partidas ya concedidas en el
-    # workspace canonico, y la propia pantalla dice que eso es lo que es.
-    partidas_conocidas = sorted({
-        a.partida_id for a in access
-        if ws and a.workspace == ws and a.partida_id
-    })
+
+    # CORTE 6A: la pantalla deja de pedir identificadores de memoria y deja de
+    # fingir un censo con lo que ya se concedio (eso era la circularidad: para
+    # conceder la PRIMERA partida habia que teclearla, porque la unica lista
+    # era un eco de concesiones previas). Ahora se enumera la BOVEDA REAL --
+    # `sources_catalog.partidas_descubiertas_en_boveda`, que recorre el arbol
+    # con `vault_scope.clasificar`, la misma autoridad que ya media el corte
+    # anterior -- y esa enumeracion es la unica fuente de opciones.
+    #
+    # Tres estados posibles, y la pantalla los distingue en vez de aplanarlos
+    # a "no hay nada":
+    #   1. catalogo_disponible=False  -> no se puede ni preguntar (montaje
+    #      ausente, boveda no configurada...). No es "cero partidas": es
+    #      "no se sabe". Se explica y se ofrece el camino de todos modos.
+    #   2. catalogo_disponible=True, partidas_descubribles=[] -> se pregunto
+    #      y la boveda no tiene NINGUNA partida clasificable en este
+    #      workspace todavia. Estado cero autentico.
+    #   3. catalogo_disponible=True, partidas_descubribles=[...] -> hay
+    #      opciones reales que seleccionar.
+    catalogo_disponible = True
+    catalogo_detalle: Optional[str] = None
+    try:
+        partidas_descubribles = sources_catalog.partidas_descubiertas_en_boveda(ws)
+    except sources_catalog.CatalogoNoDisponible as exc:
+        catalogo_disponible = False
+        catalogo_detalle = str(exc)
+        partidas_descubribles = []
+
     return templates.TemplateResponse(
         request,
         "auth/admin/partidas.html",
@@ -429,7 +451,9 @@ async def admin_partidas(
             "access": access,
             "workspace_canonico": ws,
             "autoridad_workspace": aviso,
-            "partidas_conocidas": partidas_conocidas,
+            "catalogo_disponible": catalogo_disponible,
+            "catalogo_detalle": catalogo_detalle,
+            "partidas_descubribles": partidas_descubribles,
             "admin": admin,
             "csrf_token": _get_csrf(request, session.id if session else 0),
             "errors": [],
@@ -491,6 +515,36 @@ async def admin_partidas_grant(
         if resuelta.diverge and workspace == resuelta.declarado_por_perfil:
             detalle = f"{detalle} {resuelta.diagnostico()}"
         raise HTTPException(status_code=400, detail=detalle)
+
+    # CORTE 6A — SEGUNDO consumidor de la unidad de control, y el que cierra
+    # el punto 6 del corte: manipular el POST no permite inventar contexto.
+    # El formulario ya no ofrece texto libre para `partida_id` (es un
+    # `<select>` pintado con `partidas_descubiertas_en_boveda`), pero esa
+    # guarda vive en el CLIENTE y un POST directo la salta con curl. La
+    # autoridad real es la MISMA enumeracion que pinta la pantalla, vuelta a
+    # calcular aqui: un `partida_id` que la boveda no clasifica en este
+    # workspace se rechaza, exista o no ya una concesion con ese nombre.
+    try:
+        descubribles = sources_catalog.partidas_descubiertas_en_boveda(workspace)
+    except sources_catalog.CatalogoNoDisponible:
+        # Sin catalogo consultable no hay enumeracion contra la que validar:
+        # fail-closed, igual que el resto de `authz.existencia`.
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "No se puede consultar la boveda ahora mismo: no hay "
+                "enumeracion de partidas contra la que validar esta concesion."
+            ),
+        )
+    if partida_id not in descubribles:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"«{partida_id}» no es una partida que la boveda conozca en "
+                f"«{workspace}». Solo se puede conceder acceso a partidas que "
+                "existen realmente en el arbol de la boveda."
+            ),
+        )
 
     tope = (max_visible_session or "").strip()
     if tope:

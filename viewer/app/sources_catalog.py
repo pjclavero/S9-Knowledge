@@ -120,6 +120,7 @@ __all__ = [
     "listar_fuentes",
     "listar_fuentes_boveda",
     "rechazos_de_boveda",
+    "partidas_descubiertas_en_boveda",
     "resolver",
     "EXTENSIONES_SOPORTADAS",
     "NOMBRE_PERFIL",
@@ -514,6 +515,45 @@ def rechazos_de_boveda(env: Optional[dict] = None) -> list[dict]:
     if not modo_boveda(env):
         return []
     return listar_fuentes_boveda(env)[1]
+
+
+def partidas_descubiertas_en_boveda(
+    workspace: Optional[str], env: Optional[dict] = None,
+) -> list[str]:
+    """`partida_id` que la BOVEDA REAL conoce para `workspace`, sin depender
+    de ninguna concesion previa (Corte 6A).
+
+    Esta es la ENUMERACION AUTORIZADA del punto 1 del corte: sale del arbol
+    real (`listar_fuentes_boveda` -> `vault_scope.clasificar`), no de
+    `partida_access`. Antes de este corte, la unica lista que el admin veia
+    (`partidas_conocidas` en `routers/admin.py`) era un eco de lo que YA se
+    habia concedido: para conceder la primera partida habia que teclearla de
+    memoria, y esa misma lista fingia ser un censo. Esta funcion rompe esa
+    circularidad: enumera lo que EXISTE en la boveda, no lo que YA se
+    concedio, asi que el primer grant no depende de ningun grant anterior.
+
+    Sin `workspace` efectivo -> lista vacia, fail-closed (misma doctrina que
+    el resto de `authz.existencia`). `CatalogoNoDisponible` (montaje ausente,
+    boveda no configurada, etc.) SE PROPAGA: quien llama decide como pintar
+    ese estado, igual que hace `_fuentes()` en `chassis_operations.py`; no se
+    degrada aqui a lista vacia, que se leeria como "boveda vacia" en vez de
+    "boveda no disponible".
+    """
+    if not workspace or not isinstance(workspace, str) or not workspace.strip():
+        return []
+    ws = workspace.strip()
+    if not modo_boveda(env):
+        # Sin arbol de boveda no hay descubrimiento jerarquico que ofrecer:
+        # el catalogo plano no lleva partida (ver AMBITO_PLANO en el modulo).
+        return []
+    fuentes, _rechazos = listar_fuentes_boveda(env)
+    vistos: set[str] = set()
+    for f in fuentes:
+        pid = f.ambito.partida_id
+        ws_fuente = f.ambito.workspace
+        if pid and ws_fuente == ws:
+            vistos.add(pid)
+    return sorted(vistos)
 
 
 def listar_fuentes(env: Optional[dict] = None) -> list[FuenteDisponible]:

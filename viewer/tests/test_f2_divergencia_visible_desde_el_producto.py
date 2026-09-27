@@ -27,6 +27,8 @@ import re
 
 import pytest
 
+from boveda_seis_a import crear_boveda_minima
+
 #: Lo que declara el ENTORNO (hoy, la autoridad de `/admin/partidas`).
 WS_ENTORNO = "ws-del-entorno"
 #: Lo que declara el PERFIL de la boveda (la autoridad del conocimiento).
@@ -774,14 +776,26 @@ def test_R4_el_cartel_dice_que_manda_el_PERFIL_no_el_entorno(entorno):
 
 
 
-def test_R3_conceder_en_el_workspace_del_perfil_YA_FUNCIONA(entorno):
+def test_R3_conceder_en_el_workspace_del_perfil_YA_FUNCIONA(entorno, tmp_path, monkeypatch):
     """La consecuencia visible en el producto: el 400 desaparece.
 
     Este es el defecto nº1 del diagnostico original —«desde la web no se puede
     conceder acceso de partida al workspace donde esta el conocimiento»— y
     cierra aqui. La guarda del Corte 1 NO se relajo: lo que cambio es cual es
     el workspace canonico.
+
+    CORTE 6A: `/admin/partidas/grant` valida ADEMAS que `partida:mesa1` sea
+    DESCUBRIBLE. El fixture `entorno` de este fichero usa el catalogo PLANO
+    (`S9K_INGEST_SOURCES_DIR`), que por contrato nunca declara partidas
+    (`AMBITO_PLANO`, ver `sources_catalog.py`). Se declara aqui una boveda
+    JERARQUICA que sigue diciendo `WS_PERFIL` -- misma divergencia medida,
+    misma autoridad (`declaraciones_de_perfil` mira la boveda ANTES que el
+    catalogo plano) -- pero con la partida real que este test concede.
     """
+    boveda = crear_boveda_minima(tmp_path / "bovedas-r3", WS_PERFIL, "partida:mesa1")
+    monkeypatch.setenv("S9K_VAULT_ROOT", str(boveda))
+    monkeypatch.setenv("S9K_VAULT_REQUIRE_MOUNT", "0")
+
     db_path, auth_db, app, _ = entorno
     jugadora, token = _admin(auth_db, db_path)
     cliente = _cliente(app, token)
