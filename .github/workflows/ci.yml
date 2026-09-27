@@ -1201,6 +1201,17 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/calibra_topologia_publicable.py
 
+      # Y el que prueba al que prueba. En la ronda 1 de EXP-1 los casos 3 y 4
+      # del arnes de arriba eran INERTES: corrian el regex fuera del gate, asi
+      # que con `encuentra_violaciones()` destripado seguian VERDES. Este paso
+      # muta el gate de verdad y exige que cada mutacion deje un rastro EXACTO
+      # -ni un mutante superviviente ni un rojo prestado-, y restaura el gate
+      # por SHA-256.
+      - name: "El arnes de EXP-1 muere con su sujeto (mutantes M1/M2)"
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/mutaciones_topologia_publicable.py
+
       - name: "El gate de topologia publicable esta VERDE sobre el arbol real (EXP-1)"
         run: python3 .github/scripts/check_no_topologia_publicable.py
 
