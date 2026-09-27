@@ -5,8 +5,49 @@ import os
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+from app import config
+from app.auth.config import DEFAULT_AUTH_DB_PATH as _AUTH_DB_PATH_DEFAULT
 from app.health import checks
 from app.health.models import ComponentResult, HealthReport, HealthStatus
+
+
+def _gob(name: str, default: Optional[str] = None) -> Optional[str]:
+    """Lectura GOBERNADA para las claves de esta familia que la plantilla
+    (`viewer/.env.example`) ofrece como configurables por `.env`
+    (S9K_NEO4J_*, S9K_AUTH_ENABLED, S9K_AUTH_DB_PATH, S9K_JOBS_DB): pasa por
+    `config.effective_env_value`, la MISMA autoridad que ya usa el resto de
+    la app, en vez de leer `os.environ` a pelo. Sin esto, un operador que
+    declara estas claves sólo en `.env` (sin exportarlas) obtiene un
+    healthcheck que audita Neo4j/auth/jobs equivocados frente a los que la
+    aplicación usa de verdad — la MISMA firma del defecto de este corte,
+    aquí en el healthcheck en vez del catálogo de fuentes.
+
+    Las demás claves de `build_default_config` (S9K_OLLAMA_*,
+    S9K_RCLONE_MOUNT, S9K_EXTERNAL_*, S9K_HEALTH_*, S9K_BACKUP_*) NO están en
+    la plantilla y siguen leyendo `os.environ` directamente a proposito: son
+    parametros operativos de esta unidad systemd, declarados sólo por
+    entorno (`EnvironmentFile=`), no ofrecidos como configurables de `.env`.
+    """
+    valor = config.effective_env_value(name)
+    return valor if valor is not None else default
+
+
+def _gob_ruta(name: str, default: Optional[str]) -> Optional[str]:
+    """Como `_gob`, pero para una RUTA cuya propia plantilla la trae en
+    blanco (`S9K_AUTH_DB_PATH=`, línea activa de `viewer/.env.example`).
+
+    PRESENTE PERO VACÍA NO ES UN VALOR: `AuthSettings._resolver_ruta_por_
+    defecto` trata esa cadena vacía como AUSENCIA y cae a
+    `DEFAULT_AUTH_DB_PATH`. `_gob` a secas (`valor is not None`) no lo hace:
+    con la plantilla literal devolvería `''`, y el healthcheck auditaría una
+    base de datos distinta de la que `AuthSettings` resuelve de verdad — la
+    MISMA firma del defecto que `_gob` existe para eliminar, aquí por una
+    clave PRESENTE en vez de ausente.
+    """
+    valor = config.effective_env_value(name)
+    if valor is not None and valor.strip():
+        return valor
+    return default
 
 
 def _env_int(name: str, default: int) -> int:
@@ -31,21 +72,24 @@ def _read_password_file(path: Optional[str]) -> Optional[str]:
 
 def build_default_config() -> Dict[str, Any]:
     """Config de checks a partir del entorno (sin exponer secretos aguas abajo)."""
-    neo4j_pw = os.environ.get("S9K_NEO4J_PASSWORD") or _read_password_file(
-        os.environ.get("S9K_NEO4J_PASSWORD_FILE"))
-    auth_enabled = os.environ.get("S9K_AUTH_ENABLED", "false").lower() == "true"
+    neo4j_pw = _gob("S9K_NEO4J_PASSWORD") or _read_password_file(
+        _gob("S9K_NEO4J_PASSWORD_FILE"))
+    auth_enabled = (_gob("S9K_AUTH_ENABLED", "false") or "false").lower() == "true"
     return {
         "viewer": {"base_url": os.environ.get("S9K_HEALTH_VIEWER_URL", "http://127.0.0.1:8088")},
         "neo4j": {
-            "uri": os.environ.get("S9K_NEO4J_URI", "bolt://127.0.0.1:7687"),
-            "user": os.environ.get("S9K_NEO4J_USER", "neo4j"),
+            "uri": _gob("S9K_NEO4J_URI", "bolt://127.0.0.1:7687"),
+            "user": _gob("S9K_NEO4J_USER", "neo4j"),
             "password": neo4j_pw,
         },
         "ollama": {"base_url": os.environ.get("S9K_OLLAMA_URL"),
                    "required_model": os.environ.get("S9K_OLLAMA_MODEL")},
         "nextcloud_rclone": {"mountpoint": os.environ.get("S9K_RCLONE_MOUNT")},
-        "job_store": {"db_path": os.environ.get("S9K_JOBS_DB")},
-        "auth_db": {"db_path": os.environ.get("S9K_AUTH_DB_PATH"), "enabled": auth_enabled},
+        "job_store": {"db_path": _gob("S9K_JOBS_DB")},
+        "auth_db": {
+            "db_path": _gob_ruta("S9K_AUTH_DB_PATH", _AUTH_DB_PATH_DEFAULT),
+            "enabled": auth_enabled,
+        },
         "external_ai": {"enabled": os.environ.get("S9K_EXTERNAL_AI_ENABLED", "false").lower() == "true"},
         "burst": {"enabled": os.environ.get("S9K_EXTERNAL_PROCESSING_ENABLED", "false").lower() == "true"},
         "filesystem": {"path": os.environ.get("S9K_HEALTH_DISK_PATH", "/")},

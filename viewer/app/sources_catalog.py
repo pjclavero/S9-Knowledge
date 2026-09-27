@@ -72,6 +72,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from app import config
+
 try:  # modo normal: el visor importa esto como parte del paquete `app`
     from . import vault_mount
     from .vault_scope import Ambito, NoIngerible, clasificar
@@ -244,10 +246,25 @@ def _titulo(nombre: str) -> str:
     return base[:1].upper() + base[1:] if base else nombre
 
 
+def _valor_gobernado(env: Optional[dict], clave: str) -> Optional[str]:
+    """Valor EFECTIVO de ``clave`` para esta familia S9K_* del catalogo.
+
+    Cuando el llamador no pasa un ``env`` explicito (el caso real: un proceso
+    en marcha), la autoridad es `config.effective_env_value` — la MISMA que
+    ya usan `S9K_PANEL_*`/`S9K_AUTH_ENABLED` — con su precedencia
+    entorno > `.env` > nada. Un ``env`` explicito (un dict, tipicamente de
+    test) se respeta tal cual: es la suite fijando el entorno que quiere
+    ejercitar, no una lectura real de proceso, y NO debe ademas leer `.env`
+    del disco.
+    """
+    if env is not None:
+        return env.get(clave)
+    return config.effective_env_value(clave)
+
+
 def directorio_de_fuentes(env: Optional[dict] = None) -> Path:
     """Directorio de donde salen las fuentes elegibles."""
-    entorno = env if env is not None else os.environ
-    crudo = entorno.get("S9K_INGEST_SOURCES_DIR")
+    crudo = _valor_gobernado(env, "S9K_INGEST_SOURCES_DIR")
     if crudo:
         return Path(crudo)
     # `viewer/app/sources_catalog.py` -> raiz del repositorio.
@@ -285,9 +302,8 @@ def ubicacion_declarada(env: Optional[dict] = None) -> bool:
     `S9K_INGEST_SOURCES_DIR` sin declarar es ROJO porque «el catalogo caeria en
     los ejemplos del repositorio».
     """
-    entorno = env if env is not None else os.environ
     for clave in (ENV_RAIZ_BOVEDAS, ENV_DIRECTORIO_DE_FUENTES):
-        valor = entorno.get(clave)
+        valor = _valor_gobernado(env, clave)
         if isinstance(valor, str) and valor.strip():
             return True
     return False
@@ -295,8 +311,7 @@ def ubicacion_declarada(env: Optional[dict] = None) -> bool:
 
 def raiz_de_bovedas(env: Optional[dict] = None) -> Optional[Path]:
     """Raiz del arbol de bovedas, si este despliegue tiene una."""
-    entorno = env if env is not None else os.environ
-    crudo = entorno.get(ENV_RAIZ_BOVEDAS)
+    crudo = _valor_gobernado(env, ENV_RAIZ_BOVEDAS)
     return Path(crudo) if crudo else None
 
 
@@ -306,8 +321,8 @@ def modo_boveda(env: Optional[dict] = None) -> bool:
 
 
 def _exigir_montaje(env: Optional[dict] = None) -> bool:
-    entorno = env if env is not None else os.environ
-    crudo = str(entorno.get(ENV_EXIGIR_MONTAJE, "1")).strip().lower()
+    valor = _valor_gobernado(env, ENV_EXIGIR_MONTAJE)
+    crudo = str(valor if valor is not None else "1").strip().lower()
     return crudo not in {"0", "false", "no", ""}
 
 

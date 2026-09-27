@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Generator, Optional
 
+from app import config
 from app.auth.models import AuditEvent, PartidaAccess, Session, User
 
 SCHEMA_VERSION = 4
@@ -24,7 +25,21 @@ _local = threading.local()
 # ---------------------------------------------------------------------------
 
 def _db_path() -> Path:
-    raw = os.environ.get("S9K_AUTH_DB_PATH", _DB_PATH_DEFAULT)
+    # `config.effective_env_value`, no `os.environ` a pelo: un operador que
+    # declara S9K_AUTH_DB_PATH sólo en `.env` (sin exportarlo) debe llegar a
+    # la MISMA base de datos que ve `AuthSettings` (que sí lo lee via
+    # `env_file=".env"`) — de lo contrario esta capa abre un `auth.db` en la
+    # ruta de fabrica mientras el resto de la app cree que usa otra.
+    # PRESENTE PERO VACÍA NO ES UN VALOR: la plantilla (`viewer/.env.example`)
+    # trae `S9K_AUTH_DB_PATH=` en blanco, y `AuthSettings._resolver_ruta_por_
+    # defecto` trata esa cadena vacía como AUSENCIA (cae a
+    # `DEFAULT_AUTH_DB_PATH`). Comparar sólo contra `None` no basta: con la
+    # plantilla literal, `effective_env_value` devuelve `''` (no `None`), y
+    # `Path('')` es el directorio de trabajo, no un fichero — abre una base
+    # distinta de la que ve `AuthSettings` en vez de la MISMA, que es
+    # justo lo que este helper existe para garantizar.
+    valor = config.effective_env_value("S9K_AUTH_DB_PATH")
+    raw = valor if (valor is not None and valor.strip()) else _DB_PATH_DEFAULT
     p = Path(raw)
     p.parent.mkdir(parents=True, exist_ok=True)
     return p

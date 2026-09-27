@@ -96,8 +96,10 @@ CATALOGO: dict[str, str] = {
     "SOURCE_WORKSPACE_UNDECLARED":
         "Esta fuente no tiene workspace declarado, asi que no se sabe a que "
         "ambito pertenece el material y no se ingiere nada. Declara donde "
-        "esta tu boveda (S9K_VAULT_ROOT o S9K_INGEST_SOURCES_DIR) y escribe "
-        "el workspace en su perfil de operador: nadie puede adivinarlo por el "
+        "esta tu boveda poniendo S9K_VAULT_ROOT (o, sin arbol de bovedas, "
+        "S9K_INGEST_SOURCES_DIR) en tu fichero .env -o en el entorno del "
+        "proceso, que manda si tambien esta puesto ahi- y escribe el "
+        "workspace en su perfil de operador: nadie puede adivinarlo por el "
         "nombre de la carpeta.",
     "SOURCE_CATALOG_UNAVAILABLE":
         "No se puede consultar el catalogo de fuentes en este despliegue. "

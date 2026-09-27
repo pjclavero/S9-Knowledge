@@ -1109,6 +1109,19 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/mutaciones_s3_env_gobierna_paneles.py
 
+      # S-3b: la MISMA propiedad («.env gobierna»), aplicada a donde vive la
+      # boveda. La auditoria de este corte encontro TRES lectores con la
+      # MISMA firma del defecto original de S-3 (os.environ directo, ciego a
+      # `.env`): sources_catalog (S9K_VAULT_ROOT/S9K_INGEST_SOURCES_DIR/
+      # S9K_VAULT_REQUIRE_MOUNT), auth.db._db_path (S9K_AUTH_DB_PATH) y
+      # health.runner.build_default_config (S9K_NEO4J_URI y el resto de la
+      # familia que ofrece la plantilla). Cada uno tiene su mutacion.
+      - name: "El .env gobierna tambien la boveda: se pone ROJO ante cada defecto (S-3b)"
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/mutaciones_s3b_env_gobierna_boveda.py
+
       # Y la calibracion del corte S-1 «el resultado que se ofrece es el
       # resultado que hay». Cubre las cuatro formas de romper la propiedad:
       # que `alcanzable_para` deje de exigir autorizacion de workspace (el
