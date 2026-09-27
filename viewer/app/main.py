@@ -675,17 +675,39 @@ def home(request: Request, provider: GraphProvider = Depends(get_provider)):
     )
 
 
+def _workspace_inicial_del_grafo(scope: VisibilityScope) -> str:
+    """El workspace con el que arranca `/graph`, decidido por la autoridad.
+
+    NO es `settings.S9K_DEFAULT_WORKSPACE`: esa lectura es la del ENTORNO, y
+    era exactamente lo que `graph.js:16` (`window.S9K_WORKSPACE || "leyenda"`)
+    replicaba en el cliente sin pasar por ninguna autoridad -- la plantilla
+    inyectaba el valor del entorno para TODO principal, autenticado o no, con
+    ámbito resuelto o sin él.
+
+    `admin_full` conserva el default del entorno como CONVENIENCIA de arranque
+    (un admin puede pedir cualquier otro con `?workspace=`; no es una
+    concesión). Para el resto, el único valor legítimo es el que la autoridad
+    canónica ya resolvió en `allowed_workspaces` -- y si no resolvió ninguno,
+    se manda vacío: el cliente ya no fabrica un "leyenda" de repuesto
+    (`graph.js`), y `/api/graph` responde 409 en vez de un workspace vacío.
+    """
+    if scope.ctx.admin_full:
+        return get_settings().S9K_DEFAULT_WORKSPACE
+    return next(iter(scope.ctx.allowed_workspaces), "")
+
+
 @app.get("/graph", response_class=HTMLResponse)
 def graph_view(request: Request):
     guard = _require_user_or_redirect(request)
     if guard is not None and not isinstance(guard, User):
         return guard
     settings = get_settings()
+    scope = get_visibility_scope(request)
     return templates.TemplateResponse(
         request,
         "graph.html",
         {
-            "workspace": settings.S9K_DEFAULT_WORKSPACE,
+            "workspace": _workspace_inicial_del_grafo(scope),
             "graph_limit": settings.S9K_GRAPH_LIMIT,
             "auth_user": guard,
         },

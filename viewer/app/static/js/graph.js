@@ -13,7 +13,13 @@
 
   var core = window.S9KGraphCore;
 
-  var workspace = window.S9K_WORKSPACE || "leyenda";
+  // El cliente NO fabrica un workspace propio. Si el servidor no ha resuelto
+  // ninguno (autoridad sin resolver), `window.S9K_WORKSPACE` llega vacío y así
+  // se manda: inventar aquí un valor por defecto ("leyenda") era justo la
+  // fuga que permitía a un cliente pedir cualquier workspace cuando el
+  // servidor no daba ninguno. `/api/graph` decide el ámbito real; esto es
+  // solo lo que la petición pide, nunca lo que se sirve.
+  var workspace = window.S9K_WORKSPACE || "";
   var defaultLimit = window.S9K_GRAPH_LIMIT || 300;
 
   // --- Referencias al DOM -------------------------------------------------
@@ -612,7 +618,10 @@
 
   function apiUrl() {
     var params = new URLSearchParams();
-    params.set("workspace", workspace);
+    // Sin workspace no se manda el parámetro: mandar `workspace=` no es más
+    // honesto que mandar uno inventado, y el servidor ya sabe resolver su
+    // ausencia por su propia autoridad.
+    if (workspace) { params.set("workspace", workspace); }
     params.set("limit", String(state.limit || defaultLimit));
     return "/api/graph?" + params.toString();
   }

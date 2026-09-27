@@ -98,6 +98,16 @@ class PolicyFilteredProvider(GraphProvider):
         entity_type: str | None = None,
         q: str | None = None,
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        # REAUTORIZACIÓN DEL ÁMBITO, no solo del contenido. Antes `workspace`
+        # pasaba tal cual a la query del provider base y lo único que salvaba
+        # el caso era el filtro nodo a nodo de `filter_nodes` más abajo (con
+        # `allowed_workspaces` vacío -autoridad sin resolver- ese filtro
+        # descarta todo, pero es una SOLA capa). `entity()` ya reautoriza el
+        # ámbito con `_scope_workspaces()` antes de tocar el provider base;
+        # esto cierra la misma asimetría aquí, para que la protección no
+        # dependa nunca de un único mecanismo.
+        if not self._ctx.admin_full and workspace not in self._ctx.allowed_workspaces:
+            return [], []
         nodes, edges = self._base.graph(workspace, limit=_ALL, entity_type=entity_type, q=q)
         vnodes = self._policy.filter_nodes(nodes, self._ctx)[:limit]
         vids = {n["id"] for n in vnodes if "id" in n}
@@ -170,6 +180,11 @@ class PolicyFilteredProvider(GraphProvider):
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[list[dict[str, Any]], int]:
+        # Misma reautorización de ámbito que en `graph()` (ver su comentario):
+        # antes `list_entities` delegaba el `workspace` de la petición sin
+        # comprobarlo, a diferencia de `entity()`.
+        if not self._ctx.admin_full and workspace not in self._ctx.allowed_workspaces:
+            return [], 0
         items, _ = self._base.list_entities(
             workspace,
             q=q,

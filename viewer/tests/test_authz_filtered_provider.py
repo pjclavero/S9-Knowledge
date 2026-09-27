@@ -165,3 +165,81 @@ def test_quality_metrics_no_cuentan_ocultos(base):
     assert m["total_entities"] == len(VISIBLE)
     assert m["by_visibility"].get("secret", 0) == 0
     assert m["by_visibility"].get("narrator", 0) == 0
+
+
+# --- Reautorización del ÁMBITO en `graph()`/`list_entities()` --------------
+#
+# Corte "el workspace no lo elige el cliente". Antes estos dos métodos
+# delegaban el `workspace` recibido DIRECTAMENTE a la query del provider base
+# -- a diferencia de `entity()`, que ya reautorizaba con `_scope_workspaces()`
+# -- y lo único que impedía servir un workspace ajeno era el filtro nodo a
+# nodo de `filter_nodes`. Estas pruebas demuestran que la protección ya NO
+# depende solo de esa única capa: comprueban el efecto CON el filtro nodo a
+# nodo desactivado (un doble de `VisibilityPolicy` que aprueba todo), que es
+# la única forma de que una mutación real (quitar `can_view`) sea detectable.
+
+OTRA_BOVEDA = "otra_boveda"
+
+
+class _PoliticaQueLoAprueebaTodo:
+    """Doble de `VisibilityPolicy`: simula que `can_view` está desactivado.
+
+    Si la reautorización de ámbito de `graph()`/`list_entities()` no
+    existiera, con esta política CUALQUIER nodo de CUALQUIER workspace pasaría
+    íntegro. Es la mutación que la garantía tiene que sobrevivir sin ayuda del
+    filtro nodo a nodo.
+    """
+
+    def filter_nodes(self, nodes, ctx):
+        return list(nodes)
+
+    def filter_edges(self, edges, visible_ids, ctx):
+        return list(edges)
+
+
+def test_graph_no_consulta_workspace_ajeno_aunque_el_filtro_nodo_a_nodo_este_apagado(base):
+    prov = PolicyFilteredProvider(base, _viewer_bryn(), policy=_PoliticaQueLoAprueebaTodo())
+    nodes, edges = prov.graph(OTRA_BOVEDA)
+    assert nodes == [] and edges == [], (
+        "FUGA: con el filtro nodo a nodo desactivado, `graph()` sirvió un "
+        "workspace fuera de `allowed_workspaces`. La protección dependía sólo "
+        "de `filter_nodes`."
+    )
+
+
+def test_list_entities_no_consulta_workspace_ajeno_aunque_el_filtro_nodo_a_nodo_este_apagado(base):
+    prov = PolicyFilteredProvider(base, _viewer_bryn(), policy=_PoliticaQueLoAprueebaTodo())
+    items, total = prov.list_entities(OTRA_BOVEDA, limit=1000)
+    assert items == [] and total == 0, (
+        "FUGA: con el filtro nodo a nodo desactivado, `list_entities()` sirvió "
+        "un workspace fuera de `allowed_workspaces`."
+    )
+
+
+def test_graph_control_positivo_workspace_propio_sigue_pasando(base):
+    """Simétrico obligatorio: el mismo doble, pero con el workspace PROPIO.
+
+    Sin este control, "devuelve vacío siempre" pasaría la prueba de arriba.
+    """
+    prov = PolicyFilteredProvider(base, _viewer_bryn(), policy=_PoliticaQueLoAprueebaTodo())
+    nodes, edges = prov.graph(WS)
+    assert len(nodes) > 0, (
+        "el control positivo no ve nada de su propio workspace: el banco no "
+        "está midiendo nada"
+    )
+
+
+def test_list_entities_control_positivo_workspace_propio_sigue_pasando(base):
+    prov = PolicyFilteredProvider(base, _viewer_bryn(), policy=_PoliticaQueLoAprueebaTodo())
+    items, total = prov.list_entities(WS, limit=1000)
+    assert total > 0, (
+        "el control positivo no ve nada de su propio workspace: el banco no "
+        "está midiendo nada"
+    )
+
+
+def test_admin_si_puede_pedir_otro_workspace_por_graph(base):
+    """`admin_full` no está sujeto a esta reautorización (docs/75): ve todo."""
+    prov = PolicyFilteredProvider(base, _admin())
+    nodes, _ = prov.graph(OTRA_BOVEDA)
+    assert any(n["id"] == "otra_boveda_node" for n in nodes)

@@ -349,7 +349,12 @@
     // falta es la biblioteca de dibujo (vendor bloqueado por `integrity`,
     // fichero corrupto o borrado). Decir "no se ha podido contactar con el
     // servidor" en ese caso manda a la persona a mirar donde no es.
-    renderer: "El componente que dibuja el grafo no se ha cargado. Recarga la página; si vuelve a ocurrir, avisa a quien administre el visor."
+    renderer: "El componente que dibuja el grafo no se ha cargado. Recarga la página; si vuelve a ocurrir, avisa a quien administre el visor.",
+    // 409: la autoridad del servidor no ha resuelto NINGÚN workspace para esta
+    // sesión. No es "este workspace está vacío" (eso es un 200 con `nodes: []`
+    // y el mensaje `empty`): es que no hay ámbito que consultar, y tiene que
+    // leerse distinto para no confundirse con un workspace real sin contenido.
+    no_scope: "No hay un ámbito de workspace determinado para tu sesión. Avisa a quien administre el visor."
   };
 
   function errorKindForStatus(status) {
@@ -357,6 +362,7 @@
     if (code === 401) return "unauthenticated";
     if (code === 403) return "forbidden";
     if (code === 404) return "not_found";
+    if (code === 409) return "no_scope";
     if (code === 504) return "timeout";
     if (code === 503 || code === 502) return "unavailable";
     if (code === 0 || isNaN(code)) return "network";
