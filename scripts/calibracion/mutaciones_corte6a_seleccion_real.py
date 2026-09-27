@@ -82,16 +82,16 @@ MUTACIONES = [
         "M2 — `/admin/partidas/grant` deja de re-validar `partida_id` en el "
         "SERVIDOR (la guarda queda solo en el cliente)",
         "viewer/app/routers/admin.py",
-        """    if partida_id not in descubribles:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"«{partida_id}» no es una partida que la boveda conozca en "
-                f"«{workspace}». Solo se puede conceder acceso a partidas que "
-                "existen realmente en el arbol de la boveda."
-            ),
-        )""",
-        "    pass  # M2: ya no se revalida partida_id contra la enumeracion",
+        # OBJETIVO ESTABLE, NO EL MENSAJE. Antes esta mutacion copiaba el
+        # bloque ENTERO, mensaje de error incluido, y el corte 6B-1 —que hizo
+        # pasar ese mensaje por el resolvedor de etiquetas— lo movio: la
+        # mutacion dejo de aplicarse y el calibrador dijo DETECTOR ROTO (bien
+        # dicho: un verde ahi seria falso). La PROPIEDAD atacada no cambia
+        # —que el POST deje de revalidar `partida_id` contra la enumeracion—,
+        # pero ahora se ataca la GUARDA, que es la linea estable, y no su
+        # redaccion. El bloque del `raise` sigue ahi, inalcanzable.
+        "    if partida_id not in descubribles:",
+        "    if False:  # M2: ya no se revalida partida_id contra la enumeracion",
         ["test_post_con_partida_id_fuera_de_la_enumeracion_se_rechaza"],
         "un partida_id que la bóveda no declara se aceptó",
     ),

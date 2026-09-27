@@ -129,7 +129,7 @@
       <select name="workspace" required onchange="this.form.submit()">
         <option value="">Seleccionar</option>
         {% for item in workspaces %}
-        <option value="{{ item | e }}" {% if item == workspace %}selected{% endif %}>{{ item | e }}</option>
+        <option value="{{ item | e }}" {% if item == workspace %}selected{% endif %}>{{ etiqueta_workspace(item) | e }}</option>
         {% endfor %}
       </select>
     </label>

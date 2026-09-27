@@ -2,7 +2,7 @@
 {% block title %}Panel de calidad — S9 Knowledge{% endblock %}
 {% block body %}
 <main style="max-width:900px;margin:1.5rem auto;padding:1rem;">
-  <h2>Panel de calidad · <span style="color:#888;">{{ workspace | e }}</span></h2>
+  <h2>Panel de calidad · <span style="color:#888;">{{ etiqueta_workspace(workspace) | e }}</span></h2>
   <p style="color:#888;font-size:.9rem;">Métricas de solo lectura. No modifica el grafo.</p>
 
   {% if metrics %}

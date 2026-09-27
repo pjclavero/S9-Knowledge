@@ -48,7 +48,7 @@
       <tr>
         <td><a href="/jobs/{{ job.job_id }}">{{ job.job_id[:8] }}…</a></td>
         <td>{{ job.type }}</td>
-        <td>{{ job.workspace }}</td>
+        <td>{{ etiqueta_workspace(job.workspace) }}</td>
         <td><span class="pill">{{ job.status }}</span></td>
         <td>{{ job.attempts }}/{{ job.max_attempts }}</td>
         <td>{{ job.created_at }}</td>

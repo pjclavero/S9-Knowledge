@@ -25,13 +25,13 @@
       <dt>Ejecucion</dt>
       <dd data-field="apply-id">{{ resultado.apply_id | e }}</dd>
       <dt>Espacio de trabajo</dt>
-      <dd data-field="workspace">{{ resultado.workspace | e }}</dd>
+      <dd data-field="workspace">{{ etiqueta_workspace(resultado.workspace) | e }}</dd>
       <dt>Aplicado el</dt>
       <dd data-field="applied-at">
         {{ resultado.aplicado_en | e if resultado.aplicado_en else 'no consta' }}</dd>
       <dt>Partida</dt>
       <dd data-field="partida">
-        {{ resultado.partida_id | e if resultado.partida_id else 'capa de juego (sin partida)' }}</dd>
+        {{ etiqueta_partida(resultado.workspace, resultado.partida_id) | e if resultado.partida_id else 'capa de juego (sin partida)' }}</dd>
       {#
         LAS DOS AUTORIDADES DE ESTA PAGINA, DICHAS COMO TALES.
 

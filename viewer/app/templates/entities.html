@@ -2,7 +2,7 @@
 {% block title %}Entidades — S9 Knowledge{% endblock %}
 {% block body %}
 <main style="max-width:1000px;margin:1.5rem auto;padding:1rem;">
-  <h2>Entidades · <span style="color:#888;">{{ workspace }}</span></h2>
+  <h2>Entidades · <span style="color:#888;">{{ etiqueta_workspace(workspace) }}</span></h2>
 
   <form method="get" action="/entities" style="margin:1rem 0;display:flex;gap:.5rem;flex-wrap:wrap;">
     <input type="hidden" name="workspace" value="{{ workspace }}">

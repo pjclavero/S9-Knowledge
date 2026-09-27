@@ -63,7 +63,7 @@
         <select name="workspace">
           <option value="">—</option>
           {% for w in workspaces %}
-          <option value="{{ w | e }}" {% if w == workspace %}selected{% endif %}>{{ w | e }}</option>
+          <option value="{{ w | e }}" {% if w == workspace %}selected{% endif %}>{{ etiqueta_workspace(w) | e }}</option>
           {% endfor %}
         </select>
       </label>

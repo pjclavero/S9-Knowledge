@@ -35,10 +35,15 @@
       </select>
     </div>
     <div class="field">
+      {#
+        PROSA vs PROTOCOLO en la MISMA pantalla (6B-1, ronda 2): el `value`
+        del campo sigue siendo el IDENTIFICADOR canonico —es lo que viaja en
+        el POST—, y el texto dirigido al humano pasa por el resolvedor unico.
+      #}
       <label for="workspace">Juego (workspace)</label>
       <input id="workspace" type="text" name="workspace"
              value="{{ workspace_canonico | e }}" readonly aria-readonly="true">
-      <small>Este despliegue sirve un solo workspace: <code>{{ workspace_canonico | e }}</code>.
+      <small>Este despliegue sirve un solo workspace: <strong>{{ etiqueta_workspace(workspace_canonico) | e }}</strong>.
       Antes este campo era texto libre y aceptaba cualquier cosa; una concesión
       en un workspace inventado se guardaba, se mostraba aquí abajo como viva, y
       hacía «existir» esa partida también en el workspace real.</small>
@@ -47,7 +52,7 @@
       <div class="alert alert-error" role="alert" id="aviso_boveda_no_disponible">
         <p>
           No se puede consultar la bóveda para saber qué partidas existen en
-          <code>{{ workspace_canonico | e }}</code>{% if catalogo_detalle %}: {{ catalogo_detalle | e }}{% endif %}.
+          <strong>{{ etiqueta_workspace(workspace_canonico) | e }}</strong>{% if catalogo_detalle %}: {{ catalogo_detalle | e }}{% endif %}.
         </p>
         <p>
           Sin poder consultarla no hay ninguna opción segura que ofrecer aquí:
@@ -60,7 +65,7 @@
     {% elif not partidas_descubribles %}
       <div class="alert" role="status" id="aviso_boveda_vacia">
         <p>
-          Todavía no hay ninguna partida que la bóveda de <code>{{ workspace_canonico | e }}</code>
+          Todavía no hay ninguna partida que la bóveda de <strong>{{ etiqueta_workspace(workspace_canonico) | e }}</strong>
           reconozca: el árbol no tiene material clasificable bajo una carpeta
           de partida.
         </p>
@@ -89,11 +94,11 @@
       <select id="partida_id" name="partida_id" required>
         <option value="" disabled selected>— elige una partida —</option>
         {% for pid in partidas_descubribles %}
-          <option value="{{ pid | e }}">{{ pid | e }}</option>
+          <option value="{{ pid | e }}">{{ etiqueta_partida(workspace_canonico, pid) | e }}</option>
         {% endfor %}
       </select>
       <small>
-        Estas son las partidas que la bóveda de <code>{{ workspace_canonico | e }}</code>
+        Estas son las partidas que la bóveda de <strong>{{ etiqueta_workspace(workspace_canonico) | e }}</strong>
         reconoce REALMENTE ahora mismo (recorrido del árbol, no un eco de
         concesiones anteriores): solo se puede elegir una de esta lista, y el
         servidor vuelve a comprobarlo aunque el formulario se manipule.
@@ -137,8 +142,8 @@
         <td>
           {% for u in users %}{% if u.id == a.user_id %}{{ u.username | e }}{% endif %}{% endfor %}
         </td>
-        <td>{{ a.workspace | e }}</td>
-        <td>{{ a.partida_id | e }}</td>
+        <td>{{ etiqueta_workspace(a.workspace) | e }}</td>
+        <td>{{ etiqueta_partida(a.workspace, a.partida_id) | e }}</td>
         <td>{{ a.granted_by | e if a.granted_by else "—" }}</td>
         <td>{{ a.granted_at }}</td>
         <td>{{ a.max_visible_session if a.max_visible_session is not none else "—" }}</td>

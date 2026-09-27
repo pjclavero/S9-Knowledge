@@ -131,6 +131,7 @@ __all__ = [
     "ENV_DIRECTORIO_DE_FUENTES",
     "ubicacion_declarada",
     "ENV_EXIGIR_MONTAJE",
+    "NOMBRE_MANIFIESTO_PARTIDA",
 ]
 
 #: Extensiones que el nucleo de ingesta declara saber leer
@@ -150,7 +151,15 @@ EXTENSIONES_SOPORTADAS = {
 #: la ontologia del propio workspace.
 NOMBRE_PERFIL = "perfil-operador.json"
 NOMBRE_CATALOGO = "catalogo-workspace.json"
-_NO_SON_FUENTES = {NOMBRE_PERFIL, NOMBRE_CATALOGO, "README.md"}
+#: CORTE 6B-1. El manifiesto de una partida vive junto a la carpeta que
+#: origina su `partida_id` (`<juego>/partidas/<p>/manifiesto-partida.json`) y
+#: declara, como mucho, `metadata.label`: el nombre humano de esa partida para
+#: presentacion. Es la MISMA exencion de lista blanca que ya tiene
+#: `perfil-operador.json`: un auxiliar de configuracion, no una fuente
+#: ingerible, y no crea una segunda autoridad (`partida_access` no gana una
+#: columna, y no hay tabla `partidas`).
+NOMBRE_MANIFIESTO_PARTIDA = "manifiesto-partida.json"
+_NO_SON_FUENTES = {NOMBRE_PERFIL, NOMBRE_CATALOGO, NOMBRE_MANIFIESTO_PARTIDA, "README.md"}
 
 #: Motivo con el que se DECLARA un fichero auxiliar (perfil, catalogo, README)
 #: encontrado durante el recorrido de una boveda. Existe para que no haya
@@ -338,7 +347,17 @@ def _workspace_declarado(perfil: Path) -> str:
     Se reutiliza el mecanismo que YA existe (el alta lee `workspace` de un
     perfil JSON), no se inventa otro.
     """
-    datos = json.loads(perfil.read_text(encoding="utf-8"))
+    return workspace_de_perfil(json.loads(perfil.read_text(encoding="utf-8")))
+
+
+def workspace_de_perfil(datos: object) -> str:
+    """La MISMA regla que `_workspace_declarado`, ya leido el JSON.
+
+    Existe para que quien tenga el perfil en memoria (el resolvedor de
+    etiquetas memoiza sus lecturas por peticion) no vuelva a escribir por su
+    cuenta "donde declara el perfil su workspace": eso seria una segunda
+    autoridad sobre la misma pregunta, aunque hoy coincidiera.
+    """
     if not isinstance(datos, dict):
         raise ValueError("el perfil de la boveda no es un objeto JSON")
     ws = datos.get("workspace")

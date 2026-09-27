@@ -11,7 +11,7 @@
     <h1>Job {{ job.job_id }}</h1>
     <p>
       <span class="pill">{{ job.type }}</span>
-      <span class="pill">{{ job.workspace }}</span>
+      <span class="pill">{{ etiqueta_workspace(job.workspace) }}</span>
       <span class="pill">{{ job.status }}</span>
       <span class="pill">intentos: {{ job.attempts }}/{{ job.max_attempts }}</span>
     </p>
