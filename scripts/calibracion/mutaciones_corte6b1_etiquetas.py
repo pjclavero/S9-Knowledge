@@ -15,6 +15,13 @@ Cubre las dos formas de romper la propiedad de este corte:
   M2 — el fallback deja de usar el identificador y empieza a INVENTAR un
        nombre a partir de el (la falsa confirmacion que el programa lleva un
        mes eliminando).
+  M3 — UNA PLANTILLA SE SALTA EL RESOLVEDOR y pinta el identificador crudo.
+       En la ronda 1 esto dejaba la suite VERDE: cualquiera podia revertir una
+       pantalla y nadie se enteraba.
+  M4 — EL AMBITO VUELVE A SER TAUTOLOGICO: el global de Jinja pasa como
+       ambito el propio workspace que va a pintar (`[workspace]`), que era
+       exactamente el defecto de la ronda 1 — una guarda que nunca se ejecuta
+       y por eso parece proteccion sin serlo.
 
 Uso: python3 scripts/calibracion/mutaciones_corte6b1_etiquetas.py
 """
@@ -87,6 +94,24 @@ MUTACIONES = [
         "    return _label_declarado(datos) or partida_id.replace(':', ' ').title()",
         ["test_nunca_deriva_un_nombre_del_identificador_con_manifiesto_sin_label"],
         "assert",
+    ),
+    (
+        "M3 — una plantilla SE SALTA el resolvedor unico y pinta el "
+        "identificador crudo en una superficie de operador",
+        "viewer/app/templates/entities.html",
+        "{{ etiqueta_workspace(workspace) }}",
+        "{{ workspace }}",
+        ["test_ninguna_plantilla_se_salta_el_resolvedor"],
+        "no estan declaradas como protocolo",
+    ),
+    (
+        "M4 — el ambito vuelve a ser TAUTOLOGICO: el global pasa como ambito "
+        "el propio workspace que va a pintar",
+        "viewer/app/presentacion_etiquetas.py",
+        "    return resolvedor_de_peticion(ctx.get(\"request\")).workspace(workspace)",
+        "    return etiqueta_workspace(workspace, [workspace])",
+        ["test_la_plantilla_no_puede_elegir_su_propio_ambito"],
+        "FUGA DE AMBITO",
     ),
 ]
 

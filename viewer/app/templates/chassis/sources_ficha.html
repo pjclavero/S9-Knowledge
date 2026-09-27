@@ -35,7 +35,7 @@
   {% endif %}
 
   <section class="panel" data-state="ready" data-role="resumen" data-scope="visible">
-    <p>Workspace: <span data-role="workspace">{{ (etiqueta_workspace(workspace, [workspace]) if workspace else 'no disponible') | e }}</span></p>
+    <p>Workspace: <span data-role="workspace">{{ (etiqueta_workspace(workspace) if workspace else 'no disponible') | e }}</span></p>
     <p><span data-count="entities">{{ source.entity_count }}</span> entidades visibles</p>
     <p class="muted" data-role="alcance">
       Todo lo de esta ficha se cuenta después de aplicar la autorización: es lo

@@ -29,7 +29,7 @@
   {% endif %}
 
   <div style="margin:1rem 0;">
-    <strong>Workspace:</strong> {{ etiqueta_workspace(entity.workspace, [entity.workspace]) | e }}<br>
+    <strong>Workspace:</strong> {{ etiqueta_workspace(entity.workspace) | e }}<br>
     <strong>Alias:</strong> <span id="entity-aliases"></span>
     <script>
       document.getElementById('entity-aliases').textContent =

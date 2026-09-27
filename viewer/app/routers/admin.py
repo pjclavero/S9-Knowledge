@@ -14,7 +14,7 @@ from app.auth.csrf import get_csrf_token_for_session, validate_csrf
 from app.auth.dependencies import require_admin
 from app.auth.models import ROLES, User
 from app.auth.passwords import hash_password, validate_password
-from app import chassis, sources_catalog
+from app import chassis, presentacion_etiquetas, sources_catalog
 from app.authz import autoridad_workspace, existencia
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -553,11 +553,19 @@ async def admin_partidas_grant(
             ),
         )
     if partida_id not in descubribles:
+        # CORTE 6B-1 (ronda 2) — esta es la RAMA DE ERROR de una pantalla cuyas
+        # celdas ya pintan nombres humanos. Dejarla con el identificador crudo
+        # era una superficie de operador sin cubrir, no una decision: se cubre
+        # por el MISMO resolvedor, con el MISMO ambito de peticion que las
+        # celdas. `partida_id` se cita TAL CUAL a proposito: es lo que la
+        # persona acaba de teclear/enviar y no existe, asi que no hay nombre
+        # que resolver — y ponerle uno seria inventarlo.
         raise HTTPException(
             status_code=400,
             detail=(
                 f"«{partida_id}» no es una partida que la boveda conozca en "
-                f"«{workspace}». Solo se puede conceder acceso a partidas que "
+                f"«{presentacion_etiquetas.resolvedor_de_peticion(request).workspace(workspace)}». "
+                "Solo se puede conceder acceso a partidas que "
                 "existen realmente en el arbol de la boveda."
             ),
         )

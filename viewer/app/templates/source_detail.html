@@ -4,7 +4,7 @@
 <main style="max-width:900px;margin:1.5rem auto;padding:1rem;">
   <p style="margin-bottom:.5rem;"><a href="/sources">← Fuentes</a></p>
   <h2>Fuente: <code>{{ source.source_id | e }}</code></h2>
-  <p style="color:#888;font-size:.9rem;">Workspace: {{ etiqueta_workspace(workspace, [workspace]) | e }} · Solo lectura.</p>
+  <p style="color:#888;font-size:.9rem;">Workspace: {{ etiqueta_workspace(workspace) | e }} · Solo lectura.</p>
 
   <div style="margin:1rem 0;">
     <strong>Entidades:</strong> {{ source.entity_count }}

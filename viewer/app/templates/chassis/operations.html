@@ -527,7 +527,7 @@
                     data-de-partida="{{ f.ambito.partida_id | e if f.ambito.partida_id else '' }}"
                     data-visibilidad="{{ f.ambito.visibility | e }}">
               {{ f.titulo | e }} ({{ f.formato | e }}, {{ f.tamano_bytes }} bytes)
-              — {{ etiqueta_workspace(f.ambito.workspace, [f.ambito.workspace]) | e }}{% if f.ambito.partida_id %} · partida {{ etiqueta_partida(f.ambito.workspace, f.ambito.partida_id, [f.ambito.workspace]) | e }}{% else %} · todo el juego{% endif %} · {{ f.ambito.visibility | e }}
+              — {{ etiqueta_workspace(f.ambito.workspace) | e }}{% if f.ambito.partida_id %} · partida {{ etiqueta_partida(f.ambito.workspace, f.ambito.partida_id) | e }}{% else %} · todo el juego{% endif %} · {{ f.ambito.visibility | e }}
             </option>
             {% endfor %}
           </select>
@@ -549,8 +549,8 @@
           {% for f in fuentes.lista %}
           <tr data-handle="{{ f.handle | e }}">
             <td>{{ f.titulo | e }}</td>
-            <td data-col="juego">{{ etiqueta_workspace(f.ambito.workspace, [f.ambito.workspace]) | e }}</td>
-            <td data-col="partida">{% if f.ambito.partida_id %}{{ etiqueta_partida(f.ambito.workspace, f.ambito.partida_id, [f.ambito.workspace]) | e }}{% else %}todo el juego{% endif %}</td>
+            <td data-col="juego">{{ etiqueta_workspace(f.ambito.workspace) | e }}</td>
+            <td data-col="partida">{% if f.ambito.partida_id %}{{ etiqueta_partida(f.ambito.workspace, f.ambito.partida_id) | e }}{% else %}todo el juego{% endif %}</td>
             <td data-col="visibilidad">{{ f.ambito.visibility | e }}</td>
             <td data-col="regla">{{ f.ambito.regla | e }}</td>
           </tr>
@@ -665,7 +665,7 @@
                 {% else %}no disponible{% endif %}
               </td>
               <td>{{ row.type | e if row.type else 'no disponible' }}</td>
-              <td>{{ etiqueta_workspace(row.workspace, [row.workspace]) | e if row.workspace else 'no disponible' }}</td>
+              <td>{{ etiqueta_workspace(row.workspace) | e if row.workspace else 'no disponible' }}</td>
               {# `None` es ausencia declarada, no un 0 inventado. #}
               <td data-attempts="{{ row.attempts if row.attempts is not none else '' }}">
                 {% if row.attempts is not none %}{{ row.attempts }}{% else %}no disponible{% endif %}
