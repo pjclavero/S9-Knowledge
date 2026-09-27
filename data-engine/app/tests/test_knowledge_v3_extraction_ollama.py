@@ -28,8 +28,8 @@ from knowledge_v3.extraction import (  # noqa: E402
 )
 from knowledge_v3.extraction.ollama_client import (  # noqa: E402
     DEFAULT_OLLAMA_MODEL,
-    DEFAULT_OLLAMA_URL,
     DEFAULT_TIMEOUT,
+    OLLAMA_URL_ENV_VAR,
     OllamaBadResponse,
     redact_url,
 )
@@ -78,12 +78,31 @@ VALID_PAYLOAD = json.dumps(
 
 
 class TestConfig:
-    def test_valores_por_defecto_documentados(self, monkeypatch):
+    def test_sin_endpoint_configurado_falla_cerrado(self, monkeypatch):
+        """EXP-1: ya NO hay endpoint por defecto.
+
+        Este test fijaba el literal de la direccion real de la instalacion,
+        que es justo lo que la convertia en una autoridad: cambiarla "rompia
+        un test". La autoridad cambio -el endpoint es configuracion
+        obligatoria- y el test cambia con ella, en vez de servir de excusa
+        para conservar la direccion en un repositorio publico.
+        """
         for var in ("S9K_OLLAMA_URL", "S9K_OLLAMA_MODEL", "S9K_OLLAMA_TIMEOUT"):
             monkeypatch.delenv(var, raising=False)
+        with pytest.raises(OllamaUnavailable) as exc:
+            OllamaConfig.from_env()
+        # El aviso tiene que NOMBRAR la variable que falta: un fail-closed que
+        # no dice como abrirlo se salta a mano.
+        assert OLLAMA_URL_ENV_VAR in str(exc.value)
+
+    def test_el_modelo_si_tiene_default_documentado(self, monkeypatch):
+        """El modelo si puede tener default: no publica topologia."""
+        monkeypatch.setenv("S9K_OLLAMA_URL", "http://ollama.test:11434")
+        for var in ("S9K_OLLAMA_MODEL", "S9K_OLLAMA_TIMEOUT"):
+            monkeypatch.delenv(var, raising=False)
         config = OllamaConfig.from_env()
-        assert config.url == DEFAULT_OLLAMA_URL == "http://192.168.1.157:11434"
         assert config.model == DEFAULT_OLLAMA_MODEL == "qwen2.5:7b"
+        assert config.url == "http://ollama.test:11434"
 
     def test_el_entorno_manda(self, monkeypatch):
         monkeypatch.setenv("S9K_OLLAMA_URL", "http://otro-host:11434/")
@@ -94,6 +113,7 @@ class TestConfig:
         assert (config.model, config.timeout) == ("otro-modelo", 5.0)
 
     def test_timeout_invalido_no_rompe_el_arranque(self, monkeypatch):
+        monkeypatch.setenv("S9K_OLLAMA_URL", "http://ollama.test:11434")
         monkeypatch.setenv("S9K_OLLAMA_TIMEOUT", "no-es-un-numero")
         assert OllamaConfig.from_env().timeout == DEFAULT_TIMEOUT == 300.0
 
