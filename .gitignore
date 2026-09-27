@@ -63,7 +63,10 @@ Thumbs.db
 # Neo4j dumps/backups
 *.dump
 *.backup
-*.bak
+# `*.bak` NO cubre los sufijos que genera el utillaje de este repo
+# (`fichero.bak.<timestamp>`, `fichero.bak-<fecha>`): medido con
+# `git check-ignore`, ninguna regla los cubria y por eso acabaron versionados.
+*.bak*
 state/external_ai_cache/
 
 # Gate4 B3: cache local de respuestas del proveedor NVIDIA (contenido de un

@@ -4,7 +4,7 @@
 Contexto (EXP-1): este repositorio es PUBLICO. `.env.example` de la raiz lo
 dice con todas las letras: una IP privada publicada describe gratis la
 topologia de la red interna a quien la lea. `viewer/.env.example` la violaba
-(`bolt://192.168.1.205:7687`, VM105 real).
+(un `bolt://<IP privada real de VM105>:7687` escrito literalmente).
 
 Este gate NO es una busqueda ciega de RFC1918 en todo el arbol: eso llena de
 falsos positivos los fixtures y tests que legitimamente usan direcciones
@@ -23,9 +23,15 @@ desactivando. La semantica es ZONA + VALOR + EXCEPCION:
     de esa zona.
   * EXCEPCION: una linea puede declararse exenta, de forma explicita y
     localizada, con el marcador `# topologia: excepcion declarada <motivo>`
-    en la misma linea o en la linea inmediatamente anterior. Documentar SIN
-    ese marcador no exime nada (ver mandato del operador: "estar documentada
-    no la hace aceptable").
+    en la misma linea o en la linea inmediatamente anterior. El <motivo> es
+    OBLIGATORIO y no puede estar vacio: el marcador a secas no exime nada.
+    Documentar SIN ese marcador tampoco exime nada (ver mandato del
+    operador: "estar documentada no la hace aceptable").
+
+    PENDIENTE ANOTADO (no implementado aqui): el marcador no deja registro de
+    QUIEN declaro la excepcion ni cuando. Exigir autoria/fecha verificable
+    requiere una fuente de autoridad (CODEOWNERS, firma de commit o un
+    registro aparte) y es un carril propio, no un retoque de este regex.
 
 TECHO DECLARADO: este gate mira contenido de texto plano por ruta y linea. No
 seria un motor semantico (no interpreta AST, ni resuelve que un valor llega
@@ -68,7 +74,9 @@ EXCLUSIONES = (
     "*/tests/*",
     "tests/*",
     "*/fixtures/*",
-    "*.bak",
+    # `*.bak` NO cubre `fichero.bak.<timestamp>` ni `fichero.bak-<fecha>`:
+    # ese fue el agujero medido en la ronda 1 (mismo fallo que el .gitignore).
+    "*.bak*",
 )
 
 IP_PRIVADA_RE = re.compile(
@@ -79,7 +87,11 @@ IP_PRIVADA_RE = re.compile(
     r")\b"
 )
 
-MARCADOR_EXCEPCION = re.compile(r"#\s*topologia:\s*excepcion declarada")
+# El marcador EXIGE motivo: `# topologia: excepcion declarada` a secas no
+# exime nada (una excepcion sin razon escrita no es una decision, es un
+# silenciamiento). El motivo es todo lo que siga al marcador y debe
+# contener al menos un caracter no blanco.
+MARCADOR_EXCEPCION = re.compile(r"#\s*topologia:\s*excepcion declarada\s+(?P<motivo>\S.*)")
 
 
 def _coincide_zona(ruta: str) -> bool:
