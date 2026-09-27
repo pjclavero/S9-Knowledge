@@ -120,6 +120,7 @@ __all__ = [
     "listar_fuentes",
     "listar_fuentes_boveda",
     "rechazos_de_boveda",
+    "partidas_descubiertas_en_boveda",
     "resolver",
     "EXTENSIONES_SOPORTADAS",
     "NOMBRE_PERFIL",
@@ -514,6 +515,60 @@ def rechazos_de_boveda(env: Optional[dict] = None) -> list[dict]:
     if not modo_boveda(env):
         return []
     return listar_fuentes_boveda(env)[1]
+
+
+def partidas_descubiertas_en_boveda(
+    workspace: Optional[str], env: Optional[dict] = None,
+) -> list[str]:
+    """`partida_id` que la BOVEDA REAL conoce para `workspace`, sin depender
+    de ninguna concesion previa (Corte 6A).
+
+    Esta es la ENUMERACION AUTORIZADA del punto 1 del corte: sale del arbol
+    real (`listar_fuentes_boveda` -> `vault_scope.clasificar`), no de
+    `partida_access`. Antes de este corte, la unica lista que el admin veia
+    (`partidas_conocidas` en `routers/admin.py`) era un eco de lo que YA se
+    habia concedido: para conceder la primera partida habia que teclearla de
+    memoria, y esa misma lista fingia ser un censo. Esta funcion rompe esa
+    circularidad: enumera lo que EXISTE en la boveda, no lo que YA se
+    concedio, asi que el primer grant no depende de ningun grant anterior.
+
+    Sin `workspace` efectivo -> lista vacia, fail-closed (misma doctrina que
+    el resto de `authz.existencia`). `CatalogoNoDisponible` (montaje ausente,
+    boveda no configurada, etc.) SE PROPAGA: quien llama decide como pintar
+    ese estado, igual que hace `_fuentes()` en `chassis_operations.py`; no se
+    degrada aqui a lista vacia, que se leeria como "boveda vacia" en vez de
+    "boveda no disponible".
+
+    RONDA 2 DE REVISION (H2): `modo_boveda(env) == False` es EXACTAMENTE ese
+    caso de "no disponible" -- no hay ningun arbol de bovedas que preguntar,
+    NO "hay un arbol y esta vacio de partidas"-- y antes de esta correccion se
+    degradaba en silencio a `[]`, contradiciendo el parrafo de arriba: la
+    pantalla de fabrica (sin `S9K_VAULT_ROOT`) decia «el arbol no tiene
+    material clasificable» cuando la afirmacion correcta es «no hay arbol
+    declarado». Se levanta aqui, con la MISMA excepcion que ya usa el resto de
+    este modulo para «no disponible», para que ambos estados de verdad
+    -bóveda ausente, boveda real pero sin partidas- tengan su propio camino y
+    su propio mensaje.
+    """
+    if not workspace or not isinstance(workspace, str) or not workspace.strip():
+        return []
+    ws = workspace.strip()
+    if not modo_boveda(env):
+        # Sin arbol de boveda declarado no hay descubrimiento jerarquico que
+        # ofrecer: el catalogo plano no lleva partida (AMBITO_PLANO). Esto NO
+        # es "boveda vacia": es "no hay boveda que preguntar".
+        raise CatalogoNoDisponible(
+            "no hay arbol de bovedas declarado (S9K_VAULT_ROOT): el catalogo "
+            "esta en modo plano y el modo plano nunca declara partida"
+        )
+    fuentes, _rechazos = listar_fuentes_boveda(env)
+    vistos: set[str] = set()
+    for f in fuentes:
+        pid = f.ambito.partida_id
+        ws_fuente = f.ambito.workspace
+        if pid and ws_fuente == ws:
+            vistos.add(pid)
+    return sorted(vistos)
 
 
 def listar_fuentes(env: Optional[dict] = None) -> list[FuenteDisponible]:

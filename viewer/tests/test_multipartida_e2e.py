@@ -13,6 +13,8 @@ from pathlib import Path
 
 import pytest
 
+from boveda_seis_a import crear_boveda_minima
+
 FIXTURE = str(Path(__file__).resolve().parent / "fixtures" / "multipartida_graph.json")
 WS = "juego:lab"
 
@@ -26,6 +28,12 @@ def auth_env(tmp_path):
     os.environ["S9K_SESSION_SECURE"] = "false"
     os.environ["S9K_SAMPLE_GRAPH_PATH"] = FIXTURE
     os.environ["S9K_DEFAULT_WORKSPACE"] = WS
+    # CORTE 6A: `/admin/partidas/grant` (usado en test_admin_gestiona_asignaciones)
+    # valida `partida_id` contra la bóveda real; se declara aquí para que "uno"
+    # sea una partida DESCUBRIBLE, no un identificador tecleado sin respaldo.
+    boveda = crear_boveda_minima(tmp_path / "bovedas", WS, "partida:uno")
+    os.environ["S9K_VAULT_ROOT"] = str(boveda)
+    os.environ["S9K_VAULT_REQUIRE_MOUNT"] = "0"
     from app.auth.config import get_auth_settings
     from app.config import get_settings
     from app.deps import get_provider
@@ -35,7 +43,8 @@ def auth_env(tmp_path):
     from app.auth import db as auth_db
     auth_db.ensure_migrated(db)
     yield db
-    for k in ("S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_SAMPLE_GRAPH_PATH", "S9K_DEFAULT_WORKSPACE"):
+    for k in ("S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_SAMPLE_GRAPH_PATH",
+              "S9K_DEFAULT_WORKSPACE", "S9K_VAULT_ROOT", "S9K_VAULT_REQUIRE_MOUNT"):
         os.environ.pop(k, None)
     get_auth_settings.cache_clear()
     get_settings.cache_clear()

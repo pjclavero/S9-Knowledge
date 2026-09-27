@@ -1162,6 +1162,35 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/mutaciones_s1_selector_misma_autoridad.py
 
+      # Y la calibracion del Corte 6A «seleccion real de contexto»:
+      # /admin/partidas ya no pide `partida_id` como texto libre, ofrece un
+      # <select> pintado con la boveda REAL (`partidas_descubiertas_en_boveda`,
+      # independiente de `partida_access`) y el servidor revalida esa MISMA
+      # enumeracion al recibir el POST. Cubre tres formas de romper la
+      # propiedad: que la enumeracion cruce workspaces, que el servidor deje
+      # de revalidar un POST manipulado, y que el estado cero deje de ocultar
+      # el campo en vez de pedir un identificador tecleado a mano.
+      - name: "Seleccion real de contexto: se pone ROJO ante cada defecto (Corte 6A)"
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/mutaciones_corte6a_seleccion_real.py
+
+      # RONDA 2 DE REVISION sobre el PR del Corte 6A: este calibrador (Corte 1,
+      # "la existencia de una partida es el par workspace/partida_id") existia
+      # desde antes pero NUNCA estuvo enganchado a CI -- un revisor
+      # independiente lo corrio a mano en ambos extremos de la rama y encontro
+      # que el Corte 6A habia dejado tres de sus ocho mutaciones sin poder
+      # ponerse rojas (la guarda nueva de `partida_id` ensombrecia a la de
+      # `workspace` en los testigos que usaban un `partida_id` puramente
+      # inventado). Un calibrador de autorizacion que nadie ejecuta se pudre
+      # sin que nadie se entere: se engancha aqui para que no vuelva a pasar.
+      - name: "La existencia de una partida es el par (workspace, partida_id): se pone ROJO ante cada defecto (Corte 1)"
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/corte1_existencia_partida.py
+
   # Instalado desde .github/ci-fragments/check-env-reproducibility.yml. Si un
   # merge se lleva por delante este bloque, el fragmento es la copia canonica.
   check-env-reproducibility:

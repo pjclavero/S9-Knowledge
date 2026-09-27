@@ -22,6 +22,8 @@ import re
 
 import pytest
 
+from boveda_seis_a import crear_boveda_minima
+
 WS = "juego:real"
 WS_AJENO = "juego:otro"
 WS_FANTASMA = "juego:inventado-no-existe"
@@ -38,6 +40,14 @@ def entorno(tmp_path):
     os.environ["S9K_AUTH_DB_PATH"] = str(tmp_path / "auth.db")
     os.environ["S9K_DEFAULT_WORKSPACE"] = WS
     os.environ["S9K_CSRF_SECRET"] = "clave-csrf-larga-y-aleatoria-de-test-1234567890"
+    # CORTE 6A: `PARTIDA` en `WS` tiene que ser DESCUBRIBLE de verdad en la
+    # bóveda, o `/admin/partidas/grant` la rechaza -- esa es la propiedad que
+    # este corte cierra. Sin perfil de bóveda, `workspace_canonico()` cae al
+    # entorno (`S9K_DEFAULT_WORKSPACE`), así que el workspace del perfil debe
+    # ser el MISMO `WS` para que la autoridad no diverja.
+    boveda = crear_boveda_minima(tmp_path / "bovedas", WS, PARTIDA)
+    os.environ["S9K_VAULT_ROOT"] = str(boveda)
+    os.environ["S9K_VAULT_REQUIRE_MOUNT"] = "0"
     get_auth_settings.cache_clear()
     get_settings.cache_clear()
 
@@ -50,7 +60,7 @@ def entorno(tmp_path):
     yield db_path, auth_db, app
 
     for k in ("S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_DEFAULT_WORKSPACE",
-              "S9K_CSRF_SECRET"):
+              "S9K_CSRF_SECRET", "S9K_VAULT_ROOT", "S9K_VAULT_REQUIRE_MOUNT"):
         os.environ.pop(k, None)
     get_auth_settings.cache_clear()
     get_settings.cache_clear()
@@ -174,6 +184,74 @@ def test_conceder_con_workspace_inventado_NO_crea_existencia(entorno):
             "quedó una fila viva en «Asignaciones existentes», con fecha y "
             "botón de revocar, para un workspace que no existe"
         )
+
+
+def test_conceder_a_un_workspace_real_pero_no_canonico_sigue_rechazado(entorno):
+    """RONDA 2 DE REVISIÓN sobre PR #253 (Corte 6A), H1: aísla la guarda del
+    WORKSPACE de la guarda de `partida_id` que añadió el Corte 6A.
+
+    Un `partida_id` puramente INVENTADO (`WS_FANTASMA`/`PARTIDA_FANTASMA`) ya
+    no sirve para calibrar «el panel deja de validar el workspace»: desde el
+    Corte 6A, `partidas_descubiertas_en_boveda(WS_FANTASMA)` también lo
+    rechaza (nunca hay una partida declarada bajo un workspace que nadie
+    declaró), así que esa mutación queda ENSOMBRECIDA por la guarda nueva y el
+    testigo ya no la ve.
+
+    Este caso usa un workspace que SÍ existe -- de verdad, en su propio perfil
+    de bóveda, con su propia partida real -- pero que NO es el canónico
+    (la bóveda declara DOS perfiles con workspaces distintos, así que
+    `workspace_canonico()` es ambiguo, `""`). Con la guarda de workspace
+    activa, sigue rechazado. Si esa guarda desaparece, la de `partida_id` NO
+    basta para pararlo, porque la partida que se concede SÍ está en la
+    enumeración de ese workspace.
+    """
+    db_path, auth_db, app = entorno
+    _, jugadora, tok = _usuarios(auth_db, db_path)
+    c = _cliente(app, tok)
+
+    from boveda_seis_a import crear_boveda_minima
+    import tempfile
+    from pathlib import Path as _Path
+
+    raiz = _Path(tempfile.mkdtemp(prefix="s9k-m2-ambiguo-"))
+    WS2 = "juego:segundo-real"
+    PARTIDA2 = "partida:segunda-real"
+    crear_boveda_minima(raiz, WS, PARTIDA, carpeta_juego="primero")
+    crear_boveda_minima(raiz, WS2, PARTIDA2, carpeta_juego="segundo")
+
+    viejo_raiz = os.environ.get("S9K_VAULT_ROOT")
+    viejo_mount = os.environ.get("S9K_VAULT_REQUIRE_MOUNT")
+    os.environ["S9K_VAULT_ROOT"] = str(raiz)
+    os.environ["S9K_VAULT_REQUIRE_MOUNT"] = "0"
+    try:
+        from app.authz import existencia
+        assert existencia.workspace_canonico() == "", (
+            "el escenario no reprodujo la ambigüedad: con DOS perfiles "
+            "declarando workspaces distintos no hay canónico"
+        )
+        from app import sources_catalog
+        assert PARTIDA2 in sources_catalog.partidas_descubiertas_en_boveda(WS2), (
+            "el escenario no tiene una partida real descubrible bajo WS2: la "
+            "guarda de partida_id no podría, de todos modos, ser la que para "
+            "este ataque"
+        )
+
+        r = _conceder(c, jugadora.id, WS2, PARTIDA2)
+        assert r.status_code == 400, (
+            f"se concedió acceso a un workspace real pero NO canónico: "
+            f"{r.status_code}. La guarda de `workspace` es la que tiene que "
+            "pararlo -- la de `partida_id` no basta, porque esa partida SÍ "
+            "está en la enumeración de ese workspace"
+        )
+    finally:
+        if viejo_raiz is None:
+            os.environ.pop("S9K_VAULT_ROOT", None)
+        else:
+            os.environ["S9K_VAULT_ROOT"] = viejo_raiz
+        if viejo_mount is None:
+            os.environ.pop("S9K_VAULT_REQUIRE_MOUNT", None)
+        else:
+            os.environ["S9K_VAULT_REQUIRE_MOUNT"] = viejo_mount
 
 
 def test_conceder_en_el_workspace_canonico_sigue_funcionando(entorno):
@@ -381,25 +459,35 @@ def test_el_formulario_ya_no_pide_el_workspace_de_memoria(entorno):
     )
 
 
-def test_la_pantalla_ofrece_las_partidas_ya_concedidas_y_dice_que_no_son_un_censo(entorno):
+def test_la_pantalla_ofrece_las_partidas_de_la_boveda_real_no_un_eco_de_concesiones(entorno):
+    """CORTE 6A: la lista ya NO sale de `partida_access` (eco de concesiones,
+    y por tanto circular: para conceder la primera había que teclearla). Sale
+    de la bóveda real. Una fila fantasma sembrada directamente en la tabla, SIN
+    pasar por el árbol, no debe aparecer -- lo contrario del contrato viejo.
+    """
     db_path, auth_db, app = entorno
     _, jugadora, tok = _usuarios(auth_db, db_path)
-    _sembrar_fantasma(auth_db, db_path, jugadora.id, WS, PARTIDA)
+    # Fantasma: una concesión existente que NO corresponde a nada en el árbol,
+    # en el workspace canónico Y en otro. Ninguna de las dos debe colarse.
+    _sembrar_fantasma(auth_db, db_path, jugadora.id, WS, "partida:solo-en-la-tabla")
     _sembrar_fantasma(auth_db, db_path, jugadora.id, WS_AJENO, "partida:ajena")
     c = _cliente(app, tok)
     _, html = _csrf(c)
 
-    assert 'list="partidas_existentes"' in html, (
-        "el campo Partida sigue pidiendo el identificador de memoria: no hay "
-        "lista, ni desplegable, ni ninguna pantalla que diga qué partidas hay"
-    )
     assert f'<option value="{PARTIDA}">' in html, (
-        "la pantalla no ofrece la partida que sí existe en este workspace"
+        "la pantalla no ofrece la partida que SÍ existe en la bóveda de este "
+        "workspace"
+    )
+    assert '<option value="partida:solo-en-la-tabla">' not in html, (
+        "la pantalla ofrece una partida que sólo existe como fila de "
+        "`partida_access`, no en el árbol: eso es el eco circular que este "
+        "corte cierra"
     )
     assert '<option value="partida:ajena">' not in html, (
-        "la pantalla ofrece partidas de otro workspace como si fueran de éste"
+        "la pantalla ofrece una partida que sólo existe como fila de "
+        "`partida_access` de OTRO workspace, no en el árbol de éste"
     )
-    assert "no tiene censo de partidas" in html, (
-        "la pantalla presenta la lista como si fuera un censo: eso es una "
-        "falsa confirmación, que es justo lo que este corte cierra"
+    assert "recorrido del árbol" in html and "eco de" in html and "concesiones" in html, (
+        "la pantalla ya no dice de dónde sale la lista, o volvió a fingir "
+        "que es la misma lectura de siempre"
     )
