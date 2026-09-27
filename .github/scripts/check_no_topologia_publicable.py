@@ -37,9 +37,20 @@ TECHO DECLARADO: este gate mira contenido de texto plano por ruta y linea. No
 seria un motor semantico (no interpreta AST, ni resuelve que un valor llega
 por interpolacion o `include`); para el caso que cubre -una IP escrita
 literalmente en una plantilla o fichero de configuracion versionado- basta.
-No sustituye a una auditoria de `docs/**` (fuera de su zona a proposito) ni a
-una revision de los defaults de codigo ya cubiertos por tests explicitos
-(p.ej. `DEFAULT_OLLAMA_URL`), que son un carril de decision aparte.
+LO QUE ESTE GATE NO VE (medido, no supuesto):
+  * `docs/**` y los `*.md` de documentacion interna: fuera de zona a
+    proposito (RK-19).
+  * `deployments/local-vm105/README.md`: no es `docs/**` y RK-19 no lo
+    nombra; sigue pendiente de decision del operador.
+  * Los dos `.docx` de la raiz: las apariciones viven dentro del XML
+    comprimido y son invisibles a un gate de texto plano.
+  * Defaults cableados en codigo `.py` (`DEFAULT_OLLAMA_URL`,
+    `DEFAULT_BASE_URL`, el docstring de `viewer/app/providers/
+    neo4j_provider.py`). NO estan todos cubiertos por tests que fijen el
+    valor: medido, solo uno de ellos lo esta
+    (`test_knowledge_v3_extraction_ollama.py`); el de `DEFAULT_BASE_URL`
+    compara contra el simbolo, no contra el literal. Son un carril de
+    decision del operador, no una ausencia verificada de exposicion.
 
 Uso:  python3 .github/scripts/check_no_topologia_publicable.py
 Sale 0 si la zona publicable esta limpia; 1 y describe cada violacion si no.
