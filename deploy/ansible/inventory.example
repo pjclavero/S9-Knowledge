@@ -7,8 +7,9 @@
 #   ansible-playbook -i inventory.ini site.yml --check --diff
 
 [s9knowledge]
-# Defaults historicos de VM105; cambie solo el inventario para otro host.
-knowledge ansible_host=192.168.1.205 ansible_user=root
+# Valor de ejemplo (RFC 5737, no una IP real); cambie solo el inventario para
+# apuntar a su host.
+knowledge ansible_host=192.0.2.10 ansible_user=root
 
 [s9knowledge:vars]
 # Rutas del modelo de releases (deben coincidir con deploy/scripts/lib.sh)

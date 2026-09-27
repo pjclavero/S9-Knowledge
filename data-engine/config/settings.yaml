@@ -1,5 +1,7 @@
 ollama:
-  base_url: "http://192.168.1.157:11434"
+  # RFC 5737 (documentacion): repositorio publico, sustituir por el host real
+  # en el fichero de configuracion NO versionado de la instalacion.
+  base_url: "http://192.0.2.20:11434"
   model: "qwen2.5:7b"
   temperature: 0
   request_timeout: 900
