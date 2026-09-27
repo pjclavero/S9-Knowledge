@@ -3,7 +3,7 @@
 {% block body %}
 <main class="page">
   <h1>Revisiones pendientes</h1>
-  <p class="empty-hint">Workspace: <strong>{{ workspace }}</strong></p>
+  <p class="empty-hint">Workspace: <strong>{{ etiqueta_workspace(workspace, [workspace]) }}</strong></p>
 
   {% if sources %}
   <ul class="reviews-list">

@@ -1176,6 +1176,14 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/mutaciones_corte6a_seleccion_real.py
 
+      # Corte 6B-1: resolver y mostrar nombres humanos SIN abrir una fuga de
+      # ambito -- un workspace fuera del ambito autorizado no puede revelar su
+      # label -- y sin inventar un nombre a partir del identificador.
+      - name: "Etiquetas de presentacion: ambito y fallback honesto (Corte 6B-1)"
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/mutaciones_corte6b1_etiquetas.py
+
       # Y la calibracion del corte «el workspace no lo elige el cliente»: el
       # ambito de una consulta lo decide la autoridad del servidor, no el
       # parametro del cliente ni el entorno, y cuando la autoridad no resuelve

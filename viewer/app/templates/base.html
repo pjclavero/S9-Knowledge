@@ -31,9 +31,21 @@
         <label for="partida_id" style="margin-right:.25rem;">Partida:</label>
         <select id="partida_id" name="partida_id" onchange="this.form.submit()">
           <option value="" {% if not request.state.active_partida %}selected{% endif %}>— Capa juego —</option>
+          {#
+            El VALOR sigue siendo el identificador (`p.partida_id`): eso es el
+            protocolo y no cambia (6B-1). El TEXTO visible es el nombre humano
+            si existe, resuelto por el UNICO resolvedor de presentacion
+            (`app.presentacion_etiquetas`) -- nunca inventado a partir del
+            identificador. El ambito autorizado que se le pasa es
+            precisamente `request.state.user_partidas`: son las partidas que
+            YA se determinaron seleccionables para este usuario, asi que su
+            propio workspace esta, por construccion, dentro de ese ambito.
+          #}
+          {% set ws_permitidos = request.state.user_partidas | map(attribute='workspace') | list %}
           {% for p in request.state.user_partidas %}
             <option value="{{ p.partida_id | e }}" {% if request.state.active_partida == p.partida_id %}selected{% endif %}>
-              {{ p.partida_id | e }} ({{ p.workspace | e }})
+              {{ etiqueta_partida(p.workspace, p.partida_id, ws_permitidos) | e }}
+              ({{ etiqueta_workspace(p.workspace, ws_permitidos) | e }})
             </option>
           {% endfor %}
         </select>

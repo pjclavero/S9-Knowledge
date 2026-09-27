@@ -13,10 +13,22 @@
   (`chassis_operations_ingesta`). No hay ninguna otra: no hay reintentar, ni
   cancelar, ni relanzar, ni purgar. El resto de formularios siguen siendo GET.
 
-  CERO CONOCIMIENTO INTERNO: el formulario de ingesta pide UNA cosa, la fuente,
-  y se elige de una lista por su NOMBRE. No aparece aquí ningún `plan_id`,
-  `workspace`, `partida_id`, ruta de servidor ni mando de backend — ni en un
+  CERO CONOCIMIENTO INTERNO DE LAS TRIPAS: el formulario de ingesta pide UNA
+  cosa, la fuente, y se elige de una lista por su NOMBRE. No aparece aquí
+  ningún `plan_id`, ninguna ruta de servidor ni mando de backend — ni en un
   campo, ni en un `value`, ni en un comentario.
+
+  CORRECCIÓN (6B-1): esta plantilla SÍ pinta `workspace` y `partida_id` — como
+  texto humano (más abajo) y como identificador de protocolo en `data-ambito`
+  / `data-de-partida` (el selector de fuente) y en columnas de tabla. Decir lo
+  contrario aquí era una afirmación falsa en el propio código que la
+  contradice (ver la tabla de ámbito, `:524` y siguientes). La decisión real
+  es la que ese bloque ya defendía: el texto para el operador usa el NOMBRE
+  humano cuando existe (resuelto por `app.presentacion_etiquetas`, nunca
+  inventado) y el identificador como fallback — nunca se inventa un nombre a
+  partir de `workspace`/`partida_id`. El identificador sigue viajando intacto
+  en atributos `data-*`, en `value` y en la URL: eso es protocolo, no
+  conocimiento interno, y no desaparece.
 
   AUSENCIA != CERO: cuando un dato no está disponible se dice, y no se pinta un
   0 en su lugar.
@@ -515,7 +527,7 @@
                     data-de-partida="{{ f.ambito.partida_id | e if f.ambito.partida_id else '' }}"
                     data-visibilidad="{{ f.ambito.visibility | e }}">
               {{ f.titulo | e }} ({{ f.formato | e }}, {{ f.tamano_bytes }} bytes)
-              — {{ f.ambito.workspace | e }}{% if f.ambito.partida_id %} · partida {{ f.ambito.partida_id | e }}{% else %} · todo el juego{% endif %} · {{ f.ambito.visibility | e }}
+              — {{ etiqueta_workspace(f.ambito.workspace, [f.ambito.workspace]) | e }}{% if f.ambito.partida_id %} · partida {{ etiqueta_partida(f.ambito.workspace, f.ambito.partida_id, [f.ambito.workspace]) | e }}{% else %} · todo el juego{% endif %} · {{ f.ambito.visibility | e }}
             </option>
             {% endfor %}
           </select>
@@ -537,8 +549,8 @@
           {% for f in fuentes.lista %}
           <tr data-handle="{{ f.handle | e }}">
             <td>{{ f.titulo | e }}</td>
-            <td data-col="juego">{{ f.ambito.workspace | e }}</td>
-            <td data-col="partida">{% if f.ambito.partida_id %}{{ f.ambito.partida_id | e }}{% else %}todo el juego{% endif %}</td>
+            <td data-col="juego">{{ etiqueta_workspace(f.ambito.workspace, [f.ambito.workspace]) | e }}</td>
+            <td data-col="partida">{% if f.ambito.partida_id %}{{ etiqueta_partida(f.ambito.workspace, f.ambito.partida_id, [f.ambito.workspace]) | e }}{% else %}todo el juego{% endif %}</td>
             <td data-col="visibilidad">{{ f.ambito.visibility | e }}</td>
             <td data-col="regla">{{ f.ambito.regla | e }}</td>
           </tr>
@@ -653,7 +665,7 @@
                 {% else %}no disponible{% endif %}
               </td>
               <td>{{ row.type | e if row.type else 'no disponible' }}</td>
-              <td>{{ row.workspace | e if row.workspace else 'no disponible' }}</td>
+              <td>{{ etiqueta_workspace(row.workspace, [row.workspace]) | e if row.workspace else 'no disponible' }}</td>
               {# `None` es ausencia declarada, no un 0 inventado. #}
               <td data-attempts="{{ row.attempts if row.attempts is not none else '' }}">
                 {% if row.attempts is not none %}{{ row.attempts }}{% else %}no disponible{% endif %}

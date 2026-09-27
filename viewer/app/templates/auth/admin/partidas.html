@@ -89,7 +89,7 @@
       <select id="partida_id" name="partida_id" required>
         <option value="" disabled selected>— elige una partida —</option>
         {% for pid in partidas_descubribles %}
-          <option value="{{ pid | e }}">{{ pid | e }}</option>
+          <option value="{{ pid | e }}">{{ etiqueta_partida(workspace_canonico, pid, [workspace_canonico]) | e }}</option>
         {% endfor %}
       </select>
       <small>
@@ -137,8 +137,8 @@
         <td>
           {% for u in users %}{% if u.id == a.user_id %}{{ u.username | e }}{% endif %}{% endfor %}
         </td>
-        <td>{{ a.workspace | e }}</td>
-        <td>{{ a.partida_id | e }}</td>
+        <td>{{ etiqueta_workspace(a.workspace, [a.workspace]) | e }}</td>
+        <td>{{ etiqueta_partida(a.workspace, a.partida_id, [a.workspace]) | e }}</td>
         <td>{{ a.granted_by | e if a.granted_by else "—" }}</td>
         <td>{{ a.granted_at }}</td>
         <td>{{ a.max_visible_session if a.max_visible_session is not none else "—" }}</td>

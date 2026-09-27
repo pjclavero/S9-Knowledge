@@ -32,6 +32,7 @@ from app.auth import db as auth_db
 from app.authz.dependencies import get_filtered_provider, get_visibility_scope
 from app.authz.scope import VisibilityScope
 from app.chassis import FEATURE_SLOTS, ChassisContractError, install_nav_globals
+from app.presentacion_etiquetas import install_label_globals
 from app.config import get_settings
 from app.deps import get_default_workspace, get_provider
 from app.jobs_client import jobs_db_status, scoped_counts, scoped_job, scoped_jobs
@@ -187,6 +188,7 @@ def _install_navigation() -> None:
             if isinstance(attr, Jinja2Templates) and attr.env not in envs:
                 envs.append(attr.env)
     install_nav_globals(app, envs)
+    install_label_globals(envs)
 
 
 _install_navigation()
