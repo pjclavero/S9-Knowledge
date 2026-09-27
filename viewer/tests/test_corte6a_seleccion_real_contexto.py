@@ -60,7 +60,8 @@ def entorno(tmp_path):
     yield tmp_path, db_path, auth_db, app
 
     for k in ("S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_DEFAULT_WORKSPACE",
-              "S9K_CSRF_SECRET", "S9K_VAULT_ROOT", "S9K_VAULT_REQUIRE_MOUNT"):
+              "S9K_CSRF_SECRET", "S9K_VAULT_ROOT", "S9K_VAULT_REQUIRE_MOUNT",
+              "S9K_PANEL_B_ENABLED"):
         os.environ.pop(k, None)
     get_auth_settings.cache_clear()
     get_settings.cache_clear()
@@ -106,52 +107,94 @@ def _conceder(cliente, csrf, user_id, workspace, partida_id):
     })
 
 
-# ---------------------------------------------------------------------------
-# ESTADO CERO — SIN BÓVEDA CONSULTABLE
-# ---------------------------------------------------------------------------
-
-def test_sin_boveda_configurada_no_pide_identificadores(entorno):
-    """Sin `S9K_VAULT_ROOT` (ni `S9K_INGEST_SOURCES_DIR`), el catálogo cae en
-    el material de ejemplo del repo, así que SÍ hay catálogo -- pero en modo
-    plano, que nunca declara partida. Este es el estado "no hay nada que
-    elegir todavía", y la pantalla lo dice sin pedir texto libre.
+def _boveda_vacia(tmp_path, workspace):
+    """Una bóveda REAL (montaje simulado sin exigir montaje), con material de
+    capa juego pero SIN NINGUNA partida bajo `partidas/`.
     """
-    _tmp_path, db_path, auth_db, app = entorno
-    _, _, tok = _admin_y_jugadora(auth_db, db_path)
-    html, _ = _pantalla(_cliente(app, tok))
+    import json as _json
+    from pathlib import Path as _Path
 
-    assert 'name="partida_id"' not in html, (
-        "estado cero, y aun así se pinta un campo (select o input) para "
-        "partida_id -- no hay ninguna opción real que ofrecer"
-    )
-    assert '/panel/operations' in html, (
-        "el estado cero no ofrece ningún camino web para crear o conceder"
-    )
-
-
-def test_boveda_declarada_pero_vacia_de_partidas_ofrece_camino_no_texto(entorno):
-    """Bóveda REAL, consultable, con ZERO partidas clasificables: distinto del
-    caso anterior (ahí no había ni bóveda), pero misma doctrina de pantalla.
-    """
-    tmp_path, db_path, auth_db, app = entorno
     raiz = tmp_path / "bovedas-vacia"
     juego = raiz / "l5r"
     (juego / "compartido" / "lore").mkdir(parents=True)
     (juego / "compartido" / "lore" / "nota.md").write_text("hola", encoding="utf-8")
-    import json as _json
-    from pathlib import Path as _Path
     plantilla = _json.loads(
         (_Path(__file__).resolve().parents[2] / "examples" / "ingesta-v3"
          / "perfil-operador.json").read_text(encoding="utf-8")
     )
     perfil = dict(plantilla)
-    perfil["workspace"] = WS
-    perfil["source_asset_id"] = f"profile:{WS}"
+    perfil["workspace"] = workspace
+    perfil["source_asset_id"] = f"profile:{workspace}"
     (juego / "perfil-operador.json").write_text(
         _json.dumps(perfil, ensure_ascii=False), encoding="utf-8",
     )
+    return raiz
+
+
+# ---------------------------------------------------------------------------
+# ESTADO CERO — SIN BÓVEDA CONSULTABLE
+# ---------------------------------------------------------------------------
+
+def test_sin_boveda_declarada_partidas_descubiertas_levanta(entorno):
+    """RONDA 2 · H2, unidad: sin ningún árbol de bóvedas declarado
+    (`S9K_VAULT_ROOT` sin fijar), `partidas_descubiertas_en_boveda` debe
+    LEVANTAR `CatalogoNoDisponible`, no degradar a `[]`. `[]` se lee como
+    "bóveda real, cero partidas"; sin bóveda declarada la afirmación correcta
+    es "no hay bóveda que preguntar", y son estados de verdad distintos.
+    """
+    from app import sources_catalog
+
+    with pytest.raises(sources_catalog.CatalogoNoDisponible):
+        sources_catalog.partidas_descubiertas_en_boveda(WS)
+
+
+def test_sin_boveda_configurada_no_pide_identificadores_ni_finge_vacio(entorno):
+    """Sin `S9K_VAULT_ROOT`, el catálogo cae en modo plano: no hay bóveda que
+    preguntar. Este es el estado "no se sabe", DISTINTO de "se preguntó y está
+    vacía" (ver el siguiente test): la pantalla no pide texto libre, no
+    inventa que hay un árbol vacío, y el POST se rechaza igual.
+    """
+    _tmp_path, db_path, auth_db, app = entorno
+    _, jugadora, tok = _admin_y_jugadora(auth_db, db_path)
+    cliente = _cliente(app, tok)
+    html, csrf = _pantalla(cliente)
+
+    assert 'name="partida_id"' not in html, (
+        "estado 'no se sabe', y aun así se pinta un campo (select o input) "
+        "para partida_id -- no hay ninguna opción real que ofrecer"
+    )
+    assert 'id="aviso_boveda_no_disponible"' in html, (
+        "no se distingue 'no hay bóveda' de 'bóveda vacía' en la pantalla"
+    )
+    assert "el árbol no tiene material clasificable" not in html, (
+        "la pantalla afirma que hay un árbol (vacío) cuando no hay ningún "
+        "árbol declarado -- exactamente la falsa confirmación de H2"
+    )
+    assert "S9K_VAULT_ROOT" in html, (
+        "no dice qué hace falta declarar para poder consultar la bóveda"
+    )
+
+    r = _conceder(cliente, csrf, jugadora.id, WS, "partida:cualquiera")
+    assert r.status_code == 400, (
+        f"sin bóveda declarada, un grant se aceptó igual: {r.status_code}"
+    )
+
+
+def test_boveda_real_vacia_de_partidas_se_distingue_de_sin_boveda(entorno):
+    """Bóveda REAL, consultable, con ZERO partidas clasificables: estado
+    DISTINTO del anterior (ahí no había ni árbol), y la pantalla lo dice con
+    su propio mensaje y su propio id.
+    """
+    tmp_path, db_path, auth_db, app = entorno
+    raiz = _boveda_vacia(tmp_path, WS)
     os.environ["S9K_VAULT_ROOT"] = str(raiz)
     os.environ["S9K_VAULT_REQUIRE_MOUNT"] = "0"
+
+    from app import sources_catalog
+    assert sources_catalog.partidas_descubiertas_en_boveda(WS) == [], (
+        "la bóveda de este test tiene una partida real: el escenario no mide "
+        "estado cero"
+    )
 
     _, _, tok = _admin_y_jugadora(auth_db, db_path)
     html, _ = _pantalla(_cliente(app, tok))
@@ -160,13 +203,66 @@ def test_boveda_declarada_pero_vacia_de_partidas_ofrece_camino_no_texto(entorno)
         "con cero partidas descubribles se sigue pintando un campo para "
         "elegir/escribir una partida"
     )
-    assert '/panel/operations' in html, (
-        "estado cero (bóveda vacía) sin camino web para crear la primera partida"
+    assert 'id="aviso_boveda_vacia"' in html, (
+        "no se distingue 'bóveda vacía' de 'no hay bóveda' en la pantalla"
     )
-    from app import sources_catalog
-    assert sources_catalog.partidas_descubiertas_en_boveda(WS) == [], (
-        "la bóveda de este test tiene una partida real: el escenario no mide "
-        "estado cero"
+    assert 'id="aviso_boveda_no_disponible"' not in html
+
+
+def test_boveda_vacia_con_panel_b_apagado_no_ofrece_enlace_muerto(entorno):
+    """RONDA 2 · H3: de fábrica el hueco B (`/panel/operations`) está apagado
+    (`S9K_PANEL_B_ENABLED=false`). Ofrecer el enlace igual sería un enlace
+    MUERTO (404): se mide primero que `/panel/operations` es, en efecto, 404
+    en este estado, y luego que la pantalla NO lo enlaza -- dice la verdad en
+    su lugar.
+    """
+    tmp_path, db_path, auth_db, app = entorno
+    raiz = _boveda_vacia(tmp_path, WS)
+    os.environ["S9K_VAULT_ROOT"] = str(raiz)
+    os.environ["S9K_VAULT_REQUIRE_MOUNT"] = "0"
+    os.environ.pop("S9K_PANEL_B_ENABLED", None)
+
+    _, _, tok = _admin_y_jugadora(auth_db, db_path)
+    cliente = _cliente(app, tok)
+
+    r_panel = cliente.get("/panel/operations")
+    assert r_panel.status_code == 404, (
+        "el escenario no reproduce un hueco B apagado de verdad"
+    )
+
+    html, _ = _pantalla(cliente)
+    assert '<a href="/panel/operations"' not in html, (
+        "la pantalla enlaza un camino que hoy devuelve 404: enlace muerto"
+    )
+    assert "S9K_PANEL_B_ENABLED" in html, (
+        "no dice qué hace falta encender para tener un camino web real"
+    )
+
+
+def test_boveda_vacia_con_panel_b_encendido_ofrece_enlace_vivo(entorno):
+    """Simétrico del anterior: con el hueco B encendido, el camino web SÍ
+    existe y la pantalla SÍ lo enlaza -- y se comprueba que el destino
+    responde, no sólo que la cadena aparezca en el HTML (el patrón que S1 ya
+    cerró para el enlace de resultado).
+    """
+    tmp_path, db_path, auth_db, app = entorno
+    raiz = _boveda_vacia(tmp_path, WS)
+    os.environ["S9K_VAULT_ROOT"] = str(raiz)
+    os.environ["S9K_VAULT_REQUIRE_MOUNT"] = "0"
+    os.environ["S9K_PANEL_B_ENABLED"] = "true"
+
+    _, _, tok = _admin_y_jugadora(auth_db, db_path)
+    cliente = _cliente(app, tok)
+
+    html, _ = _pantalla(cliente)
+    assert '<a href="/panel/operations"' in html, (
+        "con el hueco B encendido la pantalla no ofrece el camino web"
+    )
+
+    r_panel = cliente.get("/panel/operations")
+    assert r_panel.status_code != 404, (
+        f"el camino que la pantalla ofrece sigue siendo un enlace muerto: "
+        f"{r_panel.status_code}"
     )
 
 
@@ -317,4 +413,50 @@ def test_partidas_descubiertas_no_cruza_workspaces(tmp_path):
     assert descubiertas == ["partida:propia"], (
         f"la enumeración de 'juego:propio' se filtró en {descubiertas}: "
         "cruzó una partida de otro workspace, o perdió la propia"
+    )
+
+
+# ---------------------------------------------------------------------------
+# LO OFRECIDO ES *EXACTAMENTE* LO QUE LA FUNCIÓN COMPARTIDA DICE — no una
+# copia independiente que pantalla y servidor pudieran ver divergir.
+#
+# RONDA 2 DE REVISIÓN: `test_partidas_descubiertas_no_cruza_workspaces` sólo
+# muta la función que ALIMENTA a la vez la pantalla y el servidor, así que una
+# mutación sobre ella mueve las dos puntas a la vez y NO PUEDE demostrar
+# divergencia por construcción. Este testigo alimenta la pantalla con una
+# fila de `partida_access` que NO está en la bóveda (el eco viejo, circular),
+# y exige que la pantalla NO la ofrezca -- si `/admin/partidas` alguna vez
+# volviera a leer de `access` en vez de la función compartida, este testigo
+# la vería sin necesidad de un POST completo.
+# ---------------------------------------------------------------------------
+
+def test_lo_ofrecido_es_exactamente_la_enumeracion_compartida_no_access(entorno):
+    tmp_path, db_path, auth_db, app = entorno
+    raiz = tmp_path / "bovedas"
+    crear_boveda_minima(raiz, WS, "partida:real-en-la-boveda")
+    os.environ["S9K_VAULT_ROOT"] = str(raiz)
+    os.environ["S9K_VAULT_REQUIRE_MOUNT"] = "0"
+
+    admin, jugadora, tok = _admin_y_jugadora(auth_db, db_path)
+    # Fila fantasma en `partida_access`, EL ECO VIEJO: si la pantalla la
+    # ofreciera, sería exactamente la circularidad que el Corte 6A cerró.
+    with auth_db.get_conn(db_path) as conn:
+        auth_db.grant_partida_access(
+            conn, jugadora.id, WS, "partida:solo-en-access",
+            granted_by=admin.username,
+        )
+
+    from app import sources_catalog
+    esperado = sources_catalog.partidas_descubiertas_en_boveda(WS)
+
+    html, _ = _pantalla(_cliente(app, tok))
+    ofrecido = sorted(re.findall(r'<option value="(partida:[^"]+)">', html))
+
+    assert ofrecido == sorted(esperado), (
+        f"la pantalla ofrece {ofrecido}, y la función compartida (la misma "
+        f"que valida el POST) dice {sorted(esperado)}: divergieron"
+    )
+    assert "partida:solo-en-access" not in ofrecido, (
+        "la pantalla volvió a ofrecer una partida que sólo existe como fila "
+        "de `partida_access`, no en el árbol -- el eco circular de antes"
     )

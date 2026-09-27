@@ -67,10 +67,20 @@
         <p>
           No hay nada que teclear aquí para arreglarlo: una partida se crea
           añadiendo su primer material a la bóveda, no escribiendo su nombre
-          en este formulario. El camino es
-          <a href="/panel/operations">la consola de operador — alta de fuentes</a>:
-          cuando una fuente clasificada como partida entra por ahí, esta
-          pantalla la ofrece.
+          en este formulario.
+          {% if panel_operations_disponible %}
+            El camino es
+            <a href="/panel/operations">la consola de operador — alta de fuentes</a>:
+            cuando una fuente clasificada como partida entra por ahí, esta
+            pantalla la ofrece.
+          {% else %}
+            La consola de operador — alta de fuentes (<code>/panel/operations</code>)
+            haría exactamente eso, pero está apagada en este despliegue
+            (<code>S9K_PANEL_B_ENABLED</code> no es <code>true</code>): no se
+            ofrece aquí un enlace que hoy devolvería 404. Actívala en el
+            <code>.env</code> del servidor y reinicia; entonces esta pantalla
+            ofrecerá el camino web.
+          {% endif %}
         </p>
       </div>
     {% else %}

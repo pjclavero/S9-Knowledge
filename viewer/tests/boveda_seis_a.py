@@ -1,7 +1,11 @@
 """Helper de bóveda para las pruebas del Corte 6A (módulo propio, NO conftest:
-hay un `conftest.py` distinto en `tests/browser/`, y un `from conftest import`
-en una recolección conjunta resuelve al que gane la carrera de import, no al de
-este directorio)."""
+el repo tiene 11 ficheros `conftest.py` distintos -viewer/tests/conftest.py,
+viewer/tests/browser/conftest.py y otros más allá de `viewer/`-, así que en
+una recolección conjunta un `from conftest import` no resuelve de forma fiable
+al de este directorio: resuelve al módulo `conftest` que gane la carrera de
+import, y `pytest` puede colectar más de una carpeta con su propio
+`conftest.py` en la misma sesión. Un módulo con un nombre propio no tiene esa
+ambigüedad."""
 from __future__ import annotations
 
 from pathlib import Path

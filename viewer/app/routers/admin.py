@@ -14,7 +14,7 @@ from app.auth.csrf import get_csrf_token_for_session, validate_csrf
 from app.auth.dependencies import require_admin
 from app.auth.models import ROLES, User
 from app.auth.passwords import hash_password, validate_password
-from app import sources_catalog
+from app import chassis, sources_catalog
 from app.authz import autoridad_workspace, existencia
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -425,13 +425,18 @@ async def admin_partidas(
     # anterior -- y esa enumeracion es la unica fuente de opciones.
     #
     # Tres estados posibles, y la pantalla los distingue en vez de aplanarlos
-    # a "no hay nada":
-    #   1. catalogo_disponible=False  -> no se puede ni preguntar (montaje
-    #      ausente, boveda no configurada...). No es "cero partidas": es
-    #      "no se sabe". Se explica y se ofrece el camino de todos modos.
-    #   2. catalogo_disponible=True, partidas_descubribles=[] -> se pregunto
-    #      y la boveda no tiene NINGUNA partida clasificable en este
-    #      workspace todavia. Estado cero autentico.
+    # a "no hay nada". RONDA 2 DE REVISION: `catalogo_disponible=False` cubre
+    # AHORA dos causas reales y distintas, no una:
+    #   1a. Montaje/lectura de una boveda DECLARADA que falla (ausente, rota).
+    #   1b. Ninguna boveda declarada (`S9K_VAULT_ROOT` sin fijar): el catalogo
+    #       cae en modo plano, que por contrato NUNCA declara partida
+    #       (`AMBITO_PLANO`, ver `sources_catalog.py`). Antes de este ajuste
+    #       `partidas_descubiertas_en_boveda` degradaba este caso a `[]`, y la
+    #       pantalla decia "la boveda no tiene ninguna partida todavia" --
+    #       FALSO: no hay boveda que preguntar, no es que este vacia.
+    #   2. catalogo_disponible=True, partidas_descubribles=[] -> se pregunto a
+    #      una boveda REAL y no tiene NINGUNA partida clasificable en este
+    #      workspace todavia. Estado cero autentico, distinto del anterior.
     #   3. catalogo_disponible=True, partidas_descubribles=[...] -> hay
     #      opciones reales que seleccionar.
     catalogo_disponible = True
@@ -442,6 +447,16 @@ async def admin_partidas(
         catalogo_disponible = False
         catalogo_detalle = str(exc)
         partidas_descubribles = []
+
+    # H3/H4 de la ronda 2: el "camino web" que se ofrece en los dos estados
+    # cero SOLO es un enlace de verdad si el hueco B (`/panel/operations`,
+    # alta de fuentes) esta encendido. De fabrica esta apagado
+    # (`S9K_PANEL_B_ENABLED=false`), y ofrecer el enlace igual seria un enlace
+    # muerto (404) -- exactamente el patron que S1 ya cerro para el panel de
+    # resultado. Se mide aqui con la MISMA autoridad que decide si el hueco se
+    # sirve (`chassis.slot_enabled`), no con un enlace incondicional.
+    _slot_b = next(s for s in chassis.FEATURE_SLOTS if s.key == "B")
+    panel_operations_disponible = chassis.slot_enabled(_slot_b)
 
     return templates.TemplateResponse(
         request,
@@ -454,6 +469,7 @@ async def admin_partidas(
             "catalogo_disponible": catalogo_disponible,
             "catalogo_detalle": catalogo_detalle,
             "partidas_descubribles": partidas_descubribles,
+            "panel_operations_disponible": panel_operations_disponible,
             "admin": admin,
             "csrf_token": _get_csrf(request, session.id if session else 0),
             "errors": [],

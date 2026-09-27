@@ -86,8 +86,20 @@ MUTACIONES = [
         "el cruce no está cerrado",
     ),
     (
+        # RONDA 2 DE REVISION sobre PR #253 (Corte 6A): igual que M2, el
+        # testigo HTTP original (`test_conceder_con_workspace_inventado_NO_crea_existencia`)
+        # usa un `PARTIDA_FANTASMA` que ninguna enumeracion de boveda conoce,
+        # asi que la guarda nueva de `partida_id` lo para IGUAL con esta
+        # mutacion aplicada, y el testigo no ve que `es_workspace_canonico` se
+        # rompio. Se sustituye por el testigo con workspace REAL-pero-no-
+        # canonico (mismo que M2), que SI depende de que la guarda de
+        # workspace funcione: `es_workspace_canonico` siempre True vuelve
+        # "canonico" a un workspace real ajeno, y su partida SI esta en la
+        # enumeracion, asi que el grant pasa (302) si esta mutacion no
+        # enrojece.
         "M1b — `es_workspace_canonico` devuelve siempre True: un workspace "
-        "inventado vuelve a comportarse como un ámbito real",
+        "inventado (o uno real pero no canónico) vuelve a comportarse como "
+        "el ámbito efectivo",
         "viewer/app/authz/existencia.py",
         """    canonico = workspace_canonico()
     if not canonico:
@@ -95,18 +107,31 @@ MUTACIONES = [
         """    canonico = workspace_canonico()
     if True:
         return True""",
-        ["test_conceder_con_workspace_inventado_NO_crea_existencia",
+        ["test_conceder_a_un_workspace_real_pero_no_canonico_sigue_rechazado",
          "test_un_workspace_inventado_no_contiene_partidas_ni_las_suyas"],
         "se comporta como un ámbito real",
     ),
     (
+        # RONDA 2 DE REVISION sobre PR #253 (Corte 6A): la primera version de
+        # esta mutacion usaba `test_conceder_con_workspace_inventado_NO_crea_existencia`
+        # como testigo, y con la guarda de `partida_id` que anadio el Corte 6A
+        # (`sources_catalog.partidas_descubiertas_en_boveda`) ese testigo dejo
+        # de enrojecer: un `PARTIDA_FANTASMA` puramente inventado no aparece en
+        # NINGUNA enumeracion, workspace real o no, asi que la guarda nueva
+        # ENSOMBRECIA a esta y el testigo quedo ciego sin que nadie lo notara
+        # (detectado por un revisor independiente, no por este arnes).
+        #
+        # El testigo correcto necesita un workspace REAL (con su propio perfil
+        # y su propia partida discutible) que no sea el CANONICO -- asi la
+        # guarda de `partida_id` sola no basta para pararlo, y la unica que
+        # puede hacerlo es la de `workspace`.
         "M2 — el panel deja de validar el workspace al conceder "
         "(vuelve el texto libre por debajo de la pantalla)",
         "viewer/app/routers/admin.py",
         "    if not existencia.es_workspace_canonico(workspace):",
         "    if False and not existencia.es_workspace_canonico(workspace):",
-        ["test_conceder_con_workspace_inventado_NO_crea_existencia"],
-        "se guardó igual que antes",
+        ["test_conceder_a_un_workspace_real_pero_no_canonico_sigue_rechazado"],
+        "se concedió acceso a un workspace real pero NO canónico",
     ),
     (
         # El primer pase mutaba esta linea a
@@ -145,14 +170,29 @@ MUTACIONES = [
         "tiene default",
     ),
     (
-        "M6 — LA PANTALLA: se BORRA ENTERA la lista de partidas conocidas y el "
-        "aviso de que no son un censo. Borrar una garantía visible del todo no "
-        "puede dejar la suite igual de verde",
+        # RONDA 2 DE REVISION sobre PR #253 (Corte 6A): el input de texto
+        # libre con `list="partidas_existentes"` que esta mutacion borraba ya
+        # NO EXISTE -- el Corte 6A lo sustituyo por un `<select>` pintado con
+        # la boveda real. El texto a mutar ya no esta en el fichero
+        # (DETECTOR ROTO), y el test que esperaba fue renombrado. Se actualiza
+        # a la garantia visible EQUIVALENTE de hoy: el `<select>` que enumera
+        # `partidas_descubribles` y el texto que dice que no es un eco de
+        # concesiones.
+        "M6 — LA PANTALLA: se BORRA el `<select>` de partidas descubiertas "
+        "(vuelve a no haber ninguna opción real que elegir). Borrar una "
+        "garantía visible del todo no puede dejar la suite igual de verde",
         "viewer/app/templates/auth/admin/partidas.html",
-        '''      <input id="partida_id" type="text" name="partida_id" list="partidas_existentes"''',
-        '''      <input id="partida_id" type="text" name="partida_id"''',
-        ["test_la_pantalla_ofrece_las_partidas_ya_concedidas_y_dice_que_no_son_un_censo"],
-        "sigue pidiendo el identificador de memoria",
+        '''      <select id="partida_id" name="partida_id" required>
+        <option value="" disabled selected>— elige una partida —</option>
+        {% for pid in partidas_descubribles %}
+          <option value="{{ pid | e }}">{{ pid | e }}</option>
+        {% endfor %}
+      </select>''',
+        '''      <select id="partida_id" name="partida_id" required>
+        <option value="" disabled selected>— elige una partida —</option>
+      </select>''',
+        ["test_la_pantalla_ofrece_las_partidas_de_la_boveda_real_no_un_eco_de_concesiones"],
+        "la pantalla no ofrece la partida que SÍ existe",
     ),
     (
         "M5 — LA PANTALLA: se borra el campo de sólo lectura y la lista de "

@@ -101,8 +101,33 @@ MUTACIONES = [
         "viewer/app/templates/auth/admin/partidas.html",
         '    {% elif not partidas_descubribles %}',
         '    {% elif False %}',
-        ["test_boveda_declarada_pero_vacia_de_partidas_ofrece_camino_no_texto"],
-        "estado cero, y aun así se pinta un campo",
+        ["test_boveda_real_vacia_de_partidas_se_distingue_de_sin_boveda"],
+        "con cero partidas descubribles se sigue pintando",
+    ),
+    (
+        # RONDA 2 DE REVISION sobre PR #253: M1 muta la funcion COMPARTIDA por
+        # pantalla y servidor, asi que las dos puntas se mueven a la vez y esa
+        # mutacion NO PUEDE demostrar una divergencia entre "lo ofrecido" y "lo
+        # aceptado" -- por construccion. Esta mutacion toca SOLO la pantalla
+        # (el GET), alimentandola otra vez del eco viejo (`partida_access`) en
+        # UNION con la enumeracion real, mientras el POST sigue validando
+        # SOLO contra la boveda real, sin tocar. Si esto ocurriera de verdad
+        # en produccion, la pantalla ofreceria una opcion que el servidor
+        # rechazaria -- exactamente la falsa confirmacion que el corte cierra.
+        "M4 — LA PANTALLA (y sólo la pantalla) vuelve a alimentarse del eco "
+        "de `partida_access`, divergiendo de lo que el servidor acepta",
+        "viewer/app/routers/admin.py",
+        "        partidas_descubribles = sources_catalog.partidas_descubiertas_en_boveda(ws)",
+        (
+            "        partidas_descubribles = sorted(set(\n"
+            "            sources_catalog.partidas_descubiertas_en_boveda(ws)\n"
+            "        ) | {\n"
+            "            a.partida_id for a in access\n"
+            "            if a.partida_id and a.workspace == ws\n"
+            "        })"
+        ),
+        ["test_lo_ofrecido_es_exactamente_la_enumeracion_compartida_no_access"],
+        "divergieron",
     ),
 ]
 

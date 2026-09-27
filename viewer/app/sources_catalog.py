@@ -538,14 +538,29 @@ def partidas_descubiertas_en_boveda(
     ese estado, igual que hace `_fuentes()` en `chassis_operations.py`; no se
     degrada aqui a lista vacia, que se leeria como "boveda vacia" en vez de
     "boveda no disponible".
+
+    RONDA 2 DE REVISION (H2): `modo_boveda(env) == False` es EXACTAMENTE ese
+    caso de "no disponible" -- no hay ningun arbol de bovedas que preguntar,
+    NO "hay un arbol y esta vacio de partidas"-- y antes de esta correccion se
+    degradaba en silencio a `[]`, contradiciendo el parrafo de arriba: la
+    pantalla de fabrica (sin `S9K_VAULT_ROOT`) decia «el arbol no tiene
+    material clasificable» cuando la afirmacion correcta es «no hay arbol
+    declarado». Se levanta aqui, con la MISMA excepcion que ya usa el resto de
+    este modulo para «no disponible», para que ambos estados de verdad
+    -bóveda ausente, boveda real pero sin partidas- tengan su propio camino y
+    su propio mensaje.
     """
     if not workspace or not isinstance(workspace, str) or not workspace.strip():
         return []
     ws = workspace.strip()
     if not modo_boveda(env):
-        # Sin arbol de boveda no hay descubrimiento jerarquico que ofrecer:
-        # el catalogo plano no lleva partida (ver AMBITO_PLANO en el modulo).
-        return []
+        # Sin arbol de boveda declarado no hay descubrimiento jerarquico que
+        # ofrecer: el catalogo plano no lleva partida (AMBITO_PLANO). Esto NO
+        # es "boveda vacia": es "no hay boveda que preguntar".
+        raise CatalogoNoDisponible(
+            "no hay arbol de bovedas declarado (S9K_VAULT_ROOT): el catalogo "
+            "esta en modo plano y el modo plano nunca declara partida"
+        )
     fuentes, _rechazos = listar_fuentes_boveda(env)
     vistos: set[str] = set()
     for f in fuentes:
