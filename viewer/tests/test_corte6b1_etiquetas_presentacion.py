@@ -56,10 +56,19 @@ def test_label_ausente_devuelve_el_identificador_canonico_sin_inventar(tmp_path)
     assert pe.etiqueta_workspace("leyenda", ["leyenda"], env) == "leyenda"
 
 
-def test_nunca_deriva_un_nombre_del_identificador(tmp_path):
+def test_nunca_deriva_un_nombre_del_identificador_sin_manifiesto(tmp_path):
     # `partida:mesa1` NO produce "Mesa1", "Mesa 1" ni ninguna variante: sin
     # manifiesto, el fallback es el identificador EXACTO que llegó.
     _perfil(tmp_path, "l5r", "leyenda")
+    env = {"S9K_VAULT_ROOT": str(tmp_path)}
+    assert pe.etiqueta_partida("leyenda", "partida:mesa1", ["leyenda"], env) == "partida:mesa1"
+
+
+def test_nunca_deriva_un_nombre_del_identificador_con_manifiesto_sin_label(tmp_path):
+    # Manifiesto PRESENTE pero sin `metadata.label`: el fallback sigue siendo
+    # el identificador tal cual, nunca una variante capitalizada o separada.
+    _perfil(tmp_path, "l5r", "leyenda")
+    _manifiesto_partida(tmp_path, "l5r", "partida:mesa1", None)
     env = {"S9K_VAULT_ROOT": str(tmp_path)}
     assert pe.etiqueta_partida("leyenda", "partida:mesa1", ["leyenda"], env) == "partida:mesa1"
 

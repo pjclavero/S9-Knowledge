@@ -85,7 +85,7 @@ MUTACIONES = [
         "viewer/app/presentacion_etiquetas.py",
         "    return _label_declarado(datos) or partida_id",
         "    return _label_declarado(datos) or partida_id.replace(':', ' ').title()",
-        ["test_nunca_deriva_un_nombre_del_identificador"],
+        ["test_nunca_deriva_un_nombre_del_identificador_con_manifiesto_sin_label"],
         "assert",
     ),
 ]
