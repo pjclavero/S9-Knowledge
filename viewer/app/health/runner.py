@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from app import config
+from app.auth.config import DEFAULT_AUTH_DB_PATH as _AUTH_DB_PATH_DEFAULT
 from app.health import checks
 from app.health.models import ComponentResult, HealthReport, HealthStatus
 
@@ -29,6 +30,24 @@ def _gob(name: str, default: Optional[str] = None) -> Optional[str]:
     """
     valor = config.effective_env_value(name)
     return valor if valor is not None else default
+
+
+def _gob_ruta(name: str, default: Optional[str]) -> Optional[str]:
+    """Como `_gob`, pero para una RUTA cuya propia plantilla la trae en
+    blanco (`S9K_AUTH_DB_PATH=`, línea activa de `viewer/.env.example`).
+
+    PRESENTE PERO VACÍA NO ES UN VALOR: `AuthSettings._resolver_ruta_por_
+    defecto` trata esa cadena vacía como AUSENCIA y cae a
+    `DEFAULT_AUTH_DB_PATH`. `_gob` a secas (`valor is not None`) no lo hace:
+    con la plantilla literal devolvería `''`, y el healthcheck auditaría una
+    base de datos distinta de la que `AuthSettings` resuelve de verdad — la
+    MISMA firma del defecto que `_gob` existe para eliminar, aquí por una
+    clave PRESENTE en vez de ausente.
+    """
+    valor = config.effective_env_value(name)
+    if valor is not None and valor.strip():
+        return valor
+    return default
 
 
 def _env_int(name: str, default: int) -> int:
@@ -67,7 +86,10 @@ def build_default_config() -> Dict[str, Any]:
                    "required_model": os.environ.get("S9K_OLLAMA_MODEL")},
         "nextcloud_rclone": {"mountpoint": os.environ.get("S9K_RCLONE_MOUNT")},
         "job_store": {"db_path": _gob("S9K_JOBS_DB")},
-        "auth_db": {"db_path": _gob("S9K_AUTH_DB_PATH"), "enabled": auth_enabled},
+        "auth_db": {
+            "db_path": _gob_ruta("S9K_AUTH_DB_PATH", _AUTH_DB_PATH_DEFAULT),
+            "enabled": auth_enabled,
+        },
         "external_ai": {"enabled": os.environ.get("S9K_EXTERNAL_AI_ENABLED", "false").lower() == "true"},
         "burst": {"enabled": os.environ.get("S9K_EXTERNAL_PROCESSING_ENABLED", "false").lower() == "true"},
         "filesystem": {"path": os.environ.get("S9K_HEALTH_DISK_PATH", "/")},

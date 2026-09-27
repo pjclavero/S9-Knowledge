@@ -478,3 +478,72 @@ def test_health_runner_neo4j_uri_solo_en_env_se_usa(tmp_path, monkeypatch):
         f"con S9K_NEO4J_URI sólo en `.env`, el healthcheck siguió viendo "
         f"{cfg['neo4j']['uri']!r}: no consultó el fichero."
     )
+
+
+# ---------------------------------------------------------------------------
+# RONDA 2 · EL CASO QUE LA FÁBRICA DE `.env` DE ARRIBA NO PODÍA VER:
+# `viewer/.env.example` trae `S9K_AUTH_DB_PATH=` EN BLANCO (línea activa, no
+# comentada). `_env_fabrica()` sobrescribe esa clave con una ruta de
+# `tmp_path` no vacía en TODOS los tests de arriba — nunca ejercita la línea
+# que el operador que copia la plantilla sí ve. Estos dos son literales:
+# ninguna sustitución de `S9K_AUTH_DB_PATH`.
+#
+# `effective_env_value` devuelve `''` (cadena vacía), no `None`, para una
+# clave presente-pero-en-blanco. `valor if valor is not None else default`
+# no lo detecta: `Path('')` es el directorio de trabajo, no un fichero. El
+# arreglo compara `valor is not None and valor.strip()`.
+# ---------------------------------------------------------------------------
+
+def test_auth_db_path_de_la_plantilla_literal_no_es_un_directorio(tmp_path, monkeypatch):
+    """Unitario, directo, con la PLANTILLA LITERAL (sin tocar la línea de
+    S9K_AUTH_DB_PATH): `_db_path()` debe seguir resolviendo a un FICHERO,
+    nunca a `.` (el directorio de trabajo)."""
+    from app.auth import db as auth_db
+
+    instalacion = tmp_path / "instalacion-plantilla-literal"
+    instalacion.mkdir()
+    plantilla = (VIEWER_DIR / ".env.example").read_text(encoding="utf-8")
+    (instalacion / ".env").write_text(plantilla, encoding="utf-8")
+    monkeypatch.chdir(instalacion)
+    monkeypatch.delenv("S9K_AUTH_DB_PATH", raising=False)
+
+    ruta = auth_db._db_path()
+    assert ruta != Path("."), (
+        f"con la plantilla literal (S9K_AUTH_DB_PATH= en blanco), _db_path() "
+        f"resolvió al directorio de trabajo ({ruta!r}) en vez de a un "
+        f"fichero: una clave PRESENTE PERO VACÍA se está tomando por una "
+        f"ruta declarada."
+    )
+    assert ruta.name.endswith(".db") or not ruta.is_dir(), (
+        f"_db_path() con la plantilla literal debe apuntar a un FICHERO "
+        f"de base de datos, no a {ruta!r}."
+    )
+    # Y tiene que poder abrirse y migrarse de verdad: es el síntoma medido
+    # (`OperationalError: unable to open database file`,
+    # `SchemaVersionUnknown … disk I/O error`).
+    auth_db.ensure_migrated(ruta)
+    with auth_db.get_conn(ruta) as conn:
+        conn.execute("SELECT 1")
+
+
+def test_health_runner_auth_db_path_de_la_plantilla_literal_no_es_un_directorio(
+    tmp_path, monkeypatch,
+):
+    """Mismo caso, en el lector del healthcheck: `build_default_config()`
+    con la plantilla LITERAL debe ofrecer la misma ruta que `_db_path()`
+    (o al menos NUNCA el directorio de trabajo), no `''`."""
+    from app.health import runner
+
+    instalacion = tmp_path / "instalacion-plantilla-literal-health"
+    instalacion.mkdir()
+    plantilla = (VIEWER_DIR / ".env.example").read_text(encoding="utf-8")
+    (instalacion / ".env").write_text(plantilla, encoding="utf-8")
+    monkeypatch.chdir(instalacion)
+    monkeypatch.delenv("S9K_AUTH_DB_PATH", raising=False)
+
+    cfg = runner.build_default_config()
+    db_path = cfg["auth_db"]["db_path"]
+    assert db_path not in (None, "", "."), (
+        f"con la plantilla literal, el healthcheck ofrece db_path={db_path!r}: "
+        f"una clave presente-pero-vacía se tomó por un valor declarado."
+    )
