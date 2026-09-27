@@ -385,3 +385,96 @@ def test_D_sin_declarar_nada_sigue_el_comportamiento_de_fabrica_y_dice_el_canal(
         "(`.env` o el entorno del proceso): el operador no sabe dónde "
         "ponerla."
     )
+
+
+# ---------------------------------------------------------------------------
+# GUARDAS contra la segunda autoridad, en los otros dos lectores de esta
+# misma familia que la auditoría por AST encontró: `auth/db.py`
+# (S9K_AUTH_DB_PATH) y `health/runner.py` (S9K_NEO4J_*, S9K_AUTH_ENABLED,
+# S9K_AUTH_DB_PATH, S9K_JOBS_DB) — las cuatro están en `.env.example` como
+# configurables. Mismo patrón que `test_slot_enabled_no_lee_os_environ_
+# directamente` de S-3.
+# ---------------------------------------------------------------------------
+
+def test_sources_catalog_no_lee_os_environ_directamente():
+    import inspect
+    from app import sources_catalog
+
+    for nombre in ("raiz_de_bovedas", "directorio_de_fuentes",
+                   "ubicacion_declarada", "_exigir_montaje", "_valor_gobernado"):
+        fuente = inspect.getsource(getattr(sources_catalog, nombre))
+        assert "os.environ.get(" not in fuente and "= os.environ" not in fuente, (
+            f"sources_catalog.{nombre} vuelve a leer os.environ "
+            f"directamente: reintroduce la segunda autoridad que este corte "
+            f"elimina."
+        )
+    assert "effective_env_value" in inspect.getsource(sources_catalog._valor_gobernado)
+
+
+def test_auth_db_path_no_lee_os_environ_directamente():
+    import inspect
+    from app.auth import db as auth_db
+
+    fuente = inspect.getsource(auth_db._db_path)
+    assert "os.environ.get(" not in fuente, (
+        "auth.db._db_path vuelve a leer os.environ directamente: un operador "
+        "que declara S9K_AUTH_DB_PATH sólo en `.env` abriría una base "
+        "distinta de la que ve AuthSettings."
+    )
+    assert "effective_env_value" in fuente
+
+
+def test_health_runner_no_lee_las_claves_de_la_plantilla_por_os_environ():
+    import inspect
+    from app.health import runner
+
+    fuente = inspect.getsource(runner.build_default_config)
+    for clave in ("S9K_NEO4J_URI", "S9K_NEO4J_USER", "S9K_NEO4J_PASSWORD",
+                  "S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_JOBS_DB"):
+        assert f'os.environ.get("{clave}"' not in fuente, (
+            f"health.runner.build_default_config vuelve a leer {clave} de "
+            f"os.environ a pelo: el healthcheck auditaría una configuración "
+            f"distinta de la que usa la app cuando el operador sólo declaró "
+            f"esa clave en `.env`."
+        )
+    assert "effective_env_value" in inspect.getsource(runner)
+
+
+def test_auth_db_path_solo_en_env_resuelve_a_esa_ruta(tmp_path, monkeypatch):
+    """Unitario, directo: `_db_path()` con S9K_AUTH_DB_PATH SÓLO en `.env`
+    (cwd apuntando a un directorio con ese `.env`, sin la variable en el
+    entorno del proceso) debe resolver a la ruta declarada."""
+    from app.auth import db as auth_db
+
+    instalacion = tmp_path / "instalacion"
+    instalacion.mkdir()
+    destino = tmp_path / "auth-declarada-en-env.db"
+    (instalacion / ".env").write_text(f"S9K_AUTH_DB_PATH={destino}\n", encoding="utf-8")
+    monkeypatch.chdir(instalacion)
+    monkeypatch.delenv("S9K_AUTH_DB_PATH", raising=False)
+
+    ruta = auth_db._db_path()
+    assert ruta == destino, (
+        f"con S9K_AUTH_DB_PATH sólo en `.env`, _db_path() debía resolver a "
+        f"{destino} y resolvió a {ruta}."
+    )
+
+
+def test_health_runner_neo4j_uri_solo_en_env_se_usa(tmp_path, monkeypatch):
+    """Unitario: `build_default_config()` con S9K_NEO4J_URI SÓLO en `.env`
+    debe reflejarlo, no el default de fábrica."""
+    from app.health import runner
+
+    instalacion = tmp_path / "instalacion"
+    instalacion.mkdir()
+    (instalacion / ".env").write_text(
+        "S9K_NEO4J_URI=bolt://declarada-en-env:7687\n", encoding="utf-8",
+    )
+    monkeypatch.chdir(instalacion)
+    monkeypatch.delenv("S9K_NEO4J_URI", raising=False)
+
+    cfg = runner.build_default_config()
+    assert cfg["neo4j"]["uri"] == "bolt://declarada-en-env:7687", (
+        f"con S9K_NEO4J_URI sólo en `.env`, el healthcheck siguió viendo "
+        f"{cfg['neo4j']['uri']!r}: no consultó el fichero."
+    )
