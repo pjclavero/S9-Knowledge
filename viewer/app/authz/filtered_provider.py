@@ -51,12 +51,34 @@ class PolicyFilteredProvider(GraphProvider):
             return self._base.workspaces()
         return [w for w in self._base.workspaces() if w in allowed]
 
+    # -- reautorización del ÁMBITO -------------------------------------------
+    def _ambito_autorizado(self, workspace: str) -> bool:
+        """¿Puede este lector consultar ESE workspace en el provider base?
+
+        Reautoriza el ÁMBITO, no sólo el contenido. Antes el `workspace` de la
+        petición viajaba tal cual a la query del provider base y lo único que
+        salvaba el caso era el filtro nodo a nodo de `filter_nodes`: una SOLA
+        capa. `entity()` ya reautorizaba con `_scope_workspaces()`; esto cierra
+        la misma asimetría en todos los demás caminos.
+        """
+        return self._ctx.admin_full or workspace in self._ctx.allowed_workspaces
+
     # -- helpers de materialización ------------------------------------------
+    #
+    # LOS DOS HELPERS SON LA PUERTA, NO UN ATAJO. `entity_types`,
+    # `list_sources`, `source_detail`, `counts` y `quality_metrics` no hablan
+    # con el provider base: hablan con estos dos. Poner aquí la reautorización
+    # cierra esos cinco caminos a la vez y hace imposible añadir un sexto que
+    # se la salte sin escribir `self._base` a mano.
     def _visible_nodes(self, workspace: str) -> list[dict[str, Any]]:
+        if not self._ambito_autorizado(workspace):
+            return []
         nodes, _ = self._base.list_entities(workspace, limit=_ALL, offset=0)
         return self._policy.filter_nodes(nodes, self._ctx)
 
     def _visible_graph(self, workspace: str) -> tuple[list[dict], list[dict]]:
+        if not self._ambito_autorizado(workspace):
+            return [], []
         nodes, edges = self._base.graph(workspace, limit=_ALL)
         vnodes = self._policy.filter_nodes(nodes, self._ctx)
         vids = {n["id"] for n in vnodes if "id" in n}
@@ -86,6 +108,11 @@ class PolicyFilteredProvider(GraphProvider):
 
     # -- búsqueda (filtrada; el recorte por limit se hace tras filtrar) -------
     def search(self, workspace: str, q: str, limit: int = 50) -> list[dict[str, Any]]:
+        # `search` sí llama al base directamente (no pasa por los helpers), así
+        # que necesita su propia guarda: sin ella, un `q` bien elegido contra un
+        # workspace ajeno seguía llegando a la query.
+        if not self._ambito_autorizado(workspace):
+            return []
         raw = self._base.search(workspace, q, limit=_ALL)
         visible = self._policy.filter_nodes(raw, self._ctx)
         return visible[:limit]
@@ -98,6 +125,9 @@ class PolicyFilteredProvider(GraphProvider):
         entity_type: str | None = None,
         q: str | None = None,
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        # Reautorización del ámbito (ver `_ambito_autorizado`).
+        if not self._ambito_autorizado(workspace):
+            return [], []
         nodes, edges = self._base.graph(workspace, limit=_ALL, entity_type=entity_type, q=q)
         vnodes = self._policy.filter_nodes(nodes, self._ctx)[:limit]
         vids = {n["id"] for n in vnodes if "id" in n}
@@ -170,6 +200,9 @@ class PolicyFilteredProvider(GraphProvider):
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[list[dict[str, Any]], int]:
+        # Reautorización del ámbito (ver `_ambito_autorizado`).
+        if not self._ambito_autorizado(workspace):
+            return [], 0
         items, _ = self._base.list_entities(
             workspace,
             q=q,
@@ -402,6 +435,8 @@ class PolicyFilteredProvider(GraphProvider):
         # sino en `test_los_proveedores_reales_implementan_list_assertions`:
         # si un proveedor de PRODUCCION pierde el metodo, esa prueba enrojece
         # en vez de dejar la pantalla vacia sin que nadie se entere.
+        if not self._ambito_autorizado(workspace):
+            return []
         leer = getattr(self._base, "list_assertions", None)
         if leer is None:
             return []

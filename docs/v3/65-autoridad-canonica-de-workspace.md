@@ -145,3 +145,43 @@ está roto» y le mandaba a mirar el fichero equivocado. El segundo caso tiene
 ahora su propio código, `SOURCE_WORKSPACE_UNDECLARED`, con su traducción en
 pantalla: es la misma distinción que ya se defendió en el 400 de
 `/admin/partidas` —un fail-closed que dice **por qué**—, y estaba a medias.
+
+## El ámbito de una consulta: la autoridad, y sólo la autoridad (PR #254)
+
+La regla de arriba decía **de dónde** sale el workspace canónico. Faltaba la
+otra mitad, la que se ejerce en cada petición de lectura:
+
+> **El ámbito de una consulta lo decide la autoridad del servidor, no un valor
+> que fabrique el cliente ni el entorno. Y cuando la autoridad no resuelve, la
+> respuesta no puede presentarse como un workspace normal y vacío.**
+
+El punto único donde se decide es `viewer/app/authz/ambito.py`. Antes el
+criterio estaba repetido a mano en trece sitios como
+`ws = workspace or settings.S9K_DEFAULT_WORKSPACE`, que es a la vez las dos
+mitades del defecto: el ámbito lo elegía el **cliente** cuando mandaba el
+parámetro, y el **entorno** cuando no lo mandaba.
+
+### Dónde se aplica
+
+| capa | qué hace |
+|---|---|
+| `PolicyFilteredProvider._ambito_autorizado` | reautoriza el ámbito **antes** de tocar el provider base, en `graph`, `list_entities`, `search`, `list_assertions` y los dos helpers `_visible_nodes` / `_visible_graph` (por los que pasan `entity_types`, `list_sources`, `source_detail`, `counts` y `quality_metrics`) |
+| `app.authz.ambito.exigir_ambito` | decide el ámbito de cada endpoint de lectura y, sin ámbito resuelto, levanta **409** |
+| `app.authz.ambito.ambito_de_la_peticion` | la misma decisión sin excepción, para las pantallas HTML, que pintan un `error.html` con **409** |
+
+Un criterio para todos: **409**, nunca un 200 con la lista vacía. Un 200 vacío
+es indistinguible de «este workspace existe y no tiene nada», que es una
+afirmación falsa sobre el contenido.
+
+### La excepción de `admin_full`, declarada aquí y no sólo en un comentario
+
+Para un principal con `admin_full`, el parámetro `?workspace=` es un
+**selector**, no una concesión. Razón: un admin ya ve todo (docs/75), así que
+elegir qué workspace mirar no le amplía nada que no tuviera. Para cualquier
+otro rol el parámetro **no se mira** al decidir el ámbito.
+
+Lo que **no** es una excepción: el arranque de `/graph`. El admin arranca en el
+workspace que la autoridad resolvió (`allowed_workspaces`), no en
+`S9K_DEFAULT_WORKSPACE`. Leer el entorno ahí era un segundo lector fuera de la
+autoridad — la misma forma del defecto que costó este corte — y era además
+innecesario, porque `allowed_workspaces` ya contiene ese mismo singleton.

@@ -675,17 +675,44 @@ def home(request: Request, provider: GraphProvider = Depends(get_provider)):
     )
 
 
+def _workspace_inicial_del_grafo(scope: VisibilityScope) -> str:
+    """El workspace con el que arranca `/graph`, decidido por la autoridad.
+
+    NO es `settings.S9K_DEFAULT_WORKSPACE`: esa lectura es la del ENTORNO, y
+    era exactamente lo que `graph.js:16` (`window.S9K_WORKSPACE || "leyenda"`)
+    replicaba en el cliente sin pasar por ninguna autoridad -- la plantilla
+    inyectaba el valor del entorno para TODO principal, autenticado o no, con
+    ámbito resuelto o sin él.
+
+    UN SOLO LECTOR, TAMBIÉN PARA `admin_full`. La ronda anterior dejaba aquí
+    `get_settings().S9K_DEFAULT_WORKSPACE` para el admin, y eso era un SEGUNDO
+    lector del entorno fuera de la autoridad -- la regresión exacta que costó
+    el corte F-2 (docs/v3/65). No hacía falta: `allowed_workspaces` ya contiene
+    ese mismo singleton, resuelto por la autoridad canónica, que además prefiere
+    el perfil de la bóveda cuando los dos divergen. Ahora el admin arranca en lo
+    que la autoridad resolvió, y si quiere otro workspace lo pide con
+    `?workspace=` -- el SELECTOR de admin, declarado en `app.authz.ambito` y en
+    docs/v3/65.
+
+    Si la autoridad no resolvió ninguno, se manda vacío: el cliente ya no
+    fabrica un "leyenda" de repuesto (`graph.js`) y `/api/graph` responde 409
+    en vez de un workspace vacío.
+    """
+    return next(iter(scope.ctx.allowed_workspaces), "")
+
+
 @app.get("/graph", response_class=HTMLResponse)
 def graph_view(request: Request):
     guard = _require_user_or_redirect(request)
     if guard is not None and not isinstance(guard, User):
         return guard
     settings = get_settings()
+    scope = get_visibility_scope(request)
     return templates.TemplateResponse(
         request,
         "graph.html",
         {
-            "workspace": settings.S9K_DEFAULT_WORKSPACE,
+            "workspace": _workspace_inicial_del_grafo(scope),
             "graph_limit": settings.S9K_GRAPH_LIMIT,
             "auth_user": guard,
         },

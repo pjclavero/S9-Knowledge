@@ -4,6 +4,21 @@
 <main style="max-width:700px;margin:3rem auto;padding:1rem;text-align:center;">
   <h2>Error {{ code | e }}</h2>
   <p style="color:#666;">{{ message | e }}</p>
+  {#- Una pantalla honesta que no dice que hacer es una pantalla inutil (mismo
+      criterio que el 400 de /admin/partidas). El 409 tiene UNA causa y dos
+      sitios donde se arregla, asi que se nombran. No hay logica aqui: el
+      texto depende solo del codigo que el servidor ya decidio. #}
+  {% if code == 409 %}
+  <p style="color:#666;">
+    Ningun workspace ha quedado resuelto para esta sesion. Quien administre la
+    instalacion puede corregirlo en uno de los dos sitios que deciden el
+    ambito: el <strong>perfil de la boveda</strong>
+    (<code>perfil-operador.json</code>), que es la autoridad canonica, o la
+    declaracion <code>S9K_DEFAULT_WORKSPACE</code> del <code>.env</code>, que
+    es el respaldo. Los cambios del <code>.env</code> surten efecto al
+    reiniciar el servicio.
+  </p>
+  {% endif %}
   <p><a href="/">Volver al inicio</a></p>
 </main>
 {% endblock %}

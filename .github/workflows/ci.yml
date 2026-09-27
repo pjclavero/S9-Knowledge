@@ -1176,6 +1176,36 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/mutaciones_corte6a_seleccion_real.py
 
+      # Y la calibracion del corte «el workspace no lo elige el cliente»: el
+      # ambito de una consulta lo decide la autoridad del servidor, no el
+      # parametro del cliente ni el entorno, y cuando la autoridad no resuelve
+      # la respuesta NO se presenta como un workspace normal y vacio. Este
+      # calibrador nacio FUERA de este job -y un arnes que nadie ejecuta se
+      # pudre desde el primer dia: sus mutaciones dejan de aplicar en silencio
+      # en cuanto el fuente se mueve un renglon-. Cubre trece formas de romper
+      # la propiedad: los ocho caminos del proveedor filtrado (incluidos los
+      # dos helpers por los que pasan entity_types/list_sources/source_detail/
+      # counts/quality_metrics), las cuatro de la autoridad HTTP (parametro del
+      # cliente, fail-closed invisible, selector de admin, pantallas HTML), la
+      # regresion del segundo lector del entorno en /graph, y las dos del
+      # cliente. Ninguna es estatica: todas ejecutan un caso de pytest
+      # nombrado, y dos de ellas corren la especificacion JS con Node.
+      # Dos de sus mutaciones corren la especificacion JS con Node. Sin Node,
+      # ese caso se AUTO-OMITE (`skipif`), pytest sale con rc=0 y el calibrador
+      # leeria «verde con la mutacion puesta» -- un rojo que no se puede
+      # distinguir de una garantia rota. Se declara aqui, y el propio
+      # calibrador aborta si falta.
+      - name: Set up Node (la calibracion del cliente lo necesita)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: "El ambito lo decide el servidor: se pone ROJO ante cada defecto (PR #254)"
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/workspace_autoridad_servidor.py
+
       # RONDA 2 DE REVISION sobre el PR del Corte 6A: este calibrador (Corte 1,
       # "la existencia de una partida es el par workspace/partida_id") existia
       # desde antes pero NUNCA estuvo enganchado a CI -- un revisor

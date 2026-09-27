@@ -21,12 +21,19 @@ from fastapi.templating import Jinja2Templates
 
 from app.auth.config import get_auth_settings
 from app.auth.dependencies import require_api_role, require_api_authenticated_user
-from app.authz.dependencies import get_filtered_provider
+from app.authz.ambito import MENSAJE_SIN_AMBITO, ambito_de_la_peticion, exigir_ambito
+from app.authz.dependencies import get_filtered_provider, get_visibility_scope
+from app.authz.scope import VisibilityScope
 from app.config import get_settings
 # OJO: NO importar `get_provider` aqui. Este router debe usar SIEMPRE el
 # proveedor filtrado por politica; tener el crudo importado al lado invita
 # a usarlo por error, y esa via se salta la autorizacion entera.
-from app.deps import get_default_workspace
+#
+# Y POR LA MISMA RAZON: NO importar `get_default_workspace` ni leer
+# `settings.S9K_DEFAULT_WORKSPACE` para decidir el ambito de una consulta. Ese
+# era el patron viejo (`ws = workspace or settings.S9K_DEFAULT_WORKSPACE`,
+# ocho veces en este fichero): el ambito lo elegia el cliente, y cuando no lo
+# mandaba lo elegia el ENTORNO. La autoridad es `app.authz.ambito`.
 from app.labels import review_status_label
 from app.providers.base import GraphProvider
 from app.serializers import serialize_edge, serialize_node
@@ -136,6 +143,21 @@ def _validate_query_params(
     return q, limit, offset, sort, order
 
 
+
+def _sin_ambito_html(request: Request, user) -> HTMLResponse:
+    """Misma decision que el 409 de la API, en HTML.
+
+    Un criterio para todos: con la autoridad sin resolver, la pantalla NO se
+    pinta como un workspace normal que resulta estar vacio. Decir "0 entidades"
+    ahi es una afirmacion falsa sobre el contenido.
+    """
+    return templates.TemplateResponse(
+        request, "error.html",
+        {"code": 409, "message": MENSAJE_SIN_AMBITO, "auth_user": user},
+        status_code=409,
+    )
+
+
 router = APIRouter()
 
 # ---------------------------------------------------------------------------
@@ -157,13 +179,16 @@ def api_entities(
     limit: int = Query(default=None),
     offset: int = Query(default=0, ge=0),
     provider: GraphProvider = Depends(get_filtered_provider),
+    scope: VisibilityScope = Depends(get_visibility_scope),
     _=Depends(require_api_authenticated_user),
 ):
     settings = get_settings()
     if limit is None:
         limit = settings.S9K_VIEWER_DEFAULT_PAGE_SIZE
     q, limit, offset, sort, order = _validate_query_params(q, limit, offset, sort, order, settings)
-    ws = workspace or settings.S9K_DEFAULT_WORKSPACE
+    # El ambito lo decide la autoridad del servidor (app.authz.ambito),
+    # no el parametro del cliente ni el entorno. Sin ambito resuelto: 409.
+    ws = exigir_ambito(scope.ctx, workspace)
 
     try:
         items, total = provider.list_entities(
@@ -264,6 +289,7 @@ def entities_page(
     limit: Optional[int] = None,
     offset: int = 0,
     provider: GraphProvider = Depends(get_filtered_provider),
+    scope: VisibilityScope = Depends(get_visibility_scope),
     user=Depends(html_guard),
 ):
     if isinstance(user, RedirectResponse):
@@ -272,7 +298,11 @@ def entities_page(
     if limit is None:
         limit = settings.S9K_VIEWER_DEFAULT_PAGE_SIZE
     q, limit, offset, sort, order = _validate_query_params(q, limit, offset, sort, order, settings)
-    ws = workspace or settings.S9K_DEFAULT_WORKSPACE
+    # Misma autoridad que la API hermana; el fail-closed se pinta como
+    # tal (409), no como un workspace normal y vacio.
+    ws = ambito_de_la_peticion(scope.ctx, workspace)
+    if ws is None:
+        return _sin_ambito_html(request, user)
 
     try:
         items, total = provider.list_entities(
@@ -375,10 +405,12 @@ def entity_detail_page(
 def api_sources(
     workspace: Optional[str] = Query(default=None),
     provider: GraphProvider = Depends(get_filtered_provider),
+    scope: VisibilityScope = Depends(get_visibility_scope),
     _=Depends(require_api_role("reviewer")),
 ):
-    settings = get_settings()
-    ws = workspace or settings.S9K_DEFAULT_WORKSPACE
+    # El ambito lo decide la autoridad del servidor (app.authz.ambito),
+    # no el parametro del cliente ni el entorno. Sin ambito resuelto: 409.
+    ws = exigir_ambito(scope.ctx, workspace)
     try:
         sources = provider.list_sources(ws)
     except Exception:
@@ -395,10 +427,12 @@ def api_source_detail(
     source_id: str,
     workspace: Optional[str] = Query(default=None),
     provider: GraphProvider = Depends(get_filtered_provider),
+    scope: VisibilityScope = Depends(get_visibility_scope),
     _=Depends(require_api_role("reviewer")),
 ):
-    settings = get_settings()
-    ws = workspace or settings.S9K_DEFAULT_WORKSPACE
+    # El ambito lo decide la autoridad del servidor (app.authz.ambito),
+    # no el parametro del cliente ni el entorno. Sin ambito resuelto: 409.
+    ws = exigir_ambito(scope.ctx, workspace)
     try:
         detail = provider.source_detail(ws, source_id)
     except Exception:
@@ -421,12 +455,16 @@ def sources_page(
     request: Request,
     workspace: Optional[str] = None,
     provider: GraphProvider = Depends(get_filtered_provider),
+    scope: VisibilityScope = Depends(get_visibility_scope),
     user=Depends(html_role_guard("reviewer")),
 ):
     if isinstance(user, RedirectResponse):
         return user
-    settings = get_settings()
-    ws = workspace or settings.S9K_DEFAULT_WORKSPACE
+    # Misma autoridad que la API hermana; el fail-closed se pinta como
+    # tal (409), no como un workspace normal y vacio.
+    ws = ambito_de_la_peticion(scope.ctx, workspace)
+    if ws is None:
+        return _sin_ambito_html(request, user)
     try:
         sources = provider.list_sources(ws)
     except Exception:
@@ -447,12 +485,16 @@ def source_detail_page(
     source_id: str,
     workspace: Optional[str] = None,
     provider: GraphProvider = Depends(get_filtered_provider),
+    scope: VisibilityScope = Depends(get_visibility_scope),
     user=Depends(html_role_guard("reviewer")),
 ):
     if isinstance(user, RedirectResponse):
         return user
-    settings = get_settings()
-    ws = workspace or settings.S9K_DEFAULT_WORKSPACE
+    # Misma autoridad que la API hermana; el fail-closed se pinta como
+    # tal (409), no como un workspace normal y vacio.
+    ws = ambito_de_la_peticion(scope.ctx, workspace)
+    if ws is None:
+        return _sin_ambito_html(request, user)
 
     try:
         detail = provider.source_detail(ws, source_id)
@@ -488,10 +530,12 @@ def source_detail_page(
 def api_quality(
     workspace: Optional[str] = Query(default=None),
     provider: GraphProvider = Depends(get_filtered_provider),
+    scope: VisibilityScope = Depends(get_visibility_scope),
     _=Depends(require_api_role("reviewer")),
 ):
-    settings = get_settings()
-    ws = workspace or settings.S9K_DEFAULT_WORKSPACE
+    # El ambito lo decide la autoridad del servidor (app.authz.ambito),
+    # no el parametro del cliente ni el entorno. Sin ambito resuelto: 409.
+    ws = exigir_ambito(scope.ctx, workspace)
     try:
         metrics = provider.quality_metrics(ws)
     except Exception:
@@ -508,12 +552,16 @@ def quality_page(
     request: Request,
     workspace: Optional[str] = None,
     provider: GraphProvider = Depends(get_filtered_provider),
+    scope: VisibilityScope = Depends(get_visibility_scope),
     user=Depends(html_role_guard("reviewer")),
 ):
     if isinstance(user, RedirectResponse):
         return user
-    settings = get_settings()
-    ws = workspace or settings.S9K_DEFAULT_WORKSPACE
+    # Misma autoridad que la API hermana; el fail-closed se pinta como
+    # tal (409), no como un workspace normal y vacio.
+    ws = ambito_de_la_peticion(scope.ctx, workspace)
+    if ws is None:
+        return _sin_ambito_html(request, user)
     try:
         metrics = provider.quality_metrics(ws)
     except Exception:
