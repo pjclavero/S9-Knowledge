@@ -87,6 +87,7 @@ __all__ = [
     "CODIGOS", "detalle_seguro",
     "RESULT_NOT_FOUND", "PROVENANCE_READER_UNAVAILABLE",
     "resultado_de_apply", "detalle_de_asercion", "es_apply_id",
+    "alcanzable_para",
 ]
 
 # --------------------------------------------------------------------------
@@ -366,6 +367,51 @@ def _workspace_autorizado(provider: Any, workspace: str) -> bool:
     try:
         return workspace in set(provider.workspaces() or ())
     except Exception:  # noqa: BLE001
+        return False
+
+
+def alcanzable_para(provider: Any, reader: Optional[ProvenanceReader],
+                     workspace: str, apply_id: str) -> bool:
+    """¿Resolvería ``/panel/resultado/<apply_id>`` sin 404 para este lector?
+
+    EXISTE PARA QUE OTRA PANTALLA PUEDA PREGUNTAR ANTES DE OFRECER EL ENLACE
+    (S-1: ``chassis_operations._camino_al_resultado``), sin duplicar la
+    politica de este modulo ni abrir una autoridad nueva contra el grafo.
+    Repite, con la MISMA autoridad y en el MISMO orden, las dos condiciones
+    que ``resultado_de_apply`` exige antes de construir nada:
+
+    1. el identificador tiene forma de ``apply_id`` (``es_apply_id``);
+    2. el workspace esta autorizado para este lector, por el MISMO
+       ``PolicyFilteredProvider.workspaces()`` que usa ``resultado_de_apply``
+       (``_workspace_autorizado`` — nada nuevo, la misma funcion privada);
+    3. ese apply dejo AL MENOS UNA operacion registrada en este workspace
+       (``reader.operations_of_apply``), la misma llamada con la que
+       ``resultado_de_apply`` decide su propio 404.
+
+    No abre ninguna consulta que ``resultado_de_apply`` no fuera a abrir de
+    todos modos en su primer tramo, y no construye los bloques de
+    entidades/relaciones/hechos: es una guarda ANTES del enlace, con el mismo
+    coste que el primer tramo del destino, no una consulta añadida por carga
+    de pantalla del panel de operaciones.
+
+    NO CONCEDE NADA. Quien no pudiera ver un workspace antes de que existiera
+    esta funcion sigue sin poder verlo despues: es la misma pregunta que el
+    destino se haria, hecha un paso antes para decidir si se ofrece el
+    enlace o se nombra la ausencia.
+
+    ``reader`` a ``None`` (sin backend de procedencia) devuelve ``False`` —
+    INDETERMINADO, no "no alcanzable"—; quien llama a esta funcion decide que
+    hacer con esa indeterminacion, y aqui no se afirma nada sobre ella.
+    """
+    if not es_apply_id(apply_id):
+        return False
+    if not _workspace_autorizado(provider, workspace):
+        return False
+    if reader is None:
+        return False
+    try:
+        return bool(reader.operations_of_apply(workspace, apply_id))
+    except Exception:  # noqa: BLE001 - indeterminado, no se afirma alcanzable
         return False
 
 
