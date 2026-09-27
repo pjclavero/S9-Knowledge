@@ -288,3 +288,33 @@ def test_post_con_workspace_manipulado_sigue_rechazandose(entorno):
     assert r.status_code == 400, (
         f"un workspace que ningún perfil declara se aceptó: {r.status_code}"
     )
+
+
+# ---------------------------------------------------------------------------
+# LA ENUMERACIÓN NO CRUZA WORKSPACES — unidad, sin pasar por la autoridad
+# canónica de la petición (que colapsa con DOS perfiles divergentes; ver
+# `authz.autoridad_workspace.resolver`, COD_VARIOS_PERFILES). Esta propiedad
+# de `partidas_descubiertas_en_boveda` se mide aquí, directa.
+# ---------------------------------------------------------------------------
+
+def test_partidas_descubiertas_no_cruza_workspaces(tmp_path):
+    from app import sources_catalog
+
+    raiz = tmp_path / "bovedas"
+    crear_boveda_minima(raiz, "juego:propio", "partida:propia",
+                         carpeta_juego="juego-propio")
+    crear_boveda_minima(raiz, "juego:ajeno", "partida:ajena",
+                         carpeta_juego="juego-ajeno")
+
+    os.environ["S9K_VAULT_ROOT"] = str(raiz)
+    os.environ["S9K_VAULT_REQUIRE_MOUNT"] = "0"
+    try:
+        descubiertas = sources_catalog.partidas_descubiertas_en_boveda("juego:propio")
+    finally:
+        os.environ.pop("S9K_VAULT_ROOT", None)
+        os.environ.pop("S9K_VAULT_REQUIRE_MOUNT", None)
+
+    assert descubiertas == ["partida:propia"], (
+        f"la enumeración de 'juego:propio' se filtró en {descubiertas}: "
+        "cruzó una partida de otro workspace, o perdió la propia"
+    )

@@ -75,8 +75,8 @@ MUTACIONES = [
         "viewer/app/sources_catalog.py",
         "        if pid and ws_fuente == ws:",
         "        if pid:",
-        ["test_todas_las_opciones_ofrecidas_son_realmente_seleccionables"],
-        "la pantalla ofrece",
+        ["test_partidas_descubiertas_no_cruza_workspaces"],
+        "cruzó una partida de otro workspace",
     ),
     (
         "M2 — `/admin/partidas/grant` deja de re-validar `partida_id` en el "
