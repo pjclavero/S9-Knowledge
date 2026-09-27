@@ -1,8 +1,13 @@
 # Diseño de Fuentes Externas — Pipeline de Grafo de Conocimiento RPG
 
+> **Nota EXP-1 (repositorio publico):** las direcciones LAN internas de
+> este informe se han sustituido por marcadores (`<IP-VM105>`,
+> `<IP-OLLAMA>`). No se ha cambiado ningun hecho, fecha ni resultado:
+> solo deja de publicarse la topologia de la red interna.
+
 **Versión:** 1.0 — 2026-07-11
 **Proyecto:** `/opt/knowledge-services/property-graph`
-**Servidor:** VM105 (192.168.1.205)
+**Servidor:** VM105 (<IP-VM105>)
 
 ---
 

@@ -1,93 +1,182 @@
 #!/usr/bin/env python3
-"""Gate: ninguna IP privada real en zona PUBLICABLE sin excepcion declarada.
+"""Gate: ninguna IP privada real en SUPERFICIE PUBLICABLE sin excepcion declarada.
 
-Contexto (EXP-1): este repositorio es PUBLICO. `.env.example` de la raiz lo
-dice con todas las letras: una IP privada publicada describe gratis la
-topologia de la red interna a quien la lea. `viewer/.env.example` la violaba
-(un `bolt://<IP privada real de VM105>:7687` escrito literalmente).
+Contexto (EXP-1): este repositorio es PUBLICO. Una IP privada publicada
+describe gratis la topologia de la red interna a quien la lea.
 
-Este gate NO es una busqueda ciega de RFC1918 en todo el arbol: eso llena de
-falsos positivos los fixtures y tests que legitimamente usan direcciones
-privadas para probar exactamente este tipo de deteccion (p.ej.
-`viewer/tests/test_neo4j_default_fail_closed.py`,
-`tests/support/prod_block.py`), y un gate que los tumba se acaba
-desactivando. La semantica es ZONA + VALOR + EXCEPCION:
+LA FRONTERA
+===========
+La pregunta no es "cuantas apariciones quedan en el arbol" sino "que parte del
+arbol GOBIERNA O EXPLICA el producto hoy". Todo fichero versionado cae en
+exactamente UNA de estas tres categorias, y la funcion `clasifica()` lo decide
+sin ambiguedad:
 
-  * ZONA_PUBLICABLE: ficheros que un operador copia o lee para instalar o
-    desplegar (plantillas `.env.example`, ficheros `*.example`, la config de
-    ejemplo empaquetada de `data-engine`, `deploy/README.md`). Deliberadamente
-    NO incluye `tests/`, `**/fixtures/**` ni `docs/**` (la auditoria
-    documental de `docs/**` es un carril aparte: ver
-    `docs/coordination/risk-register.md`, RK-19).
-  * VALOR: una IP RFC1918 (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) dentro
-    de esa zona.
-  * EXCEPCION: una linea puede declararse exenta, de forma explicita y
-    localizada, con el marcador `# topologia: excepcion declarada <motivo>`
-    en la misma linea o en la linea inmediatamente anterior. El <motivo> es
-    OBLIGATORIO y no puede estar vacio: el marcador a secas no exime nada.
-    Documentar SIN ese marcador tampoco exime nada (ver mandato del
-    operador: "estar documentada no la hace aceptable").
+  1. PUBLICABLE  -> se exige limpieza. Son cuatro CLASES, no una lista de
+     ficheros. Una lista fija se queda pequena el dia siguiente; una clase
+     encuentra lo que todavia no existe:
 
-    PENDIENTE ANOTADO (no implementado aqui): el marcador no deja registro de
-    QUIEN declaro la excepcion ni cuando. Exigir autoria/fecha verificable
-    requiere una fuente de autoridad (CODEOWNERS, firma de commit o un
-    registro aparte) y es un carril propio, no un retoque de este regex.
+       `configuracion-publicable`  plantillas y configuracion de ejemplo que un
+                                   operador copia (`*.example`, `.env.example`,
+                                   la config de ejemplo de `data-engine`).
+       `codigo-no-test`            codigo que se ejecuta en el producto: `.py`,
+                                   `.ts`, `.js`, `.sh`, `.sql`. Es la clase que
+                                   hace que el gate pueda encontrar algo NUEVO,
+                                   y la que lo obliga a mirarse a si mismo (ver
+                                   AUTOCOBERTURA).
+       `documentacion-de-operador` lo que alguien lee para desplegar u operar:
+                                   `deploy/**`, `deployments/**`, cualquier
+                                   `README.md`, y los documentos ofimaticos de
+                                   la raiz.
+       `documentacion-CURRENT`     `docs/current/**`: lo que el arbol declara
+                                   vigente. "Current" y "historico diferido" no
+                                   pueden ser verdad a la vez.
 
-TECHO DECLARADO: este gate mira contenido de texto plano por ruta y linea. No
-seria un motor semantico (no interpreta AST, ni resuelve que un valor llega
-por interpolacion o `include`); para el caso que cubre -una IP escrita
-literalmente en una plantilla o fichero de configuracion versionado- basta.
-LO QUE ESTE GATE NO VE (medido, no supuesto):
-  * `docs/**` y los `*.md` de documentacion interna: fuera de zona a
-    proposito (RK-19).
-  * `deployments/local-vm105/README.md`: no es `docs/**` y RK-19 no lo
-    nombra; sigue pendiente de decision del operador.
-  * Los dos `.docx` de la raiz: las apariciones viven dentro del XML
-    comprimido y son invisibles a un gate de texto plano.
-  * Defaults cableados en codigo `.py` (`DEFAULT_OLLAMA_URL`,
-    `DEFAULT_BASE_URL`, el docstring de `viewer/app/providers/
-    neo4j_provider.py`). NO estan todos cubiertos por tests que fijen el
-    valor: medido, solo uno de ellos lo esta
-    (`test_knowledge_v3_extraction_ollama.py`); el de `DEFAULT_BASE_URL`
-    compara contra el simbolo, no contra el literal. Son un carril de
-    decision del operador, no una ausencia verificada de exposicion.
+  2. TEST-O-FIXTURE -> fuera de alcance, y a proposito. `tests/`, `**/tests/**`,
+     `**/fixtures/**` y los ficheros `test_*.py` usan IP privadas reales como
+     CONTROL POSITIVO de que el producto falla cerrado contra produccion
+     (`viewer/tests/test_neo4j_default_fail_closed.py`, `tests/support/
+     prod_block.py`). Un gate que los tumba se desactiva al tercer falso
+     positivo, y entonces no protege nada. Es una categoria propia, no un
+     parche: el gate los CUENTA y lo dice, para que su exclusion se vea.
+
+  3. FUERA DE SUPERFICIE -> ni publicable ni test. Documentacion historica y
+     todo lo demas. El diferimiento de `docs/**` historico NO es de este gate:
+     es una decision escrita del operador (RK-19 en
+     `docs/coordination/risk-register.md`, P1, ABIERTO), y redactar informes de
+     auditoria en masa destruiria su valor probatorio. `EXCEPCIONES_HISTORICAS`
+     lo declara patron a patron CON SU MOTIVO, y el gate los imprime al final:
+     un diferimiento que no se ve es un diferimiento que se olvida.
+
+EXCEPCION LOCALIZADA
+====================
+Dentro de la superficie publicable, una linea concreta puede eximirse con
+`# topologia: excepcion declarada <motivo>` en la misma linea o en la
+inmediatamente anterior. El <motivo> es OBLIGATORIO y no puede estar vacio: el
+marcador a secas no exime nada. Estar documentada no hace aceptable una
+direccion; declararla, localizada y con razon, si.
+
+PENDIENTE ANOTADO (no implementado): el marcador no deja registro de QUIEN
+declaro la excepcion ni cuando. Exigir autoria verificable necesita una fuente
+de autoridad (CODEOWNERS, firma de commit, registro aparte); es un carril
+propio, no un retoque de este regex.
+
+AUTOCOBERTURA
+=============
+Este fichero y sus calibradores son `.py` fuera de `tests/`, luego caen en
+`codigo-no-test` y el gate SE MIRA A SI MISMO por construccion, sin lista
+especial. No es cosmetico: la ronda 1 de EXP-1 introdujo tres publicaciones
+nuevas de la IP real en el propio guardarrail y este era ciego a su
+reincidencia porque aquellos ficheros no estaban en su zona. Hoy no puede
+serlo: para volver a publicarla habria que declarar una excepcion con motivo,
+que se lee en el diff.
+
+TECHO DECLARADO (lo que este gate NO ve, medido, no supuesto)
+=============================================================
+  * Texto plano y XML de OOXML. Interpreta rutas, lineas y las partes XML de
+    `.docx`/`.xlsx`/`.pptx` (ver `_texto_ooxml`), pero NO es un motor
+    semantico: no resuelve interpolacion, `include`, ni una direccion
+    construida por concatenacion en tiempo de ejecucion.
+  * PDF, imagenes y cualquier otro binario que no sea OOXML: no se inspeccionan.
+  * `docs/**` historico, por decision escrita (RK-19), no por incapacidad.
 
 Uso:  python3 .github/scripts/check_no_topologia_publicable.py
-Sale 0 si la zona publicable esta limpia; 1 y describe cada violacion si no.
+Sale 0 si la superficie publicable esta limpia; 1 y describe cada violacion.
 """
 from __future__ import annotations
 
 import fnmatch
+import io
 import re
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 
-# Zona publicable: patrones de ruta (relativos a la raiz del repo, estilo
-# fnmatch) que SI se consideran alcance de este gate.
-ZONA_PUBLICABLE = (
-    ".env.example",
-    "*.env.example",
-    "*/.env.example",
-    "*.example",
-    "*/*.example",
-    "*/*/*.example",
-    "data-engine/config/settings.yaml",
-    "deploy/README.md",
+# --------------------------------------------------------------------------
+# Categoria 1: SUPERFICIE PUBLICABLE, por clases.
+# --------------------------------------------------------------------------
+#: `clase -> patrones fnmatch sobre la ruta relativa`. El orden importa solo
+#: para nombrar la clase en el informe; para el veredicto basta con encajar en
+#: cualquiera.
+CLASES_PUBLICABLES: dict[str, tuple[str, ...]] = {
+    "configuracion-publicable": (
+        ".env.example",
+        "*.env.example",
+        "*/.env.example",
+        "*.example",
+        "*/*.example",
+        "*/*/*.example",
+        "data-engine/config/settings.yaml",
+    ),
+    "codigo-no-test": (
+        "*.py",
+        "*/*.py",
+        "*.ts", "*.tsx", "*.js", "*.mjs",
+        "*.sh",
+        "*.sql",
+    ),
+    "documentacion-de-operador": (
+        "deploy/*",
+        "deploy/**",
+        "deployments/*",
+        "deployments/**",
+        "README.md",
+        "*/README.md",
+        "*/*/README.md",
+        "*.docx", "*.xlsx", "*.pptx",
+    ),
+    "documentacion-CURRENT": (
+        "docs/current/*",
+        "docs/current/**",
+    ),
+}
+
+# --------------------------------------------------------------------------
+# Categoria 2: TEST-O-FIXTURE. No se exige limpieza, y se dice cuantos son.
+# --------------------------------------------------------------------------
+PATRONES_TEST_O_FIXTURE: tuple[str, ...] = (
+    "tests/*", "tests/**",
+    "*/tests/*", "*/tests/**",
+    "*/*/tests/*", "*/*/tests/**",
+    "*/fixtures/*", "*/fixtures/**",
+    "fixtures/*", "fixtures/**",
+    "test_*.py", "*/test_*.py", "*/*/test_*.py", "*/*/*/test_*.py",
+    "conftest.py", "*/conftest.py", "*/*/conftest.py",
 )
 
-# Techo declarado: fuera de alcance aunque el patron de arriba encajase.
-EXCLUSIONES = (
-    "docs/*",
-    "docs/**",
-    "*/tests/*",
-    "tests/*",
-    "*/fixtures/*",
-    # `*.bak` NO cubre `fichero.bak.<timestamp>` ni `fichero.bak-<fecha>`:
-    # ese fue el agujero medido en la ronda 1 (mismo fallo que el .gitignore).
-    "*.bak*",
+# --------------------------------------------------------------------------
+# Categoria 3 (parcial): excepciones HISTORICAS, explicitas y con motivo.
+# Se aplican DESPUES de las clases publicables: sacan de la superficie algo que
+# una clase habria arrastrado. Cada una lleva su razon escrita y el gate las
+# imprime, porque un diferimiento silencioso deja de ser una decision.
+# --------------------------------------------------------------------------
+EXCEPCIONES_HISTORICAS: tuple[tuple[str, str], ...] = (
+    (
+        "*.bak*",
+        "copias de seguridad del utillaje (`fichero.bak.<timestamp>`, "
+        "`fichero.bak-<fecha>`). Son historico, no superficie; las cuatro que "
+        "publicaban la IP real salieron del indice en EXP-1 y la regla "
+        "`*.bak*` del .gitignore impide que vuelvan.",
+    ),
+    (
+        "docs/current/EXTERNAL_SOURCES_DESIGN.md",
+        "pese a vivir en `docs/current/`, el documento se declara a si mismo "
+        "en su cabecera 'Documento de la era v1/v2 (legacy); la linea vigente "
+        "es V3'. La declaracion del documento manda sobre el nombre de la "
+        "carpeta; queda bajo RK-19 como historico.",
+    ),
+    (
+        "docs/current/INFORME_ENTREGA.md",
+        "idem: se declara 'era v1/v2 (legacy)' en su propia cabecera; "
+        "historico bajo RK-19.",
+    ),
+    (
+        "docs/current/RPG_GRAPH_MODEL_UPDATE.md",
+        "idem: se declara 'era v1/v2 (legacy)' en su propia cabecera; "
+        "historico bajo RK-19.",
+    ),
 )
 
 IP_PRIVADA_RE = re.compile(
@@ -98,28 +187,61 @@ IP_PRIVADA_RE = re.compile(
     r")\b"
 )
 
-# El marcador EXIGE motivo: `# topologia: excepcion declarada` a secas no
-# exime nada (una excepcion sin razon escrita no es una decision, es un
-# silenciamiento). El motivo es todo lo que siga al marcador y debe
-# contener al menos un caracter no blanco.
-MARCADOR_EXCEPCION = re.compile(r"#\s*topologia:\s*excepcion declarada\s+(?P<motivo>\S.*)")
+#: El motivo es obligatorio: al menos un caracter no blanco despues del
+#: marcador.
+MARCADOR_EXCEPCION = re.compile(
+    r"#\s*topologia:\s*excepcion declarada\s+(?P<motivo>\S.*)"
+)
+
+#: Partes de un OOXML que se inspeccionan. El texto de un .docx vive en el XML
+#: de dentro del ZIP: un gate que mira el binario no ve nada y un gate que mira
+#: solo el nombre del fichero MIENTE sobre su cobertura.
+OOXML_SUFIJOS = (".docx", ".xlsx", ".pptx")
+OOXML_PARTES = (".xml", ".rels")
 
 
-def _coincide_zona(ruta: str) -> bool:
-    return any(fnmatch.fnmatch(ruta, patron) for patron in ZONA_PUBLICABLE)
+def _coincide(ruta: str, patrones) -> bool:
+    return any(fnmatch.fnmatch(ruta, p) for p in patrones)
 
 
-def _coincide_exclusion(ruta: str) -> bool:
-    return any(fnmatch.fnmatch(ruta, patron) for patron in EXCLUSIONES)
+def clase_publicable(ruta: str) -> str | None:
+    """Clase de superficie publicable de `ruta`, o None si no es publicable."""
+    for clase, patrones in CLASES_PUBLICABLES.items():
+        if _coincide(ruta, patrones):
+            return clase
+    return None
+
+
+def es_test_o_fixture(ruta: str) -> bool:
+    return _coincide(ruta, PATRONES_TEST_O_FIXTURE)
+
+
+def excepcion_historica(ruta: str) -> str | None:
+    """Motivo de la excepcion historica que cubre `ruta`, o None."""
+    for patron, motivo in EXCEPCIONES_HISTORICAS:
+        if fnmatch.fnmatch(ruta, patron):
+            return motivo
+    return None
+
+
+def clasifica(ruta: str) -> tuple[str, str]:
+    """(categoria, detalle). Categoria en {publicable, test-o-fixture,
+    fuera-de-superficie}. La frontera es decidible: un fichero cae en una y
+    solo una, y este es el unico sitio donde se decide."""
+    if es_test_o_fixture(ruta):
+        return "test-o-fixture", "control positivo de fail-closed"
+    motivo = excepcion_historica(ruta)
+    if motivo is not None:
+        return "fuera-de-superficie", f"excepcion historica: {motivo}"
+    clase = clase_publicable(ruta)
+    if clase is not None:
+        return "publicable", clase
+    return "fuera-de-superficie", "no es superficie publicable"
 
 
 def _ficheros_versionados() -> list[str]:
     salida = subprocess.run(
-        ["git", "ls-files"],
-        cwd=REPO,
-        capture_output=True,
-        text=True,
-        check=True,
+        ["git", "ls-files"], cwd=REPO, capture_output=True, text=True, check=True
     )
     return [linea for linea in salida.stdout.splitlines() if linea]
 
@@ -132,17 +254,51 @@ def _tiene_excepcion_declarada(lineas: list[str], idx: int) -> bool:
     return False
 
 
+def _texto_ooxml(f: Path) -> list[tuple[str, str]]:
+    """[(nombre_de_parte, texto)] de las partes XML de un OOXML.
+
+    Abre el ZIP de verdad. Si el fichero no es un ZIP valido devuelve [] y el
+    gate no inventa cobertura sobre el.
+    """
+    try:
+        datos = f.read_bytes()
+    except OSError:
+        return []
+    try:
+        with zipfile.ZipFile(io.BytesIO(datos)) as z:
+            partes = []
+            for nombre in z.namelist():
+                if nombre.endswith(OOXML_PARTES):
+                    partes.append(
+                        (nombre, z.read(nombre).decode("utf-8", errors="ignore"))
+                    )
+            return partes
+    except (zipfile.BadZipFile, OSError):
+        return []
+
+
 def encuentra_violaciones() -> list[tuple[str, int, str]]:
-    """Devuelve (ruta, num_linea_1indexado, texto_ip) por cada violacion."""
+    """(ruta, num_linea_1indexado, texto_ip) por cada violacion.
+
+    Para un OOXML, `ruta` lleva sufijo `!<parte>` y la linea es la del XML
+    dentro de esa parte: sin eso, la causa no seria accionable.
+    """
     violaciones: list[tuple[str, int, str]] = []
     for ruta in _ficheros_versionados():
-        if not _coincide_zona(ruta):
-            continue
-        if _coincide_exclusion(ruta):
+        categoria, _ = clasifica(ruta)
+        if categoria != "publicable":
             continue
         f = REPO / ruta
         if not f.is_file():
             continue
+
+        if ruta.endswith(OOXML_SUFIJOS):
+            for parte, texto in _texto_ooxml(f):
+                for idx, linea in enumerate(texto.splitlines()):
+                    for m in IP_PRIVADA_RE.finditer(linea):
+                        violaciones.append((f"{ruta}!{parte}", idx + 1, m.group(0)))
+            continue
+
         try:
             texto = f.read_text(encoding="utf-8", errors="strict")
         except (UnicodeDecodeError, OSError):
@@ -156,19 +312,40 @@ def encuentra_violaciones() -> list[tuple[str, int, str]]:
     return violaciones
 
 
+def censo() -> dict[str, int]:
+    """Cuantos ficheros ve el gate en cada categoria. Un gate que no sabe decir
+    cuanto mira no puede afirmar que mira algo."""
+    cuenta = {"publicable": 0, "test-o-fixture": 0, "fuera-de-superficie": 0}
+    for ruta in _ficheros_versionados():
+        cuenta[clasifica(ruta)[0]] += 1
+    return cuenta
+
+
 def main() -> int:
+    c = censo()
+    print(
+        "Superficie vigilada: "
+        f"{c['publicable']} ficheros publicables | "
+        f"{c['test-o-fixture']} tests/fixtures (excluidos a proposito) | "
+        f"{c['fuera-de-superficie']} fuera de superficie."
+    )
+    print("Excepciones historicas declaradas (diferidas, no invisibles):")
+    for patron, motivo in EXCEPCIONES_HISTORICAS:
+        print(f"  - {patron}: {motivo}")
+
     violaciones = encuentra_violaciones()
     if not violaciones:
-        print("OK: zona publicable sin IPs privadas sin excepcion declarada.")
+        print("OK: superficie publicable sin IPs privadas sin excepcion declarada.")
         return 0
-    print("::error::TOPOLOGIA REAL EN ZONA PUBLICABLE (repositorio PUBLICO):")
+    print("::error::TOPOLOGIA REAL EN SUPERFICIE PUBLICABLE (repositorio PUBLICO):")
     for ruta, num, ip in violaciones:
+        fichero = ruta.split("!", 1)[0]
         print(
-            f"::error file={ruta},line={num}::"
+            f"::error file={fichero},line={num}::"
             f"{ruta}:{num} publica una IP privada ({ip}) sin "
             f"'# topologia: excepcion declarada <motivo>'. Sustituyela por un "
-            f"valor RFC 5737 (192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24) "
-            f"o declara la excepcion explicitamente si esta justificada."
+            f"valor RFC 5737 (192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24), "
+            f"por un marcador, o declara la excepcion con su motivo."
         )
     return 1
 

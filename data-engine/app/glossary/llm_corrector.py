@@ -97,7 +97,14 @@ if __name__ == "__main__":
     ap.add_argument("--input", required=True)
     ap.add_argument("--output-dir", required=True)
     ap.add_argument("--glossary-json", default="")
-    ap.add_argument("--host", default="http://192.168.1.157:11434")
+    # EXP-1: obligatorio, sin default. El servidor es una maquina interna y
+    # este repositorio es publico; un default cableado lo publicaria.
+    ap.add_argument(
+        "--host",
+        required=True,
+        help="Endpoint de Ollama, p.ej. http://<host-ollama>:11434 "
+             "(obligatorio: no hay default)",
+    )
     ap.add_argument("--model", default="qwen2.5:7b")
     a = ap.parse_args()
     correct(a.input, a.output_dir, a.glossary_json, a.host, a.model)

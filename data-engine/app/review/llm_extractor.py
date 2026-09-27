@@ -50,10 +50,22 @@ def _load_ollama_settings() -> dict:
 
 _CFG = _load_ollama_settings()
 
+# EXP-1: sin default cableado. El endpoint sale del entorno o del
+# `settings.yaml` del despliegue; si no esta en ninguno de los dos, queda
+# vacio y `OLLAMA_URL` no apunta a ninguna parte -> quien intente usarlo falla
+# cerrado con el aviso de abajo, en vez de hablarle en silencio a una
+# direccion de la red interna que ademas estaria publicada en este fichero.
 _OLLAMA_BASE_URL: str = (
     os.environ.get("S9K_OLLAMA_URL")
-    or _CFG.get("base_url", "http://192.168.1.157:11434")
-).rstrip("/")
+    or _CFG.get("base_url", "")
+).strip().rstrip("/")
+
+OLLAMA_URL_NO_CONFIGURADO = (
+    "Ollama sin endpoint: define S9K_OLLAMA_URL o `ollama.base_url` en el "
+    "settings.yaml del despliegue (p.ej. http://<host-ollama>:11434). No hay "
+    "default a proposito: el servidor de esta instalacion es una maquina "
+    "interna y este repositorio es publico."
+)
 
 OLLAMA_URL: str = _OLLAMA_BASE_URL + "/api/generate"
 OLLAMA_MODEL: str = (

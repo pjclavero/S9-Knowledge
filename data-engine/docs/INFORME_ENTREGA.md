@@ -1,8 +1,13 @@
 # Informe de entrega — Actualización del grafo RPG + fuentes externas + conocimiento por personaje
 
+> **Nota EXP-1 (repositorio publico):** las direcciones LAN internas de
+> este informe se han sustituido por marcadores (`<IP-VM105>`,
+> `<IP-OLLAMA>`). No se ha cambiado ningun hecho, fecha ni resultado:
+> solo deja de publicarse la topologia de la red interna.
+
 - Fecha: 2026-07-10/11
-- VM: 192.168.1.205 (`common`), proyecto `/opt/knowledge-services/property-graph`
-- Modelo LLM: qwen2.5:7b (Ollama en 192.168.1.157)
+- VM: <IP-VM105> (`common`), proyecto `/opt/knowledge-services/property-graph`
+- Modelo LLM: qwen2.5:7b (Ollama en <IP-OLLAMA>)
 - Neo4j: `neo4j-knowledge` (bolt 127.0.0.1:7687)
 
 No se procesaron más páginas del GM Guide. No se borró nada de Neo4j. No se tocó

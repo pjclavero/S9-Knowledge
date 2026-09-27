@@ -2,48 +2,72 @@
 """Calibracion de `check_no_topologia_publicable.py` (EXP-1).
 
 Regla del operador: una afirmacion de seguridad no cuenta hasta que hay una
-prueba capaz de ponerse roja. Este arnes introduce, DE VERDAD, sobre el
-arbol de trabajo real (`viewer/.env.example`), cada caso de la tabla exigida
-por el mandato de EXP-1, ejecuta el gate y lee su codigo de retorno real, y
-restaura el fichero por EFECTO (bytes identicos, comprobado por hash y por
+prueba capaz de ponerse roja. Este arnes introduce, DE VERDAD, sobre el arbol
+de trabajo real, cada caso de la tabla, ejecuta el gate, lee su veredicto real,
+y restaura por EFECTO (bytes identicos, comprobado por SHA-256 y por
 `git status`).
 
-Tabla fijada por el operador:
-  1. Una `10.x.x.x` metida en `viewer/.env.example`      -> ROJO, con causa.
-  2. `192.0.2.x` (RFC 5737) en la misma zona              -> VERDE.
-  3. Un fixture legitimo con IP privada (fuera de zona)   -> sigue VERDE,
-     con control positivo y con prueba anti-vacuidad (el motor SI lo
-     reporta cuando se le retira la proteccion).
-  4. Ablacion de `EXCLUSIONES` LLAMANDO AL MOTOR REAL     -> sin ellas, el
-     mismo fixture SI se reporta (0 -> N). Prueba que la exclusion hace
+Tabla:
+  1. Una `10.x` metida en `viewer/.env.example`          -> ROJO, con causa.
+  2. `192.0.2.x` (RFC 5737) en la misma superficie        -> VERDE.
+  3. Un fixture legitimo con IP privada                   -> VERDE, con control
+     positivo y con prueba anti-vacuidad (el motor SI lo reporta cuando se le
+     retira la proteccion).
+  4. Ablacion de la categoria `test-o-fixture` LLAMANDO AL MOTOR REAL -> sin
+     ella el mismo fixture SI se reporta (0 -> N). Prueba que la exclusion hace
      trabajo DENTRO del gate, no que un regex case fuera de el.
-  5. Excepcion declarada explicita sobre una IP privada   -> VERDE, y sin la
-     excepcion (la misma linea sin el marcador) vuelve a ROJO.
-  6. Marcador de excepcion SIN motivo                     -> ROJO; el mismo
-     marcador CON motivo -> VERDE (control positivo del caso).
+  5. Excepcion declarada explicita                        -> VERDE, y sin el
+     marcador vuelve a ROJO.
+  6. Marcador de excepcion SIN motivo                     -> ROJO; con motivo,
+     VERDE (control positivo del caso).
+  7. **DOCX**: una IP privada inyectada DENTRO de `word/document.xml` del .docx
+     real -> ROJO nombrando la parte; al retirarla, VERDE. Sin este caso el
+     gate no podria DECLARAR cobertura de OOXML, solo prometerla.
+  8. **AUTOCOBERTURA**: el propio gate y este calibrador son superficie
+     publicable, y una IP metida en el fuente del gate lo pone ROJO contra si
+     mismo. La ronda 1 de EXP-1 publico tres IP reales en el guardarrail
+     precisamente porque el guardarrail no se miraba.
+  9. **FRONTERA**: las tres categorias son disjuntas y totales, y ninguna de
+     las tres esta vacia. Una frontera que clasifica todo en un solo cubo no
+     es una frontera.
 
 Ninguno de los casos reimplementa la deteccion: todos pasan por
-`encuentra_violaciones()`. Un motor destripado pone rojos 1, 3, 4, 5 y 6.
-Ningun caso transcribe una IP privada real: cuando hace falta afirmar que un
-fichero contiene una, se le pregunta al propio `IP_PRIVADA_RE` del gate.
+`encuentra_violaciones()` o por `clasifica()`. Un motor destripado pone rojos
+1, 3, 4, 5, 6, 7 y 8.
+
+Ninguna IP REAL de la instalacion aparece aqui. Las `10.x` de abajo son
+sinteticas -documentacion RFC1918 que no corresponde a ninguna maquina de esta
+red- y existen para que el gate tenga algo que detectar; van con su excepcion
+declarada porque este fichero ES superficie publicable y el gate se mira a si
+mismo.
 
 Uso: python3 scripts/calibracion/calibra_topologia_publicable.py
-Sale 0 si las seis filas dan el veredicto esperado.
 """
 from __future__ import annotations
 
 import hashlib
 import importlib.util
+import io
+import shutil
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 GATE_PATH = REPO / ".github" / "scripts" / "check_no_topologia_publicable.py"
 ENV_EXAMPLE = REPO / "viewer" / ".env.example"
 FIXTURE_LEGITIMO = REPO / "viewer" / "tests" / "test_neo4j_default_fail_closed.py"
+DOCX_TESTIGO = REPO / "S9_Knowledge_diseno_estado_fases_v2.docx"
 
-VERDE, ROJO = "VERDE", "ROJO"
+ANCLA_ENV = "S9K_NEO4J_URI=bolt://192.0.2.10:7687"
+
+# Valores SINTETICOS de calibracion. No son de esta red; existen para que el
+# gate tenga algo que detectar.
+# topologia: excepcion declarada valor sintetico de calibracion, no es una maquina de esta red
+IP_SINTETICA_1 = "10.9.0.5"
+# topologia: excepcion declarada valor sintetico de calibracion, no es una maquina de esta red
+IP_SINTETICA_2 = "10.7.0.9"
 
 
 def _sha256(p: Path) -> str:
@@ -71,29 +95,32 @@ def _cargar_gate():
 def _correr_gate() -> tuple[int, list[tuple[str, int, str]]]:
     mod = _cargar_gate()
     violaciones = mod.encuentra_violaciones()
-    rc = 1 if violaciones else 0
-    return rc, violaciones
+    return (1 if violaciones else 0), violaciones
 
 
-def _motor(mod, *, zona=None, exclusiones=None) -> list[tuple[str, int, str]]:
-    """Ejecuta `encuentra_violaciones()` -EL MOTOR REAL DEL GATE- con la
-    configuracion ablacionada que se le pase.
+def _motor(mod, *, clases=None, tests=None, historicas=None):
+    """Ejecuta `encuentra_violaciones()` -EL MOTOR REAL- con la configuracion
+    ablacionada que se le pase.
 
-    Ablacionar configuracion y volver a llamar al motor es lo unico que
-    prueba que una exclusion hace trabajo DENTRO del gate. Reimplementar el
-    regex aqui fuera probaria que el patron casa, no que el gate lo use: si
-    alguien destripa `encuentra_violaciones()`, un arnes asi seguiria verde
-    (fue exactamente el defecto de la ronda 1).
+    Ablacionar configuracion y volver a llamar al motor es lo unico que prueba
+    que una regla hace trabajo DENTRO del gate. Reimplementar el regex aqui
+    fuera probaria que el patron casa, no que el gate lo use: si alguien
+    destripa `encuentra_violaciones()`, un arnes asi seguiria verde (fue
+    exactamente el defecto de la ronda 1).
     """
-    zona_prev, excl_prev = mod.ZONA_PUBLICABLE, mod.EXCLUSIONES
+    prev = (mod.CLASES_PUBLICABLES, mod.PATRONES_TEST_O_FIXTURE,
+            mod.EXCEPCIONES_HISTORICAS)
     try:
-        if zona is not None:
-            mod.ZONA_PUBLICABLE = zona
-        if exclusiones is not None:
-            mod.EXCLUSIONES = exclusiones
+        if clases is not None:
+            mod.CLASES_PUBLICABLES = clases
+        if tests is not None:
+            mod.PATRONES_TEST_O_FIXTURE = tests
+        if historicas is not None:
+            mod.EXCEPCIONES_HISTORICAS = historicas
         return mod.encuentra_violaciones()
     finally:
-        mod.ZONA_PUBLICABLE, mod.EXCLUSIONES = zona_prev, excl_prev
+        (mod.CLASES_PUBLICABLES, mod.PATRONES_TEST_O_FIXTURE,
+         mod.EXCEPCIONES_HISTORICAS) = prev
 
 
 class Fallo(Exception):
@@ -106,267 +133,352 @@ def _verifica(nombre: str, condicion: bool, detalle: str) -> None:
     print(f"  OK  {nombre}")
 
 
+# --------------------------------------------------------------------------
+
+
 def caso_1_ip_privada_nueva_se_pone_rojo() -> None:
-    """Una 10.x metida en viewer/.env.example -> ROJO, con causa."""
+    """Una IP privada metida en viewer/.env.example -> ROJO, con causa."""
     original = ENV_EXAMPLE.read_bytes()
-    hash_antes = _sha256(ENV_EXAMPLE)
+    h0 = _sha256(ENV_EXAMPLE)
     texto = original.decode("utf-8")
-    mutado = texto.replace(
-        "S9K_NEO4J_URI=bolt://192.0.2.10:7687",
-        "S9K_NEO4J_URI=bolt://10.9.0.5:7687",
-    )
+    mutado = texto.replace(ANCLA_ENV, f"S9K_NEO4J_URI=bolt://{IP_SINTETICA_1}:7687")
     if mutado == texto:
         raise Fallo("caso-1: el ancla a mutar no aparece; el fuente se movio")
     try:
         ENV_EXAMPLE.write_text(mutado, encoding="utf-8")
         rc, violaciones = _correr_gate()
-        _verifica(
-            "caso-1: se pone ROJO", rc == 1,
-            f"esperaba ROJO (rc=1), obtuve rc={rc}",
-        )
+        _verifica("caso-1: se pone ROJO", rc == 1, f"esperaba rc=1, obtuve rc={rc}")
         rutas = [v[0] for v in violaciones]
         _verifica(
             "caso-1: la causa senala viewer/.env.example",
-            "viewer/.env.example" in rutas,
-            f"violaciones={violaciones}",
+            "viewer/.env.example" in rutas, f"violaciones={violaciones}",
         )
         ips = [v[2] for v in violaciones if v[0] == "viewer/.env.example"]
         _verifica(
-            "caso-1: la causa nombra la IP privada inyectada (no otra)",
-            "10.9.0.5" in ips,
-            f"ips detectadas en el fichero: {ips}",
+            "caso-1: la causa nombra la IP inyectada (no otra)",
+            IP_SINTETICA_1 in ips, f"ips detectadas: {ips}",
         )
     finally:
         ENV_EXAMPLE.write_bytes(original)
-        _verifica(
-            "caso-1: restauracion por hash",
-            _sha256(ENV_EXAMPLE) == hash_antes,
-            "el fichero no volvio a su contenido original",
-        )
+        _verifica("caso-1: restauracion por hash",
+                  _sha256(ENV_EXAMPLE) == h0, "el fichero no volvio a su original")
 
 
 def caso_2_valor_ficticio_da_verde() -> None:
-    """192.0.2.x (RFC 5737) real ya presente en la plantilla -> VERDE."""
+    """192.0.2.x (RFC 5737) ya presente en la plantilla -> VERDE."""
     texto = ENV_EXAMPLE.read_text(encoding="utf-8")
     if "192.0.2.10" not in texto:
-        raise Fallo(
-            "caso-2: viewer/.env.example ya no trae el valor RFC 5737 "
-            "esperado; EXP-1 se deshizo o el fichero cambio de forma"
-        )
+        raise Fallo("caso-2: la plantilla ya no trae el valor RFC 5737 esperado")
     rc, violaciones = _correr_gate()
     rutas = [v[0] for v in violaciones]
     _verifica(
-        "caso-2: 192.0.2.10 en viewer/.env.example no dispara el gate",
-        "viewer/.env.example" not in rutas,
-        f"violaciones inesperadas: {violaciones}",
+        "caso-2: el rango de documentacion no dispara el gate",
+        "viewer/.env.example" not in rutas, f"violaciones: {violaciones}",
     )
     _verifica("caso-2: gate global VERDE", rc == 0, f"rc={rc}, violaciones={violaciones}")
 
 
 def caso_3_fixture_legitimo_sigue_verde() -> None:
-    """Un fixture de `viewer/tests/` con una IP privada real sigue VERDE:
-    esta fuera de la zona publicable a proposito (declarado en la cabecera
-    del gate). Y el verde NO es vacuo: se comprueba, con el mismo motor, que
-    ese fichero SI es alcanzable y detectable cuando se le retira la
-    proteccion (si no, un motor destripado daria este verde igual)."""
+    """Un fixture con IP privada real sigue VERDE, y el verde no es vacuo."""
     if not FIXTURE_LEGITIMO.is_file():
         raise Fallo(f"caso-3: no existe {FIXTURE_LEGITIMO}, elige otro testigo")
     mod = _cargar_gate()
-    ruta_relativa = str(FIXTURE_LEGITIMO.relative_to(REPO))
+    rel = str(FIXTURE_LEGITIMO.relative_to(REPO))
     contenido = FIXTURE_LEGITIMO.read_text(encoding="utf-8", errors="ignore")
 
-    # Control positivo SIN publicar el valor: se le pregunta al propio patron
-    # del gate si ahi dentro hay una IP privada, no se escribe cual.
+    # Control positivo SIN publicar el valor: se le pregunta al patron del gate.
     _verifica(
-        "caso-3: el fixture SI contiene una IP privada (control positivo, "
-        "via IP_PRIVADA_RE del gate, sin transcribir el valor)",
+        "caso-3: el fixture SI contiene una IP privada (control positivo via "
+        "IP_PRIVADA_RE, sin transcribir el valor)",
         mod.IP_PRIVADA_RE.search(contenido) is not None,
         "el fixture elegido ya no es un control positivo valido",
     )
-
+    _verifica(
+        "caso-3: el gate lo clasifica como test-o-fixture, no como publicable",
+        mod.clasifica(rel)[0] == "test-o-fixture", f"clasifica()={mod.clasifica(rel)}",
+    )
     rc, violaciones = _correr_gate()
-    rutas = [v[0] for v in violaciones]
+    _verifica("caso-3: el motor real NO lo reporta",
+              rel not in [v[0] for v in violaciones], f"violaciones: {violaciones}")
+    _verifica("caso-3: gate global VERDE", rc == 0, f"rc={rc}")
+
+    ablacionado = _motor(mod, tests=())
     _verifica(
-        "caso-3: el motor real NO reporta el fixture",
-        ruta_relativa not in rutas,
-        f"violaciones inesperadas: {violaciones}",
-    )
-    _verifica("caso-3: gate global VERDE", rc == 0, f"rc={rc}, violaciones={violaciones}")
-
-    # Anti-vacuidad: el MISMO motor, con el fixture dentro de zona y sin
-    # exclusiones, SI lo reporta. Si `encuentra_violaciones()` estuviera
-    # destripado esto daria 0 y el caso 3 se pondria rojo.
-    ablacionado = _motor(
-        mod,
-        zona=mod.ZONA_PUBLICABLE + ("viewer/tests/*",),
-        exclusiones=(),
-    )
-    _verifica(
-        "caso-3 (anti-vacuidad): el motor real SI sabe reportar ese fichero "
-        "cuando se le quita la proteccion -> el verde de arriba es una "
-        "decision del gate, no un motor que no mira nada",
-        any(v[0] == ruta_relativa for v in ablacionado),
-        "con zona ampliada y exclusiones vacias el motor sigue sin reportar "
-        "el fixture: o el motor no ejecuta, o el testigo ya no sirve",
+        "caso-3 (anti-vacuidad): sin la categoria test-o-fixture el motor SI "
+        "lo reporta -> el verde es una decision del gate, no un motor ciego",
+        any(v[0] == rel for v in ablacionado),
+        "con la categoria ablacionada el motor sigue sin reportarlo: o no "
+        "ejecuta, o el testigo ya no sirve",
     )
 
 
-def caso_4_ablacion_exclusion_tests() -> None:
-    """Ablacion diferencial POR EL MOTOR REAL: se llama tres veces a
-    `encuentra_violaciones()` cambiando solo la configuracion, y se exige que
-    la unica variable que mueve el veredicto sea `EXCLUSIONES`.
+def caso_4_ablacion_categoria_tests() -> None:
+    """Ablacion diferencial POR EL MOTOR REAL. Tres llamadas, cambiando solo
+    la configuracion:
 
-      (a) zona ampliada + EXCLUSIONES reales -> 0  (la exclusion protege)
-      (b) zona ampliada + EXCLUSIONES = ()   -> N>0 (sin ella, salta)
-      (c) zona real     + EXCLUSIONES = ()   -> 0  (la zona tampoco lo alcanza)
-
-    (b) frente a (a) es la prueba de que la exclusion hace trabajo dentro del
-    gate; (c) descarta que el verde venga solo del patron de zona.
+      (a) configuracion real                      -> 0 para el fixture
+      (b) sin la categoria test-o-fixture         -> N>0
+      (c) sin test-o-fixture y sin la clase de codigo -> N>0 igualmente
+          (el fixture entra por `*/tests/*`... no: entra por `*.py`, asi que
+          (c) mide que quien lo salvaba era la categoria, no la clase)
     """
     mod = _cargar_gate()
-    ruta_relativa = str(FIXTURE_LEGITIMO.relative_to(REPO))
-    zona_ampliada = mod.ZONA_PUBLICABLE + ("viewer/tests/*",)
+    rel = str(FIXTURE_LEGITIMO.relative_to(REPO))
 
-    def _n(violaciones) -> int:
-        return sum(1 for v in violaciones if v[0] == ruta_relativa)
+    def n(vs):
+        return sum(1 for v in vs if v[0] == rel)
 
-    a = _n(_motor(mod, zona=zona_ampliada))
-    b = _n(_motor(mod, zona=zona_ampliada, exclusiones=()))
-    c = _n(_motor(mod, exclusiones=()))
+    a = n(_motor(mod))
+    b = n(_motor(mod, tests=()))
+    clases_sin_codigo = {k: v for k, v in mod.CLASES_PUBLICABLES.items()
+                         if k != "codigo-no-test"}
+    c = n(_motor(mod, clases=clases_sin_codigo))
 
+    _verifica("caso-4a: con la configuracion real, 0 violaciones del fixture",
+              a == 0, f"obtuve {a}")
     _verifica(
-        "caso-4a: con el fixture DENTRO de zona, EXCLUSIONES lo salva "
-        "(motor real, 0 violaciones)",
-        a == 0,
-        f"esperaba 0 violaciones del fixture, obtuve {a}",
+        "caso-4b: quitando SOLO la categoria test-o-fixture, el motor real SI "
+        "lo reporta -> la categoria hace trabajo dentro del gate",
+        b > 0, f"esperaba >0, obtuve {b}; si es 0, el motor no esta ejecutando",
     )
     _verifica(
-        "caso-4b: con la MISMA zona y EXCLUSIONES=(), el motor real SI lo "
-        "reporta -> la exclusion hace trabajo dentro del gate",
-        b > 0,
-        f"esperaba >0 violaciones del fixture al ablacionar EXCLUSIONES, "
-        f"obtuve {b}; si es 0, el motor no esta ejecutando",
+        "caso-4c: quitando SOLO la clase `codigo-no-test` (con la categoria "
+        "puesta) sigue en 0 -> lo que lo salva es la categoria, no la clase",
+        c == 0, f"esperaba 0, obtuve {c}",
     )
-    _verifica(
-        "caso-4c: sin exclusiones pero con la zona REAL, el fixture sigue "
-        "sin reportarse -> el verde no viene solo del patron de zona",
-        c == 0,
-        f"esperaba 0 con la zona real, obtuve {c}",
-    )
-    _verifica(
-        f"caso-4: el diferencial 0 -> {b} lo produce SOLO quitar EXCLUSIONES",
-        a == 0 and b > 0,
-        f"a={a}, b={b}, c={c}",
-    )
+    _verifica(f"caso-4: el diferencial 0 -> {b} lo produce SOLO la categoria",
+              a == 0 and b > 0, f"a={a}, b={b}, c={c}")
 
 
 def caso_5_excepcion_declarada() -> None:
-    """Una IP privada con el marcador de excepcion declarada -> VERDE; la
-    MISMA linea sin el marcador -> ROJO."""
+    """IP privada con marcador -> VERDE; la misma linea sin el -> ROJO."""
     original = ENV_EXAMPLE.read_bytes()
-    hash_antes = _sha256(ENV_EXAMPLE)
+    h0 = _sha256(ENV_EXAMPLE)
     texto = original.decode("utf-8")
-    ancla = "S9K_NEO4J_URI=bolt://192.0.2.10:7687"
-    if ancla not in texto:
+    if ANCLA_ENV not in texto:
         raise Fallo("caso-5: el ancla a mutar no aparece; el fuente se movio")
-
-    con_ip_sin_excepcion = texto.replace(
-        ancla, "S9K_NEO4J_URI=bolt://10.7.0.9:7687"
-    )
-    con_ip_y_excepcion = texto.replace(
-        ancla,
-        "# topologia: excepcion declarada (calibracion EXP-1, no real)\n"
-        "S9K_NEO4J_URI=bolt://10.7.0.9:7687",
+    sin = texto.replace(ANCLA_ENV, f"S9K_NEO4J_URI=bolt://{IP_SINTETICA_2}:7687")
+    con = texto.replace(
+        ANCLA_ENV,
+        "# topologia: excepcion declarada (calibracion EXP-1, valor sintetico)\n"
+        f"S9K_NEO4J_URI=bolt://{IP_SINTETICA_2}:7687",
     )
     try:
-        ENV_EXAMPLE.write_text(con_ip_sin_excepcion, encoding="utf-8")
-        rc, violaciones = _correr_gate()
-        _verifica(
-            "caso-5a: 10.7.0.9 SIN marcador -> ROJO",
-            rc == 1 and any(v[0] == "viewer/.env.example" for v in violaciones),
-            f"rc={rc}, violaciones={violaciones}",
-        )
-
-        ENV_EXAMPLE.write_text(con_ip_y_excepcion, encoding="utf-8")
-        rc, violaciones = _correr_gate()
-        _verifica(
-            "caso-5b: la MISMA IP CON marcador de excepcion -> VERDE",
-            rc == 0 and not any(v[0] == "viewer/.env.example" for v in violaciones),
-            f"rc={rc}, violaciones={violaciones}",
-        )
+        ENV_EXAMPLE.write_text(sin, encoding="utf-8")
+        rc, v = _correr_gate()
+        _verifica("caso-5a: SIN marcador -> ROJO",
+                  rc == 1 and any(x[0] == "viewer/.env.example" for x in v),
+                  f"rc={rc}, violaciones={v}")
+        ENV_EXAMPLE.write_text(con, encoding="utf-8")
+        rc, v = _correr_gate()
+        _verifica("caso-5b: la MISMA IP CON marcador -> VERDE",
+                  rc == 0 and not any(x[0] == "viewer/.env.example" for x in v),
+                  f"rc={rc}, violaciones={v}")
     finally:
         ENV_EXAMPLE.write_bytes(original)
-        _verifica(
-            "caso-5: restauracion por hash",
-            _sha256(ENV_EXAMPLE) == hash_antes,
-            "el fichero no volvio a su contenido original",
-        )
+        _verifica("caso-5: restauracion por hash",
+                  _sha256(ENV_EXAMPLE) == h0, "el fichero no volvio a su original")
 
 
 def caso_6_marcador_sin_motivo_no_exime() -> None:
-    """El marcador de excepcion SIN motivo no exime: la misma IP con
-    `# topologia: excepcion declarada` a secas sigue en ROJO, y con un motivo
-    escrito pasa a VERDE. Sin este caso, una excepcion muda silencia el gate
-    sin dejar razon (medido en la ronda 1: sin motivo, verde)."""
+    """El marcador SIN motivo no exime; con motivo, si."""
     original = ENV_EXAMPLE.read_bytes()
-    hash_antes = _sha256(ENV_EXAMPLE)
+    h0 = _sha256(ENV_EXAMPLE)
     texto = original.decode("utf-8")
-    ancla = "S9K_NEO4J_URI=bolt://192.0.2.10:7687"
-    if ancla not in texto:
+    if ANCLA_ENV not in texto:
         raise Fallo("caso-6: el ancla a mutar no aparece; el fuente se movio")
-
     sin_motivo = texto.replace(
-        ancla,
+        ANCLA_ENV,
         "# topologia: excepcion declarada\n"
-        "S9K_NEO4J_URI=bolt://10.7.0.9:7687",
+        f"S9K_NEO4J_URI=bolt://{IP_SINTETICA_2}:7687",
     )
     con_motivo = texto.replace(
-        ancla,
-        "# topologia: excepcion declarada (calibracion EXP-1, no real)\n"
-        "S9K_NEO4J_URI=bolt://10.7.0.9:7687",
+        ANCLA_ENV,
+        "# topologia: excepcion declarada (calibracion EXP-1, valor sintetico)\n"
+        f"S9K_NEO4J_URI=bolt://{IP_SINTETICA_2}:7687",
     )
     try:
         ENV_EXAMPLE.write_text(sin_motivo, encoding="utf-8")
-        rc, violaciones = _correr_gate()
-        _verifica(
-            "caso-6a: marcador SIN motivo -> sigue ROJO",
-            rc == 1 and any(v[0] == "viewer/.env.example" for v in violaciones),
-            f"un marcador mudo eximio la linea: rc={rc}, violaciones={violaciones}",
-        )
-        # Control positivo del propio caso: con motivo, el mismo texto es VERDE.
+        rc, v = _correr_gate()
+        _verifica("caso-6a: marcador SIN motivo -> sigue ROJO",
+                  rc == 1 and any(x[0] == "viewer/.env.example" for x in v),
+                  f"un marcador mudo eximio la linea: rc={rc}, violaciones={v}")
         ENV_EXAMPLE.write_text(con_motivo, encoding="utf-8")
-        rc, violaciones = _correr_gate()
-        _verifica(
-            "caso-6b (control positivo): el MISMO marcador CON motivo -> VERDE",
-            rc == 0 and not any(v[0] == "viewer/.env.example" for v in violaciones),
-            f"rc={rc}, violaciones={violaciones}",
-        )
+        rc, v = _correr_gate()
+        _verifica("caso-6b (control positivo): CON motivo -> VERDE",
+                  rc == 0 and not any(x[0] == "viewer/.env.example" for x in v),
+                  f"rc={rc}, violaciones={v}")
     finally:
         ENV_EXAMPLE.write_bytes(original)
-        _verifica(
-            "caso-6: restauracion por hash",
-            _sha256(ENV_EXAMPLE) == hash_antes,
-            "el fichero no volvio a su contenido original",
+        _verifica("caso-6: restauracion por hash",
+                  _sha256(ENV_EXAMPLE) == h0, "el fichero no volvio a su original")
+
+
+def _reescribe_docx(origen: bytes, viejo: str, nuevo: str) -> bytes:
+    """Devuelve el .docx con `viejo` -> `nuevo` dentro de word/document.xml."""
+    salida = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(origen)) as zin, \
+            zipfile.ZipFile(salida, "w") as zout:
+        for info in zin.infolist():
+            data = zin.read(info.filename)
+            if info.filename == "word/document.xml":
+                data = data.decode("utf-8").replace(viejo, nuevo).encode("utf-8")
+            zi = zipfile.ZipInfo(info.filename, date_time=info.date_time)
+            zi.compress_type = info.compress_type
+            zi.external_attr = info.external_attr
+            zout.writestr(zi, data)
+    return salida.getvalue()
+
+
+def caso_7_docx_cobertura_real() -> None:
+    """Un conocido negativo DENTRO de `word/document.xml`.
+
+    El gate declara cobertura de OOXML. Declararla sin ejercerla seria
+    exactamente la clase de promesa que este programa corta: la prueba es
+    inyectar la direccion en el XML de dentro del ZIP, exigir el ROJO con la
+    parte nombrada, y verla volver a VERDE al retirarla.
+    """
+    if not DOCX_TESTIGO.is_file():
+        raise Fallo(f"caso-7: no existe {DOCX_TESTIGO}")
+    original = DOCX_TESTIGO.read_bytes()
+    h0 = _sha256(DOCX_TESTIGO)
+    rel = str(DOCX_TESTIGO.relative_to(REPO))
+    mod = _cargar_gate()
+
+    _verifica(
+        "caso-7 (frontera): el .docx esta en la superficie publicable",
+        mod.clasifica(rel)[0] == "publicable", f"clasifica()={mod.clasifica(rel)}",
+    )
+    partes = mod._texto_ooxml(DOCX_TESTIGO)
+    _verifica(
+        "caso-7 (control positivo del instrumento): el gate SI abre el ZIP y "
+        "lee word/document.xml",
+        any(n == "word/document.xml" and len(t) > 0 for n, t in partes),
+        f"partes leidas: {[n for n, _ in partes]}",
+    )
+
+    ancla = "IP-VM105-REDACTADA"
+    if ancla not in dict(partes).get("word/document.xml", ""):
+        raise Fallo(
+            "caso-7: no encuentro el marcador saneado en word/document.xml; "
+            "el documento cambio y este testigo ya no sirve"
         )
+    try:
+        DOCX_TESTIGO.write_bytes(_reescribe_docx(original, ancla, IP_SINTETICA_1))
+        rc, v = _correr_gate()
+        culpables = [x for x in v if x[0].startswith(rel)]
+        _verifica(
+            "caso-7: con la IP dentro del XML, el gate se pone ROJO",
+            rc == 1 and bool(culpables), f"rc={rc}, violaciones={v}",
+        )
+        _verifica(
+            "caso-7: la causa NOMBRA la parte del ZIP, no solo el fichero",
+            all("!word/document.xml" in x[0] for x in culpables),
+            f"causas: {[x[0] for x in culpables]}",
+        )
+        _verifica(
+            "caso-7: la causa nombra la IP inyectada",
+            all(x[2] == IP_SINTETICA_1 for x in culpables),
+            f"ips: {[x[2] for x in culpables]}",
+        )
+    finally:
+        DOCX_TESTIGO.write_bytes(original)
+        _verifica("caso-7: restauracion por hash",
+                  _sha256(DOCX_TESTIGO) == h0, "el .docx no volvio a su original")
+
+    rc, v = _correr_gate()
+    _verifica("caso-7: retirada la inyeccion, VERDE otra vez",
+              rc == 0 and not any(x[0].startswith(rel) for x in v),
+              f"rc={rc}, violaciones={v}")
+
+
+def caso_8_autocobertura_del_guardarrail() -> None:
+    """El gate se mira A SI MISMO.
+
+    En la ronda 1 de EXP-1 el propio guardarrail publico tres veces la IP real
+    y era ciego a su reincidencia porque sus ficheros no estaban en su zona.
+    Aqui se exige lo contrario: el fuente del gate y el de este calibrador son
+    superficie publicable, y una IP metida en el gate lo pone ROJO contra si
+    mismo.
+    """
+    mod = _cargar_gate()
+    rel_gate = str(GATE_PATH.relative_to(REPO))
+    rel_cal = str(Path(__file__).resolve().relative_to(REPO))
+    for etiqueta, rel in (("el gate", rel_gate), ("este calibrador", rel_cal)):
+        cat, clase = mod.clasifica(rel)
+        _verifica(
+            f"caso-8: {etiqueta} es superficie publicable ({clase})",
+            cat == "publicable", f"clasifica({rel})=({cat}, {clase})",
+        )
+
+    original = GATE_PATH.read_bytes()
+    h0 = _sha256(GATE_PATH)
+    ancla = "REPO = Path(__file__).resolve().parents[2]"
+    texto = original.decode("utf-8")
+    if ancla not in texto:
+        raise Fallo("caso-8: el ancla de inyeccion no aparece en el gate")
+    try:
+        GATE_PATH.write_text(
+            texto.replace(
+                ancla,
+                f'_REINCIDENCIA = "http://{IP_SINTETICA_2}:7687"\n{ancla}',
+            ),
+            encoding="utf-8",
+        )
+        rc, v = _correr_gate()
+        _verifica(
+            "caso-8: una IP nueva EN EL PROPIO GATE lo pone ROJO",
+            rc == 1 and any(x[0] == rel_gate for x in v), f"rc={rc}, violaciones={v}",
+        )
+    finally:
+        GATE_PATH.write_bytes(original)
+        _verifica("caso-8: restauracion por hash",
+                  _sha256(GATE_PATH) == h0, "el gate no volvio a su original")
+
+
+def caso_9_frontera_decidible() -> None:
+    """Las tres categorias son disjuntas, totales y ninguna esta vacia."""
+    mod = _cargar_gate()
+    ficheros = mod._ficheros_versionados()
+    cuenta = {"publicable": 0, "test-o-fixture": 0, "fuera-de-superficie": 0}
+    for r in ficheros:
+        cat, _ = mod.clasifica(r)
+        if cat not in cuenta:
+            raise Fallo(f"caso-9: categoria desconocida {cat!r} para {r}")
+        cuenta[cat] += 1
+    _verifica("caso-9: toda ruta cae en una de las tres categorias",
+              sum(cuenta.values()) == len(ficheros), f"{cuenta} vs {len(ficheros)}")
+    for cat, n in cuenta.items():
+        _verifica(
+            f"caso-9: la categoria '{cat}' no esta vacia ({n} ficheros)",
+            n > 0,
+            "una frontera que mete todo en un cubo no distingue nada",
+        )
+    _verifica(
+        "caso-9: la superficie publicable es sustancialmente mas ancha que la "
+        f"lista de nueve ficheros de la ronda 1 ({cuenta['publicable']})",
+        cuenta["publicable"] > 100,
+        "si la clase solo cubre lo ya arreglado, no puede encontrar nada nuevo",
+    )
 
 
 CASOS = [
     caso_1_ip_privada_nueva_se_pone_rojo,
     caso_2_valor_ficticio_da_verde,
     caso_3_fixture_legitimo_sigue_verde,
-    caso_4_ablacion_exclusion_tests,
+    caso_4_ablacion_categoria_tests,
     caso_5_excepcion_declarada,
     caso_6_marcador_sin_motivo_no_exime,
+    caso_7_docx_cobertura_real,
+    caso_8_autocobertura_del_guardarrail,
+    caso_9_frontera_decidible,
 ]
 
 
 def main() -> int:
     if not _arbol_tracked_limpio():
-        print(
-            "ERROR: el arbol tracked no esta limpio antes de calibrar; "
-            "commitea o revierte antes de correr este arnes.",
-            file=sys.stderr,
-        )
+        print("ERROR: el arbol tracked no esta limpio antes de calibrar; "
+              "commitea o revierte antes de correr este arnes.", file=sys.stderr)
         return 2
 
     fallos = []
@@ -379,11 +491,8 @@ def main() -> int:
             fallos.append(str(e))
 
     if not _arbol_tracked_limpio():
-        print(
-            "ERROR: el arbol tracked quedo sucio tras la calibracion "
-            "(alguna restauracion fallo).",
-            file=sys.stderr,
-        )
+        print("ERROR: el arbol tracked quedo sucio tras la calibracion "
+              "(alguna restauracion fallo).", file=sys.stderr)
         return 2
 
     if fallos:
