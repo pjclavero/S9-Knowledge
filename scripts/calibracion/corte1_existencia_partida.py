@@ -182,15 +182,15 @@ MUTACIONES = [
         "(vuelve a no haber ninguna opción real que elegir). Borrar una "
         "garantía visible del todo no puede dejar la suite igual de verde",
         "viewer/app/templates/auth/admin/partidas.html",
-        '''      <select id="partida_id" name="partida_id" required>
-        <option value="" disabled selected>— elige una partida —</option>
-        {% for pid in partidas_descubribles %}
-          <option value="{{ pid | e }}">{{ pid | e }}</option>
-        {% endfor %}
-      </select>''',
-        '''      <select id="partida_id" name="partida_id" required>
-        <option value="" disabled selected>— elige una partida —</option>
-      </select>''',
+        # OBJETIVO ESTABLE, NO EL CONTENIDO DE LA OPCION. Esta mutacion
+        # copiaba el `<select>` entero, incluido el TEXTO de cada opcion, y el
+        # corte 6B-1 —que pasa ese texto por el resolvedor de etiquetas— lo
+        # movio: la mutacion dejo de aplicarse y el arnes dijo DETECTOR ROTO.
+        # La propiedad atacada no cambia (la pantalla deja de ofrecer las
+        # partidas que la boveda declara); lo que se muta es el BUCLE, que es
+        # lo estable, y no como se pinta cada opcion.
+        "        {% for pid in partidas_descubribles %}",
+        "        {% for pid in [] %}{# M6: la pantalla no ofrece ninguna #}",
         ["test_la_pantalla_ofrece_las_partidas_de_la_boveda_real_no_un_eco_de_concesiones"],
         "la pantalla no ofrece la partida que SÍ existe",
     ),
