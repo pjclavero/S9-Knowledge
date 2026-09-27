@@ -500,10 +500,14 @@ def test_el_cliente_no_fabrica_un_workspace_de_repuesto():
     cadena vacia. Con un `|| "leyenda"` ahi, un principal con la autoridad sin
     resolver volvia a pedir el workspace de fabrica por su cuenta.
 
-    TECHO DECLARADO: esto mira el fuente de `graph.js`, no su ejecucion.
-    `graph.js` es DOM + vis-network y no se puede cargar en el arnes de Node
-    (`graph_core_spec.js` cubre `graph-core.js`, que si es logica pura). La
-    ejecucion real de esta linea la cubre la bateria de navegador.
+    TECHO DECLARADO, Y ES UN HUECO: esto mira el FUENTE de `graph.js`, no su
+    ejecucion. `graph.js` es DOM + vis-network y no se puede cargar en el
+    arnes de Node (`graph_core_spec.js` cubre `graph-core.js`, que si es
+    logica pura). Y la ejecucion en NAVEGADOR de esta linea **no esta
+    cubierta**: en `viewer/tests/browser/` no hay hoy ningun caso que ejerza
+    el 409 ni el estado `no_scope`. Se dice aqui en vez de dar por supuesto
+    que alguien lo cubre: un techo declarado vale mas que una cobertura
+    afirmada.
     """
     fuente = GRAPH_JS.read_text(encoding="utf-8")
     m = re.search(r"var\s+workspace\s*=\s*window\.S9K_WORKSPACE\s*\|\|\s*([^;]+);",

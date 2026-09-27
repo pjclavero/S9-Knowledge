@@ -299,6 +299,13 @@ def test_las_pantallas_HTML_usan_el_mismo_criterio(entorno_sin_autoridad, ruta, 
     assert r.status_code == 409, (
         f"{ruta} respondio {r.status_code} con la autoridad sin resolver"
     )
+    # Y la pantalla dice QUE HACER, no solo que algo falla: nombra los dos
+    # sitios que deciden el ambito. Una pantalla honesta e inutil es la misma
+    # clase de defecto que se cerro en el Corte 6A.
+    assert "S9K_DEFAULT_WORKSPACE" in r.text and "perfil" in r.text, (
+        f"{ruta} da un 409 sin decir donde se arregla: no nombra ni el perfil "
+        f"de la boveda ni la declaracion del entorno"
+    )
 
 
 @pytest.mark.parametrize("ruta,rol", PAGINAS_HTML)
