@@ -11,11 +11,16 @@ pida explícitamente.
 
 ## Entorno de destino
 
-- Host: VM105 `common`, LAN `192.168.1.205`.
+> **`<IP-VM105>`**: este repositorio es PÚBLICO y esta guía la lee un operador,
+> así que la dirección LAN real no se escribe aquí (EXP-1). Sustitúyela por la
+> de tu instalación —la tienes en el inventario privado de despliegue— o
+> exporta `VM105=<tu-ip>` y usa `$VM105` en los comandos de abajo.
+
+- Host: VM105 `common`, LAN `<IP-VM105>`.
 - Repo en servidor: `/opt/knowledge-services/s9-knowledge-repo`.
 - Proyecto original (NO TOCAR): `/opt/knowledge-services/property-graph`.
 - Neo4j real: contenedor `neo4j-knowledge`, `bolt://127.0.0.1:7687` (también
-  `192.168.1.205:7687` en LAN, pero el visor en VM105 debe usar `127.0.0.1`).
+  `<IP-VM105>:7687` en LAN, pero el visor en VM105 debe usar `127.0.0.1`).
 - Workspace principal: `leyenda`.
 
 ## Checklist de despliegue
@@ -23,7 +28,7 @@ pida explícitamente.
 ### 1. Actualizar el repo en VM105
 
 ```bash
-ssh <usuario>@192.168.1.205
+ssh <usuario>@<IP-VM105>
 cd /opt/knowledge-services/s9-knowledge-repo
 git status                 # comprobar que no hay cambios locales sin commitear
 git fetch origin
@@ -137,7 +142,7 @@ journalctl -u s9-knowledge-viewer -f          # seguimiento en vivo
 
 Verificar en los logs que arrancó sin errores de import ni de conexión a
 Neo4j, y probar de nuevo los `curl` del paso 5 contra `0.0.0.0:8088` /
-`192.168.1.205:8088`.
+`<IP-VM105>:8088`.
 
 ### 8. Parar / reiniciar
 
@@ -185,7 +190,7 @@ python data-engine/app/cli/jobs.py list --workspace leyenda
 ```
 
 Luego, con el visor arrancado (paso 5 de esta guía), abrir
-`http://192.168.1.205:8088/jobs` y comprobar que aparece el job `echo` en
+`http://<IP-VM105>:8088/jobs` y comprobar que aparece el job `echo` en
 estado `complete`. Detalle completo en `docs/15-jobs-worker-panel.md`. Esta
 fase no instala systemd para el worker; se ejecuta manualmente o vía
 `scripts/run-jobs-worker.sh`.
@@ -200,7 +205,7 @@ fase no instala systemd para el worker; se ejecuta manualmente o vía
 
 ## Verificación final esperada
 
-- `http://192.168.1.205:8088/` abre y muestra "Proveedor actual: neo4j".
-- `http://192.168.1.205:8088/api/status` → `"neo4j_connected": true`.
+- `http://<IP-VM105>:8088/` abre y muestra "Proveedor actual: neo4j".
+- `http://<IP-VM105>:8088/api/status` → `"neo4j_connected": true`.
 - Buscar "Tamori" en `/graph` encuentra "Agasha Tamori" real.
 - Ficha de nodo y ficha de relación muestran datos reales del workspace `leyenda`.

@@ -1,8 +1,11 @@
 """Proveedor de grafo sobre Neo4j real. Solo lectura: ninguna consulta escribe.
 
-Preparado para cuando el visor se conecte a la instancia de VM105
-(bolt://192.168.1.205:7687). No se ha probado contra un Neo4j real todavía;
-se activa poniendo ``S9K_GRAPH_PROVIDER=neo4j`` en ``.env``.
+Preparado para cuando el visor se conecte a la instancia de producción, cuya
+URI ``bolt://`` se configura en ``S9K_NEO4J_URI`` y no se escribe aquí: este
+repositorio es público y una dirección interna en un docstring la publica
+igual que en una plantilla, sin ninguna razón funcional que lo justifique.
+No se ha probado contra un Neo4j real todavía; se activa poniendo
+``S9K_GRAPH_PROVIDER=neo4j`` en ``.env``.
 """
 from __future__ import annotations
 

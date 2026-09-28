@@ -47,10 +47,16 @@ from external_processing.errors import (
 from external_processing.models import ExternalTaskType, ProcessingJob
 from external_processing.provider import ExternalProcessingProvider
 
-#: Endpoint por defecto. Es la VM102 `ia-server` documentada en la auditoria.
-#: Se puede sobreescribir con `S9K_OLLAMA_BASE_URL`; nunca se cablea en el
-#: codigo llamante.
-DEFAULT_BASE_URL = "http://192.168.1.157:11434"
+#: NO hay endpoint por defecto, a proposito (EXP-1). El servidor Ollama de
+#: esta instalacion es una maquina EXTERNA de la red interna, y este
+#: repositorio es PUBLICO: un default cableado a su direccion la publica en
+#: codigo, que es peor exposicion que una plantilla porque nadie lo lee como
+#: configuracion. Como el valor correcto no es `localhost`, el default no se
+#: sustituye por un ficticio: DESAPARECE, y el endpoint pasa a ser
+#: configuracion obligatoria. Sin `S9K_OLLAMA_BASE_URL` (o `S9K_OLLAMA_URL`)
+#: el proveedor no se construye: falla cerrado con la variable en el mensaje,
+#: en vez de hablarle en silencio a una direccion que el operador no eligio.
+BASE_URL_ENV_VARS = ("S9K_OLLAMA_BASE_URL", "S9K_OLLAMA_URL")
 DEFAULT_MODEL = "qwen2.5:7b"
 
 #: Tope duro de bytes de respuesta. Una respuesta gigante es un vector de
@@ -62,7 +68,7 @@ DEFAULT_MAX_PROMPT_CHARS = 200_000
 
 #: Capacidades que este proveedor implementa DE VERDAD contra la API nativa.
 #: `GENERATE_EMBEDDINGS` esta implementada pero NO se declara por defecto: el
-#: servidor real de la instalacion (192.168.1.157) responde
+#: servidor real de la instalacion responde
 #: "This server does not support embeddings", de modo que declararla seria
 #: mentir. Se activa explicitamente con `embeddings=True` cuando el servidor
 #: arranque con `--embeddings` o sirva un modelo de embeddings.
@@ -91,8 +97,12 @@ def ollama_config() -> Dict[str, Any]:
     def _env(name: str, default: str = "") -> str:
         return os.environ.get(name, default).strip()
 
-    base = _env("S9K_OLLAMA_BASE_URL") or _env("S9K_OLLAMA_URL") or DEFAULT_BASE_URL
+    base = _env("S9K_OLLAMA_BASE_URL") or _env("S9K_OLLAMA_URL")
     return {
+        # Cadena vacia cuando no hay configuracion: `ollama_config()` sigue
+        # siendo introspectable (lo usan diagnosticos y tests), y quien la
+        # convierte en un fallo es el constructor, que es el punto donde se
+        # iba a hablar con la red.
         "base_url": base.rstrip("/"),
         "model": _env("S9K_OLLAMA_MODEL") or DEFAULT_MODEL,
         "embedding_model": _env("S9K_OLLAMA_EMBEDDING_MODEL") or None,
@@ -130,7 +140,17 @@ class OllamaProcessingProvider(ExternalProcessingProvider):
         urlopen=None,
     ) -> None:
         cfg = ollama_config()
-        self.base_url = (base_url or cfg["base_url"]).rstrip("/")
+        resuelto = (base_url or cfg["base_url"]).rstrip("/")
+        if not resuelto:
+            raise ProviderUnavailableError(
+                "Ollama sin endpoint configurado: define "
+                f"{' o '.join(BASE_URL_ENV_VARS)} (p.ej. "
+                "http://<host-ollama>:11434) o pasa `base_url=`. No hay "
+                "default: el servidor de esta instalacion es una maquina "
+                "interna y cablear su direccion en un repositorio publico "
+                "seria publicar la topologia."
+            )
+        self.base_url = resuelto
         self.model = model or cfg["model"]
         self.embedding_model = embedding_model or cfg["embedding_model"]
         self.vision_model = vision_model or cfg["vision_model"]
@@ -271,7 +291,7 @@ class OllamaProcessingProvider(ExternalProcessingProvider):
         Fail-closed por DOS caminos, porque el servidor usa los dos:
 
         * **`HTTP 501`** — es lo que devuelve de verdad la instalacion real
-          (192.168.1.157) cuando el binario no se arranco con `--embeddings`.
+          cuando el binario no se arranco con `--embeddings`.
           Lo traduce `_post` a `UnsupportedCapabilityError` permanente.
         * **`200` con `{"error": ...}`** — algunas versiones responden asi.
           Se traduce aqui, tambien a error permanente.

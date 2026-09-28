@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 """Cliente de Ollama para el subsistema extractor V3.
 
-Configurable por entorno, **sin IP cableada en el codigo** (defecto D12 de la
-auditoria: `review/llm_extractor.py:55` tiene una IP fija). Aqui la IP por
-defecto vive en una constante documentada y cualquier despliegue la sobrescribe
-con `S9K_OLLAMA_URL`.
+Configurable por entorno, **sin IP cableada en el codigo**. La version
+anterior decia eso mismo mientras mantenia la direccion real de la instalacion
+en una "constante documentada": documentar un default no deja de publicarlo, y
+este repositorio es PUBLICO. Desde EXP-1 **no hay default**: `S9K_OLLAMA_URL`
+es OBLIGATORIA y sin ella `OllamaConfig.from_env()` falla cerrado.
 
-    S9K_OLLAMA_URL      http://192.168.1.157:11434   (servidor Ollama)
+    S9K_OLLAMA_URL      http://<host-ollama>:11434   OBLIGATORIA, sin default
     S9K_OLLAMA_MODEL    qwen2.5:7b                   (unico modelo instalado)
     S9K_OLLAMA_TIMEOUT  300                          (segundos; medido, ver DEFAULT_TIMEOUT)
     S9K_OLLAMA_RETRIES  1                            (reintentos de transporte)
@@ -30,13 +31,15 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
-#: Valor por defecto del servidor local. Documentado, no cableado: se sobrescribe
-#: con `S9K_OLLAMA_URL` sin tocar codigo.
-DEFAULT_OLLAMA_URL = "http://192.168.1.157:11434"
+#: Nombre de la variable que da el endpoint. NO hay valor por defecto: el
+#: servidor de esta instalacion es una maquina interna y cablear su direccion
+#: aqui la publicaria (repositorio PUBLICO). Tampoco se sustituye por
+#: `localhost`, porque seria mentira: el servidor no es local.
+OLLAMA_URL_ENV_VAR = "S9K_OLLAMA_URL"
 DEFAULT_OLLAMA_MODEL = "qwen2.5:7b"
 
 #: 300 s, no 60. Medido: una extraccion de UNA frase corta contra qwen2.5:7b en
-#: 192.168.1.157 tardo ~190 s (2026-07-27). Con 60 s el extractor se abstenia
+#: el servidor de la instalacion tardo ~190 s (2026-07-27). Con 60 s se abstenia
 #: por timeout aunque el servidor estuviese perfectamente vivo, que es la peor
 #: clase de falso negativo: parece un fallo del modelo y es de configuracion.
 DEFAULT_TIMEOUT = 300.0
@@ -81,7 +84,9 @@ def _env_int(name: str, default: int) -> int:
 class OllamaConfig:
     """Configuracion efectiva del cliente. Se lee del entorno en `from_env()`."""
 
-    url: str = DEFAULT_OLLAMA_URL
+    #: Sin default: una `OllamaConfig()` sin url es inutilizable a proposito y
+    #: `from_env()` ni siquiera la construye.
+    url: str = ""
     model: str = DEFAULT_OLLAMA_MODEL
     timeout: float = DEFAULT_TIMEOUT
     retries: int = 1
@@ -90,8 +95,17 @@ class OllamaConfig:
 
     @classmethod
     def from_env(cls, **overrides: Any) -> "OllamaConfig":
+        url = os.environ.get(OLLAMA_URL_ENV_VAR, "").strip().rstrip("/")
+        if not url and "url" not in overrides:
+            raise OllamaUnavailable(
+                f"{OLLAMA_URL_ENV_VAR} no esta definida y no hay default: el "
+                "endpoint de Ollama es configuracion obligatoria (p.ej. "
+                "http://<host-ollama>:11434). Antes se usaba la direccion real "
+                "de la instalacion como default, lo que la publicaba en un "
+                "repositorio publico."
+            )
         base = cls(
-            url=os.environ.get("S9K_OLLAMA_URL", DEFAULT_OLLAMA_URL).rstrip("/"),
+            url=url,
             model=os.environ.get("S9K_OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL),
             timeout=_env_float("S9K_OLLAMA_TIMEOUT", DEFAULT_TIMEOUT),
             retries=_env_int("S9K_OLLAMA_RETRIES", 1),
@@ -231,7 +245,7 @@ class OllamaClient:
 
 __all__ = [
     "DEFAULT_OLLAMA_MODEL",
-    "DEFAULT_OLLAMA_URL",
+    "OLLAMA_URL_ENV_VAR",
     "DEFAULT_TIMEOUT",
     "OllamaBadResponse",
     "OllamaClient",

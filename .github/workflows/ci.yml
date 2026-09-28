@@ -1184,6 +1184,37 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/mutaciones_corte6b1_etiquetas.py
 
+      # EXP-1: ninguna IP privada real en zona PUBLICABLE (plantillas
+      # `.env.example`, `*.example`, config de ejemplo de data-engine,
+      # `deploy/README.md`) sin excepcion declarada y localizada. El gate
+      # (`check_no_topologia_publicable.py`) usa semantica de ZONA + VALOR +
+      # EXCEPCION, no una busqueda ciega de RFC1918: fixtures y tests con IP
+      # privada legitima (p.ej. `viewer/tests/test_neo4j_default_fail_closed.py`)
+      # siguen VERDES a proposito. Este arnes mete una `10.x` de verdad en
+      # `viewer/.env.example`, exige ROJO con la causa exacta, prueba que
+      # `192.0.2.x` (RFC 5737) da VERDE, que el fixture legitimo sigue VERDE,
+      # ablaciona la exclusion de `tests/` para probar que hace trabajo real,
+      # y prueba el mecanismo de excepcion declarada en ambos sentidos.
+      # Restaura el fichero por EFECTO (hash) en cada caso.
+      - name: "Ninguna IP privada real en zona publicable: se pone ROJO ante cada caso (EXP-1)"
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/calibra_topologia_publicable.py
+
+      # Y el que prueba al que prueba. En la ronda 1 de EXP-1 los casos 3 y 4
+      # del arnes de arriba eran INERTES: corrian el regex fuera del gate, asi
+      # que con `encuentra_violaciones()` destripado seguian VERDES. Este paso
+      # muta el gate de verdad y exige que cada mutacion deje un rastro EXACTO
+      # -ni un mutante superviviente ni un rojo prestado-, y restaura el gate
+      # por SHA-256.
+      - name: "El arnes de EXP-1 muere con su sujeto (mutantes M1/M2)"
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/mutaciones_topologia_publicable.py
+
+      - name: "El gate de topologia publicable esta VERDE sobre el arbol real (EXP-1)"
+        run: python3 .github/scripts/check_no_topologia_publicable.py
+
       # Y la calibracion del corte «el workspace no lo elige el cliente»: el
       # ambito de una consulta lo decide la autoridad del servidor, no el
       # parametro del cliente ni el entorno, y cuando la autoridad no resuelve

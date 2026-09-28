@@ -95,7 +95,11 @@ def _build_configuration(run_id: str) -> dict:
         "python": sys.version,
         "mode": "isolated",
         "ollama": {
-            "base_url": ollama_cfg.get("base_url", "http://192.168.1.157:11434"),
+            # EXP-1: sin default cableado. Lo que no este en el settings.yaml
+            # del despliegue se anota vacio en el manifiesto del benchmark; un
+            # manifiesto que declara un endpoint que nadie configuro miente
+            # sobre contra que se midio, ademas de publicar la topologia.
+            "base_url": ollama_cfg.get("base_url", ""),
             "model": ollama_cfg.get("model", "qwen2.5:7b"),
             "temperature": ollama_cfg.get("temperature", 0),
             "request_timeout": ollama_cfg.get("request_timeout", 900),

@@ -58,7 +58,7 @@ from .lexicon import Lexicon, LexiconEntry  # noqa: F401
 from .ollama import OLLAMA_STEP, OllamaExtractor, build_prompt, parse_strict_json  # noqa: F401
 from .ollama_client import (  # noqa: F401
     DEFAULT_OLLAMA_MODEL,
-    DEFAULT_OLLAMA_URL,
+    OLLAMA_URL_ENV_VAR,
     OllamaClient,
     OllamaConfig,
     OllamaError,
@@ -110,7 +110,7 @@ __all__ = [
     "COREFERENCE_STEP",
     "CoreferenceExtractor",
     "DEFAULT_OLLAMA_MODEL",
-    "DEFAULT_OLLAMA_URL",
+    "OLLAMA_URL_ENV_VAR",
     "DETERMINISTIC_STEP",
     "DeterministicExtractor",
     "Diagnostic",

@@ -1,11 +1,16 @@
 # Actualización del modelo de grafo RPG — Informe
 
+> **Nota EXP-1 (repositorio publico):** las direcciones LAN internas de
+> este informe se han sustituido por marcadores (`<IP-VM105>`,
+> `<IP-OLLAMA>`). No se ha cambiado ningun hecho, fecha ni resultado:
+> solo deja de publicarse la topologia de la red interna.
+
 Documento de trabajo para la ampliación del modelo de datos del grafo de campañas
 de rol (workspace `leyenda` y futuros). Registra el **estado ANTES del cambio** y
 sirve como referencia de las fases de actualización.
 
 - Fecha inicio: 2026-07-10
-- VM: 192.168.1.205 (`common`)
+- VM: <IP-VM105> (`common`)
 - Archivos afectados:
   - `app/schemas/rpg_schema.py`
   - `app/prompts/rpg_extraction_prompt.py`
@@ -23,7 +28,7 @@ sirve como referencia de las fases de actualización.
 | `SCHEMA_VERSION` (rpg_schema.py) | `1.3.0` |
 | `PROMPT_VERSION` (rpg_extraction_prompt.py) | `1.2.0` |
 | `extractor_version` (ingest) | `ingest_rpg` |
-| Modelo LLM | `qwen2.5:7b` (Ollama en 192.168.1.157) |
+| Modelo LLM | `qwen2.5:7b` (Ollama en <IP-OLLAMA>) |
 
 ### 1.2 Tipos de entidad existentes (`ALLOWED_NODE_TYPES`)
 

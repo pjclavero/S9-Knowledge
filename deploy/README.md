@@ -8,8 +8,8 @@ dry-runs y ejecuta después.
 
 `ansible/inventory.example`, `site.yml` y los roles
 `common/data_engine/viewer/auth/systemd/healthchecks` no dependen del nombre de
-VM105. El inventario de ejemplo conserva como *defaults* históricos
-`192.168.1.205`, usuario `root` y las rutas de esa máquina, pero host, usuario,
+VM105. El inventario de ejemplo usa `192.0.2.10` (RFC 5737, no una IP real)
+como *default* ilustrativo, usuario `root` y las rutas de esa máquina, pero host, usuario,
 grupo, rutas, repositorio y rama se cambian exclusivamente en el inventario:
 
 ```bash

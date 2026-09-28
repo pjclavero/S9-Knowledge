@@ -27,7 +27,7 @@ from external_processing.errors import (
 from external_processing.capabilities import Capability
 from external_processing.models import ExternalTaskType, ProcessingJob
 from external_processing.providers.ollama import (
-    DEFAULT_BASE_URL,
+    BASE_URL_ENV_VARS,
     OllamaProcessingProvider,
     ollama_config,
 )
@@ -68,14 +68,48 @@ def _job(task=ExternalTaskType.TEXT_EXTRACT, payload=None, model=None):
 # Configuracion
 # --------------------------------------------------------------------------
 def test_la_url_no_esta_cableada_se_lee_del_entorno(monkeypatch):
-    """El defecto documentado sigue existiendo, pero el entorno manda."""
+    """El entorno manda, y sin entorno NO hay default (EXP-1).
+
+    Antes este test cerraba afirmando que sin variable quedaba
+    `DEFAULT_BASE_URL`, la direccion real de la instalacion. Ese default era
+    la exposicion: un repositorio publico con la topologia cableada en codigo.
+    Ahora la ausencia de configuracion no produce una direccion, produce un
+    fallo cerrado.
+    """
+    for var in BASE_URL_ENV_VARS:
+        monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("S9K_OLLAMA_BASE_URL", "http://otro:1234/")
     assert ollama_config()["base_url"] == "http://otro:1234"
     monkeypatch.delenv("S9K_OLLAMA_BASE_URL")
-    assert ollama_config()["base_url"] == DEFAULT_BASE_URL
+    assert ollama_config()["base_url"] == ""
+
+
+def test_sin_endpoint_el_proveedor_no_se_construye(monkeypatch):
+    """Fail-closed en el punto donde se iba a hablar con la red.
+
+    Y el mensaje nombra las variables: un fail-closed que no dice como abrirse
+    acaba abierto a mano con la direccion pegada otra vez.
+    """
+    for var in BASE_URL_ENV_VARS:
+        monkeypatch.delenv(var, raising=False)
+    with pytest.raises(ProviderUnavailableError) as exc:
+        OllamaProcessingProvider(urlopen=FakeTransport([{}]))
+    for var in BASE_URL_ENV_VARS:
+        assert var in str(exc.value)
+
+
+def test_con_endpoint_configurado_si_se_construye(monkeypatch):
+    """Control positivo: el fallo de arriba es por la falta de endpoint, no
+    porque el proveedor haya dejado de construirse por cualquier motivo."""
+    monkeypatch.setenv("S9K_OLLAMA_BASE_URL", "http://ollama.test:11434")
+    provider = OllamaProcessingProvider(urlopen=FakeTransport([{}]))
+    assert provider.base_url == "http://ollama.test:11434"
 
 
 def test_el_modelo_se_lee_del_entorno(monkeypatch):
+    # El endpoint es obligatorio desde EXP-1; este test mide el MODELO, asi
+    # que le da un endpoint ficticio y no depende de ningun default.
+    monkeypatch.setenv("S9K_OLLAMA_BASE_URL", "http://ollama.test:11434")
     monkeypatch.setenv("S9K_OLLAMA_MODEL", "llama3.2:3b")
     assert OllamaProcessingProvider(urlopen=FakeTransport([{}])).model == "llama3.2:3b"
 
