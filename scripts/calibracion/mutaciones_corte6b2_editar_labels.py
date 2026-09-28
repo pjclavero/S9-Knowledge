@@ -68,26 +68,33 @@ def _fallos(salida: str) -> list[str]:
 
 MUTACIONES = [
     (
-        "M1 — el escritor deja de revalidar la huella justo antes de "
-        "escribir: last-write-wins silencioso",
+        "M1 — la huella deja de comparar CONTENIDO: `coincide_contenido` "
+        "siempre dice que sí (last-write-wins silencioso, en las DOS "
+        "revalidaciones a la vez)",
         "viewer/app/vault_writer.py",
-        "    if not lectura.huella.coincide_contenido(huella_cliente):\n"
-        "        raise ConflictoEscrituraError(",
-        "    if False and not lectura.huella.coincide_contenido(huella_cliente):\n"
-        "        raise ConflictoEscrituraError(",
-        ["test_409_si_el_perfil_cambio_desde_que_se_leyo"],
+        "        return self.sha256 == otra.sha256",
+        "        return True",
+        [
+            "test_409_si_el_perfil_cambio_desde_que_se_leyo",
+            "test_revalidacion_justo_antes_de_escribir_tambien_detecta_el_cambio",
+            "test_409_si_la_huella_enviada_no_coincide",
+        ],
         "assert",
     ),
     (
-        "M2 — el escritor deja de exigir CONFORME (C1): edita un perfil "
-        "legible-pero-no-conforme sin avisar",
+        "M2 — el escritor deja de exigir CONFORME (C1) A LA ENTRADA: un "
+        "perfil inválido o no conforme llega a mutarse en vez de rechazarse "
+        "limpio (el fallo dejar de ser controlado es la propia violación)",
         "viewer/app/vault_writer.py",
+        "    lectura = leer_estado_perfil(ruta_perfil)\n"
         "    if lectura.estado != EstadoPerfil.CONFORME:\n"
         "        raise EscrituraRechazadaError(lectura.estado, lectura.causa or \"perfil no editable\")",
-        "    if False and lectura.estado != EstadoPerfil.CONFORME:\n"
-        "        raise EscrituraRechazadaError(lectura.estado, lectura.causa or \"perfil no editable\")",
-        ["test_c1_escritor_rechaza_editar_un_perfil_no_conforme"],
-        "assert",
+        "    lectura = leer_estado_perfil(ruta_perfil)",
+        [
+            "test_c1_escritor_rechaza_editar_un_perfil_invalido",
+            "test_nunca_crea_el_directorio_del_juego",
+        ],
+        "AttributeError",
     ),
     (
         "M3 — el escritor deja de ejercer el predicado de destino seguro: "
