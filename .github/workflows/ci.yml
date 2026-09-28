@@ -1214,6 +1214,19 @@ jobs:
 
       - name: "El gate de topologia publicable esta VERDE sobre el arbol real (EXP-1)"
         run: python3 .github/scripts/check_no_topologia_publicable.py
+      # Corte 6B-2(a): editar el nombre humano del WORKSPACE desde la web.
+      # Cubre cuatro formas de romper la propiedad: la huella deja de decidir
+      # un conflicto de verdad (last-write-wins silencioso, en las dos
+      # revalidaciones), el escritor deja de exigir un perfil CONFORME antes
+      # de tocarlo (C1), el predicado de destino seguro deja de ejercerse de
+      # verdad, y C3 colapsa (`can_edit_context_label` se vuelve un alias de
+      # `can_manage_access`, y el negativo del encargo deja de poder
+      # existir).
+      - name: "Escritor del nombre del workspace: huella, C1, destino y C3 (Corte 6B-2a)"
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/mutaciones_corte6b2_editar_labels.py
+
 
       # Y la calibracion del corte «el workspace no lo elige el cliente»: el
       # ambito de una consulta lo decide la autoridad del servidor, no el
