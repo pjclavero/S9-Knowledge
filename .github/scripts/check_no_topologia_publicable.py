@@ -78,6 +78,25 @@ TECHO DECLARADO (lo que este gate NO ve, medido, no supuesto)
     construida por concatenacion en tiempo de ejecucion.
   * PDF, imagenes y cualquier otro binario que no sea OOXML: no se inspeccionan.
   * `docs/**` historico, por decision escrita (RK-19), no por incapacidad.
+  * FAMILIAS DE DIRECCIONES QUE `IP_PRIVADA_RE` NO CUBRE. El techo de arriba
+    habla del FORMATO que se lee; este habla de QUE SE BUSCA dentro de el, que
+    es una omision distinta y mas facil de confundir con cobertura:
+      - **CGNAT `100.64.0.0/10`**, que es el rango de Tailscale. Esta
+        instalacion USA Tailscale y el propio RK-19 documenta una direccion de
+        ese rango, o sea que no es una familia hipotetica. Medido hoy sobre
+        este arbol: 12 apariciones CGNAT, 7 en `fuera-de-superficie` y 5 en
+        `test-o-fixture`, y **0 en superficie publicable**. No hay exposicion
+        que tapar, pero el dia que la haya ESTE GATE NO LA VERA.
+      - IPv6 en todas sus formas: ULA `fc00::/7`, link-local `fe80::/10` y
+        direcciones globales.
+      - Link-local IPv4 `169.254.0.0/16`.
+      - Direcciones PUBLICAS, nombres DNS y hostnames MagicDNS. Un
+        `host.tailnet.ts.net` o un dominio interno describen la topologia
+        igual de bien que una IP, y aqui no los busca nadie.
+    Ampliarlo no es anadir alternativas al regex sin mas: cada familia trae
+    sus propios falsos positivos (un `fe80::` de ejemplo en un test, un
+    dominio publico legitimo en un README) y necesita su calibracion, que es
+    lo que hace util a un gate. Queda declarado, no prometido.
 
 Uso:  python3 .github/scripts/check_no_topologia_publicable.py
 Sale 0 si la superficie publicable esta limpia; 1 y describe cada violacion.
