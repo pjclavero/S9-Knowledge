@@ -500,89 +500,6 @@ async def admin_partidas(
     )
 
 
-# ---------------------------------------------------------------------------
-# POST /admin/partidas/label — CORTE 6B-2(a): editar el nombre humano del
-# workspace canónico. NO crea partidas, NO toca `partida_access`, NO
-# normaliza el perfil: sólo muta `metadata.label` si el perfil ya es
-# CONFORME (C1).
-# ---------------------------------------------------------------------------
-
-@router.post("/partidas/label")
-async def admin_partidas_label(
-    request: Request,
-    workspace: str = Form(...),
-    label: str = Form(...),
-    fingerprint: str = Form(...),
-    csrf_token: str = Form(...),
-    admin: User = Depends(require_edit_context_label),
-):
-    if isinstance(admin, RedirectResponse):
-        return admin
-    session = getattr(request.state, "session", None)
-
-    if not _check_csrf(request, csrf_token, session.id if session else 0):
-        raise HTTPException(status_code=403, detail="CSRF inválido")
-
-    workspace = workspace.strip()
-    label = label.strip()
-    if not workspace or not label:
-        raise HTTPException(status_code=400, detail="workspace y label son obligatorios")
-
-    # MISMA guarda que `/admin/partidas/grant` (Corte F-2/6A): sólo se edita
-    # el workspace EFECTIVO de este despliegue, nunca uno inventado por el
-    # cliente.
-    if not existencia.es_workspace_canonico(workspace):
-        raise HTTPException(
-            status_code=400,
-            detail="Ese workspace no existe en este despliegue.",
-        )
-
-    carpeta = presentacion_etiquetas.carpeta_de_juego_de_workspace(workspace)
-    if carpeta is None:
-        raise HTTPException(
-            status_code=404,
-            detail="No se encontró la bóveda de ese workspace: no hay nada que editar.",
-        )
-
-    try:
-        huella_cliente = vault_writer.Huella.desde_texto(fingerprint)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="El fingerprint recibido no es válido.")
-
-    label_antes = None
-    try:
-        label_antes = vault_writer.leer_estado_perfil(
-            carpeta / sources_catalog.NOMBRE_PERFIL
-        ).label_actual
-        vault_writer.escribir_label_workspace(carpeta, label, huella_cliente)
-    except vault_writer.ConflictoEscrituraError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
-    except vault_writer.DestinoNoSeguroError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
-    except vault_writer.RutaNoSeguraError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except vault_writer.EscrituraRechazadaError as exc:
-        if exc.estado == vault_writer.EstadoPerfil.LEGIBLE_NO_CONFORME:
-            detalle = f"legible pero NO editable: {exc.causa}"
-        else:
-            detalle = f"perfil inválido: {exc.causa}"
-        raise HTTPException(status_code=422, detail=detalle)
-
-    db_path = _get_db_path()
-    with auth_db.get_conn(db_path) as conn:
-        audit.log(
-            conn, audit.CONTEXT_LABEL_UPDATED, "success",
-            user_id=admin.id, username_snapshot=admin.username,
-            metadata={
-                "workspace": workspace,
-                "label_before": label_antes,
-                "label_after": label,
-            },
-        )
-
-    return RedirectResponse(url="/admin/partidas", status_code=302)
-
-
 @router.post("/partidas/grant")
 async def admin_partidas_grant(
     request: Request,
@@ -738,5 +655,88 @@ async def admin_partidas_revoke(
                       "workspace": entry.workspace,
                       "partida_id": entry.partida_id,
                   })
+
+    return RedirectResponse(url="/admin/partidas", status_code=302)
+
+
+# ---------------------------------------------------------------------------
+# POST /admin/partidas/label — CORTE 6B-2(a): editar el nombre humano del
+# workspace canónico. NO crea partidas, NO toca `partida_access`, NO
+# normaliza el perfil: sólo muta `metadata.label` si el perfil ya es
+# CONFORME (C1).
+# ---------------------------------------------------------------------------
+
+@router.post("/partidas/label")
+async def admin_partidas_label(
+    request: Request,
+    workspace: str = Form(...),
+    label: str = Form(...),
+    fingerprint: str = Form(...),
+    csrf_token: str = Form(...),
+    admin: User = Depends(require_edit_context_label),
+):
+    if isinstance(admin, RedirectResponse):
+        return admin
+    session = getattr(request.state, "session", None)
+
+    if not _check_csrf(request, csrf_token, session.id if session else 0):
+        raise HTTPException(status_code=403, detail="CSRF inválido")
+
+    workspace = workspace.strip()
+    label = label.strip()
+    if not workspace or not label:
+        raise HTTPException(status_code=400, detail="workspace y label son obligatorios")
+
+    # MISMA guarda que `/admin/partidas/grant` (Corte F-2/6A): sólo se edita
+    # el workspace EFECTIVO de este despliegue, nunca uno inventado por el
+    # cliente.
+    if not existencia.es_workspace_canonico(workspace):
+        raise HTTPException(
+            status_code=400,
+            detail="Ese workspace no existe en este despliegue.",
+        )
+
+    carpeta = presentacion_etiquetas.carpeta_de_juego_de_workspace(workspace)
+    if carpeta is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No se encontró la bóveda de ese workspace: no hay nada que editar.",
+        )
+
+    try:
+        huella_cliente = vault_writer.Huella.desde_texto(fingerprint)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="El fingerprint recibido no es válido.")
+
+    label_antes = None
+    try:
+        label_antes = vault_writer.leer_estado_perfil(
+            carpeta / sources_catalog.NOMBRE_PERFIL
+        ).label_actual
+        vault_writer.escribir_label_workspace(carpeta, label, huella_cliente)
+    except vault_writer.ConflictoEscrituraError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except vault_writer.DestinoNoSeguroError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except vault_writer.RutaNoSeguraError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except vault_writer.EscrituraRechazadaError as exc:
+        if exc.estado == vault_writer.EstadoPerfil.LEGIBLE_NO_CONFORME:
+            detalle = f"legible pero NO editable: {exc.causa}"
+        else:
+            detalle = f"perfil inválido: {exc.causa}"
+        raise HTTPException(status_code=422, detail=detalle)
+
+    db_path = _get_db_path()
+    with auth_db.get_conn(db_path) as conn:
+        audit.log(
+            conn, audit.CONTEXT_LABEL_UPDATED, "success",
+            user_id=admin.id, username_snapshot=admin.username,
+            metadata={
+                "workspace": workspace,
+                "label_before": label_antes,
+                "label_after": label,
+            },
+        )
 
     return RedirectResponse(url="/admin/partidas", status_code=302)
