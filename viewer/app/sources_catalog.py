@@ -161,6 +161,16 @@ NOMBRE_CATALOGO = "catalogo-workspace.json"
 NOMBRE_MANIFIESTO_PARTIDA = "manifiesto-partida.json"
 _NO_SON_FUENTES = {NOMBRE_PERFIL, NOMBRE_CATALOGO, NOMBRE_MANIFIESTO_PARTIDA, "README.md"}
 
+#: CORTE 6B-2. `vault_writer.py` deja caer, DENTRO de una carpeta de juego,
+#: canarios de su sonda de destino seguro y temporales de su escritura
+#: atómica — ambos con este prefijo. Son ruido transitorio de infraestructura,
+#: no material del operador: si una sonda se interrumpe a mitad (proceso
+#: matado, disco lleno) y deja un residuo, ese residuo NO debe colarse en el
+#: catálogo de ingesta ni como fuente ni como rechazo. Se descarta en
+#: silencio, a diferencia de `_NO_SON_FUENTES` (que sí se declara): esto no es
+#: configuración del workspace, es basura de un escritor que falló.
+PREFIJO_EFIMERO_ESCRITOR = ".s9k-probe-"
+
 #: Motivo con el que se DECLARA un fichero auxiliar (perfil, catalogo, README)
 #: encontrado durante el recorrido de una boveda. Existe para que no haya
 #: ninguna salida muda: ver el comentario en `listar_fuentes_boveda`.
@@ -443,6 +453,10 @@ def listar_fuentes_boveda(
     for dirpath, dirnames, filenames in os.walk(raiz):
         dirnames.sort()
         for nombre in sorted(filenames):
+            if nombre.startswith(PREFIJO_EFIMERO_ESCRITOR):
+                # Residuo del escritor (canario de sonda o temporal de
+                # escritura atómica): ni fuente ni rechazo, se ignora.
+                continue
             absoluta = Path(dirpath) / nombre
             relativa = absoluta.relative_to(raiz).as_posix()
             if nombre in _NO_SON_FUENTES:

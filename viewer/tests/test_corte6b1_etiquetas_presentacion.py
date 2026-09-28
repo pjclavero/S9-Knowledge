@@ -444,8 +444,11 @@ _NOMBRES_DE_IDENTIDAD = {
 #: plantilla -> {expresion cruda: cuantas veces} QUE SON PROTOCOLO.
 #: Revisada una por una; la razon de cada una, al lado.
 _PROTOCOLO_DECLARADO = {
-    # `value` del campo de solo lectura que viaja en el POST de concesion.
-    "auth/admin/partidas.html": {"workspace_canonico": 1},
+    # `value` del campo de solo lectura que viaja en el POST de concesion, y
+    # (CORTE 6B-2) los DOS campos ocultos `workspace` del formulario de
+    # edicion del label (uno en el propio POST, otro en la comprobacion de
+    # `existencia.es_workspace_canonico`): protocolo, no presentacion.
+    "auth/admin/partidas.html": {"workspace_canonico": 3},
     # `value` de cada opcion del selector de partida.
     "base.html": {"p.partida_id": 1},
     # query-string del enlace al resultado, y `data-*` que lee el JS del filtro.

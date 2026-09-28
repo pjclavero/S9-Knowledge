@@ -13,6 +13,37 @@
 
   {% include "_aviso_autoridad_workspace.html" %}
 
+  {# CORTE 6B-2(a) — editar el nombre humano del workspace canónico. Sólo
+     "partida" (6B-2b, aparte) queda fuera; el workspace usa la MISMA
+     autoridad de validación (GameProfile) que ya lee `presentacion_etiquetas`. #}
+  {% if workspace_canonico %}
+    <section style="border:1px solid #ccc;border-radius:6px;padding:1rem;margin-bottom:1.5rem;">
+      <h3>Nombre del workspace</h3>
+      {% if label_estado == "conforme" %}
+        {% if puede_editar_label %}
+          <form method="post" action="/admin/partidas/label">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="workspace" value="{{ workspace_canonico | e }}">
+            <input type="hidden" name="fingerprint" value="{{ label_fingerprint | e }}">
+            <label for="label">Nombre humano (identificador: <code>{{ workspace_canonico | e }}</code>)</label>
+            <input type="text" id="label" name="label" value="{{ label_actual | e }}" maxlength="200" required>
+            <button type="submit">Guardar</button>
+          </form>
+        {% else %}
+          <p>Nombre actual: <strong>{{ label_actual | e }}</strong>.
+             No tienes capacidad para editar el nombre de un contexto.</p>
+        {% endif %}
+      {% elif label_estado == "legible_no_conforme" %}
+        <p>Nombre actual: <strong>{{ label_actual | e }}</strong>.
+           <em>No editable: {{ label_causa | e }}.</em></p>
+      {% elif label_estado == "invalido" %}
+        <p>El perfil de este workspace no se puede leer: <em>{{ label_causa | e }}</em>.</p>
+      {% else %}
+        <p>No hay una bóveda resoluble para este workspace todavía.</p>
+      {% endif %}
+    </section>
+  {% endif %}
+
   {% if errors %}
     <div class="alert alert-error" role="alert">
       <ul style="margin:0;padding-left:1.2rem;">
