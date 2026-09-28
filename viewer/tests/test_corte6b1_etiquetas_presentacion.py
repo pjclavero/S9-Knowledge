@@ -444,10 +444,22 @@ _NOMBRES_DE_IDENTIDAD = {
 #: plantilla -> {expresion cruda: cuantas veces} QUE SON PROTOCOLO.
 #: Revisada una por una; la razon de cada una, al lado.
 _PROTOCOLO_DECLARADO = {
-    # `value` del campo de solo lectura que viaja en el POST de concesion, y
-    # (CORTE 6B-2) los DOS campos ocultos `workspace` del formulario de
-    # edicion del label (uno en el propio POST, otro en la comprobacion de
-    # `existencia.es_workspace_canonico`): protocolo, no presentacion.
+    # `value` del campo de solo lectura que viaja en el POST de concesion.
+    # (CORTE 6B-2, +2) El formulario de edicion del label anade DOS
+    # apariciones crudas, y las DOS estan declaradas por razones distintas:
+    #   1. `value="{{ workspace_canonico }}"` en el `<input type="hidden">`
+    #      que viaja en el POST -- protocolo, MISMA razon que la de arriba.
+    #   2. El identificador tecnico se muestra tambien, EN PROSA, junto al
+    #      campo editable ("Nombre humano (identificador: <code>...</code>)")
+    #      -- a proposito, y ETIQUETADO como tal: el objetivo mismo de esta
+    #      pantalla es que el operador vea el identificador Y el nombre
+    #      humano como DOS cosas distintas mientras edita una de ellas, asi
+    #      que envolverlo en `etiqueta_workspace` lo convertiria en lo
+    #      opuesto de lo que la pantalla quiere decir. No abre una fuga de
+    #      ambito nueva: es SIEMPRE el workspace canonico de este despliegue
+    #      (la misma pantalla ya lo muestra crudo, declarado protocolo, en el
+    #      campo de solo lectura de conceder acceso), nunca uno ajeno, y la
+    #      pantalla entera exige `require_admin`.
     "auth/admin/partidas.html": {"workspace_canonico": 3},
     # `value` de cada opcion del selector de partida.
     "base.html": {"p.partida_id": 1},
