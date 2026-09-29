@@ -12,6 +12,12 @@ Testigos de superficie HTTP:
      disco (alguien más lo cambió entre el GET y el POST).
   4. La auditoría registra `CONTEXT_LABEL_UPDATED` con antes/después, y el
      panel de auditoría nunca sustituye al fichero como autoridad del label.
+  5. (revisión independiente de PR #258) D1 — el identificador nunca es el
+     `value` por defecto del formulario, y el POST rechaza un label igual al
+     identificador. R2 (segunda ronda) — esa guarda resiste homóglifos
+     Unicode, comparando `NFKC` + `casefold()` en los dos lados.
+  6. D2/D3 — un label vacío borra el nombre humano en vez de fallar, y el
+     servidor rechaza longitud excesiva y caracteres de control.
 """
 from __future__ import annotations
 
@@ -237,6 +243,44 @@ def test_post_rechaza_label_igual_al_identificador(entorno):
 
     en_disco = json.loads(_perfil_path(boveda).read_text())
     assert "metadata" not in en_disco or en_disco["metadata"].get("label") != WS
+
+
+@pytest.mark.parametrize("variante,nombre", [
+    ("ｊｕｅｇｏ-ｐｒｕｅｂａｓ-ｌａｂｅｌ",
+     "fullwidth"),
+    ("juego-pruebas-ⅼabeⅼ", "letra de otro bloque (U+217C, se ve como 'l')"),
+], ids=["fullwidth", "otro_bloque_u217c"])
+def test_post_rechaza_homoglifos_del_identificador(entorno, variante, nombre):
+    """R2 (revisión independiente de PR #258, segunda ronda). La guarda D1
+    comparaba `casefold()` crudo: un homóglifo Unicode -- fullwidth o una
+    letra de OTRO bloque que se ve exactamente igual -- entraba con 302 y
+    era indistinguible del identificador a la vista. `NFKC` los pliega a su
+    forma canónica ANTES de comparar."""
+    db_path, auth_db, app, boveda = entorno
+    c = _cliente(auth_db, db_path, app)
+    tok, fp = _csrf(c)
+
+    r = c.post("/admin/partidas/label", data={
+        "workspace": WS, "label": variante, "fingerprint": fp, "csrf_token": tok,
+    })
+    assert r.status_code == 400, f"{nombre}: {r.text[:400]}"
+
+    en_disco = json.loads(_perfil_path(boveda).read_text())
+    assert "metadata" not in en_disco, nombre
+
+
+def test_control_negativo_un_nombre_parecido_pero_distinto_se_acepta(entorno):
+    """R2 no puede volverse tan agresivo que rechace un nombre humano
+    LEGÍTIMO que simplemente se parece al identificador."""
+    db_path, auth_db, app, boveda = entorno
+    c = _cliente(auth_db, db_path, app)
+    tok, fp = _csrf(c)
+
+    r = c.post("/admin/partidas/label", data={
+        "workspace": WS, "label": "Juego de Pruebas (Label de Verdad)",
+        "fingerprint": fp, "csrf_token": tok,
+    })
+    assert r.status_code == 302, r.text[:400]
 
 
 def test_label_vacio_borra_el_nombre_humano(entorno):

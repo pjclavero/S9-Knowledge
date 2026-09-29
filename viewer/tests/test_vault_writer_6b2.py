@@ -21,6 +21,12 @@ Testigos del contrato de `app.vault_writer`:
      BORRA `metadata.label`, nunca escribe cadena vacía. D3 — contrato de
      entrada en el SERVIDOR: tope de longitud y caracteres de control
      rechazados, con su negativo (entrada válida en el límite).
+  9. (segunda ronda de revisión) R1 — NO-OP = NO ESCRIBE, medido sobre un
+     perfil REAL (compacto, una sola línea): ni reformatea el documento
+     entero, ni crea `metadata` de la nada en un borrado sin label previo.
+ 10. R3 — el filtro de control se amplía de C0+DEL a categoría Unicode
+     (C1, formato invisible, separadores de línea/párrafo), con control
+     negativo de Unicode legítimo multiidioma.
 """
 from __future__ import annotations
 
@@ -43,6 +49,19 @@ def _escribir_perfil(carpeta: Path, datos: dict) -> None:
     carpeta.mkdir(parents=True, exist_ok=True)
     (carpeta / sources_catalog.NOMBRE_PERFIL).write_text(
         json.dumps(datos, indent=2), encoding="utf-8"
+    )
+
+
+def _escribir_perfil_compacto(carpeta: Path, datos: dict) -> None:
+    """R1 (revisión independiente de PR #258, segunda ronda): el perfil REAL
+    de la bóveda está en UNA SOLA LÍNEA compacta, no en el formato
+    `indent=2` que produce el propio escritor. `_escribir_perfil` (arriba)
+    fabrica su fixture ya con el formato de SALIDA del escritor -- por eso
+    ningún testigo que la use puede ver un reflow: coincide por construcción.
+    Este helper escribe el formato de un perfil real."""
+    carpeta.mkdir(parents=True, exist_ok=True)
+    (carpeta / sources_catalog.NOMBRE_PERFIL).write_text(
+        json.dumps(datos, separators=(",", ":")), encoding="utf-8"
     )
 
 
@@ -428,3 +447,117 @@ def test_control_negativo_acentos_y_simbolos_normales_se_aceptan(tmp_path):
 
     resultado = vw.escribir_label_workspace(carpeta, "La Cofradía Peña — Año 26", huella)
     assert resultado.label_actual == "La Cofradía Peña — Año 26"
+
+
+# ---------------------------------------------------------------------------
+# 9 — R1 (revisión independiente de PR #258, segunda ronda): NO-OP = NO
+# ESCRIBE, medido sobre el formato REAL de un perfil (compacto, una sola
+# línea), no sobre el formato `indent=2` que produce el propio escritor.
+# ---------------------------------------------------------------------------
+
+def test_no_op_de_borrado_sobre_perfil_compacto_no_reescribe_nada(tmp_path):
+    """El escenario exacto que midió el revisor: perfil real compacto, sin
+    label, y se guarda con el campo vacío. Antes: 3786->5477 bytes, 1->287
+    líneas, `metadata` aparecía de la nada. Ahora: cero bytes tocados."""
+    carpeta = tmp_path / "l5r"
+    _escribir_perfil_compacto(carpeta, _PERFIL_CONFORME)
+    ruta = carpeta / sources_catalog.NOMBRE_PERFIL
+    antes_bytes = ruta.read_bytes()
+    antes_lineas = antes_bytes.count(b"\n") + 1
+    huella = vw.huella_de(ruta)
+
+    resultado = vw.escribir_label_workspace(carpeta, "", huella)
+
+    despues_bytes = ruta.read_bytes()
+    despues_lineas = despues_bytes.count(b"\n") + 1
+    assert despues_bytes == antes_bytes, (
+        f"un no-op reescribió el fichero: {len(antes_bytes)} -> "
+        f"{len(despues_bytes)} bytes, {antes_lineas} -> {despues_lineas} líneas"
+    )
+    assert "metadata" not in json.loads(despues_bytes), (
+        "el no-op de borrado CREÓ `metadata` en un perfil que no la tenía"
+    )
+    assert resultado.label_actual == ""
+
+
+def test_no_op_guardando_el_mismo_label_sobre_perfil_compacto_no_reescribe_nada(tmp_path):
+    """El otro no-op: guardar el MISMO label que ya está, sobre el formato
+    real. Tampoco puede reformatear el documento."""
+    con_label = {**_PERFIL_CONFORME, "metadata": {"label": "Nombre estable"}}
+    carpeta = tmp_path / "l5r"
+    _escribir_perfil_compacto(carpeta, con_label)
+    ruta = carpeta / sources_catalog.NOMBRE_PERFIL
+    antes_bytes = ruta.read_bytes()
+    huella = vw.huella_de(ruta)
+
+    resultado = vw.escribir_label_workspace(carpeta, "Nombre estable", huella)
+
+    despues_bytes = ruta.read_bytes()
+    assert despues_bytes == antes_bytes, (
+        f"un no-op reescribió el fichero: {len(antes_bytes)} -> {len(despues_bytes)} bytes"
+    )
+    assert resultado.label_actual == "Nombre estable"
+
+
+def test_control_negativo_un_cambio_real_sobre_perfil_compacto_si_escribe(tmp_path):
+    """Control positivo del propio no-op: si el label SÍ cambia, la
+    escritura tiene que ocurrir de verdad (el no-op no se disparó por
+    error para un caso que no lo es)."""
+    carpeta = tmp_path / "l5r"
+    _escribir_perfil_compacto(carpeta, _PERFIL_CONFORME)
+    ruta = carpeta / sources_catalog.NOMBRE_PERFIL
+    antes_bytes = ruta.read_bytes()
+    huella = vw.huella_de(ruta)
+
+    resultado = vw.escribir_label_workspace(carpeta, "Nombre Nuevo De Verdad", huella)
+
+    despues_bytes = ruta.read_bytes()
+    assert despues_bytes != antes_bytes
+    assert resultado.label_actual == "Nombre Nuevo De Verdad"
+
+
+# ---------------------------------------------------------------------------
+# 10 — R3 (revisión independiente de PR #258, segunda ronda): el filtro de
+# control amplía de C0+DEL a control por CATEGORÍA Unicode (C1, formato
+# invisible, separadores de línea/párrafo).
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("caracter,nombre", [
+    ("\u0080", "C1 U+0080"),
+    ("\u009f", "C1 U+009F"),
+    (" ", "separador de línea U+2028"),
+    (" ", "separador de párrafo U+2029"),
+    ("\u0085", "NEL U+0085"),
+    ("​", "cero-ancho U+200B"),
+    ("‮", "override bidi RLO U+202E"),
+    ("⁦", "override bidi LRI U+2066"),
+    ("⁩", "override bidi PDI U+2069"),
+], ids=[
+    "c1_u0080", "c1_u009f", "sep_linea_u2028", "sep_parrafo_u2029",
+    "nel_u0085", "cero_ancho_u200b", "bidi_rlo_u202e", "bidi_lri_u2066",
+    "bidi_pdi_u2069",
+])
+def test_servidor_rechaza_controles_ampliados(tmp_path, caracter, nombre):
+    carpeta = tmp_path / "l5r"
+    _escribir_perfil(carpeta, _PERFIL_CONFORME)
+    ruta = carpeta / sources_catalog.NOMBRE_PERFIL
+    huella = vw.huella_de(ruta)
+
+    with pytest.raises(vw.EntradaInvalidaError):
+        vw.escribir_label_workspace(carpeta, f"nombre{caracter}sucio", huella)
+
+    en_disco = json.loads(ruta.read_text())
+    assert "metadata" not in en_disco, nombre
+
+
+def test_control_negativo_unicode_legitimo_multiidioma_se_acepta(tmp_path):
+    """R3 NO puede romper Unicode legítimo: ideogramas, diacríticos y
+    puntuación normal de cualquier idioma siguen pasando."""
+    carpeta = tmp_path / "l5r"
+    _escribir_perfil(carpeta, _PERFIL_CONFORME)
+    ruta = carpeta / sources_catalog.NOMBRE_PERFIL
+    huella = vw.huella_de(ruta)
+
+    nombre = "La Cofradía de Ámbar — 参 ñ ü"
+    resultado = vw.escribir_label_workspace(carpeta, nombre, huella)
+    assert resultado.label_actual == nombre

@@ -23,6 +23,13 @@ Cubre las formas de romper la propiedad de este corte:
   M6 — (D1, revisión independiente de PR #258) la guarda que rechaza un
        label idéntico al identificador canónico se desactiva: el
        identificador vuelve a poder escribirse como nombre humano.
+  M7 — (R1, segunda ronda) el escritor deja de detectar el NO-OP: reescribe
+       o reflowea el documento del operador aunque el efecto neto sea cero.
+  M8 — (R2, segunda ronda) la guarda D1 vuelve a comparar `casefold()`
+       crudo: un homóglifo Unicode sortea el rechazo.
+  M9 — (R3, segunda ronda) el filtro de control se encoge de categoría
+       Unicode a sólo C0+DEL: C1, formato invisible y separadores de línea/
+       párrafo vuelven a colarse.
 
 Uso: python3 scripts/calibracion/mutaciones_corte6b2_editar_labels.py
 """
@@ -142,10 +149,56 @@ MUTACIONES = [
         "escribir el nombre humano igual al identificador canónico se "
         "desactiva: el identificador vuelve a poder colarse como label",
         "viewer/app/routers/admin.py",
-        "    if label and label.casefold() == workspace.casefold():",
+        "    if label and _normalizado_para_comparacion(label) == _normalizado_para_comparacion(workspace):",
         "    if False:",
         ["test_post_rechaza_label_igual_al_identificador"],
         "assert",
+    ),
+    (
+        "M7 — (R1, segunda ronda de revisión de PR #258) el escritor deja de "
+        "detectar el NO-OP y reescribe/reflowea el documento aunque el "
+        "efecto neto sea cero",
+        "viewer/app/vault_writer.py",
+        "    if valor_normalizado == lectura.label_actual:",
+        "    if False:",
+        [
+            "test_no_op_de_borrado_sobre_perfil_compacto_no_reescribe_nada",
+            "test_no_op_guardando_el_mismo_label_sobre_perfil_compacto_no_reescribe_nada",
+        ],
+        "assert",
+    ),
+    (
+        "M8 — (R2, segunda ronda de revisión de PR #258) la guarda D1 vuelve "
+        "a comparar `casefold()` crudo: un homóglifo Unicode (fullwidth, u "
+        "otra letra que se ve igual) vuelve a colarse",
+        "viewer/app/routers/admin.py",
+        "    if label and _normalizado_para_comparacion(label) == _normalizado_para_comparacion(workspace):",
+        "    if label and label.casefold() == workspace.casefold():",
+        [
+            "test_post_rechaza_homoglifos_del_identificador[fullwidth]",
+            "test_post_rechaza_homoglifos_del_identificador[otro_bloque_u217c]",
+        ],
+        "assert",
+    ),
+    (
+        "M9 — (R3, segunda ronda de revisión de PR #258) el filtro de "
+        "control se encoge de categoría Unicode a sólo C0+DEL: C1, formato "
+        "invisible y separadores de línea/párrafo vuelven a colarse crudos",
+        "viewer/app/vault_writer.py",
+        "    if any(unicodedata.category(c) in _CATEGORIAS_DE_CONTROL_PROHIBIDAS for c in texto):",
+        "    if any(ord(c) < 0x20 or ord(c) == 0x7F for c in texto):",
+        [
+            "test_servidor_rechaza_controles_ampliados[c1_u0080]",
+            "test_servidor_rechaza_controles_ampliados[c1_u009f]",
+            "test_servidor_rechaza_controles_ampliados[sep_linea_u2028]",
+            "test_servidor_rechaza_controles_ampliados[sep_parrafo_u2029]",
+            "test_servidor_rechaza_controles_ampliados[nel_u0085]",
+            "test_servidor_rechaza_controles_ampliados[cero_ancho_u200b]",
+            "test_servidor_rechaza_controles_ampliados[bidi_rlo_u202e]",
+            "test_servidor_rechaza_controles_ampliados[bidi_lri_u2066]",
+            "test_servidor_rechaza_controles_ampliados[bidi_pdi_u2069]",
+        ],
+        "DID NOT RAISE",
     ),
 ]
 

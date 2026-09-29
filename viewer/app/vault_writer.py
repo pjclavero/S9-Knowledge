@@ -89,6 +89,7 @@ import json
 import os
 import secrets
 import tempfile
+import unicodedata
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -383,6 +384,17 @@ def _escribir_atomico(ruta: Path, datos: dict) -> None:
 #: aquí, para que servidor y cliente no puedan divergir por accidente.
 LONGITUD_MAXIMA_LABEL = 200
 
+#: R3 (revisión independiente de PR #258, segunda ronda): el primer filtro
+#: sólo cubría C0 (`ord(c) < 0x20`) y DEL (`0x7F`). Se colaban crudos: C1
+#: (U+0080-U+009F, categoría `Cc` igual que C0/DEL), separadores de línea/
+#: párrafo Unicode (U+2028 `Zl`, U+2029 `Zp`), y caracteres de FORMATO
+#: invisibles (categoría `Cf`): cero-ancho (U+200B) y los overrides
+#: bidireccionales que el gate de Trojan Source de este repo ya vigila en
+#: OTRA superficie (U+202E, U+2066-U+2069). Por CATEGORÍA Unicode, no por
+#: rango cerrado a mano, para no tener que perseguir el próximo punto de
+#: código de la misma familia uno a uno.
+_CATEGORIAS_DE_CONTROL_PROHIBIDAS = frozenset({"Cc", "Cf", "Zl", "Zp"})
+
 
 def _label_entrada_invalida(texto: str) -> Optional[str]:
     """`None` si `texto` cumple el contrato de entrada; si no, el motivo del
@@ -390,8 +402,12 @@ def _label_entrada_invalida(texto: str) -> Optional[str]:
     un label vacío es la señal de borrado (D2), no una entrada a validar."""
     if len(texto) > LONGITUD_MAXIMA_LABEL:
         return f"el nombre humano no puede superar los {LONGITUD_MAXIMA_LABEL} caracteres"
-    if any(ord(c) < 0x20 or ord(c) == 0x7F for c in texto):
-        return "el nombre humano no puede contener caracteres de control"
+    if any(unicodedata.category(c) in _CATEGORIAS_DE_CONTROL_PROHIBIDAS for c in texto):
+        return (
+            "el nombre humano no puede contener caracteres de control, de "
+            "formato invisible (cero-ancho, overrides bidireccionales) ni "
+            "separadores Unicode de línea o párrafo"
+        )
     return None
 
 
@@ -423,6 +439,15 @@ def escribir_label_workspace(
       - `DestinoNoSeguroError` si el predicado de destino seguro dice que no.
       - `ConflictoEscrituraError` (409) si la huella no coincide, ahora o
         justo antes de escribir.
+
+    NO-OP = NO ESCRIBE (R1, revisión independiente de PR #258, segunda
+    ronda): si `nuevo_label` normalizado ya es exactamente el label actual
+    (incluido el caso "sin label y se pide borrar sin label"), la función
+    NO toca el fichero y devuelve la lectura tal cual. La promesa de "el
+    único cambio de bytes es la clave que se tocó" sólo es cierta si ALGO
+    cambia: reescribir un perfil real (compacto, una sola línea) con
+    `json.dumps(indent=2)` cuando el efecto neto es CERO reformatearía el
+    documento entero del operador sin razón.
     """
     ruta_perfil = carpeta_juego / sources_catalog.NOMBRE_PERFIL
     _asegurar_ruta_segura(ruta_perfil)
@@ -442,6 +467,16 @@ def escribir_label_workspace(
             "el perfil cambió desde que se leyó: la huella no coincide. "
             "El contenido escrito por quien lo cambió sigue en disco."
         )
+
+    if valor_normalizado == lectura.label_actual:
+        # R1 — NO-OP: nada que escribir. Cubre tanto "borrar sobre un perfil
+        # que ya no tiene label" como "guardar el mismo label que ya está".
+        # Ni se ejerce el predicado de destino (no hay escritura que
+        # proteger) ni se toca `datos`/`metadata`: un `pop` sobre una
+        # `metadata` que no existía la CREARÍA como `{}` por el propio
+        # `datos["metadata"] = metadata` de abajo, y eso ya es un cambio en
+        # el fichero aunque no haya ningún label que borrar.
+        return lectura
 
     ok, motivo = destino_admite_escritura_segura(carpeta_juego)
     if not ok:

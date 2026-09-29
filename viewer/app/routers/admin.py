@@ -1,6 +1,7 @@
 """Panel de administración: gestión de usuarios y auditoría."""
 from __future__ import annotations
 
+import unicodedata
 from pathlib import Path
 from typing import Optional
 
@@ -40,6 +41,18 @@ def _check_csrf(request: Request, token: str, session_id: int) -> bool:
     cfg = get_auth_settings()
     raw = getattr(request.state, "csrf_raw", "")
     return validate_csrf(token, session_id, raw, secret=cfg.S9K_CSRF_SECRET)
+
+
+def _normalizado_para_comparacion(texto: str) -> str:
+    """R2 (revisión independiente de PR #258, segunda ronda) — la guarda D1
+    comparaba `casefold()` crudo, que sólo pliega mayúsculas/minúsculas. Se
+    demostró que homóglifos Unicode (fullwidth `ｊｕｅｇｏ-...`, o letras de
+    otros bloques como U+217C que se VEN como una "l" ASCII) pasaban el
+    filtro intactos y eran indistinguibles del identificador a la vista.
+    `unicodedata.normalize("NFKC", ...)` pliega esas formas de compatibilidad
+    a su equivalente canónico ANTES de comparar, en los DOS lados de la
+    comparación (nunca sólo en el que viene del cliente)."""
+    return unicodedata.normalize("NFKC", texto).casefold()
 
 
 # ---------------------------------------------------------------------------
@@ -727,12 +740,11 @@ async def admin_partidas_label(
     # D1 (revisión independiente de PR #258, RANGO 2 bloqueante): el nombre
     # humano NUNCA puede escribirse igual al identificador canónico del
     # workspace -- eso es derivar el nombre humano del identificador, que
-    # está PROHIBIDO por decisión del operador. Comparación normalizada e
-    # insensible a mayúsculas: los identificadores de este sistema son
-    # slugs, y "Juego-Pruebas-Label" no es "distinto" de
-    # "juego-pruebas-label" a efectos de esta guarda. Sólo se compara cuando
+    # está PROHIBIDO por decisión del operador. Comparación normalizada NFKC
+    # + insensible a mayúsculas (R2: `casefold()` crudo no basta, un
+    # homóglifo Unicode lo sortea) en los DOS lados. Sólo se compara cuando
     # hay label (vacío ya se resolvió arriba como borrado, no como esto).
-    if label and label.casefold() == workspace.casefold():
+    if label and _normalizado_para_comparacion(label) == _normalizado_para_comparacion(workspace):
         raise HTTPException(
             status_code=400,
             detail="El nombre humano no puede ser igual al identificador del workspace.",
