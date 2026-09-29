@@ -538,13 +538,13 @@ def test_control_negativo_un_cambio_real_sobre_perfil_compacto_si_escribe(tmp_pa
 @pytest.mark.parametrize("caracter,nombre", [
     ("\u0080", "C1 U+0080"),
     ("\u009f", "C1 U+009F"),
-    (" ", "separador de línea U+2028"),
-    (" ", "separador de párrafo U+2029"),
+    ("\u2028", "separador de línea U+2028"),
+    ("\u2029", "separador de párrafo U+2029"),
     ("\u0085", "NEL U+0085"),
-    ("​", "cero-ancho U+200B"),
-    ("‮", "override bidi RLO U+202E"),
-    ("⁦", "override bidi LRI U+2066"),
-    ("⁩", "override bidi PDI U+2069"),
+    ("\u200b", "cero-ancho U+200B"),
+    ("\u202e", "override bidi RLO U+202E"),
+    ("\u2066", "override bidi LRI U+2066"),
+    ("\u2069", "override bidi PDI U+2069"),
 ], ids=[
     "c1_u0080", "c1_u009f", "sep_linea_u2028", "sep_parrafo_u2029",
     "nel_u0085", "cero_ancho_u200b", "bidi_rlo_u202e", "bidi_lri_u2066",
