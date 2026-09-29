@@ -38,8 +38,28 @@ reordenadas), lo que fabricaría un diff enorme sobre el documento del
 operador y dispararía conflictos a cualquier otro editor externo del mismo
 fichero. En su lugar se MUTA el ``dict`` ya parseado (``json.loads`` del
 fichero tal cual está en disco) y se vuelve a serializar con
-``json.dumps(indent=2)``: el único cambio en el fichero es la clave que se
-tocó.
+``json.dumps(indent=2)``.
+
+**Dos promesas DISTINTAS, no una sola (R1, revisión independiente de PR
+#258, segunda ronda)** — antes este párrafo las mezclaba y prometía de más:
+
+  1. **NO-OP = NO ESCRIBE.** Si el label deseado ya es el label actual, la
+     función no toca el fichero en absoluto: mismos bytes, mismo hash,
+     ningún ``os.replace``. Ésta es la única situación con byte-a-byte
+     garantizado.
+  2. **Cambio REAL = preserva SEMÁNTICAMENTE toda clave de ``metadata``
+     desconocida** (ningún valor se pierde ni se reordena EN EL DICT: se
+     muta el original, nunca se reconstruye desde el dataclass). Lo que
+     esto NO promete es un diff mínimo en BYTES: si el perfil en disco
+     estaba en un formato distinto al que produce este módulo (el caso
+     real: una sola línea compacta, no ``indent=2``), la reserialización
+     SÍ reformatea el documento entero -- misma indentación para todas las
+     claves, aunque el CONTENIDO semántico de las que no se tocaron sea
+     idéntico. Preservar el formato byte a byte del original en un cambio
+     real exigiría otra técnica (parcheo de texto en vez de
+     parseo+reserialización completa) y **no se cuela aquí sin decirlo**:
+     si algún día se necesita, es una ampliación explícita de este módulo,
+     no una promesa ya cumplida por V1.
 
 ## LOS TRES ESTADOS (C1)
 
@@ -443,11 +463,18 @@ def escribir_label_workspace(
     NO-OP = NO ESCRIBE (R1, revisión independiente de PR #258, segunda
     ronda): si `nuevo_label` normalizado ya es exactamente el label actual
     (incluido el caso "sin label y se pide borrar sin label"), la función
-    NO toca el fichero y devuelve la lectura tal cual. La promesa de "el
-    único cambio de bytes es la clave que se tocó" sólo es cierta si ALGO
-    cambia: reescribir un perfil real (compacto, una sola línea) con
-    `json.dumps(indent=2)` cuando el efecto neto es CERO reformatearía el
-    documento entero del operador sin razón.
+    NO toca el fichero: cero bytes, cero `os.replace`, mismo hash. Ésta es
+    la ÚNICA situación con byte-a-byte garantizado.
+
+    Para un cambio REAL, la garantía es más estrecha de lo que este módulo
+    prometía antes: se preserva SEMÁNTICAMENTE toda clave de `metadata`
+    desconocida (nada se pierde, nada se reordena en el `dict`), pero NO se
+    promete un diff mínimo en bytes. Si el perfil en disco estaba en un
+    formato distinto al de salida de este módulo (el caso real: una sola
+    línea compacta, no `indent=2`), la reserialización reformatea el
+    documento entero. Preservar el formato byte a byte en un cambio real
+    exigiría parchear el texto en vez de parsear+reserializar, y eso no
+    está hecho aquí.
     """
     ruta_perfil = carpeta_juego / sources_catalog.NOMBRE_PERFIL
     _asegurar_ruta_segura(ruta_perfil)
@@ -485,7 +512,12 @@ def escribir_label_workspace(
         )
 
     # MUTA el dict original — nunca reconstruye desde el dataclass, nunca
-    # `to_json()`. El único cambio de bytes en el fichero es este.
+    # `to_json()`. Esto llega hasta aquí porque ES un cambio real (el no-op
+    # ya salió arriba sin tocar nada): preserva toda clave de `metadata`
+    # desconocida y su ORDEN dentro del dict, pero NO promete bytes
+    # mínimos -- `_escribir_atomico` reserializa el documento entero con
+    # `json.dumps(indent=2)`, que reformatea un original compacto aunque el
+    # contenido semántico no tocado sea idéntico (ver docstring del módulo).
     datos = lectura.datos
     metadata = datos.get("metadata")
     if not isinstance(metadata, dict):

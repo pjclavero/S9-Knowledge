@@ -30,6 +30,9 @@ Cubre las formas de romper la propiedad de este corte:
   M9 — (R3, segunda ronda) el filtro de control se encoge de categoría
        Unicode a sólo C0+DEL: C1, formato invisible y separadores de línea/
        párrafo vuelven a colarse.
+  M10 — (reglas precisas del operador, R2) el comparador NFKC+casefold deja
+       de ser sólo comparador y se usa también para transformar lo que se
+       almacena: el label guardado deja de ser el que escribió el usuario.
 
 Uso: python3 scripts/calibracion/mutaciones_corte6b2_editar_labels.py
 """
@@ -199,6 +202,19 @@ MUTACIONES = [
             "test_servidor_rechaza_controles_ampliados[bidi_pdi_u2069]",
         ],
         "DID NOT RAISE",
+    ),
+    (
+        "M10 — (reglas precisas del operador para R2) NFKC+casefold deja de "
+        "ser SÓLO el comparador y se usa también para transformar lo que se "
+        "ALMACENA: el label guardado deja de ser el que escribió el usuario",
+        "viewer/app/routers/admin.py",
+        "        vault_writer.escribir_label_workspace(carpeta, label, huella_cliente)",
+        "        vault_writer.escribir_label_workspace(carpeta, _normalizado_para_comparacion(label), huella_cliente)",
+        [
+            "test_admin_puede_editar_el_label_del_workspace",
+            "test_el_label_almacenado_es_el_que_escribio_el_usuario_no_el_normalizado",
+        ],
+        "assert",
     ),
 ]
 

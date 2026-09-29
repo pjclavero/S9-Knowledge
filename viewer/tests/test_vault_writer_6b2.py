@@ -5,10 +5,15 @@ Testigos del contrato de `app.vault_writer`:
 
   1. C1 — los TRES estados: conforme (editable), legible_no_conforme (con
      causa), inválido (fail-closed).
-  2. El escritor NUNCA usa `GameProfile.to_json()`: el diff en disco es
-     mínimo (una sola clave), no un reflow del documento del operador.
-  3. El escritor muta el dict ORIGINAL: el resto de claves sobreviven byte a
-     byte, incluido el orden.
+  2. El escritor NUNCA usa `GameProfile.to_json()`: no reordena claves como
+     ese método sí haría. Ojo (R1, segunda ronda): esto NO es lo mismo que
+     "el diff en disco es mínimo" -- ese diff mínimo sólo se observa cuando
+     el perfil en disco YA estaba en el formato de salida (`indent=2`); ver
+     el punto 9 para el caso real (compacto).
+  3. El escritor muta el dict ORIGINAL: el resto de claves SOBREVIVEN
+     SEMÁNTICAMENTE y en el mismo orden dentro del `dict`, no
+     necesariamente byte a byte en el fichero final (eso depende del
+     formato de entrada, ver punto 9).
   4. Concurrencia optimista: huella distinta -> 409 (`ConflictoEscrituraError`)
      y lo que escribió "el otro" sigue en disco. Control negativo: sin
      interferencia, ningún conflicto.
@@ -151,8 +156,16 @@ def test_la_escritura_no_reflowea_el_documento_muta_una_sola_clave(tmp_path):
 
     datos = json.loads(despues)
     assert datos["metadata"]["label"] == "La Cofradía de Ámbar"
-    # El resto del documento es idéntico byte a byte al original (salvo la
-    # clave añadida): reconstruir sin `metadata` reproduce el original.
+    # La comprobación FUERTE, y la que no depende del formato de entrada: el
+    # documento reconstruido sin `metadata` es SEMÁNTICAMENTE idéntico al
+    # original (mismas claves, mismos valores). Auditoría acotada (segunda
+    # ronda de revisión): este fixture se fabrica con `indent=2` -- el mismo
+    # formato que produce el escritor -- así que la comparación de LÍNEAS de
+    # arriba (`antes_lineas[:-2] == despues_lineas[...]`) sólo prueba algo
+    # sobre ESTE formato. Lo que SÍ generaliza a cualquier formato de
+    # entrada (incluido el real, compacto) es esta igualdad de diccionarios:
+    # si `to_json()` reordenara u omitiera una clave, esta comparación lo
+    # vería igual sobre un fixture compacto que sobre uno indentado.
     sin_metadata = dict(datos)
     sin_metadata.pop("metadata")
     assert sin_metadata == _PERFIL_CONFORME

@@ -283,6 +283,31 @@ def test_control_negativo_un_nombre_parecido_pero_distinto_se_acepta(entorno):
     assert r.status_code == 302, r.text[:400]
 
 
+def test_el_label_almacenado_es_el_que_escribio_el_usuario_no_el_normalizado(entorno):
+    """R2 (reglas precisas del operador): NFKC+casefold es SÓLO el
+    comparador contra el identificador -- nunca una transformación del
+    valor que se guarda. Un label que contiene caracteres "raros" pero que
+    NO coincide con el identificador tras normalizar se almacena TAL CUAL
+    lo escribió el usuario, sin plegar nada."""
+    db_path, auth_db, app, boveda = entorno
+    c = _cliente(auth_db, db_path, app)
+    tok, fp = _csrf(c)
+
+    # Fullwidth, pero de un texto que NO es el identificador ni siquiera
+    # normalizado: no debe rechazarse, y el disco debe guardar la forma
+    # fullwidth exacta, no su plegado a ASCII.
+    nombre_fullwidth = "Ｌａ Ｍｅｓａ ｄｅ ｌｏｓ Ｊｕｅｖｅｓ"
+    r = c.post("/admin/partidas/label", data={
+        "workspace": WS, "label": nombre_fullwidth, "fingerprint": fp, "csrf_token": tok,
+    })
+    assert r.status_code == 302, r.text[:400]
+
+    en_disco = json.loads(_perfil_path(boveda).read_text())
+    assert en_disco["metadata"]["label"] == nombre_fullwidth, (
+        "el label se guardó normalizado en vez de tal cual lo escribió el usuario"
+    )
+
+
 def test_label_vacio_borra_el_nombre_humano(entorno):
     """D2 — dejar el campo vacío y guardar BORRA `metadata.label` en vez de
     quedar atascado con un error permanente desde la web."""
