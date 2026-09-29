@@ -20,6 +20,9 @@ Cubre las formas de romper la propiedad de este corte:
   M5 — C3 colapsa: `can_edit_context_label` deja de ser una capacidad propia
        y se convierte en un alias de `can_manage_access` (el negativo deja de
        poder existir).
+  M6 — (D1, revisión independiente de PR #258) la guarda que rechaza un
+       label idéntico al identificador canónico se desactiva: el
+       identificador vuelve a poder escribirse como nombre humano.
 
 Uso: python3 scripts/calibracion/mutaciones_corte6b2_editar_labels.py
 """
@@ -133,6 +136,16 @@ MUTACIONES = [
         "        return self.can_manage_access()",
         ["test_c3_gestiona_accesos_pero_no_puede_editar_el_label"],
         "403",
+    ),
+    (
+        "M6 — (D1, revisión independiente de PR #258) la guarda que impide "
+        "escribir el nombre humano igual al identificador canónico se "
+        "desactiva: el identificador vuelve a poder colarse como label",
+        "viewer/app/routers/admin.py",
+        "    if label and label.casefold() == workspace.casefold():",
+        "    if False:",
+        ["test_post_rechaza_label_igual_al_identificador"],
+        "assert",
     ),
 ]
 
