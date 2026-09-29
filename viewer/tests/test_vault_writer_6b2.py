@@ -17,6 +17,10 @@ Testigos del contrato de `app.vault_writer`:
   6. symlink rechazado, nunca se crea el directorio, nunca se sale de la
      bóveda.
   7. Los canarios de la sonda no aparecen en el catálogo de fuentes.
+  8. (revisión independiente de PR #258) D2 — label vacío/sólo-espacios
+     BORRA `metadata.label`, nunca escribe cadena vacía. D3 — contrato de
+     entrada en el SERVIDOR: tope de longitud y caracteres de control
+     rechazados, con su negativo (entrada válida en el límite).
 """
 from __future__ import annotations
 
@@ -328,3 +332,99 @@ def test_huella_ida_y_vuelta_por_texto(tmp_path):
 def test_la_huella_no_expone_ni_usa_mtime():
     campos = {f for f in vw.Huella.__dataclass_fields__}
     assert "mtime" not in campos and "mtime_ns" not in campos
+
+
+# ---------------------------------------------------------------------------
+# 8 — D2: borrado del label. D3: contrato de entrada en el servidor.
+# (revisión independiente de PR #258)
+# ---------------------------------------------------------------------------
+
+def test_label_vacio_borra_metadata_label_en_vez_de_escribir_cadena_vacia(tmp_path):
+    carpeta = tmp_path / "l5r"
+    con_label = {**_PERFIL_CONFORME, "metadata": {"label": "Nombre previo"}}
+    _escribir_perfil(carpeta, con_label)
+    ruta = carpeta / sources_catalog.NOMBRE_PERFIL
+    huella = vw.huella_de(ruta)
+
+    resultado = vw.escribir_label_workspace(carpeta, "", huella)
+
+    assert resultado.label_actual == ""
+    en_disco = json.loads(ruta.read_text())
+    assert "label" not in en_disco.get("metadata", {})
+
+
+def test_label_de_solo_espacios_tambien_borra(tmp_path):
+    carpeta = tmp_path / "l5r"
+    con_label = {**_PERFIL_CONFORME, "metadata": {"label": "Nombre previo"}}
+    _escribir_perfil(carpeta, con_label)
+    ruta = carpeta / sources_catalog.NOMBRE_PERFIL
+    huella = vw.huella_de(ruta)
+
+    vw.escribir_label_workspace(carpeta, "   ", huella)
+
+    en_disco = json.loads(ruta.read_text())
+    assert "label" not in en_disco.get("metadata", {})
+
+
+def test_borrar_el_label_no_toca_ninguna_otra_clave_de_metadata(tmp_path):
+    carpeta = tmp_path / "l5r"
+    con_metadata = {**_PERFIL_CONFORME, "metadata": {"label": "Nombre previo", "otra_clave": "sobrevive"}}
+    _escribir_perfil(carpeta, con_metadata)
+    ruta = carpeta / sources_catalog.NOMBRE_PERFIL
+    huella = vw.huella_de(ruta)
+
+    vw.escribir_label_workspace(carpeta, "", huella)
+
+    en_disco = json.loads(ruta.read_text())
+    assert en_disco["metadata"]["otra_clave"] == "sobrevive"
+    assert "label" not in en_disco["metadata"]
+
+
+def test_servidor_rechaza_label_que_excede_el_tope_de_longitud(tmp_path):
+    carpeta = tmp_path / "l5r"
+    _escribir_perfil(carpeta, _PERFIL_CONFORME)
+    ruta = carpeta / sources_catalog.NOMBRE_PERFIL
+    huella = vw.huella_de(ruta)
+
+    with pytest.raises(vw.EntradaInvalidaError):
+        vw.escribir_label_workspace(carpeta, "x" * (vw.LONGITUD_MAXIMA_LABEL + 1), huella)
+
+    en_disco = json.loads(ruta.read_text())
+    assert "metadata" not in en_disco
+
+
+def test_control_negativo_un_label_justo_en_el_tope_se_acepta(tmp_path):
+    carpeta = tmp_path / "l5r"
+    _escribir_perfil(carpeta, _PERFIL_CONFORME)
+    ruta = carpeta / sources_catalog.NOMBRE_PERFIL
+    huella = vw.huella_de(ruta)
+
+    resultado = vw.escribir_label_workspace(carpeta, "x" * vw.LONGITUD_MAXIMA_LABEL, huella)
+    assert resultado.label_actual == "x" * vw.LONGITUD_MAXIMA_LABEL
+
+
+@pytest.mark.parametrize("caracter", ["\x00", "\n", "\r", "\t", "\x7f", "\x01"])
+def test_servidor_rechaza_caracteres_de_control(tmp_path, caracter):
+    carpeta = tmp_path / "l5r"
+    _escribir_perfil(carpeta, _PERFIL_CONFORME)
+    ruta = carpeta / sources_catalog.NOMBRE_PERFIL
+    huella = vw.huella_de(ruta)
+
+    with pytest.raises(vw.EntradaInvalidaError):
+        vw.escribir_label_workspace(carpeta, f"nombre{caracter}sucio", huella)
+
+    en_disco = json.loads(ruta.read_text())
+    assert "metadata" not in en_disco
+
+
+def test_control_negativo_acentos_y_simbolos_normales_se_aceptan(tmp_path):
+    """El rechazo es de CARACTERES DE CONTROL, no de todo lo no-ASCII: un
+    nombre con acentos, eñes o símbolos de puntuación normales tiene que
+    seguir pasando."""
+    carpeta = tmp_path / "l5r"
+    _escribir_perfil(carpeta, _PERFIL_CONFORME)
+    ruta = carpeta / sources_catalog.NOMBRE_PERFIL
+    huella = vw.huella_de(ruta)
+
+    resultado = vw.escribir_label_workspace(carpeta, "La Cofradía Peña — Año 26", huella)
+    assert resultado.label_actual == "La Cofradía Peña — Año 26"

@@ -58,8 +58,18 @@ contenido. ``st_size``/``(st_dev, st_ino)`` acompañan como identidad, pero
 ``mtime``/``mtime_ns`` NUNCA deciden nada: escrituras separadas por ~50µs
 pueden compartirlos. Se revalida DOS VECES: al empezar la escritura (contra
 la huella que el cliente capturó en el GET) y otra vez justo antes de
-``os.replace`` (la ventana de TOCTOU). Cualquier discrepancia es 409, y **lo
-que escribió el otro sigue en disco intacto** — nunca last-write-wins.
+``os.replace`` (la ventana de TOCTOU). Cualquier discrepancia detectada por
+cualquiera de las dos comprobaciones es 409, y **lo que escribió el otro
+sigue en disco intacto**.
+
+**Lo que esto NO es (revisión independiente de PR #258, D4):** la segunda
+comprobación REDUCE la ventana de TOCTOU a dos revalidaciones, no la CIERRA.
+Entre la segunda huella (``huella_justo_antes``) y el ``os.replace`` real no
+hay ningún cerrojo (``O_EXCL``/``flock``) que impida a un tercer escritor
+colarse en ese hueco residual: si lo hace, su escritura se pierde en
+silencio, con 302/200 conforme y sin 409. Cerrar esa ventana exige un
+cerrojo real y queda fuera de este corte — es deuda declarada, no una
+garantía de este módulo.
 
 ## EL DESTINO SEGURO SE EJERCE, NO SE LISTA
 
@@ -159,6 +169,14 @@ class DestinoNoSeguroError(Exception):
 
 class RutaNoSeguraError(Exception):
     """symlink, fuera de bóveda, o cualquier otra ruta que no se toca."""
+
+
+class EntradaInvalidaError(Exception):
+    """D3 (revisión independiente de PR #258) — el label no cumple el
+    contrato de entrada del SERVIDOR (longitud o caracteres de control). El
+    `maxlength` del HTML es cosmética del cliente, no un límite real: un POST
+    directo sin pasar por el formulario colaba 200 KB, saltos de línea y
+    caracteres de control (incluido NUL) crudos al documento del operador."""
 
 
 # ---------------------------------------------------------------------------
@@ -356,6 +374,28 @@ def _escribir_atomico(ruta: Path, datos: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
+# D3 (revisión independiente de PR #258) — contrato de entrada del label,
+# medido EN EL SERVIDOR. El `maxlength="200"` del HTML es una comodidad del
+# cliente, no una garantía: un POST directo se lo salta.
+# ---------------------------------------------------------------------------
+
+#: Mismo tope que el `maxlength` del formulario — declarado una sola vez
+#: aquí, para que servidor y cliente no puedan divergir por accidente.
+LONGITUD_MAXIMA_LABEL = 200
+
+
+def _label_entrada_invalida(texto: str) -> Optional[str]:
+    """`None` si `texto` cumple el contrato de entrada; si no, el motivo del
+    rechazo. Sólo se llama con el valor YA recortado (`strip()`) y NO vacío:
+    un label vacío es la señal de borrado (D2), no una entrada a validar."""
+    if len(texto) > LONGITUD_MAXIMA_LABEL:
+        return f"el nombre humano no puede superar los {LONGITUD_MAXIMA_LABEL} caracteres"
+    if any(ord(c) < 0x20 or ord(c) == 0x7F for c in texto):
+        return "el nombre humano no puede contener caracteres de control"
+    return None
+
+
+# ---------------------------------------------------------------------------
 # La operación completa
 # ---------------------------------------------------------------------------
 
@@ -364,12 +404,20 @@ def escribir_label_workspace(
     nuevo_label: str,
     huella_cliente: Huella,
 ) -> LecturaPerfil:
-    """Escribe `metadata.label` en el `perfil-operador.json` de `carpeta_juego`.
+    """Escribe o BORRA `metadata.label` en el `perfil-operador.json` de
+    `carpeta_juego`.
+
+    `nuevo_label` vacío (o sólo espacios) BORRA `metadata.label` (D2,
+    revisión independiente de PR #258): un guardado accidental de un campo
+    vacío deja de ser permanente desde la web. No es un error: es la salida
+    natural de "no quiero nombre humano aquí".
 
     Nunca crea la carpeta (`carpeta_juego` tiene que existir y ser resuelta
     por la MISMA autoridad que ya usa `presentacion_etiquetas`: el llamador
     la obtiene de ahí, no la compone). Lanza:
 
+      - `EntradaInvalidaError` si el label (no vacío) excede el tope de
+        longitud o trae caracteres de control (D3).
       - `EscrituraRechazadaError` si el perfil no está CONFORME (C1).
       - `RutaNoSeguraError` si la ruta es un symlink o cae fuera de bóveda.
       - `DestinoNoSeguroError` si el predicado de destino seguro dice que no.
@@ -378,6 +426,12 @@ def escribir_label_workspace(
     """
     ruta_perfil = carpeta_juego / sources_catalog.NOMBRE_PERFIL
     _asegurar_ruta_segura(ruta_perfil)
+
+    valor_normalizado = nuevo_label.strip()
+    if valor_normalizado:
+        motivo_entrada = _label_entrada_invalida(valor_normalizado)
+        if motivo_entrada is not None:
+            raise EntradaInvalidaError(motivo_entrada)
 
     lectura = leer_estado_perfil(ruta_perfil)
     if lectura.estado != EstadoPerfil.CONFORME:
@@ -402,15 +456,21 @@ def escribir_label_workspace(
     if not isinstance(metadata, dict):
         metadata = {}
         datos["metadata"] = metadata
-    metadata["label"] = nuevo_label.strip()
+    if valor_normalizado:
+        metadata["label"] = valor_normalizado
+    else:
+        # D2 — vacío BORRA la clave, nunca escribe cadena vacía.
+        metadata.pop("label", None)
 
     # Autoridad de validación TAMBIÉN en la salida.
     _perfil_salida, error_salida = _game_profile_from_dict(datos)
     if error_salida is not None:  # pragma: no cover - no debería alcanzarse
         raise EscrituraRechazadaError(EstadoPerfil.LEGIBLE_NO_CONFORME, CAUSA_NO_CONFORME)
 
-    # Revalidación JUSTO ANTES de escribir: la ventana de TOCTOU entre el
-    # chequeo de arriba y `os.replace`.
+    # Revalidación JUSTO ANTES de escribir: REDUCE la ventana de TOCTOU a dos
+    # comprobaciones, no la cierra (D4 — ver el aviso en el docstring del
+    # módulo: sin cerrojo real, un tercero puede colarse entre esta
+    # comprobación y `os.replace`).
     huella_justo_antes = huella_de(ruta_perfil)
     if not huella_justo_antes.coincide_contenido(huella_cliente):
         raise ConflictoEscrituraError(

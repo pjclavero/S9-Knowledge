@@ -173,6 +173,158 @@ def test_c3_gestiona_accesos_pero_no_puede_editar_el_label(entorno):
     assert "metadata" not in en_disco or en_disco["metadata"].get("label") != "No debería poder"
 
 
+def test_el_valor_del_formulario_nunca_es_el_identificador(entorno):
+    """D1 (revisión independiente de PR #258, RANGO 2 bloqueante). Antes: sin
+    label declarado, `value="{{ label_actual }}"` ponía el IDENTIFICADOR
+    como valor por defecto, y un POST sin tocar nada lo escribía como
+    nombre humano. Ahora: el `value` está vacío, y el identificador sólo
+    aparece como `placeholder` (presentación, nunca escritura por defecto)."""
+    db_path, auth_db, app, boveda = entorno
+    c = _cliente(auth_db, db_path, app)
+    r = c.get("/admin/partidas")
+    assert r.status_code == 200
+
+    m_value = re.search(r'<input type="text" id="label"[^>]*\bvalue="([^"]*)"', r.text)
+    assert m_value, "el input de label no se encontró en la página"
+    assert m_value.group(1) == "", (
+        f"el value del input no está vacío sin label declarado: {m_value.group(1)!r} "
+        "(el identificador se coló como valor por defecto de escritura)"
+    )
+
+    m_placeholder = re.search(r'<input type="text" id="label"[^>]*\bplaceholder="([^"]*)"', r.text)
+    assert m_placeholder and m_placeholder.group(1) == WS, (
+        "el identificador debería ofrecerse como placeholder, no como value"
+    )
+
+
+def test_post_sin_tocar_el_campo_ya_no_escribe_el_identificador(entorno):
+    """El escenario exacto que demostró el revisor: perfil sin label -> GET
+    -> reenviar el `value` del formulario tal cual (que ahora es "") -> el
+    perfil sigue sin label, nunca se escribe el identificador."""
+    db_path, auth_db, app, boveda = entorno
+    c = _cliente(auth_db, db_path, app)
+    r = c.get("/admin/partidas")
+    m_value = re.search(r'<input type="text" id="label"[^>]*\bvalue="([^"]*)"', r.text)
+    tok, fp = _csrf(c)
+
+    r2 = c.post("/admin/partidas/label", data={
+        "workspace": WS, "label": m_value.group(1), "fingerprint": fp, "csrf_token": tok,
+    })
+    assert r2.status_code == 302, r2.text[:400]
+
+    en_disco = json.loads(_perfil_path(boveda).read_text())
+    assert en_disco.get("metadata", {}).get("label") != WS
+    assert "label" not in en_disco.get("metadata", {})
+
+
+def test_post_rechaza_label_igual_al_identificador(entorno):
+    """D1 — el rechazo explícito, no sólo el placeholder: ni siquiera
+    tecleando el identificador a mano se admite como nombre humano.
+    Insensible a mayúsculas."""
+    db_path, auth_db, app, boveda = entorno
+    c = _cliente(auth_db, db_path, app)
+    tok, fp = _csrf(c)
+
+    r = c.post("/admin/partidas/label", data={
+        "workspace": WS, "label": WS, "fingerprint": fp, "csrf_token": tok,
+    })
+    assert r.status_code == 400, r.text[:400]
+
+    r2 = c.post("/admin/partidas/label", data={
+        "workspace": WS, "label": WS.upper(), "fingerprint": fp, "csrf_token": tok,
+    })
+    assert r2.status_code == 400, r2.text[:400]
+
+    en_disco = json.loads(_perfil_path(boveda).read_text())
+    assert "metadata" not in en_disco or en_disco["metadata"].get("label") != WS
+
+
+def test_label_vacio_borra_el_nombre_humano(entorno):
+    """D2 — dejar el campo vacío y guardar BORRA `metadata.label` en vez de
+    quedar atascado con un error permanente desde la web."""
+    db_path, auth_db, app, boveda = entorno
+    c = _cliente(auth_db, db_path, app)
+    tok, fp = _csrf(c)
+
+    r = c.post("/admin/partidas/label", data={
+        "workspace": WS, "label": "Nombre que se va a borrar",
+        "fingerprint": fp, "csrf_token": tok,
+    })
+    assert r.status_code == 302, r.text[:400]
+
+    tok2, fp2 = _csrf(c)
+    r2 = c.post("/admin/partidas/label", data={
+        "workspace": WS, "label": "", "fingerprint": fp2, "csrf_token": tok2,
+    })
+    assert r2.status_code == 302, r2.text[:400]
+
+    en_disco = json.loads(_perfil_path(boveda).read_text())
+    assert "label" not in en_disco.get("metadata", {})
+
+
+def test_label_de_solo_espacios_borra_con_el_mismo_codigo_que_vacio(entorno):
+    """D2 — unifica el código de respuesta entre 'vacío' y 'sólo espacios':
+    los dos son la misma señal de borrado, no dos comportamientos
+    distintos."""
+    db_path, auth_db, app, boveda = entorno
+    c = _cliente(auth_db, db_path, app)
+    tok, fp = _csrf(c)
+
+    r = c.post("/admin/partidas/label", data={
+        "workspace": WS, "label": "Nombre que se va a borrar",
+        "fingerprint": fp, "csrf_token": tok,
+    })
+    assert r.status_code == 302
+
+    tok2, fp2 = _csrf(c)
+    r2 = c.post("/admin/partidas/label", data={
+        "workspace": WS, "label": "   ", "fingerprint": fp2, "csrf_token": tok2,
+    })
+    assert r2.status_code == 302, r2.text[:400]
+
+    en_disco = json.loads(_perfil_path(boveda).read_text())
+    assert "label" not in en_disco.get("metadata", {})
+
+
+def test_servidor_rechaza_label_demasiado_largo(entorno):
+    """D3 — el `maxlength` del HTML es cosmética del cliente; el servidor
+    tiene que rechazarlo también, sin escribir nada."""
+    db_path, auth_db, app, boveda = entorno
+    c = _cliente(auth_db, db_path, app)
+    tok, fp = _csrf(c)
+
+    r = c.post("/admin/partidas/label", data={
+        "workspace": WS, "label": "x" * 201, "fingerprint": fp, "csrf_token": tok,
+    })
+    assert r.status_code == 400, r.text[:400]
+
+    en_disco = json.loads(_perfil_path(boveda).read_text())
+    assert "metadata" not in en_disco
+
+
+def test_servidor_rechaza_caracteres_de_control(entorno):
+    """D3 — NUL y saltos de línea crudos no pueden llegar al documento del
+    operador: 200 KB, `\\n` y `\\x00` es el ataque real que demostró el
+    revisor."""
+    db_path, auth_db, app, boveda = entorno
+    c = _cliente(auth_db, db_path, app)
+    tok, fp = _csrf(c)
+
+    r = c.post("/admin/partidas/label", data={
+        "workspace": WS, "label": "con\x00nulo", "fingerprint": fp, "csrf_token": tok,
+    })
+    assert r.status_code == 400, r.text[:400]
+
+    tok2, fp2 = _csrf(c)
+    r2 = c.post("/admin/partidas/label", data={
+        "workspace": WS, "label": "con\nsalto", "fingerprint": fp2, "csrf_token": tok2,
+    })
+    assert r2.status_code == 400, r2.text[:400]
+
+    en_disco = json.loads(_perfil_path(boveda).read_text())
+    assert "metadata" not in en_disco
+
+
 def test_la_auditoria_registra_el_evento_con_antes_y_despues(entorno):
     db_path, auth_db, app, boveda = entorno
     c = _cliente(auth_db, db_path, app)

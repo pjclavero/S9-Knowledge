@@ -464,6 +464,15 @@ async def admin_partidas(
     label_estado = None
     label_causa = None
     label_actual = ws
+    # D1 (revisión independiente de PR #258, RANGO 2 bloqueante): el VALOR
+    # que se ofrece en el <input> del formulario JAMÁS es el identificador
+    # del workspace -- eso es lo que permitía que un POST sin tocar nada
+    # escribiera el identificador como nombre humano. Vacío cuando no hay
+    # label declarado; el identificador se ofrece como PLACEHOLDER en la
+    # plantilla (presentación pura, nunca valor por defecto de escritura).
+    # `label_actual` (con el `or ws`) sigue siendo sólo para TEXTO
+    # informativo, nunca para el `value` del formulario.
+    label_valor_formulario = ""
     label_fingerprint = None
     puede_editar_label = admin.can_edit_context_label()
     if ws:
@@ -473,6 +482,7 @@ async def admin_partidas(
             label_estado = lectura.estado.value
             label_causa = lectura.causa
             label_actual = lectura.label_actual or ws
+            label_valor_formulario = lectura.label_actual
             if lectura.huella is not None:
                 label_fingerprint = lectura.huella.a_texto()
 
@@ -494,6 +504,7 @@ async def admin_partidas(
             "label_estado": label_estado,
             "label_causa": label_causa,
             "label_actual": label_actual,
+            "label_valor_formulario": label_valor_formulario,
             "label_fingerprint": label_fingerprint,
             "puede_editar_label": puede_editar_label,
         },
@@ -670,7 +681,13 @@ async def admin_partidas_revoke(
 async def admin_partidas_label(
     request: Request,
     workspace: str = Form(...),
-    label: str = Form(...),
+    # D2 (revisión independiente de PR #258): `Form("")`, no `Form(...)`.
+    # Con `Form(...)`, un campo vacío ("label=" en un POST real de
+    # formulario) no llega como cadena vacía: el parser de Starlette lo
+    # trata como AUSENTE y FastAPI responde 422 antes de que este código se
+    # ejecute. Un label vacío es una entrada VÁLIDA (la señal de borrado),
+    # no un campo faltante.
+    label: str = Form(""),
     fingerprint: str = Form(...),
     csrf_token: str = Form(...),
     admin: User = Depends(require_edit_context_label),
@@ -684,8 +701,12 @@ async def admin_partidas_label(
 
     workspace = workspace.strip()
     label = label.strip()
-    if not workspace or not label:
-        raise HTTPException(status_code=400, detail="workspace y label son obligatorios")
+    if not workspace:
+        raise HTTPException(status_code=400, detail="workspace es obligatorio")
+    # D2 (revisión independiente de PR #258, rango 3): `label` vacío (o sólo
+    # espacios, ya recortado arriba) YA NO es un error -- es la señal de
+    # borrado. Se delega en `vault_writer.escribir_label_workspace`, que es
+    # la única autoridad que toca el fichero.
 
     # MISMA guarda que `/admin/partidas/grant` (Corte F-2/6A): sólo se edita
     # el workspace EFECTIVO de este despliegue, nunca uno inventado por el
@@ -703,6 +724,20 @@ async def admin_partidas_label(
             detail="No se encontró la bóveda de ese workspace: no hay nada que editar.",
         )
 
+    # D1 (revisión independiente de PR #258, RANGO 2 bloqueante): el nombre
+    # humano NUNCA puede escribirse igual al identificador canónico del
+    # workspace -- eso es derivar el nombre humano del identificador, que
+    # está PROHIBIDO por decisión del operador. Comparación normalizada e
+    # insensible a mayúsculas: los identificadores de este sistema son
+    # slugs, y "Juego-Pruebas-Label" no es "distinto" de
+    # "juego-pruebas-label" a efectos de esta guarda. Sólo se compara cuando
+    # hay label (vacío ya se resolvió arriba como borrado, no como esto).
+    if label and label.casefold() == workspace.casefold():
+        raise HTTPException(
+            status_code=400,
+            detail="El nombre humano no puede ser igual al identificador del workspace.",
+        )
+
     try:
         huella_cliente = vault_writer.Huella.desde_texto(fingerprint)
     except ValueError:
@@ -714,6 +749,8 @@ async def admin_partidas_label(
             carpeta / sources_catalog.NOMBRE_PERFIL
         ).label_actual
         vault_writer.escribir_label_workspace(carpeta, label, huella_cliente)
+    except vault_writer.EntradaInvalidaError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     except vault_writer.ConflictoEscrituraError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     except vault_writer.DestinoNoSeguroError as exc:

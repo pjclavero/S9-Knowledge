@@ -97,7 +97,18 @@ MUTACIONES = [
         "AttributeError",
     ),
     (
-        "M3 — el escritor deja de ejercer el predicado de destino seguro: "
+        "M3 — el escritor usa `GameProfile.to_json()` en vez de mutar el "
+        "dict original: reflowea el documento del operador",
+        "viewer/app/vault_writer.py",
+        "    _escribir_atomico(ruta_perfil, datos)\n"
+        "    return leer_estado_perfil(ruta_perfil)",
+        "    ruta_perfil.write_text(_perfil_salida.to_json(), encoding=\"utf-8\")\n"
+        "    return leer_estado_perfil(ruta_perfil)",
+        ["test_la_escritura_no_reflowea_el_documento_muta_una_sola_clave"],
+        "assert",
+    ),
+    (
+        "M4 — el escritor deja de ejercer el predicado de destino seguro: "
         "siempre dice que SI sin correr la sonda",
         "viewer/app/vault_writer.py",
         "def destino_admite_escritura_segura(directorio: Path, *, forzar: bool = False) -> tuple[bool, str]:\n"
@@ -111,7 +122,7 @@ MUTACIONES = [
         "assert",
     ),
     (
-        "M4 — C3 colapsa: `can_edit_context_label` se convierte en un alias "
+        "M5 — C3 colapsa: `can_edit_context_label` se convierte en un alias "
         "de `can_manage_access` (el negativo deja de poder existir)",
         "viewer/app/auth/models.py",
         "    def can_edit_context_label(self) -> bool:\n"

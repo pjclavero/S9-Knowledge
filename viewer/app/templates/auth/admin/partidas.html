@@ -26,7 +26,11 @@
             <input type="hidden" name="workspace" value="{{ workspace_canonico | e }}">
             <input type="hidden" name="fingerprint" value="{{ label_fingerprint | e }}">
             <label for="label">Nombre humano (identificador: <code>{{ workspace_canonico | e }}</code>)</label>
-            <input type="text" id="label" name="label" value="{{ label_actual | e }}" maxlength="200" required>
+            {# D1 (revisión independiente de PR #258): el identificador va como
+               PLACEHOLDER, nunca como `value` -- un envío sin tocar el campo no
+               puede escribir el identificador como nombre humano. Dejar el
+               campo vacío y guardar BORRA el nombre humano (D2). #}
+            <input type="text" id="label" name="label" value="{{ label_valor_formulario | e }}" placeholder="{{ workspace_canonico | e }}" maxlength="200">
             <button type="submit">Guardar</button>
           </form>
         {% else %}
