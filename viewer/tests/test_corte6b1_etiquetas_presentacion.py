@@ -460,7 +460,16 @@ _PROTOCOLO_DECLARADO = {
     #      (la misma pantalla ya lo muestra crudo, declarado protocolo, en el
     #      campo de solo lectura de conceder acceso), nunca uno ajeno, y la
     #      pantalla entera exige `require_admin`.
-    "auth/admin/partidas.html": {"workspace_canonico": 3},
+    # (D1, revision independiente de PR #258, +1) una CUARTA aparicion cruda:
+    # `placeholder="{{ workspace_canonico }}"` en el mismo <input> editable.
+    # Es la correccion del defecto -- antes el identificador iba como
+    # `value` (se escribia como nombre humano si el operador no tocaba el
+    # campo); ahora va como PLACEHOLDER, presentacion pura que el navegador
+    # nunca envia en el POST. Sigue siendo el mismo dato ya declarado arriba
+    # (el workspace canonico de este despliegue), mostrado una vez mas y con
+    # la misma razon: la pantalla necesita que el operador vea el
+    # identificador crudo, no una etiqueta, mientras decide el nombre humano.
+    "auth/admin/partidas.html": {"workspace_canonico": 4},
     # `value` de cada opcion del selector de partida.
     "base.html": {"p.partida_id": 1},
     # query-string del enlace al resultado, y `data-*` que lee el JS del filtro.
