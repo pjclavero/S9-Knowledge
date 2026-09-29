@@ -28,6 +28,14 @@ class User:
     failed_login_count: int
     locked_until: Optional[datetime]
     created_by: Optional[str]
+    # CORTE 6B-2 · C3. Overrides SOLO para pruebas/fixtures: hoy no hay
+    # sistema de roles nuevo, así que `can_manage_access` y
+    # `can_edit_context_label` derivan las dos de `is_admin()`. Pero son DOS
+    # capacidades con DOS comprobaciones independientes, y el negativo
+    # (gestiona accesos pero NO puede tocar el label) tiene que poder
+    # construirse aunque hoy no exista ningún rol de producción que lo
+    # produzca por sí solo — de ahí este campo, nunca persistido en `users`.
+    capability_overrides: Optional[dict] = field(default=None)
 
     def is_locked(self, now: Optional[datetime] = None) -> bool:
         if self.locked_until is None:
@@ -46,6 +54,27 @@ class User:
 
     def can_access_admin(self) -> bool:
         return self.role == "admin"
+
+    def _overridden(self, capacidad: str) -> Optional[bool]:
+        if isinstance(self.capability_overrides, dict) and capacidad in self.capability_overrides:
+            return bool(self.capability_overrides[capacidad])
+        return None
+
+    def can_manage_access(self) -> bool:
+        """Conceder/revocar acceso a partidas (`/admin/partidas/grant|revoke`).
+
+        Capacidad independiente de `can_edit_context_label` (C3): hoy las dos
+        derivan de `is_admin()` porque no hay un sistema de roles nuevo, pero
+        NO son el mismo booleano con dos nombres — se comprueban por
+        separado, y el negativo (`capability_overrides`) lo demuestra.
+        """
+        overridden = self._overridden("can_manage_access")
+        return self.is_admin() if overridden is None else overridden
+
+    def can_edit_context_label(self) -> bool:
+        """Editar `metadata.label` de un workspace/partida (Corte 6B-2)."""
+        overridden = self._overridden("can_edit_context_label")
+        return self.is_admin() if overridden is None else overridden
 
 
 @dataclass

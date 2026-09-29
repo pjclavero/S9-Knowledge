@@ -1,6 +1,7 @@
 """Panel de administración: gestión de usuarios y auditoría."""
 from __future__ import annotations
 
+import unicodedata
 from pathlib import Path
 from typing import Optional
 
@@ -11,10 +12,10 @@ from fastapi.templating import Jinja2Templates
 from app.auth import audit, db as auth_db
 from app.auth.config import get_auth_settings
 from app.auth.csrf import get_csrf_token_for_session, validate_csrf
-from app.auth.dependencies import require_admin
+from app.auth.dependencies import require_admin, require_edit_context_label, require_manage_access
 from app.auth.models import ROLES, User
 from app.auth.passwords import hash_password, validate_password
-from app import chassis, presentacion_etiquetas, sources_catalog
+from app import chassis, presentacion_etiquetas, sources_catalog, vault_writer
 from app.authz import autoridad_workspace, existencia
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -40,6 +41,18 @@ def _check_csrf(request: Request, token: str, session_id: int) -> bool:
     cfg = get_auth_settings()
     raw = getattr(request.state, "csrf_raw", "")
     return validate_csrf(token, session_id, raw, secret=cfg.S9K_CSRF_SECRET)
+
+
+def _normalizado_para_comparacion(texto: str) -> str:
+    """R2 (revisión independiente de PR #258, segunda ronda) — la guarda D1
+    comparaba `casefold()` crudo, que sólo pliega mayúsculas/minúsculas. Se
+    demostró que homóglifos Unicode (fullwidth `ｊｕｅｇｏ-...`, o letras de
+    otros bloques como U+217C que se VEN como una "l" ASCII) pasaban el
+    filtro intactos y eran indistinguibles del identificador a la vista.
+    `unicodedata.normalize("NFKC", ...)` pliega esas formas de compatibilidad
+    a su equivalente canónico ANTES de comparar, en los DOS lados de la
+    comparación (nunca sólo en el que viene del cliente)."""
+    return unicodedata.normalize("NFKC", texto).casefold()
 
 
 # ---------------------------------------------------------------------------
@@ -458,6 +471,34 @@ async def admin_partidas(
     _slot_b = next(s for s in chassis.FEATURE_SLOTS if s.key == "B")
     panel_operations_disponible = chassis.slot_enabled(_slot_b)
 
+    # CORTE 6B-2 — estado del label editable del workspace canónico (C1: los
+    # TRES estados, nunca aplanados). Sin carpeta de bóveda resoluble para
+    # `ws` no hay nada que editar: se pinta como "sin bóveda", no como error.
+    label_estado = None
+    label_causa = None
+    label_actual = ws
+    # D1 (revisión independiente de PR #258, RANGO 2 bloqueante): el VALOR
+    # que se ofrece en el <input> del formulario JAMÁS es el identificador
+    # del workspace -- eso es lo que permitía que un POST sin tocar nada
+    # escribiera el identificador como nombre humano. Vacío cuando no hay
+    # label declarado; el identificador se ofrece como PLACEHOLDER en la
+    # plantilla (presentación pura, nunca valor por defecto de escritura).
+    # `label_actual` (con el `or ws`) sigue siendo sólo para TEXTO
+    # informativo, nunca para el `value` del formulario.
+    label_valor_formulario = ""
+    label_fingerprint = None
+    puede_editar_label = admin.can_edit_context_label()
+    if ws:
+        carpeta = presentacion_etiquetas.carpeta_de_juego_de_workspace(ws)
+        if carpeta is not None:
+            lectura = vault_writer.leer_estado_perfil(carpeta / sources_catalog.NOMBRE_PERFIL)
+            label_estado = lectura.estado.value
+            label_causa = lectura.causa
+            label_actual = lectura.label_actual or ws
+            label_valor_formulario = lectura.label_actual
+            if lectura.huella is not None:
+                label_fingerprint = lectura.huella.a_texto()
+
     return templates.TemplateResponse(
         request,
         "auth/admin/partidas.html",
@@ -473,6 +514,12 @@ async def admin_partidas(
             "admin": admin,
             "csrf_token": _get_csrf(request, session.id if session else 0),
             "errors": [],
+            "label_estado": label_estado,
+            "label_causa": label_causa,
+            "label_actual": label_actual,
+            "label_valor_formulario": label_valor_formulario,
+            "label_fingerprint": label_fingerprint,
+            "puede_editar_label": puede_editar_label,
         },
     )
 
@@ -490,7 +537,7 @@ async def admin_partidas_grant(
     # "vacio = sin tope" mientras el backend ya hacia vacio => 0).
     max_visible_session: str = Form(""),
     character_id: str = Form(""),
-    admin: User = Depends(require_admin),
+    admin: User = Depends(require_manage_access),
 ):
     if isinstance(admin, RedirectResponse):
         return admin
@@ -609,7 +656,7 @@ async def admin_partidas_revoke(
     request: Request,
     access_id: int,
     csrf_token: str = Form(...),
-    admin: User = Depends(require_admin),
+    admin: User = Depends(require_manage_access),
 ):
     if isinstance(admin, RedirectResponse):
         return admin
@@ -632,5 +679,113 @@ async def admin_partidas_revoke(
                       "workspace": entry.workspace,
                       "partida_id": entry.partida_id,
                   })
+
+    return RedirectResponse(url="/admin/partidas", status_code=302)
+
+
+# ---------------------------------------------------------------------------
+# POST /admin/partidas/label — CORTE 6B-2(a): editar el nombre humano del
+# workspace canónico. NO crea partidas, NO toca `partida_access`, NO
+# normaliza el perfil: sólo muta `metadata.label` si el perfil ya es
+# CONFORME (C1).
+# ---------------------------------------------------------------------------
+
+@router.post("/partidas/label")
+async def admin_partidas_label(
+    request: Request,
+    workspace: str = Form(...),
+    # D2 (revisión independiente de PR #258): `Form("")`, no `Form(...)`.
+    # Con `Form(...)`, un campo vacío ("label=" en un POST real de
+    # formulario) no llega como cadena vacía: el parser de Starlette lo
+    # trata como AUSENTE y FastAPI responde 422 antes de que este código se
+    # ejecute. Un label vacío es una entrada VÁLIDA (la señal de borrado),
+    # no un campo faltante.
+    label: str = Form(""),
+    fingerprint: str = Form(...),
+    csrf_token: str = Form(...),
+    admin: User = Depends(require_edit_context_label),
+):
+    if isinstance(admin, RedirectResponse):
+        return admin
+    session = getattr(request.state, "session", None)
+
+    if not _check_csrf(request, csrf_token, session.id if session else 0):
+        raise HTTPException(status_code=403, detail="CSRF inválido")
+
+    workspace = workspace.strip()
+    label = label.strip()
+    if not workspace:
+        raise HTTPException(status_code=400, detail="workspace es obligatorio")
+    # D2 (revisión independiente de PR #258, rango 3): `label` vacío (o sólo
+    # espacios, ya recortado arriba) YA NO es un error -- es la señal de
+    # borrado. Se delega en `vault_writer.escribir_label_workspace`, que es
+    # la única autoridad que toca el fichero.
+
+    # MISMA guarda que `/admin/partidas/grant` (Corte F-2/6A): sólo se edita
+    # el workspace EFECTIVO de este despliegue, nunca uno inventado por el
+    # cliente.
+    if not existencia.es_workspace_canonico(workspace):
+        raise HTTPException(
+            status_code=400,
+            detail="Ese workspace no existe en este despliegue.",
+        )
+
+    carpeta = presentacion_etiquetas.carpeta_de_juego_de_workspace(workspace)
+    if carpeta is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No se encontró la bóveda de ese workspace: no hay nada que editar.",
+        )
+
+    # D1 (revisión independiente de PR #258, RANGO 2 bloqueante): el nombre
+    # humano NUNCA puede escribirse igual al identificador canónico del
+    # workspace -- eso es derivar el nombre humano del identificador, que
+    # está PROHIBIDO por decisión del operador. Comparación normalizada NFKC
+    # + insensible a mayúsculas (R2: `casefold()` crudo no basta, un
+    # homóglifo Unicode lo sortea) en los DOS lados. Sólo se compara cuando
+    # hay label (vacío ya se resolvió arriba como borrado, no como esto).
+    if label and _normalizado_para_comparacion(label) == _normalizado_para_comparacion(workspace):
+        raise HTTPException(
+            status_code=400,
+            detail="El nombre humano no puede ser igual al identificador del workspace.",
+        )
+
+    try:
+        huella_cliente = vault_writer.Huella.desde_texto(fingerprint)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="El fingerprint recibido no es válido.")
+
+    label_antes = None
+    try:
+        label_antes = vault_writer.leer_estado_perfil(
+            carpeta / sources_catalog.NOMBRE_PERFIL
+        ).label_actual
+        vault_writer.escribir_label_workspace(carpeta, label, huella_cliente)
+    except vault_writer.EntradaInvalidaError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except vault_writer.ConflictoEscrituraError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except vault_writer.DestinoNoSeguroError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except vault_writer.RutaNoSeguraError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except vault_writer.EscrituraRechazadaError as exc:
+        if exc.estado == vault_writer.EstadoPerfil.LEGIBLE_NO_CONFORME:
+            detalle = f"legible pero NO editable: {exc.causa}"
+        else:
+            detalle = f"perfil inválido: {exc.causa}"
+        raise HTTPException(status_code=422, detail=detalle)
+
+    db_path = _get_db_path()
+    with auth_db.get_conn(db_path) as conn:
+        audit.log(
+            conn, audit.CONTEXT_LABEL_UPDATED, "success",
+            user_id=admin.id, username_snapshot=admin.username,
+            metadata={
+                "workspace": workspace,
+                "label_before": label_antes,
+                "label_after": label,
+            },
+        )
 
     return RedirectResponse(url="/admin/partidas", status_code=302)

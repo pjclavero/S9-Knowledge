@@ -76,6 +76,40 @@ async def require_admin(
 
 
 # ---------------------------------------------------------------------------
+# CORTE 6B-2 · C3 — dos capacidades, dos comprobaciones, sin fusionarlas.
+# ---------------------------------------------------------------------------
+
+async def require_manage_access(
+    request: Request,
+    user: User = Depends(require_authenticated_user),
+) -> User:
+    """Conceder/revocar acceso a partidas. NO es `require_edit_context_label`."""
+    if isinstance(user, RedirectResponse):
+        return user
+    if not user.can_manage_access():
+        raise HTTPException(
+            status_code=403,
+            detail="Acceso denegado: se requiere capacidad de gestión de accesos",
+        )
+    return user
+
+
+async def require_edit_context_label(
+    request: Request,
+    user: User = Depends(require_authenticated_user),
+) -> User:
+    """Editar el nombre humano de un workspace/partida. NO es `require_manage_access`."""
+    if isinstance(user, RedirectResponse):
+        return user
+    if not user.can_edit_context_label():
+        raise HTTPException(
+            status_code=403,
+            detail="Acceso denegado: se requiere capacidad de editar el nombre del contexto",
+        )
+    return user
+
+
+# ---------------------------------------------------------------------------
 # Dependencias de API (JSON): SIEMPRE 401/403 JSON, nunca redirección HTML.
 # No-op cuando S9K_AUTH_ENABLED=false (comportamiento público sin cambios).
 # ---------------------------------------------------------------------------

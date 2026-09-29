@@ -445,7 +445,31 @@ _NOMBRES_DE_IDENTIDAD = {
 #: Revisada una por una; la razon de cada una, al lado.
 _PROTOCOLO_DECLARADO = {
     # `value` del campo de solo lectura que viaja en el POST de concesion.
-    "auth/admin/partidas.html": {"workspace_canonico": 1},
+    # (CORTE 6B-2, +2) El formulario de edicion del label anade DOS
+    # apariciones crudas, y las DOS estan declaradas por razones distintas:
+    #   1. `value="{{ workspace_canonico }}"` en el `<input type="hidden">`
+    #      que viaja en el POST -- protocolo, MISMA razon que la de arriba.
+    #   2. El identificador tecnico se muestra tambien, EN PROSA, junto al
+    #      campo editable ("Nombre humano (identificador: <code>...</code>)")
+    #      -- a proposito, y ETIQUETADO como tal: el objetivo mismo de esta
+    #      pantalla es que el operador vea el identificador Y el nombre
+    #      humano como DOS cosas distintas mientras edita una de ellas, asi
+    #      que envolverlo en `etiqueta_workspace` lo convertiria en lo
+    #      opuesto de lo que la pantalla quiere decir. No abre una fuga de
+    #      ambito nueva: es SIEMPRE el workspace canonico de este despliegue
+    #      (la misma pantalla ya lo muestra crudo, declarado protocolo, en el
+    #      campo de solo lectura de conceder acceso), nunca uno ajeno, y la
+    #      pantalla entera exige `require_admin`.
+    # (D1, revision independiente de PR #258, +1) una CUARTA aparicion cruda:
+    # `placeholder="{{ workspace_canonico }}"` en el mismo <input> editable.
+    # Es la correccion del defecto -- antes el identificador iba como
+    # `value` (se escribia como nombre humano si el operador no tocaba el
+    # campo); ahora va como PLACEHOLDER, presentacion pura que el navegador
+    # nunca envia en el POST. Sigue siendo el mismo dato ya declarado arriba
+    # (el workspace canonico de este despliegue), mostrado una vez mas y con
+    # la misma razon: la pantalla necesita que el operador vea el
+    # identificador crudo, no una etiqueta, mientras decide el nombre humano.
+    "auth/admin/partidas.html": {"workspace_canonico": 4},
     # `value` de cada opcion del selector de partida.
     "base.html": {"p.partida_id": 1},
     # query-string del enlace al resultado, y `data-*` que lee el JS del filtro.

@@ -272,6 +272,17 @@ def _carpeta_de_juego(
     return (lector or _Lector()).carpeta_de_juego(workspace, env)
 
 
+def carpeta_de_juego_de_workspace(
+    workspace: str,
+    env: Optional[dict] = None,
+) -> Optional[Path]:
+    """Envoltorio PÚBLICO de `_carpeta_de_juego`, para quien no sea este
+    módulo (CORTE 6B-2: el escritor necesita la MISMA resolución de carpeta
+    que ya usa la presentación, sin re-derivarla).
+    """
+    return _carpeta_de_juego(workspace, env)
+
+
 def etiqueta_workspace(
     workspace: Optional[str],
     ambito_permitido: Optional[Iterable[object]],
