@@ -19,6 +19,13 @@
 # el propio merge volvió falso. `main_commit` se deja donde está a propósito y
 # la razón va escrita junto al campo, no aquí.
 #
+# Refrescado el 2026-09-28 (mismo precedente que el refresco de PR #218):
+# SÓLO `latest_merged_pr`, que salió de la ventana de los últimos 25 PR
+# fusionados en `origin/main` por simple paso del tiempo (la ventana desliza
+# aunque nadie toque código) y puso `main` en rojo por sí solo. `main_commit`
+# se deja donde está a propósito, misma razón que ya estaba escrita junto al
+# campo: su desfase es sólo AVISO (umbral 3), no una contradicción.
+#
 # `main_commit` y `latest_merged_pr` NO se escriben de memoria:
 # scripts/check_docs_consistency.py los contrasta contra `origin/main` y falla
 # si divergen. Editarlos a mano y equivocarse pone el gate en rojo.
@@ -186,7 +193,7 @@ development:
   # asi que quedaria <<green>> falso o <<red>> caduco--. El desfase de
   # `main_commit` es un AVISO del gate, no un error, y por tanto NO es lo que
   # pone rojo a `main`. El minimo honesto es este unico campo.
-  latest_merged_pr: 231  # medido sobre `origin/main` con `_merged_prs`; ojo: el ultimo NO es el de numero mayor (#233 se fusiono antes que el #231)
+  latest_merged_pr: 256  # medido sobre `origin/main` con `_merged_prs`, 2026-09-28; ultimo merge real es #256 (EXP-1)
   # CI DE `main_commit` (84f9cc7), no de este commit — ver la explicación de
   # semántica en la cabecera de este fichero.
   #
