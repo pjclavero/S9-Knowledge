@@ -44,12 +44,38 @@ HOY (un nombre humano en ``metadata.label``); ampliarlo para representar más
 cosas de una partida es una decisión explícita futura, no un efecto
 colateral de este escritor.
 
-``metadata``, cuando está presente, solo se exige que sea un objeto JSON: el
-resto de sus claves (incluida ``label``) son libres, igual que en
-``GameProfile.metadata``. El contrato de ENTRADA del propio valor de
-``label`` (longitud, caracteres de control) lo sigue imponiendo
-``vault_writer._label_entrada_invalida`` — la misma autoridad que ya usa el
-escritor de workspace — no una segunda regla aquí.
+``metadata``, cuando está presente, tiene que ser un objeto JSON. Sus claves
+son libres (igual que en ``GameProfile.metadata``) SALVO ``label``, que es el
+campo que este contrato existe para llevar y que por tanto SÍ está tipado
+(D2 de la revisión independiente de PR #259: ``{"metadata": {"label": 42}}``
+salía CONFORME y el POST devolvía 302; un contrato que no tipa su campo
+principal no está contratando nada):
+
+* ``label`` ausente → CONFORME (la partida todavía no tiene nombre humano).
+* ``label`` cadena de texto → CONFORME.
+* ``label`` cadena vacía (o sólo espacios) → CONFORME, y significa
+  EXACTAMENTE lo mismo que ausente. Es la semántica que ya tiene el
+  escritor: ``vault_writer._label_declarado`` normaliza el blanco a ``""``, y
+  ``escribir_label_*`` trata el valor vacío como BORRADO (hace
+  ``metadata.pop("label")``). Rechazar aquí lo que el escritor considera "sin
+  nombre" haría no editable un documento que el propio escritor podría dejar
+  así.
+* ``label`` número, lista, objeto o booleano → ``LEGIBLE_NO_CONFORME``, y el
+  documento NO es editable hasta que se corrija a mano. No se coacciona a
+  texto: eso reescribiría en silencio lo que declaró otra autoridad.
+
+El contrato de ENTRADA del propio valor de ``label`` (longitud, caracteres de
+control) lo sigue imponiendo ``vault_writer._label_entrada_invalida`` — la
+misma autoridad que ya usa el escritor de workspace — no una segunda regla
+aquí: lo que este módulo decide es el TIPO, no la forma del texto.
+
+``metadata`` declarado con ``null`` NO es lo mismo que ``metadata`` ausente
+(D3 de la misma revisión). El docstring de esta clase siempre afirmó que
+``None`` significa «el documento no declara el bloque» y que se distingue de
+``{}``; hasta ahora no se distinguía, porque ``datos.get("metadata")``
+devuelve ``None`` en los dos casos, y el escritor recibía un ``null`` donde
+espera un mapping. Un ``metadata: null`` explícito es ahora
+``LEGIBLE_NO_CONFORME``.
 
 ## EL PARSER ES LA ÚNICA VÍA DE ENTRADA/SALIDA
 
@@ -77,6 +103,26 @@ class ManifiestoPartidaInvalidoError(Exception):
     """El documento no cumple el contrato mínimo del manifiesto de partida."""
 
 
+#: ÚNICA ancla que decide los tipos del bloque `metadata`. La llaman tanto
+#: `from_dict` (entrada, dict recién parseado de disco) como `validate`
+#: (salida, justo antes de escribir): una sola regla, dos puertas, nunca dos
+#: autoridades que puedan divergir.
+def _revisar_bloque_metadata(metadata: object) -> None:
+    if metadata is None:
+        return
+    if not isinstance(metadata, dict):
+        raise ManifiestoPartidaInvalidoError(
+            "'metadata' del manifiesto de partida tiene que ser un objeto JSON"
+        )
+    if "label" in metadata and not isinstance(metadata["label"], str):
+        # `bool` no es `str`, así que `true`/`false` caen aquí sin regla extra.
+        raise ManifiestoPartidaInvalidoError(
+            "'metadata.label' del manifiesto de partida tiene que ser una "
+            "cadena de texto (el nombre humano de la partida); se declaró "
+            f"{type(metadata['label']).__name__}"
+        )
+
+
 @dataclass(frozen=True)
 class ManifiestoPartida:
     """El contenido mínimo válido de un `manifiesto-partida.json`.
@@ -92,10 +138,7 @@ class ManifiestoPartida:
         return {"metadata": self.metadata} if self.metadata is not None else {}
 
     def validate(self) -> "ManifiestoPartida":
-        if self.metadata is not None and not isinstance(self.metadata, dict):
-            raise ManifiestoPartidaInvalidoError(
-                "'metadata' del manifiesto de partida tiene que ser un objeto JSON"
-            )
+        _revisar_bloque_metadata(self.metadata)
         return self
 
     @classmethod
@@ -115,11 +158,19 @@ class ManifiestoPartida:
                 f"minimo (solo {sorted(CLAVES_ADMITIDAS)} es valido): "
                 f"{sorted(claves_desconocidas)}"
             )
-        metadata = datos.get("metadata")
-        if metadata is not None and not isinstance(metadata, dict):
+        # D3: ausente y `null` NO son lo mismo. Sin esta guarda, `.get()`
+        # devuelve `None` en ambos casos y el `null` explícito se cuela como
+        # "el documento no declara el bloque", que es justo la distinción que
+        # el docstring de esta clase promete conservar.
+        if "metadata" in datos and datos["metadata"] is None:
             raise ManifiestoPartidaInvalidoError(
-                "'metadata' del manifiesto de partida tiene que ser un objeto JSON"
+                "el manifiesto de partida declara 'metadata' con null: null no "
+                "es un objeto JSON, y no equivale a no declarar el bloque "
+                "(ausente = la partida no tiene metadata; null = alguien "
+                "escribió algo que no es un objeto)"
             )
+        metadata = datos.get("metadata")
+        _revisar_bloque_metadata(metadata)
         instancia = cls(metadata=metadata)
         if validate:
             instancia.validate()

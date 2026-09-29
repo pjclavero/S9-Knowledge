@@ -19,6 +19,7 @@ Uso: python3 scripts/calibracion/corte1_existencia_partida.py
 """
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import sys
@@ -62,6 +63,72 @@ def _fallos(salida: str) -> list[str]:
         for linea in salida.splitlines()
         if linea.startswith("FAILED") or "FAILED " in linea
     })
+
+
+# ---------------------------------------------------------------------------
+# M6 — LOCALIZADOR ESTRUCTURAL (D1 de la revisión independiente de PR #259)
+# ---------------------------------------------------------------------------
+# La versión anterior de M6 era un `.replace(texto_literal, ..., 1)` anclado a
+# `{% for pid in partidas_descubribles %}` con OCHO espacios de indentación.
+# El Corte 6B-2(b) añadió un SEGUNDO bucle sobre la MISMA enumeración (el
+# selector «qué partida nombrar», con doce espacios) y, como aparece ANTES en
+# el fichero, el `replace(..., 1)` seguía cayendo sobre el bucle del grant...
+# pero el testigo miraba la página entera y la otra sección producía la misma
+# evidencia. La mutación se APLICABA y aun así nada se ponía rojo: M6 quedó
+# INERTE. Consecuencia real: hoy se podía borrar el selector de «Conceder
+# acceso» y la suite seguía verde.
+#
+# El arreglo NO es cambiar el texto del `.replace()` -- eso volvería a
+# romperse a la siguiente reindentación o al siguiente bloque movido. M6 se
+# ancla ahora a la ESTRUCTURA ÚNICA de «Conceder acceso»: el formulario cuya
+# `action` es la ruta canónica de grant, y dentro de él el campo que ese
+# formulario envía como partida. La propiedad mutada es UNA y no la mueve
+# nada de lo siguiente:
+#
+#   - añadir otro bucle legítimo sobre `partidas_descubribles`,
+#   - mover el bloque a otra parte del fichero,
+#   - cambiar su indentación,
+#   - añadir otra vista de la misma enumeración.
+#
+# Techo declarado: el localizador cierra el formulario en el primer
+# `</form>` posterior a su apertura (HTML no admite formularios anidados) y
+# exige que dentro del `<select>` del grant haya EXACTAMENTE un bucle sobre
+# `partidas_descubribles`. Si hubiera cero o dos, devuelve None -> DETECTOR
+# ROTO, nunca un verde silencioso.
+RUTA_GRANT_CANONICA = "/admin/partidas/grant"
+CAMPO_GRANT_PARTIDA = "partida_id"
+_RE_FOR_DESCUBRIBLES = re.compile(
+    r"\{%-?\s*for\s+(\w+)\s+in\s+partidas_descubribles\s*-?%\}"
+)
+
+
+def _mutar_oferta_del_grant(texto: str) -> str | None:
+    """Neutraliza la oferta de partidas DEL FORMULARIO DE CONCEDER, y sólo ésa."""
+    apertura = re.search(
+        r'<form\b[^>]*\baction="' + re.escape(RUTA_GRANT_CANONICA) + r'"[^>]*>',
+        texto,
+    )
+    if apertura is None:
+        return None
+    fin_form = texto.find("</form>", apertura.end())
+    if fin_form == -1:
+        return None
+
+    for sel in re.finditer(r"<select\b[^>]*>", texto[apertura.end():fin_form]):
+        if not re.search(r'\bname="' + CAMPO_GRANT_PARTIDA + r'"', sel.group(0)):
+            continue
+        ini = apertura.end() + sel.end()
+        fin = texto.find("</select>", ini)
+        if fin == -1 or fin > fin_form:
+            return None
+        cuerpo, n = _RE_FOR_DESCUBRIBLES.subn(
+            r"{% for \1 in [] %}{# M6: el grant no ofrece ninguna partida #}",
+            texto[ini:fin],
+        )
+        if n != 1:
+            return None
+        return texto[:ini] + cuerpo + texto[fin:]
+    return None
 
 
 # --- Las mutaciones: (nombre, fichero, texto_original, texto_mutado,
@@ -182,15 +249,13 @@ MUTACIONES = [
         "(vuelve a no haber ninguna opción real que elegir). Borrar una "
         "garantía visible del todo no puede dejar la suite igual de verde",
         "viewer/app/templates/auth/admin/partidas.html",
-        # OBJETIVO ESTABLE, NO EL CONTENIDO DE LA OPCION. Esta mutacion
-        # copiaba el `<select>` entero, incluido el TEXTO de cada opcion, y el
-        # corte 6B-1 —que pasa ese texto por el resolvedor de etiquetas— lo
-        # movio: la mutacion dejo de aplicarse y el arnes dijo DETECTOR ROTO.
-        # La propiedad atacada no cambia (la pantalla deja de ofrecer las
-        # partidas que la boveda declara); lo que se muta es el BUCLE, que es
-        # lo estable, y no como se pinta cada opcion.
-        "        {% for pid in partidas_descubribles %}",
-        "        {% for pid in [] %}{# M6: la pantalla no ofrece ninguna #}",
+        # OBJETIVO ESTABLE POR ESTRUCTURA, NO POR TEXTO. Ver
+        # `_mutar_oferta_del_grant` arriba: el ancla literal (con su
+        # indentación) quedó INERTE cuando 6B-2(b) añadió un segundo bucle
+        # sobre la misma enumeración. Ahora la mutación se localiza dentro
+        # del formulario de conceder y ataca SOLO su oferta.
+        _mutar_oferta_del_grant,
+        None,
         ["test_la_pantalla_ofrece_las_partidas_de_la_boveda_real_no_un_eco_de_concesiones"],
         "la pantalla no ofrece la partida que SÍ existe",
     ),
@@ -224,13 +289,22 @@ def main() -> int:
     for nombre, rel, viejo, nuevo, esperadas, fragmento in MUTACIONES:
         f = RAIZ / rel
         original = f.read_text(encoding="utf-8")
-        if viejo not in original:
-            print(f"### {nombre}\n  DETECTOR ROTO: el texto a mutar no está en "
-                  f"{rel}. La mutación no se aplicó: un verde aquí sería FALSO.\n")
+        # `viejo` puede ser un texto literal o un MUTADOR estructural
+        # (callable texto -> texto mutado | None). Un mutador que devuelve
+        # None es DETECTOR ROTO, igual que un literal ausente: nunca un
+        # verde silencioso.
+        if callable(viejo):
+            mutado = viejo(original)
+        else:
+            mutado = original.replace(viejo, nuevo, 1) if viejo in original else None
+        if mutado is None or mutado == original:
+            print(f"### {nombre}\n  DETECTOR ROTO: la mutación no se pudo "
+                  f"aplicar sobre {rel} (ancla ausente o ambigua). Un verde "
+                  f"aquí sería FALSO.\n")
             veredictos.append((nombre, "DETECTOR ROTO"))
             continue
 
-        f.write_text(original.replace(viejo, nuevo, 1), encoding="utf-8")
+        f.write_text(mutado, encoding="utf-8")
         rc_mut, salida_mut = _correr_testigo()
         fallos = _fallos(salida_mut)
         mensaje_ok = fragmento in salida_mut

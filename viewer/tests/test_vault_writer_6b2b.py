@@ -74,6 +74,80 @@ def test_contrato_rechaza_documento_que_no_es_objeto():
         ManifiestoPartida.from_dict(["no", "es", "un", "objeto"], validate=True)
 
 
+# --- D2 (revisión independiente de PR #259): `label` ESTÁ TIPADO -------------
+# Medido por el revisor: `{"metadata": {"label": 42}}` salía CONFORME y el
+# POST devolvía 302. `ManifiestoPartida` existe precisamente para llevar ese
+# campo.
+
+@pytest.mark.parametrize("valor", [42, 3.5, ["Mesa A"], {"es": "Mesa A"}, True, False])
+def test_contrato_rechaza_label_que_no_es_cadena(valor):
+    with pytest.raises(ManifiestoPartidaInvalidoError) as exc:
+        ManifiestoPartida.from_dict({"metadata": {"label": valor}}, validate=True)
+    assert "label" in str(exc.value)
+
+
+def test_contrato_acepta_label_ausente_dentro_de_metadata():
+    """Ausente = la partida todavía no tiene nombre humano. CONFORME."""
+    m = ManifiestoPartida.from_dict({"metadata": {"otra": 1}}, validate=True)
+    assert m.metadata == {"otra": 1}
+
+
+def test_contrato_acepta_label_vacia_igual_que_el_escritor(valor_vacio="  "):
+    """`""` (o sólo espacios) es CONFORME y significa lo mismo que ausente:
+    es la semántica que YA tiene el escritor (`_label_declarado` normaliza el
+    blanco a `""` y un label vacío es BORRADO). Rechazarla haría no editable
+    un documento que el propio escritor puede dejar así."""
+    for vacio in ("", valor_vacio):
+        m = ManifiestoPartida.from_dict({"metadata": {"label": vacio}}, validate=True)
+        assert m.metadata == {"label": vacio}
+    assert vw._label_declarado({"metadata": {"label": "  "}}) == ""
+
+
+def test_label_no_cadena_deja_el_manifiesto_NO_EDITABLE(tmp_path):
+    """El tipo no se queda en el parser: el documento no es editable, y el
+    escritor no lo reescribe (el 302 medido por el revisor desaparece)."""
+    carpeta = _carpeta_partida(tmp_path)
+    _escribir_manifiesto(carpeta, {"metadata": {"label": 42}})
+    ruta = carpeta / sources_catalog.NOMBRE_MANIFIESTO_PARTIDA
+    lectura = vw.leer_estado_manifiesto_partida(ruta)
+    assert lectura.estado == vw.EstadoPerfil.LEGIBLE_NO_CONFORME
+    assert lectura.causa == vw.CAUSA_NO_CONFORME_PARTIDA
+
+    with pytest.raises(vw.EscrituraRechazadaError) as exc:
+        vw.escribir_label_partida(carpeta, "Mesa A", vw.huella_de(ruta))
+    assert exc.value.estado == vw.EstadoPerfil.LEGIBLE_NO_CONFORME
+    assert json.loads(ruta.read_text(encoding="utf-8")) == {"metadata": {"label": 42}}
+
+
+# --- D3 (revisión independiente de PR #259): `null` != ausente ---------------
+
+def test_contrato_rechaza_metadata_declarada_como_null():
+    """El docstring del contrato afirma que `metadata=None` significa «el
+    documento no declara el bloque» y que se distingue de `{}`. Con
+    `datos.get()` no se distinguía: `{"metadata": null}` salía CONFORME y el
+    escritor recibía un `null` donde espera un mapping."""
+    with pytest.raises(ManifiestoPartidaInvalidoError) as exc:
+        ManifiestoPartida.from_dict({"metadata": None}, validate=True)
+    assert "null" in str(exc.value)
+
+    # Y el contraste que prueba que la distinción es REAL, no un rechazo
+    # indiscriminado: ausente y `{}` siguen siendo CONFORMES y DISTINTOS.
+    assert ManifiestoPartida.from_dict({}, validate=True).metadata is None
+    assert ManifiestoPartida.from_dict({"metadata": {}}, validate=True).metadata == {}
+
+
+def test_metadata_null_deja_el_manifiesto_NO_EDITABLE(tmp_path):
+    carpeta = _carpeta_partida(tmp_path)
+    _escribir_manifiesto(carpeta, {"metadata": None})
+    ruta = carpeta / sources_catalog.NOMBRE_MANIFIESTO_PARTIDA
+    lectura = vw.leer_estado_manifiesto_partida(ruta)
+    assert lectura.estado == vw.EstadoPerfil.LEGIBLE_NO_CONFORME
+
+    with pytest.raises(vw.EscrituraRechazadaError):
+        vw.escribir_label_partida(carpeta, "Mesa A", vw.huella_de(ruta))
+    assert json.loads(ruta.read_text(encoding="utf-8")) == {"metadata": None}
+
+
 def test_c1_manifiesto_conforme_es_editable(tmp_path):
     carpeta = _carpeta_partida(tmp_path)
     _escribir_manifiesto(carpeta, {"metadata": {"label": "Mesa A"}})

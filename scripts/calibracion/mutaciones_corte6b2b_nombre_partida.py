@@ -31,6 +31,10 @@ Cubre las formas de romper la propiedad de este corte:
   M8 — el manifiesto AUSENTE deja de colapsar a CONFORME: una partida sin
        manifiesto todavia se vuelve INVALIDA/no editable en vez de "nombre
        vacio, listo para escribir".
+  M9 — D2 (revision independiente de PR #259): `metadata.label` deja de
+       estar TIPADO: un numero vuelve a salir CONFORME y editable.
+  M10 — D3 (misma revision): `metadata: null` vuelve a equivaler a ausente y
+       el escritor recibe un `null` donde espera un mapping.
 
 Uso: python3 scripts/calibracion/mutaciones_corte6b2b_nombre_partida.py
 """
@@ -190,6 +194,26 @@ MUTACIONES = [
         "        )",
         ["test_c1_manifiesto_ausente_colapsa_a_conforme_vacio",
          "test_cambio_real_sobre_manifiesto_ausente_crea_el_fichero"],
+        "assert",
+    ),
+    (
+        "M9 — D2: `metadata.label` deja de estar tipado (un numero vuelve a "
+        "salir CONFORME y el documento editable)",
+        "viewer/app/partida_manifest_contract.py",
+        "    if \"label\" in metadata and not isinstance(metadata[\"label\"], str):",
+        "    if False:",
+        ["test_contrato_rechaza_label_que_no_es_cadena",
+         "test_label_no_cadena_deja_el_manifiesto_NO_EDITABLE"],
+        "assert",
+    ),
+    (
+        "M10 — D3: `metadata: null` vuelve a equivaler a ausente (el escritor "
+        "recibe un null donde espera un mapping)",
+        "viewer/app/partida_manifest_contract.py",
+        "        if \"metadata\" in datos and datos[\"metadata\"] is None:",
+        "        if False:",
+        ["test_contrato_rechaza_metadata_declarada_como_null",
+         "test_metadata_null_deja_el_manifiesto_NO_EDITABLE"],
         "assert",
     ),
 ]
