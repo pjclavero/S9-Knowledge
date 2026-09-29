@@ -4,6 +4,7 @@ from __future__ import annotations
 import unicodedata
 from pathlib import Path
 from typing import Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -410,6 +411,11 @@ async def admin_audit(
 @router.get("/partidas", response_class=HTMLResponse)
 async def admin_partidas(
     request: Request,
+    # CORTE 6B-2(b): qué partida enseñar en el editor de nombre. Es un
+    # `<select>` con GET (recarga de página, sin CSRF -- no muta nada), NUNCA
+    # texto libre: la validación real contra `partidas_descubiertas_en_boveda`
+    # ocurre abajo, igual que la del propio `<select>` de "Conceder acceso".
+    editar_partida: Optional[str] = None,
     admin: User = Depends(require_admin),
 ):
     if isinstance(admin, RedirectResponse):
@@ -499,6 +505,34 @@ async def admin_partidas(
             if lectura.huella is not None:
                 label_fingerprint = lectura.huella.a_texto()
 
+    # CORTE 6B-2(b) — estado del label editable de UNA partida concreta (C1:
+    # los mismos tres estados que el workspace, más el caso degenerado
+    # "manifiesto ausente" que `leer_estado_manifiesto_partida` colapsa a
+    # CONFORME con label vacío). `editar_partida` SOLO se acepta si está en
+    # la enumeración REAL de la bóveda -- la misma guarda que ya protege
+    # `/admin/partidas/grant` -- para que la URL no pueda apuntar el editor
+    # a una carpeta que la bóveda no reconoce como partida.
+    partida_editada = None
+    partida_label_estado = None
+    partida_label_causa = None
+    partida_label_actual = None
+    partida_label_valor_formulario = ""
+    partida_label_fingerprint = None
+    if editar_partida and editar_partida in partidas_descubribles and ws:
+        carpeta_juego = presentacion_etiquetas.carpeta_de_juego_de_workspace(ws)
+        if carpeta_juego is not None:
+            partida_editada = editar_partida
+            ruta_manifiesto = (
+                carpeta_juego / "partidas" / editar_partida / sources_catalog.NOMBRE_MANIFIESTO_PARTIDA
+            )
+            lectura_p = vault_writer.leer_estado_manifiesto_partida(ruta_manifiesto)
+            partida_label_estado = lectura_p.estado.value
+            partida_label_causa = lectura_p.causa
+            partida_label_actual = lectura_p.label_actual or editar_partida
+            partida_label_valor_formulario = lectura_p.label_actual
+            if lectura_p.huella is not None:
+                partida_label_fingerprint = lectura_p.huella.a_texto()
+
     return templates.TemplateResponse(
         request,
         "auth/admin/partidas.html",
@@ -520,6 +554,12 @@ async def admin_partidas(
             "label_valor_formulario": label_valor_formulario,
             "label_fingerprint": label_fingerprint,
             "puede_editar_label": puede_editar_label,
+            "partida_editada": partida_editada,
+            "partida_label_estado": partida_label_estado,
+            "partida_label_causa": partida_label_causa,
+            "partida_label_actual": partida_label_actual,
+            "partida_label_valor_formulario": partida_label_valor_formulario,
+            "partida_label_fingerprint": partida_label_fingerprint,
         },
     )
 
@@ -789,3 +829,132 @@ async def admin_partidas_label(
         )
 
     return RedirectResponse(url="/admin/partidas", status_code=302)
+
+
+# ---------------------------------------------------------------------------
+# POST /admin/partidas/label-partida — CORTE 6B-2(b): editar el nombre humano
+# de UNA PARTIDA. Contrato: `app.partida_manifest_contract.ManifiestoPartida`.
+# Escritor: `vault_writer.escribir_label_partida`. NO crea partidas (la
+# identidad sigue siendo la carpeta descubierta por
+# `partidas_descubiertas_en_boveda`, nunca este fichero), NO toca
+# `partida_access`.
+# ---------------------------------------------------------------------------
+
+@router.post("/partidas/label-partida")
+async def admin_partidas_label_partida(
+    request: Request,
+    workspace: str = Form(...),
+    partida_id: str = Form(...),
+    # D2 igual que el workspace: `Form("")`, no `Form(...)` -- un campo vacío
+    # de un formulario real llega como cadena vacía, no como ausente.
+    label: str = Form(""),
+    fingerprint: str = Form(...),
+    csrf_token: str = Form(...),
+    admin: User = Depends(require_edit_context_label),
+):
+    if isinstance(admin, RedirectResponse):
+        return admin
+    session = getattr(request.state, "session", None)
+
+    if not _check_csrf(request, csrf_token, session.id if session else 0):
+        raise HTTPException(status_code=403, detail="CSRF inválido")
+
+    workspace = workspace.strip()
+    partida_id = partida_id.strip()
+    label = label.strip()
+    if not workspace or not partida_id:
+        raise HTTPException(status_code=400, detail="workspace y partida_id son obligatorios")
+
+    # MISMA guarda que `/admin/partidas/grant` y `/admin/partidas/label`: solo
+    # el workspace EFECTIVO de este despliegue.
+    if not existencia.es_workspace_canonico(workspace):
+        raise HTTPException(
+            status_code=400,
+            detail="Ese workspace no existe en este despliegue.",
+        )
+
+    # MISMA guarda que el `<select>` de "Conceder acceso" (Corte 6A): sólo se
+    # puede nombrar una partida que la bóveda REAL clasifica en este
+    # workspace ahora mismo -- nunca un `partida_id` inventado por el
+    # cliente. Esto también es lo que impide "nombrar" algo que ni siquiera
+    # existe: nombrar no crea la partida, y aquí se ve que no puede.
+    try:
+        descubribles = sources_catalog.partidas_descubiertas_en_boveda(workspace)
+    except sources_catalog.CatalogoNoDisponible:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "No se puede consultar la bóveda ahora mismo: no hay "
+                "enumeración de partidas contra la que validar este nombre."
+            ),
+        )
+    if partida_id not in descubribles:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"«{partida_id}» no es una partida que la bóveda conozca en "
+                f"«{presentacion_etiquetas.resolvedor_de_peticion(request).workspace(workspace)}». "
+                "Solo se puede nombrar una partida que existe realmente en "
+                "el árbol de la bóveda."
+            ),
+        )
+
+    # MISMO D1 que el workspace: el nombre humano no puede ser igual al
+    # identificador de la partida (NFKC + casefold en los dos lados).
+    if label and _normalizado_para_comparacion(label) == _normalizado_para_comparacion(partida_id):
+        raise HTTPException(
+            status_code=400,
+            detail="El nombre humano no puede ser igual al identificador de la partida.",
+        )
+
+    carpeta_juego = presentacion_etiquetas.carpeta_de_juego_de_workspace(workspace)
+    if carpeta_juego is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No se encontró la bóveda de ese workspace: no hay nada que editar.",
+        )
+    carpeta_partida = carpeta_juego / "partidas" / partida_id
+
+    try:
+        huella_cliente = vault_writer.Huella.desde_texto(fingerprint)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="El fingerprint recibido no es válido.")
+
+    label_antes = None
+    try:
+        label_antes = vault_writer.leer_estado_manifiesto_partida(
+            carpeta_partida / sources_catalog.NOMBRE_MANIFIESTO_PARTIDA
+        ).label_actual
+        vault_writer.escribir_label_partida(carpeta_partida, label, huella_cliente)
+    except vault_writer.EntradaInvalidaError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except vault_writer.ConflictoEscrituraError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except vault_writer.DestinoNoSeguroError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except vault_writer.RutaNoSeguraError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except vault_writer.EscrituraRechazadaError as exc:
+        if exc.estado == vault_writer.EstadoPerfil.LEGIBLE_NO_CONFORME:
+            detalle = f"legible pero NO editable: {exc.causa}"
+        else:
+            detalle = f"manifiesto inválido: {exc.causa}"
+        raise HTTPException(status_code=422, detail=detalle)
+
+    db_path = _get_db_path()
+    with auth_db.get_conn(db_path) as conn:
+        audit.log(
+            conn, audit.CONTEXT_LABEL_UPDATED, "success",
+            user_id=admin.id, username_snapshot=admin.username,
+            metadata={
+                "scope": "partida",
+                "workspace": workspace,
+                "partida_id": partida_id,
+                "label_before": label_antes,
+                "label_after": label,
+            },
+        )
+
+    return RedirectResponse(
+        url=f"/admin/partidas?editar_partida={quote(partida_id, safe='')}", status_code=302
+    )
