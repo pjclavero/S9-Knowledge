@@ -325,9 +325,18 @@ def leer_estado_manifiesto_partida(ruta_manifiesto: Path) -> LecturaManifiestoPa
 
     _manifiesto, error = _manifiesto_partida_from_dict(datos)
     if error is not None:
+        # D2 (revisión independiente de PR #259, O2): antes se descartaba
+        # `error` y se ponía la constante `CAUSA_NO_CONFORME_PARTIDA`, que
+        # colapsaba en el MISMO texto tres causas distintas y medibles
+        # (clave de primer nivel desconocida, `metadata` nula, campo con el
+        # tipo equivocado). Se propaga el `error` real del contrato -- que ya
+        # es sólo diagnóstico sobre el CONTENIDO del documento del operador,
+        # nunca sobre rutas del sistema de ficheros -- para que el 422 diga
+        # EN QUÉ falla, no sólo QUE falla. El veredicto (LEGIBLE_NO_CONFORME,
+        # 422, no editable) no cambia.
         return LecturaManifiestoPartida(
             EstadoPerfil.LEGIBLE_NO_CONFORME, datos, huella,
-            CAUSA_NO_CONFORME_PARTIDA, label_actual,
+            error, label_actual,
         )
     return LecturaManifiestoPartida(EstadoPerfil.CONFORME, datos, huella, None, label_actual)
 

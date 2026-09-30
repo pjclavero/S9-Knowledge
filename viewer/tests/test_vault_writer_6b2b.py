@@ -84,11 +84,27 @@ def test_contrato_rechaza_label_que_no_es_cadena():
     NOMBRE de la prueba que enrojece, y los identificadores que pytest genera
     para los casos (`[valor2]`, `[valor3]`...) no son ese nombre. Un arnés que
     no reconoce a su propio testigo lo declara NO CALIBRADO aunque la
-    mutación sí lo haya puesto rojo."""
-    for valor in (42, 3.5, ["Mesa A"], {"es": "Mesa A"}, True, False):
-        with pytest.raises(ManifiestoPartidaInvalidoError) as exc:
-            ManifiestoPartida.from_dict({"metadata": {"label": valor}}, validate=True)
-        assert "label" in str(exc.value), valor
+    mutación sí lo haya puesto rojo.
+
+    O3 (revisión independiente de PR #259): antes, cuando un caso NO
+    enrojecía, el fallo salía como `Failed: DID NOT RAISE ...` -- idéntico
+    para cualquier escenario del bucle, sin decir QUÉ valor fue el que no
+    disparó el rechazo. Ahora se acumulan los fallos en una lista CON su
+    valor, así el rojo nombra el caso concreto. Y `None` -- que el producto
+    SÍ rechaza (`label: null`, medido) -- no estaba en la tupla: ningún
+    testigo lo exigía. Cada tipo sigue siendo portante por separado: quitar
+    la guarda para UN SOLO tipo tiene que enrojecer esta misma prueba."""
+    fallos = []
+    for valor in (42, 3.5, ["Mesa A"], {"es": "Mesa A"}, True, False, None):
+        try:
+            with pytest.raises(ManifiestoPartidaInvalidoError) as exc:
+                ManifiestoPartida.from_dict({"metadata": {"label": valor}}, validate=True)
+        except pytest.fail.Exception:
+            fallos.append((valor, "no lanzó ManifiestoPartidaInvalidoError"))
+            continue
+        if "label" not in str(exc.value):
+            fallos.append((valor, f"lanzó pero sin 'label' en el mensaje: {exc.value!r}"))
+    assert fallos == [], fallos
 
 
 def test_contrato_acepta_label_ausente_dentro_de_metadata():
@@ -116,11 +132,17 @@ def test_label_no_cadena_deja_el_manifiesto_NO_EDITABLE(tmp_path):
     ruta = carpeta / sources_catalog.NOMBRE_MANIFIESTO_PARTIDA
     lectura = vw.leer_estado_manifiesto_partida(ruta)
     assert lectura.estado == vw.EstadoPerfil.LEGIBLE_NO_CONFORME
-    assert lectura.causa == vw.CAUSA_NO_CONFORME_PARTIDA
+    # O2 (revisión independiente de PR #259): la `causa` ya NO es la
+    # constante genérica -- es el `error` real del contrato, que nombra el
+    # campo y el tipo declarado.
+    assert lectura.causa != vw.CAUSA_NO_CONFORME_PARTIDA
+    assert "label" in lectura.causa
+    assert "int" in lectura.causa
 
     with pytest.raises(vw.EscrituraRechazadaError) as exc:
         vw.escribir_label_partida(carpeta, "Mesa A", vw.huella_de(ruta))
     assert exc.value.estado == vw.EstadoPerfil.LEGIBLE_NO_CONFORME
+    assert "label" in exc.value.causa
     assert json.loads(ruta.read_text(encoding="utf-8")) == {"metadata": {"label": 42}}
 
 
@@ -170,9 +192,50 @@ def test_c1_manifiesto_legible_no_conforme_tiene_causa_visible(tmp_path):
         carpeta / sources_catalog.NOMBRE_MANIFIESTO_PARTIDA
     )
     assert lectura.estado == vw.EstadoPerfil.LEGIBLE_NO_CONFORME
-    assert lectura.causa == vw.CAUSA_NO_CONFORME_PARTIDA
+    assert lectura.causa != vw.CAUSA_NO_CONFORME_PARTIDA
+    assert "partida_id" in lectura.causa
     # Igual y todo, el label SE LEE (misma doctrina que `leer_estado_perfil`).
     assert lectura.label_actual == "Mesa A"
+
+
+# --- O2 (revisión independiente de PR #259): el 422 no puede colapsar TRES
+# causas distintas en el mismo texto. Antes de esta ronda, clave de primer
+# nivel desconocida, `metadata: null` y `label` de tipo equivocado producían
+# EXACTAMENTE la misma constante (`CAUSA_NO_CONFORME_PARTIDA`) -- el operador
+# no podía saber en qué falla su documento. Medido: los tres textos ahora son
+# DISTINTOS entre sí, y ninguno menciona una ruta del sistema de ficheros
+# (sólo hablan del contenido del documento).
+def test_las_tres_causas_de_LEGIBLE_NO_CONFORME_se_distinguen(tmp_path):
+    casos = {
+        "clave_desconocida": {"partida_id": "mesa1"},
+        "metadata_null": {"metadata": None},
+        "label_mal_tipado": {"metadata": {"label": 42}},
+    }
+    causas = {}
+    for nombre, datos in casos.items():
+        carpeta = tmp_path / nombre
+        _escribir_manifiesto(carpeta, datos)
+        lectura = vw.leer_estado_manifiesto_partida(
+            carpeta / sources_catalog.NOMBRE_MANIFIESTO_PARTIDA
+        )
+        assert lectura.estado == vw.EstadoPerfil.LEGIBLE_NO_CONFORME
+        causas[nombre] = lectura.causa
+
+    # Las tres son distintas entre sí -- ya no colapsan a la misma frase.
+    valores = list(causas.values())
+    assert len(set(valores)) == 3, causas
+
+    # Cada una nombra lo que de verdad falla, no un texto genérico.
+    assert "partida_id" in causas["clave_desconocida"]
+    assert "null" in causas["metadata_null"]
+    assert "label" in causas["label_mal_tipado"]
+
+    # Ninguna filtra una ruta del sistema de ficheros: sólo el contenido del
+    # documento del operador es diagnosticable, nunca dónde vive en disco.
+    for causa in valores:
+        assert str(tmp_path) not in causa
+        for nombre in casos:
+            assert str(tmp_path / nombre) not in causa
 
 
 def test_c1_manifiesto_invalido_es_fail_closed(tmp_path):

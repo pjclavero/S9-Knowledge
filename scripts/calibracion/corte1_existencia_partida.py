@@ -71,12 +71,21 @@ def _fallos(salida: str) -> list[str]:
 # La versión anterior de M6 era un `.replace(texto_literal, ..., 1)` anclado a
 # `{% for pid in partidas_descubribles %}` con OCHO espacios de indentación.
 # El Corte 6B-2(b) añadió un SEGUNDO bucle sobre la MISMA enumeración (el
-# selector «qué partida nombrar», con doce espacios) y, como aparece ANTES en
-# el fichero, el `replace(..., 1)` seguía cayendo sobre el bucle del grant...
-# pero el testigo miraba la página entera y la otra sección producía la misma
-# evidencia. La mutación se APLICABA y aun así nada se ponía rojo: M6 quedó
-# INERTE. Consecuencia real: hoy se podía borrar el selector de «Conceder
-# acceso» y la suite seguía verde.
+# selector «qué partida nombrar», con DOCE espacios) y ese bucle nuevo
+# aparece ANTES en el fichero. La cadena de OCHO espacios que ancla el
+# `replace` es SUBCADENA de la línea de DOCE espacios del selector nuevo
+# (los cuatro espacios de más son sólo indentación previa), así que
+# `str.replace(..., 1)`, que busca la PRIMERA ocurrencia en todo el texto,
+# mutaba el SELECTOR NUEVO -- y dejaba el bucle del grant INTACTO. No es que
+# el testigo mirase la página entera y la otra sección produjese la misma
+# evidencia: el testigo scopeado al grant TAMBIÉN queda verde con esta
+# mutación, porque el `<select>` del grant nunca cambió. Medido: aplicar esta
+# mutación vieja con el testigo nuevo ya acotado a la sección del grant sigue
+# dando PYTEST_RC=0, 14 passed. Acotar el testigo por sí solo NO habría
+# bastado -- la mitad que sostiene la garantía es el mutador ESTRUCTURAL de
+# abajo, que localiza por la ruta canónica del formulario y no por texto ni
+# posición. Consecuencia real de la versión vieja: se podía borrar el
+# selector de «Conceder acceso» y la suite seguía verde.
 #
 # El arreglo NO es cambiar el texto del `.replace()` -- eso volvería a
 # romperse a la siguiente reindentación o al siguiente bloque movido. M6 se

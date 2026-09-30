@@ -120,12 +120,21 @@ def oferta_del_grant(html: str) -> str:
 
     D1 (revisión independiente de PR #259): el Corte 6B-2(b) añadió un
     SEGUNDO `<select>` sobre la misma enumeración (`partidas_descubribles`,
-    el selector «qué partida nombrar»), y este testigo miraba la página
-    ENTERA. Resultado: la oferta del grant podía borrarse del todo y el
-    testigo seguía verde, porque la evidencia que exigía la producía ya la
-    otra sección. La propiedad garantizada no cambia -- la pantalla ofrece
-    las partidas que la bóveda declara, y sólo ésas, PARA CONCEDER -- lo que
-    se arregla es que el instrumento distinga las dos secciones.
+    el selector «qué partida nombrar», con DOCE espacios de indentación,
+    ANTES en el fichero que el bucle del grant de OCHO espacios), y este
+    testigo miraba la página ENTERA. El defecto medido no era que "la otra
+    sección producía la misma evidencia": el mutador de calibración usaba
+    `str.replace(texto, ..., 1)` anclado a los OCHO espacios, y esa cadena es
+    SUBCADENA literal de la línea de DOCE espacios del selector nuevo -- así
+    que `replace` mutaba el selector nuevo (que aparece antes) y dejaba el
+    `<select>` del grant intacto. Con este testigo YA acotado a la sección
+    del grant, esa mutación vieja sigue en verde (PYTEST_RC=0, medido): la
+    pantalla ofrece las partidas que la bóveda declara, y sólo ésas, PARA
+    CONCEDER -- pero acotar el testigo por sí solo NO basta para exigirlo.
+    Lo que cierra el agujero es el mutador ESTRUCTURAL del arnés de
+    calibración (localiza por la ruta canónica `/admin/partidas/grant`, no
+    por texto ni posición); este `oferta_del_grant` usa la misma localización
+    para que el testigo y el mutador miren exactamente la misma estructura.
 
     Localiza por ESTRUCTURA (formulario de la ruta canónica de grant + campo
     `partida_id`), no por indentación ni por posición en el fichero: mover el
