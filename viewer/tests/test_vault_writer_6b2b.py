@@ -79,11 +79,16 @@ def test_contrato_rechaza_documento_que_no_es_objeto():
 # POST devolvía 302. `ManifiestoPartida` existe precisamente para llevar ese
 # campo.
 
-@pytest.mark.parametrize("valor", [42, 3.5, ["Mesa A"], {"es": "Mesa A"}, True, False])
-def test_contrato_rechaza_label_que_no_es_cadena(valor):
-    with pytest.raises(ManifiestoPartidaInvalidoError) as exc:
-        ManifiestoPartida.from_dict({"metadata": {"label": valor}}, validate=True)
-    assert "label" in str(exc.value)
+def test_contrato_rechaza_label_que_no_es_cadena():
+    """Sin `parametrize` a propósito: el arnés de calibración compara el
+    NOMBRE de la prueba que enrojece, y los identificadores que pytest genera
+    para los casos (`[valor2]`, `[valor3]`...) no son ese nombre. Un arnés que
+    no reconoce a su propio testigo lo declara NO CALIBRADO aunque la
+    mutación sí lo haya puesto rojo."""
+    for valor in (42, 3.5, ["Mesa A"], {"es": "Mesa A"}, True, False):
+        with pytest.raises(ManifiestoPartidaInvalidoError) as exc:
+            ManifiestoPartida.from_dict({"metadata": {"label": valor}}, validate=True)
+        assert "label" in str(exc.value), valor
 
 
 def test_contrato_acepta_label_ausente_dentro_de_metadata():
