@@ -25,6 +25,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from localizadores import mutar_unico  # noqa: E402
+
 RAIZ = Path(__file__).resolve().parents[2]
 TESTIGO = "viewer/tests/test_corte1_existencia_canonica_partida.py"
 
@@ -305,7 +308,15 @@ def main() -> int:
         if callable(viejo):
             mutado = viejo(original)
         else:
-            mutado = original.replace(viejo, nuevo, 1) if viejo in original else None
+            # NO `original.replace(viejo, nuevo, 1)`. Ese `1` elegía la PRIMERA
+            # aparición en todo el fichero, y por ahí entró el defecto de M6
+            # documentado arriba: un bloque legítimo nuevo apareció ANTES en el
+            # fichero, la mutación cayó en él, la garantía real quedó intacta y
+            # el arnés siguió VERDE. «La primera» y «la correcta» sólo coinciden
+            # con certeza cuando hay exactamente UNA. `mutar_unico` lo exige y
+            # devuelve None —DETECTOR ROTO— en cuanto deja de ser cierto, en vez
+            # de mutar el sitio equivocado en silencio.
+            mutado = mutar_unico(original, viejo, nuevo)
         if mutado is None or mutado == original:
             print(f"### {nombre}\n  DETECTOR ROTO: la mutación no se pudo "
                   f"aplicar sobre {rel} (ancla ausente o ambigua). Un verde "

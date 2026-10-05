@@ -34,8 +34,12 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 RAIZ = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent / "calibracion"))
+from localizadores import mutar_en_funcion  # noqa: E402
+
 VIEWER = RAIZ / "viewer"
 ROUTER = VIEWER / "app" / "routers" / "chassis_review.py"
 SERVICIO = VIEWER / "app" / "services" / "review_console_v2.py"
@@ -52,7 +56,10 @@ class Caso:
     id: str
     garantia: str
     fichero: Path
-    de: str
+    #: Ancla de la mutación. Un `str` es texto literal y se exige que aparezca
+    #: EXACTAMENTE UNA VEZ. Un `Callable[[str], str|None]` es un LOCALIZADOR
+    #: ESTRUCTURAL (`scripts/calibracion/localizadores.py`) y `a` se ignora.
+    de: "str | Callable[[str], str | None]"
     a: str
     #: Tests que DEBEN ponerse rojos. Se nombran uno a uno: "la suite entera se
     #: pone roja" no dice qué comprobación mordió.
@@ -148,22 +155,29 @@ CASOS: tuple[Caso, ...] = (
         ("test_fuera_de_ambito_inexistente_y_filtrado_dan_el_mismo_404",),
     ),
     Caso(
+        # ANCLA PODRIDA, MEDIDA EN ESTE CARRIL: «el ancla de la mutación ya no
+        # existe en chassis_review.py». El ancla era un bloque de SIETE líneas
+        # literales que arrastraba `error_detail=type(exc).__name__`,
+        # `status_code=503` y hasta el comentario `# build_view FILTRA` de la
+        # línea siguiente — es decir, hacía de la posición, del 503 literal y
+        # de un COMENTARIO parte de la garantía. El producto cambió a
+        # `getattr(exc, "code", ...)` y a `status_code=estado` (el desenlace ya
+        # decide el código), y el caso quedó inerte.
+        #
+        # Y el ancla corta tampoco sirve: el renglón de `error_detail` aparece
+        # DOS veces idénticas (la lista y la ficha), así que un
+        # `replace(..., 1)` mutaría la lista por casualidad de orden. Se acota
+        # por ESTRUCTURA a la función del endpoint de LISTA, que es la que el
+        # testigo sondea (`client.get(SLOT.prefix)`).
         "M9", "Un paquete ilegible da 503 SIN volcar rutas ni trazas",
         ROUTER,
-        "                error_detail=type(exc).__name__,\n"
-        "                workspaces=[], workspace=None, view=None, spec=spec, sort=sort,\n"
-        "                page_sizes=console.PAGE_SIZES, sorts=tuple(console.SORTS),\n"
-        "            ),\n"
-        "            status_code=503,\n"
-        "        )\n"
-        "    # build_view FILTRA",
-        "                error_detail=str(exc),\n"
-        "                workspaces=[], workspace=None, view=None, spec=spec, sort=sort,\n"
-        "                page_sizes=console.PAGE_SIZES, sorts=tuple(console.SORTS),\n"
-        "            ),\n"
-        "            status_code=503,\n"
-        "        )\n"
-        "    # build_view FILTRA",
+        lambda texto: mutar_en_funcion(
+            texto,
+            "chassis_review",
+            '                error_detail=getattr(exc, "code", type(exc).__name__),',
+            "                error_detail=str(exc),",
+        ),
+        "",
         ("test_paquete_ilegible_da_503_sin_filtrar_rutas",),
     ),
     Caso(
@@ -469,15 +483,27 @@ def main() -> int:
 
         base_verde, _, _ = correr(caso.tests, caso.suite)
 
-        if caso.de not in original:
-            fallos.append(f"{caso.id}: el ancla de la mutación ya no existe en {caso.fichero.name}")
-            print(f"{caso.id:<5} {'?':<8} {'ANCLA':<8} {'-':<11} {caso.garantia}")
-            continue
-        if original.count(caso.de) != 1:
-            fallos.append(f"{caso.id}: el ancla aparece {original.count(caso.de)} veces (ambigua)")
-            continue
+        if callable(caso.de):
+            # LOCALIZADOR ESTRUCTURAL: `None` es DETECTOR ROTO, nunca un verde
+            # silencioso.
+            texto_mutado = caso.de(original)
+            if texto_mutado is None:
+                fallos.append(
+                    f"{caso.id}: DETECTOR ROTO — el localizador estructural no "
+                    f"pudo acotar el sitio en {caso.fichero.name}")
+                print(f"{caso.id:<5} {'?':<8} {'ESTRUCT':<8} {'-':<11} {caso.garantia}")
+                continue
+        else:
+            if caso.de not in original:
+                fallos.append(f"{caso.id}: el ancla de la mutación ya no existe en {caso.fichero.name}")
+                print(f"{caso.id:<5} {'?':<8} {'ANCLA':<8} {'-':<11} {caso.garantia}")
+                continue
+            if original.count(caso.de) != 1:
+                fallos.append(f"{caso.id}: el ancla aparece {original.count(caso.de)} veces (ambigua)")
+                continue
+            texto_mutado = original.replace(caso.de, caso.a)
 
-        caso.fichero.write_text(original.replace(caso.de, caso.a), encoding="utf-8")
+        caso.fichero.write_text(texto_mutado, encoding="utf-8")
         try:
             mutado_verde, rojos, detalle = correr(caso.tests, caso.suite)
         finally:

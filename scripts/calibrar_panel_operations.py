@@ -43,8 +43,11 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 RAIZ = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent / "calibracion"))
+from localizadores import mutar_en_funcion  # noqa: E402
 VIEWER = RAIZ / "viewer"
 ROUTER = VIEWER / "app" / "routers" / "chassis_operations.py"
 PLANTILLA = VIEWER / "app" / "templates" / "chassis" / "operations.html"
@@ -58,7 +61,12 @@ class Caso:
     id: str
     garantia: str
     fichero: Path
-    de: str
+    #: Ancla de la mutación. Un `str` es texto literal, y entonces se exige que
+    #: aparezca EXACTAMENTE UNA VEZ en el fichero. Un `Callable[[str], str|None]`
+    #: es un LOCALIZADOR ESTRUCTURAL (ver `scripts/calibracion/localizadores.py`)
+    #: y `a` se ignora: lo usan los casos cuyo sitio ya no es identificable por
+    #: texto porque el producto tiene varias copias legítimas del mismo renglón.
+    de: "str | Callable[[str], str | None]"
     a: str
     #: Tests que DEBEN ponerse rojos. Se nombran uno a uno: "la suite entera se
     #: pone roja" no dice qué comprobación mordió.
@@ -165,7 +173,17 @@ CASOS: tuple[Caso, ...] = (
         ("test_una_cola_que_revienta_da_503_sin_filtrar_rutas",),
     ),
     Caso(
-        "B11", "SOLO LECTURA: el módulo no monta ningún método de escritura",
+        # CONTRATO ACTUALIZADO (Slice 2). Este caso decía «el módulo no monta
+        # NINGÚN método de escritura» y nombraba dos tests que ya no existen:
+        # el chasis pasó de `panel = solo lectura` a `panel = consola de
+        # operador con mutaciones DECLARADAS`, y los testigos se renombraron
+        # con él. Medido en este carril: el `-k` no recolectaba NADA (51
+        # deselected) y el arnés lo leía como «rojo ya sin mutar» — un
+        # DETECTOR ROTO que llevaba desde entonces sin poder defender nada.
+        # La MUTACIÓN no cambia (sigue colgando un POST sin declarar, que es
+        # exactamente el defecto que el contrato prohíbe); lo que se corrige
+        # es a quién se le pide el rojo.
+        "B11", "El módulo no monta escrituras que el chasis NO declare",
         ROUTER,
         "@router.get(\"\", response_class=HTMLResponse, name=SLOT.route_name)",
         "@router.post(\"/purgar\")\ndef _mutante_de_escritura():\n    return {\"ok\": True}\n\n\n"
@@ -176,11 +194,12 @@ CASOS: tuple[Caso, ...] = (
         # POST mutante cuelga de `/purgar`. Se deja fuera a propósito en vez de
         # apuntárselo: una comprobación que no caza el defecto no puede
         # cobrarse como la defensa que lo impide.
-        ("test_el_panel_no_monta_ningun_metodo_de_escritura",
-         "test_ninguna_ruta_del_espacio_del_panel_acepta_escritura"),
+        ("test_el_modulo_no_monta_escrituras_que_el_chasis_no_declare",
+         "test_ninguna_escritura_sin_declarar_bajo_el_espacio_del_panel",
+         "test_la_unica_escritura_montada_es_la_capacidad_declarada"),
     ),
     Caso(
-        "B12", "La frontera de solo lectura es del ESPACIO DE URL, no del módulo",
+        "B12", "La frontera de escritura declarada es del ESPACIO DE URL, no del módulo",
         # El defecto se inyecta DESDE FUERA del carril, que es como aparecería
         # de verdad: otro carril monta escritura bajo `/panel/operations` sin
         # tocar `chassis_operations.py`. La enumeración del propio router lo
@@ -191,7 +210,12 @@ CASOS: tuple[Caso, ...] = (
         "@app.post(\"/panel/operations/purgar\")\n"
         "def _mutante_de_escritura_externo():\n"
         "    return {\"ok\": True}\n",
-        ("test_ninguna_ruta_del_espacio_del_panel_acepta_escritura",),
+        # Mismo renombrado que B11. El caso sigue siendo el valioso: el defecto
+        # entra DESDE FUERA del carril (otro módulo cuelga escritura bajo el
+        # prefijo del panel sin tocar `chassis_operations.py`), así que la
+        # enumeración del propio router lo daría por bueno.
+        ("test_ninguna_escritura_sin_declarar_bajo_el_espacio_del_panel",
+         "test_la_unica_escritura_montada_es_la_capacidad_declarada"),
     ),
     Caso(
         "B13", "El panel LEE la salud, no la EJECUTA ni la escribe",
@@ -220,11 +244,16 @@ CASOS: tuple[Caso, ...] = (
         ("test_la_plantilla_no_lleva_urls_escritas_a_mano",),
     ),
     Caso(
-        "B16", "La plantilla no ofrece ninguna acción de escritura",
+        # Mismo renombrado que B11/B12. La mutación convierte el ÚNICO
+        # formulario GET (el de filtros) en un POST, que es una escritura que el
+        # chasis no declara: deja la cuenta de POST por encima de las
+        # capacidades declaradas y la de GET en cero. Las dos aserciones del
+        # testigo muerden, y por la causa correcta.
+        "B16", "La plantilla sólo ofrece los formularios de las capacidades DECLARADAS",
         PLANTILLA,
         "<form method=\"get\"",
         "<form method=\"post\"",
-        ("test_la_plantilla_no_ofrece_ningun_formulario_de_escritura",),
+        ("test_la_plantilla_solo_ofrece_los_formularios_de_las_capacidades_declaradas",),
     ),
     Caso(
         "B17", "El techo de filas existe (una página sin techo materializa la cola)",
@@ -289,11 +318,27 @@ CASOS: tuple[Caso, ...] = (
         ("test_un_campo_ausente_no_se_convierte_en_cero",),
     ),
     Caso(
+        # ANCLA DEPENDIENTE DEL ORDEN, MEDIDA EN ESTE CARRIL. El ancla era
+        # `    user=Depends(slot_guard(SLOT)),` y este panel ha pasado de una
+        # ruta a SEIS (la lectura más las capacidades declaradas del contrato
+        # del chasis: ingesta, sellado, aplicación, altas, alta). El renglón
+        # aparece SEIS veces idénticas, así que no identifica nada: el arnés lo
+        # cazó como «el ancla aparece 6 veces (ambigua)» — correctamente, pero
+        # el caso quedaba sin poder ejercerse.
+        #
+        # Se localiza por ESTRUCTURA, no por texto ni posición: la función del
+        # endpoint de LECTURA, que es la que el testigo sondea. Añadir una
+        # séptima ruta con el mismo renglón ya no cambia qué se muta.
         "B21", "Con la auth desactivada el panel NO se sirve (mitad A del control)",
         ROUTER,
-        "    user=Depends(slot_guard(SLOT)),",
-        "    user=Depends(__import__(\"app.routers.readonly\", fromlist=[\"x\"])\n"
-        "                 .html_role_guard(SLOT.role)),",
+        lambda texto: mutar_en_funcion(
+            texto,
+            "chassis_operations",
+            "    user=Depends(slot_guard(SLOT)),",
+            "    user=Depends(__import__(\"app.routers.readonly\", fromlist=[\"x\"])\n"
+            "                 .html_role_guard(SLOT.role)),",
+        ),
+        "",
         ("test_sin_auth_no_reaparece_el_comportamiento_permisivo",),
     ),
 )
@@ -336,15 +381,28 @@ def main() -> int:
 
         base_verde, _, _ = correr(caso.tests, caso.suite)
 
-        if caso.de not in original:
-            fallos.append(f"{caso.id}: el ancla de la mutación ya no existe en {caso.fichero.name}")
-            print(f"{caso.id:<5} {'?':<8} {'ANCLA':<8} {'-':<11} {caso.garantia}")
-            continue
-        if original.count(caso.de) != 1:
-            fallos.append(f"{caso.id}: el ancla aparece {original.count(caso.de)} veces (ambigua)")
-            continue
+        if callable(caso.de):
+            # LOCALIZADOR ESTRUCTURAL: el propio localizador decide si el sitio
+            # es identificable sin ambigüedad. `None` es DETECTOR ROTO, nunca un
+            # verde silencioso.
+            texto_mutado = caso.de(original)
+            if texto_mutado is None:
+                fallos.append(
+                    f"{caso.id}: DETECTOR ROTO — el localizador estructural no "
+                    f"pudo acotar el sitio en {caso.fichero.name}")
+                print(f"{caso.id:<5} {'?':<8} {'ESTRUCT':<8} {'-':<11} {caso.garantia}")
+                continue
+        else:
+            if caso.de not in original:
+                fallos.append(f"{caso.id}: el ancla de la mutación ya no existe en {caso.fichero.name}")
+                print(f"{caso.id:<5} {'?':<8} {'ANCLA':<8} {'-':<11} {caso.garantia}")
+                continue
+            if original.count(caso.de) != 1:
+                fallos.append(f"{caso.id}: el ancla aparece {original.count(caso.de)} veces (ambigua)")
+                continue
+            texto_mutado = original.replace(caso.de, caso.a)
 
-        caso.fichero.write_text(original.replace(caso.de, caso.a), encoding="utf-8")
+        caso.fichero.write_text(texto_mutado, encoding="utf-8")
         try:
             mutado_verde, rojos, detalle = correr(caso.tests, caso.suite)
         finally:

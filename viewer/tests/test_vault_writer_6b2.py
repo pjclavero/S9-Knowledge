@@ -130,45 +130,139 @@ def test_c1_escritor_rechaza_editar_un_perfil_invalido(tmp_path):
 # 2 y 3 — nunca `to_json()`, muta el dict original, diff mínimo
 # ---------------------------------------------------------------------------
 
-def test_la_escritura_no_reflowea_el_documento_muta_una_sola_clave(tmp_path):
+# ---------------------------------------------------------------------------
+# N1 — LA FRASE CONTRACTUAL DE ESTE TESTIGO, antes de cualquier mutante:
+#
+#   «Este testigo demuestra que un cambio REAL de `metadata.label` conserva el
+#    documento del operador CLAVE POR CLAVE —ninguna clave que el operador
+#    escribió desaparece (tampoco una que el contrato modele como opcional y
+#    cuyo valor sea `null`, ni una que `metadata` no declare), las claves
+#    ajenas conservan su VALOR, y el ORDEN de las claves sigue siendo el del
+#    documento del operador y no el del dataclass— y NO promete preservación
+#    del FORMATO de serialización: ni la indentación, ni los separadores, ni
+#    el número de líneas, ni un diff mínimo en bytes.»
+#
+# POR QUÉ SE REESCRIBE (defecto medido en el microcarril de saneamiento). La
+# versión anterior comparaba LÍNEAS (`antes_lineas[:-2] == despues_lineas[...]`)
+# contra un fixture fabricado con `indent=2`, que es EXACTAMENTE el formato que
+# produce el escritor: la igualdad se cumplía por construcción del fixture, no
+# por una propiedad del producto. Al cambiar sólo el formato del fixture al del
+# mundo real (una línea compacta) la comparación se volvía vacua —con una sola
+# línea, `antes_lineas[:-2]` es la lista vacía— así que el mutante `to_json()`
+# dejaba de ponerse rojo: el saboteado PASABA. Un testigo cuya polaridad la
+# decide la indentación del fixture no defiende nada.
+#
+# Y la propiedad que decía defender («no reflowea el documento del operador»)
+# EL PRODUCTO YA NO LA PROMETE: su propio docstring declara desde la segunda
+# ronda de PR #258 que un cambio real reserializa el documento entero con
+# `json.dumps(indent=2)`. Mantener el nombre habría sido cobrar como garantía
+# algo explícitamente renunciado.
+#
+# Lo que sí discrimina `to_json()` SIN mirar el formato, medido:
+#   (a) `OMIT_IF_NONE` BORRA `learned_adapter` cuando vale `null` — una clave
+#       que el operador escribió DESAPARECE;
+#   (b) `to_json()` impone su propio orden de claves (alfabético) en lugar del
+#       orden del documento del operador.
+# Ambas se observan igual sobre un documento compacto que sobre uno indentado,
+# que es lo que permite exigir la MISMA polaridad en los tres formatos.
+
+#: Tres serializaciones del MISMO documento. Se construyen con `json.dumps` de
+#: la librería estándar y parámetros explícitos, NO con el serializador del
+#: producto: un fixture producido por el sujeto no puede probar nada sobre el
+#: sujeto. `compacto` es el formato del mundo real; `indent_2` coincide a
+#: propósito con la salida del escritor (el caso que antes se cobraba de
+#: balde); `indent_4` no coincide con ninguno de los dos.
+_FORMATOS_IRRELEVANTES = {
+    "compacto": lambda d: json.dumps(d, separators=(",", ":"), ensure_ascii=False),
+    "indent_2": lambda d: json.dumps(d, indent=2, ensure_ascii=False),
+    "indent_4": lambda d: json.dumps(d, indent=4, ensure_ascii=False) + "\n",
+}
+
+
+def _documento_del_operador() -> dict:
+    """Perfil CONFORME con las dos trampas que `to_json()` sí destruye.
+
+    `learned_adapter: None` es el canario de `OMIT_IF_NONE`, y las claves
+    ajenas de `metadata` son las que el escritor no entiende y aun así tiene
+    que respetar. Ninguna de las dos depende de cómo esté serializado.
+    """
+    datos = dict(_PERFIL_CONFORME)
+    datos["learned_adapter"] = None
+    datos["metadata"] = {
+        "label": "Nombre Viejo",
+        "notas_del_operador": "NO BORRAR: esto lo escribió una persona",
+        "orden_de_la_mesa": 7,
+    }
+    return datos
+
+
+@pytest.mark.parametrize("formato", sorted(_FORMATOS_IRRELEVANTES))
+def test_un_cambio_real_conserva_el_documento_del_operador_clave_por_clave(
+    tmp_path, formato
+):
+    """N1 — ver la frase contractual arriba. MISMA polaridad en los 3 formatos."""
+    datos_antes = _documento_del_operador()
     carpeta = tmp_path / "l5r"
-    _escribir_perfil(carpeta, _PERFIL_CONFORME)
+    carpeta.mkdir(parents=True, exist_ok=True)
     ruta = carpeta / sources_catalog.NOMBRE_PERFIL
-    antes = ruta.read_text(encoding="utf-8")
-    huella = vw.huella_de(ruta)
+    ruta.write_text(_FORMATOS_IRRELEVANTES[formato](datos_antes), encoding="utf-8")
 
-    vw.escribir_label_workspace(carpeta, "La Cofradía de Ámbar", huella)
-
-    despues = ruta.read_text(encoding="utf-8")
-    antes_lineas = antes.splitlines()
-    despues_lineas = despues.splitlines()
-
-    # Round-trip casi exacto: la ÚNICA clave que se añade es `metadata` (el
-    # fixture no la traía), insertada al final del objeto -- lo que cambia en
-    # el texto es (a) la coma de la línea que pasa a no-ser-la-última y (b)
-    # las líneas nuevas de `metadata`. NINGUNA otra línea del documento se
-    # reordena ni cambia de contenido -- lo que sí haría `to_json()`.
-    assert len(despues_lineas) >= len(antes_lineas)
-    assert antes_lineas[:-2] == despues_lineas[: len(antes_lineas) - 2], (
-        "el documento se reordenó más allá de la única clave añadida: "
-        "esto sería la firma de un `to_json()` reflow"
+    # Premisa del caso: el perfil se lee CONFORME en este formato. Si no, el
+    # rojo de abajo no diría nada sobre la preservación.
+    assert vw.leer_estado_perfil(ruta).estado == vw.EstadoPerfil.CONFORME, (
+        f"premisa rota: el perfil en formato {formato} no se lee CONFORME"
     )
 
-    datos = json.loads(despues)
-    assert datos["metadata"]["label"] == "La Cofradía de Ámbar"
-    # La comprobación FUERTE, y la que no depende del formato de entrada: el
-    # documento reconstruido sin `metadata` es SEMÁNTICAMENTE idéntico al
-    # original (mismas claves, mismos valores). Auditoría acotada (segunda
-    # ronda de revisión): este fixture se fabrica con `indent=2` -- el mismo
-    # formato que produce el escritor -- así que la comparación de LÍNEAS de
-    # arriba (`antes_lineas[:-2] == despues_lineas[...]`) sólo prueba algo
-    # sobre ESTE formato. Lo que SÍ generaliza a cualquier formato de
-    # entrada (incluido el real, compacto) es esta igualdad de diccionarios:
-    # si `to_json()` reordenara u omitiera una clave, esta comparación lo
-    # vería igual sobre un fixture compacto que sobre uno indentado.
-    sin_metadata = dict(datos)
-    sin_metadata.pop("metadata")
-    assert sin_metadata == _PERFIL_CONFORME
+    vw.escribir_label_workspace(carpeta, "La Cofradía de Ámbar", vw.huella_de(ruta))
+    datos_despues = json.loads(ruta.read_text(encoding="utf-8"))
+
+    # (1) El cambio pedido ocurrió. Sin esto, un escritor que no haga nada
+    #     pasaría todo lo demás.
+    assert datos_despues["metadata"]["label"] == "La Cofradía de Ámbar"
+
+    # (2) NINGUNA clave del operador desaparece. Caza `OMIT_IF_NONE` borrando
+    #     `learned_adapter: null`.
+    perdidas = sorted(set(datos_antes) - set(datos_despues))
+    assert not perdidas, (
+        f"[{formato}] el escritor PERDIÓ claves del documento del operador: "
+        f"{perdidas}. Firma de reconstruir el documento desde el dataclass."
+    )
+    assert "learned_adapter" in datos_despues, (
+        f"[{formato}] `learned_adapter: null` desapareció: el documento se "
+        "reconstruyó desde el dataclass (OMIT_IF_NONE), no se mutó el original."
+    )
+
+    # (3) El ORDEN de las claves sigue siendo el del operador. Caza el orden
+    #     alfabético que impone `to_json()`. El orden sobrevive al parseo, así
+    #     que NO es un detalle de formato.
+    orden_conservado = [k for k in datos_despues if k in datos_antes]
+    assert orden_conservado == list(datos_antes), (
+        f"[{formato}] el orden de las claves es el del dataclass, no el del "
+        f"documento del operador.\n  operador: {list(datos_antes)}\n"
+        f"  en disco: {orden_conservado}"
+    )
+
+    # (4) Las claves AJENAS de `metadata` sobreviven con su valor: son las que
+    #     el escritor no entiende y justo por eso no puede tocar.
+    assert datos_despues["metadata"]["notas_del_operador"] == (
+        "NO BORRAR: esto lo escribió una persona"
+    )
+    assert datos_despues["metadata"]["orden_de_la_mesa"] == 7
+
+    # (5) Y el resto del documento, valor a valor, salvo `metadata` (la única
+    #     clave que este cambio toca).
+    for clave, valor in datos_antes.items():
+        if clave == "metadata":
+            continue
+        assert datos_despues[clave] == valor, (
+            f"[{formato}] la clave ajena {clave!r} cambió de valor"
+        )
+
+    # LO QUE ESTE TESTIGO NO COMPRUEBA, A PROPÓSITO: ni el número de líneas, ni
+    # la indentación, ni los bytes. El producto declara que un cambio real
+    # reserializa el documento entero, así que exigirlo aquí sería inventar una
+    # garantía que nadie prometió -- y es exactamente el error que esta
+    # reescritura corrige.
 
 
 def test_la_lectura_de_salida_tras_escribir_sigue_conforme(tmp_path):
