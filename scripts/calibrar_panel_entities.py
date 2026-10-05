@@ -414,8 +414,13 @@ def correr_todo() -> tuple[bool, set[str], str]:
     # un colateral nuevo: si la mutación añade un rojo, aparece en la
     # diferencia aunque la base ya tuviera otros.
     proc = subprocess.run(
+        # `-rfE`, no `-rf`: con `-rf` pytest NO resume las lineas `ERROR`, asi
+        # que un colateral que ERROREA en vez de FALLAR era invisible para la
+        # diferencia (medido: la base devolvia 0 rojos teniendo 9 errores). Un
+        # error de fixture o de recoleccion es un rojo igual, y con `-rf` la
+        # expresion que lo busca no tenia nada que leer.
         [sys.executable, "-m", "pytest", "viewer/tests", "-q", "--no-header",
-         "-p", "no:cacheprovider", "--tb=no", "-rf", "--color=no"],
+         "-p", "no:cacheprovider", "--tb=no", "-rfE", "--color=no"],
         cwd=RAIZ, capture_output=True, text=True,
     )
     salida = proc.stdout + proc.stderr
