@@ -439,6 +439,17 @@ _NOMBRES_DE_IDENTIDAD = {
     "partida_id",
     "workspace_canonico",
     "active_partida",
+    # (microcarril de saneamiento) IDENTIDAD DE PARTIDA. El trinquete vigilaba
+    # el workspace por cuatro nombres y la partida solo por `partida_id` y
+    # `active_partida`, pero los Cortes 6B-2(b) y 6A introdujeron DOS nombres
+    # mas que llevan un identificador de partida crudo a la plantilla y que la
+    # red NO miraba: `partida_editada` (el identificador de la partida que se
+    # esta nombrando) y `pid` (la variable del bucle que enumera la boveda).
+    # Mientras no estuvieran aqui, revertir cualquiera de esas salidas a crudo
+    # -- o anadir una nueva-- dejaba la suite VERDE: exactamente el hueco de la
+    # ronda 1, pero para la partida en vez del workspace.
+    "partida_editada",
+    "pid",
 }
 
 #: plantilla -> {expresion cruda: cuantas veces} QUE SON PROTOCOLO.
@@ -476,7 +487,39 @@ _PROTOCOLO_DECLARADO = {
     # aparicion de esta lista: es el workspace del POST, protocolo, no
     # presentacion -- el segundo formulario de la misma pantalla necesita
     # declarar su propio ambito igual que el primero.
-    "auth/admin/partidas.html": {"workspace_canonico": 5},
+    # (microcarril de saneamiento) IDENTIDAD DE PARTIDA en esta MISMA pantalla.
+    # Las cinco apariciones estan MEDIDAS (3 + 2), no estimadas, y cada una
+    # repite una razon que esta lista ya acepto para el workspace -- no se
+    # inventa ninguna categoria nueva de excepcion:
+    #
+    #   `partida_editada` x3, todas en el formulario "Nombre de la partida":
+    #     1. `value="{{ partida_editada }}"` en el `<input type="hidden"
+    #        name="partida_id">` que viaja en el POST -- PROTOCOLO, la misma
+    #        razon que `workspace_canonico` #1 y #5.
+    #     2. `<code>{{ partida_editada }}</code>` en la prosa de la etiqueta
+    #        ("Nombre humano (identificador: ...)") -- mostrado A PROPOSITO y
+    #        ETIQUETADO como identificador: el objetivo de la pantalla es que
+    #        el operador vea el identificador Y el nombre humano como dos
+    #        cosas distintas mientras edita una. Misma razon que
+    #        `workspace_canonico` #2.
+    #     3. `placeholder="{{ partida_editada }}"` en el campo editable --
+    #        presentacion pura que el navegador NUNCA envia en el POST. Misma
+    #        razon que `workspace_canonico` #4 (la correccion D1).
+    #
+    #   `pid` x2, las dos como VALOR DE OPCION de un `<select>`:
+    #     1. el selector "que partida nombrar" (Corte 6B-2b).
+    #     2. el selector de "Conceder acceso" (Corte 6A).
+    #        En los dos, el texto VISIBLE de la opcion ya pasa por
+    #        `etiqueta_partida(...)` -- lo crudo es solo el `value` que viaja
+    #        en el POST. Misma razon que `p.partida_id` en `base.html`.
+    #
+    # NO abren fuga de ambito: la pantalla entera exige `require_admin` y todo
+    # `pid` sale de la enumeracion real de la boveda del workspace canonico.
+    "auth/admin/partidas.html": {
+        "workspace_canonico": 5,
+        "partida_editada": 3,
+        "pid": 2,
+    },
     # `value` de cada opcion del selector de partida.
     "base.html": {"p.partida_id": 1},
     # query-string del enlace al resultado, y `data-*` que lee el JS del filtro.
