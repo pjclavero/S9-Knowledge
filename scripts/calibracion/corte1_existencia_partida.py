@@ -26,7 +26,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from localizadores import mutar_unico  # noqa: E402
+from localizadores import mutar_en_funcion, mutar_unico  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parents[2]
 TESTIGO = "viewer/tests/test_corte1_existencia_canonica_partida.py"
@@ -206,9 +206,24 @@ MUTACIONES = [
         # puede hacerlo es la de `workspace`.
         "M2 — el panel deja de validar el workspace al conceder "
         "(vuelve el texto libre por debajo de la pantalla)",
+        # TERCERA ANCLA AMBIGUA DESTAPADA AL RETIRAR EL `replace(..., 1)`. La
+        # guarda `es_workspace_canonico(workspace)` existe TRES veces en
+        # `admin.py`: en `admin_partidas_grant` (este caso),
+        # `admin_partidas_label` (6B-2a) y `admin_partidas_label_partida`
+        # (6B-2b). El `replace(..., 1)` acertaba por el orden de definicion:
+        # el grant esta primero. Si un carril futuro hubiera movido o anadido
+        # un endpoint por encima, M2 habria mutado OTRA guarda y el testigo del
+        # grant habria seguido verde con la suya intacta -- el mismo defecto
+        # que ya se cobro a M6. Se acota por estructura al endpoint que el
+        # testigo ejerce.
         "viewer/app/routers/admin.py",
-        "    if not existencia.es_workspace_canonico(workspace):",
-        "    if False and not existencia.es_workspace_canonico(workspace):",
+        lambda texto: mutar_en_funcion(
+            texto,
+            "admin_partidas_grant",
+            "    if not existencia.es_workspace_canonico(workspace):",
+            "    if False and not existencia.es_workspace_canonico(workspace):",
+        ),
+        None,
         ["test_conceder_a_un_workspace_real_pero_no_canonico_sigue_rechazado"],
         "se concedió acceso a un workspace real pero NO canónico",
     ),
