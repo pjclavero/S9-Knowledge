@@ -44,7 +44,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from localizadores import mutar_unico  # noqa: E402
+from localizadores import mutar_en_funcion, mutar_unico  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parents[2]
 TESTIGOS = [
@@ -75,8 +75,15 @@ def _correr_testigos() -> tuple[int, str]:
 
 
 def _fallos(salida: str) -> list[str]:
+    """Nombres de los testigos en rojo, SIN el sufijo de parametrización.
+
+    `pytest` nombra un caso parametrizado `test_x[compacto]`. Sin recortar el
+    `[...]`, un testigo parametrizado NUNCA coincide con el nombre declarado en
+    la tabla y el caso sale NO CALIBRADA aunque el rojo sea exactamente el
+    esperado -- medido con N1, que corre sobre tres formatos.
+    """
     return sorted({
-        linea.split("::")[-1].split(" ")[0]
+        linea.split("::")[-1].split(" ")[0].split("[")[0]
         for linea in salida.splitlines()
         if linea.startswith("FAILED") or "FAILED " in linea
     })
@@ -183,9 +190,22 @@ MUTACIONES = [
         "M7 — (R1, segunda ronda de revisión de PR #258) el escritor deja de "
         "detectar el NO-OP y reescribe/reflowea el documento aunque el "
         "efecto neto sea cero",
+        # ANCLA AMBIGUA DESTAPADA POR EL BARRIDO DE ESTE CARRIL. La guarda del
+        # NO-OP existe DOS veces en el fichero, una por escritor:
+        # `escribir_label_workspace` (6B-2a) y `escribir_label_partida` (6B-2b).
+        # El `replace(..., 1)` mutaba la PRIMERA, que resultaba ser la correcta
+        # por pura casualidad del orden de definición: si 6B-2(b) se hubiera
+        # escrito arriba, M7 habría mutado el escritor de PARTIDA y los testigos
+        # de WORKSPACE habrían seguido verdes con la garantía rota. Se acota por
+        # estructura al escritor que estos testigos ejercen.
         "viewer/app/vault_writer.py",
-        "    if valor_normalizado == lectura.label_actual:",
-        "    if False:",
+        lambda texto: mutar_en_funcion(
+            texto,
+            "escribir_label_workspace",
+            "    if valor_normalizado == lectura.label_actual:",
+            "    if False:",
+        ),
+        None,
         [
             "test_no_op_de_borrado_sobre_perfil_compacto_no_reescribe_nada",
             "test_no_op_guardando_el_mismo_label_sobre_perfil_compacto_no_reescribe_nada",
@@ -266,11 +286,25 @@ def main() -> int:
         # siguió verde con la garantía real intacta. `mutar_unico` exige que el
         # ancla sea ÚNICA y, si no lo es, da DETECTOR ROTO en vez de mutar el
         # sitio equivocado en silencio.
-        mutado = mutar_unico(original, viejo, nuevo)
+        # `viejo` puede ser un texto literal o un LOCALIZADOR ESTRUCTURAL
+        # (callable texto -> texto|None), igual que en Corte 1. Un localizador
+        # que devuelve None es DETECTOR ROTO, nunca un verde silencioso.
+        if callable(viejo):
+            mutado = viejo(original)
+            motivo_estructural = (
+                "el localizador estructural no pudo acotar el sitio "
+                "(función ausente, duplicada, o ancla no única dentro de ella)"
+            )
+        else:
+            mutado = mutar_unico(original, viejo, nuevo)
+            motivo_estructural = None
         if mutado is None:
-            veces = original.count(viejo)
-            motivo = ("el texto a mutar no está" if veces == 0 else
-                      f"el ancla aparece {veces} veces (AMBIGUA: no identifica un sitio)")
+            if motivo_estructural is not None:
+                motivo = motivo_estructural
+            else:
+                veces = original.count(viejo)
+                motivo = ("el texto a mutar no está" if veces == 0 else
+                          f"el ancla aparece {veces} veces (AMBIGUA: no identifica un sitio)")
             print(f"### {nombre}\n  DETECTOR ROTO: {motivo} en {rel}. "
                   f"La mutación no se aplicó: un verde aquí sería FALSO.\n")
             veredictos.append((nombre, "DETECTOR ROTO"))
