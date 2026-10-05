@@ -391,16 +391,40 @@ def correr_todo() -> tuple[bool, set[str], str]:
     y los colaterales se declaran caso a caso. Cuesta ~50 s por caso, y ese es
     el precio de poder afirmarlo.
     """
+    # DOS CORRECCIONES MEDIDAS EN EL MICROCARRIL DE SANEAMIENTO:
+    #
+    # (1) `cwd` ERA `VIEWER`, Y DESDE AHÍ LA SUITE NO PUEDE ESTAR VERDE. Tres
+    #     testigos de F-2 (`test_f2_divergencia_visible_desde_el_producto.py`)
+    #     leen el fuente por la ruta RELATIVA `viewer/app/authz/...`, que sólo
+    #     resuelve desde la RAÍZ del repositorio. Medido: desde `viewer/` daban
+    #     `FileNotFoundError`; desde la raíz pasan. La suite canónica de este
+    #     repo se ejecuta desde la raíz, y este arnés tiene que medir donde el
+    #     producto se mide, no en otro sitio.
+    #
+    # (2) EXIGÍA `returncode == 0`, QUE ES INALCANZABLE Y DEJABA EL ARNÉS
+    #     MUERTO. La suite arrastra ~9 errores de Playwright (`TargetClosedError`,
+    #     falta `libnspr4.so`) ajenos a este corte. Con rc==0 como condición,
+    #     este calibrador ABORTABA antes de ejercer una sola mutación en
+    #     cualquier entorno sin navegador: no es que midiese mal, es que no
+    #     medía NADA.
+    #
+    # Lo que se mide ahora es el CONJUNTO de rojos, y los colaterales se
+    # calculan por DIFERENCIA contra la línea base sin mutar. Un rojo ambiental
+    # preexistente deja de cegar el instrumento, y a la vez no puede enmascarar
+    # un colateral nuevo: si la mutación añade un rojo, aparece en la
+    # diferencia aunque la base ya tuviera otros.
     proc = subprocess.run(
-        [sys.executable, "-m", "pytest", "tests", "-q", "--no-header",
+        [sys.executable, "-m", "pytest", "viewer/tests", "-q", "--no-header",
          "-p", "no:cacheprovider", "--tb=no", "-rf", "--color=no"],
-        cwd=VIEWER, capture_output=True, text=True,
+        cwd=RAIZ, capture_output=True, text=True,
     )
     salida = proc.stdout + proc.stderr
     if " no tests ran" in salida or "collected 0 items" in salida:
         return False, {"0 TESTS RECOLECTADOS (arnés roto)"}, "0 recolectados"
+    # FAILED y ERROR: un error de recolección o de fixture es un rojo igual, y
+    # contarlo sólo en un lado de la diferencia fabricaría colaterales falsos.
     rojos = {r.split("[")[0]
-             for r in re.findall(r"^FAILED [^:]+::([\w\[\]\-.]+)", salida, re.M)}
+             for r in re.findall(r"^(?:FAILED|ERROR) [^:]+::([\w\[\]\-.]+)", salida, re.M)}
     ultima = salida.strip().splitlines()[-1] if salida.strip() else ""
     return proc.returncode == 0, rojos, ultima
 
@@ -411,14 +435,23 @@ def main() -> int:
     #: pero entonces NO se puede afirmar nada sobre los colaterales).
     medir_colaterales = "--sin-colaterales" not in sys.argv
 
+    base_rojos: set[str] = set()
     if medir_colaterales:
         print("Midiendo la línea base de la suite COMPLETA (sin mutar)…")
-        base_todo_verde, base_rojos, base_detalle = correr_todo()
-        if not base_todo_verde:
-            print(f"  FALLO: la suite completa YA está roja sin mutar: "
-                  f"{sorted(base_rojos)} ({base_detalle})")
+        _, base_rojos, base_detalle = correr_todo()
+        # Un arnés que no recolecta nada SÍ aborta: eso no es un rojo ambiental,
+        # es el instrumento roto, y su «cero colaterales» sería mentira.
+        if "0 TESTS RECOLECTADOS (arnés roto)" in base_rojos:
+            print("  FALLO: la suite base no recolectó NADA. El arnés está roto; "
+                  "medir colaterales contra esto no significa nada.")
             return 1
-        print(f"  línea base VERDE — {base_detalle}\n")
+        if base_rojos:
+            # Se DECLARAN, no se toleran en silencio: quedan impresos para que
+            # el diferencial de un carril futuro vea si la lista crece.
+            print(f"  línea base con {len(base_rojos)} rojo(s) PREEXISTENTE(S), "
+                  f"ajenos a este corte y descontados del cálculo de "
+                  f"colaterales: {sorted(base_rojos)}")
+        print(f"  línea base — {base_detalle}\n")
 
     print(f"{'caso':<6} {'base':<8} {'mutado':<8} {'reversión':<11} "
           f"{'colat.':<7} garantía")
@@ -445,7 +478,9 @@ def main() -> int:
             colaterales_medidos: set[str] = set()
             if medir_colaterales:
                 _, todos_los_rojos, _ = correr_todo()
-                colaterales_medidos = todos_los_rojos - set(caso.tests)
+                # Por DIFERENCIA contra la base: un colateral es un rojo que la
+                # MUTACIÓN añade, no uno que el entorno ya traía.
+                colaterales_medidos = todos_los_rojos - set(caso.tests) - base_rojos
         finally:
             caso.fichero.write_text(original, encoding="utf-8")
             _EN_VUELO.pop(caso.fichero, None)

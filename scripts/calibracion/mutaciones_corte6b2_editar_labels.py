@@ -43,6 +43,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from localizadores import mutar_unico  # noqa: E402
+
 RAIZ = Path(__file__).resolve().parents[2]
 TESTIGOS = [
     "viewer/tests/test_vault_writer_6b2.py",
@@ -110,15 +113,34 @@ MUTACIONES = [
         "AttributeError",
     ),
     (
-        "M3 — el escritor usa `GameProfile.to_json()` en vez de mutar el "
-        "dict original: reflowea el documento del operador",
+        # N1 — POLARIDAD REDEFINIDA, NO SÓLO RENOMBRADA. El testigo anterior
+        # (`test_la_escritura_no_reflowea_...`) se ponía rojo por un ACCIDENTE
+        # DEL FORMATO DEL FIXTURE: comparaba líneas contra un fixture fabricado
+        # con `indent=2`, el mismo formato que produce el escritor. Al pasar el
+        # fixture al formato real (compacto, una línea) la comparación se
+        # volvía vacua y ESTE MUTANTE PASABA. Además, la propiedad que decía
+        # defender («no reflowea») el producto ya NO la promete: su docstring
+        # declara que un cambio real reserializa el documento entero.
+        #
+        # El testigo nuevo protege lo que `to_json()` rompe de verdad y que NO
+        # depende del formato: (a) `OMIT_IF_NONE` borra `learned_adapter: null`
+        # —una clave del operador DESAPARECE—, y (b) se impone el orden de
+        # claves del dataclass en vez del del documento del operador. Está
+        # parametrizado sobre TRES serializaciones (compacta, indent=2,
+        # indent=4) y las tres dan la MISMA polaridad: medido, 3 verdes sobre
+        # el producto correcto y 3 rojas con este mutante, con el mismo
+        # mensaje. El fragmento esperado abajo es DISCRIMINANTE (no un `assert`
+        # genérico): nombra el efecto concreto.
+        "M3 — el escritor reconstruye el documento desde el dataclass "
+        "(`GameProfile.to_json()`) en vez de mutar el dict original: pierde "
+        "claves del operador e impone su propio orden",
         "viewer/app/vault_writer.py",
         "    _escribir_atomico(ruta_perfil, datos)\n"
         "    return leer_estado_perfil(ruta_perfil)",
         "    ruta_perfil.write_text(_perfil_salida.to_json(), encoding=\"utf-8\")\n"
         "    return leer_estado_perfil(ruta_perfil)",
-        ["test_la_escritura_no_reflowea_el_documento_muta_una_sola_clave"],
-        "assert",
+        ["test_un_cambio_real_conserva_el_documento_del_operador_clave_por_clave"],
+        "PERDIÓ claves del documento del operador",
     ),
     (
         "M4 — el escritor deja de ejercer el predicado de destino seguro: "
@@ -236,13 +258,25 @@ def main() -> int:
     for nombre, rel, viejo, nuevo, esperadas, fragmento in MUTACIONES:
         f = RAIZ / rel
         original = f.read_text(encoding="utf-8")
-        if viejo not in original:
-            print(f"### {nombre}\n  DETECTOR ROTO: el texto a mutar no está en "
-                  f"{rel}. La mutación no se aplicó: un verde aquí sería FALSO.\n")
+        # NO `replace(viejo, nuevo, 1)`: ese `1` elige la PRIMERA aparición en
+        # todo el fichero, y convierte la POSICIÓN —que cualquier carril mueve
+        # sin darse cuenta— en parte de la garantía. Es el defecto que ya se
+        # cobró a M6 de Corte 1 (ver `corte1_existencia_partida.py`): un bloque
+        # legítimo nuevo apareció antes, la mutación cayó en él y el arnés
+        # siguió verde con la garantía real intacta. `mutar_unico` exige que el
+        # ancla sea ÚNICA y, si no lo es, da DETECTOR ROTO en vez de mutar el
+        # sitio equivocado en silencio.
+        mutado = mutar_unico(original, viejo, nuevo)
+        if mutado is None:
+            veces = original.count(viejo)
+            motivo = ("el texto a mutar no está" if veces == 0 else
+                      f"el ancla aparece {veces} veces (AMBIGUA: no identifica un sitio)")
+            print(f"### {nombre}\n  DETECTOR ROTO: {motivo} en {rel}. "
+                  f"La mutación no se aplicó: un verde aquí sería FALSO.\n")
             veredictos.append((nombre, "DETECTOR ROTO"))
             continue
 
-        f.write_text(original.replace(viejo, nuevo, 1), encoding="utf-8")
+        f.write_text(mutado, encoding="utf-8")
         rc_mut, salida_mut = _correr_testigos()
         fallos = _fallos(salida_mut)
         mensaje_ok = fragmento in salida_mut
