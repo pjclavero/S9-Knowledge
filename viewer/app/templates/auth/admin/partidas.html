@@ -48,6 +48,62 @@
     </section>
   {% endif %}
 
+  {# CORTE 6B-2(b) — editar el nombre humano de UNA partida concreta. Mismo
+     patrón que el workspace de arriba (identificador en placeholder, nunca
+     en value; vacío borra), reutilizando `vault_writer.escribir_label_partida`
+     y el contrato `app.partida_manifest_contract.ManifiestoPartida`. El
+     `<select>` de qué partida editar es un GET (recarga de página, no muta
+     nada); solo ofrece las partidas de `partidas_descubribles`, la MISMA
+     enumeración real que ya usa "Conceder acceso". #}
+  {% if workspace_canonico and catalogo_disponible and partidas_descubribles %}
+    <section style="border:1px solid #ccc;border-radius:6px;padding:1rem;margin-bottom:1.5rem;">
+      <h3>Nombre de la partida</h3>
+      <form method="get" action="/admin/partidas">
+        <div class="field">
+          <label for="editar_partida">Elegir partida a nombrar</label>
+          <select id="editar_partida" name="editar_partida" onchange="this.form.submit()">
+            <option value="" {% if not partida_editada %}selected{% endif %} disabled>— elige una partida —</option>
+            {% for pid in partidas_descubribles %}
+              <option value="{{ pid | e }}" {% if pid == partida_editada %}selected{% endif %}>
+                {{ etiqueta_partida(workspace_canonico, pid) | e }}
+              </option>
+            {% endfor %}
+          </select>
+          <noscript><button type="submit">Elegir</button></noscript>
+        </div>
+      </form>
+
+      {% if partida_editada %}
+        {% if partida_label_estado == "conforme" %}
+          {% if puede_editar_label %}
+            <form method="post" action="/admin/partidas/label-partida">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="workspace" value="{{ workspace_canonico | e }}">
+              <input type="hidden" name="partida_id" value="{{ partida_editada | e }}">
+              <input type="hidden" name="fingerprint" value="{{ partida_label_fingerprint | e }}">
+              <label for="partida_label">Nombre humano (identificador: <code>{{ partida_editada | e }}</code>)</label>
+              {# Mismo D1 que el workspace: el identificador va como
+                 PLACEHOLDER, nunca como `value`. Vacío + Guardar BORRA el
+                 nombre humano de esta partida (D2). #}
+              <input type="text" id="partida_label" name="label"
+                     value="{{ partida_label_valor_formulario | e }}"
+                     placeholder="{{ partida_editada | e }}" maxlength="200">
+              <button type="submit">Guardar</button>
+            </form>
+          {% else %}
+            <p>Nombre actual: <strong>{{ partida_label_actual | e }}</strong>.
+               No tienes capacidad para editar el nombre de un contexto.</p>
+          {% endif %}
+        {% elif partida_label_estado == "legible_no_conforme" %}
+          <p>Nombre actual: <strong>{{ partida_label_actual | e }}</strong>.
+             <em>No editable: {{ partida_label_causa | e }}.</em></p>
+        {% elif partida_label_estado == "invalido" %}
+          <p>El manifiesto de esta partida no se puede leer: <em>{{ partida_label_causa | e }}</em>.</p>
+        {% endif %}
+      {% endif %}
+    </section>
+  {% endif %}
+
   {% if errors %}
     <div class="alert alert-error" role="alert">
       <ul style="margin:0;padding-left:1.2rem;">

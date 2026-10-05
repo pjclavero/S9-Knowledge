@@ -1227,6 +1227,19 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/mutaciones_corte6b2_editar_labels.py
 
+      # Corte 6B-2(b): editar el nombre humano de la PARTIDA desde la web,
+      # sobre el contrato minimo `app.partida_manifest_contract.ManifiestoPartida`.
+      # Cubre: el identificador vuelve a colarse como `value` por defecto, la
+      # guarda "nombre == identificador de partida" se desactiva, el NO-OP
+      # deja de detectarse, C3 colapsa en ESTE endpoint concreto, el ambito
+      # autorizado (enumeracion real de la boveda) deja de comprobarse, el
+      # almacenamiento deja de ser verbatim, el contrato deja de cerrar el
+      # primer nivel, y el manifiesto AUSENTE deja de colapsar a CONFORME.
+      - name: "Escritor del nombre de la partida: contrato, huella, C1 y C3 (Corte 6B-2b)"
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/mutaciones_corte6b2b_nombre_partida.py
+
 
       # Y la calibracion del corte «el workspace no lo elige el cliente»: el
       # ambito de una consulta lo decide la autoridad del servidor, no el

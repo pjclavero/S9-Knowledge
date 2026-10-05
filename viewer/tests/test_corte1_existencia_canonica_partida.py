@@ -107,6 +107,62 @@ def _conceder(cliente, user_id, workspace, partida_id):
     })
 
 
+#: Ruta canónica del formulario de CONCEDER ACCESO. Es la misma que usa
+#: `_conceder`: el testigo y el cliente miran la MISMA estructura.
+RUTA_GRANT = "/admin/partidas/grant"
+#: Nombre del campo que ese formulario envía como partida.
+CAMPO_GRANT_PARTIDA = "partida_id"
+
+
+def oferta_del_grant(html: str) -> str:
+    """Devuelve SOLO el interior del `<select name="partida_id">` que vive
+    DENTRO del formulario de «Conceder acceso».
+
+    D1 (revisión independiente de PR #259): el Corte 6B-2(b) añadió un
+    SEGUNDO `<select>` sobre la misma enumeración (`partidas_descubribles`,
+    el selector «qué partida nombrar», con DOCE espacios de indentación,
+    ANTES en el fichero que el bucle del grant de OCHO espacios), y este
+    testigo miraba la página ENTERA. El defecto medido no era que "la otra
+    sección producía la misma evidencia": el mutador de calibración usaba
+    `str.replace(texto, ..., 1)` anclado a los OCHO espacios, y esa cadena es
+    SUBCADENA literal de la línea de DOCE espacios del selector nuevo -- así
+    que `replace` mutaba el selector nuevo (que aparece antes) y dejaba el
+    `<select>` del grant intacto. Con este testigo YA acotado a la sección
+    del grant, esa mutación vieja sigue en verde (PYTEST_RC=0, medido): la
+    pantalla ofrece las partidas que la bóveda declara, y sólo ésas, PARA
+    CONCEDER -- pero acotar el testigo por sí solo NO basta para exigirlo.
+    Lo que cierra el agujero es el mutador ESTRUCTURAL del arnés de
+    calibración (localiza por la ruta canónica `/admin/partidas/grant`, no
+    por texto ni posición); este `oferta_del_grant` usa la misma localización
+    para que el testigo y el mutador miren exactamente la misma estructura.
+
+    Localiza por ESTRUCTURA (formulario de la ruta canónica de grant + campo
+    `partida_id`), no por indentación ni por posición en el fichero: mover el
+    bloque, reindentarlo o añadir otra vista de la misma enumeración no
+    cambia qué se está mirando.
+    """
+    m = re.search(
+        r'<form\b[^>]*\baction="' + re.escape(RUTA_GRANT) + r'"[^>]*>', html
+    )
+    assert m is not None, (
+        "la pantalla ya no tiene el formulario de conceder acceso a la ruta "
+        f"canónica {RUTA_GRANT}"
+    )
+    fin_form = html.find("</form>", m.end())
+    assert fin_form != -1, "el formulario de conceder acceso no se cierra"
+    dentro = html[m.end():fin_form]
+
+    for s in re.finditer(r'<select\b[^>]*>', dentro):
+        if re.search(r'\bname="' + CAMPO_GRANT_PARTIDA + r'"', s.group(0)):
+            fin_sel = dentro.find("</select>", s.end())
+            assert fin_sel != -1, "el desplegable de partida del grant no se cierra"
+            return dentro[s.end():fin_sel]
+    raise AssertionError(
+        "el formulario de conceder acceso ya no ofrece ningún desplegable "
+        f'name="{CAMPO_GRANT_PARTIDA}": no hay ninguna partida que elegir'
+    )
+
+
 def _sembrar_fantasma(auth_db, db_path, user_id, workspace, partida_id):
     """La concesión fantasma, escrita DIRECTAMENTE en la tabla.
 
@@ -473,17 +529,21 @@ def test_la_pantalla_ofrece_las_partidas_de_la_boveda_real_no_un_eco_de_concesio
     _sembrar_fantasma(auth_db, db_path, jugadora.id, WS_AJENO, "partida:ajena")
     c = _cliente(app, tok)
     _, html = _csrf(c)
+    # D1: la evidencia se pide DENTRO del formulario de conceder, no en
+    # cualquier parte de la página. Otra sección que enumere lo mismo no
+    # puede suplir la oferta del grant.
+    oferta = oferta_del_grant(html)
 
-    assert f'<option value="{PARTIDA}">' in html, (
+    assert f'<option value="{PARTIDA}">' in oferta, (
         "la pantalla no ofrece la partida que SÍ existe en la bóveda de este "
         "workspace"
     )
-    assert '<option value="partida:solo-en-la-tabla">' not in html, (
+    assert '<option value="partida:solo-en-la-tabla">' not in oferta, (
         "la pantalla ofrece una partida que sólo existe como fila de "
         "`partida_access`, no en el árbol: eso es el eco circular que este "
         "corte cierra"
     )
-    assert '<option value="partida:ajena">' not in html, (
+    assert '<option value="partida:ajena">' not in oferta, (
         "la pantalla ofrece una partida que sólo existe como fila de "
         "`partida_access` de OTRO workspace, no en el árbol de éste"
     )

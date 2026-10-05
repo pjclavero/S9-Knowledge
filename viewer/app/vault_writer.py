@@ -230,6 +230,117 @@ def _label_declarado(datos: dict) -> str:
     return label.strip() if isinstance(label, str) and label.strip() else ""
 
 
+#: Huella sentinela para "el manifiesto de partida todavía no existe". A
+#: diferencia de `perfil-operador.json` (siempre existe: es la autoridad de
+#: identidad del workspace), `manifiesto-partida.json` es OPCIONAL -- una
+#: partida ya descubierta por `sources_catalog.partidas_descubiertas_en_boveda`
+#: puede no tener manifiesto todavía, y este módulo NO la crea al leer, solo
+#: al escribir un cambio REAL. `sha256` no es un hash hexadecimal válido a
+#: propósito: no puede coincidir jamás con el de un fichero real.
+_SHA_AUSENTE = "ausente-sin-manifiesto-de-partida"
+
+
+def huella_ausente() -> Huella:
+    """La huella que representa "no hay fichero todavía". Comparable con
+    `coincide_contenido` igual que cualquier otra huella: dos "ausente" son
+    la misma huella, un "ausente" nunca coincide con un fichero real."""
+    return Huella(sha256=_SHA_AUSENTE, st_size=0, st_dev=0, st_ino=0)
+
+
+def _huella_actual_o_ausente(ruta: Path) -> Huella:
+    try:
+        return huella_de(ruta)
+    except OSError:
+        return huella_ausente()
+
+
+def _manifiesto_partida_from_dict(datos: dict):
+    """Import diferido por simetría con `_game_profile_from_dict`, aunque
+    aquí el contrato vive en este mismo paquete (`app.partida_manifest_contract`)
+    y no exige cargar `data-engine`."""
+    from app.partida_manifest_contract import (  # noqa: PLC0415
+        ManifiestoPartida,
+        ManifiestoPartidaInvalidoError,
+    )
+
+    try:
+        return ManifiestoPartida.from_dict(datos, validate=True), None
+    except ManifiestoPartidaInvalidoError as exc:
+        return None, str(exc)
+
+
+CAUSA_NO_CONFORME_PARTIDA = "metadata fuera del contrato de escritura de partida"
+
+
+@dataclass
+class LecturaManifiestoPartida:
+    """Mismo contenedor que `LecturaPerfil` (C1: los tres estados), para el
+    manifiesto de partida. Se declara aparte -- no se reutiliza la clase de
+    perfil -- porque un manifiesto AUSENTE es CONFORME con `datos={}` y
+    `huella_ausente()`, un estado que `leer_estado_perfil` no conoce (el
+    perfil siempre existe)."""
+
+    estado: EstadoPerfil
+    datos: Optional[dict]
+    huella: Optional[Huella]
+    causa: Optional[str]
+    label_actual: str
+
+
+def leer_estado_manifiesto_partida(ruta_manifiesto: Path) -> LecturaManifiestoPartida:
+    """Los TRES estados de C1 para `manifiesto-partida.json`, con un cuarto
+    caso degenerado (AUSENTE) que colapsa a CONFORME: sin fichero no hay
+    ninguna clave fuera de contrato que reportar, y es el estado normal de
+    una partida recién descubierta que el operador todavía no ha nombrado."""
+    try:
+        contenido = ruta_manifiesto.read_bytes()
+    except FileNotFoundError:
+        return LecturaManifiestoPartida(
+            EstadoPerfil.CONFORME, {}, huella_ausente(), None, ""
+        )
+    except OSError as exc:
+        return LecturaManifiestoPartida(
+            EstadoPerfil.INVALIDO, None, None,
+            f"no se pudo leer el manifiesto de partida: {exc}", "",
+        )
+    try:
+        datos = json.loads(contenido.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError) as exc:
+        return LecturaManifiestoPartida(
+            EstadoPerfil.INVALIDO, None, None,
+            f"el manifiesto de partida no es JSON válido: {exc}", "",
+        )
+    if not isinstance(datos, dict):
+        return LecturaManifiestoPartida(
+            EstadoPerfil.INVALIDO, None, None,
+            "el manifiesto de partida no es un objeto JSON", "",
+        )
+
+    st = ruta_manifiesto.stat()
+    huella = Huella(
+        sha256=hashlib.sha256(contenido).hexdigest(),
+        st_size=st.st_size, st_dev=st.st_dev, st_ino=st.st_ino,
+    )
+    label_actual = _label_declarado(datos)
+
+    _manifiesto, error = _manifiesto_partida_from_dict(datos)
+    if error is not None:
+        # D2 (revisión independiente de PR #259, O2): antes se descartaba
+        # `error` y se ponía la constante `CAUSA_NO_CONFORME_PARTIDA`, que
+        # colapsaba en el MISMO texto tres causas distintas y medibles
+        # (clave de primer nivel desconocida, `metadata` nula, campo con el
+        # tipo equivocado). Se propaga el `error` real del contrato -- que ya
+        # es sólo diagnóstico sobre el CONTENIDO del documento del operador,
+        # nunca sobre rutas del sistema de ficheros -- para que el 422 diga
+        # EN QUÉ falla, no sólo QUE falla. El veredicto (LEGIBLE_NO_CONFORME,
+        # 422, no editable) no cambia.
+        return LecturaManifiestoPartida(
+            EstadoPerfil.LEGIBLE_NO_CONFORME, datos, huella,
+            error, label_actual,
+        )
+    return LecturaManifiestoPartida(EstadoPerfil.CONFORME, datos, huella, None, label_actual)
+
+
 def _game_profile_from_dict(datos: dict):
     """Import diferido: evita que el visor cargue todo `data-engine` al
     importar este módulo si nunca se ejercita la escritura."""
@@ -351,7 +462,11 @@ def destino_admite_escritura_segura(directorio: Path, *, forzar: bool = False) -
 # Seguridad de ruta — nunca symlinks, nunca fuera de bóveda, nunca mkdir
 # ---------------------------------------------------------------------------
 
-def _asegurar_ruta_segura(ruta_perfil: Path) -> None:
+def _asegurar_ruta_segura(ruta_perfil: Path, *, permitir_ausente: bool = False) -> None:
+    """`permitir_ausente=True` (6B-2b, `manifiesto-partida.json`) admite que
+    `ruta_perfil` todavía no exista: se resuelve sin exigir el componente
+    final (`resolve(strict=False)`), pero la raíz de bóvedas SÍ tiene que
+    existir siempre -- si no, no hay nada contra lo que comprobar el ámbito."""
     if ruta_perfil.is_symlink():
         raise RutaNoSeguraError("el perfil es un symlink: rechazado")
     carpeta = ruta_perfil.parent
@@ -362,7 +477,7 @@ def _asegurar_ruta_segura(ruta_perfil: Path) -> None:
     if raiz is None:
         return
     try:
-        resuelto = ruta_perfil.resolve(strict=True)
+        resuelto = ruta_perfil.resolve(strict=not permitir_ausente)
         raiz_resuelta = raiz.resolve(strict=True)
     except OSError as exc:
         raise RutaNoSeguraError(f"no se pudo resolver la ruta del perfil: {exc}") from exc
@@ -547,3 +662,107 @@ def escribir_label_workspace(
 
     _escribir_atomico(ruta_perfil, datos)
     return leer_estado_perfil(ruta_perfil)
+
+
+# ---------------------------------------------------------------------------
+# CORTE 6B-2(b) — el nombre humano de la PARTIDA. Contrato en
+# `app.partida_manifest_contract` (ManifiestoPartida); todo lo demás -- huella,
+# escritura atómica, destino seguro, contrato de ENTRADA del label -- se
+# REUTILIZA de arriba, sin duplicar ninguna de esas reglas.
+# ---------------------------------------------------------------------------
+
+def escribir_label_partida(
+    carpeta_partida: Path,
+    nuevo_label: str,
+    huella_cliente: Huella,
+) -> LecturaManifiestoPartida:
+    """Escribe o BORRA `metadata.label` en el `manifiesto-partida.json` de
+    `carpeta_partida`.
+
+    Mismo contrato de comportamiento que `escribir_label_workspace`, con dos
+    diferencias que vienen de que el manifiesto de partida es OPCIONAL (a
+    diferencia del perfil, que siempre existe):
+
+      - Sin manifiesto todavía, `leer_estado_manifiesto_partida` lo trata
+        como CONFORME con `datos={}` y `huella_ausente()`. Escribir un label
+        real en ese estado CREA el fichero (con `_escribir_atomico`, que no
+        exige que el destino exista de antemano); esto NO "crea la partida"
+        -- la partida ya existía, descubierta por
+        `sources_catalog.partidas_descubiertas_en_boveda` antes de que el
+        llamador pudiera siquiera ofrecer este formulario (decisión del
+        operador, C2: "conceder es crear", no "nombrar es crear").
+      - `nuevo_label` vacío sobre un manifiesto AUSENTE es un NO-OP que
+        jamás crea el fichero: no hay nada que borrar y no se fabrica un
+        `manifiesto-partida.json` vacío solo por haber pulsado "Guardar".
+
+    `carpeta_partida` la resuelve el llamador con la MISMA autoridad que ya
+    usa la presentación (`presentacion_etiquetas.carpeta_de_juego_de_workspace`
+    + `<juego>/partidas/<partida_id>`), nunca componiendo la ruta a mano desde
+    un `partida_id` sin validar contra la enumeración real de la bóveda.
+
+    Lanza las mismas excepciones que `escribir_label_workspace`
+    (`EntradaInvalidaError`, `EscrituraRechazadaError`, `RutaNoSeguraError`,
+    `DestinoNoSeguroError`, `ConflictoEscrituraError`).
+    """
+    ruta_manifiesto = carpeta_partida / sources_catalog.NOMBRE_MANIFIESTO_PARTIDA
+    _asegurar_ruta_segura(ruta_manifiesto, permitir_ausente=True)
+
+    valor_normalizado = nuevo_label.strip()
+    if valor_normalizado:
+        motivo_entrada = _label_entrada_invalida(valor_normalizado)
+        if motivo_entrada is not None:
+            raise EntradaInvalidaError(motivo_entrada)
+
+    lectura = leer_estado_manifiesto_partida(ruta_manifiesto)
+    if lectura.estado != EstadoPerfil.CONFORME:
+        raise EscrituraRechazadaError(lectura.estado, lectura.causa or "manifiesto no editable")
+
+    if not lectura.huella.coincide_contenido(huella_cliente):
+        raise ConflictoEscrituraError(
+            "el manifiesto de partida cambió desde que se leyó (o se creó "
+            "mientras tanto): la huella no coincide. El contenido escrito "
+            "por quien lo cambió sigue en disco."
+        )
+
+    if valor_normalizado == lectura.label_actual:
+        # NO-OP (mismo R1 que el workspace): incluye "borrar sobre un
+        # manifiesto ausente o sin label" -- no se crea ningún fichero.
+        return lectura
+
+    ok, motivo = destino_admite_escritura_segura(carpeta_partida)
+    if not ok:
+        raise DestinoNoSeguroError(
+            f"legible pero no admite edición segura de metadata desde S9-Knowledge: {motivo}"
+        )
+
+    # MUTA el dict (o el `{}` fresco de un manifiesto ausente) -- nunca
+    # reconstruye desde el dataclass del contrato, nunca una serialización
+    # propia que reordene claves.
+    datos = lectura.datos if lectura.datos is not None else {}
+    metadata = datos.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+        datos["metadata"] = metadata
+    if valor_normalizado:
+        metadata["label"] = valor_normalizado
+    else:
+        metadata.pop("label", None)
+
+    _manifiesto_salida, error_salida = _manifiesto_partida_from_dict(datos)
+    if error_salida is not None:  # pragma: no cover - no debería alcanzarse
+        raise EscrituraRechazadaError(EstadoPerfil.LEGIBLE_NO_CONFORME, CAUSA_NO_CONFORME_PARTIDA)
+
+    # Revalidación JUSTO ANTES de escribir (mismo D4: reduce la ventana de
+    # TOCTOU, no la cierra). Para un manifiesto que todavía no existía, esto
+    # comprueba que SIGUE sin existir -- si un tercero lo creó mientras
+    # tanto, es un conflicto real y se rechaza igual que cualquier otro.
+    huella_justo_antes = _huella_actual_o_ausente(ruta_manifiesto)
+    if not huella_justo_antes.coincide_contenido(huella_cliente):
+        raise ConflictoEscrituraError(
+            "el manifiesto de partida cambió justo antes de escribir: la "
+            "huella no coincide. El contenido escrito por quien lo cambió "
+            "sigue en disco."
+        )
+
+    _escribir_atomico(ruta_manifiesto, datos)
+    return leer_estado_manifiesto_partida(ruta_manifiesto)

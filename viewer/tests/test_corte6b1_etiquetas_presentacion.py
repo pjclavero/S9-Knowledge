@@ -469,7 +469,14 @@ _PROTOCOLO_DECLARADO = {
     # (el workspace canonico de este despliegue), mostrado una vez mas y con
     # la misma razon: la pantalla necesita que el operador vea el
     # identificador crudo, no una etiqueta, mientras decide el nombre humano.
-    "auth/admin/partidas.html": {"workspace_canonico": 4},
+    # (CORTE 6B-2b, +1) una QUINTA aparicion cruda: `value="{{
+    # workspace_canonico }}"` en el `<input type="hidden" name="workspace">`
+    # del NUEVO formulario "Nombre de la partida"
+    # (`/admin/partidas/label-partida`). Misma razon exacta que la primera
+    # aparicion de esta lista: es el workspace del POST, protocolo, no
+    # presentacion -- el segundo formulario de la misma pantalla necesita
+    # declarar su propio ambito igual que el primero.
+    "auth/admin/partidas.html": {"workspace_canonico": 5},
     # `value` de cada opcion del selector de partida.
     "base.html": {"p.partida_id": 1},
     # query-string del enlace al resultado, y `data-*` que lee el JS del filtro.
