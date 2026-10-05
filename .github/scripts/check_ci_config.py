@@ -235,6 +235,19 @@ GATES_EXIGIDOS = {
         ".github/scripts/calibra_base_materializada.py",
         ".github/scripts/calibra_a2_linaje.py",
         ".github/scripts/calibra_desarme.py",
+        # MICROCARRIL DE SANEAMIENTO: los cuatro arneses de los paneles del
+        # chasis. Se anaden porque su historia es LA PRUEBA de para que sirve
+        # esta lista: no estaban enganchados a ningun job y tres de los cuatro
+        # llevaban roto un tiempo indeterminado sin que nada enrojeciera
+        # (testigos renombrados que no recolectaban nada, anclas repetidas,
+        # anclas podridas, y uno que abortaba antes de su primera mutacion).
+        # Engancharlos al job no basta: si manana una fusion se lleva el paso
+        # por delante, volvemos al punto de partida. Cada uno tiene su caso de
+        # des-invocacion en `calibra_gate_integrity.py`.
+        "scripts/calibrar_panel_sources.py",
+        "scripts/calibrar_panel_operations.py",
+        "scripts/calibrar_panel_review.py",
+        "scripts/calibrar_panel_entities.py",
     ),
 }
 
