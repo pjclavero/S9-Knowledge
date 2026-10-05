@@ -75,18 +75,37 @@ def _correr_testigos() -> tuple[int, str]:
 
 
 def _fallos(salida: str) -> list[str]:
-    """Nombres de los testigos en rojo, SIN el sufijo de parametrización.
+    """Nombres de los testigos en rojo, con su sufijo de parametrización INTACTO.
 
-    `pytest` nombra un caso parametrizado `test_x[compacto]`. Sin recortar el
-    `[...]`, un testigo parametrizado NUNCA coincide con el nombre declarado en
-    la tabla y el caso sale NO CALIBRADA aunque el rojo sea exactamente el
-    esperado -- medido con N1, que corre sobre tres formatos.
+    No se recorta el `[...]`: M8 y M9 declaran los casos UNO A UNO
+    (`test_servidor_rechaza_controles_ampliados[bidi_rlo_u202e]`, …) y exigir
+    que enrojezcan los NUEVE es más fuerte que exigir que enrojezca «el test».
+    Recortarlo aquí borraría esa precisión.
     """
     return sorted({
-        linea.split("::")[-1].split(" ")[0].split("[")[0]
+        linea.split("::")[-1].split(" ")[0]
         for linea in salida.splitlines()
         if linea.startswith("FAILED") or "FAILED " in linea
     })
+
+
+def _cubre(esperadas: list[str], fallos: list[str]) -> bool:
+    """¿Cada testigo esperado está en rojo?
+
+    Una esperada CON sufijo (`test_x[caso]`) exige ese caso concreto. Una
+    esperada SIN sufijo exige que enrojezca el test, con cualquiera o todos sus
+    parámetros: es lo que permite declarar N1 una sola vez aunque corra sobre
+    tres formatos, sin perder la precisión por-caso de M8 y M9.
+    """
+    rojos = set(fallos)
+    base_de_rojos = {f.split("[")[0] for f in fallos}
+    for esperada in esperadas:
+        if "[" in esperada:
+            if esperada not in rojos:
+                return False
+        elif esperada not in base_de_rojos:
+            return False
+    return True
 
 
 MUTACIONES = [
@@ -331,7 +350,7 @@ def main() -> int:
 
         ok = (
             rc_mut != 0
-            and set(esperadas).issubset(set(fallos))
+            and _cubre(esperadas, fallos)
             and mensaje_ok
             and limpio
             and rc_post == 0
