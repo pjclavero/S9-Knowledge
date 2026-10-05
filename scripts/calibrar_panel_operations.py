@@ -333,7 +333,7 @@ CASOS: tuple[Caso, ...] = (
         ROUTER,
         lambda texto: mutar_en_funcion(
             texto,
-            "chassis_operations",
+            "funcion_que_no_existe_mutante_de_la_cadena",
             "    user=Depends(slot_guard(SLOT)),",
             "    user=Depends(__import__(\"app.routers.readonly\", fromlist=[\"x\"])\n"
             "                 .html_role_guard(SLOT.role)),",
