@@ -401,6 +401,32 @@ def m_desinvoca_calibra_a2_linaje() -> None:
     _desinvoca("calibra_a2_linaje.py")
 
 
+def m_desinvoca_calibrar_panel_sources() -> None:
+    """El arnes del panel F deja de ejecutarse."""
+    _desinvoca("calibrar_panel_sources.py")
+
+
+def m_desinvoca_calibrar_panel_operations() -> None:
+    """El arnes del panel B deja de ejecutarse."""
+    _desinvoca("calibrar_panel_operations.py")
+
+
+def m_desinvoca_calibrar_panel_review() -> None:
+    """El arnes del panel C deja de ejecutarse."""
+    _desinvoca("calibrar_panel_review.py")
+
+
+def m_desinvoca_calibrar_panel_entities() -> None:
+    """El arnes del panel G deja de ejecutarse.
+
+    Los cuatro de esta familia se calibran por la razon por la que acaban de
+    engancharse: NINGUNO estaba en CI y tres de los cuatro llevaban roto un
+    tiempo indeterminado. Un arnes que nadie ejecuta se pudre, y el unico aviso
+    de que alguien se lleve el paso por delante seria este caso.
+    """
+    _desinvoca("calibrar_panel_entities.py")
+
+
 def m_borra_definicion_de_nivel_superior() -> None:
     """Se borra una constante de modulo que una funcion USA.
 
@@ -543,6 +569,16 @@ CASOS = [
     ("des-invocar `calibra_base_materializada.py`", m_desinvoca_calibra_base, ROJO),
     ("des-invocar `calibra_desarme.py`", m_desinvoca_calibra_desarme, ROJO),
     ("des-invocar `calibra_a2_linaje.py`", m_desinvoca_calibra_a2_linaje, ROJO),
+    # Los cuatro arneses de los paneles del chasis, recien enganchados: es
+    # justo lo recien anadido lo que nadie vigila todavia.
+    ("des-invocar `calibrar_panel_sources.py` (panel F)",
+     m_desinvoca_calibrar_panel_sources, ROJO),
+    ("des-invocar `calibrar_panel_operations.py` (panel B)",
+     m_desinvoca_calibrar_panel_operations, ROJO),
+    ("des-invocar `calibrar_panel_review.py` (panel C)",
+     m_desinvoca_calibrar_panel_review, ROJO),
+    ("des-invocar `calibrar_panel_entities.py` (panel G)",
+     m_desinvoca_calibrar_panel_entities, ROJO),
     ("borrar una definicion de nivel superior que una funcion usa",
      m_borra_definicion_de_nivel_superior, ROJO),
     ("`paths-ignore` bajo `push`", m_paths_ignore_push, ROJO),
