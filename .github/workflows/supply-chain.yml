@@ -35,6 +35,9 @@ jobs:
       # Titulo:    NLTK: Model-artifact APIs bypass pathsec and touch files
       #            outside allowed roots.  Severidad alta.
       # Alta:      2026-09-02.  Excepcion abierta: 2026-09-02.
+      # REEVALUADA: 2026-10-06.  SIGUE APLICANDO.  Ver "REEVALUACIONES" al pie
+      #            de este bloque: las tres condiciones de caducidad se
+      #            volvieron a medir una por una y ninguna se cumple.
       #
       # NO es "riesgo aceptable". Es NO APLICABILIDAD DEMOSTRADA, y cada linea
       # de abajo se midio sobre este arbol, no se afirmo:
@@ -99,6 +102,42 @@ jobs:
       # no se deja implicito: la guardia siguiente lo COMPRUEBA y pone el paso
       # en rojo si el lock pasa a fijar otra version, de modo que un bump
       # futuro obligue a reevaluar en vez de heredar el permiso en silencio.
+      #
+      # ── REEVALUACIONES ─────────────────────────────────────────────────────
+      # Este apartado existe porque la justificacion de arriba lleva fecha, y
+      # una medicion de hace semanas leida hoy se confunde con una medicion de
+      # hoy. Cada reevaluacion anota QUE se midio y CUANDO, no solo que se
+      # miro.
+      #
+      # 2026-10-06 — SIGUE APLICANDO. No se elimina y no se traslada.
+      #   Contexto: el paso estaba ROJO en `main` por `pypdf` y `urllib3`, y al
+      #   desbloquearlo se aprovecho para reevaluar esta excepcion en vez de
+      #   heredarla. Para que conste, porque es facil leer el log al reves: la
+      #   guardia de version NO habia saltado. El job de `4b08a15` dice
+      #   `Found 11 known vulnerabilities, ignored 1 in 2 packages`; el
+      #   `--ignore-vuln` funciono y el fallo era de los otros dos paquetes.
+      #   Las lineas `::error::` que aparecen en ese log son el ECO del script
+      #   dentro del grupo `##[group]Run`, no una anotacion emitida.
+      #
+      #   CONDICION 1 (existe version corregida) -> NO.
+      #     OSV para `nltk 3.10.3` sigue devolviendo
+      #     `{introduced: 0} .. {last_affected: 3.10.3}`. Es `last_affected`,
+      #     no `fixed`. `pip index versions nltk` -> 3.10.3 es la ultima que
+      #     existe en PyPI. No hay a donde subir.
+      #   CONDICION 2 (el producto importa `nltk` o `llama_index`) -> NO.
+      #     `grep -rn --include=*.py -i nltk .`        -> 0 coincidencias.
+      #     `grep -rn --include=*.py -E 'llama_index' .` -> 0 coincidencias.
+      #   CONDICION 3 (algun camino usa las APIs de modelo) -> NO.
+      #     El grep de `TransitionParser`, `AveragedPerceptron`,
+      #     `PerceptronTagger` y `save_maxent_params` sobre TODO el repositorio
+      #     da 2 apariciones, y las dos son las lineas de ESTE comentario, en
+      #     este fichero. Cero en codigo.
+      #
+      #   Tampoco cambia la atadura de version: el lock sigue fijando
+      #   `nltk==3.10.3`, que es exactamente la version a la que la excepcion
+      #   esta atada. Mover el `--ignore-vuln` a otra version sin demostrar que
+      #   el advisory le aplica seria justo el error que la guardia existe para
+      #   impedir, asi que no se hace.
       - name: Audit data-engine (requirements.lock)
         run: |
           set -euo pipefail
