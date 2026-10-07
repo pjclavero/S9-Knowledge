@@ -10,6 +10,40 @@ Rutas (reviewer+):
 El panel produce ÚNICAMENTE review-decision v1 y review-audit-event v1 en un
 almacén LOCAL de laboratorio. No aplica el ingest-plan, no autoriza ingesta y no
 modifica el review original.
+
+QUÉ ES Y QUÉ NO ES ESTE PANEL — PR-1 (USABLE-V1)
+-------------------------------------------------
+Esta consola es de LABORATORIO: revisa ``candidatos de entidad`` servidos
+desde fixtures FIJAS del repo (``app.services.review_console_fixtures``,
+``src_demo_01``/``src_demo_02``), no el motor real. Eso no es un defecto de
+este módulo: lo decide ``docs/v3/25-interfaz-de-revision.md`` por OBJETO —
+``/review-console`` revisa candidatos de entidad, ``/v3/review`` revisa
+``claims`` del motor, y cada objeto tiene su canónica. La superficie
+OPERATIVA para revisar claims reales es ``/v3/review``.
+
+Por eso, y por decisión del operador, esta consola NO se monta en producción
+por defecto: un revisor que teclee la URL y decida sobre ``src_demo_01``
+creyendo revisar de verdad es una falsa confirmación con efecto de escritura
+(``POST …/decide`` vive aquí). No se convierte en consola de producto, no se
+conecta al motor real y no se enlaza en ``NAV``; sencillamente se deja de
+montar salvo que alguien la encienda a propósito para laboratorio.
+
+INTERRUPTOR: ``S9K_REVIEW_CONSOLE_ENABLED``, con la MISMA autoridad y la MISMA
+semántica que ``app.routers.resultado`` ya aplica a ``/panel/resultado``
+(``FLAG_ON_VALUES`` del chasis, leído en cada petición vía
+``app.config.effective_env_value``: fallo cerrado, se sirve si y sólo si vale
+exactamente ``true`` o ``1``). No es un hueco de ``app.chassis.FEATURE_SLOTS``
+—por el mismo motivo que ``resultado.py`` tampoco lo es: tiene su propio
+prefijo, su propia guarda YA EXISTENTE (``_guard``, reviewer+) y ahora su
+propio interruptor, igual que esa pantalla. ``WRITE_CAPABILITIES`` tampoco
+aplica: esa tabla sólo declara escrituras DENTRO del espacio de URL de los
+cuatro huecos C/B/F/G; este prefijo no pertenece a ninguno, exactamente como
+hoy no pertenece ``/panel/resultado``.
+
+Con la bandera apagada (estado de fábrica): las TRES rutas, incluida
+``POST …/decide``, responden 404 — no 403, para no distinguir "existe pero
+apagada" de "no existe". Con la bandera encendida: sigue funcionando como
+hoy, para quien la quiera como laboratorio.
 """
 from __future__ import annotations
 
@@ -19,6 +53,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from app import chassis
 from app.auth.config import get_auth_settings
 from app.auth.csrf import get_csrf_token_for_session, validate_csrf
 from app.authz.dependencies import get_visibility_scope
@@ -31,6 +66,44 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 router = APIRouter(prefix="/review-console", tags=["review-console"])
 
 _RANK = {"admin": 3, "reviewer": 2, "viewer": 1}
+
+#: Interruptor de esta consola de laboratorio. Apagado por defecto, que es lo
+#: correcto para producción. Misma semántica que `app.routers.resultado`.
+FLAG_ENV = "S9K_REVIEW_CONSOLE_ENABLED"
+
+#: Cuerpo único del 404 cuando la bandera está apagada: no revela que la ruta
+#: existe pero está desconectada (eso sería distinguible de "no existe").
+APAGADA = "No encontrado"
+
+
+def _encendido() -> bool:
+    """¿Se sirve esta consola en este despliegue? Fallo cerrado, se lee siempre.
+
+    Se consulta el entorno en CADA petición a propósito: un flag cacheado al
+    importar convierte "apagar la pantalla" en "reiniciar el proceso". El
+    valor se resuelve con `app.config.effective_env_value` — la misma
+    autoridad única que usa `chassis.slot_enabled` para sus cuatro huecos y
+    que usa `app.routers.resultado` para `/panel/resultado` — y los valores
+    que ENCIENDEN se importan de `chassis.FLAG_ON_VALUES`, no se reescriben
+    aquí: dos definiciones de "encendido" acaban divergiendo.
+    """
+    from app.config import effective_env_value
+
+    raw = effective_env_value(FLAG_ENV)
+    if raw is None:
+        return False
+    valores = getattr(chassis, "FLAG_ON_VALUES", frozenset())
+    return raw.strip().lower() in valores
+
+
+def _exigir_encendido() -> None:
+    """El interruptor, DESPUÉS de la puerta de rol.
+
+    El orden no es cosmético: si el interruptor se evaluara antes, un anónimo
+    podría averiguar si la consola está encendida comparando 404 contra 302.
+    """
+    if not _encendido():
+        raise HTTPException(status_code=404, detail=APAGADA)
 
 
 # ---------------------------------------------------------------------------
@@ -83,6 +156,7 @@ def inbox(request: Request, scope: VisibilityScope = Depends(get_visibility_scop
     guard = _guard(request)
     if guard is not None and isinstance(guard, (RedirectResponse, HTMLResponse)):
         return guard
+    _exigir_encendido()
     # Mismo mecanismo de política que el resto del visor: el ámbito de la
     # petición (partida activa + capa juego) decide qué se entrega.
     summaries = rc.list_source_summaries(scope=scope)
@@ -101,6 +175,7 @@ def source_detail(request: Request, source_id: str, stale: int = 0,
     guard = _guard(request)
     if guard is not None and isinstance(guard, (RedirectResponse, HTMLResponse)):
         return guard
+    _exigir_encendido()
     # Fuera de ámbito -> 404, indistinguible de inexistente (mismo contrato que
     # PolicyFilteredProvider.entity: no se revela la existencia de material
     # de otra partida).
@@ -140,6 +215,7 @@ async def decide(
     guard = _guard(request)
     if guard is not None and isinstance(guard, (RedirectResponse, HTMLResponse)):
         return guard
+    _exigir_encendido()
     if not _check_csrf(request, csrf_token):
         raise HTTPException(status_code=403, detail="CSRF inválido")
     if action not in rc.VALID_ACTIONS:
