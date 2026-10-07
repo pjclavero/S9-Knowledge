@@ -1286,6 +1286,63 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/corte1_existencia_partida.py
 
+      # MICROCARRIL DE SANEAMIENTO DE INSTRUMENTOS — los cuatro
+      # `scripts/calibrar_panel_*.py`. Son los arneses de los cuatro paneles
+      # del chasis (B operations, C review, F sources, G entities): cada uno
+      # introduce por garantia el defecto que esa garantia dice impedir y exige
+      # el ROJO con el testigo nombrado, con reversion verificada por SHA-256.
+      #
+      # NINGUNO ESTABA ENGANCHADO A CI, y el resultado es exactamente el que
+      # predice el resto de este fichero: TRES DE LOS CUATRO ESTABAN ROTOS sin
+      # que nada lo dijera.
+      #   - entities: ABORTABA antes de ejercer una sola mutacion en cualquier
+      #     entorno sin navegador (exigia `returncode == 0` de la suite entera,
+      #     inalcanzable con los ~9 errores de Playwright) y medía desde
+      #     `viewer/`, donde tres testigos de F-2 no pueden pasar.
+      #   - operations: cuatro casos muertos (tres nombraban testigos
+      #     renombrados por el contrato del chasis del Slice 2 y no recolectaban
+      #     NADA; uno tenia el ancla repetida seis veces).
+      #   - review: un caso con el ancla podrida por un cambio del producto.
+      # Se enganchan aqui para que no vuelva a pasar, y `check_ci_config.py` los
+      # mete en `GATES_EXIGIDOS`: a partir de ahora tampoco pueden dejar de
+      # INVOCARSE sin que CI se ponga rojo.
+      #
+      # Un `DETECTOR ROTO` o una mutacion que no enrojece da EXIT=1 y tumba
+      # este paso: es la cadena completa instrumento -> mutante -> calibrador
+      # rojo -> job rojo -> merge bloqueado.
+      #
+      # TECHO DECLARADO de `entities`: se invoca con `--sin-colaterales`. La
+      # medida de colaterales corre la suite COMPLETA del visor una vez POR
+      # CASO (20 casos x ~5 min = ~1h45m de reloj), lo que haria inviable un job
+      # que ya tarda ~75 min. Lo que CI ejercita es la calibracion propiamente
+      # dicha -las 20 mutaciones y su rojo nombrado-, que es la garantia de este
+      # carril; la medida de colaterales se corre a mano cuando se toca el
+      # panel. Sin la bandera el guion mide colaterales y NO es un skip
+      # silencioso: lo dice en su linea final.
+      - name: "Panel F (fuentes): cada garantia se pone ROJA ante su defecto"
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibrar_panel_sources.py
+
+      - name: "Panel B (operations): cada garantia se pone ROJA ante su defecto"
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibrar_panel_operations.py
+
+      - name: "Panel C (review): cada garantia se pone ROJA ante su defecto"
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibrar_panel_review.py
+
+      - name: "Panel G (entities): cada garantia se pone ROJA ante su defecto"
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibrar_panel_entities.py --sin-colaterales
+
   # Instalado desde .github/ci-fragments/check-env-reproducibility.yml. Si un
   # merge se lleva por delante este bloque, el fragmento es la copia canonica.
   check-env-reproducibility:

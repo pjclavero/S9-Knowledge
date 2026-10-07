@@ -34,8 +34,12 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 RAIZ = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent / "calibracion"))
+from localizadores import mutar_en_funcion, python_sigue_siendo_valido  # noqa: E402
+
 VIEWER = RAIZ / "viewer"
 ROUTER = VIEWER / "app" / "routers" / "chassis_review.py"
 SERVICIO = VIEWER / "app" / "services" / "review_console_v2.py"
@@ -52,7 +56,10 @@ class Caso:
     id: str
     garantia: str
     fichero: Path
-    de: str
+    #: Ancla de la mutación. Un `str` es texto literal y se exige que aparezca
+    #: EXACTAMENTE UNA VEZ. Un `Callable[[str], str|None]` es un LOCALIZADOR
+    #: ESTRUCTURAL (`scripts/calibracion/localizadores.py`) y `a` se ignora.
+    de: "str | Callable[[str], str | None]"
     a: str
     #: Tests que DEBEN ponerse rojos. Se nombran uno a uno: "la suite entera se
     #: pone roja" no dice qué comprobación mordió.
@@ -148,22 +155,29 @@ CASOS: tuple[Caso, ...] = (
         ("test_fuera_de_ambito_inexistente_y_filtrado_dan_el_mismo_404",),
     ),
     Caso(
+        # ANCLA PODRIDA, MEDIDA EN ESTE CARRIL: «el ancla de la mutación ya no
+        # existe en chassis_review.py». El ancla era un bloque de SIETE líneas
+        # literales que arrastraba `error_detail=type(exc).__name__`,
+        # `status_code=503` y hasta el comentario `# build_view FILTRA` de la
+        # línea siguiente — es decir, hacía de la posición, del 503 literal y
+        # de un COMENTARIO parte de la garantía. El producto cambió a
+        # `getattr(exc, "code", ...)` y a `status_code=estado` (el desenlace ya
+        # decide el código), y el caso quedó inerte.
+        #
+        # Y el ancla corta tampoco sirve: el renglón de `error_detail` aparece
+        # DOS veces idénticas (la lista y la ficha), así que un
+        # `replace(..., 1)` mutaría la lista por casualidad de orden. Se acota
+        # por ESTRUCTURA a la función del endpoint de LISTA, que es la que el
+        # testigo sondea (`client.get(SLOT.prefix)`).
         "M9", "Un paquete ilegible da 503 SIN volcar rutas ni trazas",
         ROUTER,
-        "                error_detail=type(exc).__name__,\n"
-        "                workspaces=[], workspace=None, view=None, spec=spec, sort=sort,\n"
-        "                page_sizes=console.PAGE_SIZES, sorts=tuple(console.SORTS),\n"
-        "            ),\n"
-        "            status_code=503,\n"
-        "        )\n"
-        "    # build_view FILTRA",
-        "                error_detail=str(exc),\n"
-        "                workspaces=[], workspace=None, view=None, spec=spec, sort=sort,\n"
-        "                page_sizes=console.PAGE_SIZES, sorts=tuple(console.SORTS),\n"
-        "            ),\n"
-        "            status_code=503,\n"
-        "        )\n"
-        "    # build_view FILTRA",
+        lambda texto: mutar_en_funcion(
+            texto,
+            "chassis_review",
+            '                error_detail=getattr(exc, "code", type(exc).__name__),',
+            "                error_detail=str(exc),",
+        ),
+        "",
         ("test_paquete_ilegible_da_503_sin_filtrar_rutas",),
     ),
     Caso(
@@ -469,36 +483,67 @@ def main() -> int:
 
         base_verde, _, _ = correr(caso.tests, caso.suite)
 
-        if caso.de not in original:
-            fallos.append(f"{caso.id}: el ancla de la mutación ya no existe en {caso.fichero.name}")
-            print(f"{caso.id:<5} {'?':<8} {'ANCLA':<8} {'-':<11} {caso.garantia}")
-            continue
-        if original.count(caso.de) != 1:
-            fallos.append(f"{caso.id}: el ancla aparece {original.count(caso.de)} veces (ambigua)")
-            continue
+        if callable(caso.de):
+            # LOCALIZADOR ESTRUCTURAL: `None` es DETECTOR ROTO, nunca un verde
+            # silencioso.
+            texto_mutado = caso.de(original)
+            if texto_mutado is None:
+                fallos.append(
+                    f"{caso.id}: DETECTOR ROTO — el localizador estructural no "
+                    f"pudo acotar el sitio en {caso.fichero.name}")
+                print(f"{caso.id:<5} {'?':<8} {'ESTRUCT':<8} {'-':<11} {caso.garantia}")
+                continue
+        else:
+            if caso.de not in original:
+                fallos.append(f"{caso.id}: el ancla de la mutación ya no existe en {caso.fichero.name}")
+                print(f"{caso.id:<5} {'?':<8} {'ANCLA':<8} {'-':<11} {caso.garantia}")
+                continue
+            if original.count(caso.de) != 1:
+                fallos.append(f"{caso.id}: el ancla aparece {original.count(caso.de)} veces (ambigua)")
+                continue
+            texto_mutado = original.replace(caso.de, caso.a)
 
-        caso.fichero.write_text(original.replace(caso.de, caso.a), encoding="utf-8")
+        # DETECTOR ROTO si la mutación deja el módulo sin compilar: un rc!=0
+        # con CERO rojos nombrados se leía antes como "calibrada" (ningún
+        # ajeno, nada que declarar), cuando en realidad el módulo nunca llegó
+        # a ejecutar los tests. Se comprueba ANTES de correr pytest.
+        sintaxis_rota = (caso.fichero.suffix == ".py"
+                          and not python_sigue_siendo_valido(texto_mutado))
+
+        caso.fichero.write_text(texto_mutado, encoding="utf-8")
         try:
             mutado_verde, rojos, detalle = correr(caso.tests, caso.suite)
         finally:
             caso.fichero.write_text(original, encoding="utf-8")
         despues = sha(caso.fichero)
 
+        # Además de sintaxis rota, un rc!=0 SIN ningún rojo nombrado tampoco
+        # demuestra que la garantía muerde: es el módulo fallando a importar o
+        # a arrancar, no la comprobación declarada. Sólo cuenta como CALIBRADA
+        # un rojo con al menos un nombre.
+        detector_roto = sintaxis_rota or (not mutado_verde and not rojos)
+
         reversion = antes == despues
         estado_base = "VERDE" if base_verde else "ROJO"
-        estado_mut = "ROJO" if not mutado_verde else "VERDE"
+        estado_mut = "ROTO" if detector_roto else ("ROJO" if not mutado_verde else "VERDE")
         print(f"{caso.id:<5} {estado_base:<8} {estado_mut:<8} "
               f"{('idéntica' if reversion else 'DISTINTA'):<11} {caso.garantia}")
         if not mutado_verde:
             print(f"{'':<5} rojos: {', '.join(r.split('[')[0] for r in rojos)}")
-        # El rojo tiene que caer en la comprobación DECLARADA, no en otra.
-        ajenos = sorted({r.split('[')[0] for r in rojos} - set(caso.tests))
-        if ajenos:
-            fallos.append(f"{caso.id}: rojo por el motivo equivocado, en {ajenos}")
+        if detector_roto:
+            fallos.append(
+                f"{caso.id}: DETECTOR ROTO — la mutación dejó el módulo sin "
+                f"compilar o sin rojos nombrados (rc!=0, 0 rojos); no se puede "
+                f"afirmar que la garantía muerde")
+        else:
+            # El rojo tiene que caer en la comprobación DECLARADA, no en otra.
+            ajenos = sorted({r.split('[')[0] for r in rojos} - set(caso.tests))
+            if ajenos:
+                fallos.append(f"{caso.id}: rojo por el motivo equivocado, en {ajenos}")
+            if mutado_verde:
+                fallos.append(f"{caso.id}: la mutación NO se detecta — la garantía no muerde")
         if not base_verde:
             fallos.append(f"{caso.id}: rojo YA sin mutar ({detalle})")
-        if mutado_verde:
-            fallos.append(f"{caso.id}: la mutación NO se detecta — la garantía no muerde")
         if not reversion:
             fallos.append(f"{caso.id}: la reversión no es byte a byte")
 

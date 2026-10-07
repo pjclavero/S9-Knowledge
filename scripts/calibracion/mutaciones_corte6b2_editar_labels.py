@@ -43,6 +43,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from localizadores import mutar_en_funcion, mutar_unico  # noqa: E402
+
 RAIZ = Path(__file__).resolve().parents[2]
 TESTIGOS = [
     "viewer/tests/test_vault_writer_6b2.py",
@@ -72,11 +75,37 @@ def _correr_testigos() -> tuple[int, str]:
 
 
 def _fallos(salida: str) -> list[str]:
+    """Nombres de los testigos en rojo, con su sufijo de parametrización INTACTO.
+
+    No se recorta el `[...]`: M8 y M9 declaran los casos UNO A UNO
+    (`test_servidor_rechaza_controles_ampliados[bidi_rlo_u202e]`, …) y exigir
+    que enrojezcan los NUEVE es más fuerte que exigir que enrojezca «el test».
+    Recortarlo aquí borraría esa precisión.
+    """
     return sorted({
         linea.split("::")[-1].split(" ")[0]
         for linea in salida.splitlines()
         if linea.startswith("FAILED") or "FAILED " in linea
     })
+
+
+def _cubre(esperadas: list[str], fallos: list[str]) -> bool:
+    """¿Cada testigo esperado está en rojo?
+
+    Una esperada CON sufijo (`test_x[caso]`) exige ese caso concreto. Una
+    esperada SIN sufijo exige que enrojezca el test, con cualquiera o todos sus
+    parámetros: es lo que permite declarar N1 una sola vez aunque corra sobre
+    tres formatos, sin perder la precisión por-caso de M8 y M9.
+    """
+    rojos = set(fallos)
+    base_de_rojos = {f.split("[")[0] for f in fallos}
+    for esperada in esperadas:
+        if "[" in esperada:
+            if esperada not in rojos:
+                return False
+        elif esperada not in base_de_rojos:
+            return False
+    return True
 
 
 MUTACIONES = [
@@ -110,15 +139,34 @@ MUTACIONES = [
         "AttributeError",
     ),
     (
-        "M3 — el escritor usa `GameProfile.to_json()` en vez de mutar el "
-        "dict original: reflowea el documento del operador",
+        # N1 — POLARIDAD REDEFINIDA, NO SÓLO RENOMBRADA. El testigo anterior
+        # (`test_la_escritura_no_reflowea_...`) se ponía rojo por un ACCIDENTE
+        # DEL FORMATO DEL FIXTURE: comparaba líneas contra un fixture fabricado
+        # con `indent=2`, el mismo formato que produce el escritor. Al pasar el
+        # fixture al formato real (compacto, una línea) la comparación se
+        # volvía vacua y ESTE MUTANTE PASABA. Además, la propiedad que decía
+        # defender («no reflowea») el producto ya NO la promete: su docstring
+        # declara que un cambio real reserializa el documento entero.
+        #
+        # El testigo nuevo protege lo que `to_json()` rompe de verdad y que NO
+        # depende del formato: (a) `OMIT_IF_NONE` borra `learned_adapter: null`
+        # —una clave del operador DESAPARECE—, y (b) se impone el orden de
+        # claves del dataclass en vez del del documento del operador. Está
+        # parametrizado sobre TRES serializaciones (compacta, indent=2,
+        # indent=4) y las tres dan la MISMA polaridad: medido, 3 verdes sobre
+        # el producto correcto y 3 rojas con este mutante, con el mismo
+        # mensaje. El fragmento esperado abajo es DISCRIMINANTE (no un `assert`
+        # genérico): nombra el efecto concreto.
+        "M3 — el escritor reconstruye el documento desde el dataclass "
+        "(`GameProfile.to_json()`) en vez de mutar el dict original: pierde "
+        "claves del operador e impone su propio orden",
         "viewer/app/vault_writer.py",
         "    _escribir_atomico(ruta_perfil, datos)\n"
         "    return leer_estado_perfil(ruta_perfil)",
         "    ruta_perfil.write_text(_perfil_salida.to_json(), encoding=\"utf-8\")\n"
         "    return leer_estado_perfil(ruta_perfil)",
-        ["test_la_escritura_no_reflowea_el_documento_muta_una_sola_clave"],
-        "assert",
+        ["test_un_cambio_real_conserva_el_documento_del_operador_clave_por_clave"],
+        "PERDIÓ claves del documento del operador",
     ),
     (
         "M4 — el escritor deja de ejercer el predicado de destino seguro: "
@@ -161,9 +209,22 @@ MUTACIONES = [
         "M7 — (R1, segunda ronda de revisión de PR #258) el escritor deja de "
         "detectar el NO-OP y reescribe/reflowea el documento aunque el "
         "efecto neto sea cero",
+        # ANCLA AMBIGUA DESTAPADA POR EL BARRIDO DE ESTE CARRIL. La guarda del
+        # NO-OP existe DOS veces en el fichero, una por escritor:
+        # `escribir_label_workspace` (6B-2a) y `escribir_label_partida` (6B-2b).
+        # El `replace(..., 1)` mutaba la PRIMERA, que resultaba ser la correcta
+        # por pura casualidad del orden de definición: si 6B-2(b) se hubiera
+        # escrito arriba, M7 habría mutado el escritor de PARTIDA y los testigos
+        # de WORKSPACE habrían seguido verdes con la garantía rota. Se acota por
+        # estructura al escritor que estos testigos ejercen.
         "viewer/app/vault_writer.py",
-        "    if valor_normalizado == lectura.label_actual:",
-        "    if False:",
+        lambda texto: mutar_en_funcion(
+            texto,
+            "escribir_label_workspace",
+            "    if valor_normalizado == lectura.label_actual:",
+            "    if False:",
+        ),
+        None,
         [
             "test_no_op_de_borrado_sobre_perfil_compacto_no_reescribe_nada",
             "test_no_op_guardando_el_mismo_label_sobre_perfil_compacto_no_reescribe_nada",
@@ -236,13 +297,39 @@ def main() -> int:
     for nombre, rel, viejo, nuevo, esperadas, fragmento in MUTACIONES:
         f = RAIZ / rel
         original = f.read_text(encoding="utf-8")
-        if viejo not in original:
-            print(f"### {nombre}\n  DETECTOR ROTO: el texto a mutar no está en "
-                  f"{rel}. La mutación no se aplicó: un verde aquí sería FALSO.\n")
+        # NO `replace(viejo, nuevo, 1)`: ese `1` elige la PRIMERA aparición en
+        # todo el fichero, y convierte la POSICIÓN —que cualquier carril mueve
+        # sin darse cuenta— en parte de la garantía. Es el defecto que ya se
+        # cobró a M6 de Corte 1 (ver `corte1_existencia_partida.py`): un bloque
+        # legítimo nuevo apareció antes, la mutación cayó en él y el arnés
+        # siguió verde con la garantía real intacta. `mutar_unico` exige que el
+        # ancla sea ÚNICA y, si no lo es, da DETECTOR ROTO en vez de mutar el
+        # sitio equivocado en silencio.
+        # `viejo` puede ser un texto literal o un LOCALIZADOR ESTRUCTURAL
+        # (callable texto -> texto|None), igual que en Corte 1. Un localizador
+        # que devuelve None es DETECTOR ROTO, nunca un verde silencioso.
+        if callable(viejo):
+            mutado = viejo(original)
+            motivo_estructural = (
+                "el localizador estructural no pudo acotar el sitio "
+                "(función ausente, duplicada, o ancla no única dentro de ella)"
+            )
+        else:
+            mutado = mutar_unico(original, viejo, nuevo)
+            motivo_estructural = None
+        if mutado is None:
+            if motivo_estructural is not None:
+                motivo = motivo_estructural
+            else:
+                veces = original.count(viejo)
+                motivo = ("el texto a mutar no está" if veces == 0 else
+                          f"el ancla aparece {veces} veces (AMBIGUA: no identifica un sitio)")
+            print(f"### {nombre}\n  DETECTOR ROTO: {motivo} en {rel}. "
+                  f"La mutación no se aplicó: un verde aquí sería FALSO.\n")
             veredictos.append((nombre, "DETECTOR ROTO"))
             continue
 
-        f.write_text(original.replace(viejo, nuevo, 1), encoding="utf-8")
+        f.write_text(mutado, encoding="utf-8")
         rc_mut, salida_mut = _correr_testigos()
         fallos = _fallos(salida_mut)
         mensaje_ok = fragmento in salida_mut
@@ -263,7 +350,7 @@ def main() -> int:
 
         ok = (
             rc_mut != 0
-            and set(esperadas).issubset(set(fallos))
+            and _cubre(esperadas, fallos)
             and mensaje_ok
             and limpio
             and rc_post == 0

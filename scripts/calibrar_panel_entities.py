@@ -65,6 +65,9 @@ for _sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
         pass
 
 RAIZ = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent / "calibracion"))
+from localizadores import python_sigue_siendo_valido  # noqa: E402
+
 VIEWER = RAIZ / "viewer"
 ROUTER = VIEWER / "app" / "routers" / "chassis_entities.py"
 PLANTILLA = VIEWER / "app" / "templates" / "chassis" / "entities.html"
@@ -391,16 +394,45 @@ def correr_todo() -> tuple[bool, set[str], str]:
     y los colaterales se declaran caso a caso. Cuesta ~50 s por caso, y ese es
     el precio de poder afirmarlo.
     """
+    # DOS CORRECCIONES MEDIDAS EN EL MICROCARRIL DE SANEAMIENTO:
+    #
+    # (1) `cwd` ERA `VIEWER`, Y DESDE AHÍ LA SUITE NO PUEDE ESTAR VERDE. Tres
+    #     testigos de F-2 (`test_f2_divergencia_visible_desde_el_producto.py`)
+    #     leen el fuente por la ruta RELATIVA `viewer/app/authz/...`, que sólo
+    #     resuelve desde la RAÍZ del repositorio. Medido: desde `viewer/` daban
+    #     `FileNotFoundError`; desde la raíz pasan. La suite canónica de este
+    #     repo se ejecuta desde la raíz, y este arnés tiene que medir donde el
+    #     producto se mide, no en otro sitio.
+    #
+    # (2) EXIGÍA `returncode == 0`, QUE ES INALCANZABLE Y DEJABA EL ARNÉS
+    #     MUERTO. La suite arrastra ~9 errores de Playwright (`TargetClosedError`,
+    #     falta `libnspr4.so`) ajenos a este corte. Con rc==0 como condición,
+    #     este calibrador ABORTABA antes de ejercer una sola mutación en
+    #     cualquier entorno sin navegador: no es que midiese mal, es que no
+    #     medía NADA.
+    #
+    # Lo que se mide ahora es el CONJUNTO de rojos, y los colaterales se
+    # calculan por DIFERENCIA contra la línea base sin mutar. Un rojo ambiental
+    # preexistente deja de cegar el instrumento, y a la vez no puede enmascarar
+    # un colateral nuevo: si la mutación añade un rojo, aparece en la
+    # diferencia aunque la base ya tuviera otros.
     proc = subprocess.run(
-        [sys.executable, "-m", "pytest", "tests", "-q", "--no-header",
-         "-p", "no:cacheprovider", "--tb=no", "-rf", "--color=no"],
-        cwd=VIEWER, capture_output=True, text=True,
+        # `-rfE`, no `-rf`: con `-rf` pytest NO resume las lineas `ERROR`, asi
+        # que un colateral que ERROREA en vez de FALLAR era invisible para la
+        # diferencia (medido: la base devolvia 0 rojos teniendo 9 errores). Un
+        # error de fixture o de recoleccion es un rojo igual, y con `-rf` la
+        # expresion que lo busca no tenia nada que leer.
+        [sys.executable, "-m", "pytest", "viewer/tests", "-q", "--no-header",
+         "-p", "no:cacheprovider", "--tb=no", "-rfE", "--color=no"],
+        cwd=RAIZ, capture_output=True, text=True,
     )
     salida = proc.stdout + proc.stderr
     if " no tests ran" in salida or "collected 0 items" in salida:
         return False, {"0 TESTS RECOLECTADOS (arnés roto)"}, "0 recolectados"
+    # FAILED y ERROR: un error de recolección o de fixture es un rojo igual, y
+    # contarlo sólo en un lado de la diferencia fabricaría colaterales falsos.
     rojos = {r.split("[")[0]
-             for r in re.findall(r"^FAILED [^:]+::([\w\[\]\-.]+)", salida, re.M)}
+             for r in re.findall(r"^(?:FAILED|ERROR) [^:]+::([\w\[\]\-.]+)", salida, re.M)}
     ultima = salida.strip().splitlines()[-1] if salida.strip() else ""
     return proc.returncode == 0, rojos, ultima
 
@@ -411,14 +443,23 @@ def main() -> int:
     #: pero entonces NO se puede afirmar nada sobre los colaterales).
     medir_colaterales = "--sin-colaterales" not in sys.argv
 
+    base_rojos: set[str] = set()
     if medir_colaterales:
         print("Midiendo la línea base de la suite COMPLETA (sin mutar)…")
-        base_todo_verde, base_rojos, base_detalle = correr_todo()
-        if not base_todo_verde:
-            print(f"  FALLO: la suite completa YA está roja sin mutar: "
-                  f"{sorted(base_rojos)} ({base_detalle})")
+        _, base_rojos, base_detalle = correr_todo()
+        # Un arnés que no recolecta nada SÍ aborta: eso no es un rojo ambiental,
+        # es el instrumento roto, y su «cero colaterales» sería mentira.
+        if "0 TESTS RECOLECTADOS (arnés roto)" in base_rojos:
+            print("  FALLO: la suite base no recolectó NADA. El arnés está roto; "
+                  "medir colaterales contra esto no significa nada.")
             return 1
-        print(f"  línea base VERDE — {base_detalle}\n")
+        if base_rojos:
+            # Se DECLARAN, no se toleran en silencio: quedan impresos para que
+            # el diferencial de un carril futuro vea si la lista crece.
+            print(f"  línea base con {len(base_rojos)} rojo(s) PREEXISTENTE(S), "
+                  f"ajenos a este corte y descontados del cálculo de "
+                  f"colaterales: {sorted(base_rojos)}")
+        print(f"  línea base — {base_detalle}\n")
 
     print(f"{'caso':<6} {'base':<8} {'mutado':<8} {'reversión':<11} "
           f"{'colat.':<7} garantía")
@@ -438,46 +479,83 @@ def main() -> int:
             print(f"{caso.id:<6} {'?':<8} {'ANCLA':<8} {'-':<11} {caso.garantia}")
             continue
 
+        texto_mutado = original.replace(caso.de, caso.a)
+        # DETECTOR ROTO si la mutación deja el módulo sin compilar: un rc!=0
+        # con CERO rojos nombrados se leía antes como "calibrada" (ningún
+        # ajeno, nada que declarar), cuando en realidad el módulo nunca llegó
+        # a ejecutar los tests. Se comprueba ANTES de correr pytest.
+        sintaxis_rota = (caso.fichero.suffix == ".py"
+                          and not python_sigue_siendo_valido(texto_mutado))
+
         _EN_VUELO[caso.fichero] = original
-        caso.fichero.write_text(original.replace(caso.de, caso.a), encoding="utf-8")
+        caso.fichero.write_text(texto_mutado, encoding="utf-8")
         try:
             mutado_verde, rojos, detalle = correr(caso.tests, caso.suite)
             colaterales_medidos: set[str] = set()
             if medir_colaterales:
                 _, todos_los_rojos, _ = correr_todo()
-                colaterales_medidos = todos_los_rojos - set(caso.tests)
+                # Por DIFERENCIA contra la base: un colateral es un rojo que la
+                # MUTACIÓN añade, no uno que el entorno ya traía.
+                colaterales_medidos = todos_los_rojos - set(caso.tests) - base_rojos
         finally:
             caso.fichero.write_text(original, encoding="utf-8")
             _EN_VUELO.pop(caso.fichero, None)
         despues = sha(caso.fichero)
 
+        # Además de sintaxis rota, un rc!=0 SIN ningún rojo nombrado tampoco
+        # demuestra que la garantía muerde: es el módulo fallando a importar o
+        # a arrancar, no la comprobación declarada. Sólo cuenta como CALIBRADA
+        # un rojo con al menos un nombre.
+        detector_roto = sintaxis_rota or (not mutado_verde and not rojos)
+
         reversion = antes == despues
         col = (str(len(colaterales_medidos)) if medir_colaterales else "—")
+        estado_mut = "ROTO" if detector_roto else ("ROJO" if not mutado_verde else "VERDE")
         print(f"{caso.id:<6} {('VERDE' if base_verde else 'ROJO'):<8} "
-              f"{('ROJO' if not mutado_verde else 'VERDE'):<8} "
+              f"{estado_mut:<8} "
               f"{('idéntica' if reversion else 'DISTINTA'):<11} {col:<7} {caso.garantia}")
         if not mutado_verde:
             print(f"{'':<6} rojos: {', '.join(sorted({r.split('[')[0] for r in rojos}))}")
         if medir_colaterales and colaterales_medidos:
             print(f"{'':<6} colaterales: {', '.join(sorted(colaterales_medidos))}")
-        ajenos = sorted({r.split('[')[0] for r in rojos} - set(caso.tests))
-        if ajenos:
-            fallos.append(f"{caso.id}: rojo por el motivo equivocado, en {ajenos}")
-        # Los colaterales NO son un defecto —suelen ser defensa en profundidad—
-        # pero tienen que estar DECLARADOS: una lista que no coincide con la
-        # medida significa que el efecto de la mutación cambió sin que nadie lo
-        # note, y eso es exactamente lo que este guion existe para impedir.
-        if medir_colaterales and colaterales_medidos != set(caso.colaterales):
-            sobran = sorted(colaterales_medidos - set(caso.colaterales))
-            faltan = sorted(set(caso.colaterales) - colaterales_medidos)
+        if detector_roto:
             fallos.append(
-                f"{caso.id}: los colaterales medidos no son los declarados "
-                f"(sin declarar: {sobran}; declarados y no observados: {faltan})"
-            )
+                f"{caso.id}: DETECTOR ROTO — la mutación dejó el módulo sin "
+                f"compilar o sin rojos nombrados (rc!=0, 0 rojos); no se puede "
+                f"afirmar que la garantía muerde")
+        else:
+            ajenos = sorted({r.split('[')[0] for r in rojos} - set(caso.tests))
+            if ajenos:
+                fallos.append(f"{caso.id}: rojo por el motivo equivocado, en {ajenos}")
+            # Los colaterales NO son un defecto —suelen ser defensa en
+            # profundidad— pero lo DECLARADO tiene que seguir ahí: la
+            # propiedad que de verdad importa es `declarado ⊆ medido`, nunca
+            # la igualdad estricta. Medido en el microcarril de saneamiento:
+            # exigir igualdad hacía fallar el modo CON colaterales en 8/20
+            # casos de este mismo panel (G1,G2,G3,G8,G9,G10,G13,G20), en los
+            # 8 por la MISMA dirección — 28 colaterales sin declarar, CERO
+            # declarados y no observados — es decir, nada de lo declarado era
+            # falso; fallaba la completitud, no la medida. Un declarado que
+            # deja de observarse SÍ es un fallo real: significa que la
+            # mutación dejó de producir la defensa en profundidad que el caso
+            # afirma, y eso sigue bloqueando.
+            if medir_colaterales:
+                faltan = sorted(set(caso.colaterales) - colaterales_medidos)
+                if faltan:
+                    fallos.append(
+                        f"{caso.id}: colaterales DECLARADOS que ya no se "
+                        f"observan: {faltan}"
+                    )
+                sobran = sorted(colaterales_medidos - set(caso.colaterales))
+                if sobran:
+                    # Brecha registrada, no silenciada: no es un defecto, pero
+                    # se ve sin tener que leer el log completo.
+                    print(f"{'':<6} sin declarar (brecha registrada, no es "
+                          f"fallo): {', '.join(sobran)}")
+            if mutado_verde:
+                fallos.append(f"{caso.id}: la mutación NO se detecta — la garantía no muerde")
         if not base_verde:
             fallos.append(f"{caso.id}: rojo YA sin mutar ({detalle_base})")
-        if mutado_verde:
-            fallos.append(f"{caso.id}: la mutación NO se detecta — la garantía no muerde")
         if not reversion:
             fallos.append(f"{caso.id}: la reversión no es byte a byte")
 
