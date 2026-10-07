@@ -8,6 +8,14 @@ completa de funciones.
 
 Árbol medido: rama `feat/review-console-c`, nacida de `main` `ec8db32`.
 
+> **No confundir con `/review-console` (v1, laboratorio de Equipo B).** Esta
+> consola es el hueco C del chasis (`/panel/review`): lee los mismos claims y
+> decisiones del motor que `/v3/review`, en modo SOLO LECTURA. `/review-console`
+> es una consola distinta, de candidatos de entidad sobre fixtures fijas del
+> repo, y desde PR-1 (USABLE-V1, `docs/v3/25-interfaz-de-revision.md`) no se
+> monta por defecto. Para **decidir** sobre claims, la superficie operativa es
+> `/v3/review`; esta pantalla (`/panel/review`) es su vista de sólo lectura.
+
 ## 1. Qué se recuperó y qué se rehízo
 
 La arqueología diferencial de `docs/74 §8` se verificó antes de usarla, por
