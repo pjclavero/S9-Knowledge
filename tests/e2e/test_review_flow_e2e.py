@@ -1,4 +1,15 @@
-"""test_review_flow_e2e.py — E2E del flujo de revisión contra el producto integrado.
+"""test_review_flow_e2e.py — E2E de la CONSOLA DE LABORATORIO `/review-console`
+(`review-ingest/v1`, Equipo B), contra el producto integrado.
+
+QUÉ CUBRE Y QUÉ NO (PR-1, USABLE-V1): estos E2E recorren `/review-console` —
+candidatos de entidad desde fixtures fijas del repo (`src_demo_01`/
+`src_demo_02`), con `S9K_REVIEW_CONSOLE_ENABLED` encendida a propósito en
+`tests/e2e/conftest.py` para poder ejercitarla. NINGUNA línea de este fichero
+toca `/v3/review` (la superficie operativa que revisa `claims` reales del
+motor): ese hueco de cobertura E2E está registrado en el cuerpo del PR que
+cerró esta observación, no en este docstring, porque no se abre un E2E nuevo
+en este PR. `/v3/review` SÍ está cubierto a nivel de suite (ver
+`viewer/tests/`: 15 ficheros, incluidos 2 de navegador y 1 de data-engine).
 
 Fase 2: A (auth/sesión), B (panel + servicio review_console) y C (viewer/authz)
 están en main. Estos E2E ejercitan la app FastAPI real vía TestClient in-process:
