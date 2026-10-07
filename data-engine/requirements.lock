@@ -40,7 +40,7 @@ llama-index-workflows==2.22.2
 markdownify==1.2.3
 MarkupSafe==3.0.3
 marshmallow==3.26.2
-multidict==6.7.1
+multidict==6.9.1
 mypy_extensions==1.1.0
 neo4j==5.28.4
 nest-asyncio==1.6.0
@@ -56,7 +56,7 @@ propcache==0.5.2
 pydantic==2.13.4
 pydantic_core==2.46.4
 Pygments==2.20.0
-pypdf==6.16.1
+pypdf==6.19.0
 pytest==9.1.1
 pytest-asyncio==1.4.0
 python-dotenv==1.2.2
@@ -77,6 +77,6 @@ tqdm==4.68.4
 typing-inspect==0.9.0
 typing-inspection==0.4.2
 typing_extensions==4.16.0
-urllib3==2.7.0
+urllib3==2.8.0
 wrapt==2.2.2
 yarl==1.24.2
