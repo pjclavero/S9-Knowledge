@@ -114,7 +114,7 @@ def test_lab_store_never_references_neo4j(tmp_path):
 # (`S9K_REVIEW_CONSOLE_ENABLED`, apagada de fábrica). Este fichero mide el
 # comportamiento de LABORATORIO con la bandera encendida; el comportamiento
 # de fábrica (apagada -> 404 en las tres rutas) se mide aparte, en
-# `test_review_console_flag_off_404.py`, sin este autouse.
+# `test_review_console_apagada_por_defecto.py`, sin este autouse.
 @pytest.fixture(autouse=True)
 def _consola_encendida(monkeypatch):
     monkeypatch.setenv("S9K_REVIEW_CONSOLE_ENABLED", "true")

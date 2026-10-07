@@ -21,12 +21,15 @@ este módulo: lo decide ``docs/v3/25-interfaz-de-revision.md`` por OBJETO —
 ``claims`` del motor, y cada objeto tiene su canónica. La superficie
 OPERATIVA para revisar claims reales es ``/v3/review``.
 
-Por eso, y por decisión del operador, esta consola NO se monta en producción
-por defecto: un revisor que teclee la URL y decida sobre ``src_demo_01``
-creyendo revisar de verdad es una falsa confirmación con efecto de escritura
-(``POST …/decide`` vive aquí). No se convierte en consola de producto, no se
-conecta al motor real y no se enlaza en ``NAV``; sencillamente se deja de
-montar salvo que alguien la encienda a propósito para laboratorio.
+Por eso, y por decisión del operador, esta consola SIGUE montada (el
+``include_router`` de ``app/main.py`` no es condicional: el censo de rutas
+debe seguir viendo las tres) pero NO SE SIRVE en producción por defecto:
+responde 404 de fábrica. Sin el interruptor, un revisor que teclee la URL y
+decida sobre ``src_demo_01`` creyendo revisar de verdad sería una falsa
+confirmación con efecto de escritura (``POST …/decide`` vive aquí). No se
+convierte en consola de producto, no se conecta al motor real y no se enlaza
+en ``NAV``; sencillamente no responde salvo que alguien la encienda a
+propósito para laboratorio.
 
 INTERRUPTOR: ``S9K_REVIEW_CONSOLE_ENABLED``, con la MISMA autoridad y la MISMA
 semántica que ``app.routers.resultado`` ya aplica a ``/panel/resultado``
@@ -41,9 +44,20 @@ cuatro huecos C/B/F/G; este prefijo no pertenece a ninguno, exactamente como
 hoy no pertenece ``/panel/resultado``.
 
 Con la bandera apagada (estado de fábrica): las TRES rutas, incluida
-``POST …/decide``, responden 404 — no 403, para no distinguir "existe pero
-apagada" de "no existe". Con la bandera encendida: sigue funcionando como
-hoy, para quien la quiera como laboratorio.
+``POST …/decide``, dan 404 DESPUÉS de la puerta de rol (ver ``_exigir_encendido``).
+Medido: para quien está por debajo de ``reviewer`` el estado del interruptor
+es invisible -- la respuesta es IDÉNTICA con la bandera encendida o apagada
+(anónimo: 302 a ``/login`` en ambos casos; ``viewer``: 403 en ambos casos),
+porque ``_guard`` corta antes de llegar al interruptor. Para ``reviewer``/
+``admin`` -- quien sí podría decidir -- apagada da 404, el mismo código que
+una ruta inexistente, aunque por una razón distinta (hay guardián estático
+que lo emite, no ausencia de ruta). No hay afirmación de que un 404 por
+bandera sea indistinguible de "no existe" para todo rol, ni valor de
+seguridad en ocultar la EXISTENCIA de la ruta (el repo es público y, apagada,
+la ruta es inerte): la propiedad que el código sostiene es sólo que el
+interruptor no se revela a quien no tiene ya rol suficiente para decidir.
+Con la bandera encendida: sigue funcionando como hoy, para quien la quiera
+como laboratorio.
 """
 from __future__ import annotations
 
@@ -71,8 +85,11 @@ _RANK = {"admin": 3, "reviewer": 2, "viewer": 1}
 #: correcto para producción. Misma semántica que `app.routers.resultado`.
 FLAG_ENV = "S9K_REVIEW_CONSOLE_ENABLED"
 
-#: Cuerpo único del 404 cuando la bandera está apagada: no revela que la ruta
-#: existe pero está desconectada (eso sería distinguible de "no existe").
+#: Cuerpo único del 404 cuando la bandera está apagada, DESPUÉS de la puerta
+#: de rol: para reviewer+ el apagado se confunde con "no existe"; no pretende
+#: ocultar la existencia de la ruta a nadie por debajo de reviewer, que ya
+#: recibe la misma respuesta (302/403) tenga el interruptor el valor que
+#: tenga, sin llegar a ver este cuerpo.
 APAGADA = "No encontrado"
 
 

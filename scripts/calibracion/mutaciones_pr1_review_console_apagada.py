@@ -108,15 +108,15 @@ MUTACIONES = [
         "OBLIGATORIA: reactiva el montaje de las tres rutas, incluido el "
         "`POST` que escribe)",
         _mutar_exigir_encendido_noop,
-        # `test_sin_la_clave_en_el_entorno_get_detalle_da_404` NO entra aquí a
-        # propósito: ese test pide `src_demo_01` SIN `lector_por_dependencia`,
-        # así que el 404 que mide hoy ya lo produce el filtro de ámbito
-        # anónimo (`PolicyFilteredProvider`/scope), no el interruptor -- y con
-        # esta mutación sigue siendo 404 por ESA causa, enmascarando la que
-        # se quiere medir. Las otras cuatro SÍ dependen únicamente del
-        # interruptor (inbox no filtra por fuente, y los valores que no
-        # encienden se miden sobre inbox).
+        # `test_sin_la_clave_en_el_entorno_get_detalle_da_404_por_el_interruptor`
+        # SÍ entra aquí: usa `lector_por_dependencia` para quedar EN ámbito de
+        # `src_demo_01` y discrimina por el CUERPO del 404 (`APAGADA` =
+        # "No encontrado") frente al del filtro de ámbito anónimo ("Fuente no
+        # encontrada: …"). Con esta mutación el interruptor deja de disparar
+        # su 404 y la ruta responde 200 -- deja de fallar por "detail
+        # equivocado" y pasa a fallar por "status_code != 404" directamente.
         ["test_sin_la_clave_en_el_entorno_get_inbox_da_404",
+         "test_sin_la_clave_en_el_entorno_get_detalle_da_404_por_el_interruptor",
          "test_sin_la_clave_en_el_entorno_post_decide_da_404",
          "test_valores_que_no_encienden_siguen_dando_404[false]",
          "test_valores_que_no_encienden_siguen_dando_404[0]",

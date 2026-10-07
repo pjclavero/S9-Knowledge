@@ -221,10 +221,11 @@ laboratorio creyendo revisar de verdad — falsa confirmación con efecto de
 escritura, y la primera del programa USABLE-V1 (PR-1).
 
 Por decisión del operador, esa consola **no se convierte en consola de
-producto ni se conecta al motor real**: se deja de montar por defecto.
-`S9K_REVIEW_CONSOLE_ENABLED` (apagada de fábrica) reutiliza la misma autoridad
-que `/panel/resultado` ya aplica (`app.chassis.FLAG_ON_VALUES` +
-`app.config.effective_env_value`): con la bandera apagada, las tres rutas —
+producto ni se conecta al motor real**: sigue montada (`include_router` no es
+condicional; el censo de rutas sigue viendo las tres), pero deja de SERVIRSE
+por defecto. `S9K_REVIEW_CONSOLE_ENABLED` (apagada de fábrica) reutiliza la
+misma autoridad que `/panel/resultado` ya aplica (`app.chassis.FLAG_ON_VALUES`
++ `app.config.effective_env_value`): con la bandera apagada, las tres rutas —
 `GET /review-console`, `GET /review-console/source/{id}` y
 `POST /review-console/source/{id}/decide` — responden 404. Encendida, sigue
 funcionando exactamente igual, para quien la quiera como laboratorio.
