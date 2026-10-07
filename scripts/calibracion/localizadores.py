@@ -102,3 +102,25 @@ def mutar_unico(texto: str, viejo: str, nuevo: str) -> str | None:
         return None
     mutado = texto.replace(viejo, nuevo, 1)
     return None if mutado == texto else mutado
+
+
+def python_sigue_siendo_valido(texto: str) -> bool:
+    """``True`` si `texto` compila como Python; ``False`` si es inválido.
+
+    POR QUÉ EXISTE. El arnés de calibración daba por CALIBRADA una mutación que
+    tumbaba la SINTAXIS o el IMPORT del módulo mutado: el proceso de pytest
+    devolvía rc!=0 (luego "ROJO") y la lista de rojos nombrados venía vacía, lo
+    que el código leía como "rojo sin nombres fuera de lo declarado" —ningún
+    ajeno, cero sobrantes— en vez de leer "el módulo no llegó a ejecutarse".
+    Un módulo que no compila no es un rojo de la garantía: es el INSTRUMENTO
+    roto. Esta comprobación se hace ANTES de correr pytest y, combinada con
+    exigir ``len(rojos) > 0`` para declarar CALIBRADA, separa las tres causas:
+    la garantía muerde (rojos nombrados), el módulo no compiló (aquí) o el
+    módulo no se pudo importar/ejecutar pero sí compiló (rojos vacíos, luego
+    cazado por la exigencia de ``len(rojos) > 0``).
+    """
+    try:
+        ast.parse(texto)
+    except SyntaxError:
+        return False
+    return True

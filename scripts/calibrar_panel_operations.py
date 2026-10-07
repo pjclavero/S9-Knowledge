@@ -47,7 +47,7 @@ from typing import Callable
 
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent / "calibracion"))
-from localizadores import mutar_en_funcion  # noqa: E402
+from localizadores import mutar_en_funcion, python_sigue_siendo_valido  # noqa: E402
 VIEWER = RAIZ / "viewer"
 ROUTER = VIEWER / "app" / "routers" / "chassis_operations.py"
 PLANTILLA = VIEWER / "app" / "templates" / "chassis" / "operations.html"
@@ -402,6 +402,13 @@ def main() -> int:
                 continue
             texto_mutado = original.replace(caso.de, caso.a)
 
+        # DETECTOR ROTO si la mutación deja el módulo sin compilar: un rc!=0
+        # con CERO rojos nombrados se leía antes como "calibrada" (ningún
+        # ajeno, nada que declarar), cuando en realidad el módulo nunca llegó
+        # a ejecutar los tests. Se comprueba ANTES de correr pytest.
+        sintaxis_rota = (caso.fichero.suffix == ".py"
+                          and not python_sigue_siendo_valido(texto_mutado))
+
         caso.fichero.write_text(texto_mutado, encoding="utf-8")
         try:
             mutado_verde, rojos, detalle = correr(caso.tests, caso.suite)
@@ -409,20 +416,32 @@ def main() -> int:
             caso.fichero.write_text(original, encoding="utf-8")
         despues = sha(caso.fichero)
 
+        # Además de sintaxis rota, un rc!=0 SIN ningún rojo nombrado tampoco
+        # demuestra que la garantía muerde: es el módulo fallando a importar o
+        # a arrancar, no la comprobación declarada. Sólo cuenta como CALIBRADA
+        # un rojo con al menos un nombre.
+        detector_roto = sintaxis_rota or (not mutado_verde and not rojos)
+
         reversion = antes == despues
         estado_base = "VERDE" if base_verde else "ROJO"
-        estado_mut = "ROJO" if not mutado_verde else "VERDE"
+        estado_mut = "ROTO" if detector_roto else ("ROJO" if not mutado_verde else "VERDE")
         print(f"{caso.id:<5} {estado_base:<8} {estado_mut:<8} "
               f"{('idéntica' if reversion else 'DISTINTA'):<11} {caso.garantia}")
         if not mutado_verde:
             print(f"{'':<5} rojos: {', '.join(r.split('[')[0] for r in rojos)}")
-        ajenos = sorted({r.split('[')[0] for r in rojos} - set(caso.tests))
-        if ajenos:
-            fallos.append(f"{caso.id}: rojo por el motivo equivocado, en {ajenos}")
+        if detector_roto:
+            fallos.append(
+                f"{caso.id}: DETECTOR ROTO — la mutación dejó el módulo sin "
+                f"compilar o sin rojos nombrados (rc!=0, 0 rojos); no se puede "
+                f"afirmar que la garantía muerde")
+        else:
+            ajenos = sorted({r.split('[')[0] for r in rojos} - set(caso.tests))
+            if ajenos:
+                fallos.append(f"{caso.id}: rojo por el motivo equivocado, en {ajenos}")
+            if mutado_verde:
+                fallos.append(f"{caso.id}: la mutación NO se detecta — la garantía no muerde")
         if not base_verde:
             fallos.append(f"{caso.id}: rojo YA sin mutar ({detalle})")
-        if mutado_verde:
-            fallos.append(f"{caso.id}: la mutación NO se detecta — la garantía no muerde")
         if not reversion:
             fallos.append(f"{caso.id}: la reversión no es byte a byte")
 

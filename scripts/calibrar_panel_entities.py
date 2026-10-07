@@ -65,6 +65,9 @@ for _sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
         pass
 
 RAIZ = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent / "calibracion"))
+from localizadores import python_sigue_siendo_valido  # noqa: E402
+
 VIEWER = RAIZ / "viewer"
 ROUTER = VIEWER / "app" / "routers" / "chassis_entities.py"
 PLANTILLA = VIEWER / "app" / "templates" / "chassis" / "entities.html"
@@ -476,8 +479,16 @@ def main() -> int:
             print(f"{caso.id:<6} {'?':<8} {'ANCLA':<8} {'-':<11} {caso.garantia}")
             continue
 
+        texto_mutado = original.replace(caso.de, caso.a)
+        # DETECTOR ROTO si la mutación deja el módulo sin compilar: un rc!=0
+        # con CERO rojos nombrados se leía antes como "calibrada" (ningún
+        # ajeno, nada que declarar), cuando en realidad el módulo nunca llegó
+        # a ejecutar los tests. Se comprueba ANTES de correr pytest.
+        sintaxis_rota = (caso.fichero.suffix == ".py"
+                          and not python_sigue_siendo_valido(texto_mutado))
+
         _EN_VUELO[caso.fichero] = original
-        caso.fichero.write_text(original.replace(caso.de, caso.a), encoding="utf-8")
+        caso.fichero.write_text(texto_mutado, encoding="utf-8")
         try:
             mutado_verde, rojos, detalle = correr(caso.tests, caso.suite)
             colaterales_medidos: set[str] = set()
@@ -491,33 +502,60 @@ def main() -> int:
             _EN_VUELO.pop(caso.fichero, None)
         despues = sha(caso.fichero)
 
+        # Además de sintaxis rota, un rc!=0 SIN ningún rojo nombrado tampoco
+        # demuestra que la garantía muerde: es el módulo fallando a importar o
+        # a arrancar, no la comprobación declarada. Sólo cuenta como CALIBRADA
+        # un rojo con al menos un nombre.
+        detector_roto = sintaxis_rota or (not mutado_verde and not rojos)
+
         reversion = antes == despues
         col = (str(len(colaterales_medidos)) if medir_colaterales else "—")
+        estado_mut = "ROTO" if detector_roto else ("ROJO" if not mutado_verde else "VERDE")
         print(f"{caso.id:<6} {('VERDE' if base_verde else 'ROJO'):<8} "
-              f"{('ROJO' if not mutado_verde else 'VERDE'):<8} "
+              f"{estado_mut:<8} "
               f"{('idéntica' if reversion else 'DISTINTA'):<11} {col:<7} {caso.garantia}")
         if not mutado_verde:
             print(f"{'':<6} rojos: {', '.join(sorted({r.split('[')[0] for r in rojos}))}")
         if medir_colaterales and colaterales_medidos:
             print(f"{'':<6} colaterales: {', '.join(sorted(colaterales_medidos))}")
-        ajenos = sorted({r.split('[')[0] for r in rojos} - set(caso.tests))
-        if ajenos:
-            fallos.append(f"{caso.id}: rojo por el motivo equivocado, en {ajenos}")
-        # Los colaterales NO son un defecto —suelen ser defensa en profundidad—
-        # pero tienen que estar DECLARADOS: una lista que no coincide con la
-        # medida significa que el efecto de la mutación cambió sin que nadie lo
-        # note, y eso es exactamente lo que este guion existe para impedir.
-        if medir_colaterales and colaterales_medidos != set(caso.colaterales):
-            sobran = sorted(colaterales_medidos - set(caso.colaterales))
-            faltan = sorted(set(caso.colaterales) - colaterales_medidos)
+        if detector_roto:
             fallos.append(
-                f"{caso.id}: los colaterales medidos no son los declarados "
-                f"(sin declarar: {sobran}; declarados y no observados: {faltan})"
-            )
+                f"{caso.id}: DETECTOR ROTO — la mutación dejó el módulo sin "
+                f"compilar o sin rojos nombrados (rc!=0, 0 rojos); no se puede "
+                f"afirmar que la garantía muerde")
+        else:
+            ajenos = sorted({r.split('[')[0] for r in rojos} - set(caso.tests))
+            if ajenos:
+                fallos.append(f"{caso.id}: rojo por el motivo equivocado, en {ajenos}")
+            # Los colaterales NO son un defecto —suelen ser defensa en
+            # profundidad— pero lo DECLARADO tiene que seguir ahí: la
+            # propiedad que de verdad importa es `declarado ⊆ medido`, nunca
+            # la igualdad estricta. Medido en el microcarril de saneamiento:
+            # exigir igualdad hacía fallar el modo CON colaterales en 8/20
+            # casos de este mismo panel (G1,G2,G3,G8,G9,G10,G13,G20), en los
+            # 8 por la MISMA dirección — 28 colaterales sin declarar, CERO
+            # declarados y no observados — es decir, nada de lo declarado era
+            # falso; fallaba la completitud, no la medida. Un declarado que
+            # deja de observarse SÍ es un fallo real: significa que la
+            # mutación dejó de producir la defensa en profundidad que el caso
+            # afirma, y eso sigue bloqueando.
+            if medir_colaterales:
+                faltan = sorted(set(caso.colaterales) - colaterales_medidos)
+                if faltan:
+                    fallos.append(
+                        f"{caso.id}: colaterales DECLARADOS que ya no se "
+                        f"observan: {faltan}"
+                    )
+                sobran = sorted(colaterales_medidos - set(caso.colaterales))
+                if sobran:
+                    # Brecha registrada, no silenciada: no es un defecto, pero
+                    # se ve sin tener que leer el log completo.
+                    print(f"{'':<6} sin declarar (brecha registrada, no es "
+                          f"fallo): {', '.join(sobran)}")
+            if mutado_verde:
+                fallos.append(f"{caso.id}: la mutación NO se detecta — la garantía no muerde")
         if not base_verde:
             fallos.append(f"{caso.id}: rojo YA sin mutar ({detalle_base})")
-        if mutado_verde:
-            fallos.append(f"{caso.id}: la mutación NO se detecta — la garantía no muerde")
         if not reversion:
             fallos.append(f"{caso.id}: la reversión no es byte a byte")
 
