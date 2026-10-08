@@ -25,8 +25,20 @@ ejecuta en local con un provider mock; en producción usa Neo4j real.
 
 Seleccionables por entorno (`S9K_GRAPH_PROVIDER`):
 
-- `mock` (por defecto en local): lee `examples/sample_graph.json`. Sin Neo4j ni red.
 - `neo4j` (producción): se conecta a Neo4j real. Activo y probado en VM105.
+- `mock` (modo DEMO **explícito**): lee `examples/sample_graph.json`. Sin
+  Neo4j ni red, y la propia pantalla marca inequívocamente **DEMO** (no sólo
+  en un log) para que nadie confunda la muestra con su conocimiento real.
+- **sin declarar, o con un valor que no es ninguno de los dos anteriores**
+  (ausente del entorno y de `.env`, o una errata de tecleo): el visor NO
+  sirve datos mock como si fueran producto. Todas las superficies que leen
+  el grafo (`/`, `/entities`, `/sources`, `/quality`, `/status`, `/graph`, el
+  panel de administración y sus API `/api/*`) quedan en un **estado vacío y
+  honesto** — "base de conocimiento todavía no configurada", sin un 500 y
+  sin inventar ni una entidad. PR-2 (USABLE-V1) cerró esto: antes, no
+  declarar la variable caía en `mock` EN SILENCIO y una instalación recién
+  hecha mostraba 11 entidades y 2 fuentes de muestra sin ninguna marca de
+  que lo eran.
 
 ## Puesta en marcha en Windows (PowerShell)
 
@@ -46,8 +58,11 @@ http://127.0.0.1:8088
 ```
 
 `.env` no se versiona (ver `.gitignore` del repo). `S9K_GRAPH_PROVIDER=mock` en
-`.env.example` es el valor por defecto: no hace falta tocar nada para probar
-con datos de ejemplo.
+`.env.example` deja la instalación local en modo **DEMO explícito** desde el
+primer arranque: no hace falta tocar nada para probar con datos de ejemplo, y
+la propia pantalla lo marca como DEMO. Quitar esa línea (o dejarla vacía) sin
+poner `neo4j` en su lugar NO cae en `mock`: pasa al estado vacío y honesto
+descrito arriba.
 
 ### Instalación cerrada de fábrica
 

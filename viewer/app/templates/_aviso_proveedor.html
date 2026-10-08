@@ -1,0 +1,26 @@
+{#
+  AVISO DEL ESTADO DEL PROVEEDOR DE GRAFO — partial ÚNICO (PR-2 USABLE-V1).
+
+  Mismo patrón que `_aviso_autoridad_workspace.html`: se INCLUYE desde
+  `base.html`, nunca se copia, para que ninguna pantalla nazca muda. Dos
+  estados, mutuamente excluyentes:
+
+    no configurado -> "base de conocimiento todavía no configurada", sin
+                       nombrar ninguna variable de entorno.
+    demo (mock)     -> marca DEMO inequívoca, visible en la propia pantalla.
+
+  Proveedor real (neo4j) -> no se pinta nada, el símetrico de siempre.
+#}
+{% set _estado = estado_proveedor() %}
+{% if not _estado.configurado %}
+<div class="alert alert-error" role="alert" data-testid="aviso-proveedor-no-configurado">
+  <strong>Base de conocimiento no configurada</strong>
+  <p style="margin:.4rem 0 0;">{{ _estado.mensaje_no_configurado | e }}</p>
+</div>
+{% elif _estado.demo %}
+<div class="alert alert-warning" role="status" data-testid="aviso-proveedor-demo">
+  <strong data-testid="marca-demo">DEMO</strong>
+  <span style="margin-left:.4rem;">Estás viendo datos de muestra, no tu base de
+  conocimiento real.</span>
+</div>
+{% endif %}
