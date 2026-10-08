@@ -8,7 +8,10 @@ testigo (`viewer/tests/test_proveedor_no_configurado.py`), y comprueba que
 comprueba la restauración por EFECTO (árbol tracked limpio y testigo verde
 otra vez).
 
-Cubre dos formas de romper la propiedad:
+Cubre CINCO formas de romper la propiedad. Las tres últimas se añadieron
+porque la revisión del PR las probó a mano y enrojecían con los testigos
+existentes SIN estar declaradas: un arnés que da 2/2 CALIBRADA mientras
+≥5 propiedades están en juego mide menos de lo que dice.
 
   M1 — el fallback vuelve a ser `mock` tanto cuando no hay declaración como
        cuando el valor es una errata de tecleo: la falsa confirmación
@@ -16,6 +19,23 @@ Cubre dos formas de romper la propiedad:
        variante por fail-open ante un valor desconocido.
   M2 — la marca DEMO deja de pintarse: el modo de demostración vuelve a ser
        indistinguible de datos reales.
+  M3 — LA AUTORIDAD. `classify_provider_declaration` vuelve a leer de
+       `settings.S9K_GRAPH_PROVIDER` en vez de `effective_env_value`. Es la
+       mutación más importante del arnés: ese atributo SIEMPRE trae una
+       cadena (el default de pydantic), no puede distinguir "no declarado"
+       de "declarado = mock", y reintroduce TODA la clase de defecto de
+       golpe.
+  M4 — `NotConfiguredGraphProvider.list_entities` LANZA en vez de devolver
+       vacío. El proveedor no configurado existe para garantizar vacío, NO
+       excepción: una instalación sin configurar no está rota, está sin
+       configurar.
+  M5 — el aviso declara `configurado = False` siempre: el cartel de "no
+       configurada" se pinta encima de una instalación que SÍ está sirviendo
+       datos (reales o DEMO). Es la falsa confirmación simétrica.
+
+Cada mutación exige un fragmento DISCRIMINANTE en la salida —el texto del
+`assert` que nombra la causa—, no un `AssertionError` genérico: un rojo por
+la razón equivocada se lee igual que uno legítimo.
 
 Uso: python3 scripts/calibracion/mutaciones_proveedor_no_configurado.py
 """
@@ -96,7 +116,7 @@ MUTACIONES = [
             "test_sin_proveedor_mensaje_honesto_sin_nombrar_variables_s9k",
             "test_sin_proveedor_no_se_marca_como_demo",
         ],
-        "AssertionError",
+        "caer en mock es la falsa confirmación original",
     ),
     (
         "M2 — la marca DEMO deja de pintarse en la pantalla",
@@ -107,7 +127,52 @@ MUTACIONES = [
             "test_demo_explicito_se_marca_en_la_pantalla",
             "test_demo_explicito_admin_ve_la_muestra_marcada_demo",
         ],
-        "AssertionError",
+        "el modo DEMO debe marcarse en la propia pantalla",
+    ),
+    (
+        "M3 — LA AUTORIDAD pasa a settings.S9K_GRAPH_PROVIDER",
+        "viewer/app/providers/__init__.py",
+        lambda texto: mutar_en_funcion(
+            texto,
+            "classify_provider_declaration",
+            '        raw = effective_env_value("S9K_GRAPH_PROVIDER")',
+            "        from app.config import get_settings\n"
+            "        raw = get_settings().S9K_GRAPH_PROVIDER",
+        ),
+        None,
+        [
+            "test_sin_declarar_clasifica_como_no_configurado",
+            "test_la_autoridad_de_la_declaracion_es_la_efectiva_no_el_default_de_settings",
+            "test_build_provider_sin_declarar_no_es_mock",
+            "test_api_entities_sin_proveedor_no_trae_entidades",
+            "test_sin_proveedor_api_status_dice_la_causa",
+        ],
+        "la autoridad debe ser la declaración EFECTIVA",
+    ),
+    (
+        "M4 — list_entities LANZA en vez de devolver vacío",
+        "viewer/app/providers/not_configured_provider.py",
+        lambda texto: mutar_en_funcion(
+            texto,
+            "list_entities",
+            "        return [], 0",
+            '        raise RuntimeError("proveedor no configurado")',
+        ),
+        None,
+        [
+            "test_los_13_metodos_del_contrato_no_lanzan_y_devuelven_vacio",
+        ],
+        "NINGUN METODO DEL CONTRATO PUEDE LANZAR",
+    ),
+    (
+        "M5 — el aviso declara `configurado` False siempre",
+        "viewer/app/provider_banner.py",
+        '        "configurado": estado != PROVIDER_NOT_CONFIGURED,',
+        '        "configurado": False,',
+        [
+            "test_neo4j_no_configurado_no_se_marca_ni_como_demo_ni_como_no_configurado",
+        ],
+        "ningún cartel cuando no hace falta ninguno",
     ),
 ]
 

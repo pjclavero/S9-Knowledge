@@ -10,11 +10,14 @@ que es la falsa confirmación que este corte cierra.
 el valor de `S9K_GRAPH_PROVIDER`, y lee con `effective_env_value` — NUNCA con
 `settings.S9K_GRAPH_PROVIDER`, cuyo valor siempre es una cadena (el default
 de pydantic) y no puede distinguir "no declarado" de "declarado = mock".
-Tanto `build_provider` (qué proveedor se instancia) como los globals de
-plantilla que pintan el aviso DEMO/no-configurado (`app.provider_banner`)
-llaman a esta misma función: dos lecturas independientes de la misma
-pregunta son exactamente el patrón de defecto que el resto del repo (ver
-`app/config.py::effective_env_value`) existe para eliminar.
+`classify_provider_declaration` tiene UN solo consumidor en producto:
+`build_provider`, que es quien decide qué objeto se instancia. El aviso de
+pantalla NO la llama —preguntaría por segunda vez lo que el proveedor ya
+sabe—: se deriva del proveedor vivo con `estado_del_proveedor_vivo`. Dos
+lecturas independientes de la misma pregunta son exactamente el patrón de
+defecto que el resto del repo (ver `app/config.py::effective_env_value`)
+existe para eliminar, y aquí la pregunta operativa no es "qué se declaró"
+sino "qué estoy sirviendo": su única autoridad es el objeto que sirve.
 """
 from __future__ import annotations
 
@@ -76,8 +79,48 @@ def build_provider(settings: Settings) -> GraphProvider:
     return NotConfiguredGraphProvider()
 
 
+def estado_de_proveedor(provider: GraphProvider) -> str:
+    """Clasifica un proveedor YA CONSTRUIDO por lo que es, no por lo que se
+    declaró. `name` es la identidad que el propio proveedor publica y que
+    `/api/status` ya expone; `PolicyFilteredProvider` la proxya tal cual, así
+    que envolver el proveedor no cambia la respuesta.
+
+    Fail-closed: un `name` que no sea `mock` ni `neo4j` (incluido
+    `not_configured` y cualquier proveedor futuro que no se reconozca aquí)
+    se trata como NO configurado. Nunca al contrario: un desconocido no puede
+    degradar en silencio a "sírvelo como si fuera real".
+    """
+    nombre = (getattr(provider, "name", "") or "").strip().lower()
+    if nombre == PROVIDER_NEO4J:
+        return PROVIDER_NEO4J
+    if nombre == PROVIDER_MOCK_DEMO:
+        return PROVIDER_MOCK_DEMO
+    return PROVIDER_NOT_CONFIGURED
+
+
+def estado_del_proveedor_vivo() -> str:
+    """Estado del proveedor que ESTÁ atendiendo las lecturas de este proceso.
+
+    Importa `app.deps` dentro de la función a propósito: `app.deps` importa
+    este módulo, y hacerlo arriba cerraría el ciclo.
+
+    Si el proveedor no se puede construir siquiera (p. ej. `neo4j` declarado
+    sin su driver instalado), el proceso no está sirviendo NADA, y eso se
+    informa como no configurado en vez de romper toda pantalla con un 500:
+    el aviso es una franja informativa en `base.html`, no un camino de datos.
+    """
+    from app.deps import get_provider
+
+    try:
+        return estado_de_proveedor(get_provider())
+    except Exception:
+        return PROVIDER_NOT_CONFIGURED
+
+
 __all__ = [
     "build_provider",
+    "estado_de_proveedor",
+    "estado_del_proveedor_vivo",
     "GraphProvider",
     "classify_provider_declaration",
     "PROVIDER_NOT_CONFIGURED",

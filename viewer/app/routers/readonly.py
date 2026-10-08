@@ -213,6 +213,15 @@ def api_entities(
     serialized = [serialize_node(n) for n in items]
     return {
         "items": serialized,
+        # PR-2 (USABLE-V1): la respuesta que TRAE los datos dice en qué modo
+        # está. Antes, con `S9K_GRAPH_PROVIDER=mock`, este endpoint devolvía
+        # las 9 entidades de muestra sin ninguna marca en el JSON: las 12
+        # superficies HTML llevaban el aviso DEMO, pero un consumidor de la
+        # API necesitaba una SEGUNDA llamada a `/api/status` para saber que
+        # eran inventadas. Misma clave y mismo valor que publica `/api/status`
+        # (`provider.name`), que es la MISMA autoridad —el proveedor vivo—:
+        # no es una segunda lectura de la declaración.
+        "provider": provider.name,
         "pagination": _build_pagination(total, limit, offset),
         "filters": {
             "workspace": ws,

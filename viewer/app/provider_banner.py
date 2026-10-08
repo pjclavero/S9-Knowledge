@@ -13,9 +13,24 @@ decisión del operador exige dos cosas simétricas:
 Mismo patrón que `app.presentacion_etiquetas.install_label_globals` y
 `app.chassis.install_nav_globals`: un global de Jinja instalado en TODOS los
 entornos de plantillas descubiertos, para que ninguna pantalla nazca muda.
-Se resuelve con la MISMA autoridad que decide qué proveedor se instancia
-(`app.providers.classify_provider_declaration`) — nunca una segunda lectura
-de `S9K_GRAPH_PROVIDER` que podría divergir de la que ya usó la fábrica.
+
+AUTORIDAD ÚNICA — se le pregunta al PROVEEDOR VIVO
+--------------------------------------------------
+La primera versión de este módulo releía la DECLARACIÓN
+(`classify_provider_declaration`) en cada petición, mientras el proveedor se
+construye UNA sola vez (`app.deps.get_provider` es `@lru_cache`). Eran dos
+lecturas independientes de la misma pregunta —"¿qué estoy sirviendo?"— y
+divergían de verdad: con `mock` declarado al arrancar y la declaración
+RETIRADA EN CALIENTE, sin reiniciar, la pantalla decía «Base de conocimiento
+no configurada» Y SEGUÍA SIRVIENDO las 11 entidades de muestra, sin marca
+DEMO. Una falsa confirmación más fuerte que la que este corte vino a cerrar.
+
+Ahora el aviso se deriva del objeto que efectivamente atiende las lecturas:
+`app.deps.get_provider().name`. Esa es la MISMA fuente que publica
+`/api/status` (`provider.name`), así que pantalla y API no pueden discrepar.
+La declaración sigue siendo la autoridad de UN SOLO sitio —la fábrica
+(`build_provider`), que es quien la consulta para decidir qué instanciar—, y
+el aviso ya no la relee: describe el proveedor, no la intención.
 """
 from __future__ import annotations
 
@@ -25,7 +40,7 @@ from app.providers import (
     PROVIDER_MOCK_DEMO,
     PROVIDER_NEO4J,
     PROVIDER_NOT_CONFIGURED,
-    classify_provider_declaration,
+    estado_del_proveedor_vivo,
 )
 from app.providers.not_configured_provider import MENSAJE_NO_CONFIGURADO
 
@@ -34,11 +49,17 @@ GLOBAL_ESTADO_PROVEEDOR = "estado_proveedor"
 
 
 def resolver_estado_proveedor() -> dict:
-    """Estado honesto del proveedor, SIN caché: un operador que edita `.env`
-    y reinicia debe ver el cambio en la propia pantalla, igual criterio que
-    `app.config.effective_env_value` (releer es una lectura de fichero
-    pequeña en el camino de una petición HTTP local, no un coste real)."""
-    estado = classify_provider_declaration()
+    """Estado honesto de lo que el visor ESTÁ SIRVIENDO ahora mismo.
+
+    No relee `S9K_GRAPH_PROVIDER`: le pregunta al proveedor vivo (ver el
+    docstring del módulo). Consecuencia declarada y deliberada: el proveedor
+    queda FIJADO al arrancar el proceso, así que un cambio de `.env` en
+    caliente no mueve ni los datos ni el aviso —ambos a la vez— y el operador
+    necesita reiniciar para que el cambio tenga efecto. Eso es exactamente lo
+    que se quiere: el cartel describe el proveedor que atiende las lecturas,
+    nunca una intención que el proceso todavía no ha recogido.
+    """
+    estado = estado_del_proveedor_vivo()
     return {
         "configurado": estado != PROVIDER_NOT_CONFIGURED,
         "demo": estado == PROVIDER_MOCK_DEMO,

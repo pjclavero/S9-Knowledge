@@ -25,9 +25,14 @@ import pytest
 #: `S9K_AUTH_ENABLED=true` puesto (y sobre todo `get_auth_settings` sin
 #: volver a limpiar su caché) filtraría al siguiente test, que cree estar
 #: probando el camino anónimo.
+#: `S9K_NEO4J_URI` está en la lista porque
+#: `test_neo4j_no_configurado_...` la pone con `setdefault`: sin restaurarla,
+#: quedaba puesta para el RESTO de la sesión de pytest. Es exactamente la
+#: familia de fuga que este corte vino a limpiar en los otros cinco ficheros
+#: de la suite, y una fuga de una línea cuenta igual que una de veinte.
 _ENV_KEYS = (
     "S9K_GRAPH_PROVIDER", "S9K_AUTH_ENABLED", "S9K_SESSION_SECURE",
-    "S9K_AUTH_DB_PATH",
+    "S9K_AUTH_DB_PATH", "S9K_NEO4J_URI",
 )
 
 
@@ -138,7 +143,10 @@ def _settings_sin_cache():
 
 def test_sin_declarar_clasifica_como_no_configurado():
     from app.providers import PROVIDER_NOT_CONFIGURED, classify_provider_declaration
-    assert classify_provider_declaration() == PROVIDER_NOT_CONFIGURED
+    assert classify_provider_declaration() == PROVIDER_NOT_CONFIGURED, (
+        "sin declaración efectiva de proveedor, la clasificación debe ser "
+        "not_configured: caer en mock es la falsa confirmación original"
+    )
 
 
 def test_valor_desconocido_tambien_es_no_configurado():
@@ -292,5 +300,267 @@ def test_neo4j_no_configurado_no_se_marca_ni_como_demo_ni_como_no_configurado():
     _limpiar_singletons_de_proveedor()
     with _client() as c:
         r = c.get("/")
-        assert "DEMO" not in r.text
-        assert "no configurada" not in r.text.lower()
+        assert "DEMO" not in r.text, (
+            "con proveedor real declarado no se pinta la marca DEMO: ningún "
+            "cartel cuando no hace falta ninguno"
+        )
+        assert "no configurada" not in r.text.lower(), (
+            "con proveedor real declarado NO se pinta el aviso de no "
+            "configurada: ningún cartel cuando no hace falta ninguno"
+        )
+
+
+# ---------------------------------------------------------------------------
+# 5) UNA SOLA AUTORIDAD sobre "qué estoy sirviendo" (O1 de la revisión)
+# ---------------------------------------------------------------------------
+#
+# El defecto medido en la primera versión de este corte: el aviso releía la
+# DECLARACIÓN en cada petición y el proveedor se construía UNA vez
+# (`@lru_cache`). Retirando la declaración EN CALIENTE, sin reiniciar, la
+# pantalla decía «Base de conocimiento no configurada» Y SEGUÍA SIRVIENDO las
+# 11 entidades de muestra, sin marca DEMO: una falsa confirmación MÁS FUERTE
+# que la que este corte cierra. Estos testigos la fijan.
+
+def test_aviso_y_datos_no_discrepan_al_quitar_la_declaracion_en_caliente(tmp_path):
+    """EL testigo de la divergencia. Arranca con `mock`, hace una petición
+    (que construye y CACHEA el proveedor), retira `S9K_GRAPH_PROVIDER` SIN
+    vaciar ninguna caché —exactamente lo que pasa cuando alguien edita el
+    entorno de un proceso vivo— y vuelve a pedir la pantalla.
+
+    La propiedad no es "qué cartel sale", es que el cartel y los datos
+    cuenten LA MISMA historia: si en la pantalla hay entidades de muestra,
+    tiene que llevar la marca DEMO y NO puede decir que no hay nada
+    configurado.
+    """
+    os.environ["S9K_GRAPH_PROVIDER"] = "mock"
+    with _admin_client(tmp_path) as c:
+        r0 = c.get("/entities")
+        assert "Agasha Tamori" in r0.text, "preparación: el modo DEMO debe servir la muestra"
+        assert "DEMO" in r0.text, "preparación: la muestra debe llegar marcada DEMO"
+
+        # --- la declaración se retira EN CALIENTE, sin reiniciar nada ---
+        os.environ.pop("S9K_GRAPH_PROVIDER", None)
+        r1 = c.get("/entities")
+
+        sirve_muestra = "Agasha Tamori" in r1.text
+        dice_no_configurada = "no configurada" in r1.text.lower()
+        marca_demo = "DEMO" in r1.text
+
+        assert not (sirve_muestra and dice_no_configurada), (
+            "DIVERGENCIA DE AUTORIDADES: la pantalla dice «no configurada» "
+            "mientras SIRVE entidades de muestra. El aviso y los datos deben "
+            "salir de la misma autoridad (el proveedor vivo), no de dos "
+            "lecturas independientes de la declaración."
+        )
+        assert not (sirve_muestra and not marca_demo), (
+            "DIVERGENCIA DE AUTORIDADES: se sirven entidades de muestra SIN "
+            "marca DEMO. El aviso debe derivarse del proveedor que atiende "
+            "las lecturas."
+        )
+
+
+def test_el_aviso_se_deriva_del_proveedor_vivo_no_de_la_declaracion():
+    """El mismo invariante a la altura de la función, sin HTTP: el estado que
+    pinta el aviso coincide SIEMPRE con el proveedor que `app.deps` entrega,
+    incluso cuando la declaración ya dice otra cosa."""
+    from app.deps import get_provider
+    from app.provider_banner import resolver_estado_proveedor
+    from app.providers import PROVIDER_MOCK_DEMO, estado_de_proveedor
+
+    os.environ["S9K_GRAPH_PROVIDER"] = "mock"
+    _limpiar_singletons_de_proveedor()
+    assert estado_de_proveedor(get_provider()) == PROVIDER_MOCK_DEMO
+
+    os.environ.pop("S9K_GRAPH_PROVIDER", None)  # en caliente, sin vaciar cachés
+    estado = resolver_estado_proveedor()
+    vivo = estado_de_proveedor(get_provider())
+    assert estado["demo"] is (vivo == PROVIDER_MOCK_DEMO), (
+        "DIVERGENCIA DE AUTORIDADES: el aviso debe describir el PROVEEDOR "
+        f"VIVO; aquí describe la declaración (aviso={estado}, vivo={vivo})"
+    )
+    assert estado["configurado"] is True, (
+        "DIVERGENCIA DE AUTORIDADES: el proveedor vivo sigue sirviendo la "
+        "muestra, el aviso no puede declarar la instalación sin configurar"
+    )
+
+
+def test_la_autoridad_de_la_declaracion_es_la_efectiva_no_el_default_de_settings():
+    """`settings.S9K_GRAPH_PROVIDER` SIEMPRE trae una cadena (el default de
+    pydantic, `mock`) y no puede distinguir "no declarado" de "declarado =
+    mock". Si la fábrica volviera a leer de ahí, toda la clase de defecto
+    regresaría de golpe."""
+    from app.providers import PROVIDER_NOT_CONFIGURED, classify_provider_declaration
+
+    settings = _settings_sin_cache()
+    assert settings.S9K_GRAPH_PROVIDER, (
+        "preparación: el default de Settings debe ser una cadena no vacía, "
+        "que es justo lo que lo hace inservible como autoridad"
+    )
+    assert classify_provider_declaration() == PROVIDER_NOT_CONFIGURED, (
+        "la autoridad debe ser la declaración EFECTIVA (entorno > .env), no "
+        "el default de Settings: ese default no distingue 'no declarado' de "
+        "'declarado = mock'"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 6) Las API que sirven datos del proveedor DICEN en qué modo están (O2)
+# ---------------------------------------------------------------------------
+
+_APIS_CON_DATOS_DEL_PROVEEDOR = ("/api/entities?limit=1000", "/api/graph")
+
+
+@pytest.mark.parametrize("ruta", _APIS_CON_DATOS_DEL_PROVEEDOR)
+def test_api_declara_el_modo_demo_en_su_propia_respuesta(ruta, tmp_path):
+    """Las 12 superficies HTML llevan la marca, pero `/api/entities` y
+    `/api/graph` devolvían las entidades inventadas SIN ninguna marca en el
+    JSON: un consumidor necesitaba una SEGUNDA llamada a `/api/status` para
+    saber que eran de muestra. La respuesta que trae los datos debe decir en
+    qué modo está, con la MISMA clave y el MISMO valor que `/api/status`."""
+    os.environ["S9K_GRAPH_PROVIDER"] = "mock"
+    with _admin_client(tmp_path) as c:
+        cuerpo = c.get(ruta).json()
+        declarado_en_status = c.get("/api/status").json()["provider"]
+        assert cuerpo.get("provider") == "mock", (
+            f"{ruta} sirve datos de muestra sin declarar el modo en su propia "
+            f"respuesta: provider={cuerpo.get('provider')!r}"
+        )
+        assert cuerpo.get("provider") == declarado_en_status, (
+            f"{ruta} y /api/status no coinciden en el modo publicado: "
+            f"{cuerpo.get('provider')!r} vs {declarado_en_status!r}"
+        )
+
+
+@pytest.mark.parametrize("ruta", _APIS_CON_DATOS_DEL_PROVEEDOR)
+def test_api_declara_el_modo_no_configurado_en_su_propia_respuesta(ruta, tmp_path):
+    with _admin_client(tmp_path) as c:
+        cuerpo = c.get(ruta).json()
+        assert cuerpo.get("provider") == "not_configured", (
+            f"{ruta} debe declarar 'not_configured' en su propia respuesta, "
+            f"no obligar a una segunda llamada: {cuerpo.get('provider')!r}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# 7) LOS 13 MÉTODOS DEL CONTRATO: ninguno lanza, todos vacíos (O3)
+# ---------------------------------------------------------------------------
+#
+# El recorrido se DERIVA de `GraphProvider` (inspección de la clase), no de
+# una lista escrita a mano: cuando el contrato crezca, el método nuevo entra
+# en el recorrido por construcción. TECHO DECLARADO: si un método nuevo trae
+# un parámetro obligatorio cuyo tipo no se sabe sintetizar, el testigo FALLA
+# en voz alta (`_valor_para_parametro` lanza) en vez de saltárselo en
+# silencio; y el recorrido comprueba AUSENCIA de datos y AUSENCIA de
+# excepción, no la semántica de cada método.
+
+def _metodos_del_contrato() -> dict:
+    """Métodos públicos que `GraphProvider` define como su contrato de
+    lectura, abstractos o no (`list_assertions` no es abstracto a propósito,
+    ver `app/providers/base.py`)."""
+    import inspect
+
+    from app.providers.base import GraphProvider
+
+    metodos = {}
+    for nombre, miembro in inspect.getmembers(GraphProvider, predicate=inspect.isfunction):
+        if nombre.startswith("_"):
+            continue
+        metodos[nombre] = miembro
+    return metodos
+
+
+def _valor_para_parametro(nombre: str, anotacion) -> object:
+    texto = str(anotacion)
+    if "str" in texto:
+        return "" if nombre == "q" else "ninguno"
+    if "int" in texto:
+        return 1
+    if "float" in texto:
+        return 0.5
+    if "bool" in texto:
+        return False
+    raise AssertionError(
+        "TECHO DEL RECORRIDO: el contrato trae un parámetro obligatorio que "
+        f"este testigo no sabe sintetizar ({nombre}: {anotacion!r}). "
+        "Amplía `_valor_para_parametro` — no lo saltes: un método sin "
+        "recorrer es un método sin defensa."
+    )
+
+
+def _sin_datos(valor, ruta: str) -> list[str]:
+    """Hallazgos (lista vacía = honesto). Un `dict` es honesto si TODA hoja
+    numérica vale 0 y TODA hoja de colección está vacía; las hojas de texto
+    se admiten porque son etiquetas o ecos del argumento (p. ej. la clave
+    `workspace` de `quality_metrics`), nunca datos del grafo."""
+    hallazgos: list[str] = []
+    if valor is None:
+        return hallazgos
+    if isinstance(valor, bool):
+        if valor is not False:
+            hallazgos.append(f"{ruta}: True (sin proveedor nada esta conectado)")
+        return hallazgos
+    if isinstance(valor, int):
+        if valor != 0:
+            hallazgos.append(f"{ruta}: {valor} (se esperaba 0)")
+        return hallazgos
+    if isinstance(valor, str):
+        return hallazgos
+    if isinstance(valor, (list, set, frozenset)):
+        if len(valor) != 0:
+            hallazgos.append(f"{ruta}: {len(valor)} elementos (se esperaba vacio)")
+        return hallazgos
+    if isinstance(valor, tuple):
+        for i, v in enumerate(valor):
+            hallazgos += _sin_datos(v, f"{ruta}[{i}]")
+        return hallazgos
+    if isinstance(valor, dict):
+        for k, v in valor.items():
+            hallazgos += _sin_datos(v, f"{ruta}.{k}")
+        return hallazgos
+    hallazgos.append(f"{ruta}: tipo inesperado {type(valor).__name__}")
+    return hallazgos
+
+
+def test_los_13_metodos_del_contrato_no_lanzan_y_devuelven_vacio():
+    """`NotConfiguredGraphProvider` existe para garantizar VACÍO, NO
+    EXCEPCIÓN. Antes de este testigo sólo tres métodos (`is_connected`,
+    `graph`, `list_entities`) estaban defendidos: con `quality_metrics` o
+    `source_detail` lanzando, la suite entera del visor daba CERO rojos, y
+    esos métodos SÍ se ejercitan en producto (`/sources` y `/quality`)."""
+    import inspect
+
+    from app.providers.not_configured_provider import NotConfiguredGraphProvider
+
+    provider = NotConfiguredGraphProvider()
+    contrato = _metodos_del_contrato()
+    assert len(contrato) == 13, (
+        "el contrato de `GraphProvider` ha cambiado de tamaño "
+        f"({len(contrato)} métodos, antes 13). No es un fallo del proveedor: "
+        "revisa que el método nuevo esté defendido y actualiza este número."
+    )
+
+    lanzaron: list[str] = []
+    con_datos: list[str] = []
+    for nombre, funcion in sorted(contrato.items()):
+        firma = inspect.signature(funcion)
+        kwargs = {}
+        for pnombre, p in firma.parameters.items():
+            if pnombre == "self" or p.default is not inspect.Parameter.empty:
+                continue
+            kwargs[pnombre] = _valor_para_parametro(pnombre, p.annotation)
+        try:
+            resultado = getattr(provider, nombre)(**kwargs)
+        except Exception as exc:
+            lanzaron.append(f"{nombre}: {type(exc).__name__}: {exc}")
+            continue
+        con_datos += _sin_datos(resultado, nombre)
+
+    assert not lanzaron, (
+        "NINGUN METODO DEL CONTRATO PUEDE LANZAR sin proveedor configurado "
+        "-una instalacion sin configurar no esta rota, esta sin "
+        f"configurar-: {lanzaron}"
+    )
+    assert not con_datos, (
+        "TODOS LOS METODOS DEL CONTRATO DEBEN DEVOLVER VACIO sin proveedor "
+        f"configurado: {con_datos}"
+    )

@@ -40,6 +40,29 @@ Seleccionables por entorno (`S9K_GRAPH_PROVIDER`):
   hecha mostraba 11 entidades y 2 fuentes de muestra sin ninguna marca de
   que lo eran.
 
+### Qué estoy sirviendo: una sola autoridad
+
+El proveedor se construye **una vez por proceso** (`app.deps.get_provider` es
+`@lru_cache`), igual criterio que `get_settings`: un cambio de `.env` exige
+**reiniciar** para tener efecto. El aviso de pantalla (DEMO / no configurada)
+se deriva de ese **proveedor vivo** (`app.providers.estado_del_proveedor_vivo`,
+sobre `provider.name`), no de una segunda lectura de `S9K_GRAPH_PROVIDER`.
+
+Por qué importa: con el aviso releyendo la declaración en cada petición y el
+proveedor fijado al arrancar, retirar `S9K_GRAPH_PROVIDER` **en caliente**
+dejaba la pantalla diciendo «Base de conocimiento no configurada» mientras
+**seguía sirviendo** las entidades de muestra, y sin marca DEMO. Ahora el
+cartel y los datos salen del mismo sitio y no pueden discrepar: lo que se
+pinta describe el proveedor que atiende las lecturas, nunca una intención que
+el proceso todavía no ha recogido.
+
+Esa misma identidad es la que publican **las API que sirven datos del
+proveedor**: `/api/status`, `/api/entities` y `/api/graph` traen el campo
+`provider` (`neo4j` | `mock` | `not_configured`) en su **propia** respuesta,
+con el mismo valor. Un consumidor de la API distingue la muestra de lo real
+sin una segunda llamada; el campo es **aditivo** y no quita ninguna clave
+anterior.
+
 ## Puesta en marcha en Windows (PowerShell)
 
 ```powershell
