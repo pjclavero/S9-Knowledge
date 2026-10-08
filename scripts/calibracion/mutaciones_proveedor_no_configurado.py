@@ -173,8 +173,15 @@ MUTACIONES = [
     (
         "M5 — el aviso declara `configurado` False siempre",
         "viewer/app/provider_banner.py",
-        '        "configurado": estado != PROVIDER_NOT_CONFIGURED,',
-        '        "configurado": False,',
+        lambda texto: mutar_en_funcion(
+            texto,
+            "resolver_estado_proveedor",
+            '        "configurado": estado not in (\n'
+            "            PROVIDER_NOT_CONFIGURED, PROVIDER_DECLARED_UNAVAILABLE,\n"
+            "        ),",
+            '        "configurado": False,',
+        ),
+        None,
         [
             "test_neo4j_no_configurado_no_se_marca_ni_como_demo_ni_como_no_configurado",
         ],
