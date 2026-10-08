@@ -146,6 +146,11 @@ def e2e(tmp_path) -> Iterator[E2EHarness]:
         "S9K_GRAPH_PROVIDER": "mock",
         "S9K_SAMPLE_GRAPH_PATH": str(graph_path),
         "S9K_REVIEW_LAB_DIR": str(lab_dir),
+        # PR-1 (USABLE-V1): /review-console ya no se monta por defecto. Este
+        # arnés ejercita ESA consola de laboratorio a propósito (D-DEP-1..4),
+        # así que la enciende explícitamente -- igual que el resto de este
+        # entorno enciende lo que necesita para ejercer rutas reales.
+        "S9K_REVIEW_CONSOLE_ENABLED": "true",
     }
     previous = {k: os.environ.get(k) for k in env}
     os.environ.update(env)

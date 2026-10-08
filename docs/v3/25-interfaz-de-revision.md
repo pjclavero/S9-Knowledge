@@ -204,3 +204,32 @@ parchear subsistemas laterales.
   corrupción externa, pero dos procesos distintos no coordinan un lock de
   escritura. El despliegue debe mantener un único worker escritor para esta
   versión.
+
+## `/v3/review` es la superficie operativa; `review-ingest/v1` queda de laboratorio (PR-1, USABLE-V1)
+
+La decisión por objeto de este documento (arriba) ya separaba las dos
+consolas: `/review-console` (`review-ingest/v1`, Equipo B) revisa **candidatos
+de entidad** desde fixtures fijas del repo; `/v3/review` revisa **claims y
+decisiones del motor** desde la cola real. No son autoridades duplicadas, son
+objetos distintos.
+
+Lo que faltaba decidir era el **montaje**: `/review-console` se montaba
+siempre, sin estar en `NAV` ni enlazada desde ninguna pantalla salvo ella
+misma, con `POST …/decide` vivo y sirviendo `src_demo_01`/`src_demo_02` de
+fábrica. Un revisor que tecleara la URL podía decidir sobre datos de
+laboratorio creyendo revisar de verdad — falsa confirmación con efecto de
+escritura, y la primera del programa USABLE-V1 (PR-1).
+
+Por decisión del operador, esa consola **no se convierte en consola de
+producto ni se conecta al motor real**: sigue montada (`include_router` no es
+condicional; el censo de rutas sigue viendo las tres), pero deja de SERVIRSE
+por defecto. `S9K_REVIEW_CONSOLE_ENABLED` (apagada de fábrica) reutiliza la
+misma autoridad que `/panel/resultado` ya aplica (`app.chassis.FLAG_ON_VALUES`
++ `app.config.effective_env_value`): con la bandera apagada, las tres rutas —
+`GET /review-console`, `GET /review-console/source/{id}` y
+`POST /review-console/source/{id}/decide` — responden 404. Encendida, sigue
+funcionando exactamente igual, para quien la quiera como laboratorio.
+
+**Para revisar de verdad, la superficie operativa es `/v3/review`.** Es la que
+queda montada sin interruptor, la que lee la cola real
+(`S9K_V3_REVIEW_PROPOSALS_DIR`) y la que esta sección documenta.

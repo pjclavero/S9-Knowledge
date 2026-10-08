@@ -45,6 +45,11 @@ def auth_env(tmp_path):
     os.environ["S9K_SESSION_SECURE"] = "false"
     os.environ["S9K_SAMPLE_GRAPH_PATH"] = FIXTURE
     os.environ["S9K_DEFAULT_WORKSPACE"] = WS
+    # PR-1 (USABLE-V1): /review-console ya no se monta por defecto. Esta
+    # suite mide su comportamiento de LABORATORIO (ámbito de partida), así
+    # que la enciende explícitamente -- igual que el resto de este fixture
+    # enciende lo que necesita para ejercer la ruta real.
+    os.environ["S9K_REVIEW_CONSOLE_ENABLED"] = "true"
     from app.auth.config import get_auth_settings
     from app.config import get_settings
     from app.deps import get_provider
@@ -54,7 +59,8 @@ def auth_env(tmp_path):
     from app.auth import db as auth_db
     auth_db.ensure_migrated(db)
     yield db
-    for k in ("S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_SAMPLE_GRAPH_PATH", "S9K_DEFAULT_WORKSPACE"):
+    for k in ("S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_SAMPLE_GRAPH_PATH",
+              "S9K_DEFAULT_WORKSPACE", "S9K_REVIEW_CONSOLE_ENABLED"):
         os.environ.pop(k, None)
     get_auth_settings.cache_clear()
     get_settings.cache_clear()

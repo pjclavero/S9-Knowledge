@@ -1286,6 +1286,19 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/corte1_existencia_partida.py
 
+      # PR-1 (USABLE-V1) — "/review-console" NO se monta por defecto.
+      # S9K_REVIEW_CONSOLE_ENABLED, misma autoridad que app.routers.resultado
+      # usa para /panel/resultado. Tres mutaciones: la obligatoria (el
+      # interruptor deja de exigir nada en las tres rutas, incluido el POST
+      # que escribe), la segunda autoridad (un criterio de "encendido"
+      # propio en vez de chassis.FLAG_ON_VALUES) y el consumidor aislado
+      # (sólo el POST .../decide se salta el interruptor).
+      - name: "/review-console apagada por defecto: se pone ROJO ante cada defecto (PR-1)"
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/mutaciones_pr1_review_console_apagada.py
+
       # MICROCARRIL DE SANEAMIENTO DE INSTRUMENTOS — los cuatro
       # `scripts/calibrar_panel_*.py`. Son los arneses de los cuatro paneles
       # del chasis (B operations, C review, F sources, G entities): cada uno

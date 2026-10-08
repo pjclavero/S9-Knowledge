@@ -110,6 +110,16 @@ def test_lab_store_never_references_neo4j(tmp_path):
 # ---------------------------------------------------------------------------
 # Rutas FastAPI (auth desactivada por defecto en tests)
 # ---------------------------------------------------------------------------
+# PR-1 (USABLE-V1): esta consola ya no se monta por defecto
+# (`S9K_REVIEW_CONSOLE_ENABLED`, apagada de fábrica). Este fichero mide el
+# comportamiento de LABORATORIO con la bandera encendida; el comportamiento
+# de fábrica (apagada -> 404 en las tres rutas) se mide aparte, en
+# `test_review_console_apagada_por_defecto.py`, sin este autouse.
+@pytest.fixture(autouse=True)
+def _consola_encendida(monkeypatch):
+    monkeypatch.setenv("S9K_REVIEW_CONSOLE_ENABLED", "true")
+
+
 def _client(lector_por_dependencia=None):
     """Cliente de la consola de revision.
 
