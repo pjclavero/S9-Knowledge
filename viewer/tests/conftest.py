@@ -198,13 +198,28 @@ def cliente_lector(tmp_path):
 
 @pytest.fixture(autouse=True)
 def clear_settings_cache():
-    """Limpia el lru_cache de get_settings antes y después de cada test.
+    """Limpia el lru_cache de get_settings (y de get_provider, que depende de
+    la MISMA pregunta sobre el entorno) antes y después de cada test.
 
     Sin esto, el primer test que llame a get_settings() fija el valor en caché
     y los tests siguientes ven el mismo Settings aunque hayan cambiado variables
     de entorno vía monkeypatch (ej: S9K_JOBS_DB apuntando a una ruta inexistente).
+
+    `get_provider` entra en el mismo trinquete desde PR-2 (USABLE-V1): antes,
+    cualquier valor no reconocido de `S9K_GRAPH_PROVIDER` —incluida su
+    AUSENCIA, el estado que deja un test que hace `os.environ.pop(...)` en su
+    teardown sin restaurarla— degradaba en silencio a `mock`, así que el
+    proveedor cacheado por el PRIMER test de la sesión seguía siendo
+    "correcto" aunque el entorno cambiara después. Desde PR-2 esa ausencia
+    construye, a propósito, un proveedor DISTINTO (`not_configured`): sin
+    limpiar aquí también `get_provider`, el proveedor que vio el primer test
+    de la sesión queda fijo para TODOS los que vienen detrás, aunque hayan
+    restaurado `S9K_GRAPH_PROVIDER=mock` en el entorno.
     """
     from app.config import get_settings
+    from app.deps import get_provider
     get_settings.cache_clear()
+    get_provider.cache_clear()
     yield
     get_settings.cache_clear()
+    get_provider.cache_clear()
