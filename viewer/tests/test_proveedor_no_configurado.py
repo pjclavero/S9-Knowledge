@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 from contextlib import contextmanager
+from pathlib import Path
 
 import pytest
 
@@ -404,6 +405,99 @@ def test_la_autoridad_de_la_declaracion_es_la_efectiva_no_el_default_de_settings
 
 
 # ---------------------------------------------------------------------------
+# 5b) DECLARADO PERO NO DISPONIBLE: un tercer estado, distinto de "no
+#     configurado" (O1b de la ronda de revisión de este PR)
+# ---------------------------------------------------------------------------
+#
+# El defecto medido: con `S9K_GRAPH_PROVIDER=neo4j` declarado y el driver
+# ausente, `build_provider` lanza, y el aviso lo informaba como "no
+# configurada" — pidiéndole al operador que configure algo que YA configuró,
+# cuando lo que necesita es instalar el driver. Dos situaciones con acciones
+# distintas no pueden compartir un solo estado ni un solo mensaje.
+
+def test_proveedor_declarado_y_roto_no_es_el_mismo_estado_que_sin_declarar(monkeypatch):
+    """A la altura de la función: `estado_del_proveedor_vivo` debe devolver
+    `PROVIDER_DECLARED_UNAVAILABLE` —NO `PROVIDER_NOT_CONFIGURED`— cuando la
+    declaración SÍ existe pero `get_provider()` no pudo construir el objeto."""
+    from app.providers import (
+        PROVIDER_DECLARED_UNAVAILABLE,
+        PROVIDER_NOT_CONFIGURED,
+        estado_del_proveedor_vivo,
+    )
+    import app.deps as deps
+
+    os.environ["S9K_GRAPH_PROVIDER"] = "neo4j"
+    _limpiar_singletons_de_proveedor()
+
+    def _rompe():
+        raise ImportError("driver de neo4j no instalado (simulado)")
+
+    monkeypatch.setattr(deps, "get_provider", _rompe)
+    assert estado_del_proveedor_vivo() == PROVIDER_DECLARED_UNAVAILABLE, (
+        "declarado y roto no puede confundirse con no declarado: son dos "
+        "causas distintas que exigen una acción distinta del operador"
+    )
+    assert estado_del_proveedor_vivo() != PROVIDER_NOT_CONFIGURED
+    monkeypatch.undo()  # antes del teardown del entorno: `get_provider` real
+    _limpiar_singletons_de_proveedor()  # trae su propio `cache_clear`
+
+
+def test_el_aviso_distingue_no_disponible_de_no_configurado(monkeypatch):
+    """El cartel que ve el operador: mensaje propio, sin reusar el de "no
+    configurado", y `configurado` sigue en `False` (no hay nada real
+    sirviéndose, igual que antes de este arreglo)."""
+    from app.provider_banner import MENSAJE_NO_CONFIGURADO, resolver_estado_proveedor
+    import app.deps as deps
+
+    os.environ["S9K_GRAPH_PROVIDER"] = "neo4j"
+    _limpiar_singletons_de_proveedor()
+    monkeypatch.setattr(
+        deps, "get_provider",
+        lambda: (_ for _ in ()).throw(ImportError("sin driver (simulado)")),
+    )
+    estado = resolver_estado_proveedor()
+    assert estado["no_disponible"] is True
+    assert estado["configurado"] is False
+    assert estado["demo"] is False
+    assert estado["mensaje_no_disponible"] != MENSAJE_NO_CONFIGURADO, (
+        "el mensaje de 'declarado pero no disponible' debe ser DISTINTO del "
+        "de 'no configurado': son acciones distintas para el operador"
+    )
+    monkeypatch.undo()  # antes del teardown del entorno: `get_provider` real
+    _limpiar_singletons_de_proveedor()
+
+
+def test_graph_y_reviews_pintan_el_cartel_de_no_disponible_no_el_de_no_configurado(monkeypatch, tmp_path):
+    """Las dos superficies HTML que sobreviven con el proveedor roto
+    (`/graph`, `/reviews`: no llaman a `get_provider()` en su propio camino
+    de datos, lo hacen sólo el partial del aviso) deben mostrar el cartel
+    NUEVO, no el de 'no configurada' — antes y después del arreglo, medido."""
+    import app.deps as deps
+
+    os.environ["S9K_GRAPH_PROVIDER"] = "neo4j"
+    os.environ["S9K_AUTH_ENABLED"] = "false"
+    _limpiar_singletons_de_proveedor()
+    monkeypatch.setattr(
+        deps, "get_provider",
+        lambda: (_ for _ in ()).throw(ImportError("sin driver (simulado)")),
+    )
+    with _client() as c:
+        for ruta in ("/graph", "/reviews"):
+            r = c.get(ruta)
+            assert r.status_code == 200, f"{ruta} -> {r.status_code} inesperado"
+            assert "no disponible" in r.text.lower(), (
+                f"{ruta} debe mostrar el cartel de 'no disponible', no el de "
+                f"'no configurada'"
+            )
+            assert "todavía no configurada" not in r.text.lower(), (
+                f"{ruta}: declarado y roto no puede leerse como 'nadie lo "
+                f"configuró'"
+            )
+    monkeypatch.undo()  # antes del teardown del entorno: `get_provider` real
+    _limpiar_singletons_de_proveedor()
+
+
+# ---------------------------------------------------------------------------
 # 6) Las API que sirven datos del proveedor DICEN en qué modo están (O2)
 # ---------------------------------------------------------------------------
 
@@ -563,4 +657,167 @@ def test_los_13_metodos_del_contrato_no_lanzan_y_devuelven_vacio():
     assert not con_datos, (
         "TODOS LOS METODOS DEL CONTRATO DEBEN DEVOLVER VACIO sin proveedor "
         f"configurado: {con_datos}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 7b) CANARIO DE FUGA CONOCIDA: ninguna hoja de texto puede ser un nombre de
+#     la muestra (O3-techo de la ronda de revisión de este PR)
+# ---------------------------------------------------------------------------
+#
+# El defecto medido: `_sin_datos` admite CUALQUIER hoja de texto bajo
+# cualquier clave (se diseñó para tolerar etiquetas/ecos como el `workspace`
+# de `quality_metrics`). Eso deja un hueco real: si `entity()` o
+# `quality_metrics()` empezaran a devolver un nombre real de la muestra
+# dentro de una hoja de texto (en vez de una lista), `test_los_13_metodos...`
+# seguiría VERDE. `entity()` es el método que alimenta `/entities/{id}`: una
+# regresión ahí mostraría una entidad inventada sin que ningún testigo lo
+# viera.
+#
+# Los nombres se DERIVAN de la fixture del mock (`examples/sample_graph.json`,
+# la misma que usa `MockGraphProvider`), nunca se copian a mano: una fixture
+# copiada se desincroniza en silencio en cuanto alguien añade o renombra un
+# nodo de muestra.
+
+def _nombres_de_la_muestra() -> set[str]:
+    """Todo nombre propio que aparece en la fixture de muestra: la etiqueta
+    de cada nodo y cada uno de sus alias. Minúsculas y sin espacios en los
+    extremos, para comparar sin que una mayúscula o un espacio oculten la
+    fuga."""
+    import json
+
+    from app.config import get_settings
+
+    settings = get_settings()
+    ruta = Path(settings.S9K_SAMPLE_GRAPH_PATH)
+    if not ruta.is_absolute():
+        ruta = Path(__file__).resolve().parents[1] / ruta
+    datos = json.loads(ruta.read_text(encoding="utf-8"))
+    nombres: set[str] = set()
+    for nodo in datos.get("nodes", []):
+        etiqueta = (nodo.get("label") or "").strip().lower()
+        if etiqueta:
+            nombres.add(etiqueta)
+        for alias in nodo.get("aliases") or []:
+            alias_norm = str(alias).strip().lower()
+            if alias_norm:
+                nombres.add(alias_norm)
+    assert nombres, (
+        "TECHO DEL RECORRIDO: la fixture de muestra no trajo ni un nombre; "
+        "revisa `examples/sample_graph.json` antes de fiarte del canario"
+    )
+    return nombres
+
+
+def _nombre_de_muestra_filtrado(valor, nombres: set[str], ruta: str) -> list[str]:
+    """Como `_sin_datos`, pero en vez de tolerar toda hoja de texto, la
+    compara contra los nombres de la fixture. Recorre las mismas formas que
+    `_sin_datos` (dict/tuple/list/set) para llegar a las mismas hojas."""
+    hallazgos: list[str] = []
+    if valor is None or isinstance(valor, (bool, int, float)):
+        return hallazgos
+    if isinstance(valor, str):
+        if valor.strip().lower() in nombres:
+            hallazgos.append(f"{ruta}: {valor!r} es un nombre de la muestra")
+        return hallazgos
+    if isinstance(valor, (list, set, frozenset, tuple)):
+        for i, v in enumerate(valor):
+            hallazgos += _nombre_de_muestra_filtrado(v, nombres, f"{ruta}[{i}]")
+        return hallazgos
+    if isinstance(valor, dict):
+        for k, v in valor.items():
+            hallazgos += _nombre_de_muestra_filtrado(v, nombres, f"{ruta}.{k}")
+        return hallazgos
+    return hallazgos
+
+
+def test_ningun_nombre_de_la_muestra_aparece_sin_proveedor():
+    """Canario de fuga conocida sobre el mismo recorrido de los 13 métodos:
+    ninguna hoja de texto puede coincidir con un nombre de
+    `examples/sample_graph.json`, aunque `_sin_datos` la hubiera dejado
+    pasar por ser "sólo texto".
+
+    TECHO DECLARADO de este canario (no lo oculta, lo dice): sólo detecta la
+    fuga de un nombre QUE ESTÉ EN LA FIXTURE DE MUESTRA. Un dato inventado
+    que no coincida con ningún nombre de la muestra —una alucinación nueva,
+    o una fuga de otra fuente de datos— seguiría colando. Este canario cierra
+    la fuga MEDIDA (la de la muestra conocida), no la clase general de "hoja
+    de texto con datos".
+    """
+    import inspect
+
+    from app.providers.not_configured_provider import NotConfiguredGraphProvider
+
+    provider = NotConfiguredGraphProvider()
+    contrato = _metodos_del_contrato()
+    nombres = _nombres_de_la_muestra()
+
+    fugas: list[str] = []
+    for nombre, funcion in sorted(contrato.items()):
+        firma = inspect.signature(funcion)
+        kwargs = {}
+        for pnombre, p in firma.parameters.items():
+            if pnombre == "self" or p.default is not inspect.Parameter.empty:
+                continue
+            kwargs[pnombre] = _valor_para_parametro(pnombre, p.annotation)
+        try:
+            resultado = getattr(provider, nombre)(**kwargs)
+        except Exception:
+            continue  # ya lo cubre `test_los_13_metodos...`; aquí sólo fugas
+        fugas += _nombre_de_muestra_filtrado(resultado, nombres, nombre)
+
+    assert not fugas, (
+        "FUGA DE NOMBRE DE MUESTRA sin proveedor configurado — una hoja de "
+        f"texto coincide con un nombre de `examples/sample_graph.json`: {fugas}"
+    )
+
+
+def test_canario_detecta_fuga_en_entity_y_en_quality_metrics(monkeypatch):
+    """Negativo obligatorio: demuestra que el canario SÍ enrojece para los
+    dos métodos que hoy cuelan bajo `_sin_datos` (`entity` admite cualquier
+    hoja de texto; `quality_metrics` también). Se inyecta la fuga con
+    monkeypatch —no se edita el proveedor de producto— y se exige que las
+    DOS fugas aparezcan, con causa distinguible una de la otra."""
+    from app.providers.not_configured_provider import NotConfiguredGraphProvider
+
+    nombre_fugado = sorted(_nombres_de_la_muestra())[0]
+
+    monkeypatch.setattr(
+        NotConfiguredGraphProvider, "entity",
+        lambda self, entity_id, *, workspaces=None: {
+            "id": "e1", "canonical_name": nombre_fugado,
+        },
+    )
+    monkeypatch.setattr(
+        NotConfiguredGraphProvider, "quality_metrics",
+        lambda self, workspace=None: {
+            "workspace": workspace, "entidad_destacada": nombre_fugado,
+        },
+    )
+
+    provider = NotConfiguredGraphProvider()
+    nombres = _nombres_de_la_muestra()
+
+    fuga_entity = _nombre_de_muestra_filtrado(
+        provider.entity("e1"), nombres, "entity",
+    )
+    fuga_quality = _nombre_de_muestra_filtrado(
+        provider.quality_metrics(), nombres, "quality_metrics",
+    )
+
+    assert fuga_entity, "el canario debía enrojecer en `entity` y no lo hizo"
+    assert fuga_quality, (
+        "el canario debía enrojecer en `quality_metrics` y no lo hizo"
+    )
+    assert fuga_entity[0] != fuga_quality[0], (
+        "las dos fugas deben distinguirse por su causa (ruta distinta), no "
+        "leerse como el mismo rojo"
+    )
+    # control: `_sin_datos` (el testigo existente) NO ve ninguna de las dos
+    # — es exactamente el hueco que este canario viene a cerrar.
+    assert not _sin_datos(provider.entity("e1"), "entity"), (
+        "preparación: `_sin_datos` debía colar esta fuga (es el hueco medido)"
+    )
+    assert not _sin_datos(provider.quality_metrics(), "quality_metrics"), (
+        "preparación: `_sin_datos` debía colar esta fuga (es el hueco medido)"
     )

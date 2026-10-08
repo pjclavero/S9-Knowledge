@@ -38,6 +38,16 @@ PROVIDER_NOT_CONFIGURED = "not_configured"
 PROVIDER_MOCK_DEMO = "mock"
 PROVIDER_NEO4J = "neo4j"
 
+#: Cuarto estado, SÓLO del proveedor VIVO (`estado_del_proveedor_vivo`), nunca
+#: de la declaración: `S9K_GRAPH_PROVIDER` SÍ está declarado (neo4j o mock),
+#: pero `build_provider` no pudo construir el objeto (p. ej. `neo4j`
+#: declarado sin el driver instalado). "No declarado" y "declarado pero
+#: roto" son situaciones distintas con acciones distintas para quien
+#: administra —instalar algo nuevo, frente a revisar lo que ya instaló— y
+#: fusionarlas bajo `PROVIDER_NOT_CONFIGURED` le pide reconfigurar lo que ya
+#: configuró.
+PROVIDER_DECLARED_UNAVAILABLE = "declared_unavailable"
+
 
 def classify_provider_declaration(raw: str | None = None) -> str:
     """Clasifica la declaración EFECTIVA de `S9K_GRAPH_PROVIDER`.
@@ -104,16 +114,31 @@ def estado_del_proveedor_vivo() -> str:
     Importa `app.deps` dentro de la función a propósito: `app.deps` importa
     este módulo, y hacerlo arriba cerraría el ciclo.
 
-    Si el proveedor no se puede construir siquiera (p. ej. `neo4j` declarado
-    sin su driver instalado), el proceso no está sirviendo NADA, y eso se
-    informa como no configurado en vez de romper toda pantalla con un 500:
-    el aviso es una franja informativa en `base.html`, no un camino de datos.
+    Si `build_provider` no puede construir el objeto (p. ej. `neo4j`
+    declarado sin su driver instalado), el proceso no está sirviendo NADA de
+    ese proveedor. Esto NO se informa como "no configurado": la declaración
+    SÍ existe, lo que falta es que el proceso pueda usarla, y eso exige una
+    acción distinta de quien administra (revisar la instalación, no
+    reconfigurar lo que ya configuró) — ver `PROVIDER_DECLARED_UNAVAILABLE`.
+
+    Alcance real de esta función, medido (PR-2, ronda de revisión O1b): SÓLO
+    cubre las pantallas que renderizan el partial de `base.html` sin pasar
+    antes por el camino de datos del grafo (hoy `/graph` y `/reviews`). Las
+    pantallas que SÍ llaman a `get_provider()` en su propio camino de datos
+    (`/`, `/entities`, `/sources`, `/quality`) y `/api/status` vuelven a
+    lanzar la MISMA excepción fuera de este `try` y dan 500 igual: esta
+    función nunca ha evitado ese 500, sólo evita que la franja del aviso
+    AÑADA un segundo fallo a una pantalla que de todos modos iba a dar 500.
+    Ese 500 es preexistente a PR-2 (`build_provider` ya lanzaba antes de este
+    corte) y queda fuera de su alcance.
     """
     from app.deps import get_provider
 
     try:
         return estado_de_proveedor(get_provider())
     except Exception:
+        if classify_provider_declaration() != PROVIDER_NOT_CONFIGURED:
+            return PROVIDER_DECLARED_UNAVAILABLE
         return PROVIDER_NOT_CONFIGURED
 
 
@@ -126,4 +151,5 @@ __all__ = [
     "PROVIDER_NOT_CONFIGURED",
     "PROVIDER_MOCK_DEMO",
     "PROVIDER_NEO4J",
+    "PROVIDER_DECLARED_UNAVAILABLE",
 ]

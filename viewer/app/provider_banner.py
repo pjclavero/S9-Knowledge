@@ -9,6 +9,13 @@ decisión del operador exige dos cosas simétricas:
     toque el grafo, no sólo en las dos que el defecto midió.
   - `mock` explícito (modo DEMO) -> sigue sirviendo datos, pero marcado
     INEQUÍVOCAMENTE como DEMO en la propia pantalla.
+  - declarado (neo4j o mock) pero el proceso no pudo construirlo (p. ej. el
+    driver de neo4j no está instalado) -> tercer estado, "no disponible":
+    la declaración está bien, lo que falta es que el proceso pueda usarla
+    (ver `app.providers.PROVIDER_DECLARED_UNAVAILABLE`, añadido en la ronda
+    de revisión O1b de este PR). No se funde con "no configurado": pedirle
+    al operador que configure algo que ya configuró es la acción
+    equivocada, y no distinguirlo escondía ese error.
 
 Mismo patrón que `app.presentacion_etiquetas.install_label_globals` y
 `app.chassis.install_nav_globals`: un global de Jinja instalado en TODOS los
@@ -37,6 +44,7 @@ from __future__ import annotations
 from typing import Iterable
 
 from app.providers import (
+    PROVIDER_DECLARED_UNAVAILABLE,
     PROVIDER_MOCK_DEMO,
     PROVIDER_NEO4J,
     PROVIDER_NOT_CONFIGURED,
@@ -46,6 +54,16 @@ from app.providers.not_configured_provider import MENSAJE_NO_CONFIGURADO
 
 #: Nombre del global instalado en cada entorno Jinja.
 GLOBAL_ESTADO_PROVEEDOR = "estado_proveedor"
+
+#: Mensaje humano del tercer estado: declarado pero no disponible. Igual que
+#: `MENSAJE_NO_CONFIGURADO`, sin nombrar ninguna variable `S9K_*` — dice qué
+#: hacer (revisar la instalación), no cómo se llama el ajuste.
+MENSAJE_NO_DISPONIBLE = (
+    "Base de conocimiento declarada pero no disponible ahora mismo. Pide a "
+    "quien administra esta instalación que revise la instalación (por "
+    "ejemplo, que el componente necesario esté instalado) — la "
+    "configuración no es el problema, el proceso no puede usarla."
+)
 
 
 def resolver_estado_proveedor() -> dict:
@@ -61,10 +79,14 @@ def resolver_estado_proveedor() -> dict:
     """
     estado = estado_del_proveedor_vivo()
     return {
-        "configurado": estado != PROVIDER_NOT_CONFIGURED,
+        "configurado": estado not in (
+            PROVIDER_NOT_CONFIGURED, PROVIDER_DECLARED_UNAVAILABLE,
+        ),
         "demo": estado == PROVIDER_MOCK_DEMO,
         "neo4j": estado == PROVIDER_NEO4J,
+        "no_disponible": estado == PROVIDER_DECLARED_UNAVAILABLE,
         "mensaje_no_configurado": MENSAJE_NO_CONFIGURADO,
+        "mensaje_no_disponible": MENSAJE_NO_DISPONIBLE,
     }
 
 

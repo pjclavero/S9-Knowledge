@@ -32,6 +32,12 @@ existentes SIN estar declaradas: un arnés que da 2/2 CALIBRADA mientras
   M5 — el aviso declara `configurado = False` siempre: el cartel de "no
        configurada" se pinta encima de una instalación que SÍ está sirviendo
        datos (reales o DEMO). Es la falsa confirmación simétrica.
+  M6 — `NotConfiguredGraphProvider.entity` filtra un nombre de la muestra
+       (ronda de revisión, O3-techo). El testigo viejo (`_sin_datos`) admite
+       cualquier hoja de texto y seguiría VERDE; el canario nuevo
+       (`test_ningun_nombre_de_la_muestra_aparece_sin_proveedor`) lo cierra.
+  M7 — mismo defecto en `NotConfiguredGraphProvider.quality_metrics`: la
+       segunda fuga que el canario debía cubrir, con causa distinguible de M6.
 
 Cada mutación exige un fragmento DISCRIMINANTE en la salida —el texto del
 `assert` que nombra la causa—, no un `AssertionError` genérico: un rojo por
@@ -173,6 +179,33 @@ MUTACIONES = [
             "test_neo4j_no_configurado_no_se_marca_ni_como_demo_ni_como_no_configurado",
         ],
         "ningún cartel cuando no hace falta ninguno",
+    ),
+    (
+        "M6 — entity() filtra un nombre de la muestra en una hoja de texto",
+        "viewer/app/providers/not_configured_provider.py",
+        lambda texto: mutar_en_funcion(
+            texto,
+            "entity",
+            "        return None",
+            '        return {"id": entity_id, "canonical_name": "Agasha Tamori"}',
+        ),
+        None,
+        [
+            "test_ningun_nombre_de_la_muestra_aparece_sin_proveedor",
+        ],
+        "FUGA DE NOMBRE DE MUESTRA",
+    ),
+    (
+        "M7 — quality_metrics() filtra un nombre de la muestra",
+        "viewer/app/providers/not_configured_provider.py",
+        '            "workspace": workspace,\n            "total_entities": 0,',
+        '            "workspace": workspace,\n'
+        '            "entidad_destacada": "Togashi Mitsu",\n'
+        '            "total_entities": 0,',
+        [
+            "test_ningun_nombre_de_la_muestra_aparece_sin_proveedor",
+        ],
+        "FUGA DE NOMBRE DE MUESTRA",
     ),
 ]
 
