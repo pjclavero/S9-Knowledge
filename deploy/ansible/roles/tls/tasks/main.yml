@@ -1,0 +1,209 @@
+---
+# Orden: DETECTAR -> (reutilizar | provisionar) -> VERIFICAR POR EFECTO.
+#
+# "Verificar por efecto" no es "comprobar que el fichero de configuracion esta
+# escrito": es abrir el socket TLS, verificar certificado y nombre, y exigir
+# que el endpoint CONTESTE. Eso lo hace `deploy/scripts/preflight_https.py`,
+# que es la autoridad unica de esa comprobacion (el mismo guion que llama
+# `deploy.sh` en su paso 16b: una sola implementacion, dos invocantes).
+
+- name: TLS | el nombre publico tiene que estar declarado
+  ansible.builtin.assert:
+    that:
+      - s9k_public_host | length > 0
+    fail_msg: >-
+      s9k_public_host no esta declarado. Sin nombre publico no hay via HTTPS
+      que provisionar ni que verificar, y una instalacion que no dice por
+      donde se la alcanza NO esta completa. Declararlo en inventory.ini.
+  tags: [tls]
+
+# ---------------------------------------------------------------------------
+# DETECTAR lo que ya existe (solo lectura)
+# ---------------------------------------------------------------------------
+
+# `ignore_errors` y NO `failed_when: false`: con `failed_when: false` el
+# resultado trae `failed: false` SIEMPRE, y la deteccion siguiente leeria
+# "hay terminador" tambien cuando no lo hay -un verde que no mide nada-. Con
+# `ignore_errors` el `failed` del timeout sobrevive y se puede leer.
+- name: TLS | detectar si hay algo escuchando en el puerto del terminador
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ s9k_tls_port }}"
+    timeout: 3
+    state: started
+  register: s9k_tls_listener
+  ignore_errors: true
+  changed_when: false
+  tags: [tls]
+
+- name: TLS | detectar un reverse proxy soportado ya instalado
+  ansible.builtin.stat:
+    path: /etc/nginx/nginx.conf
+  register: s9k_nginx_presente
+  changed_when: false
+  tags: [tls]
+
+- name: TLS | detectar un vhost nuestro ya configurado
+  ansible.builtin.stat:
+    path: "/etc/nginx/sites-available/s9-knowledge.conf"
+  register: s9k_vhost_presente
+  changed_when: false
+  tags: [tls]
+
+- name: TLS | decidir si se REUTILIZA lo existente
+  ansible.builtin.set_fact:
+    # Se reutiliza cuando ya hay un terminador escuchando. Un listener en 443
+    # que no es nuestro no se toca: la verificacion POR EFECTO del final dira
+    # si sirve o no, y eso es mas honesto que reescribir la configuracion de
+    # otro para que "pase".
+    s9k_tls_reutilizado: "{{ not (s9k_tls_listener.failed | default(true) | bool) }}"
+  tags: [tls]
+
+- name: TLS | informar de la decision
+  ansible.builtin.debug:
+    msg: >-
+      terminador en 127.0.0.1:{{ s9k_tls_port }}
+      detectado={{ s9k_tls_reutilizado }};
+      nginx instalado={{ s9k_nginx_presente.stat.exists }};
+      vhost propio={{ s9k_vhost_presente.stat.exists }};
+      provisionar={{ s9k_tls_provision }}
+  tags: [tls]
+
+# ---------------------------------------------------------------------------
+# PROVISIONAR la via soportada (nginx terminando TLS delante del visor)
+# ---------------------------------------------------------------------------
+
+- name: TLS | provisionar
+  when:
+    - s9k_tls_provision | bool
+    - not (s9k_tls_reutilizado | bool)
+  tags: [tls]
+  block:
+    - name: TLS | el certificado y la clave tienen que estar declarados
+      ansible.builtin.assert:
+        that:
+          - s9k_tls_cert_file | length > 0
+          - s9k_tls_key_file | length > 0
+        fail_msg: >-
+          s9k_tls_cert_file / s9k_tls_key_file no estan declarados. Este rol NO
+          genera certificados: un autofirmado creado en silencio por el
+          instalador produce una via HTTPS que se ve verde y que ningun cliente
+          acepta. Declarar las rutas, o declarar tambien s9k_tls_ca_file si la
+          CA es propia.
+
+    - name: TLS | el certificado existe en el host
+      ansible.builtin.stat:
+        path: "{{ s9k_tls_cert_file }}"
+      register: s9k_cert_stat
+
+    - name: TLS | la clave existe en el host
+      ansible.builtin.stat:
+        path: "{{ s9k_tls_key_file }}"
+      register: s9k_key_stat
+
+    - name: TLS | certificado y clave presentes y la clave no es legible por otros
+      ansible.builtin.assert:
+        that:
+          - s9k_cert_stat.stat.exists
+          - s9k_key_stat.stat.exists
+          - s9k_key_stat.stat.mode is match('0[0-7]00')
+        fail_msg: >-
+          falta el certificado o la clave, o la clave es legible por grupo u
+          otros. La clave privada va 0600 y propiedad de root.
+
+    - name: TLS | instalar nginx
+      ansible.builtin.package:
+        name: nginx
+        state: present
+
+    - name: TLS | vhost del visor con terminacion TLS
+      ansible.builtin.template:
+        src: s9-knowledge.nginx.conf.j2
+        dest: /etc/nginx/sites-available/s9-knowledge.conf
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Recargar nginx
+
+    - name: TLS | habilitar el vhost
+      ansible.builtin.file:
+        src: /etc/nginx/sites-available/s9-knowledge.conf
+        dest: /etc/nginx/sites-enabled/s9-knowledge.conf
+        state: link
+        force: true
+      notify: Recargar nginx
+
+    - name: TLS | comprobar la sintaxis de nginx ANTES de recargar
+      ansible.builtin.command: nginx -t
+      changed_when: false
+
+    - name: TLS | aplicar los handlers pendientes antes de verificar
+      ansible.builtin.meta: flush_handlers
+
+- name: TLS | ni reutilizado ni provisionado
+  ansible.builtin.debug:
+    msg: >-
+      No hay terminador TLS detectado y s9k_tls_provision es false. La
+      verificacion siguiente dira que la instalacion NO esta completa, que es
+      lo correcto: no se degrada nada para que pase.
+  when:
+    - not (s9k_tls_reutilizado | bool)
+    - not (s9k_tls_provision | bool)
+  tags: [tls]
+
+# ---------------------------------------------------------------------------
+# VERIFICAR POR EFECTO
+# ---------------------------------------------------------------------------
+
+# La lista de argumentos se construye en un `set_fact` y no en linea: `argv`
+# exige una LISTA, y una expresion Jinja embebida en el propio `argv` se
+# renderiza como CADENA.
+- name: TLS | preparar la invocacion del preflight
+  ansible.builtin.set_fact:
+    s9k_https_argv: >-
+      {{
+        ['python3', s9k_root ~ '/current/deploy/scripts/preflight_https.py',
+         '--url', s9k_public_base_url, '--session-secure', 'true']
+        + (['--ca-file', s9k_tls_ca_file] if (s9k_tls_ca_file | length > 0) else [])
+      }}
+  when: s9k_tls_verify | bool
+  tags: [tls]
+
+- name: TLS | verificar la via HTTPS POR EFECTO (certificado, nombre y respuesta)
+  ansible.builtin.command:
+    argv: "{{ s9k_https_argv }}"
+  register: s9k_https_preflight
+  changed_when: false
+  failed_when: false
+  when: s9k_tls_verify | bool
+  tags: [tls]
+
+- name: TLS | el resultado de la verificacion, con su causa
+  ansible.builtin.debug:
+    msg: "{{ s9k_https_preflight.stdout_lines | default([]) }}"
+  when: s9k_tls_verify | bool
+  tags: [tls]
+
+- name: TLS | sin HTTPS verificado la instalacion NO esta completa
+  ansible.builtin.fail:
+    msg: >-
+      La via HTTPS no verifica (rc={{ s9k_https_preflight.rc | default('?') }}).
+      Causa arriba. Decision D3: una instalacion productiva no se considera
+      completada hasta que entrega una URL HTTPS funcional, y no se degrada la
+      cookie ni se cae a HTTP para hacerla pasar.
+  when:
+    - s9k_tls_verify | bool
+    - s9k_environment == 'production'
+    - (s9k_https_preflight.rc | default(1)) != 0
+  tags: [tls]
+
+- name: TLS | en laboratorio se reporta sin bloquear
+  ansible.builtin.debug:
+    msg: >-
+      La via HTTPS no verifica y el ambiente es '{{ s9k_environment }}': no se
+      bloquea, pero una instalacion PRODUCTIVA con esto NO esta completada.
+  when:
+    - s9k_tls_verify | bool
+    - s9k_environment != 'production'
+    - (s9k_https_preflight.rc | default(1)) != 0
+  tags: [tls]

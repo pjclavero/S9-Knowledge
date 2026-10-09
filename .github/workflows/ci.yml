@@ -1307,6 +1307,24 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/mutaciones_pr1_review_console_apagada.py
 
+      # PR-3 (USABLE-V1) — la instalacion VERIFICA su via HTTPS, y sin ella
+      # NO se considera completa. Ocho mutaciones sobre
+      # `deploy/scripts/preflight_https.py`, incluidas las dos obligatorias:
+      # que la verificacion PASE sin que el endpoint responda (M1) y que se
+      # ACEPTE HTTP plano como instalacion valida (M2) --este ultimo es el
+      # defecto ya medido: cookie CSRF `Secure` sobre HTTP, bucle de 403 y
+      # ningun primer administrador--. El testigo levanta endpoints TLS
+      # locales con certificado autofirmado generado al vuelo (`openssl`), no
+      # parchea `ssl`: la verificacion que se calibra es la de verdad.
+      #
+      # LO QUE ESTE PASO **NO** EJERCE: nginx, systemd, una VM limpia, un
+      # navegador ni el recorrido de crear el primer administrador. Eso es el
+      # ensayo RC de `deploy/README.md`, PENDIENTE.
+      - name: "La via HTTPS de la instalacion se pone ROJA ante cada defecto (PR-3)"
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/mutaciones_pr3_instalacion_https.py
+
       # MICROCARRIL DE SANEAMIENTO DE INSTRUMENTOS — los cuatro
       # `scripts/calibrar_panel_*.py`. Son los arneses de los cuatro paneles
       # del chasis (B operations, C review, F sources, G entities): cada uno
