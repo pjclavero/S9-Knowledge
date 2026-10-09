@@ -17,6 +17,25 @@
       donde se la alcanza NO esta completa. Declararlo en inventory.ini.
   tags: [tls]
 
+# Observacion O1 del PR #266: la mitad bash (`deploy.sh`) EXIGE
+# `--environment` y lo valida con `case ... lab|production) ;; *) die`. La
+# mitad Ansible tenia un default (`lab`) que la dejaba fallando ABIERTA: un
+# inventario que omitiera la variable recibia un aviso de depuracion en vez
+# de un fallo. Este `assert` hace que las dos mitades sean fail-closed por
+# igual: sin la variable, o con un valor que no sea 'lab'/'production', el
+# playbook NO sigue.
+- name: TLS | s9k_environment tiene que estar declarado y ser 'lab' o 'production'
+  ansible.builtin.assert:
+    that:
+      - s9k_environment is defined
+      - s9k_environment | default('') in ['lab', 'production']
+    fail_msg: >-
+      s9k_environment no esta declarado, o no es 'lab' ni 'production'
+      (valor actual: {{ s9k_environment | default('(sin declarar)') }}).
+      Igual que deploy.sh exige y valida --environment, este rol no asume un
+      ambito por defecto: declararlo explicitamente en inventory.ini.
+  tags: [tls]
+
 # ---------------------------------------------------------------------------
 # DETECTAR lo que ya existe (solo lectura)
 # ---------------------------------------------------------------------------
@@ -184,6 +203,12 @@
   when: s9k_tls_verify | bool
   tags: [tls]
 
+# Observacion O1: bloquea para cualquier ambito que NO sea exactamente 'lab',
+# no solo para 'production'. Con la igualdad frigil anterior
+# (`== 'production'`), un tercer ambito (o un typo que no fuera ninguno de
+# los dos) caia en la rama "se reporta sin bloquear" por omision, que es
+# exactamente la fuga que el `assert` de arriba ya impide en el caso
+# indefinido/invalido, pero que seguia abierta para cualquier cadena nueva.
 - name: TLS | sin HTTPS verificado la instalacion NO esta completa
   ansible.builtin.fail:
     msg: >-
@@ -193,7 +218,7 @@
       cookie ni se cae a HTTP para hacerla pasar.
   when:
     - s9k_tls_verify | bool
-    - s9k_environment == 'production'
+    - s9k_environment != 'lab'
     - (s9k_https_preflight.rc | default(1)) != 0
   tags: [tls]
 
@@ -204,6 +229,6 @@
       bloquea, pero una instalacion PRODUCTIVA con esto NO esta completada.
   when:
     - s9k_tls_verify | bool
-    - s9k_environment != 'production'
+    - s9k_environment == 'lab'
     - (s9k_https_preflight.rc | default(1)) != 0
   tags: [tls]

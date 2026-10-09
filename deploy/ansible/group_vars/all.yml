@@ -55,7 +55,10 @@ s9k_tls_provision: false
 s9k_tls_cert_file: ""
 s9k_tls_key_file: ""
 s9k_tls_ca_file: ""
-s9k_environment: lab
+# s9k_environment: SIN DEFAULT A PROPOSITO (observacion O1 del PR #266).
+# Declararlo explicitamente en inventory.ini como `lab` o `production`; el
+# rol `tls` lo exige con un `assert` y falla si falta o si no es uno de esos
+# dos valores (fail-closed, igual que `deploy.sh --environment`).
 
 # ---------------------------------------------------------------------------
 # Healthchecks (timer deshabilitado por defecto hasta validación en lab)

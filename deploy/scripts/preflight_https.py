@@ -228,11 +228,42 @@ def _contexto(ca_file: Optional[str], comprobar_nombre: bool) -> ssl.SSLContext:
     ``comprobar_nombre`` solo gobierna el hostname check, y existe para poder
     SEPARAR las dos causas (cadena invalida vs nombre que no coincide). La
     verificacion de cadena no se apaga nunca: ``CERT_REQUIRED`` es fijo.
+
+    Puede lanzar ``OSError``/``ssl.SSLError`` si ``ca_file`` esta declarado
+    pero es ilegible (vacio, basura, PEM corrupto, ruta inexistente): quien
+    llama tiene que capturarlo y convertirlo en un ``Hallazgo`` con causa
+    propia (observacion O4 del PR #266), no dejar que la excepcion escape
+    como traceback.
     """
     ctx = ssl.create_default_context(cafile=ca_file)
     ctx.check_hostname = comprobar_nombre
     ctx.verify_mode = ssl.CERT_REQUIRED
     return ctx
+
+
+def _contexto_o_hallazgo(ca_file: Optional[str], comprobar_nombre: bool):
+    """``_contexto`` pero sin dejar escapar la excepcion: la convierte en
+    ``Hallazgo`` con causa discriminante ``ALMACEN_DECLARADO_ILEGIBLE``.
+
+    Observacion O4 del PR #266: antes de esto, un ``--ca-file`` vacio, con
+    basura, con un PEM corrupto o con una ruta inexistente producia un
+    traceback de ``ssl.SSLError``/``FileNotFoundError`` sin pasar por
+    ``Hallazgo`` -rompiendo el contrato de "causas discriminantes, no un
+    error generico" justo para el operador que teclea mal la ruta de su CA
+    propia, que es el camino que el README destaca. Las cuatro formas caen
+    aqui con el MISMO rc=1 de siempre (sigue siendo fail-closed EN EFECTO),
+    pero ahora con una causa nombrada.
+    """
+    try:
+        return _contexto(ca_file, comprobar_nombre), None
+    except (OSError, ssl.SSLError) as exc:
+        return None, Hallazgo(
+            "ALMACEN_DECLARADO_ILEGIBLE",
+            "el almacen de confianza declarado en S9K_TLS_CA_FILE (%r) no se "
+            "pudo leer o no contiene un certificado valido: %s. Revisa que "
+            "la ruta existe y que el fichero es un PEM valido."
+            % (ca_file, exc),
+        )
 
 
 def _destino(url: str) -> tuple:
@@ -244,7 +275,9 @@ def comprobar_cadena_de_certificado(url: str, ca_file: Optional[str] = None,
                                     timeout: float = TIEMPO_LIMITE) -> Optional[Hallazgo]:
     """Handshake real exigiendo cadena valida, SIN mirar el nombre todavia."""
     host, puerto = _destino(url)
-    ctx = _contexto(ca_file, comprobar_nombre=False)
+    ctx, hallazgo = _contexto_o_hallazgo(ca_file, comprobar_nombre=False)
+    if hallazgo is not None:
+        return hallazgo
     try:
         with socket.create_connection((host, puerto), timeout=timeout) as crudo:
             with ctx.wrap_socket(crudo, server_hostname=host):
@@ -271,7 +304,9 @@ def comprobar_nombre_del_certificado(url: str, ca_file: Optional[str] = None,
                                      timeout: float = TIEMPO_LIMITE) -> Optional[Hallazgo]:
     """Handshake real con hostname check ACTIVO contra el nombre de la URL."""
     host, puerto = _destino(url)
-    ctx = _contexto(ca_file, comprobar_nombre=True)
+    ctx, hallazgo = _contexto_o_hallazgo(ca_file, comprobar_nombre=True)
+    if hallazgo is not None:
+        return hallazgo
     try:
         with socket.create_connection((host, puerto), timeout=timeout) as crudo:
             with ctx.wrap_socket(crudo, server_hostname=host):
@@ -301,7 +336,9 @@ def comprobar_endpoint_responde(url: str, ca_file: Optional[str] = None,
     "nginx arrancado" sin backend produce.
     """
     host, puerto = _destino(url)
-    ctx = _contexto(ca_file, comprobar_nombre=True)
+    ctx, hallazgo = _contexto_o_hallazgo(ca_file, comprobar_nombre=True)
+    if hallazgo is not None:
+        return hallazgo
     conexion = http.client.HTTPSConnection(host, puerto, timeout=timeout, context=ctx)
     try:
         conexion.request("GET", RUTA_DE_SONDEO, headers={"Accept": "application/json"})

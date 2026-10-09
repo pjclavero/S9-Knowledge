@@ -32,11 +32,17 @@ s9k_tls_key_file: ""
 # sistema). Una CA propia o un autofirmado se aceptan declarandolos aqui.
 s9k_tls_ca_file: ""
 
-# Ambiente. En `production` el fallo de la verificacion POR EFECTO hace fallar
-# el playbook: instalacion NO completa. En `lab` se reporta sin bloquear,
-# porque ahi el opt-out explicito (S9K_SESSION_SECURE=false) es una decision
-# declarada y no un accidente.
-s9k_environment: lab
+# Ambiente. SIN DEFAULT A PROPOSITO (observacion O1 del PR #266): la mitad
+# bash (`deploy.sh`) exige `--environment` y lo valida con
+# `case ... lab|production) ;; *) die`; un default aqui, en cambio, habia
+# dejado la mitad Ansible fallando ABIERTA (un inventario que omitiera la
+# variable solo recibia un aviso de depuracion). Igual que `deploy.sh`, este
+# rol EXIGE que se declare -ver el `assert` al principio de `tasks/main.yml`-
+# y falla si no esta en {lab, production}. En `production` (o en cualquier
+# valor que no sea exactamente `lab`) el fallo de la verificacion POR EFECTO
+# hace fallar el playbook: instalacion NO completa. Solo en `lab` se reporta
+# sin bloquear, porque ahi el opt-out explicito (S9K_SESSION_SECURE=false) es
+# una decision declarada y no un accidente.
 
 # Verificar por efecto al final del rol.
 s9k_tls_verify: true

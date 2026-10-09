@@ -281,6 +281,84 @@ def test_certificado_no_declarado_no_verifica(certificado_localhost):
     assert "almacen de confianza" in str(hallazgos[0])
 
 
+# ---------------------------------------------------------------------------
+# Observacion O4 del PR #266: un --ca-file ROTO (no inexistente ni distinto,
+# sino declarado y mal) tiene que dar una causa nombrada, no un traceback.
+# Las cuatro formas medidas antes del arreglo:
+#   --ca-file ""                    -> ssl.SSLError NO_CERTIFICATE_OR_CRL_FOUND
+#   --ca-file <fichero de basura>   -> idem
+#   --ca-file <PEM corrupto>        -> ssl.SSLError: PEM lib
+#   --ca-file <ruta que no existe>  -> FileNotFoundError
+# Las cuatro con rc=1 (fail-closed en EFECTO, eso ya estaba bien); lo que
+# faltaba era la causa discriminante ALMACEN_DECLARADO_ILEGIBLE.
+# ---------------------------------------------------------------------------
+
+def test_ca_file_vacio_da_causa_nombrada_no_traceback(tmp_path, certificado_localhost):
+    cert, clave = certificado_localhost
+    vacio = tmp_path / "ca-vacio.pem"
+    vacio.write_text("", encoding="utf-8")
+    srv = _ServidorTLS(cert, clave)
+    try:
+        hallazgos = ph.verificar(ph.Entrada(
+            url="https://localhost:%d" % srv.puerto,
+            session_secure=True, ca_file=str(vacio), timeout=5.0))
+    finally:
+        srv.cerrar()
+    assert [h.causa for h in hallazgos] == ["ALMACEN_DECLARADO_ILEGIBLE"], \
+        [str(h) for h in hallazgos]
+    assert ph.codigo_de_salida(hallazgos) != 0
+
+
+def test_ca_file_con_basura_da_causa_nombrada_no_traceback(tmp_path, certificado_localhost):
+    cert, clave = certificado_localhost
+    basura = tmp_path / "ca-basura.pem"
+    basura.write_text("esto no es un certificado\n", encoding="utf-8")
+    srv = _ServidorTLS(cert, clave)
+    try:
+        hallazgos = ph.verificar(ph.Entrada(
+            url="https://localhost:%d" % srv.puerto,
+            session_secure=True, ca_file=str(basura), timeout=5.0))
+    finally:
+        srv.cerrar()
+    assert [h.causa for h in hallazgos] == ["ALMACEN_DECLARADO_ILEGIBLE"], \
+        [str(h) for h in hallazgos]
+    assert ph.codigo_de_salida(hallazgos) != 0
+
+
+def test_ca_file_pem_corrupto_da_causa_nombrada_no_traceback(tmp_path, certificado_localhost):
+    cert, clave = certificado_localhost
+    corrupto = tmp_path / "ca-corrupto.pem"
+    original = cert.read_text(encoding="utf-8")
+    # Trunca el PEM a la mitad: cabecera valida, cuerpo roto.
+    corrupto.write_text(original[: len(original) // 2], encoding="utf-8")
+    srv = _ServidorTLS(cert, clave)
+    try:
+        hallazgos = ph.verificar(ph.Entrada(
+            url="https://localhost:%d" % srv.puerto,
+            session_secure=True, ca_file=str(corrupto), timeout=5.0))
+    finally:
+        srv.cerrar()
+    assert [h.causa for h in hallazgos] == ["ALMACEN_DECLARADO_ILEGIBLE"], \
+        [str(h) for h in hallazgos]
+    assert ph.codigo_de_salida(hallazgos) != 0
+
+
+def test_ca_file_inexistente_da_causa_nombrada_no_traceback(tmp_path, certificado_localhost):
+    cert, clave = certificado_localhost
+    no_existe = tmp_path / "no-existe.pem"
+    assert not no_existe.exists()
+    srv = _ServidorTLS(cert, clave)
+    try:
+        hallazgos = ph.verificar(ph.Entrada(
+            url="https://localhost:%d" % srv.puerto,
+            session_secure=True, ca_file=str(no_existe), timeout=5.0))
+    finally:
+        srv.cerrar()
+    assert [h.causa for h in hallazgos] == ["ALMACEN_DECLARADO_ILEGIBLE"], \
+        [str(h) for h in hallazgos]
+    assert ph.codigo_de_salida(hallazgos) != 0
+
+
 def test_nombre_del_certificado_que_no_coincide(certificado_otro_nombre):
     """Cadena OK (la CA esta declarada) pero el nombre NO es el publicado."""
     cert, clave = certificado_otro_nombre
@@ -343,7 +421,7 @@ def test_nada_escuchando_en_el_puerto_declarado():
 @pytest.mark.parametrize("causa", [
     "URL_PUBLICA_NO_DECLARADA", "ESQUEMA_NO_HTTPS", "COOKIE_SECURE_SOBRE_HTTP",
     "CERTIFICADO_NO_VERIFICABLE", "NOMBRE_NO_COINCIDE", "ENDPOINT_NO_RESPONDE",
-    "ENDPOINT_RESPUESTA_INESPERADA",
+    "ENDPOINT_RESPUESTA_INESPERADA", "ALMACEN_DECLARADO_ILEGIBLE",
 ])
 def test_cualquier_hallazgo_impide_completar_la_instalacion(causa):
     assert ph.codigo_de_salida([ph.Hallazgo(causa, "x")]) != 0, (

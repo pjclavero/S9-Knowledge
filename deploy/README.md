@@ -24,6 +24,19 @@ no es el procedimiento vigente.
 
 ## Vía HTTPS: sin ella la instalación NO está completa
 
+### ESTADO DE ESTA SECCIÓN (leer antes de seguir)
+
+```
+CODE         PASS     mecanismo implementado (preflight, gates, rol, plantillas)
+CALIBRATION  PASS     scripts/calibracion/mutaciones_pr3_instalacion_https.py
+RC-E2E       PENDING  no ejecutado: aquí no hay TLS, ni navegador, ni VMs
+```
+
+Lo que sigue describe el mecanismo en presente («detecta», «reutiliza»,
+«verifica por efecto») porque así está implementado y calibrado. **Eso no es
+lo mismo que ejercido en una máquina real**: léase todo lo de abajo con
+`RC-E2E PENDING` en mente, no al revés.
+
 ### El defecto medido
 
 Con la plantilla literal, `S9K_SESSION_SECURE=true` hace que la cookie CSRF de
@@ -56,13 +69,21 @@ evitarlo.
 2. El esquema es `https`.
 3. El certificado presentado **verifica contra un almacén de confianza
    declarado**: el del sistema, o el de `S9K_TLS_CA_FILE`. Un autofirmado o una
-   CA propia se aceptan **declarándolos**; la verificación nunca se desactiva.
+   CA propia se aceptan **declarándolos**; el **preflight en sí** (el guion
+   `deploy/scripts/preflight_https.py`) no expone ninguna bandera para
+   desactivar esa verificación — eso es lo que «nunca se desactiva».
 4. El **nombre** de la URL pública coincide con el certificado (SNI + hostname
    check).
 5. El endpoint **responde**: `GET /api/status` sobre esa conexión TLS devuelve
    200 (auth off) o 401 (auth on) — el mismo criterio que
    `viewer/app/health/checks.py::check_viewer`. Un 502 es el terminador TLS sin
-   backend, y **no** cuenta.
+   backend, y **no** cuenta. **Esto es «contesta con uno de esos códigos», no
+   «el visor está detrás»**: el cuerpo de la respuesta no se lee ni se
+   descarta por contenido, así que cualquier proceso que devuelva 200/401 en
+   esa ruta —incluido un terminador de pruebas enlatado— satisface este punto
+   igual que el visor real. El negativo N4 del guion RC (abajo) se apoya en
+   esto: lo que discrimina «terminador sin backend» no es que el 200 venga
+   del visor, es que nginx devuelva 502 cuando no hay nada detrás.
 6. **HTTP plano con cookie `Secure` es una instalación no válida.**
 7. **Fallo de HTTPS ⇒ instalación NO completa** (código de salida ≠ 0).
 
@@ -79,7 +100,10 @@ desde el rol `tls`. Una sola implementación por mitad, dos invocantes.
 Las causas que nombra el preflight son discriminantes, no un error genérico:
 `URL_PUBLICA_NO_DECLARADA`, `ESQUEMA_NO_HTTPS`, `COOKIE_SECURE_SOBRE_HTTP`,
 `CERTIFICADO_NO_VERIFICABLE`, `NOMBRE_NO_COINCIDE`, `ENDPOINT_NO_RESPONDE`,
-`ENDPOINT_RESPUESTA_INESPERADA`.
+`ENDPOINT_RESPUESTA_INESPERADA`, `ALMACEN_DECLARADO_ILEGIBLE` (un `--ca-file`
+vacío, con basura, con un PEM corrupto o con una ruta inexistente; observación
+O4 del PR #266 — antes de esta causa, esos cuatro casos escapaban como
+traceback de `ssl.SSLError`/`FileNotFoundError` en vez de como un `Hallazgo`).
 
 ```bash
 # Sobre un viewer.env del host:
@@ -103,18 +127,25 @@ El rol **no genera certificados**. `s9k_tls_cert_file` y `s9k_tls_key_file` son
 obligatorios para provisionar: un autofirmado creado en silencio por el
 instalador produce una vía HTTPS que se ve verde y que ningún cliente acepta.
 
-Al final, el rol **verifica por efecto** con el mismo preflight. En
-`s9k_environment=production` el fallo hace fallar el playbook.
+Al final, el rol **verifica por efecto** con el mismo preflight, invocándolo
+sólo cuando `s9k_tls_verify: true` (default de fábrica). Esta variable es un
+**interruptor maestro de la invocación desde Ansible**, distinto de lo que
+dice el párrafo anterior: con `s9k_tls_verify: false` las dos tareas de
+verificación (la que falla en `production`/cualquier ámbito distinto de
+`lab`, y la que sólo avisa en `lab`) **no se ejecutan en absoluto**, y el rol
+no dice nada al respecto — ni un aviso. Apagarlo es, en la práctica, instalar
+sin comprobar por efecto que la vía HTTPS funciona, así que con
+`s9k_tls_verify: false` la instalación **no debe declararse completa**: existe
+para calibración y para ensayos locales sin red, no para uso en `production`.
+`s9k_environment` sigue sin tener valor por defecto (observación O1 del PR
+#266): hay que declararlo explícitamente en `inventory.ini` como `lab` o
+`production`, y el rol falla con un `assert` si no está o si no es uno de los
+dos.
 
-### ESTADO DE ESTA SECCIÓN (leer antes de citarla)
+### Recordatorio: `RC-E2E PENDING`
 
-```
-CODE         PASS     mecanismo implementado (preflight, gates, rol, plantillas)
-CALIBRATION  PASS     scripts/calibracion/mutaciones_pr3_instalacion_https.py
-RC-E2E       PENDING  no ejecutado: aquí no hay TLS, ni navegador, ni VMs
-```
-
-Lo medido es que **el preflight distingue** una vía HTTPS que verifica y
+Ver el bloque de estado justo después del `##` de esta sección. Lo medido es
+que **el preflight distingue** una vía HTTPS que verifica y
 contesta de las formas en que no lo hace, contra endpoints TLS locales con
 certificado autofirmado generado en el momento
 (`deploy/tests/test_preflight_https.py`). Eso **no** demuestra que la
