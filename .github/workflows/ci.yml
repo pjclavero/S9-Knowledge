@@ -1240,6 +1240,14 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/mutaciones_corte6b2b_nombre_partida.py
 
+      # PR-2 (USABLE-V1): «proveedor no configurado -> estado vacio y
+      # honesto». Cubre el fallback a mock (declarado o por errata de
+      # tecleo) y la perdida de la marca DEMO en la pantalla.
+      - name: "Proveedor de grafo: fallback honesto y marca DEMO (PR-2)"
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/mutaciones_proveedor_no_configurado.py
+
 
       # Y la calibracion del corte «el workspace no lo elige el cliente»: el
       # ambito de una consulta lo decide la autoridad del servidor, no el

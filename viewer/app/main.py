@@ -33,6 +33,7 @@ from app.authz.dependencies import get_filtered_provider, get_visibility_scope
 from app.authz.scope import VisibilityScope
 from app.chassis import FEATURE_SLOTS, ChassisContractError, install_nav_globals
 from app.presentacion_etiquetas import install_label_globals
+from app.provider_banner import install_provider_banner_globals
 from app.config import get_settings
 from app.deps import get_default_workspace, get_provider
 from app.jobs_client import jobs_db_status, scoped_counts, scoped_job, scoped_jobs
@@ -189,6 +190,7 @@ def _install_navigation() -> None:
                 envs.append(attr.env)
     install_nav_globals(app, envs)
     install_label_globals(envs)
+    install_provider_banner_globals(envs)
 
 
 _install_navigation()

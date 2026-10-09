@@ -1,0 +1,41 @@
+{#
+  AVISO DEL ESTADO DEL PROVEEDOR DE GRAFO — partial ÚNICO (PR-2 USABLE-V1).
+
+  Mismo patrón que `_aviso_autoridad_workspace.html`: se INCLUYE desde
+  `base.html`, nunca se copia, para que ninguna pantalla nazca muda. Tres
+  estados, mutuamente excluyentes (el tercero, O1b de la ronda de revisión):
+
+    no disponible   -> declarado (neo4j o mock) pero el proceso no pudo
+                       construirlo (p. ej. falta un driver). La
+                       configuración está bien; lo que falta es que el
+                       proceso pueda usarla.
+    no configurado -> "base de conocimiento todavía no configurada", sin
+                       nombrar ninguna variable de entorno.
+    demo (mock)     -> marca DEMO inequívoca, visible en la propia pantalla.
+
+  Proveedor real (neo4j) -> no se pinta nada, el símetrico de siempre.
+
+  Alcance: este partial sólo se pinta en pantallas que llegan hasta aquí sin
+  haber dado ya 500 en su propio camino de datos. `/`, `/entities`,
+  `/sources` y `/quality` llaman a `get_provider()` antes de renderizar
+  nada, así que con el proveedor no disponible dan 500 igual —preexistente
+  a PR-2, fuera de su alcance— y esta franja no llega a pintarse en ellas.
+#}
+{% set _estado = estado_proveedor() %}
+{% if _estado.no_disponible %}
+<div class="alert alert-error" role="alert" data-testid="aviso-proveedor-no-disponible">
+  <strong>Base de conocimiento no disponible</strong>
+  <p style="margin:.4rem 0 0;">{{ _estado.mensaje_no_disponible | e }}</p>
+</div>
+{% elif not _estado.configurado %}
+<div class="alert alert-error" role="alert" data-testid="aviso-proveedor-no-configurado">
+  <strong>Base de conocimiento no configurada</strong>
+  <p style="margin:.4rem 0 0;">{{ _estado.mensaje_no_configurado | e }}</p>
+</div>
+{% elif _estado.demo %}
+<div class="alert alert-warning" role="status" data-testid="aviso-proveedor-demo">
+  <strong data-testid="marca-demo">DEMO</strong>
+  <span style="margin-left:.4rem;">Estás viendo datos de muestra, no tu base de
+  conocimiento real.</span>
+</div>
+{% endif %}

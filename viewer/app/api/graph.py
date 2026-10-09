@@ -56,4 +56,12 @@ def api_graph(
         ws, limit=SIN_TOPE, entity_type=entity_type, q=q
     )
     nodes, edges, view = vista_truncada(todos_nodos, todas_relaciones, limit)
-    return serialize_graph(ws, nodes, edges, view=view)
+    cuerpo = serialize_graph(ws, nodes, edges, view=view)
+    # PR-2 (USABLE-V1): el grafo dice en qué modo está en su PROPIA
+    # respuesta. Igual que `/api/entities`, y con la misma clave y el mismo
+    # valor que `/api/status` (`provider.name`, la identidad que el proveedor
+    # vivo publica y que `PolicyFilteredProvider` proxya). Sin esto, los
+    # nodos de muestra viajaban indistinguibles de los reales y hacían falta
+    # dos llamadas para saberlo.
+    cuerpo["provider"] = provider.name
+    return cuerpo

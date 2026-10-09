@@ -36,9 +36,17 @@ def _limpia_settings():
     get_auth_settings.cache_clear()
     get_settings.cache_clear()
     yield
-    for k in ("S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_GRAPH_PROVIDER",
-              "S9K_DEFAULT_WORKSPACE"):
+    for k in ("S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_DEFAULT_WORKSPACE"):
         os.environ.pop(k, None)
+    # S9K_GRAPH_PROVIDER NO se hace pop: este modulo nunca lo fija, y
+    # quitarlo del entorno (en vez de restaurarlo) dejaba la variable
+    # AUSENTE para el resto de la sesion de pytest -- el `setdefault`
+    # de `conftest.py` solo corre una vez, al coleccionar. Antes de
+    # PR-2 (USABLE-V1) eso era inofensivo (cualquier ausencia degradaba
+    # a "mock" en silencio); desde PR-2 construye, a proposito, el
+    # proveedor NOT_CONFIGURED, y lo deja fijo para el resto de la
+    # sesion. Se restaura al mismo "mock" que trae `conftest.py`.
+    os.environ["S9K_GRAPH_PROVIDER"] = "mock"
     get_auth_settings.cache_clear()
     get_settings.cache_clear()
 
