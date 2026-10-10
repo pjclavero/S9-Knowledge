@@ -449,7 +449,8 @@ class _StubSetup:
 
     def __init__(self, cert: Path, clave: Path, *, estado_get=200,
                  estado_post=303, estado_sello=404, con_cookie=True,
-                 cookie_secure=True, con_token=True, estado_login_post=302):
+                 cookie_secure=True, con_token=True, estado_login_post=302,
+                 con_cookie_sesion=True):
         stub = self
 
         class H(http.server.BaseHTTPRequestHandler):
@@ -498,10 +499,14 @@ class _StubSetup:
                 if self.path.startswith(ps.LOGIN_PATH):
                     if stub.estado_login_post not in ps.ESTADOS_LOGIN_OK:
                         return self._responder(stub.estado_login_post, b"no")
+                    galleta_sesion = None
+                    if stub.con_cookie_sesion:
+                        galleta_sesion = (
+                            "s9k_session=sesion-de-laboratorio; Path=/; "
+                            "Secure; HttpOnly")
                     return self._responder(
                         stub.estado_login_post, b"", destino="/",
-                        cookie="s9k_session=sesion-de-laboratorio; Path=/; "
-                               "Secure; HttpOnly")
+                        cookie=galleta_sesion)
                 stub.posts += 1
                 destino = ("/login?message=bootstrap_ok"
                            if stub.estado_post == 303 else None)
@@ -519,6 +524,7 @@ class _StubSetup:
         self.cookie_secure = cookie_secure
         self.con_token = con_token
         self.estado_login_post = estado_login_post
+        self.con_cookie_sesion = con_cookie_sesion
 
         class _Silencioso(http.server.ThreadingHTTPServer):
             daemon_threads = True
@@ -697,13 +703,36 @@ def test_sin_url_publica_declarada_es_un_fallo(tmp_path):
 
 
 @pytest.mark.parametrize("causa", ["ESQUEMA_NO_HTTPS", "RECORRIDO_INCOMPLETO",
-                                   "SELLO_NO_CIERRA_SETUP"])
+                                   "SELLO_NO_CIERRA_SETUP",
+                                   "ALMACEN_DE_AUTH_NO_DISPONIBLE"])
 def test_cualquier_hallazgo_impide_declarar_la_instalacion_completa(causa):
-    assert ps.codigo_de_salida([ps.Hallazgo(causa, "da igual el texto")]) != 0
+    assert ps.codigo_de_salida([ps.Hallazgo(causa, "da igual el texto")]) != 0, (
+        "un hallazgo de causa %s tiene que IMPEDIR DECLARAR LA INSTALACION "
+        "COMPLETA con rc != 0; con rc=0 el despliegue seguiria adelante sobre "
+        "una instalacion en la que el primer administrador no se puede crear."
+        % causa)
 
 
 def test_sin_hallazgos_el_codigo_es_cero():
-    assert ps.codigo_de_salida([]) == 0
+    assert ps.codigo_de_salida([]) == 0, (
+        "sin hallazgos el codigo tiene que ser 0: un preflight que nunca da "
+        "verde se desactiva y deja de proteger nada.")
+
+
+def test_un_login_que_redirige_sin_emitir_sesion_es_un_fallo(cert_localhost):
+    """302 sin cookie de sesion: en el navegador, el login vuelve al login."""
+    cert, clave = cert_localhost
+    stub = _StubSetup(cert, clave, con_cookie_sesion=False)
+    try:
+        hallazgos, _ = ps.verificar_bootstrap(
+            _entrada_stub(stub, _credenciales(), cert))
+        causas = [h.causa for h in hallazgos]
+        assert "SESION_NO_EMITIDA" in causas, (
+            "una redireccion de login sin cookie de sesion no autentica a "
+            "nadie; causas: %s" % causas)
+        assert ps.codigo_de_salida(hallazgos) != 0
+    finally:
+        stub.cerrar()
 
 
 # ---------------------------------------------------------------------------
