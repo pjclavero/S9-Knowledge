@@ -676,6 +676,20 @@ def test_el_preflight_nunca_sondea_http_plano(tmp_path, cert_localhost):
             ca_file=str(cert), timeout=5.0)
         hallazgos, recorrido = ps.verificar_bootstrap(entrada)
         causas = [h.causa for h in hallazgos]
+
+        # PRIMERO el hecho mas fuerte, y por eso primero: que NO SE TOCO el
+        # endpoint. Si esta comprobacion fuese la ultima, una mutacion que
+        # vacia la puerta estatica enrojeceria por "falta la causa
+        # ESQUEMA_NO_HTTPS" y el rojo NO nombraria el fallback, que es el
+        # defecto real. Cada rojo tiene que decir su causa, no solo el color.
+        assert stub.gets == 0 and stub.posts == 0, (
+            "FALLBACK A HTTP: el preflight hizo %d GET y %d POST contra una "
+            "URL http://. No se sondea HTTP plano: la decision D3 lo "
+            "prohibe." % (stub.gets, stub.posts))
+        assert recorrido.get_formulario is None, (
+            "FALLBACK A HTTP: se registro un codigo de GET (%s) para una URL "
+            "http://, luego se hablo con el endpoint."
+            % (recorrido.get_formulario,))
         assert "ESQUEMA_NO_HTTPS" in causas, causas
         assert "COOKIE_SECURE_SOBRE_HTTP" in causas, (
             "la causa del HTTP plano tiene que nombrar POR QUE rompe -la "
@@ -684,10 +698,6 @@ def test_el_preflight_nunca_sondea_http_plano(tmp_path, cert_localhost):
         assert "RECORRIDO_INCOMPLETO" in causas, (
             "con HTTP plano no se ejerce NADA, y eso tiene que constar como "
             "no observado en vez de contarse a favor; causas: %s" % causas)
-        assert stub.gets == 0 and stub.posts == 0, (
-            "FALLBACK A HTTP: el preflight hizo %d GET y %d POST contra una "
-            "URL http://. No se sondea HTTP plano." % (stub.gets, stub.posts))
-        assert recorrido.get_formulario is None
         assert ps.codigo_de_salida(hallazgos) != 0
     finally:
         stub.cerrar()
