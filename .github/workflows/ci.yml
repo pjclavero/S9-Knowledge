@@ -1325,6 +1325,31 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/mutaciones_pr3_instalacion_https.py
 
+      # PR-4 (USABLE-V1) — tras el bootstrap la instalacion esta COMPLETA: el
+      # primer administrador se CREA, ENTRA y PERSISTE. El PR-3 demuestra que
+      # el endpoint CONTESTA, y eso NO demuestra que el administrador se pueda
+      # crear: el defecto de rango 1 era que el POST de /setup/admin entraba
+      # en bucle de 403 porque la cookie `Secure` no volvia. Diez mutaciones
+      # sobre `deploy/scripts/preflight_setup_admin.py`, incluidas las cuatro
+      # obligatorias: que el preflight PASE con un `GET 200` sin completar el
+      # POST (M1), que se ACEPTE HTTP plano como instalacion completa (M2),
+      # que pase SIN comprobar la persistencia tras reinicio (M3) y que se
+      # rompa el FAIL-CLOSED de un setup corrupto o parcial (M4).
+      #
+      # El testigo arranca el VISOR REAL (`app.main:app`) como PROCESO
+      # separado por `uvicorn` con TLS autofirmado y S9K_SESSION_SECURE=true
+      # -el default de D3, sin degradar-, recorre GET/POST/sello/login y
+      # REINICIA el proceso sobre la misma base. Incluye un control positivo
+      # de resultado conocido: el visor real por HTTP plano reproduce el 403.
+      #
+      # LO QUE ESTE PASO **NO** EJERCE: nginx, systemd, una VM limpia, un
+      # navegador ni DNS. Eso es el ensayo RC de `deploy/README.md`,
+      # PENDIENTE.
+      - name: "La instalacion COMPLETA tras el bootstrap se pone ROJA ante cada defecto (PR-4)"
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/mutaciones_pr4_instalacion_completa.py
+
       # MICROCARRIL DE SANEAMIENTO DE INSTRUMENTOS — los cuatro
       # `scripts/calibrar_panel_*.py`. Son los arneses de los cuatro paneles
       # del chasis (B operations, C review, F sources, G entities): cada uno

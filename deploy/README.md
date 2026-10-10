@@ -150,9 +150,120 @@ contesta de las formas en que no lo hace, contra endpoints TLS locales con
 certificado autofirmado generado en el momento
 (`deploy/tests/test_preflight_https.py`). Eso **no** demuestra que la
 instalación entregue HTTPS en una máquina real: no se ha ejercido nginx, ni
-systemd, ni una VM limpia, ni un navegador, ni el recorrido de crear el primer
-administrador, ni un reinicio. VM110/VM111 están apagadas y no se encienden.
-Lo que falta es el ensayo de abajo.
+systemd, ni una VM limpia, ni un navegador, ni DNS, ni una CA real.
+VM110/VM111 están apagadas y no se encienden. Lo que falta es el ensayo de
+abajo.
+
+**Corrección de alcance (PR-4).** Esta frase decía además que no se había
+ejercido «el recorrido de crear el primer administrador, ni un reinicio». Eso
+ya no es exacto: el PR-4 lo ejerce contra el **visor real** por TLS local y
+reiniciando su **proceso** (ver la sección siguiente). Lo que sigue sin
+ejercerse es ese recorrido **sobre una máquina real con un navegador**, que es
+lo que el ensayo RC mide. El techo se movió un poco; no se cerró.
+
+## Instalación COMPLETA tras el bootstrap: el primer administrador se crea, entra y persiste
+
+### ESTADO DE ESTA SECCIÓN (leer antes de seguir)
+
+```
+CODE         PASS     mecanismo implementado (preflight hermano del de HTTPS)
+CALIBRATION  PASS     scripts/calibracion/mutaciones_pr4_instalacion_completa.py (10/10)
+RC-E2E       PENDING  no ejecutado: aquí no hay nginx, ni systemd, ni VM, ni navegador
+```
+
+Como en la sección anterior, lo que sigue describe el mecanismo en presente
+porque así está implementado y calibrado. **Eso no es lo mismo que ejercido en
+una máquina real**: léase con `RC-E2E PENDING` en mente, no al revés.
+
+### Lo que la sección anterior NO demuestra
+
+`preflight_https.py` demuestra que el endpoint **contesta**: handshake que
+verifica, nombre que coincide, y un `GET` con código de estado. Es necesario y
+**no es suficiente**.
+
+Un `200` dice que algo respondió. El defecto de rango 1 era otro: el **`POST`**
+de `/setup/admin` entraba en bucle de 403 porque la cookie CSRF sale con
+atributo `Secure` y sobre `http://` ningún cliente la devuelve. Una instalación
+puede tener un `GET /setup/admin` que responde `200` impecablemente y seguir
+siendo una instalación **en la que el primer administrador no se puede crear**.
+
+### El criterio, y quién lo guarda
+
+| Exigencia | Quién la comprueba |
+|---|---|
+| `/setup/admin` completa el flujo con cookie `Secure` | `comprobar_get_del_formulario` + `comprobar_post_crea_el_administrador` |
+| **No basta `GET 200`** | `comprobar_recorrido_completo`: las fases **no observadas** no cuentan a favor (`RECORRIDO_INCOMPLETO`) |
+| POST, CSRF, sesión y creación del administrador | el `303` a `/login?message=bootstrap_ok`, que es como el producto confirma el alta |
+| Tras el setup, el login funciona | `comprobar_login_funciona`, con un cliente **limpio** y exigiendo cookie de sesión |
+| El estado persiste tras reinicio | `--modo persistencia`: sello en `404` **y** login que sigue funcionando |
+
+El guardián de «no basta `GET 200`» **no es una frase de la documentación**: es
+una función, y tiene su mutación obligatoria (M1) en el arnés.
+
+### Autoridades reutilizadas, no duplicadas
+
+- **`preflight_https.py`** (PR-3) se **importa**: `Hallazgo`, el lector de
+  `EnvironmentFile`, la lista cerrada de valores verdaderos, el contexto TLS
+  que nunca apaga la verificación y las **dos puertas estáticas**
+  (`ESQUEMA_NO_HTTPS`, `COOKIE_SECURE_SOBRE_HTTP`). No hay un segundo criterio
+  de HTTPS en el repositorio.
+- **El sello irreversible** de `viewer/app/auth/bootstrap.py`
+  (`install_state['bootstrap_completed']`) se lee **por donde el producto lo
+  publica**: el `404` que decide `routers/setup.py::_guarda`. El preflight **no
+  abre la base SQLite** y no inventa su propia idea de «el setup está hecho»;
+  sobre una instalación remota, además, no podría.
+- **El fail-closed** del almacén de autenticación (`503`) se reconoce como lo
+  que el producto dice que es: **no se sabe**. Nunca como «instalación nueva».
+
+### D3 sigue gobernando
+
+`S9K_SESSION_SECURE=true` permanece. Este preflight **no escribe
+configuración**, **no habla `http://` nunca** —la puerta estática lo rechaza
+antes de abrir socket, y hay una prueba que comprueba que **no se hizo ni una
+petición**— y trata una cookie de setup **sin `Secure`** como un **fallo**
+(`COOKIE_SETUP_SIN_SECURE`), porque ésa es la forma que tendría la degradación
+que D3 consideró y descartó. `S9K_SESSION_SECURE=false` sigue siendo **sólo
+opt-out de laboratorio**.
+
+### Uso
+
+Las credenciales **no se pasan por `argv`**: entran por un fichero `0600` o por
+`stdin`, y no se imprimen.
+
+```bash
+# Recorrido completo (ESCRIBE: crea el primer administrador)
+python3 deploy/scripts/preflight_setup_admin.py \
+    --env-file /etc/s9-knowledge/viewer.env --modo bootstrap < cred.json
+
+# Después del reinicio (SÓLO LECTURA)
+python3 deploy/scripts/preflight_setup_admin.py \
+    --env-file /etc/s9-knowledge/viewer.env --modo persistencia < cred.json
+```
+
+### POR QUÉ ESTO **NO** ES UN PASO DE `deploy.sh`
+
+`deploy.sh` insertó el paso 16b para la vía HTTPS porque aquello se puede
+verificar sin intervención. Esto **no**: crear el primer administrador exige
+**una contraseña que elige una persona**. Un paso de despliegue que la generase
+dejaría una credencial fabricada por el instalador en una instalación
+productiva, que es peor que el defecto que se está cerrando. Por eso este
+preflight es **herramienta del operador y del ensayo RC**, y el orden numerado
+de `deploy.sh` **no se toca** en este corte. Queda declarado como frontera, no
+como olvido.
+
+### Qué se midió de verdad, y qué no
+
+Medido: contra el **visor real** (`app.main:app`) arrancado como **proceso
+separado** por `uvicorn` con TLS autofirmado y `S9K_SESSION_SECURE=true`, el
+recorrido entero sale —`GET 200`, cookie `Secure` **observada**, `POST 303`,
+sello en `404`, login `302` con sesión— y **sobrevive a matar el proceso y
+arrancar otro** sobre la misma base. Y con un **control positivo de resultado
+conocido**: el mismo visor por HTTP plano **reproduce el 403**, de modo que
+consta que el instrumento ve el defecto cuando el defecto está.
+
+No medido: nginx, systemd, una VM limpia, un navegador, DNS, una CA real.
+VM110/VM111 están apagadas y no se encienden. Lo que falta es el ensayo de
+abajo, al que este corte **añade filas**.
 
 ## Guion del ensayo RC de la instalación (PENDIENTE de ejecutar)
 
@@ -174,6 +285,19 @@ cualquier momento hay que editar `.env` o abrir un terminal después de que la
 instalación se declare terminada, **el ensayo ha fallado**, por mucho que el
 recorrido acabe.
 
+**Instrumentación del recorrido** (añadido por el PR-4). Cada tramo tiene quién
+lo mide, para que el ensayo no se juzgue a ojo:
+
+| Tramo del recorrido | Se comprueba con |
+|---|---|
+| `instalar -> HTTPS disponible` | `deploy.sh` paso 16b → `preflight_https.py` |
+| `/setup/admin -> cookie Secure -> CSRF -> admin creado -> sellado -> login` | `preflight_setup_admin.py --modo bootstrap` |
+| `reinicio -> login sigue funcionando` | `preflight_setup_admin.py --modo persistencia`, **después** de reiniciar |
+
+El recorrido **también se hace en el navegador**, que es lo que el preflight no
+es. El preflight no sustituye al navegador: le quita la ambigüedad. Si los dos
+discrepan, **manda el navegador** y eso es un hallazgo del ensayo.
+
 ### Negativos obligatorios
 
 Un recorrido que sólo sale verde no mide nada. Cada fila tiene que salir en
@@ -188,12 +312,25 @@ rojo, y **por su causa**:
 | N5 | HTTP plano con `S9K_SESSION_SECURE=true` | `COOKIE_SECURE_SOBRE_HTTP` y **no se acepta como instalación correcta**; en el navegador, el bucle de 403 reproducido. |
 | N6 | Setup corrupto o parcial (admin a medio crear, auth.db truncada) | **fail-closed**: no se sirve la aplicación como si estuviera instalada, ni se vuelve a ofrecer `/setup/admin` sobre un estado a medias. |
 | N7 | Reinicio de servicios y de la VM | **no pierde** el administrador ni la configuración: el login posterior funciona sin tocar nada. |
+| N8 | `GET /setup/admin` responde `200` pero el `POST` se rechaza (terminador que no reenvía la cookie, proxy que la descarta) | `BUCLE_403_CSRF` **y** `RECORRIDO_INCOMPLETO`: un `GET` que responde **no** cuenta como instalación completa. Es la fila que distingue este corte del PR-3. |
+| N9 | Tras crear el administrador, `/setup/admin` **sigue sirviéndose** | `SELLO_NO_CIERRA_SETUP`: una instalación que sigue ofreciendo crear el primer administrador permite que un desconocido cree otro. |
+| N10 | Base de autenticación **no durable** (ruta en tmpfs, volumen sin montar, contenedor que recrea su almacén) y reinicio | `ESTADO_NO_PERSISTE`, con los dos desenlaces distinguidos: la pantalla de alta **reabierta** (`200`), o el sello puesto y el **login ya inservible**. |
+| N11 | El setup se sirve con cookie **sin `Secure`** (alguien «arregló» el bucle degradando la cookie) | `COOKIE_SETUP_SIN_SECURE`: la degradación que D3 descartó **no** se acepta como instalación correcta, ni siquiera sobre HTTPS. |
+| N12 | Login que redirige pero **no emite sesión** | `SESION_NO_EMITIDA`: en el navegador eso se ve como un login que vuelve al login. |
 
 ### Qué se registra
 
 Para cada fila: la causa que imprimió el preflight (verbatim), el código de
 salida, y si hubo que tocar un terminal. Un ensayo sin esa tabla rellenada no
-cierra el `RC-E2E PENDING` de la sección anterior.
+cierra el `RC-E2E PENDING` de **ninguna** de las dos secciones anteriores.
+
+Y, para las filas del recorrido principal (añadido por el PR-4): **las fases
+que el preflight declaró OBSERVADAS**. El preflight las nombra una por una, y
+un recorrido que acaba en verde con fases sin observar no es un recorrido
+completo, es un `RECORRIDO_INCOMPLETO` que alguien leyó deprisa.
+
+Las credenciales del ensayo **no se transcriben** en esa tabla ni en ningún
+registro: se anota el nombre de usuario y nada más.
 
 ## Secretos y proveedores
 
@@ -513,6 +650,12 @@ fuera de alcance deliberadamente.
 - `preflight.sh`: requisitos, sin cambios.
 - `preflight_https.py`: vía HTTPS verificada **por efecto** (certificado,
   nombre y que el endpoint conteste). rc≠0 = instalación NO completa.
+- `preflight_setup_admin.py`: el **recorrido del primer administrador**
+  verificado por efecto (GET, cookie `Secure`, POST con CSRF, alta, sello,
+  login y persistencia tras reinicio). Hermano del anterior: lo importa y no lo
+  duplica. Credenciales por fichero `0600` o `stdin`, **nunca por `argv`**.
+  rc≠0 = instalación NO completa. **No** es un paso de `deploy.sh`: ver la
+  sección correspondiente.
 - `validate_deploy.sh https <viewer.env> [lab|production]`: mitad estática del
   contrato HTTPS.
 - `deploy.sh`: dry-run por defecto.
