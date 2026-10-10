@@ -9,7 +9,7 @@ pydantic-settings>=2.14.2,<3.0
 # esa dependencia intermedia deje de arrastrarlo, el fallo aparece en
 # ejecucion y no al instalar. Se declara explicito.
 python-dotenv>=1.2.2,<2.0
-neo4j>=5.20,<6.0
+neo4j>=6.3.1,<7.0
 # Sin cota superior, `pip install` traia manana una version mayor sin cambiar
 # una linea del repositorio: la instalada dejaba de ser la probada.
 python-multipart>=0.0.9,<0.1
