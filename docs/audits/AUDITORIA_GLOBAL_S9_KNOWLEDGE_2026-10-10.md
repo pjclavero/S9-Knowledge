@@ -9,6 +9,17 @@
 > escribe UNKNOWN / NOT MEASURED, nunca PASS. «Ausencia» no es «cero»; «skipped» no es
 > «verde»; «diseñado» no es «implementado»; «implementado» no es «usable».
 
+## Historial de revisión
+
+| Ronda | Fecha | HEAD auditado (código) | origin/main | Commit del informe | Alcance |
+|---|---|---|---|---|---|
+| **RONDA 1** | 2026-10-10 | `0cf977c3f7785e5f826417efc94971825782bd9d` | `0cf977c` | `d2c8f91e0ed273fee9f2dc99ef3d1d89f3a3669f` | Estado real del producto (§1–§25) |
+| **RONDA 2** | 2026-10-10 / 11 | `AUDIT_R2_HEAD = 0cf977c3f7785e5f826417efc94971825782bd9d` (main **no se movió**) | `0cf977c` | ver el commit que contiene esta fila | Revalidación de H-01..H-42, soluciones fuera de main, recuperabilidad, arqueología de decisiones, seguimiento del plan USABLE-V1 (sección «Ronda 2» al final) |
+
+> Las secciones §1–§25 son el texto de la **ronda 1** y se conservan tal cual, incluidas sus
+> cifras y rangos originales. Donde la ronda 2 corrige algo, la corrección vive en la sección
+> «Ronda 2» (R2.3 y R2.13) marcada como **CORRECCIÓN RONDA 2**, nunca borrando el original.
+
 Convenciones usadas en todo el documento:
 
 | Marca | Significado |
@@ -1243,3 +1254,447 @@ efectos: rutas gitignoradas `viewer/output/`, `viewer/state/`, `__pycache__`, el
 | `gh`: run push `0cf977c` | — | CI + supply-chain `success`; calibración 4 616 s |
 | `gh`: branch protection | — | 17 contextos required, `strict` |
 | `git`: worktrees/ramas/stashes del checkout compartido | — | 147 / 435 / 3; main local 415 detrás |
+
+
+---
+---
+
+# Ronda 2 — Recuperación, arqueología y seguimiento del plan
+
+**Fecha:** 2026-10-10 (inicio 17:50 CEST) – 2026-10-11 · **Tipo:** segunda ronda independiente y
+adversarial sobre la ronda 1 · **Pregunta añadida:** «¿qué parte de lo que creemos que falta ya
+existe en algún lugar del repositorio pero nunca llegó a main?» y «¿estamos cerrando el camino a
+USABLE-V1 o produciendo PRs?».
+
+Reglas respetadas: solo lectura del repositorio; ningún `reset/clean/prune/branch -d/stash
+pop|drop|apply/rebase/merge/cherry-pick/force-push`; VM110/VM111 no encendidas; producción no
+tocada. La única prueba de aplicación de parches se hizo en un **clon desechable** fuera del
+repositorio (`git clone --no-hardlinks` bajo el directorio temporal del trabajo). Método: siete
+auditores independientes por área más el coordinador; cinco murieron por límite de sesión en su
+primer intento y fueron relanzados reutilizando sus artefactos parciales; sus informes y salidas
+crudas están en `/home/ia02/.claude/jobs/b0266fc8/tmp/r2-*/` (fuera del repositorio).
+
+## R2.1 Snapshot auditado
+
+| Dato | Valor |
+|---|---|
+| **AUDIT_R2_HEAD** | `0cf977c3f7785e5f826417efc94971825782bd9d` (= HEAD de la ronda 1) |
+| `origin/main` al inicio y al cierre | `0cf977c` · `git rev-list --count 0cf977c..origin/main` = **0** · `git fetch --dry-run` vacío |
+| Rama/worktree de trabajo | `audit/global-2026-10-10` @ `d2c8f91` (= `0cf977c` + el informe R1), árbol limpio al inicio (`porcelain` 0) |
+| PR abiertos | 10: #267 (PR-4, `MERGEABLE/CLEAN`, 34/34, 0 detrás de main), #149, #146 y 7 de Dependabot; **sin cambios** desde la ronda 1 |
+| Referencia histórica del encargo | `b4da16a` = PR-2 (#264); `d2c8f91` = informe R1; ambos verificados |
+
+## R2.2 Cambios desde la ronda 1
+
+**Ninguno en `main`.** Por tanto no hay hallazgo que haya podido pasar a FIXED_IN_MAIN por el paso
+del tiempo; toda variación de estado en R2.3 es **de medición o de clasificación**, no de producto.
+Sí cambia el conocimiento: la ronda 2 reproduce con ejecución lo que la ronda 1 dejó en lectura,
+mide con protocolo lo que la ronda 1 estimó, y busca en todas las refs lo que la ronda 1 no buscó.
+
+## R2.3 Revalidación de H-01..H-42
+
+Estados: OPEN · FIXED_IN_MAIN · PARTIALLY_FIXED · FIX_EXISTS_NOT_INTEGRATED · RECOVERABLE ·
+RECOVERABLE_WITH_ADAPTATION · SUPERSEDED · FALSE_POSITIVE · NOT_REPRODUCED · REGRESSED · UNKNOWN.
+
+| ID | Rango R1 | Estado R1 | ¿Reproducido R2? | Estado R2 | Rango R2 | ¿Fix en main? | ¿Fix fuera de main? | Rama/commit/PR | Recuperable | Recomendación | Bloquea USABLE-V1 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| H-01 | 1 | BROKEN | Sí (`detect_state` fresh/empty/usable × modo; `deploy.sh:203-209`) | **OPEN, ampliado** (ver H-43) | **1** | no | **no** (búsquedas `EMPTY_STATE`, `--mode fresh`, `s9k_release_id`, `first release`… en 588 refs: vacío) | — | no | IMPLEMENTAR (definir FIRST_RELEASE_PATH) | sí |
+| H-02 | 1 | BROKEN | Sí (`--loop` rc=0 en 0 s; `--loop --limit 0` vive; stale-release sin `attempts`; `next_retry_at` ignorado; cancel no cooperativa) | **OPEN** | **1** | no | **no**: nunca existió unidad/timer de worker en ningún ref (`git log --all -- '*worker*.service'` vacío) | — | no | IMPLEMENTAR (corregir `:213`, unidad, venv del motor, test de `--loop`/stale) | sí |
+| H-03 | 1 | BROKEN | Sí (reviewer sin concesión: `decide` 303, `undo` 303; 4 filas en `human_decisions`) | **OPEN**, reencuadrado: renuncia **documentada** (`authz/scope.py:78-82`, `docs/81:34`) sin riesgo registrado ni test | **1** | no | **no**; se halló el **origen**: `f6a4f18` (M5a, 2026-08-06) introduce `_scoped() → partida_only()`; ninguna rama lo revierte | `feat/multipartida-m5a-viewer` → #143 | no (INVALID como solución) | IMPLEMENTAR (exigir `allows_workspace` en rutas HTTP de revisión + negativo con dos reviewers) | sí |
+| H-04 | 1 | DEBT condicionada | Sí (simulación redeploy: sin variables el motor ve `{}`, rc=0, sin aviso) | **OPEN** | **2 condicionado** (CORRECCIÓN: «fragilidad potencial no mueve la base»; pérdida diferida, recuperable en la retención de 3 releases; si VM105 declara las variables, no hay pérdida — UNKNOWN sin SSH) | no | **parcial**: existe gate correcto `deploy/scripts/preflight_ensayo_rc.py:175-298` **en main** que exige ambas variables y coherencia visor/worker, pero `deploy.sh` no lo invoca | commits `43b9469`, `c14e4c4`, `e56e43e` | RECOVERABLE (enganchar el preflight existente a `deploy.sh` y añadir a `CRITICAL_ENV_VARS`) | sí |
+| H-05 | 2 | DEMOSTRADO | Sí; acotado a 3 `url_for` en `chassis_operations.py:1122,1201,1249` y 8/36 `action=` en 5 plantillas `chassis/*`; el resto del visor usa rutas relativas | OPEN | 2 | no | no | — | no | IMPLEMENTAR | sí |
+| H-06 | 2 | DEMOSTRADO | Sí (umask 022: `auth.db`, `auth.bak.v0`, `auth.lock`, `jobs.db`, `review.sqlite3` 0644; umask 027: 0640; solo `.csrf_secret` 0600) | OPEN | 2 | no | no (ningún ref hace `chmod` de `auth.db`; C1 solo *comprueba* permisos) | `ops/v3-release-readiness` (comprobador, no corrector) | parcial (idea del comprobador) | IMPLEMENTAR (`UMask=0077` + `chmod 0600` + test) | sí |
+| H-07 | 2 | KNOWN DEBT | lectura | OPEN (deuda declarada) | 2 | no | no (`docs/59` en rama es solo diseño) | `docs/panel-rpg-management-design` | no | IMPLEMENTAR (campo de sesión en el alta) | sí |
+| H-08 | 2 | OBS | lectura (impacto no ejecutado) | OPEN | **3** (CORRECCIÓN: solo lectura; el cambio de propietario no se reprodujo) | no | no | — | no | IMPLEMENTAR (una sola unidad) | no |
+| H-09 | 2 | DEMOSTRADO (grant 422) | **Parcialmente desmentido** | «Formulario roto»: **FALSE_POSITIVE** (CORRECCIÓN: sin catálogo el `<select name="partida_id">` y el botón «Conceder» están en el mismo `{% else %}` de `partidas.html:182-213`; la UI no ofrece el botón; el POST de la R1 fue sintético y devuelve **400** con plantilla, no 422). «Cero superficie web de configuración»: **OPEN** | 2 | no | no (solo diseño `docs/59`) | `docs/panel-rpg-management-design` @ `101cf6d` | no | IMPLEMENTAR (P8–P10) | sí |
+| H-10 | 2 | OBS | lectura (`grep 'panel/resultado' templates` = 0 enlaces); crawler R2 59 URL: 0 entrantes | OPEN | **3** | no | no (`s1-resultado-sin-enlace-muerto` = #250 ya en main) | — | no | IMPLEMENTAR (P13) | sí (ergonomía E2E) |
+| H-11 | 2 | OBS | lectura `ci.yml`: 8 calibradores con 0 menciones; `knowledge-visibility` fuera de testpaths | OPEN | 2 | no | no | — | no | IMPLEMENTAR (ver H-48) | sí (gate) |
+| H-12 | 2 | OBS | lectura; `check_docs_consistency` verde por decisión (PR #218) | OPEN | **3** (la decisión está documentada; las guías no) | no | `docs/sync-project-state-2026-08` (OBSOLETE, 30 ficheros de agosto) | `bf03ca7` | no | IMPLEMENTAR (P17; ver H-47) | no |
+| H-13 | 2 | OBS | **Mitad NOT_REPRODUCED**: con TODAS las `S9K_*` de rutas a tmp y cwd fuera, 0 escrituras en el árbol (`sys.addaudithook`). **OPEN** para los *defaults*: sin variables, el middleware CSRF crea `viewer/state/.csrf_secret` en la **primera petición**, `GET /setup/admin` crea `auth.db`, y `ReviewService()` crea `viewer/output/reviews-v3/review.sqlite3`. La suite deja ficheros por 4 tests concretos (`test_s3_env_gobierna_paneles.py::test_caso_de_fabrica_248…`, `test_chassis_mount_contract.py` ×2, `test_panel_operations_alta_fuente.py::test_la_ingesta_corre_de_verdad…`) | OPEN (reformulado) | **3** | no | no | — | no | IMPLEMENTAR (defaults fuera del árbol; fijar rutas en los 4 tests) | no |
+| H-14 | 2 | OBS | lectura dirigida: `gate.py:51-55` vs `v3_apply.py:1098-1102` (decisión consciente que contradice el gate); `sealed_plans` no persiste documento de rollback; `cli_rollback.py:557` lo exige → **rollback de un apply web imposible** con lo persistido | OPEN (confirmado) | 2 | no | no (todas las ramas `*rollback*` ya mergeadas) | — | no | IMPLEMENTAR | sí |
+| H-15 | 2 | OBS | lectura: `ci.yml:1618-1628` prohíbe `S9K_PANEL_*` justificado; `gate.py:226-238` 3/39 vs 6/48 | OPEN | **3** (matiz: `/panel/*` se monta siempre, el flag actúa por petición) | no | no | — | no | TERMINAR (actualizar justificación; censo con paneles encendidos) | no |
+| H-16 | 3 | OBS | no revalidado | UNKNOWN | 3 | no | no (0 código multimodal fuera de main) | — | no | POSPONER (Fase B) | no |
+| H-17 | 2 | OBS | grep: `visibility` una sola vez en `ingest_v3.py:498` (docstring) | OPEN | **3** (seguro por defecto `SECRET`) | no | no | — | no | TERMINAR | no |
+| H-18 | 2 | OBS | **DEMOSTRADO**: ruta inexistente → `{}` sin error; fichero ilegible → error | OPEN; encadenado con H-04 (es lo que vuelve invisible la pérdida) | 2 | no | no | — | no | IMPLEMENTAR (fail-closed: ausencia ≠ cero) | sí |
+| H-19 | 2 | OBS | **DEMOSTRADO**: tras `claim_for_apply`, segundo claim `claimed=False`; `aplicar()` → `PLAN_APPLY_IN_FLIGHT`; el camino de excepción sí cierra (`record_apply_result(ok=False)`); hueco solo crash/kill | OPEN | 2 | no | no | — | no | IMPLEMENTAR (reconciliación de `applying` huérfanos) | no |
+| H-20 | 3 | DEMOSTRADO | Sí | OPEN | 3 | no | no | — | no | IMPLEMENTAR | no |
+| H-21 | 3 | DEMOSTRADO | Sí; `admin.py:56` tiene NFKC+casefold **solo para labels**; `cli/auth.py` solo `strip()` | OPEN | 3 | no | no | — | no | IMPLEMENTAR (reutilizar el normalizador existente) | no |
+| H-22 | 3 | KNOWN DEBT | n/a | OPEN | 3 | no | n/a | — | — | INVESTIGAR (lectura autorizada de VM105) | no |
+| H-23 | 3 | OBS | Sí (147/435/3 confirmados) | OPEN | **4** | no | n/a | — | — | decisión del operador (no limpiar en auditoría) | no |
+| H-24 | 3 | OBS | lectura confirmada | OPEN | 3 | no | no | — | no | IMPLEMENTAR (mantenimiento) | no |
+| H-25 | 4 | OBS | `timeout-minutes` 1/17 | OPEN | 4 | no | no | — | — | POSPONER | no |
+| H-26 | 3 | OBS | **Sí** (9 ERROR, rc=1); causa: `launch()` falla con texto ausente de `_CHROMIUM_NO_DISPONIBLE` (`browser/conftest.py:96-99`) y fixture propia con `sync_playwright`; **el docstring del test lo declara** (l.52-56) | OPEN | **4** (CORRECCIÓN: ya documentado) | no | no | — | no | TERMINAR | no |
+| H-27 | 4 | OBS | 19 `.bak` confirmados | OPEN | 4 | no | n/a | — | — | DESCARTAR (retirar) | no |
+| H-28 | 3 | OBS («base URL fija 8088») | **CORRECCIÓN**: no es fija; `runner.py:79` lee `S9K_HEALTH_VIEWER_URL` (default 8088, declarada en `deploy/config/viewer.env.example:82`). Queda: `/admin/health` fuera del menú y falsa alarma en instalaciones no systemd | PARTIALLY (reformulado) | **4** | no | C2 `feat/admin-operations-dashboard` (SUPERSEDED/EXPERIMENT: segunda autoridad de salud) | `5742af9` | no | TERMINAR (enlace en menú) | no |
+| H-29 | 3 | OBS | lectura confirmada (`HTR_TEXT` en `multimodal/base.py:46`, `ocr_render.py:36`, no en `MEDIA_TYPES`) | OPEN | 3 | no | no | — | no | IMPLEMENTAR (test de paridad de enums) | no |
+| H-30 | 3 | OBS | — | OPEN | 3 | no | no | — | no | IMPLEMENTAR (P14/P17) | no (UX) |
+| H-31 | 3 | OBS | **Sí**: vistas sin `auth_user`: `jobs_view` (`main.py:786`), `job_detail_view` (808), `reviews_view` (822), `reviews_detail_view` (893), `entity_view` (756); `base.html:25` oculta con `is defined` | OPEN | 3 | no | no (`feat/review-console-v2-readonly` añadiría una quinta pantalla: NO USAR) | — | no | IMPLEMENTAR (P13/P14) | sí (navegación) |
+| H-32 | 4 | OBS | no revalidado | UNKNOWN | 4 | — | — | #149, #146 | — | DESCARTAR (#149 superseded por `docs/89`; #146 parcialmente por 51/54/58) | no |
+| H-33 | 3 | OBS | lectura: `providers.env` solo en `roles/systemd/tasks/main.yml:8-20`; nadie lo consume | OPEN | 3 | no | no | — | no | TERMINAR (retirar o cablear) | no |
+| H-34 | 3 | OBS | **Sí (git)**: `docs/15` nació en `ebb0df3`, **renombrado** (R100) a `docs/archivados/` en `1553665`; `jobs.html:13` lo cita en `<code>`, no es `<a href>` | OPEN | **4** (CORRECCIÓN: referencia caduca en texto, no enlace muerto; el doc describe el layout legacy de H-02) | no | el destino existe en main | `docs/archivados/15-jobs-worker-panel.md` | RECOVERABLE (trivial) | TERMINAR (retirar la frase o apuntar a `deploy/README.md §worker`) | no |
+| H-35 | 3 | OBS | lectura (`security.py:179-181` solo avisa; `setup_admin.html:28` culpa a Safari); **R2 UX**: con `.env.example` literal el setup devuelve 403 por HTTP → ver H-44 | OPEN | 3 | no | no | — | no | IMPLEMENTAR (P4/P11: mensaje y preflight) | sí (vía H-44) |
+| H-36 | 4 | OBS | lectura: 10 calibradores con `.replace(…,1)` | OPEN; se solapa con H-11 | 4 | no | no | — | no | POSPONER (migrar a `localizadores`) | no |
+| H-37 | 3 | OBS | lectura: `run-jobs-worker.sh:17`, `job_store.py:34`, `deploy.sh:42` (legacy), `deploy.sh:44` + `viewer.env.example:30`; `viewer/app/config.py:113` delega | OPEN | 3 | no | no | — | no | IMPLEMENTAR (una autoridad en `job_store.resolve`) | no |
+| H-38 | 3 | OBS | lectura (`neo4j-backup.sh:99 chmod 777`; sin `trap`) | OPEN | 3 | no | no | — | no | IMPLEMENTAR | no |
+| H-39 | 3 | OBS | 30 ficheros con IPs confirmados; `docs/current` vs `data-engine/docs` divergen | OPEN | **4** (RK-19 ya declara los históricos) | no | no | — | no | TERMINAR (P17) | no |
+| H-40 | 3 | OBS | 11 `mark.xfail` en código; «docs/60 declara 11, hay 7 ACC» | OPEN | **4** | no | no | — | no | TERMINAR | no |
+| H-41 | 4 | OBS | — | OPEN | 4 | — | — | — | — | POSPONER | no |
+| H-42 | 4 | OBS | **CORRECCIÓN**: `S9K_ENV`/`S9K_LOCAL_BASE_URL` 0 usos (obsoletas); `S9K_LOG_ROOT` y `s9k_release_id` son defaults sin consumidor, no obsoletas | OPEN (reformulado) | 4 | no | no | — | no | TERMINAR | no |
+
+Duplicados y encadenamientos detectados en el propio informe (CORRECCIÓN RONDA 2): el inciso
+«formularios con `action` absoluta» de H-31 **es** H-05; §11.2 «Fuga al árbol» y H-13 son el mismo
+hallazgo; H-04 y H-18 son un hallazgo con dos efectos (pérdida + silencio); H-11 y H-36 se solapan;
+H-05 y H-36 **no** son duplicados (H-36 son anclas textuales en calibradores). Correcciones de
+conteo: la ronda 1 dice «24 POST» en §4.2 y Anexo A; el recuento real es **21 POST** (82 entradas
+método×ruta + 1 mount, 61 GET, 77 paths únicos), coherente con «21 mutaciones» de §9 y con la
+enumeración del propio Anexo A. «9 919 tests», «147 worktrees», «435 ramas», «3 stashes»: confirmados.
+
+## R2.4 Soluciones existentes fuera de main
+
+Universo: 588 refs (`git branch -a`) + 106 tags (8 `rescate/*`, ~80 `legacy/*`) + 267 PRs. Para cada
+H-XX se buscó con `git log --all ^origin/main -S/-G/--grep` por nombres actuales e históricos,
+rutas, símbolos y conceptos. Filtro decisivo: la inmensa mayoría de los ~300 commits «fuera de
+main» son **historia pre-squash de PRs ya fusionados** (#238–#266, carriles H–M, 6B-2, S-1/S-3):
+historia huérfana, no trabajo perdido.
+
+**Resultado: de 42 hallazgos, ninguno tiene una solución completa olvidada fuera de main.** Lo
+hallado es pequeño y adyacente:
+
+| Candidato | Problema | Ref | SHA | Edad | Toca ficheros que main cambió después | Test | Negativo | Autoridad compatible | Clasificación | Acción |
+|---|---|---|---|---|---|---|---|---|---|---|
+| C1 `deploy/release/*` (spec declarativo + `config_check` de permisos/propietario/estado fuera de la release, manifiesto, smoke) | H-04 parcial, H-06 parcial, H-08 parcial, H-28, H-37 | `ops/v3-release-readiness` (local+origin, sin PR) | `c0d2ee6` (2026-08-09) | 62 días (mb `28320bd`) | sí: `deploy/scripts/lib.sh` (5 commits posteriores en main), `pytest.ini` | 27 + calibrador | sí (ausencia crítica → ERROR; estado dentro de la release → ERROR) | **parcial**: `spec.py` = cuarta lista de variables frente a `CRITICAL_ENV_VARS`, `.env.example` y la autoridad S-3b; no conoce `S9K_V3_REVIEW_*` | **RECOVERABLE_WITH_ADAPTATION** | ADAPTAR solo la idea «comprobador de modo/propietario + estado fuera de la release» derivada de la autoridad única; descartar spec propio, manifiesto v2 y smoke |
+| C2 Centro de Estado `/admin/ops` | H-28, H-31, H-09 (observación) | `origin/feat/admin-operations-dashboard` (sin PR) | `5742af9`/`7adad70` (2026-08-08/09) | 64 días | no textual, sí **estructural** (nació antes del chasis #166 y del censo fail-closed #184) | 59 | parcial | **no**: lee `auth.db`/`jobs.db` con `sqlite3` directo (`collector.py:569-588`) = segunda autoridad | PARTIAL / EXPERIMENT | NO USAR tal cual; los 59 tests sirven como especificación de umbrales |
+| C3 destino de la referencia `docs/15-jobs-worker-panel.md` | H-34 | **en main** (`docs/archivados/15-…`) | `1553665` | — | — | — | — | sí | RECOVERABLE (trivial) | TERMINAR (ojo: el doc describe el layout legacy roto de H-02) |
+| C4 `docs/59-PANEL_RPG_MANAGEMENT_DESIGN.md` (706 líneas, «no hay una sola línea implementada») | H-09, H-07 (vocabulario) | `docs/panel-rpg-management-design` (sin PR) | `101cf6d` (2026-08-08) | 64 días | no | ninguno | — | declara reutilizar el registro de 13 dimensiones | EXPERIMENT (diseño) | LEER como insumo de P8/P9 |
+| C5 `feat/multipartida-m5a-viewer` | H-03 | local, sin push; variante de #143 | `f6a4f18` | 66 días | todo | suite adversarial | sí | **es el ORIGEN del defecto** (introduce `partida_only()`) | INVALID / SUPERSEDED | NO USAR |
+| C6 `worktree-agent-a094729eeeb23213c` (teardown de la suite) | H-26 colateral | local, locked | `e1f2a08`…`f5096fb` (2026-10-08) | 2 días | sí | sí | — | sí | **SUPERSEDED** (absorbido por #264 `b4da16a`: el docstring y `get_provider.cache_clear()` están en `origin/main:viewer/tests/conftest.py:201-225`; two-dot 28+/833−: main va por delante) | NO USAR; worktree desbloqueable |
+| C7 PR #267 `feat/pr4-instalacion-completa-tras-bootstrap` | H-01 parcial (verifica, no instala), H-06 (solo comprueba 0600 del fichero de credenciales del preflight, **no** `auth.db`), H-35 | origin, **OPEN**, 34/34 | `e683274` (6 commits) | 0 detrás | no (6 ficheros) | 28 + calibrador `mutaciones_pr4` (usa `localizadores`, sin `.replace(…,1)`) | sí | sí | **RECOVERABLE (en flujo)** | RECUPERAR vía su propio merge; no resuelve `EMPTY_STATE` ni `--mode fresh` |
+| C8 `origin/audit/data-contract-health-v1` (comprobador read-only de coherencia del grafo) | H-18 vecino | sin PR; Carril J cerrado por otra rama (#168) | `b4a3477` | 62 días | `scripts/data_health/` no existe en main | 11 | sí (controles positivos reales por `deepcopy`) | anterior a M5b-C/F-2 | EXPERIMENT / RECOVERABLE_WITH_ADAPTATION | única garantía ausente en main (integridad referencial del grafo); exige adaptación |
+| C9 `docs/sync-project-state-2026-08` | H-12 | local, sin push | `bf03ca7` | 61 días | sí (todo) | no | — | — | OBSOLETE | NO USAR |
+| C10 `revision-corte5*` | H-02 (falso positivo textual) | local | `8ba12ff`, `4a69c00` | 23 días | todo | — | — | — | SUPERSEDED por #243 | NO USAR |
+| C11 tags `rescate/2026-08-13-*` (8) | ninguno | tags | varios | 58 días | — | — | — | — | OBSOLETE (4 con `cherry` 0; 4 corresponden a #163/#170/#164/#172 squasheados) | NO USAR |
+| C12 PR #149, PR #146 | H-07 contexto | origin, OPEN | — | 64–65 días | docs | no | — | diseño anterior a M1 jerárquico | EXPERIMENT | NO USAR como solución (cerrar #149; rescatar de #146 solo lo que 51/54/58 no tengan) |
+
+**Tests, calibradores y E2E fuera de main** (694 refs analizadas con `git diff origin/main...<ref>`
+sobre rutas de test; 277 con diferencias, casi todas copias ya fusionadas por squash): solo **9
+ficheros de test en 6 ramas** no existen en main. Relevantes: `test_preflight_setup_admin.py`
+(PR #267, RECOVERABLE en flujo); `test_ops_dashboard.py` (59, SUPERSEDED por `health/`);
+`test_review_console_v2.py` (33; su ítem «workspace ajeno» es la **única** cobertura de aislamiento
+por workspace en una superficie de revisión hallada en cualquier ref, pero sobre rutas que no
+existen y **no** cubre `POST /v3/review/decide`); `test_route_contract_map.py` (SUPERSEDED por el
+censo AST, salvo dos reglas: «ruta sin test que la nombre» y «plantilla huérfana»);
+`test_data_health_gate.py` (C8); `test_release_readiness.py` (C1); tests `legacy/*` de validadores
+de referencia (OBSOLETE). **Garantías buscadas en todas las refs y ausentes en todas**: negativo de
+H-03 (`allows_workspace` en tests de `decide`), test de `worker.py --loop`, test de permisos de
+`auth.db`, Playwright sobre `/panel/*`. **Hay que escribirlas, no rescatarlas.**
+
+**Multimodal fuera de main**: 131 ficheros históricos con nombres OCR/whisper/media/…; **124 existen
+en main**; los 7 ausentes son documentos archivados o renombrados. **0 código, 0 tests y 0 fixtures
+multimodales solo fuera de main; 0 ficheros reales de audio/vídeo/imagen en todo el historial** (los
+dos binarios son sintéticos). La tabla §17 de la ronda 1 sigue siendo la frontera real.
+
+## R2.5 Candidatos recuperables
+
+Solo tres merecen acción, y ninguno es «ya estaba hecho» según el criterio de la sección 29 del
+encargo (problema → implementación → autoridad → test → negativo → comportamiento, aplicado sobre
+main y resolviendo):
+
+1. **PR #267** (C7): RECUPERAR por su propio merge. Cierra la **medición** de FIRST_ADMIN con
+   calibrador correcto; no cierra H-01 ni H-06.
+2. **`preflight_ensayo_rc.py` ya en main** (H-04): RECUPERAR como paso de `deploy.sh` + añadir
+   `S9K_V3_REVIEW_*` a `CRITICAL_ENV_VARS` y a `deploy/config/viewer.env.example`. Es la vía más
+   barata para cerrar H-04/H-18 y ya tiene tests.
+3. **Idea de C1** (comprobador de modo/propietario y «estado fuera de la release = ERROR»):
+   ADAPTAR derivándola de la autoridad única; **no** recuperar `spec.py`, manifiesto ni smoke.
+
+**Prueba de recuperabilidad ejecutada (sección 8 del encargo)** sobre C1, el único candidato con
+código: clon desechable `--no-hardlinks` a `0cf977c` + `git diff origin/main...ops/v3-release-readiness`:
+
+| Paso | Resultado |
+|---|---|
+| `git apply --check` | **rc=1**: conflictos en `deploy/scripts/lib.sh:438` y `pytest.ini:3` |
+| `git apply --3way` | 9 ficheros nuevos aplicados; `lib.sh` y `pytest.ini` en conflicto |
+| Resolución mecánica | descartar el cambio de `lib.sh` (main lo hizo de otra forma en #165), añadir solo el marcador `slow` |
+| `pytest deploy/tests/test_release_readiness.py` | **rc=1 · 35 passed, 2 failed**: `test_manifiesto_declara_auth_db_en_v3` (el manifiesto declara esquema v3; main está en v4) y `test_la_smoke_suite_pasa_entera` (`job_store=UNKNOWN` → veredicto UNKNOWN exit 1, correcto por construcción) |
+| Clasificación | **PATCH_NEEDS_ADAPTATION** |
+
+No se probaron C2/C8 (NO USAR / adaptación fuerte) ni los rango 1 (sin candidatos). Para H-01, H-02,
+H-03, H-05, H-06, H-07, H-09, H-14, H-19 **no existe parche que probar**: requieren diseño o código
+nuevo y así se declara.
+
+## R2.6 Trabajo parcial / superseded / inválido
+
+Ver C2, C4, C5, C6, C8–C12 en R2.4. Añadir: 22 ramas locales con PR MERGED por squash (contenido en
+main; historia local huérfana); 19 ramas `rev-*`/`revision-*`/`pr238-rev*`/`review/*`/`o4rev*`/
+`mut-*` que son puntas de revisores; `feat/6b2-editar-nombres-web` **SUPERSEDED por #258**
+(`cbc5411`): su commit «reordena la ruta de label al final» no es necesario en main, donde
+`admin.py` ya tiene 13 rutas con `label` en l.733 y `label-partida` en l.843 (orden distinto, sin
+ensombrecimiento).
+
+## R2.7 Worktrees, ramas y stashes relevantes (remedidos)
+
+| Métrica | R1 | R2 (verificado) |
+|---|---|---|
+| Worktrees (`--porcelain`, líneas `worktree `) | 147 | **147** · 20 locked · 54 detached · 0 prunables · 0 con ruta inexistente |
+| Ramas locales | 435 | **435** (123 en origin; 312 solo locales) |
+| Ramas remotas | 149 | **150** + HEAD; **61** no mergeadas en `origin/main` (≥17 son ramas de PR ya squasheados) |
+| Ramas locales con commits en NINGUNA ref remota | 45 | **45** (22 PR MERGED por squash · 19 revisiones/scratch · 4 con trabajo genuino, clasificados en R2.4: C6 SUPERSEDED, 6b2 SUPERSEDED, C5 INVALID, C9 OBSOLETE) |
+| Stashes | 3 | **3**, intactos: `5dfb01a` (2026-08-13, «contenido ajeno hallado en el worktree antes de medir», 60 ficheros −8374: volcado de un revisor), `041728b` (2026-08-08, 10 líneas de `v3_review.py` sobre review-console-v2), `343ba3b` (2026-07-15, 26 líneas en `job_store.py` del burst) |
+| Commits huérfanos (`fsck --unreachable`) | — | **0** |
+| Tags `rescate/*` | 8 | 8, OBSOLETE (R2.4 C11) |
+
+**Worktrees con cambios sin commit (DIRTY_UNCOMMITTED)**, todos sobre bases antiguas (`84f9cc7`,
+`5f12693`, `8ee7e27`); ninguno contiene una solución a un H-XX, pero son trabajo que se perdería al
+borrar el worktree:
+
+| Worktree | Base | Contenido sin commit | Juicio |
+|---|---|---|---|
+| `agent-a2d4046668baff4d9` | `84f9cc7` | 11 plantillas/CSS/JS modificados + `system.css`, `_identidad.html`, `contrast_audit.py` | pasada de **diseño visual/contraste** nunca publicada; RECOVERABLE_WITH_ADAPTATION si se quiere (no toca autoridades) |
+| `agent-a3bfe8ac730956191` | `84f9cc7` | `ingest_cli.py`, `ingest_report.py`, test y `docs/v3/53` **untracked** + `contracts/base.py` modificado | borrador de lo que ya entró en main por otra vía; SUPERSEDED |
+| `agent-a2dd137e36fc0ca0e` | `84f9cc7` | `deploy/propuestas/bkp4-banco/` + `test_bkp4_banco_calibracion.py` | banco BKP-4 no publicado; EXPERIMENT (ligado a docs/71) |
+| `agent-a2a30322802b23007` | `5f12693` | `prototipo-carril-f/` | prototipo; EXPERIMENT |
+| `agent-a0080616a55e68358` | `5f12693` | 5 `.audit-b-*.tsv` | datos de una auditoría anterior |
+| `agent-a19f011d6fbc28b15` | `8ee7e27` | 2 JSON de medición (inventario de configuración, procedencia documental) | datos |
+| `agent-a44efb4fa8081312e`, `agent-a9c9c6ff4cb92f31a` | — | `artifacts/carril-h/`, `artifacts/auditoria-zero-terminal/` | artefactos de carriles; UNKNOWN si duplican lo versionado |
+| `agent-af4575e3a42f92c07` | — | `data-engine/requirements.in` modificado + `astscan.py` | borrador de mantenimiento de deps (H-24) |
+| `perf-viewer-scale-v2` (`perf/viewer-scale-baseline-v2`) | 1 ahead | **índice con borrados staged** de `calibra_gate_integrity.py`, `benchmarks/perf/*`, docs/64 y 67, y copias untracked | estado inconsistente de un carril ya mergeado (#170); DIRTY_UNCOMMITTED peligroso si alguien hace `commit -a` ahí |
+
+Checkouts secundarios (`/home/ia02/s9-knowledge` con `origin/main` en `d50c931` de julio;
+`/home/ia02/s9-knowledge-jobs` sin `origin/main`; `s9k-pr22/23/review-fix/safe-writer` con 1–4
+commits de julio no publicados): sin cambios respecto a R1; no sirven para medir sin fetch.
+
+## R2.8 PRs cerrados/no mergeados relevantes
+
+De 267 PRs: 10 OPEN, ~24 CLOSED sin merge (resto MERGED). Los cerrados sin merge se agrupan en:
+(a) **sustituidos explícitamente** por una versión limpia (#16→#19, #18→#20, #162→reconstruido,
+#50/#155/#189 Dependabot superseded), (b) **duplicados de algo ya en main** (#7 de #5, #17 por
+`e73ef33`, #97 P0 ya en main), (c) **experimentos DO NOT MERGE con veredicto ejecutado** (#98–#102
+PR#95 V1–V4, #261 mutante conocido), (d) **informes caducados** (#4, #8). Ninguno contiene una
+solución pendiente a un H-XX; #53 (neo4j 6.x, cerrado 2026-07-26 por incompatibilidad de major con el
+servidor) es el precedente directo que **#209 reabre sin nueva decisión** (H-24).
+
+## R2.9 Arqueología de decisiones
+
+| DECISION-ID | Problema | Opciones | Elegida (descartadas) | Motivo entonces | Evidencia | Código | ¿Vigente el motivo? | ¿Cambió el contexto? | ¿Código recuperable? | ¿Reabrir? |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **D-F2** autoridad de workspace | entorno y perfil discrepaban | A perfil manda/entorno fallback · B modelo plural · C entorno manda | **A** (B: «cabe en el singleton») | una autoridad, divergencia visible fail-closed | #244, 5 rondas | `authz/autoridad_workspace.py:300-447` | sí | no | no | **no**, pero `v3_apply.py:822/1105` siguen leyendo `os.environ` (P6) |
+| **D-LORE / D-PARTIDA-ONLY** | ¿auth off ⇒ acceso?; ¿qué compara la revisión V3? | permisivo vs denegado; comparar workspace vs «etiqueta de corpus» | **denegado** + `partida_only()` | «auth desactivada ≠ acceso total»; «`workspace` es etiqueta del corpus» | `docs/81:8-20`, `scope.py:78-82`, `f6a4f18` (M5a, 2026-08-06) | `services/v3_review.py:785-793` | la mitad (lore anónimo) sí; la renuncia al workspace **no está justificada** frente a revisores autenticados con concesiones distintas | sí: F-2 hizo canónico el workspace del perfil | no | **sí** (H-03) |
+| **D3** Secure estático | HTTP + Secure → bucle 403 | degradar por `request.scheme` vs estático + HTTPS obligatorio | **estático** | no degradar seguridad | #266 M3, #267 M5 | `auth/config.py:57`; sin lectura de scheme | sí | sí: ahora existe preflight HTTPS | no | no; pero el **mensaje** de la pantalla (Safari) y el `.env.example` deben alinearse (H-44) |
+| **D-MOCK** | ausencia caía en mock silencioso | mantener · vacío honesto · DEMO explícito | **vacío honesto + mock solo explícito** | falsa confirmación | #264 | `providers/__init__.py:64-67` | sí en código | **`viewer/.env.example:3` sigue en `mock`** | — | **sí**: alinear plantilla (H-44) |
+| **D-RC** review-console | consola v1 montada siempre | conectar al motor · retirar · apagar | **apagada por bandera, no desmontada** («decisión del operador») | — | `docs/v3/25:208-235` | `reviews_console.py` | sí | no | — | no (deuda: E2E de `/v3/review`) |
+| **D-PANELES** apagados por defecto | paneles vacíos | encender · apagar | **apagados** («hasta que su carril los termine») | — | `viewer/.env.example:58-61` | `chassis.slot_enabled` | **no**: los carriles terminaron (docs/76-80/86) y siguen apagados | sí | — | **sí** (P9/H-09) |
+| **D-MAINCOMMIT** | yaml ponía main en rojo tras cada merge | SHA del propio merge · ancestría + verificación | **ancestría + verificación** | autorreferencia imposible | `project-status.yaml:19-63`, #218, #257 | `check_docs_consistency.py` | sí | 233 commits de desfase con gate verde | — | **sí**: el gate ya no informa (H-12) |
+| **D-CONTRATOS** congelados sin bump | nuevos campos | bump · contrato adyacente | **adyacente sin bump** (`knowledge-visibility/v1`, `ManifiestoPartida`) | no romper `v3-internal-v1` | `docs/v3/51 §5`, `v3/59:27-35`, #259 | `partida_manifest_contract.py` | sí | M0 preveía bump; ya hay dos satélites y +1 394 líneas (H-29) | — | revisar |
+| **D-M5B** NO APPLY legacy | migración sin `known_by` | aplicar · descartar | **descartado en producción** | sin `known_by` no hay semántica | `docs/54`, memoria | plan `12f7278f` | sí | V3 ya en main | — | sí al desplegar V3 |
+| **D-ADMINFULL** | tres puertas de bypass | mantener · una autoridad | **una autoridad + auth=true de fábrica** | repo público | `docs/75 §3-4`, #248 | `install_state`, `csrf_bootstrap.py` | sí | — | — | no |
+| **D-SQUASH** desde #238 | historia ruidosa | merge · squash | **squash** (0 merges desde `405e1b3`) | **no escrito en ningún doc** | `git log --merges` | — | de facto | — | — | **documentar** (explica 22 ramas «huérfanas» y el método de `_merged_prs`) |
+| **D-CSRF** | arranque abortaba sin secreto | fijar a mano · autogenerar 0600 | **autogenerar salvo explícito** | ZERO-TERMINAL | `csrf_bootstrap.py:1-30`, #248 | sí | sí | **`deploy/config/viewer.env.example:43-48` sigue diciendo «debe definirse en el host»** y `validate_deploy.sh` lo exige → DRIFT | — | **sí**: alinear (H-49) |
+| **D-ENVCWD** `.env` por cwd | `.env` en otro directorio | ruta absoluta · cwd | **cwd, sin caché** | mismo fichero que pydantic | `config.py:59-76` | sí | causa 3 failed F-2 (#248) y rompe `mutaciones_p0_auth.py` (#256) | — | **sí**: ruta explícita |
+
+## R2.10 Opciones aparcadas
+
+Censo (`-w`, docs sin `audits/`, código no-test): PLANNED 11/7 · DEFERRED 3/9 · FUTURE 3/0 · DRAFT 1/1
+· EXPERIMENTAL 1/0 · «fuera de alcance» 16/2 · «Fase B» 5/1 · PENDIENTE 16/13 · POSTPONED / NOT_NOW /
+NOT_FOR_V1 / PHASE_B / «aparcado»: 0 · `NotImplementedError` no-test: 14.
+
+| Ítem | Fuente | ¿Sentido? | ¿Implementada indirectamente? | ¿A medias / rama? | Clase | Veredicto |
+|---|---|---|---|---|---|---|
+| Fase B multimodal (4 métodos `NotImplementedError`) | `external_ai/base.py:42-53` | sí | OCR Tesseract por otra ruta | stubs | FEATURE FUTURA | seguir aparcada hasta USABLE-V1 |
+| Burst B2/B3, RERANK | `external_processing/*` | dudoso | no | stub | EXPERIMENTO | aparcada |
+| `ingest_code.py`, `import_graphify.py` | docstrings | no | no | — | TRABAJO ABANDONADO | retirar |
+| Motor relaciones v2 (`relations/`, ~18,5 k líneas) | docs/MOTOR_RELACIONES | no (0.81→0.24) | no | — | TRABAJO ABANDONADO | archivar |
+| Ensayo RC N1–N12 | `deploy/README.md:157-196`, docs/91, #267 N8–N12 | **bloqueante** | no | guion sí, ejecución no | DEUDA | ejecutar (VM110/111 apagadas: autorización del operador) |
+| TOCTOU/D4 en labels 6B-2 | #258/#259 | sí | no | declarada | DEUDA | aceptar documentada |
+| `include_decided` en `/v3/review` | #241 | sí | existe, no expuesta | a medias | DISEÑO INCOMPLETO | corte pequeño |
+| Autoridad dual CLI/web en altas | #240, docs/92 | sí | no | — | DEUDA | corte |
+| `get_default_workspace` en `entities.py` | #254 | sí | no | a medias | BUG latente | corte |
+| 500 sin proveedor en pantallas de datos | #264 | sí | no | — | BUG | corte (P3) |
+| Sesión de revelación en el alta | `docs/90 §9` | sí | no | — | DISEÑO INCOMPLETO | H-07 |
+| Lote 4/5, encargos D–H, contexto episódico | ROADMAP | sí | no | — | FEATURE FUTURA | aparcadas |
+| `USO FUTURO` en `auth/identity.py:6` | código | ? | — | — | DISEÑO INCOMPLETO | revisar |
+| Reducción de revisión humana | yaml blockers | circular | no | — | EXPERIMENTO | aparcada |
+| `docs/50-deploy-state-continuity.md` | `viewer.env.example:41` | — | **no existe** | — | DEUDA documental | corregir (H-53) |
+| Centro de Estado `/admin/ops`, diseño `docs/59`, release kit `deploy/release/*`, data-health | ramas sin PR (R2.4) | parcial | sustituidos o nunca integrados | ramas | EXPERIMENTO / SUPERSEDED | leer como insumo; no recuperar tal cual |
+
+## R2.11 Seguimiento del plan USABLE-V1
+
+**El plan P0–P17 no está escrito en ningún artefacto del repositorio.** `USABLE-V1` aparece 45 veces,
+todas en código/tests/CI/docs de PR-1..PR-3; `ZERO-TERMINAL` **0 veces**. La única formulación
+completa vive fuera del repo (el encargo del operador). Los cuerpos de PR referencian el plan por
+partes («PR-3 del programa USABLE-V1 · primer corte del Bloque 2», «USABLE-V1-E2E-REVIEW») con
+numeraciones **PR-N / S-N / Corte-N / 6A-6B / F-2** que no se corresponden con P0–P17. La matriz
+siguiente es, por tanto, **reconstruida** (PR-1≈P2, PR-2≈P3, PR-3≈P4, PR-4≈P5).
+
+| Hito | Objetivo | Main (PR, SHA) | Fuera de main | Test | Calibrador | CI | E2E | Doc | Estado | Falta / DRIFT |
+|---|---|---|---|---|---|---|---|---|---|---|
+| P0 nombres humanos | workspace y partida editables por web | #255 `928b893`, #258 `cbc5411`, #259 `4b08a15` | — | sí | 4/4, 10/10, 10/10 | ✅ | no | solo PR | **DONE** | TOCTOU declarada; la identidad de partida sigue siendo la carpeta |
+| P1 sanear calibradores | que muerdan y CI los exija | #260 `21f0ef8` | — | sí | 92 mutaciones | ✅ | n/a | PR | **PARTIAL** | 9 calibradores fuera de CI, F-2 e instalación de fábrica incluidos (H-48) |
+| P2 retirar /review-console | fuera de instalaciones normales | #263 `b6852ce` | — | sí | 3/3 | ✅ | solo la consola lab | v3/25, 76 | **DONE** | ruta sigue montada (decisión D-RC) |
+| P3 sin mock como conocimiento | vacío honesto; mock solo DEMO | #264 `b4da16a` | — | 28 | 7/7 | ✅ | no | viewer/README | **PARTIAL** | `viewer/.env.example:3 = mock` (H-44); DEMO no en API y cubre datos reales (H-45); 500 preexistente |
+| P4 HTTPS sin degradar Secure | instalación verifica su vía | #266 `0cf977c` | — | 28 TLS | 8/8 | ✅ | **RC-E2E PENDING** | deploy/README | **DONE código / E2E PENDING** | bash/Ansible sin mutación |
+| P5 bootstrap primer admin verificado | admin se crea, entra y persiste | #247 `a58e137`, #248 `bcd9e59` | **#267 OPEN** (+2 416 líneas) | 19 + 28 | #248 **no en CI**; PR-4 10/10 | PR-4 verde | PENDING | docs/75 §4 | **IN_PROGRESS** | con `.env.example` literal el setup es imposible por HTTP (H-44) |
+| P6 escritores por autoridad efectiva | sin `os.environ` paralelo | #249, #252, #264 parciales (lado visor) | — | — | — | — | — | — | **NOT_STARTED** | `v3_apply.py:822/1105`, `gate.py:100`, `driver_neo4j.py:73`, `ingest_cli.py:426` leen `os.environ` (H-50) |
+| P7 configuración persistente como fuente | environment > .env > persisted > default | — | — | — | — | — | — | — | **NOT_STARTED** | precursor: `effective_env_value` |
+| P8 web de configuración efectiva | ver qué está en vigor | — | C2 (`/admin/ops`, EXPERIMENT) | — | — | — | — | — | **NOT_STARTED** | `/api/status` publica provider; 0 rutas `config|settings` |
+| P9 control web de paneles | encender/apagar por web | #249 `f762cf6` (por `.env`) | — | sí | sí | ✅ | — | `.env.example` | **NOT_STARTED** (REPLACED por `.env`) | D-PANELES caducada |
+| P10 configuración web de providers | — | — | — | — | — | — | — | — | **NOT_STARTED** | — |
+| P11 continuidad del primer arranque | estado persistente | #248 parcial (CSRF 0600 junto a `auth.db`) | — | sí | no en CI | — | — | `docs/50` **inexistente** | **PARTIAL** | estado en `viewer/state/` por defecto (H-13) |
+| P12 profile por package validado | admin no diseña ontología | — | — | — | — | — | — | — | **NOT_STARTED** | `sources_catalog.py:93-101` carga por ruta de fichero |
+| P13 navegación huérfanas | sin callejones | #239 `15092ff`, #250 `9110b67` | — | sí | sí | ✅ | no | PR | **PARTIAL** | `/panel/resultado` sin entrada y apagado; `/admin/health`, `/quality` huérfanas |
+| P14 guardas/higiene | — | #242 `a7d3cab`, #254 `5f12693`, #256 `8ee7e27` | — | sí | sí | ✅ | `curl -L` | — | **PARTIAL** | H-05, H-13, H-31 abiertos |
+| P15 E2E ZERO-TERMINAL real | recorrido completo sin terminal | guion `deploy/README.md:157` | — | — | — | — | **PENDING** | sí | **NOT_STARTED** | VM110/111 apagadas; 0 ejecuciones |
+| P16 cerrar garantías congeladas | — | — | — | — | — | — | — | — | **UNKNOWN** (no definido en ningún texto) | — |
+| P17 documentación final | README/guías | #257 (solo yaml) | C9 OBSOLETE | — | — | — | — | — | **NOT_STARTED** | H-12, H-47 |
+| Fase B multimodal | — | — | 0 fuera de main | — | — | — | — | v3/02 | **NOT_STARTED (DISEÑADO)** | README promete multimodal |
+
+**Cuenta**: DONE 3 · PARTIAL 6 · IN_PROGRESS 1 · NOT_STARTED 7 · UNKNOWN 1. **E2E real ejecutado: 0/17.**
+
+**PR #238–#267 (30)**: 28 MERGED, #261 CLOSED a propósito, #267 OPEN; todos por squash. **16 PR
+tocan hitos** del plan (239, 242, 247, 248, 249, 250, 252, 253, 254, 255, 258, 259, 260, 263, 264,
+266; 17 con #267) frente a **13 laterales** (238, 240, 241, 243, 244, 245, 246, 251, 256, 257,
+261, 262, 265: Slice 2/veracidad, seguridad de dependencias, EXP-1, estado documental). Cronología:
+#238–#246 (19–23 sep) saneamiento de Slice 2 con solo dos sobre hitos; desde #247 (24 sep) el
+trabajo gira al camino de instalación. Deuda que cada PR declara: «RC-E2E PENDING» (#266, #267),
+«no medido contra infra real» (#239, #244), «3 failed F-2 por cwd» (#248), «500 preexistente» (#264).
+
+## R2.12 Drift respecto al plan
+
+1. **Patrón metodológico**: cada PR cierra «en la capa usable desde el producto» con calibración
+   densa (job de CI de ~77 min) y traslada la verificación real a un PENDING que nadie ejecuta. La
+   distancia a USABLE-V1 **sí se reduce** desde #247, pero **no se cierra**: 0/17 hitos con E2E.
+2. **Bloque de configuración por web (P6–P10, P12) sin diseño escrito ni código**: son los hitos
+   que definen ZERO-TERMINAL.
+3. **Tres contradicciones documentales abiertas dentro de la propia serie**: `viewer/.env.example`
+   en `mock` tras PR-2; `deploy/config/viewer.env.example` exigiendo CSRF a mano tras #248;
+   `.env.example:60-61` «paneles vacíos» cuando los carriles terminaron.
+4. **Garantías declaradas como «exigidas» que CI no exige**: F-2 (16/16) e instalación de fábrica,
+   citadas en cinco PR como calibradas, corren solo en local (H-48).
+5. **Numeraciones incoherentes** (PR-N, S-N, Corte-N, 6A/6B, F-2, P-N) sin tabla de correspondencia.
+
+## R2.13 Nuevos hallazgos
+
+| ID | Rango | Título | Área | Evidencia | Reproducción | Impacto | Autoridad afectada | ¿Documentado? | Recomendación | Bloquea USABLE-V1 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **H-43** | **2** | `deploy.sh` bloquea también el **upgrade** cuando `jobs.db` está ausente o vacía | deploy | `detect_state._usable(jobs)` exige `jobs>0` (`detect_state.py:50-51`) y `global_state = max(severidad)` (`:109`); `deploy.sh:206` usa `GLOBAL_STATE` e ignora `decision`; contradice el comentario `detect_state.py:83-85` («jobs puede estar legítimamente vacía… EMPTY no bloquea») | `h01_variante_jobs.py`: auth usable + jobs.db ausente → `global=EMPTY_STATE decision=PROCEED` → `deploy.sh:206` DIE; con 1 job → `NEW_STATE`, sigue | un host sano que nunca encoló un job o purgó la cola **no puede actualizarse** | `deploy.sh` (dos autoridades: `decision` vs `global_state`) | NO (ningún test ejecuta el paso 4 de `deploy.sh`) | IMPLEMENTAR: usar `decision` o excluir `jobs` de la severidad global; test del paso 4 | sí (variante de H-01) |
+| **H-44** | **2** | Con la plantilla literal `viewer/.env.example` el primer administrador **no puede crearse por HTTP** (403 CSRF por cookie `Secure`), y la misma plantilla arranca en `mock` | instalación / P3-P4-P5 | `.env.example:33 S9K_SESSION_SECURE=true`, `:3 S9K_GRAPH_PROVIDER=mock`; `setup.py:76`; mensaje «Recarga la pagina» sin causa | recorrido (a) uvicorn real: `POST /setup/admin` → **403** HTML; `Set-Cookie: _s9k_setup_csrf=…; Secure` | 0/9 pasos alcanzables desde la plantilla; contradice D-MOCK (#264) y la honestidad de P3 | plantilla `viewer/.env.example` vs `deploy/config/viewer.env.example` (dos plantillas con defaults distintos) | parcial (`deploy/README.md` documenta el bucle 403; la plantilla no) | TERMINAR: alinear plantillas con #264/#248; mensaje de error que nombre la causa (HTTP sin TLS); no degradar Secure (D3) | sí |
+| **H-45** | 3 | El banner DEMO cubre **datos reales** y la API no marca `mock` | P3 veracidad | `_aviso_proveedor.html:18-20` pinta DEMO en 50/50 HTML; `/panel/operations` y `/jobs` muestran el job real `pending` bajo «datos de muestra»; `/api/status`, `/api/entities`, `/api/graph` devuelven `"provider":"mock"` sin marca | recorrido (b) | falsa confirmación inversa (lo real parece demo) y API sin señal | `provider_banner` deriva de un solo proveedor pero jobs no son del proveedor | NO | TERMINAR: banner por origen de datos; marca en API | no |
+| **H-46** | 3 | `/panel/review` enlazada desde el **menú** devuelve 503 cuando el almacén de propuestas no existe | navegación / P13 | `PROPOSALS_STORE_MISSING` (HTML 503) tras encender el panel C sin que el worker haya creado el almacén; `/v3/review` y `glossary-candidates` igual | recorrido (b) paso 5 | un ítem de menú lleva a error de servidor | — | parcial (#264 cita «503 `/panel/review`») | TERMINAR: estado vacío honesto en vez de 503 | sí (navegación) |
+| **H-47** | 3 | El plan USABLE-V1 / ZERO-TERMINAL (P0–P17) **no existe en el repositorio** y las numeraciones de PR no se corresponden | documentación / gobierno | 45 apariciones de `USABLE-V1` todas en código/CI; 0 de `ZERO-TERMINAL`; PR-N vs P-N | grep | imposible seguir el programa desde el repo; H-12 agravado | — | NO | IMPLEMENTAR (P17): `docs/` con P0–P17, mapeo PR↔P, criterio de cierre por hito | sí (gobierno del programa) |
+| **H-48** | **2** | Calibradores declarados «exigidos» en cinco PR (**F-2 16/16**, instalación de fábrica #248) **no están en CI** | gates | `f2_autoridad_workspace.py` y `mutaciones_instalacion_fabrica.py` con 0 menciones en `ci.yml`; cuerpos de #260/#263/#264/#265/#266 los citan como exigidos | `comm` repo/ci | falsa confirmación de gate: una regresión en la autoridad de workspace o en la instalación de fábrica no enrojece CI | — | NO | IMPLEMENTAR: pasos required con guardia anti-cero (extiende H-11) | sí (gate) |
+| **H-49** | 3 | `deploy/config/viewer.env.example` contradice #248 (CSRF «debe definirse en el host; el código NO soporta fichero») y **no declara** `S9K_V3_REVIEW_*` | deploy / docs | `viewer.env.example:43-48`; `grep S9K_V3_REVIEW viewer.env.example` = 0; `validate_deploy.sh:45-81` exige el secreto explícito | lectura | la plantilla productiva induce H-04 y anula la autogeneración de #248 | plantilla vs código | NO | TERMINAR: alinear plantilla y `validate_deploy.sh` con la autogeneración; añadir las rutas de revisión | sí (vía H-04) |
+| **H-50** | **2** | La ruta de **apply web** lee `os.environ` directamente, no la autoridad efectiva (P6): `S9K_ALLOW_REAL_INGEST=1` escrito solo en `.env` **no habilita el apply** | configuración / autoridad | `v3_apply.py:822 entorno = os.environ`, `:1105 env=dict(os.environ)`; `gate.py:100`, `driver_neo4j.py:73`, `cli_rollback.py:633`, `ingest_cli.py:426`; pydantic no exporta a `os.environ`; 20 lecturas directas en `viewer/app`, 167 en `data-engine/app` | lectura dirigida | dos autoridades de configuración; un operador que sigue `.env.example` cree haber habilitado el apply y recibe `APPLY_FAILED` | `effective_env_value` (S-3) vs `os.environ` | NO | IMPLEMENTAR (primer corte de P6) | sí |
+| **H-51** | 4 | Worktrees con trabajo **sin commit** sobre bases antiguas, incluido un índice con borrados staged (`perf-viewer-scale-v2`) | higiene | R2.7 | `git -C <wt> status --porcelain` | pérdida silenciosa al limpiar; riesgo de `commit -a` accidental | — | NO | decisión del operador: commitear en rama de rescate o descartar explícitamente | no |
+| **H-52** | 4 | `GET /jobs/noexiste` devuelve **200** HTML «job_not_found» | UX | crawler (b) | 200 que debería ser 404 | — | NO | TERMINAR | no |
+| **H-53** | 4 | `docs/50-deploy-state-continuity.md` referenciado en `viewer.env.example:41` **no existe** | docs | grep | referencia muerta | — | NO | TERMINAR | no |
+
+## R2.14 Métricas de usabilidad R1 vs R2
+
+Protocolo R2 (reproducible): «instalación técnica terminada» = viewer en uvicorn real con copia
+byte a byte de `viewer/.env.example` + directorio de fuentes con un `.md`; objetivo material →
+ingesta → revisión → aplicar → conocimiento → evidencia → logout/login → reinicio → persistencia
+**solo por HTTP**; cada bloqueo = una intervención tipada. Dos recorridos: (a) plantilla literal;
+(b) mínimos cambios de fichero para avanzar al máximo. Sin Neo4j ni worker (son parte de la medición).
+
+| Métrica | Baseline R1 | Valor R2 | Delta | Causa del delta |
+|---|---|---|---|---|
+| Pasos alcanzables con la plantilla literal (a) | no medido (R1 arrancó con `Secure=false`) | **0/9** (403 CSRF en el setup) | n/a | **CORRECCIÓN**: R1 anotó `Secure` como ⚠️; es bloqueante total (H-44) |
+| TERMINAL post-instalación (b) | «≥5» (cota que mezclaba comandos y ediciones) | **2 reinicios + 1 comando inevitable (worker) + 1 reinicio de protocolo** | medición exacta | main no se movió; R1 no separó comandos de ediciones |
+| CONFIG_FILE_EDITS (b) | dentro de «≥5» | **6** (4 claves de `.env`: `SESSION_SECURE`, `PANEL_{B,C,F,G}`, `PANEL_RESULTADO`, `INGEST_SOURCES_DIR`; 2 JSON creados: `perfil-operador.json`, `catalogo-workspace.json`) | exacto | — |
+| Total terminal + fichero | ≥5 | **8** (9 con el worker) | +3 sobre la cota | CORRECCIÓN cota → valor |
+| INTERNAL_IDS exigidos | 5 | **4** (ruta absoluta, nombre de workspace, UUID del job, `apply_id`) + **7 claves `S9K_*`** a conocer | −1 / +7 | R1 contaba CLI y partidas; R2 solo el camino material→evidencia |
+| INTERNAL_CONCEPTS distintos en pantalla | «~14» | **41** | +27 | **CORRECCIÓN**: R1 listó ejemplos, no contó (lista completa en el informe del auditor UX R2, §5) |
+| DEAD_END | 11 ❌ en §7.1 | **6** (setup-HTTP, `SOURCE_PACKAGE_INVALID`, jobs/worker, review 503, partidas sin bóveda, resultado) | −5 | R1 marcaba ❌ también UNCONFIGURED y MISSING_LINK |
+| UNCONFIGURED_STATE sin salida web | no desglosado | **4** (material, bóveda, almacén de propuestas, job_store/ollama/rclone/neo4j) | n/a | nueva |
+| MOCK_FALSE_CONFIRMATION | «honesta (sin mock)» | con `mock` de fábrica: DEMO en 50/50 HTML; **0** marca en `/api/status`, `/api/entities`, `/api/graph`; banner **falso** sobre datos reales en `/panel/operations` y `/jobs` → **2** incidencias | n/a | R1 no usó la plantilla literal (H-44, H-45) |
+| MISSING_E2E_LINK | 1–2 (H-10) | **3** (`/panel/resultado` sin entrada; fila del job sin enlace a `/jobs/<id>`; `/jobs/<id>` sin vuelta a la ingesta) | +1 | medición |
+| Huérfanas 200 HTML | 3 | **3** (`/quality`, `/admin/health`, `/v3/review/glossary-candidates`) | 0 | main no se movió |
+| Menús distintos | «inconsistente» | **2** (15 ítems vs 5 ítems en 21 páginas) | 0 | `base.html:21` |
+| Enlaces de menú a error | no medido | **1** (`/panel/review` → 503) | n/a | nueva (H-46) |
+| Errores de navegador en JSON | «solo `/reviews` HTML» | 404/401 JSON en 9 rutas; `/jobs/noexiste` → **200** HTML | 0 (+1) | H-52 |
+| Datos escritos en el árbol de código (plantilla literal) | no medido | 4 ficheros (`viewer/state/auth.db`, `.csrf_secret`, `viewer/output/reviews-v3/review.sqlite3`, `data-engine/state/jobs.db`) | n/a | `S9K_AUTH_DB_PATH=` en blanco en `.env.example:25` → default dentro del repo (H-13 reformulado) |
+
+Hasta dónde se llegó por web en (b): material listado ✅ · ingesta solicitada ✅ (tras 6 ediciones)
+· progreso ❌ (`pending` indefinido) · revisión ❌ (503) · aplicar ❌ · conocimiento = datos demo ·
+evidencia ❌ · logout/login ✅ · reinicio/persistencia ✅. **Delta de producto = 0** (mismo `0cf977c`).
+
+## R2.15 Recomendaciones de recuperación
+
+| Acción | Objeto | Decisión |
+|---|---|---|
+| RECUPERAR | PR #267 (vía su propio merge) | sí: cierra la medición de FIRST_ADMIN; no declarar instalación completa |
+| RECUPERAR | `preflight_ensayo_rc.py` (ya en main) como paso de `deploy.sh` + `S9K_V3_REVIEW_*` en `CRITICAL_ENV_VARS` y en la plantilla productiva | sí: vía más barata para H-04/H-18/H-49 |
+| RECUPERAR (trivial) | destino de la referencia de `jobs.html:13` | sí, o retirar la frase |
+| ADAPTAR | idea del comprobador de modo/propietario y «estado fuera de la release = ERROR» (C1), derivada de la autoridad única | sí; no el spec propio, ni manifiesto, ni smoke |
+| ADAPTAR | regla «workspace ajeno → 404» de `test_review_console_v2.py` como **negativo** para `/panel/review/item/{id}` y, sobre todo, para `POST /v3/review/decide` | sí (H-03) — pero es test nuevo, no rescate |
+| LEER | `docs/59` (C4) y los 59 tests de C2 como especificación | insumo para P8/P9 |
+| NO USAR | C2 tal cual, C5, C6, C8 tal cual, C9, C10, C11, `feat/6b2-editar-nombres-web`, `feat/review-console-v2-readonly`, validadores `legacy/*` | crean autoridad paralela o están superseded |
+| DECISIÓN DEL OPERADOR | 9 worktrees DIRTY_UNCOMMITTED (R2.7), 3 stashes, 45 ramas solo locales, 61 remotas no mergeadas, #149/#146/#209 | commitear en rama de rescate o descartar explícitamente; nunca desde una auditoría |
+
+## R2.16 Orden de trabajo revisado
+
+Criterios: 1 seguridad/aislamiento · 2 integridad/pérdida · 3 bloqueantes USABLE-V1 · 4 trabajo
+existente recuperable · 5 navegación/configuración · 6 garantías · 7 documentación · 8 deuda ·
+9 futuras · 10 multimodal.
+
+| # | Pendiente | Decisión | Por qué aquí |
+|---|---|---|---|
+| 1 | H-03 aislamiento por workspace en `/v3/review*` + negativo con dos reviewers | IMPLEMENTAR | seguridad; la decisión `partida_only` (2026-08-06) precede a F-2 y nunca se revisó |
+| 2 | H-05 Host → `Location` relativo o TrustedHost · H-06 `UMask`/`chmod` de `auth.db` | IMPLEMENTAR | seguridad; cortes pequeños y demostrados |
+| 3 | H-04/H-18/H-49: enganchar `preflight_ensayo_rc.py` a `deploy.sh`, `CRITICAL_ENV_VARS`, plantilla; motor fail-closed ante BD ausente | RECUPERAR + IMPLEMENTAR | integridad; la mitad ya existe |
+| 4 | H-01/H-43: FIRST_RELEASE_PATH y `deploy.sh` que respete `decision` | IMPLEMENTAR (diseño previo) | bloqueante; sin candidato |
+| 5 | H-02: `worker.py:213`, unidad systemd, venv del motor, test de `--loop`/stale/retry/cancel | IMPLEMENTAR | bloqueante; nunca existió unidad |
+| 6 | PR #267 | RECUPERAR (merge) | medición de FIRST_ADMIN con calibrador correcto |
+| 7 | H-44: alinear `viewer/.env.example` (Secure/mock) y mensaje del setup; H-48: F-2 e instalación de fábrica en CI | TERMINAR | plantilla de fábrica honesta; gates que dicen lo que hacen |
+| 8 | H-50: `v3_apply.py`/`gate.py` por `effective_env_value` (primer corte P6) | IMPLEMENTAR | autoridad única antes de P7 |
+| 9 | H-47 + H-12: documento del plan P0–P17 con mapeo PR↔P y criterio de cierre; README/ROADMAP al día | IMPLEMENTAR (P17 parcial, ahora) | gobierno: sin él no se puede medir el programa |
+| 10 | Ensayo RC N1–N12 en VM110/111 (autorización del operador) | TERMINAR | 0/17 hitos con E2E; todo lo demás es «PENDING» |
+| 11 | H-09/P8–P10: diseño de configuración por web (biblioteca, proveedor, juego, paneles) sobre `effective_env_value` + fuente persistida (P7) | IMPLEMENTAR (diseño primero; `docs/59` como insumo) | núcleo de ZERO-TERMINAL |
+| 12 | H-07 campo de sesión · H-10/H-46/H-31/H-52 navegación · H-14 rollback web · H-19 reconciliación `applying` | IMPLEMENTAR | bloqueantes de recorrido |
+| 13 | H-11/H-36 calibradores a CI y a `localizadores`; `knowledge-visibility` en testpaths; negativos Unicode/sys.path | TERMINAR | garantías |
+| 14 | H-13 defaults fuera del árbol y 4 tests con rutas fijas; H-37 un default de `jobs.db`; H-17; H-20/H-21; H-29; H-33; H-38 | IMPLEMENTAR | deuda |
+| 15 | H-24 deps; #209 decisión de driver; cerrar #149; decidir #146; H-23/H-51 higiene | decisión del operador | mantenimiento |
+| 16 | Multimodal (H-16, Fase B) | POSPONER | solo tras P15 |
+
+## R2.17 Techos / desconocidos
+
+| Ítem | Estado | Cómo cerrarlo |
+|---|---|---|
+| Estado real de VM105 (si declara `S9K_V3_REVIEW_*`, nginx y `Host`, healthcheck, backups) | UNKNOWN (sin SSH por regla de la auditoría) | lectura autorizada con acta; decide el rango definitivo de H-04 |
+| Aislamiento entre dos bóvedas reales en Neo4j | UNKNOWN | test con Neo4j efímero y dos workspaces con concesiones distintas |
+| HTTPS, Secure, permisos de servicio y unidades en máquina real | NOT MEASURED | ensayo RC (VM110/111 apagadas) |
+| Candidatos C2/C8 | no probados en clon | adaptación fuerte; no merece prueba sin decisión |
+| H-16 (procedencia multimodal) y H-32 (#149/#146) | no revalidados | — |
+| H-08, H-17, H-28 | confirmados por lectura, no por ejecución | — |
+| Contenido de los dos `.docx` | no parseado | — |
+| Artefactos de worktrees sucios (`artifacts/carril-h/`, `auditoria-zero-terminal/`) | UNKNOWN si duplican lo versionado | `diff` contra `artifacts/` de main |
+| Limitación metodológica | cinco auditores de la ronda 2 murieron por límite de sesión y fueron relanzados reutilizando artefactos parciales; sus salidas se conservan en el directorio temporal del trabajo | — |
+
+## R2.18 Veredicto actualizado
+
+| Dimensión | R1 | R2 | Cambio |
+|---|---|---|---|
+| ARQUITECTURA | VERIFICADO con DRIFT | VERIFICADO con DRIFT | sin cambio; se añade D-PARTIDA-ONLY como decisión no revisada |
+| FUNCIONALIDAD | FUNCIONAL CON LIMITACIONES | FUNCIONAL CON LIMITACIONES | H-43 amplía la rotura de `deploy.sh` al upgrade |
+| INTEGRACIÓN | PARCIAL | PARCIAL | 0/17 hitos con E2E |
+| USABILIDAD | PARCIAL | PARCIAL (medida) | 8–9 intervenciones, 41 conceptos, 6 callejones |
+| ZERO-TERMINAL | BLOQUEADO | BLOQUEADO | con la plantilla literal, 0/9 pasos (H-44) |
+| INSTALACIÓN | BLOQUEADO | BLOQUEADO | H-01 + H-43; sin candidato fuera de main |
+| SEGURIDAD | PARCIAL | PARCIAL | H-03 confinado y con origen fechado; H-05/H-06 acotados |
+| INTEGRIDAD DE DATOS | FUNCIONAL CON LIMITACIONES | FUNCIONAL CON LIMITACIONES | H-04 pasa a rango 2 condicionado con gate recuperable |
+| TESTS | VERIFICADO con techo | VERIFICADO con techo | H-13 reformulado: fugas atribuidas a 4 tests concretos |
+| CALIBRADORES | FUNCIONAL CON LIMITACIONES | FUNCIONAL CON LIMITACIONES | H-48: dos declarados «exigidos» no están en CI |
+| CI | VERIFICADO | VERIFICADO | sin cambio |
+| DOCUMENTACIÓN | PARCIAL | PARCIAL | H-47: el plan no existe en el repo; tres contradicciones dentro de la serie |
+| OPERABILIDAD | PARCIAL | PARCIAL | H-28 corregido (URL configurable) |
+| MANTENIBILIDAD | PARCIAL | PARCIAL | inventario Git verificado; 9 worktrees sucios |
+| PREPARACIÓN USABLE-V1 | BLOQUEADO | **BLOQUEADO** | nada recuperable cierra un rango 1; lo recuperable es medición y un gate ya en main |
+| PREPARACIÓN ENTREGA EXTERNA | NO IMPLEMENTADO | NO IMPLEMENTADO | — |
+
+**Respuesta a la pregunta de la ronda 2.** Lo que creemos que falta **no existe en ningún lugar del
+repositorio**: ninguno de los 42 hallazgos tiene solución olvidada; lo recuperable son el PR #267, un
+preflight que ya está en main pero `deploy.sh` no ejecuta, y la idea de un comprobador de permisos.
+El trabajo reciente va en la dirección correcta desde #247, pero produce PRs de calidad cuya
+verificación real queda siempre en PENDING, el plan que debería gobernarlos no está escrito, y los
+hitos que definen ZERO-TERMINAL (configuración por web) no han empezado. **No hay que volver a
+programar nada que ya exista; sí hay que programar lo que nunca existió: la primera release, el
+worker como servicio, el aislamiento por workspace en la revisión y la configuración por web.**
