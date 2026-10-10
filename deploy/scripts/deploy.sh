@@ -228,6 +228,11 @@ validate_viewer_secrets "${VIEWER_ENV}" || die "viewer.env: secretos inválidos 
 # en GRAPH_OBSERVATION_UNCONFIGURED y el operador lo descubre en la pantalla.
 WORKER_ENV="${S9K_WORKER_ENV:-${S9K_CONFIG_ROOT}/worker.env}"
 validate_worker_env "${WORKER_ENV}" || die "worker.env declarado pero inválido"
+# PR-3 · USABLE-V1: mitad ESTÁTICA del contrato de la vía HTTPS. En
+# `production` bloquea; en `lab` avisa. La mitad POR EFECTO va en el paso 16b,
+# cuando ya hay un servicio al que preguntar.
+validate_https_contract "${VIEWER_ENV}" "${ENVIRONMENT}" \
+    || die "contrato HTTPS no satisfecho: la instalación NO está completa"
 
 # Paso 7: validar unidad nueva (antes de instalarla)
 log "--- 7. validar unidad systemd nueva"
@@ -325,6 +330,30 @@ if [ "${verify_rc}" -ne 0 ]; then
         systemctl restart s9-knowledge-viewer.service || true
     }
     die "despliegue FALLIDO tras healthcheck (verify_rc=${verify_rc})"
+fi
+
+# Paso 16b: vía HTTPS, VERIFICADA POR EFECTO. No que la configuración esté
+# escrita: que el endpoint HTTPS declarado verifique certificado y nombre y
+# CONTESTE. Si falla, la instalación NO está completa (decisión D3) y este
+# guion NO imprime "DEPLOY completado".
+#
+# NO hay rollback aquí a propósito: la release activada es correcta --el paso
+# 14 lo verificó contra el proceso vivo-- y lo que falta es el terminador TLS,
+# que no pertenece a la release. Volver atrás no lo arreglaría y sí perdería
+# una activación válida. Lo que sí se hace es NEGARSE a llamar completa a la
+# instalación.
+log "--- 16b. vía HTTPS (por efecto)"
+set +e
+python3 "${HERE}/preflight_https.py" --env-file "${VIEWER_ENV}"
+https_rc=$?
+set -e
+if [ "${https_rc}" -ne 0 ]; then
+    if [ "${ENVIRONMENT}" = "lab" ]; then
+        warn "vía HTTPS no verificada (rc=${https_rc}); en laboratorio no bloquea,"
+        warn "pero una instalación productiva con esto NO está completada."
+    else
+        die "vía HTTPS no verificada (rc=${https_rc}): INSTALACIÓN NO COMPLETA. La release está activa y verificada, pero sin HTTPS no se puede crear el primer administrador."
+    fi
 fi
 
 # Retention fail-closed: activa borrado real solo tras deploy verificado

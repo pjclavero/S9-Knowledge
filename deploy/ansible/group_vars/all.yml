@@ -43,6 +43,24 @@ s9k_system_packages:
 s9k_auth_enabled: false
 
 # ---------------------------------------------------------------------------
+# Vía HTTPS (PR-3, USABLE-V1). Sin HTTPS no se puede crear el primer
+# administrador: la cookie CSRF de /setup/admin sale `Secure` y sobre HTTP
+# plano el POST entra en bucle de 403. Ver deploy/README.md §Vía HTTPS.
+#
+# Vacío a propósito: el rol `tls` no inventa un nombre público. Declararlo en
+# inventory.ini junto con el certificado.
+# ---------------------------------------------------------------------------
+s9k_public_host: ""
+s9k_tls_provision: false
+s9k_tls_cert_file: ""
+s9k_tls_key_file: ""
+s9k_tls_ca_file: ""
+# s9k_environment: SIN DEFAULT A PROPOSITO (observacion O1 del PR #266).
+# Declararlo explicitamente en inventory.ini como `lab` o `production`; el
+# rol `tls` lo exige con un `assert` y falla si falta o si no es uno de esos
+# dos valores (fail-closed, igual que `deploy.sh --environment`).
+
+# ---------------------------------------------------------------------------
 # Healthchecks (timer deshabilitado por defecto hasta validación en lab)
 # ---------------------------------------------------------------------------
 s9k_healthcheck_timer_enabled: false

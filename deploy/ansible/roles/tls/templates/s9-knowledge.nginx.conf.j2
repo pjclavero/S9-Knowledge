@@ -1,0 +1,50 @@
+{#
+  Vhost de la via HTTPS soportada: nginx termina TLS y pasa al visor, que
+  escucha en loopback. NO hay un server block que sirva la aplicacion por HTTP
+  plano: el 80 solo redirige. Eso es deliberado -decision D3-: si HTTP plano
+  sirviera la aplicacion, alguien llegaria a /setup/admin por ahi y volveria a
+  encontrarse el bucle de 403 de la cookie Secure.
+
+  NO VERIFICADO EN UNA MAQUINA REAL en este PR. CI comprueba la sintaxis del
+  playbook, no el comportamiento de nginx.
+#}
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ s9k_public_host }};
+
+    # Unico proposito: llevar a HTTPS. Nada de la aplicacion se sirve aqui.
+    return 308 https://$host$request_uri;
+}
+
+server {
+    listen {{ s9k_tls_port }} ssl;
+    listen [::]:{{ s9k_tls_port }} ssl;
+    http2 on;
+    server_name {{ s9k_public_host }};
+
+    ssl_certificate     {{ s9k_tls_cert_file }};
+    ssl_certificate_key {{ s9k_tls_key_file }};
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache   shared:S9K:10m;
+    ssl_session_timeout 1d;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+
+    client_max_body_size 512m;
+
+    location / {
+        proxy_pass http://127.0.0.1:{{ s9k_viewer_port }};
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        # El visor NO confia en estas cabeceras por defecto
+        # (S9K_AUTH_TRUST_PROXY_HEADERS=false). Se envian para que el operador
+        # pueda activarlo cuando TODO el acceso pase por aqui; activarlo sin
+        # esa condicion es lo que convierte una cabecera en una suplantacion.
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_read_timeout 120s;
+    }
+}

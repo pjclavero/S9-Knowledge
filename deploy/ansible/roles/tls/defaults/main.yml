@@ -1,0 +1,48 @@
+---
+# Rol `tls` — PR-3 (USABLE-V1). Detectar y REUTILIZAR TLS/reverse proxy ya
+# existente, o PROVISIONAR la via HTTPS soportada, y VERIFICAR POR EFECTO.
+#
+# Nada de esto se ha ejercido contra una maquina real: VM110/VM111 estan
+# apagadas y no se encienden en este PR. Lo que CI comprueba es yamllint y
+# `ansible-playbook --syntax-check`. El ensayo real es el guion RC de
+# deploy/README.md, PENDIENTE.
+
+# Nombre publico por el que se alcanza la instalacion. VACIO a proposito: el
+# rol no inventa un nombre, y sin el no provisiona nada.
+s9k_public_host: ""
+
+# URL publica completa. Se deriva del nombre si no se declara.
+s9k_public_base_url: "{{ 'https://' ~ s9k_public_host if s9k_public_host else '' }}"
+
+# Puerto del terminador TLS.
+s9k_tls_port: 443
+
+# PROVISIONAR. False por defecto: un rol que instala y reconfigura nginx en un
+# host que ya sirve otras cosas no debe activarse por el mero hecho de correr
+# el playbook. Se enciende explicitamente en inventory.ini.
+s9k_tls_provision: false
+
+# Certificado y clave. El rol NO genera certificados: un autofirmado creado en
+# silencio por el instalador es exactamente la "via HTTPS" que se ve verde y
+# no vale para nada. Si se provisiona, estas rutas son obligatorias.
+s9k_tls_cert_file: ""
+s9k_tls_key_file: ""
+
+# Almacen de confianza DECLARADO para la verificacion (vacio = el del
+# sistema). Una CA propia o un autofirmado se aceptan declarandolos aqui.
+s9k_tls_ca_file: ""
+
+# Ambiente. SIN DEFAULT A PROPOSITO (observacion O1 del PR #266): la mitad
+# bash (`deploy.sh`) exige `--environment` y lo valida con
+# `case ... lab|production) ;; *) die`; un default aqui, en cambio, habia
+# dejado la mitad Ansible fallando ABIERTA (un inventario que omitiera la
+# variable solo recibia un aviso de depuracion). Igual que `deploy.sh`, este
+# rol EXIGE que se declare -ver el `assert` al principio de `tasks/main.yml`-
+# y falla si no esta en {lab, production}. En `production` (o en cualquier
+# valor que no sea exactamente `lab`) el fallo de la verificacion POR EFECTO
+# hace fallar el playbook: instalacion NO completa. Solo en `lab` se reporta
+# sin bloquear, porque ahi el opt-out explicito (S9K_SESSION_SECURE=false) es
+# una decision declarada y no un accidente.
+
+# Verificar por efecto al final del rol.
+s9k_tls_verify: true

@@ -33,5 +33,10 @@
       tags: [auth]
     - role: systemd
       tags: [systemd]
+    # PR-3 (USABLE-V1): la via HTTPS. Va DESPUES de `systemd` porque la
+    # verificacion por efecto necesita que el visor este arrancado para que el
+    # terminador tenga backend al que preguntar.
+    - role: tls
+      tags: [tls]
     - role: healthchecks
       tags: [healthchecks]

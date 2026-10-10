@@ -7,7 +7,7 @@ dry-runs y ejecuta después.
 ## Despliegue genérico con Ansible
 
 `ansible/inventory.example`, `site.yml` y los roles
-`common/data_engine/viewer/auth/systemd/healthchecks` no dependen del nombre de
+`common/data_engine/viewer/auth/systemd/tls/healthchecks` no dependen del nombre de
 VM105. El inventario de ejemplo usa `192.0.2.10` (RFC 5737, no una IP real)
 como *default* ilustrativo, usuario `root` y las rutas de esa máquina, pero host, usuario,
 grupo, rutas, repositorio y rama se cambian exclusivamente en el inventario:
@@ -21,6 +21,179 @@ ansible-playbook -i deploy/ansible/inventory.ini deploy/ansible/site.yml
 
 `deployments/local-vm105/` se conserva como referencia histórica no ejecutada;
 no es el procedimiento vigente.
+
+## Vía HTTPS: sin ella la instalación NO está completa
+
+### ESTADO DE ESTA SECCIÓN (leer antes de seguir)
+
+```
+CODE         PASS     mecanismo implementado (preflight, gates, rol, plantillas)
+CALIBRATION  PASS     scripts/calibracion/mutaciones_pr3_instalacion_https.py
+RC-E2E       PENDING  no ejecutado: aquí no hay TLS, ni navegador, ni VMs
+```
+
+Lo que sigue describe el mecanismo en presente («detecta», «reutiliza»,
+«verifica por efecto») porque así está implementado y calibrado. **Eso no es
+lo mismo que ejercido en una máquina real**: léase todo lo de abajo con
+`RC-E2E PENDING` en mente, no al revés.
+
+### El defecto medido
+
+Con la plantilla literal, `S9K_SESSION_SECURE=true` hace que la cookie CSRF de
+`/setup/admin` salga con atributo `Secure`. Sobre `http://` ningún cliente la
+devuelve y el `POST` entra en **bucle de 403**. Medido con doble control
+positivo: reinyectando la cookie a mano → 303 correcto; con
+`SESSION_SECURE=false` → bootstrap completo. Consecuencia: **una instalación de
+fábrica sobre HTTP plano no puede crear su primer administrador**, y la única
+salida era editar `.env` a mano — un terminal, justo en el paso que existe para
+evitarlo.
+
+### La decisión (D3) y lo que NO se hizo
+
+- `S9K_SESSION_SECURE=true` **permanece** como default seguro. No se degrada
+  automáticamente.
+- **No** se usa el esquema de la petición (`request.scheme == "http"` ni
+  equivalente) como razón para degradar la cookie, y **no** hay ningún fallback
+  a HTTP para «hacer pasar» la instalación. Resolver esto debilitando la
+  garantía se consideró y se **descartó**.
+- `S9K_SESSION_SECURE=false` queda **únicamente** como opt-out explícito de
+  laboratorio/desarrollo.
+- **TLS es responsabilidad del proceso de instalación.** Una instalación
+  productiva **no se considera completada** hasta que entrega una URL HTTPS
+  funcional.
+
+### Contrato de la vía HTTPS soportada
+
+1. La instalación **declara** su URL pública en `S9K_PUBLIC_BASE_URL`
+   (`/etc/s9-knowledge/viewer.env`). Ausencia **no** es «no aplica»: es fallo.
+2. El esquema es `https`.
+3. El certificado presentado **verifica contra un almacén de confianza
+   declarado**: el del sistema, o el de `S9K_TLS_CA_FILE`. Un autofirmado o una
+   CA propia se aceptan **declarándolos**; el **preflight en sí** (el guion
+   `deploy/scripts/preflight_https.py`) no expone ninguna bandera para
+   desactivar esa verificación — eso es lo que «nunca se desactiva».
+4. El **nombre** de la URL pública coincide con el certificado (SNI + hostname
+   check).
+5. El endpoint **responde**: `GET /api/status` sobre esa conexión TLS devuelve
+   200 (auth off) o 401 (auth on) — el mismo criterio que
+   `viewer/app/health/checks.py::check_viewer`. Un 502 es el terminador TLS sin
+   backend, y **no** cuenta. **Esto es «contesta con uno de esos códigos», no
+   «el visor está detrás»**: el cuerpo de la respuesta no se lee ni se
+   descarta por contenido, así que cualquier proceso que devuelva 200/401 en
+   esa ruta —incluido un terminador de pruebas enlatado— satisface este punto
+   igual que el visor real. El negativo N4 del guion RC (abajo) se apoya en
+   esto: lo que discrimina «terminador sin backend» no es que el 200 venga
+   del visor, es que nginx devuelva 502 cuando no hay nada detrás.
+6. **HTTP plano con cookie `Secure` es una instalación no válida.**
+7. **Fallo de HTTPS ⇒ instalación NO completa** (código de salida ≠ 0).
+
+### Quién comprueba cada mitad
+
+| Mitad | Autoridad | Qué hace |
+|---|---|---|
+| Estática | `deploy/scripts/validate_deploy.sh::validate_https_contract` | presencia de `S9K_PUBLIC_BASE_URL`, esquema, y la **coherencia** con `S9K_SESSION_SECURE`. Bloquea en `production`, avisa en `lab`. |
+| **Por efecto** | `deploy/scripts/preflight_https.py` | abre el socket TLS, verifica **cadena**, verifica **nombre**, y exige que el endpoint **conteste**. |
+
+Las dos se invocan desde `deploy.sh` (pasos 6 y **16b**) y la segunda también
+desde el rol `tls`. Una sola implementación por mitad, dos invocantes.
+
+Las causas que nombra el preflight son discriminantes, no un error genérico:
+`URL_PUBLICA_NO_DECLARADA`, `ESQUEMA_NO_HTTPS`, `COOKIE_SECURE_SOBRE_HTTP`,
+`CERTIFICADO_NO_VERIFICABLE`, `NOMBRE_NO_COINCIDE`, `ENDPOINT_NO_RESPONDE`,
+`ENDPOINT_RESPUESTA_INESPERADA`, `ALMACEN_DECLARADO_ILEGIBLE` (un `--ca-file`
+vacío, con basura, con un PEM corrupto o con una ruta inexistente; observación
+O4 del PR #266 — antes de esta causa, esos cuatro casos escapaban como
+traceback de `ssl.SSLError`/`FileNotFoundError` en vez de como un `Hallazgo`).
+
+```bash
+# Sobre un viewer.env del host:
+python3 deploy/scripts/preflight_https.py --env-file /etc/s9-knowledge/viewer.env
+# Contra una URL concreta, con CA propia declarada:
+python3 deploy/scripts/preflight_https.py --url https://knowledge.example.net \
+    --session-secure true --ca-file /etc/s9-knowledge/tls/ca.pem
+```
+
+### El rol `tls`: detectar y reutilizar, o provisionar
+
+`deploy/ansible/roles/tls` **detecta** un terminador ya escuchando en 443 y,
+si lo hay, lo **reutiliza sin tocarlo** (reescribir la configuración de otro
+para que «pase» no es instalar: es romper lo que funcionaba). Si no lo hay y
+`s9k_tls_provision=true`, **provisiona** la vía soportada: nginx terminando TLS
+delante del visor en loopback, con el `80` limitado a redirigir — si el 80
+sirviera la aplicación, alguien llegaría a `/setup/admin` por ahí y se
+encontraría otra vez el bucle de 403.
+
+El rol **no genera certificados**. `s9k_tls_cert_file` y `s9k_tls_key_file` son
+obligatorios para provisionar: un autofirmado creado en silencio por el
+instalador produce una vía HTTPS que se ve verde y que ningún cliente acepta.
+
+Al final, el rol **verifica por efecto** con el mismo preflight, invocándolo
+sólo cuando `s9k_tls_verify: true` (default de fábrica). Esta variable es un
+**interruptor maestro de la invocación desde Ansible**, distinto de lo que
+dice el párrafo anterior: con `s9k_tls_verify: false` las dos tareas de
+verificación (la que falla en `production`/cualquier ámbito distinto de
+`lab`, y la que sólo avisa en `lab`) **no se ejecutan en absoluto**, y el rol
+no dice nada al respecto — ni un aviso. Apagarlo es, en la práctica, instalar
+sin comprobar por efecto que la vía HTTPS funciona, así que con
+`s9k_tls_verify: false` la instalación **no debe declararse completa**: existe
+para calibración y para ensayos locales sin red, no para uso en `production`.
+`s9k_environment` sigue sin tener valor por defecto (observación O1 del PR
+#266): hay que declararlo explícitamente en `inventory.ini` como `lab` o
+`production`, y el rol falla con un `assert` si no está o si no es uno de los
+dos.
+
+### Recordatorio: `RC-E2E PENDING`
+
+Ver el bloque de estado justo después del `##` de esta sección. Lo medido es
+que **el preflight distingue** una vía HTTPS que verifica y
+contesta de las formas en que no lo hace, contra endpoints TLS locales con
+certificado autofirmado generado en el momento
+(`deploy/tests/test_preflight_https.py`). Eso **no** demuestra que la
+instalación entregue HTTPS en una máquina real: no se ha ejercido nginx, ni
+systemd, ni una VM limpia, ni un navegador, ni el recorrido de crear el primer
+administrador, ni un reinicio. VM110/VM111 están apagadas y no se encienden.
+Lo que falta es el ensayo de abajo.
+
+## Guion del ensayo RC de la instalación (PENDIENTE de ejecutar)
+
+Este guion queda escrito aquí, en la autoridad de despliegue, para que el
+ensayo no se improvise. **A fecha de hoy no se ha ejecutado ni una sola de sus
+líneas.**
+
+### Recorrido principal
+
+```
+VM limpia -> instalar -> HTTPS disponible -> abrir /setup/admin -> crear primer admin
+-> cookie Secure efectiva -> CSRF válido -> setup sellado -> login
+-> reinicio de servicios/VM -> login sigue funcionando
+-> NINGUNA edición manual de .env -> NINGÚN cambio por terminal después de «instalado»
+```
+
+Las dos últimas líneas son condiciones de validez del ensayo, no pasos: si en
+cualquier momento hay que editar `.env` o abrir un terminal después de que la
+instalación se declare terminada, **el ensayo ha fallado**, por mucho que el
+recorrido acabe.
+
+### Negativos obligatorios
+
+Un recorrido que sólo sale verde no mide nada. Cada fila tiene que salir en
+rojo, y **por su causa**:
+
+| # | Se rompe | Resultado exigido |
+|---|---|---|
+| N1 | Instalar sin HTTPS (ningún terminador, `S9K_PUBLIC_BASE_URL` ausente o `http://`) | **Instalación incompleta**: `deploy.sh` muere en el paso 16b con `URL_PUBLICA_NO_DECLARADA` / `ESQUEMA_NO_HTTPS`, y no imprime «DEPLOY completado». |
+| N2 | Certificado no declarado (autofirmado contra el almacén del sistema) | fallo **explícito** `CERTIFICADO_NO_VERIFICABLE`, no un aviso. |
+| N3 | Nombre incorrecto (certificado de otro `CN`/SAN) | fallo **explícito** `NOMBRE_NO_COINCIDE`. |
+| N4 | Terminador TLS levantado sin backend | `ENDPOINT_NO_RESPONDE` o `ENDPOINT_RESPUESTA_INESPERADA` (502): que la configuración esté escrita no cuenta. |
+| N5 | HTTP plano con `S9K_SESSION_SECURE=true` | `COOKIE_SECURE_SOBRE_HTTP` y **no se acepta como instalación correcta**; en el navegador, el bucle de 403 reproducido. |
+| N6 | Setup corrupto o parcial (admin a medio crear, auth.db truncada) | **fail-closed**: no se sirve la aplicación como si estuviera instalada, ni se vuelve a ofrecer `/setup/admin` sobre un estado a medias. |
+| N7 | Reinicio de servicios y de la VM | **no pierde** el administrador ni la configuración: el login posterior funciona sin tocar nada. |
+
+### Qué se registra
+
+Para cada fila: la causa que imprimió el preflight (verbatim), el código de
+salida, y si hubo que tocar un terminal. Un ensayo sin esa tabla rellenada no
+cierra el `RC-E2E PENDING` de la sección anterior.
 
 ## Secretos y proveedores
 
@@ -338,6 +511,10 @@ fuera de alcance deliberadamente.
 ## Scripts y validación
 
 - `preflight.sh`: requisitos, sin cambios.
+- `preflight_https.py`: vía HTTPS verificada **por efecto** (certificado,
+  nombre y que el endpoint conteste). rc≠0 = instalación NO completa.
+- `validate_deploy.sh https <viewer.env> [lab|production]`: mitad estática del
+  contrato HTTPS.
 - `deploy.sh`: dry-run por defecto.
 - `verify-deployment.sh`: estado de la release activa.
 - `rollback-release.sh`: rollback solo de aplicación.

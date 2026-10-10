@@ -170,6 +170,72 @@ validate_worker_env() {
 }
 
 # ---------------------------------------------------------------------------
+# validate_https_contract <viewer.env> [<lab|production>]
+#   PR-3 (USABLE-V1). Mitad ESTATICA del contrato de la via HTTPS. La mitad
+#   POR EFECTO --abrir el socket TLS y exigir que el endpoint CONTESTE-- vive
+#   en `deploy/scripts/preflight_https.py`, porque bash no la puede hacer.
+#
+#   POR QUE ESTA FUNCION ES PROPIA Y `S9K_PUBLIC_BASE_URL` NO SE ANADE A
+#   `CRITICAL_ENV_VARS`: aquella lista es una comprobacion de PRESENCIA pura,
+#   y aqui lo que importa es la COHERENCIA entre dos variables
+#   (`S9K_PUBLIC_BASE_URL` y `S9K_SESSION_SECURE`). Meterlo alli daria el
+#   mensaje equivocado -"falta una variable"- para el defecto real, que es
+#   "la cookie CSRF saldra Secure y el primer administrador no se podra
+#   crear". Un gate puede acertar el veredicto y no decir en que capa fallo.
+#
+#   EL DEFECTO MEDIDO, convertido en guardian: con S9K_SESSION_SECURE=true
+#   (default seguro, que NO se degrada) y una URL publica HTTP plana, la
+#   cookie CSRF de /setup/admin sale con atributo Secure, ningun cliente la
+#   devuelve y el POST entra en bucle de 403.
+#
+#   AMBITO: en `production` BLOQUEA; en `lab` AVISA (el opt-out explicito de
+#   laboratorio es S9K_SESSION_SECURE=false, y ahi HTTP plano es una decision
+#   declarada, no un accidente). Sin ambito se asume `production`:
+#   fail-closed.
+#
+#   NUNCA imprime valores de secretos. La URL publica no es un secreto: es
+#   justo lo que el operador necesita leer para entender el bloqueo.
+# ---------------------------------------------------------------------------
+validate_https_contract() {
+    local env_file="${1}" ambiente="${2:-production}" url esquema secure rc=0
+    if [ ! -f "${env_file}" ]; then
+        printf 'BLOCK(https): viewer.env no existe: %s\n' "${env_file}" >&2
+        return 1
+    fi
+    url="$(_env_value "${env_file}" S9K_PUBLIC_BASE_URL)"
+    secure="$(_env_value "${env_file}" S9K_SESSION_SECURE | tr '[:upper:]' '[:lower:]')"
+    esquema="${url%%://*}"
+    esquema="$(printf '%s' "${esquema}" | tr '[:upper:]' '[:lower:]')"
+
+    if [ -z "${url}" ]; then
+        printf 'HTTPS(URL_PUBLICA_NO_DECLARADA): S9K_PUBLIC_BASE_URL ausente.\n' >&2
+        printf '  Una instalacion que no dice por donde se la alcanza no se puede\n' >&2
+        printf '  verificar, y sin verificar NO esta completa.\n' >&2
+        rc=1
+    elif [ "${esquema}" != "https" ]; then
+        printf 'HTTPS(ESQUEMA_NO_HTTPS): S9K_PUBLIC_BASE_URL=%s no es https.\n' "${url}" >&2
+        printf '  TLS es responsabilidad del proceso de instalacion.\n' >&2
+        rc=1
+        case "${secure}" in 1|true|yes|on|si)
+            printf 'HTTPS(COOKIE_SECURE_SOBRE_HTTP): y S9K_SESSION_SECURE=true.\n' >&2
+            printf '  La cookie CSRF de /setup/admin saldra con atributo Secure,\n' >&2
+            printf '  ningun cliente la devolvera y el POST entrara en bucle de 403:\n' >&2
+            printf '  NO se podra crear el primer administrador. Se resuelve\n' >&2
+            printf '  entregando HTTPS, NO poniendo S9K_SESSION_SECURE=false en\n' >&2
+            printf '  produccion (ese opt-out es solo de laboratorio).\n' >&2
+            ;;
+        esac
+    fi
+
+    if [ "${rc}" -ne 0 ] && [ "${ambiente}" = "lab" ]; then
+        printf 'AVISO(lab): lo anterior NO bloquea en laboratorio, pero una\n' >&2
+        printf '  instalacion productiva con esto NO se considera completada.\n' >&2
+        return 0
+    fi
+    return "${rc}"
+}
+
+# ---------------------------------------------------------------------------
 # validate_viewer_env <viewer.env>
 #   Falla (rc=1) si el fichero no existe o si falta/está vacía una variable crítica.
 #   No imprime valores; solo el NOMBRE de las variables ausentes.
@@ -242,10 +308,11 @@ validate_viewer_unit() {
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     case "${1:-}" in
         env)     validate_viewer_env "${2:?falta ruta viewer.env}" ;;
+        https)   validate_https_contract "${2:?falta ruta viewer.env}" "${3:-production}" ;;
         unit)    validate_viewer_unit "${2:?falta ruta unit}" "${3:-/opt/s9-knowledge/current}" ;;
         csrf)    validate_csrf_secret "${2:?falta ruta viewer.env}" ;;
         secrets) validate_viewer_secrets "${2:?falta ruta viewer.env}" ;;
         secret-file) validate_secret_file "${2:?falta ruta fichero}" ;;
-        *) printf 'uso: validate_deploy.sh env|csrf|secrets <viewer.env> | unit <unit> [current] | secret-file <path>\n' >&2; exit 2 ;;
+        *) printf 'uso: validate_deploy.sh env|csrf|secrets <viewer.env> | https <viewer.env> [lab|production] | unit <unit> [current] | secret-file <path>\n' >&2; exit 2 ;;
     esac
 fi
