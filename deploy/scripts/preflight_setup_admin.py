@@ -158,6 +158,20 @@ ESTADOS_LOGIN_OK = frozenset({302, 303})
 
 TIEMPO_LIMITE = 15.0
 
+#: Presupuesto APARTE para el POST de ``/setup/admin``, y no es afinar un
+#: numero: ese POST calcula un **Argon2id** para el alta del administrador. Su
+#: coste nominal es de ~100 ms, pero Argon2id esta disenado para ser costoso y
+#: en una maquina cargada -o con los nucleos ocupados por otra cosa- tarda
+#: ordenes de magnitud mas. Con el presupuesto general de 15 s, un POST
+#: perfectamente sano devolvia ``POST_NO_ALCANZABLE: TimeoutError``: un ROJO
+#: FALSO sobre una instalacion correcta, que es justo lo que un preflight no
+#: puede permitirse. Medido en este corte, con la suite completa en marcha.
+#:
+#: El resto de las fases conserva el presupuesto corto: son E/S de red sin
+#: criptografia detras, y alargarlas solo retrasaria el diagnostico de un
+#: endpoint que de verdad no contesta.
+TIEMPO_LIMITE_POST = 180.0
+
 #: Codigo con el que ``routers/setup.py`` responde cuando el almacen de
 #: autenticacion existe pero no se puede leer, o estaba y desaparecio. Es el
 #: FAIL-CLOSED del producto: no se ofrece crear ningun administrador porque
@@ -321,8 +335,21 @@ class ClienteConCookies:
         return http.client.HTTPConnection(
             self.host, self.puerto, timeout=self.timeout)
 
-    def peticion(self, metodo: str, ruta: str, datos: Optional[dict] = None):
-        """Devuelve ``(estado, cuerpo, cabeceras)`` o lanza ``OSError``."""
+    def _conexion_con(self, timeout: float):
+        previo = self.timeout
+        self.timeout = timeout
+        try:
+            return self._conexion()
+        finally:
+            self.timeout = previo
+
+    def peticion(self, metodo: str, ruta: str, datos: Optional[dict] = None,
+                 timeout: Optional[float] = None):
+        """Devuelve ``(estado, cuerpo, destino)`` o lanza ``OSError``.
+
+        ``timeout`` permite a una fase pedir su propio presupuesto; sin el se
+        usa el general. Lo usa el POST del alta, que lleva un Argon2id detras.
+        """
         if self._hallazgo_ctx is not None:
             raise _AlmacenIlegible(self._hallazgo_ctx)
         cabeceras = self._cabecera_cookie()
@@ -330,7 +357,7 @@ class ClienteConCookies:
         if datos is not None:
             cuerpo_env = urlencode(datos)
             cabeceras["Content-Type"] = "application/x-www-form-urlencoded"
-        conexion = self._conexion()
+        conexion = self._conexion_con(timeout if timeout else self.timeout)
         try:
             conexion.request(metodo, ruta, body=cuerpo_env, headers=cabeceras)
             respuesta = conexion.getresponse()
@@ -533,6 +560,9 @@ def comprobar_post_crea_el_administrador(cliente: ClienteConCookies,
                 "password": cred.password,
                 "csrf_token": token,
             },
+            # Presupuesto propio: aqui dentro hay un Argon2id. Ver
+            # TIEMPO_LIMITE_POST.
+            timeout=TIEMPO_LIMITE_POST,
         )
     except _AlmacenIlegible as exc:
         return exc.hallazgo

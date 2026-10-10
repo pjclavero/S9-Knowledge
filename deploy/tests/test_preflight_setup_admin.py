@@ -268,7 +268,9 @@ def _entrada(visor: VisorReal, cred: ps.Credenciales, modo: str = "bootstrap",
         credenciales=cred,
         ca_file=str(ca) if ca else None,
         modo=modo,
-        timeout=20.0,
+        # Presupuesto del utillaje para las fases de red. El POST usa el suyo
+        # (`TIEMPO_LIMITE_POST`), que el preflight impone por dentro.
+        timeout=30.0,
     )
 
 
@@ -760,6 +762,26 @@ def test_el_guardian_nombra_cada_fase_no_observada():
         assert fase in hallazgo.mensaje, (
             "la fase %s no observada tiene que NOMBRARSE" % fase)
     assert "GET 200" in hallazgo.mensaje
+
+
+def test_el_post_del_alta_tiene_presupuesto_propio_por_el_argon2():
+    """El POST del alta NO puede compartir el presupuesto corto de la red.
+
+    POR QUE ES UNA PRUEBA Y NO UN COMENTARIO. Con el presupuesto general de
+    15 s, un POST perfectamente sano devolvia
+    ``POST_NO_ALCANZABLE: TimeoutError`` cuando la maquina estaba cargada,
+    porque dentro de ese POST el producto calcula un Argon2id. Un preflight
+    que da ROJO FALSO sobre una instalacion correcta es peor que no tenerlo:
+    ensena a ignorarlo. Medido en este corte con la suite completa en marcha.
+
+    Lo que se fija es la RELACION -el POST tiene mas presupuesto que el
+    resto-, no un numero concreto.
+    """
+    assert ps.TIEMPO_LIMITE_POST > ps.TIEMPO_LIMITE * 4, (
+        "el POST del alta lleva un Argon2id detras y necesita un presupuesto "
+        "holgado frente al general (%s vs %s): si se igualan, vuelve el rojo "
+        "falso por TimeoutError en una maquina cargada."
+        % (ps.TIEMPO_LIMITE_POST, ps.TIEMPO_LIMITE))
 
 
 def test_el_guardian_calla_cuando_todo_se_observo():
