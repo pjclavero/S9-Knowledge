@@ -30,8 +30,8 @@ usuarios/permisos → material → ingestión → progreso → revisión → apr
 | CURRENT_PHASE | **B** (cerrar rango 1); Fase A cerrada con #268 |
 | CURRENT_HIT | B2 (H-01/H-43 familia fresh install); B1 cerrado |
 | OPEN_R1 | H-01 (+H-43), H-02 · H-03 **VERIFIED** (#269) |
-| OPEN_R2_BLOQUEANTES | H-04/H-18, H-05, H-06, H-07, H-09, H-11/H-48, H-14, H-19, H-44, H-50 |
-| CURRENT_PR | ninguno de programa abierto; PR #267 (PR-4) se trata dentro de B2 |
+| OPEN_R2_BLOQUEANTES | H-04/H-18 (lado deploy cubierto en #271; el resto, Fase C), H-05, H-06, H-07, H-09, H-11/H-48, H-14, H-19, H-44 (código y arnés local en #271; RC-E2E PENDING), H-50 |
+| CURRENT_PR | PR #271 (B2, abierto; absorbe el contenido de #267 por cherry-pick) |
 | NEXT_TASK | B2: familia fresh install (H-01 + H-43 + plantillas H-44/H-49 + primer admin + HTTPS/CSRF + #267 + `preflight_ensayo_rc.py`) |
 | BLOCKERS | ninguno técnico; ensayo RC exige autorización del operador para VM110/VM111 |
 | DEBT_PARKED | WORKTREE-HYGIENE (147 worktrees, 435 ramas, 3 stashes), DEPENDENCY-MAINTENANCE (7 Dependabot, #209 major), CI-CALIBRATION-PERFORMANCE (job de 77 min serial) |
@@ -116,12 +116,14 @@ cuando el criterio lo nombra.
 ### P4 — Instalación HTTPS sin degradar Secure
 - **Hallazgos:** H-35, H-44. **Autoridad:** `preflight_https.py`, rol `tls`, D3. **Estado:** E2E_PENDING · **PR/SHA:** #266 `0cf977c`.
 - **Tests:** 28 TLS reales · **Calibrador:** 8/8 · **CI:** required · **E2E/RC:** PENDING (N1–N7).
+- **B2 (#271):** la vía HTTPS se ejerce ahora sobre la plantilla productiva **literal** (`not_configured`, sin CSRF manual, `Secure=true`) dentro del recorrido de primera release; el setup ya no culpa a Safari (H-35). Sigue E2E_PENDING.
 - **Criterio de cierre:** ensayo RC con nginx/systemd/CA en máquina limpia con acta.
 
 ### P5 — Bootstrap del primer administrador verificado
 - **Hallazgos:** H-01 (parcial), H-06, H-35, H-44. **Autoridad:** `install_state`, `csrf_bootstrap`. **Dependencias:** P4.
-- **Estado:** IN_PROGRESS · **PR/SHA:** #247 `a58e137`, #248 `bcd9e59`; **#267 abierto** (`e683274`, 34/34).
-- **Calibrador:** #248 fuera de CI; PR-4 10/10 · **E2E/RC:** PENDING (N8–N12).
+- **Estado:** CI_GATED (código + arnés local) · E2E_PENDING · **PR/SHA:** #247 `a58e137`, #248 `bcd9e59`; contenido de #267 (`e683274`) **absorbido en B2** (#271) por cherry-pick `-x`.
+- **GATE A** implementado (`preflight_setup_admin.py --modo gate-a`, paso 16c de `deploy.sh`) · **GATE B** = recorrido de #267 con credenciales por fichero 0600/stdin · ejecutados en arnés HTTPS local contra el visor real (`deploy/tests/test_b2_primera_release.py`).
+- **Calibrador:** #248 fuera de CI; PR-4 10/10; B2 10/10 (M5 = GATE A con `status != 403`) · **E2E/RC:** PENDING (N8–N17).
 - **Criterio de cierre:** GATE A (POST inválido con CSRF correcto → respuesta de validación exacta, distinguiendo CSRF funcional de 403 por Secure; 5xx no es PASS) + GATE B (recorrido completo con credenciales de prueba por el mecanismo seguro) ejecutados en máquina limpia.
 
 ### P6 — Escritores leen configuración por la autoridad efectiva
@@ -137,7 +139,7 @@ cuando el criterio lo nombra.
 - **Criterio:** biblioteca, proveedor, juego, paneles configurables por web sin exponer `S9K_*`.
 
 ### P11 — Continuidad del primer arranque
-- **Hallazgos:** H-13. **Estado:** IN_PROGRESS (parcial en #248). **Criterio:** estado fuera del árbol de código por defecto; `docs/50` referenciada existe o se retira la referencia (H-53).
+- **Hallazgos:** H-13. **Estado:** IN_PROGRESS (parcial en #248; B2 #271 lleva el estado de revisión V3 fuera de la release en la plantilla productiva y lo exige en `deploy.sh`). **Criterio:** estado fuera del árbol de código por defecto; `docs/50` referenciada existe o se retira la referencia (H-53, sigue abierto).
 
 ### P12 — Juego/perfil por package validado
 - **Hallazgos:** H-07 (vocabulario), H-09. **Estado:** NOT_STARTED. **Criterio:** el administrador no edita `perfil-operador.json` ni `catalogo-workspace.json`.
@@ -172,7 +174,14 @@ cuando el criterio lo nombra.
 - **Estados explícitos:** DEPLOY_OK → HTTPS_BOOTSTRAP_PATH_VERIFIED → FIRST_ADMIN_PENDING → FIRST_ADMIN_VERIFIED → INSTALLATION_COMPLETE.
 - **Piezas existentes a extender (no duplicar):** `deploy.sh`, `detect_state.py` (`decision` vs `global_state`), `preflight_https.py`, `preflight_ensayo_rc.py`, PR #267, plantillas `viewer/.env.example` y `deploy/config/viewer.env.example` (H-44, H-49).
 - **Criterio de cierre:** máquina limpia → `current` activo → `/setup/admin` alcanzable por HTTPS → GATE A y GATE B → reinicio → persistencia, sin pasos no documentados; `deploy.sh` respeta `decision`; upgrade con `jobs.db` vacía no bloquea.
-- **Estado:** NOT_STARTED.
+- **Estado:** IMPLEMENTED · TESTED · CI_GATED · **RC-E2E PENDING** (nunca DONE sin el ensayo RC) · **PR:** #271 (rama `feat/b2-h01-fresh-install`, base `8d29a00`).
+- **Camino elegido:** `deploy.sh --mode fresh` (una sola autoridad que construye releases); Ansible prepara la máquina y avisa de que la primera release no es suya. Documentado en `deploy/README.md` «Primera release».
+- **Por hallazgo** (todo **VERIFIED (arnés local)**: ejecutado sobre el texto real de `deploy.sh` y el visor real por TLS local, **no** en máquina limpia; RC-E2E PENDING para todos): H-01 (paso 4 decide por `decision`; fresh procede en máquina limpia y bloquea con usuarios/sello/corrupción, por estado del producto) · H-43 (`jobs.db` ausente/vacía no bloquea) · H-44 (plantillas `not_configured`; el 403 del setup nombra la causa observada; **sigue en OPEN_R2 hasta el RC**) · H-49 (plantilla y `validate_deploy.sh` alineados con #248; `S9K_V3_REVIEW_*` declaradas) · H-35 (texto del setup; `security.py` sin cambios).
+- **H-04 · lado deploy** (`CRITICAL_ENV_VARS` + plantilla + `preflight_ensayo_rc --grupo despliegue` en el paso 6): **VERIFIED (arnés local)** · persistencia completa del estado de revisión: **OPEN (Fase C)**.
+- **H-18 · lado config/preflight**: **VERIFIED (arnés local)** · consumo/ausencia silenciosa en runtime (`review_decisions` → `{}`): **OPEN (Fase C)**.
+- **Estados medibles:** `estado_instalacion.py` (DEPLOY_OK → HTTPS_BOOTSTRAP_PATH_VERIFIED → FIRST_ADMIN_PENDING → FIRST_ADMIN_VERIFIED → INSTALLATION_COMPLETE; `deploy.sh` nunca ANOTA evidencia de gates no observada; en upgrade declara `ESTADO_OBSERVADO=DEPLOY_OK` y, por separado, `ESTADO_DEL_PRODUCTO=` leído de la auth DB (sello + admins)).
+- **Tests:** `deploy/tests/test_b2_fresh_install.py` (rápido: pasos 3–4 y 6 REALES de `deploy.sh`, plantillas, GATE A, estados) · `deploy/tests/test_b2_primera_release.py` (visor real por TLS local: máquina limpia → INSTALLATION_COMPLETE; HTTP plano reproduce el 403). **Calibrador:** `mutaciones_b2_fresh_install.py` (10 mutaciones + 7 de la ronda de corrección de la revisión independiente) en el job required «Calibracion de gates».
+- **Techo:** clon+venv de la release, systemd (pasos 7–13), nginx, CA real, navegador, VM limpia y reinicio de máquina no ejercidos; venv del motor → B3 (su único consumidor es el worker); H-08 (dos unidades del visor) documentado, no resuelto: **el camino fresh deja el visor como root** (unidad del repo sin `User=`, ahora habilitada); H-06: `auth.db` sale 0644; el registro de estados se reinicia en cada despliegue (corrección R2-a: un upgrade no hereda INSTALLATION_COMPLETE); el reinicio entre GATE B bootstrap y persistencia lo afirma el operador.
 
 ### B3 — H-02 · Worker desatendido
 - **Cadena:** job → cola → consumer → loop → servicio → ejecución → resultado → error/retry → restart.
@@ -185,3 +194,4 @@ cuando el criterio lo nombra.
 |---|---|---|
 | 2026-10-11 | Creación del plan canónico a partir de la auditoría R1+R2 | `docs/audits/AUDITORIA_GLOBAL_S9_KNOWLEDGE_2026-10-10.md` (R2.11, R2.16) |
 | 2026-10-11 | Fase A cerrada (#268 → `8964c36`); B1/H-03 VERIFIED (#269 → `2dd6d47`); R1 abiertos 3 → 2; CURRENT_HIT → B2 | PR #268, PR #269, log CI run `38127086116` y runs sobre `1ce168b` (34/34 pass) |
+| 2026-10-11 | B2 abierto (#271): H-01/H-43/H-44/H-49 implementados y calibrados; H-04/H-18 solo lado deploy; contenido de #267 absorbido; P5 → CI_GATED; RC-E2E PENDING | PR #271 |

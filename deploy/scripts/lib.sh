@@ -632,3 +632,83 @@ cleanup_old_releases() {
         "${mode}" \
     || warn "retention.py salió con error — ninguna release borrada (fail-closed)"
 }
+
+# ---------------------------------------------------------------------------
+# _campo_json <json> <clave> [<clave>...] -> imprime el valor anidado.
+#   Una lista se imprime unida por "; ". Sin eval: solo indexación por clave.
+# ---------------------------------------------------------------------------
+_campo_json() {
+    local json="${1}"; shift
+    printf '%s' "${json}" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+for k in sys.argv[1:]:
+    d = d[k]
+if isinstance(d, list):
+    print("; ".join(str(x) for x in d))
+elif isinstance(d, bool):
+    print("true" if d else "false")
+else:
+    print(d)
+' "$@"
+}
+
+# ---------------------------------------------------------------------------
+# paso4_migrar_o_validar_estado <json de detect_state.py>
+#
+#   B2 (USABLE-V1) · H-01/H-43. Paso 4 de deploy.sh. UNA SOLA AUTORIDAD para
+#   «¿se puede seguir?»: el campo `decision` de detect_state.py, que ya aplica
+#   las reglas POR TIPO de base y POR MODO (upgrade|fresh).
+#
+#   EL DEFECTO QUE CIERRA. Antes este paso decidía con `global_state` (lo peor
+#   de auth y jobs) e ignoraba `decision` y el modo: una máquina limpia con
+#   `--mode fresh` daba PROCEED en el paso 3 y moría aquí por EMPTY_STATE
+#   (H-01), y un host sano con jobs.db ausente o vacía no podía actualizarse
+#   (H-43), contradiciendo el propio comentario de detect_state.py.
+#
+#   Después de decidir, la MIGRACIÓN se hace POR TIPO (auth y jobs por
+#   separado); nunca se crea una auth.db vacía y nunca se elige en silencio.
+#   Usa las globales de deploy.sh: HERE, LEGACY_AUTH_DB, LEGACY_JOBS_DB,
+#   NEW_AUTH_DB, NEW_JOBS_DB.
+# ---------------------------------------------------------------------------
+paso4_migrar_o_validar_estado() {
+    local json="${1}" _decision _motivos _auth _jobs
+    _decision="$(_campo_json "${json}" decision)"
+    if [ "${_decision}" != "PROCEED" ]; then
+        _motivos="$(_campo_json "${json}" reasons)"
+        die "detect_state decide ${_decision}: ${_motivos:-sin motivo} (nunca crear auth.db vacía ni elegir DB en silencio)"
+    fi
+    _auth="$(_campo_json "${json}" per_kind auth state)"
+    _jobs="$(_campo_json "${json}" per_kind jobs state)"
+
+    case "${_auth}" in
+        LEGACY_STATE)
+            log "    auth: migrando legacy -> state root (controlado, atómico, .backup)"
+            python3 "${HERE}/migrate_sqlite.py" --kind auth --src "${LEGACY_AUTH_DB}" --dst "${NEW_AUTH_DB}" --apply --confirm \
+                || die "migración auth falló/bloqueó"
+            ;;
+        NEW_STATE|MIXED_EQUIVALENT_STATE)
+            log "    auth: estado nuevo ya presente y equivalente; sin migración" ;;
+        EMPTY_STATE)
+            # Solo llega aquí con decision=PROCEED, es decir en --mode fresh.
+            log "    auth: sin usuarios (primera release). FIRST_ADMIN_PENDING: el primer"
+            log "    administrador se crea en /setup/admin; el instalador NO lo crea."
+            ;;
+        *) die "auth en ${_auth} con decision=PROCEED: salida de detect_state incoherente" ;;
+    esac
+
+    case "${_jobs}" in
+        LEGACY_STATE)
+            if [ -f "${LEGACY_JOBS_DB}" ]; then
+                log "    jobs: migrando legacy -> state root"
+                python3 "${HERE}/migrate_sqlite.py" --kind jobs --src "${LEGACY_JOBS_DB}" --dst "${NEW_JOBS_DB}" --apply --confirm \
+                    || die "migración jobs falló/bloqueó"
+            fi
+            ;;
+        NEW_STATE|MIXED_EQUIVALENT_STATE)
+            log "    jobs: estado nuevo ya presente; sin migración" ;;
+        EMPTY_STATE)
+            log "    jobs: sin cola todavía (legítimo: el visor la crea al arrancar)" ;;
+        *) die "jobs en ${_jobs} con decision=PROCEED: salida de detect_state incoherente" ;;
+    esac
+}

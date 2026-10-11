@@ -24,11 +24,11 @@
       se desactiva ese administrador.
     </p>
     <p>
-      <small>¿El formulario falla con un error 403 al enviarlo sobre
-      <code>http://</code> (sin cifrar)? Es Safari: a diferencia de Chrome,
-      Firefox o Edge, no acepta la cookie de seguridad en <code>localhost</code>
-      o <code>127.0.0.1</code> sin HTTPS. Usa otro navegador, o sirve esta
-      instalación por HTTPS.</small>
+      <small>Esta pantalla debe abrirse por <code>https://</code>. Su cookie
+      de seguridad es de tipo <em>Secure</em> y ningún navegador la envía por
+      una conexión <code>http://</code> sin cifrar: si se abre así, el
+      formulario fallará con un error 403. La solución es servir la
+      instalación por HTTPS, no desactivar la protección.</small>
     </p>
 
     {% if errors %}

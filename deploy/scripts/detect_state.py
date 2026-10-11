@@ -20,6 +20,21 @@ Reglas de bloqueo en modo UPGRADE (--mode upgrade):
   - Nunca se crea automáticamente una auth.db vacía.
   - Nunca se elige en silencio entre la DB legacy y la nueva.
 
+Reglas de bloqueo en modo FRESH (--mode fresh, B2 · USABLE-V1: PRIMERA release):
+  - fresh significa «máquina limpia»: SOLO procede si auth es EMPTY_STATE (no
+    hay base, o la hay sin ningún usuario). Cualquier otro estado de auth
+    BLOQUEA: con usuarios hay que usar --mode upgrade, y CORRUPT/CONFLICTING
+    bloquean igual que en upgrade. fresh NUNCA sobrescribe ni migra auth.
+  - jobs: CORRUPT_STATE, CONFLICTING_STATE y LEGACY_STATE BLOQUEAN (un layout
+    legacy con datos no es una máquina limpia).
+  - Con auth EMPTY el alta del primer administrador se CEDE a /setup/admin:
+    la salida lo declara en `primer_admin_pendiente` (FIRST_ADMIN_PENDING).
+
+AUTORIDAD (B2, H-01/H-43): `decision` es la ÚNICA respuesta a «¿se puede
+seguir?». `global_state` es INFORMATIVO (lo peor de las dos bases): una
+jobs.db ausente lo pone en EMPTY_STATE aunque el despliegue pueda seguir, y
+por eso `deploy.sh` no lo usa para decidir.
+
 Uso:
   detect_state.py --legacy-auth <path> --legacy-jobs <path> \
                   --new-auth <path> --new-jobs <path> [--mode upgrade|fresh]
@@ -31,6 +46,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sqlite3
 import sys
 from pathlib import Path
 from typing import Any, Optional
@@ -39,16 +55,55 @@ from typing import Any, Optional
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from migrate_sqlite import inspect_db  # noqa: E402
 
+#: Clave del SELLO de instalación del producto. MISMO literal que
+#: `viewer/app/auth/db.py::BOOTSTRAP_KEY`; el testigo de B2 cruza los dos.
+#: Se replica porque este guion corre en el host, fuera del venv del visor.
+BOOTSTRAP_KEY = "bootstrap_completed"
+
+
+def sello_de_instalacion(path: Optional[str]) -> Optional[bool]:
+    """¿Está puesto el sello `install_state['bootstrap_completed']`? Solo lectura.
+
+    Es el ESTADO DEL PRODUCTO que decide si `/setup/admin` existe
+    (`viewer/app/auth/bootstrap.py`). ``None`` = no se puede saber (base
+    ausente, vacía, ilegible, o anterior al esquema v4 sin la tabla): AUSENCIA
+    != «no sellado». Nunca crea ni migra nada.
+    """
+    if not path:
+        return None
+    ruta = Path(path)
+    if not ruta.is_file() or ruta.stat().st_size == 0:
+        return None
+    try:
+        conn = sqlite3.connect(f"file:{ruta}?mode=ro", uri=True)
+    except sqlite3.Error:
+        return None
+    try:
+        fila = conn.execute(
+            "SELECT value FROM install_state WHERE key = ?", (BOOTSTRAP_KEY,)
+        ).fetchone()
+    except sqlite3.Error:
+        return None
+    finally:
+        conn.close()
+    return fila is not None and str(fila[0]).lower() == "true"
+
 
 def _usable(info: dict[str, Any], kind: str) -> bool:
-    """La base existe, es íntegra y tiene contenido con sentido."""
+    """La base existe, es íntegra y tiene contenido con sentido.
+
+    auth: sin usuarios no hay nada que conservar (una base migrada y vacía es
+    el estado de fábrica). jobs: la COLA puede estar legítimamente vacía (un
+    host que nunca encoló un trabajo, o que purgó la cola); lo que la hace
+    usable es que la tabla exista, no que tenga filas (H-43).
+    """
     if not info["exists"] or info["integrity"] != "ok":
         return False
     counts = info["counts"]
     if kind == "auth":
         return bool(counts.get("users"))
     if kind == "jobs":
-        return (counts.get("jobs") or 0) > 0
+        return counts.get("jobs") is not None
     return False
 
 
@@ -67,6 +122,15 @@ def classify_pair(legacy: dict[str, Any], new: dict[str, Any], kind: str) -> str
     # ambos usables
     if legacy["counts"] == new["counts"]:
         return "MIXED_EQUIVALENT_STATE"
+    if kind == "jobs":
+        # Una cola VACÍA no compite con una que tiene trabajos: manda la que
+        # los tiene. Conserva lo que ya pasaba antes de H-43, cuando la vacía
+        # ni siquiera contaba como usable (y la migración sigue negándose a
+        # pisar un destino distinto: BLOCKED_DST_CONFLICT).
+        if not legacy["counts"].get("jobs"):
+            return "NEW_STATE"
+        if not new["counts"].get("jobs"):
+            return "LEGACY_STATE"
     return "CONFLICTING_STATE"
 
 
@@ -86,6 +150,15 @@ _SEVERITY = {
 _BLOCKING_UPGRADE = {
     "auth": {"CORRUPT_STATE", "CONFLICTING_STATE", "EMPTY_STATE"},
     "jobs": {"CORRUPT_STATE", "CONFLICTING_STATE"},
+}
+# Estados que BLOQUEAN en fresh (primera release sobre máquina limpia):
+#   - auth: todo lo que NO sea EMPTY. Con usuarios, fresh sería sobrescribir o
+#     ignorar una instalación existente: se usa --mode upgrade.
+#   - jobs: corrupción, conflicto o datos del layout legacy.
+_BLOCKING_FRESH = {
+    "auth": {"CORRUPT_STATE", "CONFLICTING_STATE", "LEGACY_STATE",
+             "NEW_STATE", "MIXED_EQUIVALENT_STATE"},
+    "jobs": {"CORRUPT_STATE", "CONFLICTING_STATE", "LEGACY_STATE"},
 }
 
 
@@ -107,6 +180,9 @@ def detect(
     pair("jobs", legacy_jobs, new_jobs)
 
     global_state = max(globals_states, key=lambda s: _SEVERITY[s])
+    sello_nuevo = sello_de_instalacion(new_auth)
+    sello_legacy = sello_de_instalacion(legacy_auth)
+    per["auth"]["sello"] = {"legacy": sello_legacy, "new": sello_nuevo}
 
     reasons: list[str] = []
     block = False
@@ -122,13 +198,35 @@ def detect(
         if active_admins is not None and active_admins < 1:
             block = True
             reasons.append("0 administradores activos en la fuente de auth")
+    elif mode == "fresh":
+        for kind, d in per.items():
+            if d["state"] in _BLOCKING_FRESH.get(kind, set()):
+                block = True
+                reasons.append(
+                    f"{kind}: {d['state']} bloquea en fresh (fresh es solo para "
+                    "máquina limpia; con estado existente use --mode upgrade)")
+        # Sin usuarios NO basta para ser fábrica: el SELLO del producto es
+        # irreversible. Una base sellada y vaciada no es una instalación nueva
+        # y /setup/admin no se va a reabrir (bootstrap.py): fresh no procede.
+        if sello_nuevo or sello_legacy:
+            block = True
+            reasons.append(
+                "auth: el sello de instalación (install_state) ya está puesto; "
+                "esto no es una máquina limpia y /setup/admin no se reabre")
 
     return {
         "mode": mode,
+        # INFORMATIVO: no gobierna nada. Ver la cabecera del módulo.
         "global_state": global_state,
         "per_kind": per,
         "decision": "BLOCK" if block else "PROCEED",
         "reasons": reasons,
+        # FIRST_ADMIN_PENDING: primera release sin ningún usuario; el alta se
+        # cede a /setup/admin (no la hace el instalador).
+        # Se decide por ESTADO DEL PRODUCTO: sin usuarios y sin sello.
+        "primer_admin_pendiente": (not block and mode == "fresh"
+                                   and per["auth"]["state"] == "EMPTY_STATE"
+                                   and not sello_nuevo and not sello_legacy),
     }
 
 
