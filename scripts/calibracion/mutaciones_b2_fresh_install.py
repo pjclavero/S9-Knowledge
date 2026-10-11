@@ -319,7 +319,7 @@ MUTACIONES = [
      {"test_el_registro_anota_el_resultado_real_del_gate_a[500-False]": "REGISTRO FALSO"}),
     ("M12 — un nombre mal escrito en GRUPO_DESPLIEGUE se cae en silencio (R3-g)",
      ENSAYO, _m12_grupo_con_nombre_mal_escrito,
-     {"test_cada_comprobacion_del_grupo_despliegue_existe": "NO existen"}),
+     {"test_cada_comprobacion_del_grupo_despliegue_existe": "GRUPO_DESPLIEGUE ALTERADO"}),
     ("M13 — un 403 por HTTPS presupone que la cookie viajó (R3-a)",
      SETUP_ADMIN, _m13_403_https_presupone_la_cookie,
      {"test_gate_a_403_por_https_se_diagnostica_por_el_producto[sin-cookie]": "COOKIE_NO_VUELVE_POR_HTTPS"}),
