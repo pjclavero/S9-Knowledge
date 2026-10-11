@@ -153,6 +153,17 @@ def _m5_undo_sin_exigir_workspace(fichero: str, texto: str) -> str | None:
     )
 
 
+# M6 — concesión VACÍA se lee como «sin restricción»: con `allowed_workspaces`
+# vacío (autoridad indeterminada / varios perfiles) todo pasa a ser visible.
+# Es el fallo-abierto clásico de un conjunto vacío.
+def _m6_concesion_vacia_lo_ve_todo(fichero: str, texto: str) -> str | None:
+    return mutar_en_funcion(
+        texto, "allows_workspace",
+        "return workspace in self.ctx.allowed_workspaces",
+        "return not self.ctx.allowed_workspaces or workspace in self.ctx.allowed_workspaces",
+    )
+
+
 NEGATIVOS_HTTP = {
     # prueba: fragmento de causa que TIENE que aparecer en su línea FAILED
     "test_negativo_rev_a_decide_sobre_b_no_registra_nada": "HTTP 303",
@@ -163,6 +174,10 @@ NEGATIVOS_HTTP = {
     "test_negativo_glossary_candidates_de_b_no_visibles": "200",
     "test_negativo_revisor_no_decide_ni_deshace_en_otro_corpus": "HTTP 303",
     "test_ambito_de_revision_exige_workspace_y_lo_compara": "assert True is False",
+    # Ronda de corrección del revisor independiente:
+    "test_negativo_mayusculas_no_abren_otro_corpus": "200",
+    "test_sin_workspace_concedido_todo_da_404_y_nada_se_escribe": "cola con concesión vacía: 200",
+    "test_servicio_undo_last_con_ambito_ajeno_no_escribe": "DID NOT RAISE",
 }
 
 MUTACIONES = [
@@ -181,6 +196,10 @@ MUTACIONES = [
      ROUTER, _m5_undo_sin_exigir_workspace,
      {"test_negativo_rev_a_deshace_en_b_no_registra_nada": "HTTP 400",
       "test_negativo_revisor_no_decide_ni_deshace_en_otro_corpus": "HTTP 400"}),
+    ("M6 — `allows_workspace`: concesión VACÍA ⇒ todo visible (fallo-abierto del conjunto vacío)",
+     SCOPE, _m6_concesion_vacia_lo_ve_todo,
+     {"test_sin_workspace_concedido_todo_da_404_y_nada_se_escribe": "cola con concesión vacía: 200",
+      "test_unidad_concesion_vacia_no_concede_nada": "assert True is False"}),
 ]
 
 

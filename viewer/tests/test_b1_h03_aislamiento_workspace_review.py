@@ -58,14 +58,20 @@ PASSWORD = "B1H03_Test_1234567890!"
 #: Marca que SÓLO aparece en el material de B: si sale en una respuesta de rev_a,
 #: B se ha filtrado, se llame como se llame la ruta.
 MARCA_B = "MarcaSecretaDeBenchDev"
+MARCA_P2 = "MarcaDeLaPartidaDos"
+PARTIDA_1 = "partida:uno"
+PARTIDA_2 = "partida:dos"
+#: Mismo nombre que el concedido salvo la caja: la comparación es LITERAL.
+WS_MAYUSCULAS = "Leyenda"
 
 EPISODE = "Ariadna protege la ciudad de Bruma durante el invierno de sangre."
 LITERAL = "protege la ciudad de Bruma"
 
 
-def _propuesta(proposal_id: str, workspace: str, subject: str = "Ariadna") -> dict:
+def _propuesta(proposal_id: str, workspace: str, subject: str = "Ariadna",
+               partida_id: str | None = None) -> dict:
     start = EPISODE.index(LITERAL)
-    return {
+    documento = {
         "proposal_id": proposal_id,
         "workspace": workspace,
         "source_id": f"source-{workspace}",
@@ -96,6 +102,9 @@ def _propuesta(proposal_id: str, workspace: str, subject: str = "Ariadna") -> di
         "ontology_version": "bruma-v1", "engine_version": "knowledge-v3-test",
         "prompt_version": "p1", "profile_version": "perfil-1",
     }
+    if partida_id:
+        documento["partida_id"] = partida_id
+    return documento
 
 
 # ---------------------------------------------------------------------------
@@ -128,6 +137,11 @@ def entorno(tmp_path, monkeypatch):
         _propuesta("pa-2", WS_A),
         _propuesta("pb-1", WS_B, subject=MARCA_B),
         _propuesta("pb-2", WS_B, subject=MARCA_B),
+        # Dos partidas DENTRO del workspace concedido (control de partida).
+        _propuesta("pa-p1", WS_A, partida_id=PARTIDA_1),
+        _propuesta("pa-p2", WS_A, subject=MARCA_P2, partida_id=PARTIDA_2),
+        # Un corpus cuya etiqueta sólo difiere en MAYÚSCULAS del concedido.
+        _propuesta("pm-1", WS_MAYUSCULAS, subject=MARCA_B),
     ]}, ensure_ascii=False), encoding="utf-8")
     service = ReviewService(proposals, tmp_path / "decisions.jsonl")
     # B ya tiene una decisión ACTIVA (para que `undo` tenga algo que deshacer
@@ -138,6 +152,15 @@ def entorno(tmp_path, monkeypatch):
         proposal_id="pb-2", workspace=WS_B, reviewer="semilla", human_decision="CORRECT",
         request_id="semilla-b", correction={"subject_alias": MARCA_B + "Alias"},
         expected_proposal_hash=sembrada["proposal_hash"],
+    )
+    # La partida p2 de A también tiene una decisión ACTIVA: un revisor con la
+    # partida p1 activa no puede deshacerla.
+    sembrada_p2 = next(
+        i for i in service.queue(WS_A).items if i["proposal_id"] == "pa-p2"
+    )
+    service.record(
+        proposal_id="pa-p2", workspace=WS_A, reviewer="semilla", human_decision="APPROVE",
+        request_id="semilla-p2", expected_proposal_hash=sembrada_p2["proposal_hash"],
     )
     monkeypatch.setattr(v3_router, "_service", lambda: service)
     monkeypatch.setattr(panel_router, "_service", lambda: service)
@@ -436,3 +459,131 @@ def test_ambito_de_revision_exige_workspace_y_lo_compara():
     assert _scoped(VisibilityScope(ctx).partida_only()).allows_workspace(WS_B) is False
     admin = build_viewer_context(role="admin", auth_enabled=True, default_workspace=WS_A)
     assert _scoped(VisibilityScope(admin)).allows_workspace(WS_B) is True
+
+
+# ---------------------------------------------------------------------------
+# Ronda de corrección (revisor independiente): partida ajena, concesión vacía,
+# mayúsculas y `undo_last` sin router
+# ---------------------------------------------------------------------------
+
+def _huella(entorno) -> tuple:
+    """Filas de `human_decisions` + bytes del almacén: nada se escribe."""
+    import hashlib
+
+    service = entorno["service"]
+    # SÓLO el almacén de revisión (SQLite + sus -wal/-shm + el JSONL de
+    # auditoría). `auth.db` vive en el mismo directorio y cambia con cada
+    # petición autenticada: no es almacén de revisión.
+    base = Path(service.database_path)
+    candidatos = [base, base.with_name(base.name + "-wal"),
+                  base.with_name(base.name + "-shm"), Path(service.decisions_path)]
+    ficheros = sorted(f for f in candidatos if f.is_file())
+    return (
+        json.dumps(service.store.decisions(), sort_keys=True),
+        tuple((f.name, hashlib.sha256(f.read_bytes()).hexdigest()) for f in ficheros),
+    )
+
+
+@pytest.fixture
+def ambito_mutable(entorno):
+    """`username -> (default_workspace, partida_activa)`, MUTABLE durante el test.
+
+    Permite sacar el CSRF con una concesión y atacar con otra en la MISMA
+    sesión. El contexto lo sigue construyendo `build_viewer_context`.
+    """
+    mapa: dict[str, tuple[str, str | None]] = {}
+
+    def _ambito(request: Request) -> VisibilityScope:
+        user = request.state.user
+        ws, partida = mapa.get(user.username, (WS_A, None))
+        return VisibilityScope(build_viewer_context(
+            role=user.role, auth_enabled=True, default_workspace=ws,
+            active_partida=partida,
+        ))
+
+    entorno["app"].dependency_overrides[get_visibility_scope] = _ambito
+    return entorno, mapa
+
+
+class TestPartidaAjenaEnElWorkspacePropio:
+    def test_control_la_partida_activa_si_ve_lo_suyo(self, ambito_mutable):
+        e, mapa = ambito_mutable
+        mapa["rev_a"] = (WS_A, PARTIDA_1)
+        c = _cliente(e, "rev_a")
+        html = c.get(f"/v3/review?workspace={WS_A}").text
+        assert "pa-p1" in html and MARCA_P2 not in html
+
+    def test_decide_sobre_propuesta_de_otra_partida_no_escribe(self, ambito_mutable):
+        e, mapa = ambito_mutable
+        mapa["rev_a"] = (WS_A, PARTIDA_1)
+        c = _cliente(e, "rev_a")
+        csrf = _csrf(c, WS_A)
+        antes = _huella(e)
+        r = _decide(c, csrf, workspace=WS_A, proposal_id="pa-p2",
+                    proposal_hash=_hash(e, WS_A, "pa-p2"), request_id="partida-ajena")
+        assert r.status_code != 303, f"decidió sobre la partida p2 con p1 activa: HTTP {r.status_code}"
+        assert _huella(e) == antes, "el almacén cambió desde fuera de la partida activa"
+
+    def test_undo_no_deshace_la_decision_de_otra_partida(self, ambito_mutable):
+        e, mapa = ambito_mutable
+        mapa["rev_a"] = (WS_A, PARTIDA_1)
+        c = _cliente(e, "rev_a")
+        csrf = _csrf(c, WS_A)
+        antes = _huella(e)
+        r = _undo(c, csrf, workspace=WS_A, request_id="partida-ajena-undo")
+        assert r.status_code != 303, f"deshizo la decisión de la partida p2: HTTP {r.status_code}"
+        assert _huella(e) == antes, "el almacén cambió desde fuera de la partida activa"
+
+
+class TestConcesionVacia:
+    """Autoridad indeterminada (`allowed_workspaces` vacío) ⇒ no se ve nada."""
+
+    def test_sin_workspace_concedido_todo_da_404_y_nada_se_escribe(self, ambito_mutable):
+        e, mapa = ambito_mutable
+        c = _cliente(e, "rev_a")
+        csrf = _csrf(c, WS_A)          # CSRF sacado con concesión en A...
+        mapa["rev_a"] = ("", None)     # ...y la concesión desaparece.
+        antes = _huella(e)
+        r = c.get(f"/v3/review?workspace={WS_A}")
+        assert r.status_code == 404, f"cola con concesión vacía: {r.status_code}"
+        r = c.get("/panel/review/", params={"workspace": WS_A})
+        assert r.status_code == 404, f"panel con concesión vacía: {r.status_code}"
+        r = _decide(c, csrf, workspace=WS_A, proposal_id="pa-1",
+                    proposal_hash=_hash(e, WS_A, "pa-1"), request_id="vacia-decide")
+        assert r.status_code == 404, f"decide con concesión vacía: HTTP {r.status_code}"
+        assert _huella(e) == antes
+
+    def test_unidad_concesion_vacia_no_concede_nada(self):
+        from app.services.v3_review import _scoped
+
+        ctx = build_viewer_context(role="reviewer", auth_enabled=True, default_workspace="")
+        assert ctx.allowed_workspaces == frozenset()
+        assert _scoped(VisibilityScope(ctx)).allows_workspace(WS_A) is False
+
+
+def test_negativo_mayusculas_no_abren_otro_corpus(concesiones_distintas):
+    e = concesiones_distintas
+    c = _cliente(e, "rev_a")
+    csrf = _csrf(c, WS_A)
+    antes = _filas(e)
+    r = c.get(f"/v3/review?workspace={WS_MAYUSCULAS}")
+    assert r.status_code == 404 and MARCA_B not in r.text, r.status_code
+    r = _decide(c, csrf, workspace=WS_MAYUSCULAS, proposal_id="pm-1",
+                proposal_hash=_hash(e, WS_MAYUSCULAS, "pm-1"), request_id="mayus")
+    assert r.status_code in (403, 404), f"decidió sobre {WS_MAYUSCULAS!r}: HTTP {r.status_code}"
+    assert _filas(e) == antes
+
+
+def test_servicio_undo_last_con_ambito_ajeno_no_escribe(entorno):
+    """`undo_last` acota por sí mismo, sin depender del 404 del router."""
+    from app.services.v3_review import NO_ACTIVE_DECISION, ReviewError
+
+    ctx = build_viewer_context(role="reviewer", auth_enabled=True, default_workspace=WS_A)
+    antes = _huella(entorno)
+    with pytest.raises(ReviewError) as exc:
+        entorno["service"].undo_last(
+            workspace=WS_B, reviewer="rev_a", request_id="svc-undo-ajeno",
+            scope=VisibilityScope(ctx),
+        )
+    assert getattr(exc.value, "code", None) == NO_ACTIVE_DECISION
+    assert _huella(entorno) == antes
