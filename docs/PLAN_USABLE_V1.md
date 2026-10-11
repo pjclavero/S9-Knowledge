@@ -26,13 +26,13 @@ usuarios/permisos → material → ingestión → progreso → revisión → apr
 
 | Campo | Valor |
 |---|---|
-| CURRENT_MAIN | `0cf977c3f7785e5f826417efc94971825782bd9d` |
-| CURRENT_PHASE | **A** (auditoría + plan canónico) → B (cerrar rango 1) |
-| CURRENT_HIT | B1 (H-03) |
-| OPEN_R1 | H-01 (+H-43), H-02, H-03 |
+| CURRENT_MAIN | `2dd6d4790832b1759deca2c45303af291202132b` (squash de #269; #268 = `8964c36`) |
+| CURRENT_PHASE | **B** (cerrar rango 1); Fase A cerrada con #268 |
+| CURRENT_HIT | B2 (H-01/H-43 familia fresh install); B1 cerrado |
+| OPEN_R1 | H-01 (+H-43), H-02 · H-03 **VERIFIED** (#269) |
 | OPEN_R2_BLOQUEANTES | H-04/H-18, H-05, H-06, H-07, H-09, H-11/H-48, H-14, H-19, H-44, H-50 |
-| CURRENT_PR | ninguno de programa (PR #267 abierto, PR-4 anterior al plan) |
-| NEXT_TASK | B1: aislamiento por workspace en la revisión V3 |
+| CURRENT_PR | ninguno de programa abierto; PR #267 (PR-4) se trata dentro de B2 |
+| NEXT_TASK | B2: familia fresh install (H-01 + H-43 + plantillas H-44/H-49 + primer admin + HTTPS/CSRF + #267 + `preflight_ensayo_rc.py`) |
 | BLOCKERS | ninguno técnico; ensayo RC exige autorización del operador para VM110/VM111 |
 | DEBT_PARKED | WORKTREE-HYGIENE (147 worktrees, 435 ramas, 3 stashes), DEPENDENCY-MAINTENANCE (7 Dependabot, #209 major), CI-CALIBRATION-PERFORMANCE (job de 77 min serial) |
 | E2E_PENDING | P4, P5 (RC-E2E PENDING en #266/#267), P15 |
@@ -42,7 +42,7 @@ usuarios/permisos → material → ingestión → progreso → revisión → apr
 
 | Métrica | Baseline (R2, `0cf977c`) | Actual | Delta |
 |---|---|---|---|
-| Rango 1 abiertos | 3 | 3 | 0 |
+| Rango 1 abiertos | 3 | **2** | −1 (H-03 VERIFIED, #269) |
 | Rango 2 bloqueantes de USABLE-V1 | 10 | 10 | 0 |
 | Terminal post-install (recorrido mínimo) | 2 reinicios + 1 worker (+1 de protocolo) | = | 0 |
 | Ediciones manuales de fichero | 6 | = | 0 |
@@ -162,7 +162,11 @@ cuando el criterio lo nombra.
 - **Contrato:** revisor con concesión en A actúa sobre A; no puede ver ni actuar sobre B; `workspace` de formulario nunca amplía scope; admin `admin_full` sigue viendo todo.
 - **Controles:** positivo (A sobre A), negativo (A sobre B → 404/403 sin registro en `human_decisions`), negativo con `partida_id` ajeno, calibrador que ablaciona la comprobación y enrojece por la causa correcta, paso required en CI.
 - **Criterio de cierre:** negativo real con dos workspaces en CI required; `_scoped()` no devuelve `partida_only()` para rutas HTTP; `risk-register` actualizado; auditoría de rutas equivalentes adjunta.
-- **Estado:** NOT_STARTED.
+- **Estado:** **VERIFIED** · **PR/SHA:** #269 → `2dd6d47` (squash; HEAD del PR `1ce168b`, base `8964c36`).
+- **Demostrado:** aislamiento server-side de workspace en toda la familia Review V3 (`GET /v3/review`, `POST decide`, `POST undo`, `GET glossary-candidates`, `GET /panel/review/`, `/panel/review/item/{id}`) mediante una función única `VisibilityScope.para_corpus_de_revision()`; matriz de autorización 16 casos × 6 rutas con app y auth reales; rechazo A→B = 404 con **cero persistencia** (huella completa del almacén: `human_decisions`, `decision_audit`, `glossary_outbox`, `sealed_plans`, `entity_altas`, `decisions.jsonl`); admin `admin_full` y lore anónimo (docs/81) intactos; 25 tests (`viewer/tests/test_b1_h03_aislamiento_workspace_review.py`), calibrador `mutaciones_b1_h03_aislamiento_workspace.py` 6/6 CALIBRADA por AST (incl. M6 «concesión vacía ⇒ todo visible») en el job required «Calibracion de gates»; 34/34 check-runs `pass` sobre `1ce168b`; revisor independiente APTO CON OBSERVACIONES (ninguna bloqueante); mutaciones propias del revisor X1–X6 y X8 detectadas; `risk-register` RK-21.
+- **Hermanos investigados:** `services/v3_apply.py:564` → DIFFERENT_CLASS (el `workspace` sale de `scoped_job` acotado; ruta solo admin); `services/review_console.py` v1 → DIFFERENT_CLASS (laboratorio, sin workspace de cliente, 404 por defecto). No se amplía H-03.
+- **Techo independiente (no degrada lo demostrado):** aislamiento E2E entre dos bóvedas reales en Neo4j: **NOT MEASURED**, pendiente del ensayo de integración correspondiente (Fase E). Precondición de despliegue: verificar que las propuestas existentes en producción llevan el `workspace` canónico literal (si no, cola vacía: fail-closed, problema de usabilidad, no de seguridad).
+- **Deuda rango 4 registrada:** X7 (`glossary_candidates` sin filtro) solo lo detecta m5a; comentario de `_huella` cita `audit.jsonl` que no se hashea (la tabla `decision_audit` sí); `undo` deshace decisiones de otros revisores dentro del ámbito (preexistente); doble `load_proposals` en `decide`.
 
 ### B2 — H-01/H-43 · Familia fresh install
 - **Estados explícitos:** DEPLOY_OK → HTTPS_BOOTSTRAP_PATH_VERIFIED → FIRST_ADMIN_PENDING → FIRST_ADMIN_VERIFIED → INSTALLATION_COMPLETE.
@@ -180,3 +184,4 @@ cuando el criterio lo nombra.
 | Fecha | Cambio | Evidencia |
 |---|---|---|
 | 2026-10-11 | Creación del plan canónico a partir de la auditoría R1+R2 | `docs/audits/AUDITORIA_GLOBAL_S9_KNOWLEDGE_2026-10-10.md` (R2.11, R2.16) |
+| 2026-10-11 | Fase A cerrada (#268 → `8964c36`); B1/H-03 VERIFIED (#269 → `2dd6d47`); R1 abiertos 3 → 2; CURRENT_HIT → B2 | PR #268, PR #269, log CI run `38127086116` y runs sobre `1ce168b` (34/34 pass) |
