@@ -186,8 +186,8 @@ def _m6_fresh_no_bloquea(texto: str):
 def _m7_csrf_ausente_bloquea(texto: str):
     return mutar_unico(
         texto,
-        "autogenera (0600) junto a la auth DB en el primer arranque\\n' >&2\n        return 0\n",
-        "autogenera (0600) junto a la auth DB en el primer arranque\\n' >&2\n        return 1\n")
+        "comprobado escribible)\\n' \"${dir}\" >&2\n        return 0\n",
+        "comprobado escribible)\\n' \"${dir}\" >&2\n        return 1\n")
 
 
 def _m8_deploy_sin_preflight_de_revision(texto: str):
