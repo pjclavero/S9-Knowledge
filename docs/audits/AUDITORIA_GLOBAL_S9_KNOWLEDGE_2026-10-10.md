@@ -190,7 +190,7 @@ ramas locales con SHAs «no publicados» tengan su contenido en main (§14).
 
 ### 4.2 Lo que el código ejecuta (OBS)
 
-**82 rutas + 1 mount** enumeradas sobre `app.main.app` (anexo A). 24 POST, 0 PUT/DELETE. De
+**82 rutas + 1 mount** enumeradas sobre `app.main.app` (anexo A). 24 POST [CORRECCIÓN RONDA 2: 21 POST, ver R2.3], 0 PUT/DELETE. De
 dominio: 4 en `/panel/operations/*` (ingestas, planes, aplicaciones, altas) y 2 en `/v3/review`
 (decide, undo); 1 de laboratorio (`/review-console/.../decide`); 2 sobre la bóveda (labels); el
 resto cuenta/admin.
@@ -1180,7 +1180,7 @@ GET    / | /graph | /status | /entity/{entity_id} | /jobs | /jobs/{job_id}  main
 GET    /reviews | /reviews/{source_id}                   main            reviewer                     [NAV]
 ```
 
-Totales: 82 rutas; 24 POST; 0 PUT/DELETE; 6 mutaciones de dominio, 1 de laboratorio, 2 sobre la
+Totales: 82 rutas; 24 POST [CORRECCIÓN RONDA 2: 21 POST]; 0 PUT/DELETE; 6 mutaciones de dominio, 1 de laboratorio, 2 sobre la
 bóveda, resto cuenta/admin. Censo oficial sobre este HEAD (`--skip-probe`): definidas 78 / montadas
 82; muertas 6 (falsos positivos del AST con `prefix=SLOT.prefix`); huérfanas 48; sin guardián
 estático 1; sin auth 0; enlaces rotos 0.
