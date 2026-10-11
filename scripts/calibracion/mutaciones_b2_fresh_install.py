@@ -227,7 +227,7 @@ MUTACIONES = [
     ("M6 — fresh deja de bloquear sobre estado existente (usuarios o corrupta)",
      DETECT, _m6_fresh_no_bloquea,
      {"test_fresh_con_usuarios_bloquea": "BLOCK",
-      "test_paso4_fresh_sobre_auth_con_usuarios_bloquea_y_no_toca_nada": "TRAMO_SUPERADO",
+      "test_paso4_fresh_sobre_auth_con_usuarios_bloquea_y_no_toca_nada": "NO BLOQUEO",
       # Una corrupta en fresh la sigue parando el `*) die ... incoherente`
       # del paso 4 (defensa propia de lib.sh): el rojo se lee en detect.
       "test_corrupta_bloquea_en_los_dos_modos[fresh]": "BLOCK"}),
@@ -236,7 +236,7 @@ MUTACIONES = [
      {"test_paso6_acepta_la_plantilla_productiva_literal": "plantilla productiva copiada tal cual"}),
     ("M8 — deploy.sh deja de invocar preflight_ensayo_rc --grupo despliegue (H-04/H-18)",
      DEPLOY_SH, _m8_deploy_sin_preflight_de_revision,
-     {"test_paso6_estado_de_revision_fuera_del_state_root_bloquea": "TRAMO_SUPERADO"}),
+     {"test_paso6_estado_de_revision_fuera_del_state_root_bloquea": "NO BLOQUEO"}),
     ("M9 — la cadena de estados promociona sin la evidencia de un eslabón",
      ESTADOS, _m9_estado_se_salta_un_eslabon,
      {_PROMOCION + "[evidencia5-FIRST_ADMIN_PENDING]": "INSTALLATION_COMPLETE",

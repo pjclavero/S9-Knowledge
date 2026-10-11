@@ -277,7 +277,9 @@ def test_paso4_fresh_sobre_auth_con_usuarios_bloquea_y_no_toca_nada(tmp_path):
     na = _auth_de_producto(tmp_path / "s/auth/auth.db", usuarios=1)
     antes = _hash(na)
     rc, out = _paso4(tmp_path, "fresh", new_auth=na, new_jobs=tmp_path / "s/jobs/jobs.db")
-    assert rc != 0 and "TRAMO_SUPERADO" not in out, out
+    assert rc != 0 and "TRAMO_SUPERADO" not in out, (
+        "NO BLOQUEO: --mode fresh sobre una auth.db con usuarios siguio "
+        "adelante (fresh nunca sobrescribe):\n%s" % out)
     assert "bloquea en fresh" in out, out
     assert _hash(na) == antes, "fresh NUNCA sobrescribe una auth.db existente"
 
@@ -302,7 +304,9 @@ def test_paso4_ya_no_decide_por_el_estado_global():
     """El texto real del paso 4 no gobierna con `global_state`."""
     tramo = _tramo_de_deploy("# Paso 4: migrar o validar estado", "# --- fin del paso 4 ---")
     assert "paso4_migrar_o_validar_estado" in tramo
-    assert 'case "${GLOBAL_STATE}"' not in tramo, tramo
+    assert 'case "${GLOBAL_STATE}"' not in tramo, (
+        "el paso 4 vuelve a decidir con GLOBAL_STATE en vez de con "
+        "`decision`:\n%s" % tramo)
 
 
 # ===========================================================================
@@ -397,7 +401,9 @@ def test_paso6_estado_de_revision_fuera_del_state_root_bloquea(tmp_path):
         "S9K_V3_REVIEW_PROPOSALS_DIR=%s" % fuera)
     env.write_text(texto)
     rc, out = _paso6(env, raiz)
-    assert rc != 0 and "fuera del state root" in out, out
+    assert rc != 0 and "fuera del state root" in out, (
+        "NO BLOQUEO: el estado de revision fuera del state root tiene que "
+        "parar el paso 6 (preflight_ensayo_rc --grupo despliegue):\n%s" % out)
 
 
 def test_paso6_csrf_explicito_debil_sigue_bloqueando(tmp_path):
