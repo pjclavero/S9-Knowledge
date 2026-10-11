@@ -368,8 +368,13 @@ fi
 # que elige una persona (GATE B, ver deploy/README.md).
 REGISTRO_INSTALACION="${S9K_STATE_ROOT}/deploy/instalacion.json"
 https_ok=false; [ "${https_rc}" -eq 0 ] && https_ok=true
-REGISTRO_ARGS=(--registro "${REGISTRO_INSTALACION}" --anotar deploy_ok=true --anotar "https_verificado=${https_ok}")
-[ "${MODE}" = "fresh" ] && REGISTRO_ARGS+=(--reiniciar)
+# El registro se REINICIA en CADA despliegue, upgrade incluido (corrección
+# R2-a de #271): la evidencia de los gates pertenece a la release que la
+# observó. Sin esto, un upgrade heredaba la evidencia de GATE A y GATE B de
+# otra release y declaraba INSTALLATION_COMPLETE sin haber observado nada. En
+# upgrade el GATE A no corre (el setup está sellado), así que la línea final
+# se queda en lo observado aquí: DEPLOY_OK.
+REGISTRO_ARGS=(--registro "${REGISTRO_INSTALACION}" --reiniciar --anotar deploy_ok=true --anotar "https_verificado=${https_ok}")
 python3 "${HERE}/estado_instalacion.py" "${REGISTRO_ARGS[@]}" >/dev/null \
     || warn "no se pudo anotar la evidencia de instalación en ${REGISTRO_INSTALACION}"
 if [ "${PRIMER_ADMIN_PENDIENTE}" = "true" ] && [ "${https_rc}" -eq 0 ]; then
@@ -398,6 +403,10 @@ log "--- 17. liberar lock"
 # este guion nunca pasa de FIRST_ADMIN_PENDING.
 log "=== DEPLOY terminado === release=${RELEASE_ID} modo=${MODE} decision=${DECISION}"
 log "    $(python3 "${HERE}/estado_instalacion.py" --registro "${REGISTRO_INSTALACION}")"
+if [ "${PRIMER_ADMIN_PENDIENTE}" != "true" ]; then
+    log "    (upgrade: solo se declara lo observado en ESTA ejecución; la instalación"
+    log "    ya sellada no re-ejecuta GATE A/B, y un estado anterior NO se hereda)"
+fi
 if [ "${PRIMER_ADMIN_PENDIENTE}" = "true" ]; then
     log "    Siguiente: crear el primer administrador en /setup/admin y ejecutar el GATE B"
     log "    (preflight_setup_admin.py --modo bootstrap|persistencia --registro ${REGISTRO_INSTALACION})."

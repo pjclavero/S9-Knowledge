@@ -26,6 +26,13 @@ Las cinco mutaciones del encargo (M1-M5) y cuatro más de la familia:
   M8  deploy.sh deja de invocar `preflight_ensayo_rc.py --grupo despliegue`
   M9  la cadena de estados promociona sin la evidencia de un eslabón
 
+Y las de la ronda de corrección de la revisión independiente de #271:
+
+  MP4 el registro deja de reiniciarse en cada despliegue (upgrade hereda)
+  M10 GATE A rojo en production solo avisa          M11 --registro anota True
+  M12 GRUPO_DESPLIEGUE con un nombre mal escrito    M13 403 por HTTPS presupone cookie
+  M14 setup.py invierte sus dos mensajes de CSRF    M15/M16 CSRF ausente sin efecto
+
 LOCALIZADORES
 -------------
 Python: `localizadores.mutar_en_funcion` (AST; DETECTOR ROTO si el ancla no
@@ -197,7 +204,54 @@ def _m9_estado_se_salta_un_eslabon(texto: str):
         "        if not all(_verdadera(evidencia, e) for e in EVIDENCIA_POR_ESTADO[estado]):\n            continue")
 
 
+def _mp4_registro_no_se_reinicia(texto: str):
+    # MP4 (revisión de #271): el registro deja de reiniciarse en cada despliegue.
+    return mutar_unico(texto, '--registro "${REGISTRO_INSTALACION}" --reiniciar --anotar',
+                       '--registro "${REGISTRO_INSTALACION}" --anotar')
+
+
+def _m10_gate_a_rojo_solo_avisa(texto: str):
+    return mutar_unico(texto, '            die "GATE A no pasa (rc=${gate_a_rc})',
+                       '            warn "GATE A no pasa (rc=${gate_a_rc})')
+
+
+def _m11_registro_anota_true(texto: str):
+    return mutar_en_funcion(texto, "main",
+                            '"gate-a": {"gate_a": rc == 0, "setup_abierto": rc == 0},',
+                            '"gate-a": {"gate_a": True, "setup_abierto": True},')
+
+
+def _m12_grupo_con_nombre_mal_escrito(texto: str):
+    return mutar_unico(texto, '    "estado.persistente",\n})', '    "estado.persistent",\n})')
+
+
+def _m13_403_https_presupone_la_cookie(texto: str):
+    return mutar_en_funcion(texto, "comprobar_csrf_funcional",
+                            "        if MENSAJE_PRODUCTO_CSRF_SIN_COOKIE in html:",
+                            "        if False:")
+
+
+def _m14_mensajes_del_setup_invertidos(texto: str):
+    return mutar_en_funcion(
+        texto, "setup_admin_submit",
+        "mensaje = MENSAJE_CSRF_SIN_COOKIE if not cookie_token else MENSAJE_CSRF_INVALIDO",
+        "mensaje = MENSAJE_CSRF_INVALIDO if not cookie_token else MENSAJE_CSRF_SIN_COOKIE")
+
+
+def _m15_csrf_ausente_sin_mirar_el_directorio(texto: str):
+    return mutar_unico(
+        texto,
+        '        if [ ! -d "${ancestro}" ] || [ ! -w "${ancestro}" ] || [ ! -x "${ancestro}" ]; then\n',
+        '        if false; then\n')
+
+
+def _m16_csrf_ausente_fuera_del_state_root(texto: str):
+    return mutar_unico(texto, '            "${state_root}"/*) ;;\n', '            *) ;;\n')
+
+
 _PROMOCION = "test_ningun_estado_se_promociona_sin_toda_la_evidencia"
+SETUP_PY = "viewer/app/routers/setup.py"
+ENSAYO = "deploy/scripts/preflight_ensayo_rc.py"
 
 MUTACIONES = [
     ("M1 — deploy.sh vuelve a decidir el paso 4 con GLOBAL_STATE (H-01/H-43)",
@@ -241,6 +295,31 @@ MUTACIONES = [
      ESTADOS, _m9_estado_se_salta_un_eslabon,
      {_PROMOCION + "[evidencia5-FIRST_ADMIN_PENDING]": "INSTALLATION_COMPLETE",
       _PROMOCION + "[evidencia6-DEPLOY_OK]": "INSTALLATION_COMPLETE"}),
+    # --- Ronda de corrección de la revisión independiente de #271 ---
+    ("MP4 — el registro de estados deja de reiniciarse en cada despliegue (R2-a)",
+     DEPLOY_SH, _mp4_registro_no_se_reinicia,
+     {"test_upgrade_no_hereda_el_estado_de_otra_release": "HEREDADO"}),
+    ("M10 — GATE A en rojo en production solo avisa (die -> warn, R3-d)",
+     DEPLOY_SH, _m10_gate_a_rojo_solo_avisa,
+     {"test_gate_a_en_rojo_en_produccion_mata_el_despliegue[production-True]": "GATE A ROJO EN PRODUCCION"}),
+    ("M11 — --registro anota gate_a/setup_abierto=True aunque el GATE A falle (R3-e)",
+     SETUP_ADMIN, _m11_registro_anota_true,
+     {"test_el_registro_anota_el_resultado_real_del_gate_a[500-False]": "REGISTRO FALSO"}),
+    ("M12 — un nombre mal escrito en GRUPO_DESPLIEGUE se cae en silencio (R3-g)",
+     ENSAYO, _m12_grupo_con_nombre_mal_escrito,
+     {"test_cada_comprobacion_del_grupo_despliegue_existe": "NO existen"}),
+    ("M13 — un 403 por HTTPS presupone que la cookie viajó (R3-a)",
+     SETUP_ADMIN, _m13_403_https_presupone_la_cookie,
+     {"test_gate_a_403_por_https_se_diagnostica_por_el_producto[sin-cookie]": "COOKIE_NO_VUELVE_POR_HTTPS"}),
+    ("M14 — setup.py invierte los dos mensajes de CSRF (R3-f)",
+     SETUP_PY, _m14_mensajes_del_setup_invertidos,
+     {"test_el_403_del_producto_distingue_cookie_ausente_de_token_invalido": "MENSAJE EQUIVOCADO"}),
+    ("M15 — CSRF ausente aceptado sin comprobar que el directorio se escribe (R3-b)",
+     VALIDATE, _m15_csrf_ausente_sin_mirar_el_directorio,
+     {"test_paso6_csrf_ausente_con_directorio_no_escribible_bloquea": "NO BLOQUEO"}),
+    ("M16 — CSRF ausente aceptado con la auth DB fuera del state root (R3-b)",
+     VALIDATE, _m16_csrf_ausente_fuera_del_state_root,
+     {"test_paso6_csrf_ausente_con_auth_db_fuera_del_state_root_bloquea": "NO BLOQUEO"}),
 ]
 
 

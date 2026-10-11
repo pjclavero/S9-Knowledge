@@ -190,6 +190,23 @@ MENSAJE_VALIDACION_USUARIO_VACIO = "El nombre de usuario no puede estar vacio."
 #: distinguir un 400/403 de validacion de uno de CSRF; el testigo lo cruza.
 PREFIJO_MENSAJE_CSRF = "Error de seguridad (CSRF)"
 
+#: Los DOS rechazos de CSRF del producto, literales de
+#: ``viewer/app/routers/setup.py`` (``MENSAJE_CSRF_SIN_COOKIE`` y
+#: ``MENSAJE_CSRF_INVALIDO``), cruzados por AST en el testigo de B2. Con ellos
+#: un 403 por HTTPS se DIAGNOSTICA por lo que el producto observo -la cookie
+#: no llego, o llego y el token no valido- en vez de presuponerlo.
+MENSAJE_PRODUCTO_CSRF_SIN_COOKIE = (
+    "Error de seguridad (CSRF): el navegador no ha devuelto la cookie de "
+    "seguridad del formulario. Lo habitual es que esta pagina se haya abierto "
+    "por http:// (sin cifrar): la cookie es de tipo Secure y ningun navegador "
+    "la envia por una conexion sin cifrar. Abre la instalacion por https://; "
+    "no desactives la proteccion."
+)
+MENSAJE_PRODUCTO_CSRF_INVALIDO = (
+    "Error de seguridad (CSRF): el formulario ha caducado o no corresponde a "
+    "esta sesion. Recarga la pagina e intentalo de nuevo."
+)
+
 
 # ---------------------------------------------------------------------------
 # Credenciales: nunca por argv, nunca impresas
@@ -686,12 +703,28 @@ def comprobar_csrf_funcional(cliente: ClienteConCookies,
             causa = comprobar_cookie_secure_coherente(url, True)
             if causa is not None:
                 return causa
+        # Por HTTPS: lo que el PRODUCTO dice que observo, no una suposicion.
+        if MENSAJE_PRODUCTO_CSRF_SIN_COOKIE in html:
+            return Hallazgo(
+                "COOKIE_NO_VUELVE_POR_HTTPS",
+                "el POST de validacion a %s respondio 403 y el producto dice que "
+                "la cookie %r NO llego, aunque el canal es HTTPS: algo entre el "
+                "cliente y el visor la descarta (proxy que no reenvia "
+                "Set-Cookie/Cookie, dominio o ruta de la cookie que no casan)."
+                % (SETUP_PATH, SETUP_CSRF_COOKIE))
+        if MENSAJE_PRODUCTO_CSRF_INVALIDO in html:
+            return Hallazgo(
+                "CSRF_RECHAZADO_CON_COOKIE",
+                "el POST de validacion a %s respondio 403 y el producto dice que "
+                "la cookie SI llego pero el token no valido: el CSRF esta roto "
+                "de verdad (secreto distinto entre procesos o reinicios, token "
+                "reescrito). No es el bucle de HTTP plano." % (SETUP_PATH,))
         return Hallazgo(
-            "CSRF_RECHAZADO_CON_COOKIE",
-            "el POST de validacion a %s respondio 403 por CSRF AUNQUE la cookie "
-            "viajo por HTTPS: el CSRF esta roto de verdad (secreto distinto "
-            "entre procesos o reinicios, cookie reescrita por el proxy). No es "
-            "el bucle de HTTP plano." % (SETUP_PATH,))
+            "CSRF_403_SIN_DIAGNOSTICO",
+            "el POST de validacion a %s respondio 403 sin ninguno de los dos "
+            "mensajes de CSRF del producto: no se puede decir si la cookie "
+            "volvio. Quien responde puede no ser el visor (proxy, WAF)."
+            % (SETUP_PATH,))
     if estado == ESTADO_FAIL_CLOSED:
         return Hallazgo(
             "ALMACEN_DE_AUTH_NO_DISPONIBLE",

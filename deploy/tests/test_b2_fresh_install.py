@@ -38,6 +38,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import os
+import re
 import sqlite3
 import subprocess
 import sys
@@ -467,11 +468,21 @@ def test_la_plantilla_productiva_declara_toda_variable_critica():
     assert not faltan, "la plantilla productiva no declara %s" % faltan
 
 
-def test_la_plantilla_productiva_no_lleva_comentarios_en_linea():
-    """`VAR=valor  # nota` metia la nota en el valor (medido)."""
-    malas = [l for l in PLANTILLA_PRODUCTIVA.read_text(encoding="utf-8").splitlines()
+PLANTILLAS_DE_ENTORNO = sorted((RAIZ / "deploy" / "config").glob("*.example")) + [PLANTILLA_VISOR]
+
+
+@pytest.mark.parametrize("plantilla", PLANTILLAS_DE_ENTORNO,
+                         ids=[str(p.relative_to(RAIZ)) for p in PLANTILLAS_DE_ENTORNO])
+def test_ninguna_plantilla_lleva_comentarios_en_linea(plantilla):
+    """`VAR=valor  # nota` metia la nota en el valor (medido): un panel con
+    `true  # nota` queda APAGADO y `S9K_AUTH_ENABLED` deja de parsear."""
+    malas = [l for l in plantilla.read_text(encoding="utf-8").splitlines()
              if l.strip() and not l.lstrip().startswith("#") and "#" in l]
-    assert not malas, malas
+    assert not malas, "COMENTARIO EN LINEA en %s: %s" % (plantilla.name, malas)
+
+
+def test_hay_plantillas_que_vigilar():
+    assert len(PLANTILLAS_DE_ENTORNO) >= 4, PLANTILLAS_DE_ENTORNO
 
 
 def test_la_plantilla_productiva_no_exige_csrf_manual():
@@ -554,16 +565,93 @@ def test_gate_a_400_sin_el_mensaje_exacto_no_basta(cert_localhost):
         stub.cerrar()
 
 
-def test_gate_a_403_por_https_es_csrf_roto_no_cookie_secure(cert_localhost):
-    """La cookie SI viajo (HTTPS): un 403 es un CSRF roto de verdad."""
+@pytest.mark.parametrize("cuerpo,causa", [
+    (ps.MENSAJE_PRODUCTO_CSRF_INVALIDO, "CSRF_RECHAZADO_CON_COOKIE"),
+    (ps.MENSAJE_PRODUCTO_CSRF_SIN_COOKIE, "COOKIE_NO_VUELVE_POR_HTTPS"),
+    ("Forbidden", "CSRF_403_SIN_DIAGNOSTICO"),
+], ids=["token-invalido", "sin-cookie", "403-ajeno"])
+def test_gate_a_403_por_https_se_diagnostica_por_el_producto(cert_localhost, cuerpo, causa):
+    """R3-a: un 403 por HTTPS se lee por el mensaje del PRODUCTO, no se presupone."""
     cert, clave = cert_localhost
-    stub = _StubSetup(cert, clave, estado_post=403)
+    stub = _StubSetup(cert, clave, estado_post=403,
+                      cuerpo_post=("<li>%s</li>" % cuerpo).encode())
     try:
         causas = [h.causa for h in _gate_a(stub, cert)[0]]
-        assert "CSRF_RECHAZADO_CON_COOKIE" in causas, causas
+        assert causa in causas, (
+            "403 por HTTPS con %r: se esperaba %s y salio %s" % (cuerpo[:40], causa, causas))
         assert "COOKIE_SECURE_SOBRE_HTTP" not in causas, causas
     finally:
         stub.cerrar()
+
+
+def _constante_de_modulo(fichero: Path, nombre: str) -> str:
+    arbol = ast.parse(fichero.read_text(encoding="utf-8"))
+    for nodo in arbol.body:
+        if isinstance(nodo, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == nombre for t in nodo.targets):
+            return ast.literal_eval(nodo.value)
+    raise AssertionError("no hay constante %s en %s" % (nombre, fichero))
+
+
+def test_los_rechazos_de_csrf_replicados_son_los_del_producto():
+    setup = RAIZ / "viewer" / "app" / "routers" / "setup.py"
+    assert ps.MENSAJE_PRODUCTO_CSRF_SIN_COOKIE == _constante_de_modulo(setup, "MENSAJE_CSRF_SIN_COOKIE")
+    assert ps.MENSAJE_PRODUCTO_CSRF_INVALIDO == _constante_de_modulo(setup, "MENSAJE_CSRF_INVALIDO")
+
+
+@pytest.fixture
+def setup_en_proceso(tmp_path):
+    """El router REAL de /setup/admin en proceso (TestClient habla http://)."""
+    from fastapi.testclient import TestClient  # noqa: PLC0415
+    from app.auth.config import get_auth_settings  # noqa: PLC0415
+    claves = ("S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_CSRF_SECRET", "S9K_SESSION_SECURE")
+    previos = {k: os.environ.get(k) for k in claves}
+    os.environ.update({
+        "S9K_AUTH_ENABLED": "true",
+        "S9K_AUTH_DB_PATH": str(_auth_de_producto(tmp_path / "auth.db")),
+        "S9K_CSRF_SECRET": "csrf-ficticio-de-b2-%s" % ("x9" * 12),
+        # TestClient habla http://testserver; sin esto la cookie no volveria
+        # y no se podria fabricar el caso «la cookie llego, el token no».
+        "S9K_SESSION_SECURE": "false",
+    })
+    get_auth_settings.cache_clear()
+    from app.main import app  # noqa: PLC0415
+    try:
+        yield TestClient(app, raise_server_exceptions=False, follow_redirects=False)
+    finally:
+        for k, v in previos.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        get_auth_settings.cache_clear()
+
+
+def test_el_403_del_producto_distingue_cookie_ausente_de_token_invalido(setup_en_proceso):
+    """R3-f: COMPORTAMIENTO del producto, no solo sus literales."""
+    from app.routers import setup as producto  # noqa: PLC0415
+    cliente = setup_en_proceso
+    r = cliente.get("/setup/admin")
+    assert r.status_code == 200, r.status_code
+    token = re.search(r'name="csrf_token" value="([^"]+)"', r.text).group(1)
+    galleta = r.cookies.get(ps.SETUP_CSRF_COOKIE)
+    assert galleta
+
+    # Sin cookie: el navegador no la devolvio.
+    cliente.cookies.clear()
+    sin = cliente.post("/setup/admin", data={"username": "", "password": "", "csrf_token": token})
+    assert sin.status_code == 403
+    assert producto.MENSAJE_CSRF_SIN_COOKIE in sin.text, (
+        "MENSAJE EQUIVOCADO: sin cookie el producto tiene que decir que la cookie no volvio")
+    assert producto.MENSAJE_CSRF_INVALIDO not in sin.text
+
+    # Con cookie y token que no casa.
+    cliente.cookies.set(ps.SETUP_CSRF_COOKIE, galleta)
+    mal = cliente.post("/setup/admin", data={"username": "", "password": "", "csrf_token": "no-es-el-token"})
+    assert mal.status_code == 403
+    assert producto.MENSAJE_CSRF_INVALIDO in mal.text, (
+        "MENSAJE EQUIVOCADO: con cookie y token invalido el producto no puede culpar a la cookie")
+    assert producto.MENSAJE_CSRF_SIN_COOKIE not in mal.text
 
 
 def test_gate_a_http_plano_nombra_la_causa_de_preflight_https_y_no_sondea():
@@ -670,3 +758,140 @@ def test_fresh_reinicia_el_registro(tmp_path):
     ei.registrar(r, deploy_ok=True, gate_b_bootstrap=True)
     datos = ei.registrar(r, reiniciar=True, deploy_ok=True)
     assert set(datos) == {"deploy_ok"}
+
+
+# ===========================================================================
+# 7. Ronda de corrección (revisión independiente de #271)
+# ===========================================================================
+
+_FIN_DEPLOY = 'INSTALLATION_COMPLETE solo tras el GATE B --modo persistencia DESPUÉS de un reinicio."\nfi'
+
+
+def _tramo_16b_17(tmp: Path, env: Path, *, modo: str, ambiente: str,
+                  primer_admin_pendiente: str):
+    """Pasos 16b-17 de deploy.sh, TEXTO REAL. Devuelve (rc, salida, raiz)."""
+    raiz = tmp / "state"
+    (raiz / "deploy").mkdir(parents=True, exist_ok=True)
+    cuerpo = """
+HERE=%s
+VIEWER_ENV=%s
+ENVIRONMENT=%s
+MODE=%s
+DECISION=PROCEED
+RELEASE_ID=b2-r2
+PRIMER_ADMIN_PENDIENTE=%s
+S9K_STATE_ROOT=%s
+S9K_ROOT=%s
+S9K_DEPLOY_STATE_FILE=%s/deploy/deployment-state.json
+%s
+""" % (_SCRIPTS, env, ambiente, modo, primer_admin_pendiente, raiz, tmp / "opt",
+       raiz, _tramo_de_deploy("# Paso 16b: vía HTTPS, VERIFICADA POR EFECTO.", _FIN_DEPLOY))
+    r = _correr_bash(cuerpo, {})
+    return r.returncode, r.stdout + r.stderr, raiz
+
+
+def _env_hacia(tmp: Path, stub, ca) -> Path:
+    env = tmp / "viewer.env"
+    env.write_text("S9K_PUBLIC_BASE_URL=%s\nS9K_SESSION_SECURE=true\nS9K_TLS_CA_FILE=%s\n"
+                   % (stub.base_url, ca))
+    return env
+
+
+def test_upgrade_no_hereda_el_estado_de_otra_release(tmp_path, cert_localhost):
+    """R2-a: un upgrade NO puede imprimir INSTALLATION_COMPLETE con evidencia
+    de gates que no observó en ESTA ejecución."""
+    cert, clave = cert_localhost
+    stub = _StubSetup(cert, clave)  # HTTPS responde: 16b en verde
+    try:
+        env = _env_hacia(tmp_path, stub, cert)
+        registro = tmp_path / "state" / "deploy" / "instalacion.json"
+        ei.registrar(registro, deploy_ok=True, https_verificado=True, gate_a=True,
+                     setup_abierto=True, gate_b_bootstrap=True)
+        ei.registrar(registro, gate_b_persistencia=True)
+        assert ei.estado_alcanzado(ei.leer(registro)) == "INSTALLATION_COMPLETE"
+        rc, out, _ = _tramo_16b_17(tmp_path, env, modo="upgrade", ambiente="production",
+                                   primer_admin_pendiente="false")
+        assert rc == 0, out
+        lineas = [l for l in out.splitlines() if "ESTADO_INSTALACION=" in l]
+        assert lineas and "ESTADO_INSTALACION=DEPLOY_OK" in lineas[-1], (
+            "HEREDADO: el upgrade declara %r con evidencia de otra release; solo "
+            "puede declarar lo observado en esta ejecucion" % (lineas,))
+    finally:
+        stub.cerrar()
+
+
+@pytest.mark.parametrize("ambiente,debe_morir", [("production", True), ("lab", False)])
+def test_gate_a_en_rojo_en_produccion_mata_el_despliegue(tmp_path, cert_localhost,
+                                                        ambiente, debe_morir):
+    """R3-d: GATE A rojo en production -> die (no un aviso); en lab avisa."""
+    cert, clave = cert_localhost
+    stub = _StubSetup(cert, clave, estado_post=500)  # HTTPS ok, GATE A rojo
+    try:
+        env = _env_hacia(tmp_path, stub, cert)
+        rc, out, raiz = _tramo_16b_17(tmp_path, env, modo="fresh", ambiente=ambiente,
+                                      primer_admin_pendiente="true")
+        assert "GATE A no pasa" in out, out
+        if debe_morir:
+            assert rc != 0 and "DEPLOY terminado" not in out, (
+                "GATE A ROJO EN PRODUCCION NO PARO EL DESPLIEGUE:\n%s" % out)
+        else:
+            assert rc == 0 and "DEPLOY terminado" in out, out
+            final = [l for l in out.splitlines() if "ESTADO_INSTALACION=" in l][-1]
+            assert "ESTADO_INSTALACION=DEPLOY_OK" in final, final
+        datos = ei.leer(raiz / "deploy" / "instalacion.json")
+        assert datos.get("gate_a", {}).get("ok") is False, datos
+    finally:
+        stub.cerrar()
+
+
+@pytest.mark.parametrize("estado_post,esperado", [(400, True), (500, False)])
+def test_el_registro_anota_el_resultado_real_del_gate_a(tmp_path, cert_localhost,
+                                                        estado_post, esperado):
+    """R3-e: --registro anota gate_a y setup_abierto == (rc == 0)."""
+    cert, clave = cert_localhost
+    stub = _StubSetup(cert, clave, estado_post=estado_post, cuerpo_post=_FORM_400)
+    try:
+        registro = tmp_path / "r.json"
+        rc = ps.main(["--modo", "gate-a", "--url", stub.base_url, "--session-secure", "true",
+                      "--ca-file", str(cert), "--registro", str(registro)])
+        assert (rc == 0) is esperado
+        datos = ei.leer(registro)
+        anotado = (datos["gate_a"]["ok"], datos["setup_abierto"]["ok"])
+        assert anotado == (esperado, esperado), (
+            "REGISTRO FALSO: GATE A rc=%d y el registro anota gate_a/setup_abierto=%r"
+            % (rc, anotado))
+    finally:
+        stub.cerrar()
+
+
+def test_cada_comprobacion_del_grupo_despliegue_existe():
+    """R3-g: un nombre mal escrito en GRUPO_DESPLIEGUE no puede caerse en silencio."""
+    import preflight_ensayo_rc as rc_mod  # noqa: PLC0415
+    nombres = {n for n, _ in rc_mod.COMPROBACIONES}
+    faltan = sorted(rc_mod.GRUPO_DESPLIEGUE - nombres)
+    assert not faltan, "GRUPO_DESPLIEGUE nombra comprobaciones que NO existen: %s" % faltan
+    assert len(rc_mod.GRUPOS["despliegue"]) == len(rc_mod.GRUPO_DESPLIEGUE)
+
+
+def test_paso6_csrf_ausente_con_auth_db_fuera_del_state_root_bloquea(tmp_path):
+    """R3-b: la ruta absoluta no basta; tiene que estar bajo el state root."""
+    env, raiz = plantilla_productiva_en(tmp_path, "https://s9k.example.test")
+    fuera = tmp_path / "fuera" / "auth.db"
+    env.write_text(env.read_text().replace(
+        "S9K_AUTH_DB_PATH=%s/auth/auth.db" % raiz, "S9K_AUTH_DB_PATH=%s" % fuera))
+    rc, out = _paso6(env, raiz)
+    assert rc != 0 and "no está bajo el state root" in out, (
+        "NO BLOQUEO: CSRF ausente con la auth DB fuera del state root:\n%s" % out)
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root escribe en un directorio 0500")
+def test_paso6_csrf_ausente_con_directorio_no_escribible_bloquea(tmp_path):
+    """R3-b: se comprueba POR EFECTO que el secreto se podría persistir."""
+    env, raiz = plantilla_productiva_en(tmp_path, "https://s9k.example.test")
+    (raiz / "auth").chmod(0o500)
+    try:
+        rc, out = _paso6(env, raiz)
+    finally:
+        (raiz / "auth").chmod(0o750)
+    assert rc != 0 and "no se puede crear ni escribir" in out, (
+        "NO BLOQUEO: CSRF ausente con el directorio de la auth DB no escribible:\n%s" % out)

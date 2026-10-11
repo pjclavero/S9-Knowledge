@@ -45,8 +45,9 @@ REGISTRO
 La evidencia se acumula en un JSON del state root
 (``<S9K_STATE_ROOT>/deploy/instalacion.json``), escrito de forma atomica. No
 contiene secretos: solo booleanos, el nombre de la evidencia y su hora.
-``deploy.sh --mode fresh`` lo REINICIA: una primera release nueva no hereda la
-evidencia de otra.
+``deploy.sh`` lo REINICIA en CADA despliegue (fresh y upgrade): la evidencia
+de un gate pertenece a la release que lo observo, y una release nueva no la
+hereda (correccion R2-a de #271).
 
 TECHO DECLARADO
 ---------------

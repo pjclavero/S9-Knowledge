@@ -64,7 +64,8 @@ deploy/scripts/deploy.sh --environment production --release-ref <tag|sha> \
   que deja el rol `data_engine`.
 - **No hace falta fijar `S9K_CSRF_SECRET`**: el visor lo genera 0600 junto a
   la auth DB (#248) y `validate_deploy.sh` lo acepta si `S9K_AUTH_DB_PATH` es
-  absoluta y está fuera de la release. Un valor explícito débil sigue
+  absoluta, está **bajo el state root** y su directorio se puede crear y
+  escribir (comprobado por efecto). Un valor explícito débil sigue
   bloqueando.
 - **Proveedor de fábrica `not_configured`** (#264): vacío honesto, nunca `mock`.
 - **Estado de revisión fuera de la release**: `S9K_V3_REVIEW_DATABASE_PATH` y
@@ -73,6 +74,12 @@ deploy/scripts/deploy.sh --environment production --release-ref <tag|sha> \
   state root, escribibles y resueltas igual por visor y motor).
 - **En `fresh` la unidad se habilita** (`systemctl enable`) además de
   arrancarse.
+- **El visor queda corriendo como `root`** en este camino: la unidad que
+  instala `deploy.sh` es la del repositorio (`viewer/systemd/…`, **sin
+  `User=`**), y ahora además queda habilitada. Es **H-08**, abierto: no se
+  corrige en B2.
+- **`auth.db` se crea con permisos `0644`** (umask del proceso): es **H-06**,
+  abierto. El secreto CSRF autogenerado sí queda `0600`.
 
 ### Quién decide si se puede seguir: `decision`, y por estado del producto
 
@@ -106,6 +113,21 @@ exige la de **todos** los anteriores.
 `deploy.sh` imprime `ESTADO_INSTALACION=<estado>` al terminar y **nunca pasa
 de `FIRST_ADMIN_PENDING`**: no crea administradores.
 
+**El registro se reinicia en CADA despliegue**, también en `upgrade`: la
+evidencia de un gate pertenece a la release que lo observó. Un `upgrade`
+sobre una instalación ya completa imprime `ESTADO_INSTALACION=DEPLOY_OK` (lo
+observado en esa ejecución), **no** `INSTALLATION_COMPLETE` heredado; para
+volver a afirmarlo sobre la release nueva hay que repetir el GATE B
+`--modo persistencia`… y aun así la cadena exige `gate_a`, que en una
+instalación sellada no se puede observar. Es deliberado: en `upgrade` la
+cadena de primera instalación no se re-declara.
+
+**Límite conocido (O1):** `detect_state` cuenta como `EMPTY_STATE` cualquier
+SQLite íntegro **sin tabla `users`** (por ejemplo, un fichero ajeno en
+`S9K_AUTH_DB_PATH`); en `fresh` eso procede. Qué hace después el visor con
+esa base (migrarla o negarse a arrancar) **no se ha medido** en B2: es deuda
+de rango 4.
+
 ### GATE A — el CSRF funciona sobre la vía HTTPS (lo ejecuta `deploy.sh`)
 
 Paso 16c, solo con el primer administrador pendiente. `GET /setup/admin`
@@ -119,7 +141,9 @@ validación EXACTA: `400` con la plantilla, el mensaje
 | `400` + mensaje exacto | PASS: el CSRF pasó y la validación corrió detrás |
 | URL `http://` con `Secure=true` | `ESQUEMA_NO_HTTPS` + `COOKIE_SECURE_SOBRE_HTTP` (no se sondea: D3) |
 | `403` por HTTP plano (arnés) | `COOKIE_SECURE_SOBRE_HTTP`: la cookie no vuelve, **no** es un CSRF roto |
-| `403` por HTTPS | `CSRF_RECHAZADO_CON_COOKIE`: CSRF roto de verdad (secreto distinto entre procesos…) |
+| `403` por HTTPS y el producto dice «el formulario ha caducado…» | `CSRF_RECHAZADO_CON_COOKIE`: la cookie llegó y el token no validó (secreto distinto entre procesos…) |
+| `403` por HTTPS y el producto dice «no ha devuelto la cookie…» | `COOKIE_NO_VUELVE_POR_HTTPS`: algo entre cliente y visor descarta la cookie (proxy) |
+| `403` por HTTPS sin ninguno de los dos mensajes | `CSRF_403_SIN_DIAGNOSTICO`: quien responde puede no ser el visor |
 | `5xx` | `ERROR_DE_SERVIDOR` / `ALMACEN_DE_AUTH_NO_DISPONIBLE`: **nunca** PASS |
 | `200`, `400` sin el mensaje | `VALIDACION_INESPERADA` |
 | `303` | `ALTA_INVALIDA_ACEPTADA` |

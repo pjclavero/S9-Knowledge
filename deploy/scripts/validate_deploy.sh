@@ -69,7 +69,25 @@ validate_csrf_secret() {
                 printf 'BLOCK(csrf): S9K_CSRF_SECRET vacío y la auth DB cuelga de una release: el secreto autogenerado se perdería en el siguiente despliegue\n' >&2; return 1 ;;
             esac
         done
-        printf 'INFO(csrf): S9K_CSRF_SECRET no declarado: el visor lo autogenera (0600) junto a la auth DB en el primer arranque\n' >&2
+        # POR EFECTO (corrección R3-b de #271), no solo por la forma de la ruta:
+        # el directorio de la auth DB tiene que estar bajo el state root y ser
+        # creable/escribible. Si no, el visor no podría persistir el secreto y
+        # el arranque fallaría cerrado después de que el despliegue dijera «ok».
+        local state_root="${S9K_STATE_ROOT:-/var/lib/s9-knowledge}" dir ancestro
+        case "${authdb}" in
+            "${state_root}"/*) ;;
+            *) printf 'BLOCK(csrf): S9K_CSRF_SECRET vacío y la auth DB no está bajo el state root (%s): el secreto autogenerado no tendría un sitio persistente declarado\n' "${state_root}" >&2; return 1 ;;
+        esac
+        dir="$(dirname "${authdb}")"
+        ancestro="${dir}"
+        while [ ! -e "${ancestro}" ] && [ "${ancestro}" != "/" ]; do
+            ancestro="$(dirname "${ancestro}")"
+        done
+        if [ ! -d "${ancestro}" ] || [ ! -w "${ancestro}" ] || [ ! -x "${ancestro}" ]; then
+            printf 'BLOCK(csrf): S9K_CSRF_SECRET vacío y %s no se puede crear ni escribir: el visor no podría persistir el secreto autogenerado\n' "${dir}" >&2
+            return 1
+        fi
+        printf 'INFO(csrf): S9K_CSRF_SECRET no declarado: el visor lo autogenera (0600) junto a la auth DB en el primer arranque (%s, comprobado escribible)\n' "${dir}" >&2
         return 0
     fi
     lower="$(printf '%s' "${val}" | tr '[:upper:]' '[:lower:]')"
