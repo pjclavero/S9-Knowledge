@@ -73,9 +73,12 @@ validate_csrf_secret() {
         # el directorio de la auth DB tiene que estar bajo el state root y ser
         # creable/escribible. Si no, el visor no podría persistir el secreto y
         # el arranque fallaría cerrado después de que el despliegue dijera «ok».
-        local state_root="${S9K_STATE_ROOT:-/var/lib/s9-knowledge}" dir ancestro
-        case "${authdb}" in
-            "${state_root}"/*) ;;
+        local state_root="${S9K_STATE_ROOT:-/var/lib/s9-knowledge}" dir ancestro authdb_norm root_norm
+        # Normalizado (O-C): `/var/lib/s9-knowledge/../x` no cuenta como dentro.
+        authdb_norm="$(realpath -m -- "${authdb}")"
+        root_norm="$(realpath -m -- "${state_root}")"
+        case "${authdb_norm}" in
+            "${root_norm}"/*) ;;
             *) printf 'BLOCK(csrf): S9K_CSRF_SECRET vacío y la auth DB no está bajo el state root (%s): el secreto autogenerado no tendría un sitio persistente declarado\n' "${state_root}" >&2; return 1 ;;
         esac
         dir="$(dirname "${authdb}")"

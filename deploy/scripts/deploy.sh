@@ -398,14 +398,17 @@ S9K_RETENTION_APPLY=1 cleanup_old_releases
 
 # Paso 17: liberar lock (implícito al cerrar el FD/proceso)
 log "--- 17. liberar lock"
-# «deploy.sh terminó» NO es «instalación completa». La línea de estado la
-# calcula la autoridad única (estado_instalacion.py) con la evidencia anotada;
-# este guion nunca pasa de FIRST_ADMIN_PENDING.
+# «deploy.sh terminó» NO es «instalación completa». Dos líneas (O-A):
+# ESTADO_OBSERVADO = lo que vio ESTA ejecución (nunca anota evidencia de gates
+# que no observó); ESTADO_DEL_PRODUCTO = lo que la auth DB dice de sí misma
+# (sello + admins), sin mirar el registro.
 log "=== DEPLOY terminado === release=${RELEASE_ID} modo=${MODE} decision=${DECISION}"
-log "    $(python3 "${HERE}/estado_instalacion.py" --registro "${REGISTRO_INSTALACION}")"
+python3 "${HERE}/estado_instalacion.py" --registro "${REGISTRO_INSTALACION}" --auth-db "${NEW_AUTH_DB}" \
+    | while IFS= read -r _linea_estado; do log "    ${_linea_estado}"; done
 if [ "${PRIMER_ADMIN_PENDIENTE}" != "true" ]; then
-    log "    (upgrade: solo se declara lo observado en ESTA ejecución; la instalación"
-    log "    ya sellada no re-ejecuta GATE A/B, y un estado anterior NO se hereda)"
+    log "    (upgrade: ESTADO_OBSERVADO es solo lo observado en ESTA ejecución; la"
+    log "    instalación ya sellada no re-ejecuta GATE A/B. Su estado real lo da"
+    log "    ESTADO_DEL_PRODUCTO, leído de la auth DB, no heredado del registro)"
 fi
 if [ "${PRIMER_ADMIN_PENDIENTE}" = "true" ]; then
     log "    Siguiente: crear el primer administrador en /setup/admin y ejecutar el GATE B"

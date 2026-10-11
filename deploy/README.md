@@ -64,9 +64,12 @@ deploy/scripts/deploy.sh --environment production --release-ref <tag|sha> \
   que deja el rol `data_engine`.
 - **No hace falta fijar `S9K_CSRF_SECRET`**: el visor lo genera 0600 junto a
   la auth DB (#248) y `validate_deploy.sh` lo acepta si `S9K_AUTH_DB_PATH` es
-  absoluta, está **bajo el state root** y su directorio se puede crear y
-  escribir (comprobado por efecto). Un valor explícito débil sigue
-  bloqueando.
+  absoluta, está **bajo el state root** (ruta normalizada: un `..` no cuela)
+  y su directorio se puede crear y escribir (comprobado por efecto). Un valor
+  explícito débil sigue bloqueando. **Límite:** esa escritura se comprueba
+  como el usuario que ejecuta `deploy.sh` (root), no como el usuario del
+  servicio; hoy coinciden porque la unidad del repositorio no lleva `User=`
+  (H-08), y dejarán de coincidir cuando H-08 se cierre.
 - **Proveedor de fábrica `not_configured`** (#264): vacío honesto, nunca `mock`.
 - **Estado de revisión fuera de la release**: `S9K_V3_REVIEW_DATABASE_PATH` y
   `S9K_V3_REVIEW_PROPOSALS_DIR` son críticas y el paso 6 ejecuta
@@ -110,17 +113,30 @@ exige la de **todos** los anteriores.
 | `FIRST_ADMIN_VERIFIED` | GATE B `--modo bootstrap` | el operador |
 | `INSTALLATION_COMPLETE` | GATE B `--modo persistencia` **después** de reiniciar | el operador |
 
-`deploy.sh` imprime `ESTADO_INSTALACION=<estado>` al terminar y **nunca pasa
-de `FIRST_ADMIN_PENDING`**: no crea administradores.
+`deploy.sh` imprime **dos líneas** al terminar, que responden a dos preguntas:
+
+- `ESTADO_OBSERVADO=<estado>`: lo que vio **esta** ejecución, según la cadena
+  de arriba. `deploy.sh` nunca **anota** evidencia de gates que no observó y
+  no crea administradores, así que por sí solo no pasa de
+  `FIRST_ADMIN_PENDING`.
+- `ESTADO_DEL_PRODUCTO=<estado>`: lo que la auth DB dice de sí misma, leída
+  como la lee `detect_state` (sello `install_state` y administradores
+  activos), **nunca** del registro. Valores: `FRESH` (no hay auth DB),
+  `FIRST_ADMIN_PENDING` (sin usuarios ni sello), `BOOTSTRAP_SELLADO` (sellada
+  y sin admin activo), `INSTALLATION_COMPLETE_SEGUN_PRODUCTO` (sellada, o con
+  usuarios —el producto infiere el sello—, y con ≥1 admin activo) e
+  `INDETERMINADO` (la base no es legible).
 
 **El registro se reinicia en CADA despliegue**, también en `upgrade`: la
 evidencia de un gate pertenece a la release que lo observó. Un `upgrade`
-sobre una instalación ya completa imprime `ESTADO_INSTALACION=DEPLOY_OK` (lo
+sobre una instalación ya completa imprime `ESTADO_OBSERVADO=DEPLOY_OK` (lo
 observado en esa ejecución), **no** `INSTALLATION_COMPLETE` heredado; para
 volver a afirmarlo sobre la release nueva hay que repetir el GATE B
 `--modo persistencia`… y aun así la cadena exige `gate_a`, que en una
 instalación sellada no se puede observar. Es deliberado: en `upgrade` la
-cadena de primera instalación no se re-declara.
+cadena de primera instalación no se re-declara. Lo que el operador lee para
+saber que la instalación sigue completa es `ESTADO_DEL_PRODUCTO=
+INSTALLATION_COMPLETE_SEGUN_PRODUCTO`.
 
 **Límite conocido (O1):** `detect_state` cuenta como `EMPTY_STATE` cualquier
 SQLite íntegro **sin tabla `users`** (por ejemplo, un fichero ajeno en
@@ -165,7 +181,7 @@ python3 deploy/scripts/preflight_setup_admin.py --env-file /etc/s9-knowledge/vie
 systemctl restart s9-knowledge-viewer.service
 python3 deploy/scripts/preflight_setup_admin.py --env-file /etc/s9-knowledge/viewer.env \
     --modo persistencia --credenciales-desde cred.json --registro /var/lib/s9-knowledge/deploy/instalacion.json
-# -> ESTADO_INSTALACION=INSTALLATION_COMPLETE
+# -> ESTADO_OBSERVADO=INSTALLATION_COMPLETE
 ```
 
 Si el administrador se crea en el navegador, basta `--modo persistencia` tras
@@ -498,7 +514,7 @@ rojo, y **por su causa**:
 | N14 | (B2) `auth.db` truncada/corrupta en `fresh` y en `upgrade` | **BLOCK** con `CORRUPT_STATE`; nunca «instalación nueva». |
 | N15 | (B2) `viewer.env` sin `S9K_V3_REVIEW_DATABASE_PATH` o `…_PROPOSALS_DIR` | **BLOCK** en el paso 6 nombrando la variable. |
 | N16 | (B2) `upgrade` con `jobs.db` ausente o vacía | **sigue** (H-43): una cola vacía no bloquea. |
-| N17 | (B2) `deploy.sh` en `fresh` termina | imprime `ESTADO_INSTALACION=FIRST_ADMIN_PENDING`, **no** `INSTALLATION_COMPLETE`; éste solo tras GATE B `--modo persistencia` después de reiniciar. |
+| N17 | (B2) `deploy.sh` en `fresh` termina | imprime `ESTADO_OBSERVADO=FIRST_ADMIN_PENDING` y `ESTADO_DEL_PRODUCTO=FIRST_ADMIN_PENDING`, **no** `INSTALLATION_COMPLETE`; éste solo tras GATE B `--modo persistencia` después de reiniciar. |
 
 ### Qué se registra
 

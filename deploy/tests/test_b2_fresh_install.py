@@ -768,11 +768,12 @@ _FIN_DEPLOY = 'INSTALLATION_COMPLETE solo tras el GATE B --modo persistencia DES
 
 
 def _tramo_16b_17(tmp: Path, env: Path, *, modo: str, ambiente: str,
-                  primer_admin_pendiente: str):
+                  primer_admin_pendiente: str, auth_db: Path = None):
     """Pasos 16b-17 de deploy.sh, TEXTO REAL. Devuelve (rc, salida, raiz)."""
     raiz = tmp / "state"
     (raiz / "deploy").mkdir(parents=True, exist_ok=True)
     cuerpo = """
+NEW_AUTH_DB=%s
 HERE=%s
 VIEWER_ENV=%s
 ENVIRONMENT=%s
@@ -784,7 +785,8 @@ S9K_STATE_ROOT=%s
 S9K_ROOT=%s
 S9K_DEPLOY_STATE_FILE=%s/deploy/deployment-state.json
 %s
-""" % (_SCRIPTS, env, ambiente, modo, primer_admin_pendiente, raiz, tmp / "opt",
+""" % (auth_db or (raiz / "auth" / "auth.db"), _SCRIPTS, env, ambiente, modo,
+       primer_admin_pendiente, raiz, tmp / "opt",
        raiz, _tramo_de_deploy("# Paso 16b: vía HTTPS, VERIFICADA POR EFECTO.", _FIN_DEPLOY))
     r = _correr_bash(cuerpo, {})
     return r.returncode, r.stdout + r.stderr, raiz
@@ -809,15 +811,58 @@ def test_upgrade_no_hereda_el_estado_de_otra_release(tmp_path, cert_localhost):
                      setup_abierto=True, gate_b_bootstrap=True)
         ei.registrar(registro, gate_b_persistencia=True)
         assert ei.estado_alcanzado(ei.leer(registro)) == "INSTALLATION_COMPLETE"
+        auth = _auth_de_producto(tmp_path / "state" / "auth" / "auth.db", usuarios=1, sello=True)
         rc, out, _ = _tramo_16b_17(tmp_path, env, modo="upgrade", ambiente="production",
-                                   primer_admin_pendiente="false")
+                                   primer_admin_pendiente="false", auth_db=auth)
         assert rc == 0, out
-        lineas = [l for l in out.splitlines() if "ESTADO_INSTALACION=" in l]
-        assert lineas and "ESTADO_INSTALACION=DEPLOY_OK" in lineas[-1], (
+        lineas = [l for l in out.splitlines() if "ESTADO_OBSERVADO=" in l]
+        assert lineas and "ESTADO_OBSERVADO=DEPLOY_OK" in lineas[-1], (
             "HEREDADO: el upgrade declara %r con evidencia de otra release; solo "
             "puede declarar lo observado en esta ejecucion" % (lineas,))
+        # O-A: la instalacion SI esta completa, y eso lo dice el PRODUCTO.
+        producto = [l for l in out.splitlines() if "ESTADO_DEL_PRODUCTO=" in l]
+        assert producto and "ESTADO_DEL_PRODUCTO=INSTALLATION_COMPLETE_SEGUN_PRODUCTO" in producto[-1], (
+            "PRODUCTO MAL LEIDO: una instalacion sellada con admin aparece como %r" % (producto,))
     finally:
         stub.cerrar()
+
+
+def test_upgrade_sin_admin_el_producto_dice_first_admin_pendiente(tmp_path, cert_localhost):
+    """O-A: el estado del producto sale de la auth DB, no del registro."""
+    cert, clave = cert_localhost
+    stub = _StubSetup(cert, clave)
+    try:
+        env = _env_hacia(tmp_path, stub, cert)
+        registro = tmp_path / "state" / "deploy" / "instalacion.json"
+        ei.registrar(registro, deploy_ok=True, https_verificado=True, gate_a=True,
+                     setup_abierto=True, gate_b_bootstrap=True)
+        ei.registrar(registro, gate_b_persistencia=True)
+        auth = _auth_de_producto(tmp_path / "state" / "auth" / "auth.db")
+        rc, out, _ = _tramo_16b_17(tmp_path, env, modo="upgrade", ambiente="production",
+                                   primer_admin_pendiente="false", auth_db=auth)
+        assert rc == 0, out
+        producto = [l for l in out.splitlines() if "ESTADO_DEL_PRODUCTO=" in l]
+        assert producto and "ESTADO_DEL_PRODUCTO=FIRST_ADMIN_PENDING" in producto[-1], (
+            "PRODUCTO MAL LEIDO: sin admin ni sello aparece como %r" % (producto,))
+    finally:
+        stub.cerrar()
+
+
+@pytest.mark.parametrize("caso,esperado", [
+    ("ausente", "FRESH"), ("vacia", "FIRST_ADMIN_PENDING"),
+    ("sellada-sin-admin", "BOOTSTRAP_SELLADO"),
+    ("con-admin", "INSTALLATION_COMPLETE_SEGUN_PRODUCTO"), ("corrupta", "INDETERMINADO")])
+def test_estado_del_producto_por_la_auth_db(tmp_path, caso, esperado):
+    db = tmp_path / "auth.db"
+    if caso == "vacia":
+        _auth_de_producto(db)
+    elif caso == "sellada-sin-admin":
+        _auth_de_producto(db, sello=True)
+    elif caso == "con-admin":
+        _auth_de_producto(db, usuarios=1)
+    elif caso == "corrupta":
+        _corrupta(db)
+    assert ei.estado_del_producto(str(db)) == esperado
 
 
 @pytest.mark.parametrize("ambiente,debe_morir", [("production", True), ("lab", False)])
@@ -836,8 +881,8 @@ def test_gate_a_en_rojo_en_produccion_mata_el_despliegue(tmp_path, cert_localhos
                 "GATE A ROJO EN PRODUCCION NO PARO EL DESPLIEGUE:\n%s" % out)
         else:
             assert rc == 0 and "DEPLOY terminado" in out, out
-            final = [l for l in out.splitlines() if "ESTADO_INSTALACION=" in l][-1]
-            assert "ESTADO_INSTALACION=DEPLOY_OK" in final, final
+            final = [l for l in out.splitlines() if "ESTADO_OBSERVADO=" in l][-1]
+            assert "ESTADO_OBSERVADO=DEPLOY_OK" in final, final
         datos = ei.leer(raiz / "deploy" / "instalacion.json")
         assert datos.get("gate_a", {}).get("ok") is False, datos
     finally:
@@ -867,10 +912,19 @@ def test_el_registro_anota_el_resultado_real_del_gate_a(tmp_path, cert_localhost
 def test_cada_comprobacion_del_grupo_despliegue_existe():
     """R3-g: un nombre mal escrito en GRUPO_DESPLIEGUE no puede caerse en silencio."""
     import preflight_ensayo_rc as rc_mod  # noqa: PLC0415
+    # O-B: el conjunto ESPERADO es literal. Comparar el grupo consigo mismo no
+    # veia borrar un nombre (MP14).
+    esperado = {"propuestas.declarada", "propuestas.utilizable",
+                "propuestas.derivacion_unica", "review_db.compartida",
+                "estado.persistente"}
+    assert set(rc_mod.GRUPO_DESPLIEGUE) == esperado, (
+        "GRUPO_DESPLIEGUE ALTERADO: falta %s, sobra %s"
+        % (sorted(esperado - set(rc_mod.GRUPO_DESPLIEGUE)),
+           sorted(set(rc_mod.GRUPO_DESPLIEGUE) - esperado)))
     nombres = {n for n, _ in rc_mod.COMPROBACIONES}
     faltan = sorted(rc_mod.GRUPO_DESPLIEGUE - nombres)
     assert not faltan, "GRUPO_DESPLIEGUE nombra comprobaciones que NO existen: %s" % faltan
-    assert len(rc_mod.GRUPOS["despliegue"]) == len(rc_mod.GRUPO_DESPLIEGUE)
+    assert len(rc_mod.GRUPOS["despliegue"]) == len(esperado)
 
 
 def test_paso6_csrf_ausente_con_auth_db_fuera_del_state_root_bloquea(tmp_path):

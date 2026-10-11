@@ -121,6 +121,7 @@ def _tramo_final(env: Path, raiz: Path, s9k_root: Path, *, ambiente: str,
                  primer_admin_pendiente: str):
     """Pasos 16b a 17 de deploy.sh, TEXTO REAL, contra el visor vivo."""
     cuerpo = """
+NEW_AUTH_DB=%s/auth/auth.db
 HERE=%s
 VIEWER_ENV=%s
 ENVIRONMENT=%s
@@ -132,7 +133,7 @@ S9K_STATE_ROOT=%s
 S9K_ROOT=%s
 S9K_DEPLOY_STATE_FILE=%s/deploy/deployment-state.json
 %s
-""" % (_SCRIPTS, env, ambiente, primer_admin_pendiente, raiz, s9k_root, raiz,
+""" % (raiz, _SCRIPTS, env, ambiente, primer_admin_pendiente, raiz, s9k_root, raiz,
        _tramo_de_deploy("# Paso 16b: vía HTTPS, VERIFICADA POR EFECTO.",
                         'INSTALLATION_COMPLETE solo tras el GATE B --modo persistencia DESPUÉS de un reinicio."\nfi'))
     r = _correr_bash(cuerpo, {})
@@ -194,7 +195,8 @@ def test_de_maquina_limpia_a_installation_complete(tmp_path, cert_localhost):
                                primer_admin_pendiente="true")
         assert rc == 0, out
         assert "OK (GATE A)" in out, out
-        assert "ESTADO_INSTALACION=FIRST_ADMIN_PENDING" in out, out
+        assert "ESTADO_OBSERVADO=FIRST_ADMIN_PENDING" in out, out
+        assert "ESTADO_DEL_PRODUCTO=FIRST_ADMIN_PENDING" in out, out
         assert "INSTALLATION_COMPLETE" not in out.replace(
             "INSTALLATION_COMPLETE solo tras", ""), (
             "deploy.sh terminado sin administrador NO es instalacion completa")
@@ -210,7 +212,7 @@ def test_de_maquina_limpia_a_installation_complete(tmp_path, cert_localhost):
                             "--credenciales-desde", str(cred), "--registro", str(registro)],
                            capture_output=True, text=True, timeout=300)
         assert r.returncode == 0, r.stdout + r.stderr
-        assert "ESTADO_INSTALACION=FIRST_ADMIN_VERIFIED" in r.stdout, r.stdout
+        assert "ESTADO_OBSERVADO=FIRST_ADMIN_VERIFIED" in r.stdout, r.stdout
         assert cred.read_text().split('"password": "')[1].split('"')[0] not in r.stdout + r.stderr
         usuarios, sello = _usuarios_y_sello(auth_db)
         assert usuarios == 1 and sello is True
@@ -226,7 +228,7 @@ def test_de_maquina_limpia_a_installation_complete(tmp_path, cert_localhost):
                             "--credenciales-desde", str(cred), "--registro", str(registro)],
                            capture_output=True, text=True, timeout=300)
         assert r.returncode == 0, r.stdout + r.stderr
-        assert "ESTADO_INSTALACION=INSTALLATION_COMPLETE" in r.stdout, r.stdout
+        assert "ESTADO_OBSERVADO=INSTALLATION_COMPLETE" in r.stdout, r.stdout
     finally:
         visor.parar()
 
@@ -257,7 +259,7 @@ def test_http_plano_reproduce_el_fallo_y_no_se_declara_completo(tmp_path):
                                primer_admin_pendiente="true")
         assert rc != 0, out
         assert "INSTALACIÓN NO COMPLETA" in out, out
-        assert "ESTADO_INSTALACION=" not in out, out
+        assert "ESTADO_OBSERVADO=" not in out, out
         assert _usuarios_y_sello(auth_db) == (0, False)
     finally:
         visor.parar()

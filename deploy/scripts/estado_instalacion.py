@@ -49,6 +49,27 @@ contiene secretos: solo booleanos, el nombre de la evidencia y su hora.
 de un gate pertenece a la release que lo observo, y una release nueva no la
 hereda (correccion R2-a de #271).
 
+DOS LINEAS, DOS PREGUNTAS (O-A, revision de #271)
+--------------------------------------------------
+``ESTADO_OBSERVADO=`` responde «que vio ESTA ejecucion» (la cadena de arriba,
+con el registro que se reinicia en cada despliegue). Por eso un upgrade de una
+instalacion completa dice ``DEPLOY_OK``: es verdad, y no es toda la verdad.
+``ESTADO_DEL_PRODUCTO=`` responde «en que estado esta la instalacion» y se
+deriva SOLO del estado del producto que ``detect_state`` ya lee de la auth DB
+(sello ``install_state`` y administradores activos), nunca del registro:
+
+==========================================  ===================================
+``FRESH``                                   no hay auth DB
+``FIRST_ADMIN_PENDING``                     auth DB sin usuarios y sin sello
+``BOOTSTRAP_SELLADO``                       sellada, sin ningun admin activo
+``INSTALLATION_COMPLETE_SEGUN_PRODUCTO``    sellada (o con usuarios: el producto
+                                            infiere el sello) y >= 1 admin activo
+``INDETERMINADO``                           la base existe y no es legible
+==========================================  ===================================
+
+Ninguna de las dos inventa evidencia de gates: la segunda no es la cadena, es
+lo que el producto dice de si mismo.
+
 TECHO DECLARADO
 ---------------
 Que entre ``gate_b_bootstrap`` y ``gate_b_persistencia`` hubo un REINICIO del
@@ -155,9 +176,33 @@ def registrar(ruta: Path, reiniciar: bool = False, **evidencia: bool) -> dict:
     return datos
 
 
+def estado_del_producto(auth_db: Optional[str]) -> str:
+    """Estado de la instalacion SEGUN EL PRODUCTO. Nunca mira el registro."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import detect_state  # noqa: PLC0415 - mismo directorio
+    from migrate_sqlite import inspect_db  # noqa: PLC0415
+
+    if not auth_db or not Path(auth_db).exists():
+        return "FRESH"
+    info = inspect_db(Path(auth_db), "auth")
+    if info["integrity"] != "ok":
+        return "INDETERMINADO"
+    cuentas = info["counts"]
+    usuarios = cuentas.get("users") or 0
+    admins = cuentas.get("active_admins") or 0
+    # La misma regla que `viewer/app/auth/bootstrap.py::bootstrap_completado`:
+    # sello puesto, o ya hay usuarios (el producto infiere y escribe el sello).
+    sellada = bool(detect_state.sello_de_instalacion(auth_db)) or usuarios > 0
+    if not sellada:
+        return "FIRST_ADMIN_PENDING"
+    if admins >= 1:
+        return "INSTALLATION_COMPLETE_SEGUN_PRODUCTO"
+    return "BOOTSTRAP_SELLADO"
+
+
 def linea_de_estado(evidencia: dict) -> str:
     """La linea que se imprime y se puede buscar en un log."""
-    return "ESTADO_INSTALACION=%s" % (estado_alcanzado(evidencia),)
+    return "ESTADO_OBSERVADO=%s" % (estado_alcanzado(evidencia),)
 
 
 def _booleano(texto: str) -> bool:
@@ -174,6 +219,7 @@ def main(argv: Optional[list] = None) -> int:
     ap.add_argument("--reiniciar", action="store_true",
                     help="vaciar el registro antes de anotar (primera release)")
     ap.add_argument("--anotar", action="append", default=[], metavar="EVIDENCIA=true|false")
+    ap.add_argument("--auth-db", help="ademas, ESTADO_DEL_PRODUCTO= leido de esta auth DB")
     args = ap.parse_args(argv)
     ruta = Path(args.registro)
     nuevas = {}
@@ -188,6 +234,9 @@ def main(argv: Optional[list] = None) -> int:
         print("ERROR: %s" % (exc,), file=sys.stderr)
         return 2
     print(linea_de_estado(datos))
+    if args.auth_db:
+        producto = estado_del_producto(args.auth_db)
+        print("ESTADO_DEL_PRODUCTO=%s" % (producto,))
     return 0
 
 

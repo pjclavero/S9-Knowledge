@@ -32,6 +32,7 @@ Y las de la ronda de corrección de la revisión independiente de #271:
   M10 GATE A rojo en production solo avisa          M11 --registro anota True
   M12 GRUPO_DESPLIEGUE con un nombre mal escrito    M13 403 por HTTPS presupone cookie
   M14 setup.py invierte sus dos mensajes de CSRF    M15/M16 CSRF ausente sin efecto
+  MP14 GRUPO_DESPLIEGUE pierde una comprobación     M17 estado del producto desde el registro
 
 LOCALIZADORES
 -------------
@@ -246,7 +247,18 @@ def _m15_csrf_ausente_sin_mirar_el_directorio(texto: str):
 
 
 def _m16_csrf_ausente_fuera_del_state_root(texto: str):
-    return mutar_unico(texto, '            "${state_root}"/*) ;;\n', '            *) ;;\n')
+    return mutar_unico(texto, '            "${root_norm}"/*) ;;\n', '            *) ;;\n')
+
+
+def _mp14_grupo_pierde_una_comprobacion(texto: str):
+    return mutar_unico(texto, '    "propuestas.utilizable",\n    "propuestas.derivacion_unica",\n',
+                       '    "propuestas.derivacion_unica",\n')
+
+
+def _m17_producto_desde_el_registro(texto: str):
+    return mutar_en_funcion(texto, "main",
+                            "        producto = estado_del_producto(args.auth_db)",
+                            "        producto = estado_alcanzado(datos)")
 
 
 _PROMOCION = "test_ningun_estado_se_promociona_sin_toda_la_evidencia"
@@ -320,6 +332,14 @@ MUTACIONES = [
     ("M16 — CSRF ausente aceptado con la auth DB fuera del state root (R3-b)",
      VALIDATE, _m16_csrf_ausente_fuera_del_state_root,
      {"test_paso6_csrf_ausente_con_auth_db_fuera_del_state_root_bloquea": "NO BLOQUEO"}),
+    # --- Ronda final (APTO CON OBSERVACIONES sobre d83f7a3) ---
+    ("MP14 — GRUPO_DESPLIEGUE pierde `propuestas.utilizable` (O-B: la guarda no lo veía)",
+     ENSAYO, _mp14_grupo_pierde_una_comprobacion,
+     {"test_cada_comprobacion_del_grupo_despliegue_existe": "GRUPO_DESPLIEGUE ALTERADO"}),
+    ("M17 — ESTADO_DEL_PRODUCTO se deriva del registro en vez de la auth DB (O-A)",
+     ESTADOS, _m17_producto_desde_el_registro,
+     {"test_upgrade_no_hereda_el_estado_de_otra_release": "PRODUCTO MAL LEIDO",
+      "test_upgrade_sin_admin_el_producto_dice_first_admin_pendiente": "PRODUCTO MAL LEIDO"}),
 ]
 
 
