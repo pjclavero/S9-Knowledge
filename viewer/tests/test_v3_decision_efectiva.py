@@ -102,6 +102,10 @@ def auth_env(tmp_path, monkeypatch):
     db_path = tmp_path / "auth.db"
     monkeypatch.setenv("S9K_AUTH_ENABLED", "true")
     monkeypatch.setenv("S9K_AUTH_DB_PATH", str(db_path))
+    # B1 (USABLE-V1) · H-03: la revisión V3 compara ya el workspace. El
+    # revisor de esta suite tiene que tener CONCEDIDO el workspace de su
+    # material; antes pasaba con `leyenda` porque no se comparaba.
+    monkeypatch.setenv("S9K_DEFAULT_WORKSPACE", WORKSPACE)
     from app.auth.config import get_auth_settings
     get_auth_settings.cache_clear()
     from app.auth import db as auth_db

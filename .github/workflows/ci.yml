@@ -1325,6 +1325,24 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/mutaciones_pr3_instalacion_https.py
 
+      # B1 (USABLE-V1) · H-03 — la revision V3 no deja ver ni actuar fuera
+      # del workspace concedido. Cinco mutaciones sobre la funcion UNICA de
+      # ambito y su desenlace HTTP: M1 el defecto de origen tal cual
+      # (`_scoped()` vuelve a `partida_only()`, `f6a4f18`), M2 la ablacion
+      # `enforce_workspace=False` dentro de `para_corpus_de_revision`, M3 un
+      # registro sin workspace vuelve a ser «capa juego», M4/M5 `decide` /
+      # `undo` dejan de responder 404 a un workspace no visible. Cada rojo
+      # se lee en su linea FAILED con su CAUSA (el 303 / la fila nueva / el
+      # 200), y el testigo tiene que recolectar > 0 y saltar 0.
+      #
+      # TECHO: dos bovedas mock y un `ReviewService` sobre ficheros; el
+      # aislamiento entre dos bovedas REALES en Neo4j no se ejerce aqui.
+      - name: "La revision V3 no sale del workspace concedido: se pone ROJA ante cada defecto (B1 H-03)"
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/mutaciones_b1_h03_aislamiento_workspace.py
+
       # MICROCARRIL DE SANEAMIENTO DE INSTRUMENTOS — los cuatro
       # `scripts/calibrar_panel_*.py`. Son los arneses de los cuatro paneles
       # del chasis (B operations, C review, F sources, G entities): cada uno

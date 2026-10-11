@@ -151,7 +151,7 @@ def consola(monkeypatch, tmp_path, lector_por_dependencia):
 
     app = FastAPI()
     app.include_router(router_module.router)
-    lector_por_dependencia(app)
+    lector_por_dependencia(app, workspace="alpha")
     return TestClient(app), directorio
 
 

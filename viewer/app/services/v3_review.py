@@ -785,12 +785,18 @@ class QueueView:
 def _scoped(scope: "VisibilityScope | None") -> "VisibilityScope":
     """Ámbito efectivo del llamador (sin ámbito explícito = interno, sin filtro).
 
-    Las rutas HTTP siempre inyectan el ámbito de la petición. El corpus de
-    propuestas V3 usa `workspace` como etiqueta del corpus, no como workspace
-    del visor, por lo que aquí aplica la barrera de partida (ver
-    ``app.authz.scope``).
+    LA FUNCIÓN ÚNICA de ámbito de la revisión V3: `workspaces`, `queue`,
+    `glossary_candidates`, `record` y `undo_last` pasan todos por aquí, y por
+    ellos todas las rutas HTTP (`/v3/review*`, `/panel/review*`).
+
+    Las rutas HTTP siempre inyectan el ámbito de la petición, y ese ámbito
+    COMPARA el workspace (B1 · H-03): el `workspace` del formulario o de la
+    query sólo SELECCIONA dentro de lo concedido, nunca lo amplía. Antes se
+    devolvía `partida_only()` y el workspace no se comparaba. La equivalencia
+    etiqueta-del-corpus == workspace canónico está declarada en
+    ``VisibilityScope.para_corpus_de_revision``.
     """
-    return (scope or UNRESTRICTED).partida_only()
+    return (scope or UNRESTRICTED).para_corpus_de_revision()
 
 
 class ReviewService:

@@ -106,6 +106,23 @@ def _destino(workspace: str, filtros: dict[str, str | None], **extra: str) -> st
     return f"/v3/review?{urlencode(parametros)}"
 
 
+def _exigir_workspace_visible(
+    service: ReviewService, workspace: str, scope: VisibilityScope
+) -> None:
+    """B1 · H-03: una ESCRITURA sobre un workspace fuera de ámbito da 404.
+
+    No es una segunda autoridad: pregunta al servicio qué workspaces son
+    visibles, y el servicio lo decide con su función única de ámbito
+    (`services.v3_review._scoped`). Es el MISMO criterio y el MISMO desenlace
+    que ya aplican las lecturas de esta consola (`queue`, `glossary_candidates`
+    y el panel C): workspace inexistente y workspace ajeno responden igual,
+    para no delatar cuál existe. Sin esto el servicio también rechaza (cero
+    filas), pero con un 400 que no distingue «no es tuyo» de «formulario mal».
+    """
+    if workspace not in service.workspaces(scope=scope):
+        raise HTTPException(status_code=404, detail="Workspace no encontrado")
+
+
 def _guard(request: Request):
     if not get_auth_settings().S9K_AUTH_ENABLED:
         return None
@@ -331,7 +348,9 @@ def decide(
     if not expected_proposal_hash.strip():
         raise HTTPException(status_code=400, detail="expected_proposal_hash es obligatorio")
     try:
-        _service().record(
+        service = _service()
+        _exigir_workspace_visible(service, workspace, visibility_scope)
+        service.record(
             proposal_id=proposal_id,
             workspace=workspace,
             reviewer=_reviewer(request),
@@ -388,7 +407,9 @@ def undo(
         "job_id": filtro_job_id,
     }
     try:
-        _service().undo_last(
+        service = _service()
+        _exigir_workspace_visible(service, workspace, scope)
+        service.undo_last(
             workspace=workspace,
             reviewer=_reviewer(request),
             request_id=request_id,

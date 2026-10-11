@@ -552,7 +552,7 @@ class TestELaOtraTarjetaDondeTambienSeDecide:
         servicio = ReviewService(proposals, tmp_path / "actas" / "decisiones.jsonl")
         monkeypatch.setattr(panel, "_service", lambda: servicio)
         monkeypatch.setenv(slot_flag_env(slot), "true")
-        lector_por_dependencia(app_real)
+        lector_por_dependencia(app_real, workspace=negado["workspace"])
         try:
             cliente = TestClient(app_real)
             url = f"{slot.prefix}/item/{negado['proposal_id']}"
@@ -1134,7 +1134,7 @@ class TestElBeforeAfterLlegaAUnaPersona:
         )
         monkeypatch.setattr(panel, "_service", lambda: servicio)
         monkeypatch.setenv(slot_flag_env(slot), "true")
-        lector_por_dependencia(app_real)
+        lector_por_dependencia(app_real, workspace=negado["workspace"])
         try:
             cliente = TestClient(app_real)
             respuesta = cliente.get(

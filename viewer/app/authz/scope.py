@@ -77,21 +77,58 @@ class VisibilityScope:
     policy: VisibilityPolicy = POLICY
     #: Si el `workspace` del registro es comparable con los workspaces del
     #: visor. Es cierto para los datos operativos de este despliegue (cola de
-    #: jobs). NO lo es para los corpus de revisión (contratos v1 y propuestas
-    #: V3), cuyo campo `workspace` es una etiqueta del corpus de laboratorio y
-    #: no un workspace del visor: allí la barrera aplicable es la de partida.
+    #: jobs) y, desde B1 (H-03), para las propuestas V3 (ver
+    #: `para_corpus_de_revision`). Sigue sin serlo para los contratos de
+    #: revisión v1 (`/review-console`, laboratorio), cuyo `workspace` es una
+    #: etiqueta del corpus: allí la barrera aplicable es la de partida.
     enforce_workspace: bool = True
+    #: Si un registro SIN workspace declarado se deniega en vez de leerse como
+    #: «capa juego del workspace permitido». Sólo lo activa
+    #: `para_corpus_de_revision`: el resto de consumidores no cambia.
+    workspace_obligatorio: bool = False
 
     def partida_only(self) -> "VisibilityScope":
         """Mismo ámbito, sin comparar workspaces ajenos al modelo del visor."""
         return VisibilityScope(self.ctx, self.policy, enforce_workspace=False)
 
+    def para_corpus_de_revision(self) -> "VisibilityScope":
+        """Ámbito de la revisión V3: workspace COMPARADO y OBLIGATORIO + partida.
+
+        B1 (USABLE-V1) · H-03. La revisión V3 se acotaba con `partida_only()`
+        (M5a, `f6a4f18`, 2026-08-06) porque entonces el `workspace` de una
+        propuesta se tenía por «etiqueta del corpus de laboratorio». Desde F-2
+        (#244) eso es falso: el perfil de la bóveda es la AUTORIDAD CANÓNICA
+        del workspace (`autoridad_workspace`), y el MISMO valor viaja perfil ->
+        ámbito de la fuente -> paquete de propuestas -> `/v3/review` -> apply
+        -> writer. Con la comparación apagada, un revisor con concesión sólo en
+        `leyenda` veía y APROBABA propuestas de `bench-dev` eligiendo el
+        `workspace` del formulario.
+
+        EQUIVALENCIA DECLARADA (único sitio): el `workspace` de una propuesta
+        V3, de su decisión humana y de su candidato de glosario ES el
+        identificador canónico del workspace, y se compara por IGUALDAD
+        literal con `ctx.allowed_workspaces`. No hay tabla de alias: si algún
+        día la etiqueta del corpus y el workspace canónico divergen, la
+        traducción vive AQUÍ, no en una ruta.
+
+        FAIL-CLOSED: un registro de revisión sin workspace (o en blanco) se
+        deniega; no es «capa juego». `admin_full` sigue viéndolo todo. La
+        barrera de partida (docs/81, lore anónimo denegado) se conserva tal
+        cual: este método AÑADE la de workspace, no sustituye nada.
+
+        Se construye desde el contexto, no desde `self`: un ámbito que llegue
+        ya relajado (`partida_only()`) NO relaja la revisión.
+        """
+        return VisibilityScope(
+            self.ctx, self.policy, enforce_workspace=True, workspace_obligatorio=True
+        )
+
     # -- decisiones elementales ------------------------------------------------
     def allows_workspace(self, workspace: Optional[str]) -> bool:
         if self.ctx.admin_full or not self.enforce_workspace:
             return True
-        if workspace is None:
-            return True
+        if workspace is None or (isinstance(workspace, str) and not workspace.strip()):
+            return not self.workspace_obligatorio
         return workspace in self.ctx.allowed_workspaces
 
     #: Estas funciones no preguntan "¿puede verse este contenido?" sino "¿cae
