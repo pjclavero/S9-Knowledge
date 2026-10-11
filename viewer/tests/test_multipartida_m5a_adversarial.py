@@ -301,10 +301,13 @@ def v3_service(tmp_path):
 
     proposals = tmp_path / "proposals"
     proposals.mkdir()
+    # B1 (USABLE-V1) · H-03: la revisión V3 compara ya el workspace, así que
+    # el material vive en el workspace CONCEDIDO (`WS`). Antes era `ws-mesa`,
+    # un workspace que el lector no tenía, y pasaba porque no se comparaba.
     (proposals / "pkg.json").write_text(json.dumps([
-        _v3_proposal("p-a", workspace="ws-mesa", partida_id=PARTIDA_A),
-        _v3_proposal("p-b", workspace="ws-mesa", partida_id=PARTIDA_B),
-        _v3_proposal("p-juego", workspace="ws-mesa", partida_id=None),
+        _v3_proposal("p-a", workspace=WS, partida_id=PARTIDA_A),
+        _v3_proposal("p-b", workspace=WS, partida_id=PARTIDA_B),
+        _v3_proposal("p-juego", workspace=WS, partida_id=None),
     ], ensure_ascii=False), encoding="utf-8")
     return ReviewService(proposals, tmp_path / "decisions.jsonl")
 
@@ -312,12 +315,12 @@ def v3_service(tmp_path):
 def test_v3_review_cola_solo_muestra_y_cuenta_lo_del_ambito(v3_service):
     """La partida ajena no aparece NI en los ítems NI en los totales: un conteo
     también delata material que no se puede ver."""
-    view = v3_service.queue("ws-mesa", scope=_scope_for(PARTIDA_A))
+    view = v3_service.queue(WS, scope=_scope_for(PARTIDA_A))
     ids = {item["proposal_id"] for item in view.items}
     assert ids == {"p-a", "p-juego"}
     assert view.total == 2 and view.remaining == 2
 
-    juego = v3_service.queue("ws-mesa", scope=_scope_for(None))
+    juego = v3_service.queue(WS, scope=_scope_for(None))
     assert {i["proposal_id"] for i in juego.items} == {"p-juego"}
     assert juego.total == 1
 
@@ -327,13 +330,13 @@ def test_v3_review_no_permite_decidir_sobre_propuesta_de_otra_partida(v3_service
 
     with pytest.raises(ReviewError):
         v3_service.record(
-            proposal_id="p-b", workspace="ws-mesa", reviewer="revisor",
+            proposal_id="p-b", workspace=WS, reviewer="revisor",
             human_decision="APPROVE", request_id="req-1", scope=_scope_for(PARTIDA_A),
         )
     # Y la misma decisión sobre la propia partida sí procede (el filtro no es
     # un "deniega siempre").
     ok = v3_service.record(
-        proposal_id="p-a", workspace="ws-mesa", reviewer="revisor",
+        proposal_id="p-a", workspace=WS, reviewer="revisor",
         human_decision="APPROVE", request_id="req-2", scope=_scope_for(PARTIDA_A),
     )
     assert ok["proposal"]["proposal_id"] == "p-a"
@@ -345,13 +348,16 @@ def test_v3_review_workspaces_visibles_dependen_del_ambito(tmp_path):
     proposals = tmp_path / "proposals"
     proposals.mkdir()
     (proposals / "pkg.json").write_text(json.dumps([
-        _v3_proposal("p-a", workspace="ws-a", partida_id=PARTIDA_A),
+        _v3_proposal("p-a", workspace=WS, partida_id=PARTIDA_A),
         _v3_proposal("p-b", workspace="ws-b", partida_id=PARTIDA_B),
     ], ensure_ascii=False), encoding="utf-8")
     service = ReviewService(proposals, tmp_path / "decisions.jsonl")
 
-    assert service.workspaces(scope=_scope_for(PARTIDA_A)) == ("ws-a",)
-    assert service.workspaces(scope=_scope_for(PARTIDA_B)) == ("ws-b",)
+    assert service.workspaces(scope=_scope_for(PARTIDA_A)) == (WS,)
+    # B1 (USABLE-V1) · H-03: tener la partida activa NO abre un workspace no
+    # concedido. Antes esto daba ("ws-b",): la revisión no comparaba workspace.
+    assert service.workspaces(scope=_scope_for(PARTIDA_B)) == ()
+    assert service.workspaces(scope=_scope_for(None, role="admin")) == (WS, "ws-b")
     assert service.workspaces(scope=_scope_for(None)) == ()
 
 
@@ -359,15 +365,15 @@ def test_v3_glossary_candidates_heredan_y_respetan_la_partida(v3_service):
     """Un candidato de glosario nacido de una propuesta de partida queda
     estampado con esa partida y no se filtra a otra."""
     v3_service.record(
-        proposal_id="p-a", workspace="ws-mesa", reviewer="revisor",
+        proposal_id="p-a", workspace=WS, reviewer="revisor",
         human_decision="CORRECT", request_id="req-glosario",
         correction={"subject_alias": "Aria"}, scope=_scope_for(PARTIDA_A),
     )
-    propios = v3_service.glossary_candidates("ws-mesa", scope=_scope_for(PARTIDA_A))
+    propios = v3_service.glossary_candidates(WS, scope=_scope_for(PARTIDA_A))
     assert propios, "el candidato de la propia partida debe verse"
     assert all(c.get("partida_id") == PARTIDA_A for c in propios)
-    assert v3_service.glossary_candidates("ws-mesa", scope=_scope_for(PARTIDA_B)) == []
-    assert v3_service.glossary_candidates("ws-mesa", scope=_scope_for(None)) == []
+    assert v3_service.glossary_candidates(WS, scope=_scope_for(PARTIDA_B)) == []
+    assert v3_service.glossary_candidates(WS, scope=_scope_for(None)) == []
 
 
 def test_v3_review_ruta_html_aplica_el_ambito(auth_env, v3_service, monkeypatch):
@@ -380,7 +386,7 @@ def test_v3_review_ruta_html_aplica_el_ambito(auth_env, v3_service, monkeypatch)
     c = _logged_client(auth_env, user)
     _select(c, PARTIDA_A)
 
-    page = c.get("/v3/review?workspace=ws-mesa")
+    page = c.get(f"/v3/review?workspace={WS}")
     assert page.status_code == 200, page.text[:300]
     assert "p-a" in page.text
     assert "p-b" not in page.text, "fuga: propuesta de otra partida en el feed V3"

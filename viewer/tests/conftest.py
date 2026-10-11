@@ -108,10 +108,14 @@ def lector_por_dependencia():
 
     instalados = []
 
-    def instalar(app, *, role="reviewer"):
+    def instalar(app, *, role="reviewer", workspace=None):
+        # B1 (USABLE-V1) · H-03: la revisión V3 COMPARA ya el workspace. Una
+        # suite que mide la FORMA de la consola sobre material de otro
+        # workspace (`alpha`, `bench-dev`...) tiene que instalar un lector CON
+        # CONCESIÓN en ese workspace; antes pasaba porque no se comparaba.
         ctx = build_viewer_context(
             role=role, auth_enabled=True,
-            default_workspace=get_settings().S9K_DEFAULT_WORKSPACE,
+            default_workspace=workspace or get_settings().S9K_DEFAULT_WORKSPACE,
         )
         assert ctx.can_view_lore is True, (
             "el lector de este ayudante no tiene la llave de la capa juego: "

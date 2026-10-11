@@ -313,7 +313,7 @@ def test_html_contains_exact_mark_and_unknown_reason(monkeypatch, tmp_path, lect
     # LORE-ANONIMO-DENEGADO (V3 RC, 2026-08-14): sin principal ya no se entrega
     # la capa juego, y esta prueba mide la FORMA de la pantalla. El ayudante va
     # DESPUES de crear la app porque aqui la app es local del test.
-    lector_por_dependencia(app)
+    lector_por_dependencia(app, workspace="alpha")
     response = TestClient(app).get("/v3/review?workspace=alpha")
     assert response.status_code == 200
     assert "<mark>protege la ciudad de Bruma</mark>" in response.text
@@ -331,7 +331,7 @@ def test_post_reload_does_not_duplicate_decision(monkeypatch, review_files, lect
     # (sin `partida_id`) y sin principal ya no se entrega, asi que la ruta de
     # decision la rechazaria por no verla. Lo que esta prueba mide es la
     # IDEMPOTENCIA del reenvio, no la autorizacion: pide con un lector legitimo.
-    lector_por_dependencia(app)
+    lector_por_dependencia(app, workspace="alpha")
     client = TestClient(app)
     item = next(i for i in service.queue("alpha").items if i["proposal_id"] == "p1")
     form = {
