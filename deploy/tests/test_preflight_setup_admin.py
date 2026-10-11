@@ -452,7 +452,7 @@ class _StubSetup:
     def __init__(self, cert: Path, clave: Path, *, estado_get=200,
                  estado_post=303, estado_sello=404, con_cookie=True,
                  cookie_secure=True, con_token=True, estado_login_post=302,
-                 con_cookie_sesion=True):
+                 con_cookie_sesion=True, cuerpo_post=b""):
         stub = self
 
         class H(http.server.BaseHTTPRequestHandler):
@@ -512,7 +512,8 @@ class _StubSetup:
                 stub.posts += 1
                 destino = ("/login?message=bootstrap_ok"
                            if stub.estado_post == 303 else None)
-                return self._responder(stub.estado_post, b"", destino=destino)
+                return self._responder(stub.estado_post, stub.cuerpo_post,
+                                       destino=destino)
 
             def log_message(self, *a):
                 return
@@ -527,6 +528,9 @@ class _StubSetup:
         self.con_token = con_token
         self.estado_login_post = estado_login_post
         self.con_cookie_sesion = con_cookie_sesion
+        # B2 (GATE A): el cuerpo del POST, para fabricar respuestas de
+        # validacion con y sin el mensaje exacto del producto.
+        self.cuerpo_post = cuerpo_post
 
         class _Silencioso(http.server.ThreadingHTTPServer):
             daemon_threads = True

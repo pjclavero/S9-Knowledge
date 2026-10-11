@@ -64,6 +64,24 @@ ALMACEN_NO_DISPONIBLE = (
 )
 
 
+#: El navegador NO devolvio la cookie de seguridad del formulario. Con
+#: `S9K_SESSION_SECURE=true` (default, D3) eso es lo que pasa al abrir esta
+#: pagina por http:// sin cifrar: la cookie es Secure y no viaja por ese canal.
+MENSAJE_CSRF_SIN_COOKIE = (
+    "Error de seguridad (CSRF): el navegador no ha devuelto la cookie de "
+    "seguridad del formulario. Lo habitual es que esta pagina se haya abierto "
+    "por http:// (sin cifrar): la cookie es de tipo Secure y ningun navegador "
+    "la envia por una conexion sin cifrar. Abre la instalacion por https://; "
+    "no desactives la proteccion."
+)
+
+#: La cookie SI llego y el token no coincide o caduco.
+MENSAJE_CSRF_INVALIDO = (
+    "Error de seguridad (CSRF): el formulario ha caducado o no corresponde a "
+    "esta sesion. Recarga la pagina e intentalo de nuevo."
+)
+
+
 def _db_path() -> Path:
     return Path(get_auth_settings().S9K_AUTH_DB_PATH)
 
@@ -201,11 +219,13 @@ def setup_admin_submit(
     if not validate_login_csrf(
         csrf_token, cookie_token, secret=cfg.S9K_CSRF_SECRET, purpose=SETUP_PURPOSE
     ):
-        return _formulario(
-            request,
-            ["Error de seguridad (CSRF). Recarga la pagina e intentalo de nuevo."],
-            status_code=403,
-        )
+        # B2 (H-35/H-44): el mensaje NOMBRA LA CAUSA OBSERVADA. Se distingue por
+        # lo que LLEGO (la cookie vino o no), NO por `request.scheme`: detras
+        # del proxy TLS el visor ve http aunque el navegador use https, y
+        # decidir por el esquema es justo lo que la decision D3 prohibe para la
+        # cookie. Nada se degrada: solo se explica.
+        mensaje = MENSAJE_CSRF_SIN_COOKIE if not cookie_token else MENSAJE_CSRF_INVALIDO
+        return _formulario(request, [mensaje], status_code=403)
 
     username = (username or "").strip()
     errores: list[str] = []

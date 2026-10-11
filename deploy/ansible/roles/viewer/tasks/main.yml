@@ -1,6 +1,30 @@
 ---
 # Rol viewer — venv del visor y dependencias bloqueadas en la release activa.
 # Idempotente. Sin secretos. La release activa se accede via symlink current.
+#
+# B2 (USABLE-V1) · H-01: este rol NO crea la primera release. Si `current` no
+# existe, no hace nada y LO DICE (tarea de abajo). La primera release la crea
+# `deploy.sh --mode fresh` (release + venv + manifiesto + `current` + unidad):
+# una sola autoridad para construir releases. Ver deploy/README.md.
+
+- name: Verificar que la release activa existe (primera pasada)
+  ansible.builtin.stat:
+    path: "{{ s9k_root }}/current"
+  register: _current_stat_inicial
+  changed_when: false
+  tags:
+    - viewer
+
+- name: Sin release activa todavia - la primera la crea deploy.sh --mode fresh
+  ansible.builtin.debug:
+    msg: >-
+      AVISO: {{ s9k_root }}/current no existe: esta es una maquina sin primera
+      release. Este rol no la crea. Siguiente paso: deploy.sh --environment
+      <lab|production> --release-ref <ref> --mode fresh --confirm[-production]
+      (ver deploy/README.md, «Primera release»).
+  when: not _current_stat_inicial.stat.exists
+  tags:
+    - viewer
 
 - name: Verificar que la release activa existe
   ansible.builtin.stat:
@@ -64,8 +88,10 @@
   ansible.builtin.debug:
     msg: >-
       AVISO: {{ s9k_config_root }}/viewer.env no encontrado.
-      El servicio no arrancara sin este fichero. Crea el fichero con las
-      variables de entorno requeridas (sin secretos en el repo).
+      El servicio no arrancara sin este fichero. Copiar
+      deploy/config/viewer.env.example TAL CUAL (0600) y cambiar solo
+      S9K_PUBLIC_BASE_URL; el secreto CSRF lo genera el visor.
+      Ver deploy/README.md, «Primera release».
   when: not _viewer_env_stat.stat.exists
   tags:
     - viewer

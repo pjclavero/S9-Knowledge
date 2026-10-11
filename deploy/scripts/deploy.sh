@@ -164,15 +164,18 @@ if [ -d "${S9K_ROOT}/current/.git" ]; then
         die "commit ${RELEASE_REF} no resoluble a un commit (¿deploy hacia delante sin S9K_REPO_URL?)"
     fi
     git -C "${RELEASE_DIR}" checkout --detach "${RESOLVED_COMMIT}"
-elif [ -n "${S9K_REPO_URL}" ]; then
-    git clone --no-local "${S9K_REPO_URL}" "${RELEASE_DIR}"
+elif [ -n "${S9K_REPO_URL}" ] || [ -d "${S9K_ROOT}/.repo-cache/.git" ]; then
+    # PRIMERA release (B2, H-01): sin `current` todavía, el origen es
+    # S9K_REPO_URL (deploy.env) o, si no se declaró, la copia de referencia
+    # que el rol Ansible `data_engine` deja en ${S9K_ROOT}/.repo-cache.
+    git clone --no-local "${S9K_REPO_URL:-${S9K_ROOT}/.repo-cache}" "${RELEASE_DIR}"
     if ! RESOLVED_COMMIT="$(resolve_release_commit "${RELEASE_REF}" \
             --work-dir "${RELEASE_DIR}" "${REPO_URL_ARGS[@]}" "${ALLOW_BRANCH_ARGS[@]}")"; then
-        die "commit ${RELEASE_REF} no resoluble a un commit desde ${S9K_REPO_URL}"
+        die "commit ${RELEASE_REF} no resoluble a un commit desde ${S9K_REPO_URL:-${S9K_ROOT}/.repo-cache}"
     fi
     git -C "${RELEASE_DIR}" checkout --detach "${RESOLVED_COMMIT}"
 else
-    die "sin origen de repo (S9K_REPO_URL o ${S9K_ROOT}/current/.git)"
+    die "sin origen de repo (S9K_REPO_URL, ${S9K_ROOT}/current/.git o ${S9K_ROOT}/.repo-cache)"
 fi
 [ -f "${RELEASE_DIR}/viewer/.env" ] && { warn "eliminando .env de la release (secretos van en ${S9K_CONFIG_ROOT})"; rm -f "${RELEASE_DIR}/viewer/.env"; }
 python3 -m venv "${RELEASE_DIR}/viewer/.venv"
@@ -184,32 +187,20 @@ validate_manifest "${RELEASE_DIR}/manifest.json" || die "manifiesto inválido"
 # Paso 3: detectar layout/estado
 log "--- 3. detectar layout/estado"
 STATE_JSON="$(detect_layout_report || true)"
-GLOBAL_STATE="$(printf '%s' "${STATE_JSON}" | python3 -c 'import json,sys;print(json.load(sys.stdin)["global_state"])')"
-DECISION="$(printf '%s' "${STATE_JSON}" | python3 -c 'import json,sys;print(json.load(sys.stdin)["decision"])')"
-log "    estado=${GLOBAL_STATE} decision=${DECISION}"
+# `global_state` es INFORMATIVO (B2, H-43): solo se registra. Quien decide si
+# se puede seguir es `decision`, y lo aplica el paso 4.
+GLOBAL_STATE="$(_campo_json "${STATE_JSON}" global_state)"
+DECISION="$(_campo_json "${STATE_JSON}" decision)"
+PRIMER_ADMIN_PENDIENTE="$(_campo_json "${STATE_JSON}" primer_admin_pendiente)"
+log "    auth=$(_campo_json "${STATE_JSON}" per_kind auth state) jobs=$(_campo_json "${STATE_JSON}" per_kind jobs state) modo=${MODE} decision=${DECISION} (global informativo=${GLOBAL_STATE})"
 
-# Paso 4: migrar o validar estado (según el estado detectado)
+# Paso 4: migrar o validar estado. UNA autoridad: `decision` (lib.sh).
 log "--- 4. migrar o validar estado"
-case "${GLOBAL_STATE}" in
-    LEGACY_STATE)
-        log "    migrando legacy -> state root (controlado, atómico, .backup)"
-        python3 "${HERE}/migrate_sqlite.py" --kind auth --src "${LEGACY_AUTH_DB}" --dst "${NEW_AUTH_DB}" --apply --confirm \
-            || die "migración auth falló/bloqueó"
-        if [ -f "${LEGACY_JOBS_DB}" ]; then
-            python3 "${HERE}/migrate_sqlite.py" --kind jobs --src "${LEGACY_JOBS_DB}" --dst "${NEW_JOBS_DB}" --apply --confirm \
-                || die "migración jobs falló/bloqueó"
-        fi
-        ;;
-    NEW_STATE|MIXED_EQUIVALENT_STATE)
-        log "    estado nuevo ya presente y equivalente; sin migración"
-        ;;
-    EMPTY_STATE|CONFLICTING_STATE|CORRUPT_STATE)
-        die "estado ${GLOBAL_STATE}: BLOQUEA (nunca crear auth.db vacía ni elegir DB en silencio)"
-        ;;
-    *) die "estado desconocido: ${GLOBAL_STATE}" ;;
-esac
+paso4_migrar_o_validar_estado "${STATE_JSON}"
+# --- fin del paso 4 ---
 
-# Paso 5: validar continuidad (re-detección; debe permitir proceder y >=1 admin)
+# Paso 5: validar continuidad (re-detección con el MISMO modo: en upgrade exige
+# >=1 admin; en fresh, que la máquina siga limpia)
 log "--- 5. validar continuidad"
 set +e
 detect_layout_report >/dev/null
@@ -222,6 +213,13 @@ set -e
 log "--- 6. validar viewer.env"
 validate_viewer_env "${VIEWER_ENV}" || die "viewer.env inválido/incompleto"
 validate_viewer_secrets "${VIEWER_ENV}" || die "viewer.env: secretos inválidos (CSRF/fichero)"
+# B2 · USABLE-V1 (H-04/H-18, LADO DEPLOY): el estado de revisión V3 tiene que
+# vivir FUERA de la release y lo tienen que resolver igual visor y motor. No se
+# reimplementa: es el MISMO guion del ensayo RC, restringido a su grupo de
+# comprobaciones de despliegue y leyendo el EnvironmentFile del visor.
+python3 "${HERE}/preflight_ensayo_rc.py" --grupo despliegue \
+    --env-file "${VIEWER_ENV}" --state-root "${S9K_STATE_ROOT}" \
+    || die "estado de revisión V3 no persistente o no compartido (causa arriba): un redespliegue lo perdería"
 # Slice 2 · Corte 5: el entorno del WORKER, si este despliegue lo declara. No
 # bloquea por estar ausente --hoy no hay unidad de worker instalada-- pero si
 # existe y esta mal, bloquea: un worker sin conexion declarada deja la ingesta
@@ -233,6 +231,7 @@ validate_worker_env "${WORKER_ENV}" || die "worker.env declarado pero inválido"
 # cuando ya hay un servicio al que preguntar.
 validate_https_contract "${VIEWER_ENV}" "${ENVIRONMENT}" \
     || die "contrato HTTPS no satisfecho: la instalación NO está completa"
+# --- fin del paso 6 ---
 
 # Paso 7: validar unidad nueva (antes de instalarla)
 log "--- 7. validar unidad systemd nueva"
@@ -294,6 +293,11 @@ write_deployment_state \
 
 # Paso 13: reiniciar solo servicios afectados
 log "--- 13. reiniciar servicio visor"
+if [ "${MODE}" = "fresh" ]; then
+    # Primera release: la unidad acaba de instalarse y nadie la ha habilitado;
+    # sin esto el visor no volvería tras reiniciar la máquina (B2, H-01).
+    systemctl enable s9-knowledge-viewer.service || die "no se pudo habilitar el visor"
+fi
 systemctl restart s9-knowledge-viewer.service || die "no se pudo reiniciar el visor"
 sleep 3
 
@@ -312,7 +316,7 @@ python3 "${HERE}/verify_release_identity.py" --root "${S9K_ROOT}" \
 
 # Paso 15: comprobar admin y jobs preservados
 log "--- 15. comprobar admin y jobs"
-python3 "${HERE}/detect_state.py" --new-auth "${NEW_AUTH_DB}" --new-jobs "${NEW_JOBS_DB}" --mode fresh >/dev/null \
+python3 "${HERE}/detect_state.py" --new-auth "${NEW_AUTH_DB}" --new-jobs "${NEW_JOBS_DB}" --mode "${MODE}" >/dev/null \
     || warn "conteos post-activación con avisos (revisar)"
 
 # Paso 16: healthcheck funcional
@@ -335,7 +339,7 @@ fi
 # Paso 16b: vía HTTPS, VERIFICADA POR EFECTO. No que la configuración esté
 # escrita: que el endpoint HTTPS declarado verifique certificado y nombre y
 # CONTESTE. Si falla, la instalación NO está completa (decisión D3) y este
-# guion NO imprime "DEPLOY completado".
+# guion NO llega a la línea de estado final.
 #
 # NO hay rollback aquí a propósito: la release activada es correcta --el paso
 # 14 lo verificó contra el proceso vivo-- y lo que falta es el terminador TLS,
@@ -356,9 +360,46 @@ if [ "${https_rc}" -ne 0 ]; then
     fi
 fi
 
+# Paso 16c (B2 · USABLE-V1): GATE A, solo con el primer administrador
+# PENDIENTE (estado del producto: sin usuarios y sin sello). Un POST
+# deliberadamente INVÁLIDO con el CSRF correcto tiene que devolver la
+# validación EXACTA (400): demuestra que el CSRF funciona sobre la vía HTTPS
+# declarada sin crear nada. NO crea el administrador: eso exige una contraseña
+# que elige una persona (GATE B, ver deploy/README.md).
+REGISTRO_INSTALACION="${S9K_STATE_ROOT}/deploy/instalacion.json"
+https_ok=false; [ "${https_rc}" -eq 0 ] && https_ok=true
+REGISTRO_ARGS=(--registro "${REGISTRO_INSTALACION}" --anotar deploy_ok=true --anotar "https_verificado=${https_ok}")
+[ "${MODE}" = "fresh" ] && REGISTRO_ARGS+=(--reiniciar)
+python3 "${HERE}/estado_instalacion.py" "${REGISTRO_ARGS[@]}" >/dev/null \
+    || warn "no se pudo anotar la evidencia de instalación en ${REGISTRO_INSTALACION}"
+if [ "${PRIMER_ADMIN_PENDIENTE}" = "true" ] && [ "${https_rc}" -eq 0 ]; then
+    log "--- 16c. GATE A: CSRF funcional en /setup/admin (no escribe)"
+    set +e
+    python3 "${HERE}/preflight_setup_admin.py" --env-file "${VIEWER_ENV}" --modo gate-a \
+        --registro "${REGISTRO_INSTALACION}"
+    gate_a_rc=$?
+    set -e
+    if [ "${gate_a_rc}" -ne 0 ]; then
+        if [ "${ENVIRONMENT}" = "lab" ]; then
+            warn "GATE A no pasa (rc=${gate_a_rc}); en laboratorio no bloquea, pero el primer administrador NO se podría crear."
+        else
+            die "GATE A no pasa (rc=${gate_a_rc}): el primer administrador NO se podría crear. INSTALACIÓN NO COMPLETA."
+        fi
+    fi
+fi
+
 # Retention fail-closed: activa borrado real solo tras deploy verificado
 S9K_RETENTION_APPLY=1 cleanup_old_releases
 
 # Paso 17: liberar lock (implícito al cerrar el FD/proceso)
 log "--- 17. liberar lock"
-log "=== DEPLOY completado === release=${RELEASE_ID} estado=${GLOBAL_STATE}"
+# «deploy.sh terminó» NO es «instalación completa». La línea de estado la
+# calcula la autoridad única (estado_instalacion.py) con la evidencia anotada;
+# este guion nunca pasa de FIRST_ADMIN_PENDING.
+log "=== DEPLOY terminado === release=${RELEASE_ID} modo=${MODE} decision=${DECISION}"
+log "    $(python3 "${HERE}/estado_instalacion.py" --registro "${REGISTRO_INSTALACION}")"
+if [ "${PRIMER_ADMIN_PENDIENTE}" = "true" ]; then
+    log "    Siguiente: crear el primer administrador en /setup/admin y ejecutar el GATE B"
+    log "    (preflight_setup_admin.py --modo bootstrap|persistencia --registro ${REGISTRO_INSTALACION})."
+    log "    INSTALLATION_COMPLETE solo tras el GATE B --modo persistencia DESPUÉS de un reinicio."
+fi

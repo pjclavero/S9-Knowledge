@@ -845,10 +845,62 @@ COMPROBACIONES: tuple[tuple[str, Callable[[Contexto], Resultado]], ...] = (
 )
 
 
-def ejecutar(ctx: Contexto) -> list[Resultado]:
+#: B2 (USABLE-V1) · H-04/H-18, LADO DEPLOY. El subconjunto que `deploy.sh`
+#: exige en su paso 6: que el estado de revision V3 (propuestas y
+#: review.sqlite3) este DECLARADO, fuera de la release, bajo el state root, y
+#: que visor y motor lo resuelvan IGUAL. Se DERIVA de `COMPROBACIONES` por
+#: nombre (no es una segunda lista de comprobaciones): las funciones son las
+#: mismas que corre el ensayo RC completo.
+GRUPO_DESPLIEGUE = frozenset({
+    "propuestas.declarada",
+    "propuestas.utilizable",
+    "propuestas.derivacion_unica",
+    "review_db.compartida",
+    "estado.persistente",
+})
+
+GRUPOS: dict = {
+    "ensayo": None,  # None = la tupla COMPLETA vigente (ver `ejecutar`)
+    "despliegue": tuple(c for c in COMPROBACIONES if c[0] in GRUPO_DESPLIEGUE),
+}
+
+
+def entorno_desde_env_file(ruta: Path) -> dict:
+    """Las variables de un EnvironmentFile, con la semantica del despliegue.
+
+    No hay lector propio: cada valor lo resuelve
+    `preflight_https.valor_de_env_file`, que a su vez esta cruzado contra
+    `validate_deploy.sh::_env_value`. Aqui solo se enumeran las claves.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from preflight_https import valor_de_env_file  # noqa: PLC0415
+
+    claves = []
+    try:
+        texto = ruta.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return {}
+    for linea in texto.splitlines():
+        desnuda = linea.strip()
+        if not desnuda or desnuda.startswith("#") or "=" not in linea:
+            continue
+        clave = linea.partition("=")[0].strip()
+        if clave and clave not in claves:
+            claves.append(clave)
+    entorno = {}
+    for clave in claves:
+        valor = valor_de_env_file(ruta, clave)
+        if valor:
+            entorno[clave] = valor
+    return entorno
+
+
+def ejecutar(ctx: Contexto, comprobaciones=None) -> list[Resultado]:
     """Todas las comprobaciones. Una que revienta es ROJO, no una que falta."""
+    if comprobaciones is None:
+        comprobaciones = COMPROBACIONES
     salida: list[Resultado] = []
-    for nombre, funcion in COMPROBACIONES:
+    for nombre, funcion in comprobaciones:
         try:
             salida.append(funcion(ctx))
         except Exception as exc:  # noqa: BLE001 - jamas se traga en silencio
@@ -868,19 +920,37 @@ def codigo_de_salida(resultados: list[Resultado]) -> int:
 def main(argv: Optional[list] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Lista de comprobacion previa al ensayo RC (solo lectura).")
-    parser.add_argument("--workspace", required=True,
-                        help="workspace del ensayo (NO es un secreto)")
+    parser.add_argument("--workspace", default=None,
+                        help="workspace del ensayo (NO es un secreto); "
+                             "obligatorio con --grupo ensayo")
+    parser.add_argument("--grupo", choices=sorted(GRUPOS), default="ensayo",
+                        help="despliegue: solo el estado de revision V3 (lo "
+                             "que deploy.sh exige en su paso 6)")
+    parser.add_argument("--env-file",
+                        help="leer las variables de este EnvironmentFile en "
+                             "vez del entorno del proceso")
+    parser.add_argument("--state-root",
+                        help="state root del despliegue (S9K_STATE_ROOT); "
+                             "lo conoce deploy.sh, no el visor")
     args = parser.parse_args(argv)
+    if args.grupo == "ensayo" and not args.workspace:
+        parser.error("--workspace es obligatorio con --grupo ensayo")
 
-    prueba = canario(Contexto(env=dict(os.environ), workspace=args.workspace))
+    entorno = (entorno_desde_env_file(Path(args.env_file))
+               if args.env_file else dict(os.environ))
+    if args.state_root:
+        entorno["S9K_STATE_ROOT"] = args.state_root
+    workspace = args.workspace or ""
+
+    prueba = canario(Contexto(env=entorno, workspace=workspace))
     if prueba.estado != ROJO:
         print("INSTRUMENTAL INVALIDO: el canario no dio rojo. No se juzga nada.",
               file=sys.stderr)
         return 3
     print(f"canario           {prueba.detalle}")
 
-    ctx = Contexto(env=dict(os.environ), workspace=args.workspace)
-    resultados = ejecutar(ctx)
+    ctx = Contexto(env=entorno, workspace=workspace)
+    resultados = ejecutar(ctx, GRUPOS[args.grupo])
     ancho = max(len(r.id) for r in resultados)
     for r in resultados:
         print(f"{r.estado:<9} {r.id:<{ancho}}  {r.detalle}")
@@ -894,9 +964,11 @@ def main(argv: Optional[list] = None) -> int:
           + f" · TOTAL {len(resultados)}")
 
     codigo = codigo_de_salida(resultados)
-    veredicto = {0: "APTO para empezar el ensayo",
-                 1: "NO APTO: hay comprobaciones que no pudieron mirar",
-                 2: "NO APTO: hay requisitos incumplidos"}[codigo]
+    sujeto = "el despliegue" if args.grupo == "despliegue" else "el ensayo"
+    veredicto = {0: "APTO para empezar el ensayo" if args.grupo == "ensayo"
+                 else "APTO: el estado de revision V3 sobrevive al redespliegue",
+                 1: "NO APTO (%s): hay comprobaciones que no pudieron mirar" % sujeto,
+                 2: "NO APTO (%s): hay requisitos incumplidos" % sujeto}[codigo]
     print(f"\n{veredicto}")
     return codigo
 

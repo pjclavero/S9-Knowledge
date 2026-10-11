@@ -8,9 +8,16 @@ set -Eeuo pipefail
 LEGACY_LAYOUT="/opt/knowledge-services/s9-knowledge-repo"
 
 # Variables cuya ausencia BLOQUEA el despliegue (nombres verbatim del código).
-# S9K_CSRF_SECRET NO va aquí: tiene su propia validación profunda (validate_csrf_secret),
-# que además exige que esté presente y sea fuerte.
-CRITICAL_ENV_VARS="S9K_VIEWER_HOST S9K_VIEWER_PORT S9K_GRAPH_PROVIDER S9K_NEO4J_URI S9K_NEO4J_USER S9K_AUTH_DB_PATH S9K_JOBS_DB S9K_AUTH_ENABLED"
+# S9K_CSRF_SECRET NO va aquí: tiene su propia validación profunda (validate_csrf_secret);
+# desde B2 (#248) su AUSENCIA es legítima: el visor lo autogenera 0600 junto a
+# la auth DB. Lo que se bloquea es un valor explícito débil.
+# B2 · H-04 (lado deploy): las dos rutas del estado de revisión V3. Sin ellas,
+# visor y motor caen al defecto DENTRO de la release y el siguiente despliegue
+# deja de ver decisiones humanas, planes sellados y propuestas (y el motor lo
+# calla, H-18). Su coherencia profunda (absolutas, fuera de la release, bajo el
+# state root, misma resolución en visor y motor) la mira
+# `preflight_ensayo_rc.py --grupo despliegue` en el paso 6 de deploy.sh.
+CRITICAL_ENV_VARS="S9K_VIEWER_HOST S9K_VIEWER_PORT S9K_GRAPH_PROVIDER S9K_NEO4J_URI S9K_NEO4J_USER S9K_AUTH_DB_PATH S9K_JOBS_DB S9K_AUTH_ENABLED S9K_V3_REVIEW_DATABASE_PATH S9K_V3_REVIEW_PROPOSALS_DIR"
 
 # Placeholders prohibidos para un secreto (case-insensitive, coincidencia exacta).
 CSRF_PLACEHOLDERS="change-me change-me-in-host changeme replace-me example default password secret s9k-csrf-change-me s9k-csrf-default"
@@ -38,17 +45,32 @@ _env_value() {
 
 # ---------------------------------------------------------------------------
 # validate_csrf_secret <env_file>
-#   Rechaza: ausente/vacío; placeholder conocido; < CSRF_MIN_LEN; entropía baja
+#   AUSENTE/VACÍO (B2, alineado con #248 `csrf_bootstrap`): se ACEPTA si el
+#   visor lo puede autogenerar, es decir si S9K_AUTH_DB_PATH es absoluta y no
+#   cuelga de una release (el secreto se persiste 0600 junto a esa base). Si
+#   no, BLOQUEA con la causa.
+#   EXPLÍCITO: rechaza placeholder conocido; < CSRF_MIN_LEN; entropía baja
 #   (< CSRF_MIN_UNIQUE caracteres distintos); igual al usuario Neo4j; secreto
 #   guardado dentro de una release. NUNCA imprime el valor.
 # ---------------------------------------------------------------------------
 validate_csrf_secret() {
     local env_file="${1}"
     [ -f "${env_file}" ] || { printf 'BLOCK(csrf): viewer.env no existe\n' >&2; return 1; }
-    local val lower ph user
+    local val lower ph user authdb pfx
     val="$(_env_value "${env_file}" S9K_CSRF_SECRET)"
     if [ -z "${val}" ]; then
-        printf 'BLOCK(csrf): S9K_CSRF_SECRET ausente o vacío\n' >&2; return 1
+        authdb="$(_env_value "${env_file}" S9K_AUTH_DB_PATH)"
+        case "${authdb}" in
+            /*) ;;
+            *) printf 'BLOCK(csrf): S9K_CSRF_SECRET vacío y S9K_AUTH_DB_PATH no es absoluta: el visor no puede autogenerar el secreto\n' >&2; return 1 ;;
+        esac
+        for pfx in ${RELEASE_PREFIXES}; do
+            case "${authdb}" in "${pfx}"*)
+                printf 'BLOCK(csrf): S9K_CSRF_SECRET vacío y la auth DB cuelga de una release: el secreto autogenerado se perdería en el siguiente despliegue\n' >&2; return 1 ;;
+            esac
+        done
+        printf 'INFO(csrf): S9K_CSRF_SECRET no declarado: el visor lo autogenera (0600) junto a la auth DB en el primer arranque\n' >&2
+        return 0
     fi
     lower="$(printf '%s' "${val}" | tr '[:upper:]' '[:lower:]')"
     for ph in ${CSRF_PLACEHOLDERS}; do

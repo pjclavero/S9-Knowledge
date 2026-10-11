@@ -121,6 +121,10 @@ def test_main_aborta_si_el_canario_no_da_rojo(monkeypatch, entorno, capsys):
 IMPORTS_PERMITIDOS = {
     "__future__", "argparse", "ast", "importlib", "importlib.util", "os",
     "stat", "sys", "dataclasses", "pathlib", "typing", "urllib.parse",
+    # B2: el lector de EnvironmentFile del despliegue se IMPORTA del modulo
+    # hermano (no se copia). Ese modulo es a su vez solo biblioteca estandar,
+    # y lo comprueba abajo `test_el_hermano_importado_es_solo_stdlib`.
+    "preflight_https",
 }
 
 
@@ -134,6 +138,20 @@ def test_el_guion_solo_usa_biblioteca_estandar():
         elif isinstance(nodo, ast.ImportFrom) and nodo.level == 0:
             usados.add(nodo.module or "")
     assert usados <= IMPORTS_PERMITIDOS, usados - IMPORTS_PERMITIDOS
+
+
+def test_el_hermano_importado_es_solo_stdlib():
+    """El unico modulo no-stdlib permitido arriba tampoco arrastra nada."""
+    hermano = GUION.with_name("preflight_https.py")
+    arbol = ast.parse(hermano.read_text(encoding="utf-8"))
+    usados = set()
+    for nodo in ast.walk(arbol):
+        if isinstance(nodo, ast.Import):
+            usados.update(a.name.split(".")[0] for a in nodo.names)
+        elif isinstance(nodo, ast.ImportFrom) and nodo.level == 0:
+            usados.add((nodo.module or "").split(".")[0])
+    import sys as _sys
+    assert usados <= set(_sys.stdlib_module_names) | {"__future__"}, usados
 
 
 # ---------------------------------------------------------------------------

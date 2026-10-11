@@ -57,6 +57,12 @@
     - output
     - staging
     - backups
+    # B2 (USABLE-V1) · H-04, lado deploy: el estado de revision V3 vive FUERA
+    # de la release. Mismas rutas que `deploy/config/viewer.env.example`
+    # (S9K_V3_REVIEW_DATABASE_PATH / S9K_V3_REVIEW_PROPOSALS_DIR); el testigo
+    # de B2 cruza esta lista contra la plantilla.
+    - reviews-v3
+    - reviews-v3/proposals
   tags:
     - common
     - directories
@@ -95,9 +101,10 @@
 - name: Advertir si deploy.env no existe
   ansible.builtin.debug:
     msg: >-
-      AVISO: {{ s9k_config_root }}/deploy.env no encontrado.
-      Crea este fichero en el host con las variables de entorno del servicio.
-      Ver deploy/README.md para la plantilla. Sin secretos en el repo.
+      AVISO: {{ s9k_config_root }}/deploy.env no encontrado. Es OPCIONAL:
+      sin S9K_REPO_URL, la PRIMERA release (deploy.sh --mode fresh) se clona
+      de {{ s9k_root }}/.repo-cache, que prepara el rol data_engine.
+      Ver deploy/README.md, «Primera release».
   when: not _deploy_env_stat.stat.exists
   tags:
     - common

@@ -179,6 +179,17 @@ TIEMPO_LIMITE_POST = 180.0
 #: convertiria el fail-closed del producto en un verde.
 ESTADO_FAIL_CLOSED = 503
 
+#: GATE A (B2 · USABLE-V1). El mensaje EXACTO con el que el producto rechaza un
+#: alta con el usuario vacio (``routers/setup.py::setup_admin_submit``). Es la
+#: prueba de que el POST PASO el CSRF: esa validacion corre DESPUES de
+#: ``validate_login_csrf``, asi que solo se ve si la cookie volvio y el token
+#: valido. MISMO literal que el producto; el testigo de B2 los cruza por AST.
+MENSAJE_VALIDACION_USUARIO_VACIO = "El nombre de usuario no puede estar vacio."
+
+#: Prefijo del mensaje con el que el producto rechaza el CSRF. Sirve para
+#: distinguir un 400/403 de validacion de uno de CSRF; el testigo lo cruza.
+PREFIJO_MENSAJE_CSRF = "Error de seguridad (CSRF)"
+
 
 # ---------------------------------------------------------------------------
 # Credenciales: nunca por argv, nunca impresas
@@ -426,6 +437,8 @@ class Recorrido:
     sello_cierra_setup: Optional[int] = None
     login_funciona: Optional[int] = None
     persistencia_tras_reinicio: Optional[bool] = None
+    #: GATE A: codigo del POST deliberadamente INVALIDO con CSRF correcto.
+    csrf_validacion: Optional[int] = None
 
     #: Fases que el modo en curso DEBE observar.
     FASES_BOOTSTRAP = ("get_formulario", "cookie_secure", "token_presente",
@@ -433,6 +446,9 @@ class Recorrido:
                        "login_funciona")
     FASES_PERSISTENCIA = ("sello_cierra_setup", "login_funciona",
                           "persistencia_tras_reinicio")
+    #: GATE A: no crea nada; demuestra que el CSRF FUNCIONA sobre esta via.
+    FASES_GATE_A = ("get_formulario", "cookie_secure", "token_presente",
+                    "csrf_validacion")
 
     def no_observadas(self, fases) -> list:
         return [f for f in fases if getattr(self, f) is None]
@@ -618,6 +634,88 @@ def comprobar_post_crea_el_administrador(cliente: ClienteConCookies,
             % (SETUP_PATH, destino),
         )
     return None
+
+
+def comprobar_csrf_funcional(cliente: ClienteConCookies,
+                             recorrido: Recorrido) -> Optional[Hallazgo]:
+    """**GATE A** (B2). POST deliberadamente INVALIDO con el CSRF CORRECTO.
+
+    Distingue lo que un ``status != 403`` confunde: el usuario va VACIO a
+    proposito, asi que el producto NO crea nada; si la cookie ``Secure`` volvio
+    y el token valido, la peticion llega a la validacion del formulario y la
+    respuesta es EXACTAMENTE un 400 con la plantilla y el mensaje
+    ``MENSAJE_VALIDACION_USUARIO_VACIO``. Cualquier otra cosa es un fallo con
+    causa propia:
+
+    * 403 por un canal sin cifrar con cookie ``Secure`` -> la causa es la de
+      ``preflight_https`` (``COOKIE_SECURE_SOBRE_HTTP``), NO un CSRF roto.
+    * 403 por HTTPS (la cookie SI volvio) -> ``CSRF_RECHAZADO_CON_COOKIE``:
+      el CSRF esta roto de verdad (secreto distinto entre procesos, p. ej.).
+    * 5xx -> NUNCA es PASS.
+    * 303 -> un alta con datos invalidos que el producto acepto: grave.
+    """
+    token = getattr(cliente, "_token_setup", None)
+    if not token:
+        return Hallazgo(
+            "TOKEN_CSRF_AUSENTE",
+            "no hay token de %s que enviar: el GET no lo entrego." % (SETUP_PATH,))
+    try:
+        estado, html, _ = cliente.peticion(
+            "POST", SETUP_PATH,
+            datos={"username": "", "display_name": "", "password": "",
+                   "csrf_token": token},
+            timeout=TIEMPO_LIMITE_POST,
+        )
+    except _AlmacenIlegible as exc:
+        return exc.hallazgo
+    except (OSError, ssl.SSLError) as exc:
+        return Hallazgo(
+            "POST_NO_ALCANZABLE",
+            "el POST de validacion a %s no llego a completarse: %s."
+            % (SETUP_PATH, type(exc).__name__))
+    recorrido.csrf_validacion = estado
+
+    if estado == 400 and MENSAJE_VALIDACION_USUARIO_VACIO in html \
+            and PREFIJO_MENSAJE_CSRF not in html \
+            and token_del_formulario(html):
+        return None
+    if estado == 403:
+        galleta = cliente.galleta(SETUP_CSRF_COOKIE)
+        if cliente.esquema != "https" and galleta is not None and galleta.secure:
+            url = "%s://%s:%d" % (cliente.esquema, cliente.host, cliente.puerto)
+            causa = comprobar_cookie_secure_coherente(url, True)
+            if causa is not None:
+                return causa
+        return Hallazgo(
+            "CSRF_RECHAZADO_CON_COOKIE",
+            "el POST de validacion a %s respondio 403 por CSRF AUNQUE la cookie "
+            "viajo por HTTPS: el CSRF esta roto de verdad (secreto distinto "
+            "entre procesos o reinicios, cookie reescrita por el proxy). No es "
+            "el bucle de HTTP plano." % (SETUP_PATH,))
+    if estado == ESTADO_FAIL_CLOSED:
+        return Hallazgo(
+            "ALMACEN_DE_AUTH_NO_DISPONIBLE",
+            "el POST de validacion a %s respondio %d (fail-closed del almacen "
+            "de autenticacion)." % (SETUP_PATH, estado))
+    if estado >= 500:
+        return Hallazgo(
+            "ERROR_DE_SERVIDOR",
+            "el POST de validacion a %s respondio %d. Un error de servidor NO "
+            "es un CSRF funcional." % (SETUP_PATH, estado))
+    if estado == 303:
+        return Hallazgo(
+            "ALTA_INVALIDA_ACEPTADA",
+            "el POST con el usuario VACIO a %s respondio 303: el producto "
+            "acepto un alta invalida." % (SETUP_PATH,))
+    if estado == 404:
+        return Hallazgo(
+            "SETUP_YA_SELLADO",
+            "%s responde 404 al POST: el sello ya esta puesto." % (SETUP_PATH,))
+    return Hallazgo(
+        "VALIDACION_INESPERADA",
+        "el POST de validacion a %s respondio %d sin el mensaje de validacion "
+        "exacto %r: no se puede afirmar que el CSRF funcione."
+        % (SETUP_PATH, estado, MENSAJE_VALIDACION_USUARIO_VACIO))
 
 
 def comprobar_sello_cierra_el_setup(cliente: ClienteConCookies,
@@ -807,6 +905,32 @@ def verificar_bootstrap(entrada: Entrada) -> tuple:
     return ([incompleto] if incompleto else []), recorrido
 
 
+def verificar_gate_a(entrada: Entrada) -> tuple:
+    """**GATE A**: GET + cookie ``Secure`` + POST invalido con CSRF correcto.
+
+    No escribe nada: es lo que ``deploy.sh`` puede ejercer sin credenciales
+    para declarar ``HTTPS_BOOTSTRAP_PATH_VERIFIED`` sobre una instalacion
+    cuyo primer administrador esta pendiente.
+    """
+    recorrido = Recorrido()
+    estaticos = _puerta_estatica(entrada)
+    if estaticos:
+        return estaticos + [comprobar_recorrido_completo(
+            recorrido, Recorrido.FASES_GATE_A)], recorrido
+    url = (entrada.url or "").strip()
+    cliente = ClienteConCookies(url, entrada.ca_file, entrada.timeout)
+    for paso in (
+        lambda: comprobar_get_del_formulario(cliente, recorrido),
+        lambda: comprobar_csrf_funcional(cliente, recorrido),
+    ):
+        hallazgo = paso()
+        if hallazgo is not None:
+            incompleto = comprobar_recorrido_completo(recorrido, Recorrido.FASES_GATE_A)
+            return ([hallazgo] + ([incompleto] if incompleto else []), recorrido)
+    incompleto = comprobar_recorrido_completo(recorrido, Recorrido.FASES_GATE_A)
+    return ([incompleto] if incompleto else []), recorrido
+
+
 def verificar_persistencia(entrada: Entrada) -> tuple:
     """SOLO LECTURA, para DESPUES del reinicio.
 
@@ -873,6 +997,8 @@ def verificar(entrada: Entrada) -> list:
     """Lista vacia = el recorrido se OBSERVO completo en este momento."""
     if entrada.modo == "persistencia":
         hallazgos, _ = verificar_persistencia(entrada)
+    elif entrada.modo == "gate-a":
+        hallazgos, _ = verificar_gate_a(entrada)
     else:
         hallazgos, _ = verificar_bootstrap(entrada)
     return hallazgos
@@ -906,17 +1032,26 @@ def main(argv: Optional[list] = None) -> int:
     ap.add_argument("--credenciales-desde",
                     help="fichero 0600 con {\"usuario\":...,\"password\":...}; "
                          "si se omite, se leen de stdin")
-    ap.add_argument("--modo", choices=["bootstrap", "persistencia"],
-                    default="bootstrap")
+    ap.add_argument("--modo", choices=["bootstrap", "persistencia", "gate-a"],
+                    default="bootstrap",
+                    help="gate-a: POST invalido con CSRF correcto, no escribe "
+                         "y no pide credenciales")
     ap.add_argument("--timeout", type=float, default=TIEMPO_LIMITE)
+    ap.add_argument("--registro",
+                    help="JSON de evidencia de estado_instalacion.py donde "
+                         "anotar el resultado de esta fase")
     args = ap.parse_args(argv)
 
-    try:
-        cred = leer_credenciales(args.credenciales_desde)
-    except (ValueError, OSError) as exc:
-        print("FALLO(CREDENCIALES_NO_LEIDAS): %s" % (exc,))
-        print("INSTALACION NO COMPLETA: no se pudo ejercer el recorrido.")
-        return 2
+    if args.modo == "gate-a":
+        # El GATE A no usa credenciales: el alta va vacia A PROPOSITO.
+        cred = Credenciales(usuario="-", password="")
+    else:
+        try:
+            cred = leer_credenciales(args.credenciales_desde)
+        except (ValueError, OSError) as exc:
+            print("FALLO(CREDENCIALES_NO_LEIDAS): %s" % (exc,))
+            print("INSTALACION NO COMPLETA: no se pudo ejercer el recorrido.")
+            return 2
 
     if args.env_file:
         base = entrada_desde_env_file(Path(args.env_file), cred, args.modo,
@@ -938,8 +1073,22 @@ def main(argv: Optional[list] = None) -> int:
     for h in hallazgos:
         print(str(h))
     rc = codigo_de_salida(hallazgos)
+    if args.registro:
+        # La evidencia de esta fase, a la autoridad UNICA de la cadena.
+        import estado_instalacion  # noqa: PLC0415 - mismo directorio
+        evidencia = {
+            "gate-a": {"gate_a": rc == 0, "setup_abierto": rc == 0},
+            "bootstrap": {"gate_b_bootstrap": rc == 0},
+            "persistencia": {"gate_b_persistencia": rc == 0},
+        }[entrada.modo]
+        datos = estado_instalacion.registrar(Path(args.registro), **evidencia)
+        print(estado_instalacion.linea_de_estado(datos))
     if rc == 0:
-        if entrada.modo == "persistencia":
+        if entrada.modo == "gate-a":
+            print("OK (GATE A): GET %s con cookie Secure y un POST invalido con "
+                  "CSRF correcto respondio la validacion EXACTA (400). El CSRF "
+                  "funciona sobre esta via; no se ha creado nada." % (SETUP_PATH,))
+        elif entrada.modo == "persistencia":
             print("OK: tras el reinicio el sello sigue cerrando %s y el "
                   "login del administrador %r sigue funcionando."
                   % (SETUP_PATH, cred.usuario))
