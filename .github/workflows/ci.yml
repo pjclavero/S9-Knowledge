@@ -1368,6 +1368,23 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/mutaciones_pr4_instalacion_completa.py
 
+      # B2 (USABLE-V1) · H-01/H-43/H-44/H-49 — la instalacion de FABRICA llega
+      # a INSTALLATION_COMPLETE por el camino documentado. Diez mutaciones
+      # sobre el paso 4 REAL de deploy.sh (vuelve a GLOBAL_STATE), detect_state
+      # (`_usable(jobs)` exige filas; fresh deja de bloquear), las dos
+      # plantillas (vuelven a `mock`), CRITICAL_ENV_VARS (sin S9K_V3_REVIEW_*),
+      # el CSRF ausente (vuelve a bloquear), deploy.sh sin el preflight de
+      # revision, el GATE A (`status != 403`) y la cadena de estados
+      # (promociona sin un eslabon). Cada rojo con su CAUSA; el testigo tiene
+      # que recolectar > 0 y saltar 0.
+      #
+      # TECHO: no ejerce nginx, systemd, una VM limpia ni un navegador. Eso es
+      # el ensayo RC de `deploy/README.md`, PENDIENTE.
+      - name: "La instalacion de fabrica llega a INSTALLATION_COMPLETE: se pone ROJA ante cada defecto (B2)"
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/mutaciones_b2_fresh_install.py
+
       # MICROCARRIL DE SANEAMIENTO DE INSTRUMENTOS — los cuatro
       # `scripts/calibrar_panel_*.py`. Son los arneses de los cuatro paneles
       # del chasis (B operations, C review, F sources, G entities): cada uno
