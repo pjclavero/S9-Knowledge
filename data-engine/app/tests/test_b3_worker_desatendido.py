@@ -403,7 +403,7 @@ def test_una_cola_de_solo_lectura_para_el_worker_al_arrancar(tmp_path, db):
         "COLA ROTA EN SILENCIO: con jobs.db de solo lectura el worker dio rc=%s "
         "(esperado 3, para que systemd y worker_activo lo vean)\n%s"
         % (r.returncode, r.stderr[-1500:]))
-    assert "no se puede escribir" in r.stderr, r.stderr[-1500:]
+    assert any(l.startswith("ERROR: la cola ") for l in r.stderr.splitlines()), r.stderr[-1500:]
 
 
 def test_una_cola_corrupta_para_el_worker_al_arrancar(tmp_path):
