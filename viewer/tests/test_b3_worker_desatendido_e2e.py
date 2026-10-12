@@ -140,7 +140,8 @@ class _Servicio:
         return self.proc.returncode
 
     def texto(self) -> str:
-        self._fh.flush()
+        if not self._fh.closed:  # tras `parar()` el fichero ya esta cerrado (F8)
+            self._fh.flush()
         return self.log.read_text(encoding="utf-8", errors="replace")[-4000:]
 
 

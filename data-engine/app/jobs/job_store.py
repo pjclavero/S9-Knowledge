@@ -568,7 +568,8 @@ def mark_complete(job_id: str, result: dict = None, db_path: str = DEFAULT_DB_PA
             """
             UPDATE jobs
             SET status = 'complete', result_json = ?, finished_at = ?,
-                updated_at = ?, locked_by = NULL, locked_at = NULL
+                updated_at = ?, locked_by = NULL, locked_at = NULL,
+                error_message = NULL, next_retry_at = NULL
             WHERE job_id = ?""" + guardia,
             (result_json, now, now, job_id) + extra,
         )
@@ -767,6 +768,25 @@ def get_counts_by_status(workspace: str = None, db_path: str = DEFAULT_DB_PATH) 
     with _connect(db_path) as conn:
         rows = conn.execute(sql, params).fetchall()
     return {row["status"]: row["n"] for row in rows}
+
+
+def comprobar_escritura(db_path: str) -> None:
+    """Sonda de ESCRITURA real sobre `jobs.db`; lanza `sqlite3.Error` si no se puede.
+
+    B3 · H-02 (revision independiente, F2). Abrir la base no prueba nada: con
+    un `jobs.db` de solo lectura `connect` y hasta `BEGIN IMMEDIATE` pasan
+    (medido) y el primer fallo llega al reclamar un job, dentro del bucle. Se
+    escribe de verdad (una tabla dentro de una transaccion) y se deshace.
+    """
+    conn = sqlite3.connect(db_path, timeout=30, isolation_level=None)
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            conn.execute("CREATE TABLE _s9k_sonda_escritura (x INTEGER)")
+        finally:
+            conn.execute("ROLLBACK")
+    finally:
+        conn.close()
 
 
 def resolve_db_path(db_path: str = None) -> str:

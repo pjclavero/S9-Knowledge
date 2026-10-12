@@ -33,6 +33,7 @@ from __future__ import annotations
 import json
 import os
 import signal
+import sqlite3
 import subprocess
 import sys
 import threading
@@ -106,7 +107,8 @@ class _Worker:
         return self.proc.returncode
 
     def texto(self) -> str:
-        self._fh.flush()
+        if not self._fh.closed:  # tras `parar()` el fichero ya esta cerrado (F8)
+            self._fh.flush()
         return self.log.read_text(encoding="utf-8", errors="replace")
 
 
@@ -188,7 +190,7 @@ def test_sigterm_con_un_job_en_curso_lo_termina_antes_de_salir(tmp_path, db):
         rc = w.esperar_salida(30)
     finally:
         w.parar()
-    assert rc == 0, "rc=%s\n%s" % (rc, w.texto())
+    assert rc == 0, "PARADA SUCIA: SIGTERM con un job en curso dio rc=%s\n%s" % (rc, w.texto())
     assert _job(db, job_id)["status"] == "complete", _job(db, job_id)
 
 
@@ -373,3 +375,134 @@ def test_el_latido_mantiene_vivo_un_job_largo(monkeypatch, db):
         hilo.join(timeout=20)
     assert job_id not in liberados, "un job con latido se libero como huerfano"
     assert _job(db, job_id)["status"] == "complete", _job(db, job_id)
+
+
+# ===========================================================================
+# 7. REVISION INDEPENDIENTE (F2, F7): cola rota, vuelta fallida, guardia, techo
+# ===========================================================================
+
+def _correr_loop(db: str, *extra: str, segundos: int = 40) -> subprocess.CompletedProcess:
+    env = {k: v for k, v in os.environ.items() if not k.startswith("S9K_")}
+    return subprocess.run(
+        ["timeout", str(segundos), sys.executable, str(WORKER_PY), "--loop",
+         "--sleep-seconds", "1", "--db", db, *extra],
+        capture_output=True, text=True, env=env, timeout=segundos + 30)
+
+
+def test_una_cola_de_solo_lectura_para_el_worker_al_arrancar(tmp_path, db):
+    """F2: antes el daemon seguia `active` y el job `pending` sin error."""
+    job_store.create_job("leyenda", job_type="echo", db_path=db)
+    os.chmod(db, 0o444)
+    try:
+        # `--max-vueltas-fallidas 0` aisla la sonda de ARRANQUE: sin ella, el
+        # worker solo se rendiria por vueltas fallidas, mas tarde.
+        r = _correr_loop(db, "--max-vueltas-fallidas", "0", segundos=10)
+    finally:
+        os.chmod(db, 0o644)
+    assert r.returncode == 3, (
+        "COLA ROTA EN SILENCIO: con jobs.db de solo lectura el worker dio rc=%s "
+        "(esperado 3, para que systemd y worker_activo lo vean)\n%s"
+        % (r.returncode, r.stderr[-1500:]))
+    assert "no se puede escribir" in r.stderr, r.stderr[-1500:]
+
+
+def test_una_cola_corrupta_para_el_worker_al_arrancar(tmp_path):
+    corrupta = tmp_path / "jobs.db"
+    corrupta.write_bytes(b"esto no es una base sqlite " * 8)
+    r = _correr_loop(str(corrupta))
+    assert r.returncode == 3, "COLA ROTA EN SILENCIO: rc=%s\n%s" % (r.returncode, r.stderr[-1500:])
+
+
+def test_n_vueltas_fallidas_seguidas_terminan_el_daemon(monkeypatch, db):
+    """F2: una cola que se rompe CON el worker en marcha tampoco es un verde."""
+    llamadas = []
+
+    def siempre_falla(*a, **k):
+        llamadas.append(1)
+        raise sqlite3.OperationalError("attempt to write a readonly database")
+
+    monkeypatch.setattr(worker, "process_one", siempre_falla)
+    parar = threading.Event()
+    salida = []
+
+    def correr():
+        try:
+            worker.run("w-roto", once=False, sleep_seconds=0.05, db_path=db,
+                       max_vueltas_fallidas=4, stop_event=parar)
+            salida.append("termino sin error")
+        except worker.ColaInutilizable as exc:
+            salida.append(exc)
+
+    hilo = threading.Thread(target=correr)
+    hilo.start()
+    hilo.join(timeout=5)
+    parar.set()
+    hilo.join(timeout=10)
+    assert salida and isinstance(salida[0], worker.ColaInutilizable), (
+        "COLA ROTA EN SILENCIO: tras %s vueltas fallidas el daemon seguia: %s"
+        % (len(llamadas), salida))
+    assert len(llamadas) == 4, len(llamadas)
+
+
+def test_una_vuelta_con_error_no_mata_el_daemon(monkeypatch, db):
+    """F7 (ME): UNA vuelta fallida se registra y el daemon sigue."""
+    original = worker.process_one
+    estado = {"n": 0}
+
+    def tropieza_una_vez(*a, **k):
+        estado["n"] += 1
+        if estado["n"] == 1:
+            raise sqlite3.OperationalError("database is locked")
+        return original(*a, **k)
+
+    monkeypatch.setattr(worker, "process_one", tropieza_una_vez)
+    job_id = job_store.create_job("leyenda", job_type="echo", db_path=db)
+    parar = threading.Event()
+    errores = []
+
+    def correr():
+        try:
+            worker.run("w-tropiezo", once=False, sleep_seconds=0.1, db_path=db, stop_event=parar)
+        except BaseException as exc:  # noqa: BLE001 - se mide justo eso
+            errores.append(exc)
+
+    hilo = threading.Thread(target=correr)
+    hilo.start()
+    try:
+        hecho = _esperar(lambda: _job(db, job_id)["status"] == "complete" or errores, 10)
+    finally:
+        parar.set()
+        hilo.join(timeout=10)
+    assert not errores, "VUELTA FALLIDA MATA EL DAEMON: %r" % errores
+    assert hecho and _job(db, job_id)["status"] == "complete", _job(db, job_id)
+
+
+def test_mark_failed_de_un_worker_que_ya_no_es_dueno_no_tiene_efecto(db):
+    """F7 (MC): un fallo tardio no reabre un job cancelado."""
+    job_id = job_store.create_job("leyenda", job_type="echo", db_path=db)
+    job_store.claim_next_job("w1", db_path=db)
+    job_store.mark_cancelled(job_id, db_path=db)
+    assert job_store.mark_failed(job_id, "tarde", retry=True, db_path=db,
+                                 locked_by="w1") is False, (
+        "MARK_FAILED SIN GUARDIA: un worker que ya no es dueño escribio su fallo")
+    j = _job(db, job_id)
+    assert j["status"] == "cancelled" and j["attempts"] == 0, j
+
+
+def test_el_retroceso_tiene_techo():
+    """F7 (MD): sin techo, el intento 20 esperaria ~1 año."""
+    assert worker.retroceso(30, 0) == 30 and worker.retroceso(30, 1) == 60
+    assert worker.retroceso(30, 20) == worker.RETRY_BACKOFF_MAX_SECONDS, (
+        "RETROCESO SIN TECHO: %s" % worker.retroceso(30, 20))
+    assert worker.retroceso(0, 5) == 0
+
+
+def test_complete_tras_un_reintento_no_conserva_el_error(db):
+    """F13: un job que acaba bien no se presenta con incidencia."""
+    job_id = job_store.create_job("leyenda", job_type="echo", db_path=db)
+    job_store.claim_next_job("w1", db_path=db)
+    job_store.mark_failed(job_id, "transitorio", retry=True, db_path=db, locked_by="w1")
+    job_store.claim_next_job("w1", db_path=db)
+    assert job_store.mark_complete(job_id, result={"ok": 1}, db_path=db, locked_by="w1")
+    j = _job(db, job_id)
+    assert j["status"] == "complete" and j["error_message"] is None, j

@@ -71,6 +71,7 @@ def _env(tmp_path, secreto: Path, **cambios) -> Path:
         # B3 · H-02: estado compartido con el visor, obligatorio.
         "S9K_JOBS_DB": "/var/lib/s9-knowledge/jobs/jobs.db",
         "S9K_V3_REVIEW_PROPOSALS_DIR": "/var/lib/s9-knowledge/reviews-v3/proposals",
+        "S9K_V3_REVIEW_DATABASE_PATH": "/var/lib/s9-knowledge/reviews-v3/review.sqlite3",
     }
     valores.update(cambios)
     fichero = tmp_path / "worker.env"
@@ -104,7 +105,8 @@ def test_ausente_BLOQUEA_desde_b3(tmp_path):
     assert "pending" in resultado.stderr, resultado.stderr
 
 
-@pytest.mark.parametrize("falta", ["S9K_JOBS_DB", "S9K_V3_REVIEW_PROPOSALS_DIR"])
+@pytest.mark.parametrize("falta", ["S9K_JOBS_DB", "S9K_V3_REVIEW_PROPOSALS_DIR",
+                                   "S9K_V3_REVIEW_DATABASE_PATH"])
 def test_falta_el_estado_compartido_BLOQUEA(tmp_path, secreto, falta):
     resultado = _correr(_env(tmp_path, secreto, **{falta: None}))
     assert _rc(resultado) == 1, resultado.stderr
@@ -114,7 +116,8 @@ def test_falta_el_estado_compartido_BLOQUEA(tmp_path, secreto, falta):
 def _viewer_env(tmp_path, **valores) -> Path:
     fichero = tmp_path / "viewer.env"
     base = {"S9K_JOBS_DB": "/var/lib/s9-knowledge/jobs/jobs.db",
-            "S9K_V3_REVIEW_PROPOSALS_DIR": "/var/lib/s9-knowledge/reviews-v3/proposals"}
+            "S9K_V3_REVIEW_PROPOSALS_DIR": "/var/lib/s9-knowledge/reviews-v3/proposals",
+            "S9K_V3_REVIEW_DATABASE_PATH": "/var/lib/s9-knowledge/reviews-v3/review.sqlite3"}
     base.update(valores)
     fichero.write_text("".join(f"{k}={v}\n" for k, v in base.items()), encoding="utf-8")
     return fichero
@@ -130,12 +133,13 @@ def test_mismo_estado_que_el_visor_pasa(tmp_path, secreto):
 @pytest.mark.parametrize("var,otro", [
     ("S9K_JOBS_DB", "/var/lib/s9-knowledge/state/jobs.db"),
     ("S9K_V3_REVIEW_PROPOSALS_DIR", "/var/lib/s9-knowledge/otras/proposals"),
+    ("S9K_V3_REVIEW_DATABASE_PATH", "/var/lib/s9-knowledge/otras/review.sqlite3"),
 ])
 def test_estado_distinto_del_visor_BLOQUEA(tmp_path, secreto, var, otro):
     """Dos valores distintos no dan error en ningún proceso: dan una cola
     que nadie mira. Por eso se compara aquí."""
     resultado = _correr(_env(tmp_path, secreto), _viewer_env(tmp_path, **{var: otro}))
-    assert _rc(resultado) == 1, resultado.stderr
+    assert _rc(resultado) == 1, "NO BLOQUEO: " + resultado.stderr.replace("\n", " | ")
     assert var in resultado.stderr and "difiere" in resultado.stderr, resultado.stderr
 
 

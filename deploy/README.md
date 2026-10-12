@@ -54,7 +54,15 @@ ansible-playbook -i deploy/ansible/inventory.ini deploy/ansible/site.yml
 # 2. Configuración del visor: la plantilla TAL CUAL, cambiando SOLO la URL pública
 install -m 0600 deploy/config/viewer.env.example /etc/s9-knowledge/viewer.env
 #    editar S9K_PUBLIC_BASE_URL (y S9K_TLS_CA_FILE si la CA es propia)
-# 3. Primera release
+# 3. Configuración del WORKER (B3 · H-02: obligatoria, el paso 6 bloquea sin ella).
+#    La plantilla TAL CUAL: cola, propuestas y decisiones iguales a viewer.env.
+install -m 0600 deploy/config/worker.env.example /etc/s9-knowledge/worker.env
+#    y el secreto de la cuenta de SÓLO LECTURA del grafo, 0600, en ESA ruta
+#    (es el origen que copia la unidad del worker). Sin el valor en argv:
+install -d -m 0700 /etc/s9-knowledge/secrets
+install -m 0600 /dev/null /etc/s9-knowledge/secrets/neo4j_worker_password
+#    editar el fichero y escribir la contraseña (ver «La cuenta del worker»)
+# 4. Primera release (instala, habilita y arranca visor y worker)
 deploy/scripts/deploy.sh --environment production --release-ref <tag|sha> \
     --mode fresh --confirm-production
 ```
@@ -709,7 +717,7 @@ apuntaba al layout *legacy* y buscaba un venv que nadie creaba, y un
 | 1. Directorio | Ansible (`roles/common`) | `/etc/s9-knowledge`, `root:root`, `0700` |
 | 2. Subdirectorio | **el operador, a mano** | `/etc/s9-knowledge/secrets`, `root:root`, `0700` |
 | 3. Fichero del secreto | **el operador, a mano** | `/etc/s9-knowledge/secrets/neo4j_worker_password`, `root:root`, **`0600`**, fuera de la release (nunca bajo `/opt/s9-knowledge/current`, que `validate_deploy.sh` rechaza). **Tiene que ser esa ruta**: es el origen que copia la unidad |
-| 4. Entorno del worker | **el operador, a mano** | `/etc/s9-knowledge/worker.env`, `root:root`, `0600`, desde `deploy/config/worker.env.example`: `S9K_NEO4J_URI`, `S9K_NEO4J_USER`, `S9K_NEO4J_PASSWORD_FILE`, `S9K_JOBS_DB` y `S9K_V3_REVIEW_PROPOSALS_DIR` (las dos últimas, **iguales** a las de `viewer.env`) — **y sin `S9K_NEO4J_PASSWORD`** |
+| 4. Entorno del worker | **el operador, a mano** | `/etc/s9-knowledge/worker.env`, `root:root`, `0600`, desde `deploy/config/worker.env.example`: `S9K_NEO4J_URI`, `S9K_NEO4J_USER`, `S9K_NEO4J_PASSWORD_FILE`, `S9K_JOBS_DB`, `S9K_V3_REVIEW_PROPOSALS_DIR` y `S9K_V3_REVIEW_DATABASE_PATH` (las tres últimas, **iguales** a las de `viewer.env`) — **y sin `S9K_NEO4J_PASSWORD`** |
 | 5. Venv del motor | `deploy.sh` (paso 2) | `<release>/data-engine/.venv` con `data-engine/requirements.lock` |
 | 6. Unidad del worker | `deploy.sh` (pasos 7–13) y el rol `systemd` | la MISMA `data-engine/systemd/s9-knowledge-worker.service`; ver «Worker de jobs como servicio» |
 
@@ -719,8 +727,9 @@ en el host y ninguna herramienta lo genera.
 **La puerta:** `deploy/scripts/validate_deploy.sh::validate_worker_env`
 —invocada desde el paso 6 de `deploy.sh`— **bloquea** si `worker.env` no existe
 (desde B3: es el `EnvironmentFile` de un servicio que el despliegue instala y
-arranca), si le falta cualquiera de las cinco variables, si `S9K_JOBS_DB` o
-`S9K_V3_REVIEW_PROPOSALS_DIR` difieren de las de `viewer.env`, si el fichero
+arranca), si le falta cualquiera de las seis variables, si `S9K_JOBS_DB`,
+`S9K_V3_REVIEW_PROPOSALS_DIR` o `S9K_V3_REVIEW_DATABASE_PATH` difieren de las
+de `viewer.env`, si el fichero
 del secreto no es `0600` o no existe, o si alguien ha puesto
 `S9K_NEO4J_PASSWORD`. Su tabla de calibración está en
 `deploy/tests/test_worker_env_validacion.py`: cada fila rompe una cosa y exige
@@ -780,19 +789,37 @@ es `s9k_service_user`; no hay una segunda versión en Jinja (eso es H-08).
 * **Reintentos**: un fallo reintentable vuelve a `pending` con `next_retry_at`
   (`30 s × 2^intento`, techo 1 h) y no se reclama antes. Un fallo permanente
   (lo declara el handler) va directo a `failed`.
-* **Cancelación cooperativa**: un trabajo cancelado (o liberado y reclamado por
-  otro) mientras corría **no** se sobrescribe al terminar; el handler no se
-  interrumpe, su resultado se descarta.
-* SIGTERM: termina el trabajo en curso y sale con `rc=0`.
+* **Cancelación cooperativa, solo del ESTADO**: un trabajo cancelado (o
+  liberado y reclamado por otro) mientras corría **no** se sobrescribe al
+  terminar; el handler no se interrumpe. **Los efectos NO se deshacen**: el
+  paquete de propuestas que el handler ya escribió sigue en el almacén y
+  visible en `/panel/review` (F4 de la revisión; deuda declarada).
+* **Cola inutilizable = worker caído, no verde**: al arrancar se hace una
+  escritura de prueba sobre `jobs.db` (`BEGIN IMMEDIATE` + `CREATE TABLE` +
+  `ROLLBACK`); si falla (solo lectura, corrupta) el worker sale con `rc=3`. En
+  `--loop`, `--max-vueltas-fallidas` (5) vueltas fallidas **seguidas** también
+  lo terminan con `rc=3`, para que `Restart=always`, `systemctl is-active` y
+  `deploy.sh::worker_activo` lo vean. Una vuelta fallida suelta no lo mata.
+* **Rollback** (pasos 14/14b/16): si la release previa no trae
+  `data-engine/.venv` (toda release anterior a B3), el worker se **deshabilita**
+  (`disable --now`) y se restaura la unidad respaldada o se quita la nueva; si
+  la trae, se restaura la unidad y se reinicia (`lib.sh::revertir_worker`).
+* SIGTERM: termina el trabajo en curso y sale con `rc=0`. **Techo:** con
+  `TimeoutStopSec=120`, un trabajo más largo que eso lo mata systemd al parar;
+  queda huérfano y el siguiente arranque lo libera gastando un intento.
+* **Techo: no hay tiempo máximo por trabajo.** Un handler colgado sigue
+  latiendo y bloquea la cola (un solo worker) hasta que alguien lo pare (F6).
 
 ### Estado compartido con el visor, y permisos
 
-`jobs.db` y el almacén de propuestas son de los dos. Sus rutas salen de
+`jobs.db`, el almacén de propuestas y la base de decisiones humanas
+(`S9K_V3_REVIEW_DATABASE_PATH`, sin la cual el motor del worker contaría como
+pendientes propuestas ya resueltas) son de los dos. Sus rutas salen de
 **una** autoridad cada una: `job_store.ruta_de_despliegue` para la cola (H-37;
 `deploy.sh` se la pide, las plantillas la declaran y un testigo exige que
 coincidan) y `knowledge_v3.review_paths` para las propuestas (visor y worker
 idénticos). `validate_worker_env` exige que `worker.env` y `viewer.env` digan
-lo mismo.
+lo mismo en las tres.
 
 El visor que arranca `deploy.sh` **sigue como root (H-08, abierto)**; el worker
 no. Por eso el paso 13 deja el directorio de la cola, `jobs.db` (y sus `-wal`

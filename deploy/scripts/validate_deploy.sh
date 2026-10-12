@@ -182,7 +182,8 @@ validate_viewer_secrets() {
 #   cuyo EnvironmentFile es este fichero: sin el, la unidad no arranca y toda
 #   ingesta pedida desde la web se queda `pending` sin que nada lo diga.
 #
-#   ESTADO COMPARTIDO: `S9K_JOBS_DB` y `S9K_V3_REVIEW_PROPOSALS_DIR` son
+#   ESTADO COMPARTIDO: `S9K_JOBS_DB`, `S9K_V3_REVIEW_PROPOSALS_DIR` y
+#   `S9K_V3_REVIEW_DATABASE_PATH` (decisiones humanas; F5 de la revision) son
 #   obligatorias y, si se da `<viewer.env>`, tienen que resolver a LA MISMA
 #   ruta que en el visor (normalizada). Dos valores distintos no dan error en
 #   ningun proceso: dan un visor que encola donde el worker no mira, o un
@@ -200,7 +201,7 @@ validate_worker_env() {
         echo "       deploy/config/worker.env.example (ver deploy/README.md)." >&2
         return 1
     fi
-    for var in S9K_JOBS_DB S9K_V3_REVIEW_PROPOSALS_DIR; do
+    for var in S9K_JOBS_DB S9K_V3_REVIEW_PROPOSALS_DIR S9K_V3_REVIEW_DATABASE_PATH; do
         val="$(_env_value "${env_file}" "${var}")"
         if [ -z "${val}" ]; then
             echo "ERROR: ${env_file}: falta ${var} (estado compartido con el visor)" >&2

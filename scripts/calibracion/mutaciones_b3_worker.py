@@ -16,8 +16,9 @@ Testigos:
   data-engine/app/tests/test_b3_worker_desatendido.py   (worker REAL en subproceso)
   deploy/tests/test_b3_worker_unidad.py                 (unidad + pasos 2/7/13 de deploy.sh)
   viewer/tests/test_b3_worker_desatendido_e2e.py        (web -> servicio -> web)
+  deploy/tests/test_worker_env_validacion.py            (estado compartido de worker.env)
 
-Mutaciones (las seis del encargo, M1-M6, y cinco de la familia):
+Mutaciones (las seis del encargo, M1-M6, cinco de la familia y diez de la revisión):
 
   M1  `--loop` vuelve a `if once or limit` (el daemon termina al instante)
   M2  `release_stale_jobs` deja de gastar un intento (bucle infinito)
@@ -31,6 +32,14 @@ Mutaciones (las seis del encargo, M1-M6, y cinco de la familia):
   M8  el latido no se arranca (un job vivo y largo se libera como huérfano)
   M9  `deploy.sh` deja de habilitar el worker (no vuelve tras reiniciar)
   M10 `deploy.sh` deja de crear el venv del motor
+
+Y las de la ronda de corrección de la revisión independiente de #273:
+
+  MA  el worker no atiende SIGTERM          MF  huérfanos solo al arrancar
+  ME  una vuelta con error mata el daemon   MC  `mark_failed` sin guardia de dueño
+  MD  retroceso sin techo                   MG  sin sonda de escritura al arrancar
+  MH  sin límite de vueltas fallidas        MI  la receta de primera release sin worker.env
+  MJ  el rollback no deshabilita el worker  MK  decisiones humanas no compartidas
 
 LOCALIZADORES: Python con `localizadores.mutar_en_funcion` (AST, ancla única
 DENTRO de la función; para `job_store.py`, cuyos nombres se repiten como
@@ -68,6 +77,10 @@ JOB_STORE = "data-engine/app/jobs/job_store.py"
 UNIDAD = "data-engine/systemd/s9-knowledge-worker.service"
 DEPLOY_SH = "deploy/scripts/deploy.sh"
 WORKER_ENV = "deploy/config/worker.env.example"
+T_ENV = "deploy/tests/test_worker_env_validacion.py"
+LIB_SH = "deploy/scripts/lib.sh"
+VALIDATE_SH = "deploy/scripts/validate_deploy.sh"
+README = "deploy/README.md"
 
 
 def _sh(cmd: list) -> subprocess.CompletedProcess:
@@ -229,6 +242,66 @@ def _m10_deploy_sin_venv_del_motor(t):
     return mutar_unico(t, 'python3 -m venv "${RELEASE_DIR}/data-engine/.venv"\n', ':\n')
 
 
+# --- Ronda de correccion de la revision independiente de #273 ---
+
+def _ma_sin_sigterm(t):
+    return mutar_en_funcion(t, "main", "        signal.signal(signal.SIGTERM, _al_recibir)\n", "        pass\n")
+
+
+def _mf_stale_solo_al_arrancar(t):
+    return mutar_en_funcion(
+        t, "run",
+        "                _liberar_huerfanos(stale_timeout_seconds, db_path, retry_backoff_seconds)\n",
+        "                pass\n")
+
+
+def _me_vuelta_fallida_mata(t):
+    return mutar_en_funcion(
+        t, "run",
+        '            log.exception("Vuelta del worker fallida (%s/%s seguidas); se reintenta en %ss",\n',
+        '            raise\n            log.exception("Vuelta del worker fallida (%s/%s seguidas); se reintenta en %ss",\n')
+
+
+def _mc_mark_failed_sin_guardia(t):
+    return _mutar_en_funcion_de_modulo(t, "mark_failed",
+                                       "    guardia, extra = _guardia_de_propietario(locked_by)\n",
+                                       '    guardia, extra = "", ()\n')
+
+
+def _md_retroceso_sin_techo(t):
+    return mutar_en_funcion(
+        t, "retroceso",
+        "    return min(RETRY_BACKOFF_MAX_SECONDS, base_seconds * (2 ** max(0, intentos_previos)))\n",
+        "    return base_seconds * (2 ** max(0, intentos_previos))\n")
+
+
+def _mg_sin_sonda_de_escritura(t):
+    return mutar_en_funcion(t, "run", "            job_store.comprobar_escritura(db_path)\n",
+                            "            pass\n")
+
+
+def _mh_sin_limite_de_vueltas(t):
+    return mutar_en_funcion(t, "run",
+                            "            if max_vueltas_fallidas and fallidas >= max_vueltas_fallidas:\n",
+                            "            if False:\n")
+
+
+def _mi_receta_sin_worker_env(t):
+    return mutar_unico(t, "install -m 0600 deploy/config/worker.env.example /etc/s9-knowledge/worker.env\n",
+                       "")
+
+
+def _mj_rollback_no_deshabilita(t):
+    return mutar_unico(t, '    systemctl disable --now "${unit}" || warn "no se pudo deshabilitar ${unit}"\n',
+                       "    :\n")
+
+
+def _mk_sin_decisiones_compartidas(t):
+    return mutar_unico(
+        t, "    for var in S9K_JOBS_DB S9K_V3_REVIEW_PROPOSALS_DIR S9K_V3_REVIEW_DATABASE_PATH; do\n",
+        "    for var in S9K_JOBS_DB S9K_V3_REVIEW_PROPOSALS_DIR; do\n")
+
+
 MUTACIONES = [
     ("M1 — `--loop` vuelve a `if once or limit` (daemon que termina al instante)",
      WORKER, _m1_loop_vuelve_a_once_or_limit, [T_DE, T_E2E],
@@ -270,6 +343,39 @@ MUTACIONES = [
     ("M10 — deploy.sh deja de crear el venv del motor",
      DEPLOY_SH, _m10_deploy_sin_venv_del_motor, [T_DEPLOY],
      {"test_paso2_crea_el_venv_del_motor_que_usa_la_unidad": "no crea el venv"}),
+    # --- Ronda de correccion de la revision independiente de #273 ---
+    ("MA — el worker no atiende SIGTERM (parada sucia)",
+     WORKER, _ma_sin_sigterm, [T_DE],
+     {"test_sigterm_con_un_job_en_curso_lo_termina_antes_de_salir": "PARADA SUCIA"}),
+    ("MF — los huerfanos solo se liberan al arrancar",
+     WORKER, _mf_stale_solo_al_arrancar, [T_DE],
+     {"test_worker_matado_a_mitad_se_libera_y_se_reprocesa": "el huerfano no se libero"}),
+    ("ME — una vuelta con error mata el daemon",
+     WORKER, _me_vuelta_fallida_mata, [T_DE],
+     {"test_una_vuelta_con_error_no_mata_el_daemon": "VUELTA FALLIDA MATA EL DAEMON"}),
+    ("MC — mark_failed sin guardia de dueño",
+     JOB_STORE, _mc_mark_failed_sin_guardia, [T_DE],
+     {"test_mark_failed_de_un_worker_que_ya_no_es_dueno_no_tiene_efecto": "MARK_FAILED SIN GUARDIA"}),
+    ("MD — retroceso sin techo",
+     WORKER, _md_retroceso_sin_techo, [T_DE],
+     {"test_el_retroceso_tiene_techo": "RETROCESO SIN TECHO"}),
+    ("MG — sin sonda de escritura al arrancar (F2)",
+     WORKER, _mg_sin_sonda_de_escritura, [T_DE],
+     {"test_una_cola_de_solo_lectura_para_el_worker_al_arrancar": "COLA ROTA EN SILENCIO"}),
+    ("MH — sin limite de vueltas fallidas seguidas (F2)",
+     WORKER, _mh_sin_limite_de_vueltas, [T_DE],
+     {"test_n_vueltas_fallidas_seguidas_terminan_el_daemon": "COLA ROTA EN SILENCIO"}),
+    ("MI — la receta de primera release no crea worker.env (F1)",
+     README, _mi_receta_sin_worker_env, [T_DEPLOY],
+     {"test_la_receta_de_primera_release_crea_worker_env_y_su_secreto": "RECETA INCOMPLETA"}),
+    ("MJ — el rollback no deshabilita el worker (F3)",
+     LIB_SH, _mj_rollback_no_deshabilita, [T_DEPLOY],
+     {"test_rollback_a_una_release_sin_venv_deshabilita_el_worker[sin-unidad-previa]":
+          "ROLLBACK DEJA EL WORKER HABILITADO"}),
+    ("MK — worker.env y viewer.env pueden divergir en las decisiones humanas (F5)",
+     VALIDATE_SH, _mk_sin_decisiones_compartidas, [T_ENV],
+     {"test_estado_distinto_del_visor_BLOQUEA[S9K_V3_REVIEW_DATABASE_PATH-/var/lib/s9-knowledge/otras/review.sqlite3]":
+          "NO BLOQUEO"}),
 ]
 
 
@@ -280,7 +386,7 @@ def main() -> int:
               "(la restauración escribe sobre el fichero).")
         return 2
 
-    rc, salida = _correr([T_DE, T_DEPLOY, T_E2E])
+    rc, salida = _correr([T_DE, T_DEPLOY, T_E2E, T_ENV])
     cifras = _recuento(salida)
     if rc != 0 or not _ejecutado_de_verdad(cifras):
         print("ABORTA: los testigos no están verdes y ejecutados en la base "

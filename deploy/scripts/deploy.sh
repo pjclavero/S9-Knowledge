@@ -349,7 +349,7 @@ python3 "${HERE}/verify_release_identity.py" --root "${S9K_ROOT}" \
         err "el proceso vivo NO ejecuta la release autorizada — rollback"
         [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && {
             atomic_symlink "${PREV_RELEASE_DIR}" "${S9K_ROOT}/current"
-            systemctl restart "${WORKER_UNIT_NAME}" || true
+            revertir_worker "${PREV_RELEASE_DIR}" "${WORKER_UNIT_NAME}" "${WORKER_UNIT_DEST}" "${RELEASE_ID}" || true
             systemctl restart s9-knowledge-viewer.service || true
         }
         die "activación no verificable; rollback ejecutado"
@@ -362,9 +362,12 @@ if ! worker_activo "${WORKER_UNIT_NAME}"; then
     err "el worker no está activo tras el arranque — rollback"
     [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && {
         atomic_symlink "${PREV_RELEASE_DIR}" "${S9K_ROOT}/current"
-        systemctl restart "${WORKER_UNIT_NAME}" || true
+        revertir_worker "${PREV_RELEASE_DIR}" "${WORKER_UNIT_NAME}" "${WORKER_UNIT_DEST}" "${RELEASE_ID}" || true
         systemctl restart s9-knowledge-viewer.service || true
     }
+    # Sin release previa no hay a donde volver, pero un worker roto y habilitado
+    # se quedaria en bucle de reinicios: se deshabilita (F3 de la revision).
+    [ -n "${PREV_RELEASE_DIR}" ] || revertir_worker "" "${WORKER_UNIT_NAME}" "${WORKER_UNIT_DEST}" "${RELEASE_ID}" || true
     die "worker no activo (journalctl -u ${WORKER_UNIT_NAME}); rollback ejecutado"
 fi
 
@@ -385,7 +388,7 @@ if [ "${verify_rc}" -ne 0 ]; then
     err "healthcheck FALLIDO (rc=${verify_rc}) — rollback"
     [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && {
         atomic_symlink "${PREV_RELEASE_DIR}" "${S9K_ROOT}/current"
-        systemctl restart "${WORKER_UNIT_NAME}" || true
+        revertir_worker "${PREV_RELEASE_DIR}" "${WORKER_UNIT_NAME}" "${WORKER_UNIT_DEST}" "${RELEASE_ID}" || true
         systemctl restart s9-knowledge-viewer.service || true
     }
     die "despliegue FALLIDO tras healthcheck (verify_rc=${verify_rc})"

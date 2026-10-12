@@ -400,3 +400,83 @@ def test_ningun_otro_modulo_del_producto_define_un_default_de_jobs_db():
     literales = [l for l in texto.splitlines() if "jobs.db" in l and not l.lstrip().startswith("#")
                  and "LEGACY" not in l and "job_store" not in l]
     assert not literales, "deploy.sh escribe su propio jobs.db: %s" % literales
+
+
+# ===========================================================================
+# 5. REVISION INDEPENDIENTE: receta de la primera release (F1) y rollback (F3)
+# ===========================================================================
+
+README = RAIZ / "deploy" / "README.md"
+
+
+def _receta_primera_release() -> str:
+    texto = README.read_text(encoding="utf-8")
+    seccion = texto.index("### El camino elegido: `deploy.sh --mode fresh` (uno solo)")
+    ini = texto.index("```bash\n", seccion)
+    fin = texto.index("```\n", ini + 8)
+    return texto[ini:fin]
+
+
+def test_la_receta_de_primera_release_crea_worker_env_y_su_secreto():
+    """F1: seguida al pie de la letra, la receta llegaba al paso 6 sin
+    `worker.env` y `deploy.sh --mode fresh` se bloqueaba."""
+    receta = _receta_primera_release()
+    lineas = receta.splitlines()
+    env = [i for i, l in enumerate(lineas)
+           if l.startswith("install -m 0600 deploy/config/worker.env.example /etc/s9-knowledge/worker.env")]
+    secreto = [i for i, l in enumerate(lineas)
+               if l.startswith("install -m 0600 ")
+               and l.rstrip().endswith(_env_de(WORKER_ENV_EJEMPLO)["S9K_NEO4J_PASSWORD_FILE"])]
+    despliegue = [i for i, l in enumerate(lineas) if l.startswith("deploy/scripts/deploy.sh ")]
+    assert env and secreto and despliegue, (
+        "RECETA INCOMPLETA: la primera release no crea worker.env (%s) o su secreto 0600 (%s)"
+        % (env, secreto))
+    assert max(env + secreto) < despliegue[0], "la receta crea worker.env DESPUES de desplegar"
+
+
+def _revertir(tmp: Path, prev: str, respaldo: bool):
+    dest = tmp / "etc" / UNIDAD.name
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text("unidad nueva\n", encoding="utf-8")
+    if respaldo:
+        (tmp / "etc" / (UNIDAD.name + ".bak-rel1")).write_text("unidad previa\n", encoding="utf-8")
+    llamadas = tmp / "systemctl.log"
+    cuerpo = 'systemctl() { echo "$*" >> %s; }\nrevertir_worker "%s" %s "%s" rel1\n' % (
+        llamadas, prev, UNIDAD.name, dest)
+    r = _correr_bash(cuerpo, {})
+    return r, (llamadas.read_text(encoding="utf-8").splitlines() if llamadas.exists() else []), dest
+
+
+@pytest.mark.parametrize("respaldo", [False, True], ids=["sin-unidad-previa", "con-unidad-previa"])
+def test_rollback_a_una_release_sin_venv_deshabilita_el_worker(tmp_path, respaldo):
+    previa = tmp_path / "previa"
+    (previa / "data-engine").mkdir(parents=True)          # release anterior a B3: sin venv
+    r, llamadas, dest = _revertir(tmp_path, str(previa), respaldo)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "disable --now %s" % UNIDAD.name in llamadas, (
+        "ROLLBACK DEJA EL WORKER HABILITADO sobre una release sin venv: %s" % llamadas)
+    assert "restart %s" % UNIDAD.name not in llamadas, llamadas
+    if respaldo:
+        assert dest.read_text(encoding="utf-8") == "unidad previa\n"
+    else:
+        assert not dest.exists(), "la unidad nueva sigue instalada tras el rollback"
+
+
+def test_rollback_a_una_release_con_venv_restaura_y_reinicia(tmp_path, release):
+    r, llamadas, dest = _revertir(tmp_path, str(release), True)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "restart %s" % UNIDAD.name in llamadas and not any("disable" in l for l in llamadas)
+    assert dest.read_text(encoding="utf-8") == "unidad previa\n"
+
+
+def test_todo_rollback_de_deploy_sh_revierte_el_worker():
+    """Sobre el TEXTO real: los tres rollbacks (14, 14b, 16) llaman a
+    `revertir_worker`; ninguno se limita a reiniciar el worker."""
+    texto = DEPLOY_SH.read_text(encoding="utf-8")
+    bloques = re.findall(r"atomic_symlink \"\$\{PREV_RELEASE_DIR\}\" \"\$\{S9K_ROOT\}/current\"\n(.*?)\n\s*\}",
+                         texto, re.S)
+    assert len(bloques) == 3, "DETECTOR ROTO: se esperaban 3 rollbacks, hay %d" % len(bloques)
+    for b in bloques:
+        assert 'revertir_worker "${PREV_RELEASE_DIR}"' in b, "ROLLBACK SIN REVERTIR EL WORKER: %r" % b
+    assert texto.count('systemctl restart "${WORKER_UNIT_NAME}"') == 1, (
+        "un rollback reinicia el worker sin comprobar la release previa")

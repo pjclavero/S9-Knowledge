@@ -750,3 +750,37 @@ worker_activo() {
     done
     return 0
 }
+
+# ---------------------------------------------------------------------------
+# revertir_worker <prev_release_dir|""> <unit_name> <unit_dest> <release_id>
+#   B3 · H-02 (revision independiente, F3). El rollback de los pasos 14/14b/16
+#   volvia `current` a la release previa y se limitaba a REINICIAR el worker.
+#   Si la release previa no trae el venv del motor (toda release anterior a
+#   B3), la unidad nueva apunta a un interprete que no existe: el worker quedaba
+#   HABILITADO y en bucle de reinicios. Ahora:
+#     - la release previa TIENE `data-engine/.venv/bin/python` ejecutable:
+#       se restaura la unidad respaldada en el paso 8 (`<dest>.bak-<id>`) si la
+#       hay, `daemon-reload` y reinicio del worker;
+#     - NO lo tiene (o no hay release previa): `systemctl disable --now`, se
+#       restaura la unidad respaldada si la habia y, si no, se QUITA la nueva.
+#   rc=0 siempre que systemctl responda; los errores se avisan.
+# ---------------------------------------------------------------------------
+revertir_worker() {
+    local prev="${1:-}" unit="${2:?unidad}" dest="${3:?destino}" release_id="${4:?release}"
+    local respaldo="${dest}.bak-${release_id}"
+    if [ -n "${prev}" ] && [ -x "${prev}/data-engine/.venv/bin/python" ]; then
+        if [ -f "${respaldo}" ]; then cp -a "${respaldo}" "${dest}"; fi
+        systemctl daemon-reload || warn "daemon-reload falló en el rollback del worker"
+        systemctl restart "${unit}" || warn "no se pudo reiniciar el worker en el rollback"
+        return 0
+    fi
+    warn "rollback: la release previa no puede ejecutar el worker; se deshabilita ${unit}"
+    systemctl disable --now "${unit}" || warn "no se pudo deshabilitar ${unit}"
+    if [ -f "${respaldo}" ]; then
+        cp -a "${respaldo}" "${dest}"
+    else
+        rm -f -- "${dest}"
+    fi
+    systemctl daemon-reload || warn "daemon-reload falló en el rollback del worker"
+    return 0
+}

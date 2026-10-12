@@ -139,6 +139,21 @@ def dispatch(job: dict) -> dict:
     return handler(payload)
 
 
+class ColaInutilizable(RuntimeError):
+    """La cola no se puede escribir (solo lectura, corrupta, inaccesible).
+
+    B3 · H-02 (revision independiente, F2): con un `jobs.db` de solo lectura
+    el daemon seguia `active`, cada vuelta fallaba en el log y el job se
+    quedaba `pending` sin error en la web: un silencio en verde. Ahora el
+    worker SALE con rc != 0 (al arrancar o tras `max_vueltas_fallidas`
+    vueltas fallidas seguidas) para que `Restart=always`, `systemctl
+    is-active` y `deploy.sh::worker_activo` lo vean.
+    """
+
+
+#: Vueltas fallidas SEGUIDAS tras las que el daemon se rinde (rc=3).
+MAX_VUELTAS_FALLIDAS = 5
+
 #: Techo del retroceso entre reintentos (segundos). Un retroceso sin techo
 #: dejaria un job "pendiente" durante horas sin que nada lo explique.
 RETRY_BACKOFF_MAX_SECONDS = 3600
@@ -286,6 +301,7 @@ def run(
     retry_backoff_seconds: float = 0,
     heartbeat_seconds: float | None = None,
     stop_event: threading.Event | None = None,
+    max_vueltas_fallidas: int = MAX_VUELTAS_FALLIDAS,
 ) -> int:
     """Bucle principal del worker. Devuelve el número de jobs procesados.
 
@@ -300,7 +316,12 @@ def run(
     ``--loop --limit 0``.
     """
     db_path = job_store.resolve_db_path(db_path)
-    job_store.init_db(db_path)
+    try:
+        job_store.init_db(db_path)
+        if not dry_run:
+            job_store.comprobar_escritura(db_path)
+    except Exception as exc:  # noqa: BLE001 - cualquier fallo aqui es cola inutilizable
+        raise ColaInutilizable("la cola %s no se puede escribir: %s" % (db_path, exc)) from exc
     job_types = [job_type] if job_type else None
     if heartbeat_seconds is None and stale_timeout_seconds:
         # El latido tiene que caber varias veces en el plazo de stale: si no,
@@ -331,6 +352,7 @@ def run(
     parar = stop_event or threading.Event()
     log.info("Worker %s en modo continuo (db=%s, sondeo=%ss, stale=%s)", worker_id, db_path,
              sleep_seconds, stale_timeout_seconds)
+    fallidas = 0
     while not parar.is_set():
         did_work = False
         try:
@@ -341,8 +363,15 @@ def run(
                 _liberar_huerfanos(stale_timeout_seconds, db_path, retry_backoff_seconds)
             did_work = process_one(worker_id, job_types, workspace, db_path,
                                    retry_backoff_seconds, heartbeat_seconds)
-        except Exception:  # noqa: BLE001 - el daemon no muere por una vuelta fallida
-            log.exception("Vuelta del worker fallida; se reintenta en %ss", sleep_seconds)
+            fallidas = 0
+        except Exception as exc:  # noqa: BLE001 - una vuelta fallida no mata el daemon...
+            fallidas += 1
+            log.exception("Vuelta del worker fallida (%s/%s seguidas); se reintenta en %ss",
+                          fallidas, max_vueltas_fallidas, sleep_seconds)
+            # ...pero N seguidas si: es una cola rota, no un tropiezo, y un
+            # daemon `active` que no puede trabajar es peor que uno caido.
+            if max_vueltas_fallidas and fallidas >= max_vueltas_fallidas:
+                raise ColaInutilizable("%s vueltas fallidas seguidas: %s" % (fallidas, exc)) from exc
         if did_work:
             processed += 1
         else:
@@ -379,6 +408,9 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Espera base antes de reintentar un job fallido "
                              "(se dobla por intento, techo %ss; 0 = inmediato)."
                              % RETRY_BACKOFF_MAX_SECONDS)
+    parser.add_argument("--max-vueltas-fallidas", type=int, default=MAX_VUELTAS_FALLIDAS,
+                        help="En --loop, vueltas fallidas SEGUIDAS tras las que el worker "
+                             "sale con rc=3 (0 = nunca).")
     parser.add_argument("--heartbeat-seconds", type=float, default=None,
                         help="Cada cuántos segundos se refresca el latido del job en "
                              "curso (por defecto: un cuarto de --release-stale-seconds, "
@@ -415,7 +447,19 @@ def main(argv: list[str] | None = None) -> int:
         signal.signal(signal.SIGTERM, _al_recibir)
         signal.signal(signal.SIGINT, _al_recibir)
 
-    processed = run(
+    try:
+        processed = _run_desde_cli(args, worker_id, once, parar)
+    except ColaInutilizable as exc:
+        log.error("WORKER DETENIDO: %s", exc)
+        print("ERROR: %s" % exc, file=sys.stderr)
+        return 3
+    tag = "[dry-run] " if args.dry_run else ""
+    print(f"{tag}Jobs procesados: {processed}")
+    return 0
+
+
+def _run_desde_cli(args, worker_id, once, parar) -> int:
+    return run(
         worker_id,
         once=once,
         limit=args.limit,
@@ -428,10 +472,8 @@ def main(argv: list[str] | None = None) -> int:
         retry_backoff_seconds=args.retry_backoff_seconds,
         heartbeat_seconds=args.heartbeat_seconds,
         stop_event=parar,
+        max_vueltas_fallidas=args.max_vueltas_fallidas,
     )
-    tag = "[dry-run] " if args.dry_run else ""
-    print(f"{tag}Jobs procesados: {processed}")
-    return 0
 
 
 if __name__ == "__main__":
