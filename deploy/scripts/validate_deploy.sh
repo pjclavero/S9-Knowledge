@@ -176,21 +176,51 @@ validate_viewer_secrets() {
 #   romperia una configuracion soportada del visor por un requisito que es del
 #   MOTOR. El motor (`knowledge_v3/driver_neo4j.py`) solo lee la forma *_FILE.
 #
-#   AUSENTE != INVALIDO. Si el fichero no existe, el despliegue NO se bloquea:
-#   hoy no hay ninguna unidad de worker instalada y exigirlo romperia todos los
-#   despliegues actuales. Se AVISA, que es lo que convierte una condicion de
-#   papel en algo que alguien ve. Si el fichero existe, se valida DURO.
+#   B3 (USABLE-V1) · H-02: AUSENTE YA ES BLOQUEO. Hasta B3 un `worker.env`
+#   ausente solo avisaba porque no habia ninguna unidad de worker que lo
+#   usara. Desde B3 `deploy.sh` INSTALA y ARRANCA `s9-knowledge-worker.service`,
+#   cuyo EnvironmentFile es este fichero: sin el, la unidad no arranca y toda
+#   ingesta pedida desde la web se queda `pending` sin que nada lo diga.
 #
-#   rc=0 ok (o ausente), rc=1 declarado y mal.
+#   ESTADO COMPARTIDO: `S9K_JOBS_DB` y `S9K_V3_REVIEW_PROPOSALS_DIR` son
+#   obligatorias y, si se da `<viewer.env>`, tienen que resolver a LA MISMA
+#   ruta que en el visor (normalizada). Dos valores distintos no dan error en
+#   ningun proceso: dan un visor que encola donde el worker no mira, o un
+#   worker que deja propuestas donde el visor no lee.
+#
+#   rc=0 ok, rc=1 ausente o mal.
 # ---------------------------------------------------------------------------
 validate_worker_env() {
-    local env_file="${1}" rc=0 var val pwfile
+    local env_file="${1}" viewer_env="${2:-}" rc=0 var val pwfile propio ajeno
     if [ ! -f "${env_file}" ]; then
-        echo "AVISO: no hay ${env_file}; si este despliegue ejecuta el worker de" >&2
-        echo "       jobs, 'ingest_v3' terminara en ERROR con" >&2
-        echo "       GRAPH_OBSERVATION_UNCONFIGURED (ver deploy/README.md)." >&2
-        return 0
+        echo "BLOCK(worker): no hay ${env_file}. Este despliegue instala el worker de" >&2
+        echo "       jobs como servicio (s9-knowledge-worker.service) y ese es su" >&2
+        echo "       EnvironmentFile: sin el, la ingesta pedida desde la web se queda" >&2
+        echo "       'pending' (o termina en GRAPH_OBSERVATION_UNCONFIGURED). Plantilla:" >&2
+        echo "       deploy/config/worker.env.example (ver deploy/README.md)." >&2
+        return 1
     fi
+    for var in S9K_JOBS_DB S9K_V3_REVIEW_PROPOSALS_DIR; do
+        val="$(_env_value "${env_file}" "${var}")"
+        if [ -z "${val}" ]; then
+            echo "ERROR: ${env_file}: falta ${var} (estado compartido con el visor)" >&2
+            rc=1
+            continue
+        fi
+        case "${val}" in
+            /*) ;;
+            *) echo "ERROR: ${env_file}: ${var} no es absoluta: ${val}" >&2; rc=1; continue ;;
+        esac
+        if [ -n "${viewer_env}" ]; then
+            ajeno="$(_env_value "${viewer_env}" "${var}")"
+            propio="$(realpath -m -- "${val}")"
+            if [ -z "${ajeno}" ] || [ "${propio}" != "$(realpath -m -- "${ajeno}")" ]; then
+                echo "ERROR: ${var} difiere entre ${env_file} y ${viewer_env}: el worker" >&2
+                echo "       y el visor no compartirian el mismo estado (cola o propuestas)." >&2
+                rc=1
+            fi
+        fi
+    done
     for var in S9K_NEO4J_URI S9K_NEO4J_USER S9K_NEO4J_PASSWORD_FILE; do
         val="$(_env_value "${env_file}" "${var}")"
         if [ -z "${val}" ]; then
@@ -347,15 +377,117 @@ validate_viewer_unit() {
     return 0
 }
 
+# ---------------------------------------------------------------------------
+# _unit_value <unit_file> <Clave>  -> valor de la PRIMERA linea `Clave=` (sin
+#   comentarios). Es lectura de texto: una unidad systemd no tiene otro AST.
+# ---------------------------------------------------------------------------
+_unit_value() {
+    grep -E "^${2}=" "${1}" 2>/dev/null | head -1 | cut -d= -f2- || true
+}
+
+# ---------------------------------------------------------------------------
+# validate_worker_unit <unit_file> [<current>] [<release_dir>] [<worker.env>]
+#   B3 (USABLE-V1) · H-02. La unidad canonica del worker, validada POR EFECTO
+#   antes de instalarla:
+#     - User=/Group= declarados y distintos de root (no repetir H-08);
+#     - UMask=0077, Restart=always, EnvironmentFile=/etc/s9-knowledge/worker.env;
+#     - WorkingDirectory y el script colgando de <current>;
+#     - ExecStart con `--loop` y `--release-stale-seconds N` (N>0) y SIN
+#       `--limit` (el camino que hacia terminar el daemon al instante);
+#     - EL INTERPRETE EXISTE Y ES EJECUTABLE: la ruta de ExecStart se traduce
+#       de <current> a <release_dir> (la release que se va a activar) y se
+#       comprueba en disco, igual que el script del worker. Una unidad que
+#       apunta a un venv que nadie creo arranca y muere en bucle con
+#       Restart=always: el texto parece correcto y no corre nada;
+#     - si se da <worker.env>, su S9K_NEO4J_PASSWORD_FILE es el ORIGEN que la
+#       unidad copia en ExecStartPre (un unico secreto, una sola ruta).
+#   rc=0 ok, rc=1 BLOCK con cada causa nombrada.
+# ---------------------------------------------------------------------------
+validate_worker_unit() {
+    local unit_file="${1}"
+    local current_path="${2:-/opt/s9-knowledge/current}"
+    local release_dir="${3:-${current_path}}"
+    local worker_env="${4:-}"
+    if [ ! -f "${unit_file}" ]; then
+        printf 'BLOCK(worker-unit): unit no existe: %s\n' "${unit_file}" >&2
+        return 1
+    fi
+    local errs=() user group wd exec_line umask restart tok interprete script
+    user="$(_unit_value "${unit_file}" User)"
+    group="$(_unit_value "${unit_file}" Group)"
+    case "${user}" in ""|root|0) errs+=("User= ausente o root ('${user}'): el worker no corre como root") ;; esac
+    case "${group}" in ""|root|0) errs+=("Group= ausente o root ('${group}')") ;; esac
+    umask="$(_unit_value "${unit_file}" UMask)"
+    [ "${umask}" = "0077" ] || errs+=("UMask distinto de 0077: '${umask}'")
+    restart="$(_unit_value "${unit_file}" Restart)"
+    [ "${restart}" = "always" ] || errs+=("Restart distinto de always: '${restart}'")
+    grep -qE '^EnvironmentFile=/etc/s9-knowledge/worker\.env$' "${unit_file}" \
+        || errs+=("falta EnvironmentFile=/etc/s9-knowledge/worker.env")
+    if grep -q "${LEGACY_LAYOUT}" "${unit_file}"; then
+        errs+=("referencia layout legacy ${LEGACY_LAYOUT}")
+    fi
+    wd="$(_unit_value "${unit_file}" WorkingDirectory)"
+    case "${wd}" in
+        "${current_path}"/*) ;;
+        *) errs+=("WorkingDirectory no cuelga de ${current_path}: '${wd}'") ;;
+    esac
+    exec_line="$(_unit_value "${unit_file}" ExecStart)"
+    # El interprete es el primer token que no es /usr/bin/env ni VAR=valor.
+    interprete=""; script=""
+    for tok in ${exec_line}; do
+        case "${tok}" in /usr/bin/env|*=*) continue ;; esac
+        if [ -z "${interprete}" ]; then interprete="${tok}"; continue; fi
+        script="${tok}"; break
+    done
+    case "${interprete}" in
+        "${current_path}/data-engine/.venv/bin/"*) ;;
+        *) errs+=("el interprete no es el venv del motor de ${current_path}: '${interprete}'") ;;
+    esac
+    case "${script}" in
+        "${current_path}/data-engine/app/jobs/worker.py") ;;
+        *) errs+=("ExecStart no ejecuta ${current_path}/data-engine/app/jobs/worker.py: '${script}'") ;;
+    esac
+    local en_release
+    en_release="${release_dir}${interprete#"${current_path}"}"
+    if [ ! -x "${en_release}" ]; then
+        errs+=("el interprete de ExecStart no existe o no es ejecutable en la release: ${en_release}")
+    fi
+    en_release="${release_dir}${script#"${current_path}"}"
+    [ -f "${en_release}" ] || errs+=("el script del worker no existe en la release: ${en_release}")
+    case " ${exec_line} " in *" --loop "*) ;; *) errs+=("ExecStart sin --loop: no es un daemon") ;; esac
+    case " ${exec_line} " in *" --limit "*|*" --limit="*|*" --once "*)
+        errs+=("ExecStart con --limit/--once: el worker terminaria en vez de esperar trabajo") ;;
+    esac
+    if ! printf '%s\n' "${exec_line}" | grep -qE -- '--release-stale-seconds[ =][1-9][0-9]*( |$)'; then
+        errs+=("ExecStart sin --release-stale-seconds N>0: un job huerfano no se liberaria nunca")
+    fi
+    if [ -n "${worker_env}" ]; then
+        local origen declarado
+        origen="$(grep -E '^ExecStartPre=' "${unit_file}" | head -1 | awk '{print $(NF-1)}' || true)"
+        declarado="$(_env_value "${worker_env}" S9K_NEO4J_PASSWORD_FILE)"
+        if [ -z "${origen}" ] || [ "${origen}" != "${declarado}" ]; then
+            errs+=("el secreto que copia la unidad ('${origen}') no es el que declara worker.env ('${declarado}')")
+        fi
+    fi
+    if [ "${#errs[@]}" -gt 0 ]; then
+        local e
+        for e in "${errs[@]}"; do printf 'BLOCK(worker-unit): %s\n' "${e}" >&2; done
+        return 1
+    fi
+    return 0
+}
+
 # Permite ejecutar como CLI: validate_deploy.sh env <file> | unit <file> [current]
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     case "${1:-}" in
         env)     validate_viewer_env "${2:?falta ruta viewer.env}" ;;
         https)   validate_https_contract "${2:?falta ruta viewer.env}" "${3:-production}" ;;
         unit)    validate_viewer_unit "${2:?falta ruta unit}" "${3:-/opt/s9-knowledge/current}" ;;
+        worker-env)  validate_worker_env "${2:?falta ruta worker.env}" "${3:-}" ;;
+        worker-unit) validate_worker_unit "${2:?falta ruta unit}" "${3:-/opt/s9-knowledge/current}" "${4:-}" "${5:-}" ;;
         csrf)    validate_csrf_secret "${2:?falta ruta viewer.env}" ;;
         secrets) validate_viewer_secrets "${2:?falta ruta viewer.env}" ;;
         secret-file) validate_secret_file "${2:?falta ruta fichero}" ;;
-        *) printf 'uso: validate_deploy.sh env|csrf|secrets <viewer.env> | https <viewer.env> [lab|production] | unit <unit> [current] | secret-file <path>\n' >&2; exit 2 ;;
+        *) printf 'uso: validate_deploy.sh env|csrf|secrets <viewer.env> | https <viewer.env> [lab|production] | unit <unit> [current] | worker-env <worker.env> [viewer.env] | worker-unit <unit> [current] [release] [worker.env] | secret-file <path>\n' >&2; exit 2 ;;
     esac
 fi

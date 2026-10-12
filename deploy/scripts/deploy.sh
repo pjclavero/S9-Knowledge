@@ -11,7 +11,7 @@
 #
 # Orden de activación (obligatorio, corrección RC1):
 #   1 lock - 2 verificar release - 3 detectar layout - 4 migrar/validar estado -
-#   5 validar continuidad - 6 validar viewer.env - 7 validar unidad -
+#   5 validar continuidad - 6 validar viewer.env y worker.env - 7 validar unidades -
 #   8 respaldar unidad instalada - 9 instalar unidad nueva - 10 systemd-analyze -
 #   11 daemon-reload solo si cambió - 12 current atómico - 13 reiniciar afectados -
 #   14 comprobar commit ejecutado - 15 comprobar admin y jobs - 16 healthcheck -
@@ -41,9 +41,17 @@ LEGACY_ROOT="/opt/knowledge-services/s9-knowledge-repo"
 LEGACY_AUTH_DB="${S9K_LEGACY_AUTH_DB:-${LEGACY_ROOT}/viewer/state/auth.db}"
 LEGACY_JOBS_DB="${S9K_LEGACY_JOBS_DB:-${LEGACY_ROOT}/viewer/state/jobs.db}"
 NEW_AUTH_DB="${S9K_STATE_ROOT}/auth/auth.db"
-NEW_JOBS_DB="${S9K_STATE_ROOT}/jobs/jobs.db"
+# B3 · H-37: la ruta de `jobs.db` del despliegue la decide `job_store` (UNA
+# autoridad), no un literal de este guion. Solo stdlib: no necesita venv.
+JOB_STORE_PY="${HERE}/../../data-engine/app/jobs/job_store.py"
+NEW_JOBS_DB="$(python3 "${JOB_STORE_PY}" --ruta-despliegue --state-root "${S9K_STATE_ROOT}")" \
+    || die "job_store no resolvió la ruta de jobs.db del despliegue"
 VIEWER_ENV="${S9K_CONFIG_ROOT}/viewer.env"
 UNIT_DEST="/etc/systemd/system/s9-knowledge-viewer.service"
+# B3 · H-02: el worker de la cola, como SERVICIO. Una sola plantilla de unidad
+# (data-engine/systemd/), la misma que instala el rol Ansible `systemd`.
+WORKER_UNIT_NAME="s9-knowledge-worker.service"
+WORKER_UNIT_DEST="/etc/systemd/system/${WORKER_UNIT_NAME}"
 
 usage() {
     cat <<USAGE
@@ -181,6 +189,12 @@ fi
 python3 -m venv "${RELEASE_DIR}/viewer/.venv"
 "${RELEASE_DIR}/viewer/.venv/bin/pip" install --quiet --upgrade pip
 "${RELEASE_DIR}/viewer/.venv/bin/pip" install --quiet -r "${RELEASE_DIR}/viewer/requirements.txt"
+# B3 · H-02 (deuda heredada de B2): el venv del MOTOR, que es el intérprete de
+# la unidad del worker. Nadie lo creaba: `run-jobs-worker.sh` buscaba un venv
+# que no existía y caía al python del sistema, sin las dependencias bloqueadas.
+python3 -m venv "${RELEASE_DIR}/data-engine/.venv"
+"${RELEASE_DIR}/data-engine/.venv/bin/pip" install --quiet --upgrade pip
+"${RELEASE_DIR}/data-engine/.venv/bin/pip" install --quiet -r "${RELEASE_DIR}/data-engine/requirements.lock"
 create_manifest "${RELEASE_DIR}" "${RELEASE_ID}" "${RESOLVED_COMMIT}" "${ENVIRONMENT}"
 validate_manifest "${RELEASE_DIR}/manifest.json" || die "manifiesto inválido"
 
@@ -220,12 +234,12 @@ validate_viewer_secrets "${VIEWER_ENV}" || die "viewer.env: secretos inválidos 
 python3 "${HERE}/preflight_ensayo_rc.py" --grupo despliegue \
     --env-file "${VIEWER_ENV}" --state-root "${S9K_STATE_ROOT}" \
     || die "estado de revisión V3 no persistente o no compartido (causa arriba): un redespliegue lo perdería"
-# Slice 2 · Corte 5: el entorno del WORKER, si este despliegue lo declara. No
-# bloquea por estar ausente --hoy no hay unidad de worker instalada-- pero si
-# existe y esta mal, bloquea: un worker sin conexion declarada deja la ingesta
-# en GRAPH_OBSERVATION_UNCONFIGURED y el operador lo descubre en la pantalla.
+# Slice 2 · Corte 5 + B3 · H-02: el entorno del WORKER. Desde B3 este guion
+# instala y arranca el worker como servicio, así que `worker.env` (su
+# EnvironmentFile) es OBLIGATORIO, y su cola y su almacén de propuestas tienen
+# que ser los MISMOS que los del visor.
 WORKER_ENV="${S9K_WORKER_ENV:-${S9K_CONFIG_ROOT}/worker.env}"
-validate_worker_env "${WORKER_ENV}" || die "worker.env declarado pero inválido"
+validate_worker_env "${WORKER_ENV}" "${VIEWER_ENV}" || die "worker.env ausente o inválido (causa arriba)"
 # PR-3 · USABLE-V1: mitad ESTÁTICA del contrato de la vía HTTPS. En
 # `production` bloquea; en `lab` avisa. La mitad POR EFECTO va en el paso 16b,
 # cuando ya hay un servicio al que preguntar.
@@ -237,23 +251,36 @@ validate_https_contract "${VIEWER_ENV}" "${ENVIRONMENT}" \
 log "--- 7. validar unidad systemd nueva"
 UNIT_SRC="${RELEASE_DIR}/viewer/systemd/s9-knowledge-viewer.service"
 validate_viewer_unit "${UNIT_SRC}" "${S9K_ROOT}/current" || die "unit nueva inválida"
+# B3 · H-02: la unidad del worker, POR EFECTO: su intérprete y su script tienen
+# que existir en la release que se va a activar, y su secreto ser el de
+# worker.env. El usuario del servicio se lee de la unidad (una sola fuente).
+WORKER_UNIT_SRC="${RELEASE_DIR}/data-engine/systemd/${WORKER_UNIT_NAME}"
+validate_worker_unit "${WORKER_UNIT_SRC}" "${S9K_ROOT}/current" "${RELEASE_DIR}" "${WORKER_ENV}" \
+    || die "unidad del worker inválida (causa arriba)"
+WORKER_USER="$(_unit_value "${WORKER_UNIT_SRC}" User)"
+WORKER_GROUP="$(_unit_value "${WORKER_UNIT_SRC}" Group)"
+# --- fin del paso 7 ---
 
 # Paso 8-9: respaldar unidad instalada + instalar nueva (solo si difiere)
 UNIT_CHANGED=0
-if ! diff -q "${UNIT_SRC}" "${UNIT_DEST}" >/dev/null 2>&1; then
-    log "--- 8. respaldar unidad instalada"
-    [ -f "${UNIT_DEST}" ] && cp -a "${UNIT_DEST}" "${UNIT_DEST}.bak-${RELEASE_ID}"
-    log "--- 9. instalar unidad nueva"
-    cp "${UNIT_SRC}" "${UNIT_DEST}"
-    UNIT_CHANGED=1
-else
-    log "--- 8-9. unidad sin cambios"
-fi
+for _par in "${UNIT_SRC}|${UNIT_DEST}" "${WORKER_UNIT_SRC}|${WORKER_UNIT_DEST}"; do
+    _src="${_par%%|*}"; _dst="${_par##*|}"
+    if ! diff -q "${_src}" "${_dst}" >/dev/null 2>&1; then
+        log "--- 8. respaldar unidad instalada ($(basename "${_dst}"))"
+        [ -f "${_dst}" ] && cp -a "${_dst}" "${_dst}.bak-${RELEASE_ID}"
+        log "--- 9. instalar unidad nueva ($(basename "${_dst}"))"
+        cp "${_src}" "${_dst}"
+        UNIT_CHANGED=1
+    else
+        log "--- 8-9. unidad sin cambios ($(basename "${_dst}"))"
+    fi
+done
 
 # Paso 10: systemd-analyze verify
 log "--- 10. systemd-analyze verify"
 if command -v systemd-analyze >/dev/null 2>&1; then
     systemd-analyze verify "${UNIT_DEST}" || die "systemd-analyze verify falló"
+    systemd-analyze verify "${WORKER_UNIT_DEST}" || die "systemd-analyze verify falló (worker)"
 else
     warn "systemd-analyze no disponible; omitido"
 fi
@@ -292,7 +319,19 @@ write_deployment_state \
     "${RELEASE_ID}"
 
 # Paso 13: reiniciar solo servicios afectados
-log "--- 13. reiniciar servicio visor"
+log "--- 13. reiniciar servicios (worker y visor)"
+# B3 · H-02: el estado que COMPARTEN visor y worker (cola y almacén de
+# propuestas) pasa a ser del usuario del servicio del worker ANTES de
+# arrancarlo. El visor de `deploy.sh` sigue como root (H-08) y puede leer y
+# escribir igual; al revés no: un `jobs.db` creado por root (0644) deja al
+# worker en "attempt to write a readonly database".
+preparar_estado_del_worker "${WORKER_USER}" "${WORKER_GROUP}" "${NEW_JOBS_DB}" \
+    "$(_env_value "${WORKER_ENV}" S9K_V3_REVIEW_PROPOSALS_DIR)" \
+    || die "no se pudo preparar el estado compartido del worker"
+# El worker se HABILITA siempre, no solo en fresh: hasta B3 no existía ninguna
+# unidad de worker, así que todo upgrade es también su primera instalación.
+systemctl enable "${WORKER_UNIT_NAME}" || die "no se pudo habilitar el worker"
+systemctl restart "${WORKER_UNIT_NAME}" || die "no se pudo reiniciar el worker"
 if [ "${MODE}" = "fresh" ]; then
     # Primera release: la unidad acaba de instalarse y nadie la ha habilitado;
     # sin esto el visor no volvería tras reiniciar la máquina (B2, H-01).
@@ -300,6 +339,7 @@ if [ "${MODE}" = "fresh" ]; then
 fi
 systemctl restart s9-knowledge-viewer.service || die "no se pudo reiniciar el visor"
 sleep 3
+# --- fin del paso 13 ---
 
 # Paso 14: comprobar commit ejecutado (proceso vivo, no solo el symlink)
 log "--- 14. verificar identidad de la release ejecutada"
@@ -309,10 +349,24 @@ python3 "${HERE}/verify_release_identity.py" --root "${S9K_ROOT}" \
         err "el proceso vivo NO ejecuta la release autorizada — rollback"
         [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && {
             atomic_symlink "${PREV_RELEASE_DIR}" "${S9K_ROOT}/current"
+            systemctl restart "${WORKER_UNIT_NAME}" || true
             systemctl restart s9-knowledge-viewer.service || true
         }
         die "activación no verificable; rollback ejecutado"
     }
+# Paso 14b (B3 · H-02): el worker tiene que estar VIVO, no solo instalado. Con
+# `Restart=always` una unidad rota no se queda en `failed` de inmediato: entra
+# en bucle de reinicios, así que se exige `active` en varias lecturas.
+log "--- 14b. verificar que el worker está activo"
+if ! worker_activo "${WORKER_UNIT_NAME}"; then
+    err "el worker no está activo tras el arranque — rollback"
+    [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && {
+        atomic_symlink "${PREV_RELEASE_DIR}" "${S9K_ROOT}/current"
+        systemctl restart "${WORKER_UNIT_NAME}" || true
+        systemctl restart s9-knowledge-viewer.service || true
+    }
+    die "worker no activo (journalctl -u ${WORKER_UNIT_NAME}); rollback ejecutado"
+fi
 
 # Paso 15: comprobar admin y jobs preservados
 log "--- 15. comprobar admin y jobs"
@@ -331,6 +385,7 @@ if [ "${verify_rc}" -ne 0 ]; then
     err "healthcheck FALLIDO (rc=${verify_rc}) — rollback"
     [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && {
         atomic_symlink "${PREV_RELEASE_DIR}" "${S9K_ROOT}/current"
+        systemctl restart "${WORKER_UNIT_NAME}" || true
         systemctl restart s9-knowledge-viewer.service || true
     }
     die "despliegue FALLIDO tras healthcheck (verify_rc=${verify_rc})"

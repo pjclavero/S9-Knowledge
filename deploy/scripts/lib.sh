@@ -712,3 +712,41 @@ paso4_migrar_o_validar_estado() {
         *) die "jobs en ${_jobs} con decision=PROCEED: salida de detect_state incoherente" ;;
     esac
 }
+
+# ---------------------------------------------------------------------------
+# preparar_estado_del_worker <user> <group> <jobs_db> <proposals_dir>
+#   B3 (USABLE-V1) · H-02. Deja a nombre del usuario del servicio del worker el
+#   estado que COMPARTE con el visor: el directorio de la cola, `jobs.db` y sus
+#   ficheros WAL si ya existen, y el almacén de propuestas. Idempotente.
+#
+#   POR QUÉ: el visor que arranca `deploy.sh` corre como root (H-08, sin
+#   resolver) y crea `jobs.db` 0644 root:root; el worker corre como el usuario
+#   del servicio y, sin esto, abriría la cola en solo lectura y fallaría en el
+#   primer `claim` ("attempt to write a readonly database"). Al revés no hay
+#   problema: root lee y escribe ficheros ajenos (y SQLite, cuando corre como
+#   root, crea sus -wal/-shm con el dueño de la base; no medido aquí: techo).
+#   rc=0 ok; rc!=0 si falta un argumento o falla install/chown.
+# ---------------------------------------------------------------------------
+preparar_estado_del_worker() {
+    local user="${1:?usuario}" group="${2:?grupo}" jobs_db="${3:?jobs.db}" props="${4:?propuestas}" f
+    install -d -m 0750 -o "${user}" -g "${group}" "$(dirname -- "${jobs_db}")" "${props}"
+    for f in "${jobs_db}" "${jobs_db}-wal" "${jobs_db}-shm"; do
+        if [ -e "${f}" ]; then chown "${user}:${group}" -- "${f}"; fi
+    done
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# worker_activo <unit> [<lecturas>] [<pausa>]
+#   B3 · H-02. `active` en TODAS las lecturas (por defecto 3, cada 2 s). Una
+#   unidad con `Restart=always` cuyo proceso muere al arrancar alterna entre
+#   `activating` y `active`: una sola lectura afortunada la daría por buena.
+# ---------------------------------------------------------------------------
+worker_activo() {
+    local unit="${1:?unidad}" lecturas="${2:-3}" pausa="${3:-2}" i
+    for i in $(seq 1 "${lecturas}"); do
+        systemctl is-active --quiet "${unit}" || return 1
+        if [ "${i}" -lt "${lecturas}" ]; then sleep "${pausa}"; fi
+    done
+    return 0
+}

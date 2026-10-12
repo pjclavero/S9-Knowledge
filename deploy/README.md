@@ -203,7 +203,8 @@ estado.
 
 No medido: clon de la release y su venv (red/pip), pasos 7–13 (systemd),
 nginx, CA real, navegador, VM limpia, reinicio de **máquina**. El venv del
-**motor** no lo instala B2: su único consumidor es el worker (B3). **H-08**
+**motor** lo crea `deploy.sh` desde B3 (paso 2), junto a la unidad del worker
+(ver «Worker de jobs como servicio»). **H-08**
 sigue abierto: `deploy.sh` instala la unidad del repositorio
 (`viewer/systemd/…`, sin `User=`) y el rol `systemd` la suya (`www-data`);
 no re-ejecutar el rol `systemd` tras la primera release hasta cerrarlo.
@@ -696,46 +697,32 @@ los dos códigos. Se distinguen por si tiene sentido reintentar:
 Degradar a `driver=None` sería una ruta de repuesto silenciosa: produciría una
 ingesta que parece correcta y cuyo plan no puede proyectar nada.
 
-### Quién provisiona esto hoy: NADIE. Es trabajo pendiente del operador.
+### Quién provisiona esto: el operador deposita el secreto; el despliegue, el resto
 
-Dicho sin rodeos, porque este corte **rompe a propósito** cualquier despliegue
-que no lo haga: hoy, en este repositorio,
-
-* **`deploy/ansible/` no define ninguna variable `S9K_NEO4J_*` para el motor.**
-  El rol `data_engine` sólo clona el repositorio y su cabecera dice «No ejecuta
-  ingesta. No toca Neo4j.»
-* **No existe ninguna unidad systemd para el worker de jobs.** Las unidades que
-  sí existen son el visor, la prueba de restore y el healthcheck.
-* **`scripts/run-jobs-worker.sh`** —el único lanzador— exporta sólo
-  `S9K_JOBS_DB` y apunta al layout *legacy*
-  (`/opt/knowledge-services/s9-knowledge-repo`).
-* `validate_deploy.sh` valida `viewer.env`, **no** un entorno de worker, y
-  `S9K_NEO4J_PASSWORD_FILE` ni siquiera está en `CRITICAL_ENV_VARS`.
-
-**El patrón a replicar es el que ya usa el visor**, y es enteramente manual:
+Hasta B3 no lo provisionaba **nadie**: no había unidad systemd del worker en
+ningún ref, el único lanzador (`scripts/run-jobs-worker.sh`, ya retirado)
+apuntaba al layout *legacy* y buscaba un venv que nadie creaba, y un
+`worker.env` ausente solo avisaba. Desde B3 (USABLE-V1 · H-02) el reparto es:
 
 | Paso | Quién | Detalle |
 |---|---|---|
 | 1. Directorio | Ansible (`roles/common`) | `/etc/s9-knowledge`, `root:root`, `0700` |
 | 2. Subdirectorio | **el operador, a mano** | `/etc/s9-knowledge/secrets`, `root:root`, `0700` |
-| 3. Fichero del secreto | **el operador, a mano** | `/etc/s9-knowledge/secrets/neo4j_worker_password`, `root:root`, **`0600`**, fuera de la release (nunca bajo `/opt/s9-knowledge/current`, que `validate_deploy.sh` rechaza) |
-| 4. Entorno del worker | **el operador, a mano** | `/etc/s9-knowledge/worker.env`, `root:root`, `0600`, con `S9K_NEO4J_URI`, `S9K_NEO4J_USER` y `S9K_NEO4J_PASSWORD_FILE` — **y sin `S9K_NEO4J_PASSWORD`** |
-| 5. Lanzador | ya lo hace | `scripts/run-jobs-worker.sh` carga `worker.env` si existe |
-
-Hay una **plantilla literal** en `deploy/config/worker.env.example`, con las
-tres variables obligatorias y la lista de lo que **no** debe ir ahí.
+| 3. Fichero del secreto | **el operador, a mano** | `/etc/s9-knowledge/secrets/neo4j_worker_password`, `root:root`, **`0600`**, fuera de la release (nunca bajo `/opt/s9-knowledge/current`, que `validate_deploy.sh` rechaza). **Tiene que ser esa ruta**: es el origen que copia la unidad |
+| 4. Entorno del worker | **el operador, a mano** | `/etc/s9-knowledge/worker.env`, `root:root`, `0600`, desde `deploy/config/worker.env.example`: `S9K_NEO4J_URI`, `S9K_NEO4J_USER`, `S9K_NEO4J_PASSWORD_FILE`, `S9K_JOBS_DB` y `S9K_V3_REVIEW_PROPOSALS_DIR` (las dos últimas, **iguales** a las de `viewer.env`) — **y sin `S9K_NEO4J_PASSWORD`** |
+| 5. Venv del motor | `deploy.sh` (paso 2) | `<release>/data-engine/.venv` con `data-engine/requirements.lock` |
+| 6. Unidad del worker | `deploy.sh` (pasos 7–13) y el rol `systemd` | la MISMA `data-engine/systemd/s9-knowledge-worker.service`; ver «Worker de jobs como servicio» |
 
 No hay `ansible-vault` en este repositorio: el secreto lo deposita una persona
 en el host y ninguna herramienta lo genera.
 
-**Y ahora hay una puerta, no sólo un párrafo.**
-`deploy/scripts/validate_deploy.sh::validate_worker_env` —invocada desde
-`deploy.sh`— bloquea el despliegue si `worker.env` existe y le falta cualquiera
-de las tres variables, si el fichero del secreto no es `0600` o no existe, o si
-alguien ha puesto `S9K_NEO4J_PASSWORD`. Si el fichero **no** existe no bloquea
-—hoy no hay unidad de worker instalada y exigirlo rompería todos los
-despliegues actuales— pero **avisa nombrando el código** con el que el operador
-se lo encontraría. Su tabla de calibración está en
+**La puerta:** `deploy/scripts/validate_deploy.sh::validate_worker_env`
+—invocada desde el paso 6 de `deploy.sh`— **bloquea** si `worker.env` no existe
+(desde B3: es el `EnvironmentFile` de un servicio que el despliegue instala y
+arranca), si le falta cualquiera de las cinco variables, si `S9K_JOBS_DB` o
+`S9K_V3_REVIEW_PROPOSALS_DIR` difieren de las de `viewer.env`, si el fichero
+del secreto no es `0600` o no existe, o si alguien ha puesto
+`S9K_NEO4J_PASSWORD`. Su tabla de calibración está en
 `deploy/tests/test_worker_env_validacion.py`: cada fila rompe una cosa y exige
 rojo.
 
@@ -743,6 +730,94 @@ No se ha añadido `S9K_NEO4J_PASSWORD_FILE` a `CRITICAL_ENV_VARS`, y es
 deliberado: esa lista gobierna `viewer.env`, y el **visor** admite a propósito
 las dos formas (`viewer/app/config.py`). Hacerla crítica allí rompería una
 configuración soportada del visor por un requisito que es del **motor**.
+
+## Worker de jobs como servicio (B3 · USABLE-V1 · H-02)
+
+### ESTADO DE ESTA SECCIÓN (leer antes de seguir)
+
+```
+CODE         PASS      worker real en subproceso; pasos 2/7/13 reales de deploy.sh
+CALIBRATION  PASS      scripts/calibracion/mutaciones_b3_worker.py (job «Calibracion de gates»)
+RC-E2E       PENDING   systemd real, reinicio de máquina (ensayo RC)
+```
+
+Una ingesta pedida desde `/panel/operations` la procesa el worker **sin ningún
+comando**: el despliegue lo instala como servicio, se reinicia solo y se
+recupera de un proceso muerto a mitad de un trabajo.
+
+### La unidad canónica
+
+`data-engine/systemd/s9-knowledge-worker.service` es la **única** plantilla.
+`deploy.sh` la valida (paso 7), la instala (pasos 8–9), la verifica con
+`systemd-analyze verify` (paso 10), la **habilita y la arranca** antes de
+reiniciar el visor (paso 13, en `fresh` y en `upgrade`: hasta B3 no existía,
+así que todo upgrade es también su primera instalación) y exige que esté
+`active` en tres lecturas (paso 14b; si no, rollback). El rol Ansible `systemd`
+**copia ese mismo fichero** desde la release activa y comprueba que su `User=`
+es `s9k_service_user`; no hay una segunda versión en Jinja (eso es H-08).
+
+| Directiva | Valor | Por qué |
+|---|---|---|
+| `User=`/`Group=` | `www-data` (el usuario del servicio) | no corre como root; `deploy.sh` lee el usuario de AQUÍ |
+| `UMask=` | `0077` | lo que escribe (propuestas, `jobs.db` si la crea él) nace `0600` |
+| `EnvironmentFile=` | `/etc/s9-knowledge/worker.env` | su configuración; obligatoria |
+| `ExecStartPre=+-` | copia el secreto `0600` a `/run/s9-knowledge-worker/` | el usuario del servicio no atraviesa `/etc/s9-knowledge` (`0700`); con `-`, si falta, la ingesta falla **cerrado** y visible (`GRAPH_OBSERVATION_UNCONFIGURED`) en vez de una unidad muerta |
+| `ExecStart=` | `…/data-engine/.venv/bin/python …/worker.py --loop --sleep-seconds 5 --release-stale-seconds 600 --retry-backoff-seconds 30` | daemon (sin `--limit`); huérfanos liberados gastando un intento; reintentos con retroceso |
+| `Restart=` | `always` | vuelve si muere |
+| `TimeoutStopSec=` | `120` | al parar, termina el trabajo en curso; si no le da tiempo, el huérfano lo libera el siguiente arranque |
+
+### Qué hace el worker
+
+* `--loop` es un **daemon**: una cola vacía no lo termina (antes salía con
+  `rc=0` al instante: `if once or limit` con `--limit` = 1 por defecto).
+  `--once` sigue existiendo para uso manual.
+* **Latido**: mientras corre un trabajo refresca `locked_at`; un trabajo vivo y
+  largo no se confunde con un huérfano.
+* **Huérfanos** (`--release-stale-seconds`): en cada vuelta, un `running` sin
+  latido vuelve a `pending` **gastando un intento**; al agotar `max_attempts`
+  queda `failed`. Antes no gastaba intentos: un trabajo que matara al proceso
+  se reintentaba para siempre.
+* **Reintentos**: un fallo reintentable vuelve a `pending` con `next_retry_at`
+  (`30 s × 2^intento`, techo 1 h) y no se reclama antes. Un fallo permanente
+  (lo declara el handler) va directo a `failed`.
+* **Cancelación cooperativa**: un trabajo cancelado (o liberado y reclamado por
+  otro) mientras corría **no** se sobrescribe al terminar; el handler no se
+  interrumpe, su resultado se descarta.
+* SIGTERM: termina el trabajo en curso y sale con `rc=0`.
+
+### Estado compartido con el visor, y permisos
+
+`jobs.db` y el almacén de propuestas son de los dos. Sus rutas salen de
+**una** autoridad cada una: `job_store.ruta_de_despliegue` para la cola (H-37;
+`deploy.sh` se la pide, las plantillas la declaran y un testigo exige que
+coincidan) y `knowledge_v3.review_paths` para las propuestas (visor y worker
+idénticos). `validate_worker_env` exige que `worker.env` y `viewer.env` digan
+lo mismo.
+
+El visor que arranca `deploy.sh` **sigue como root (H-08, abierto)**; el worker
+no. Por eso el paso 13 deja el directorio de la cola, `jobs.db` (y sus `-wal`
+/`-shm`) y el almacén de propuestas a nombre del usuario del servicio **antes**
+de arrancar el worker (`lib.sh::preparar_estado_del_worker`): un `jobs.db`
+creado por root `0644` dejaría al worker en «attempt to write a readonly
+database». Root sigue pudiendo leer y escribir. **No medido** (techo): que
+SQLite corriendo como root cree sus `-wal`/`-shm` con el dueño de la base en
+el host real.
+
+### Qué se midió de verdad, y qué no
+
+Medido (CI required): el recorrido web → servicio → web en
+`viewer/tests/test_b3_worker_desatendido_e2e.py` (visor real, worker real en su
+propio proceso arrancado con los flags de `ExecStart`, el entorno de
+`worker.env.example` y el directorio de `WorkingDirectory`; reinicio por
+SIGTERM y segundo trabajo), los negativos en
+`data-engine/app/tests/test_b3_worker_desatendido.py` (worker parado, error
+del handler, worker matado a mitad, `max_attempts` agotado, cola vacía) y la
+unidad por efecto en `deploy/tests/test_b3_worker_unidad.py`.
+
+**No medido** (RC-E2E PENDING): `systemctl enable/restart` de verdad, el
+`Restart=always` del gestor, el usuario del servicio sobre el state root real,
+la copia del secreto por `ExecStartPre=+` en una máquina, el reinicio de **máquina** y
+Neo4j/apply.
 
 ### CONDICIÓN PREVIA AL DESPLIEGUE: nodos sin `state_hash`
 
