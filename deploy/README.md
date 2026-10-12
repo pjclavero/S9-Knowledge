@@ -61,7 +61,9 @@ install -m 0600 deploy/config/worker.env.example /etc/s9-knowledge/worker.env
 #    (es el origen que copia la unidad del worker). Sin el valor en argv:
 install -d -m 0700 /etc/s9-knowledge/secrets
 install -m 0600 /dev/null /etc/s9-knowledge/secrets/neo4j_worker_password
-#    editar el fichero y escribir la contraseña (ver «La cuenta del worker»)
+#    ESCRIBIR LA CONTRASEÑA en el fichero ANTES de desplegar (vacío BLOQUEA el
+#    paso 6), sin ponerla en argv: con un editor, o desde stdin:
+cat > /etc/s9-knowledge/secrets/neo4j_worker_password   # pegar, Enter, Ctrl-D
 # 4. Primera release (instala, habilita y arranca visor y worker)
 deploy/scripts/deploy.sh --environment production --release-ref <tag|sha> \
     --mode fresh --confirm-production

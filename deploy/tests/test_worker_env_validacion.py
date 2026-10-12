@@ -218,3 +218,12 @@ def test_el_ejemplo_no_trae_el_secreto_en_una_variable():
         assert not limpia.startswith("S9K_NEO4J_PASSWORD="), (
             f"{EJEMPLO.name}:{numero} define el secreto en una variable"
         )
+
+
+def test_un_secreto_VACIO_bloquea(tmp_path, secreto):
+    """Ronda final de B3: `install -m 0600 /dev/null` deja un fichero valido en
+    forma y vacio; pasaba la puerta y la ingesta fallaba en ejecucion."""
+    secreto.write_text("", encoding="utf-8")
+    resultado = _correr(_env(tmp_path, secreto))
+    assert _rc(resultado) == 1, "SECRETO VACIO ACEPTADO: " + resultado.stderr.replace("\n", " | ")
+    assert "vacio" in resultado.stderr, resultado.stderr

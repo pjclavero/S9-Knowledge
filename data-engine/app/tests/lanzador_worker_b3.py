@@ -68,12 +68,26 @@ def b3_dormir_una_vez(payload: dict) -> dict:
     return {"ok": True, "invocacion": n}
 
 
+def b3_dormir_y_fallar(payload: dict) -> dict:
+    _contar("dormir_y_fallar")
+    time.sleep(float(payload.get("segundos", 3)))
+    raise RuntimeError("B3_FALLO_TARDIO: fallo reintentable tras dormir")
+
+
+def b3_dormir_y_omitir(payload: dict) -> dict:
+    _contar("dormir_y_omitir")
+    time.sleep(float(payload.get("segundos", 3)))
+    raise worker.JobHandlerError("B3_OMISION_TARDIA: omitido tras dormir")
+
+
 if os.environ.get("S9K_B3_HANDLERS_DE_PRUEBA") == "1":
     worker.HANDLERS.update({
         "b3_fallar": b3_fallar,
         "b3_matar": b3_matar,
         "b3_dormir": b3_dormir,
         "b3_dormir_una_vez": b3_dormir_una_vez,
+        "b3_dormir_y_fallar": b3_dormir_y_fallar,
+        "b3_dormir_y_omitir": b3_dormir_y_omitir,
     })
 
 _GRAFO = os.environ.get("S9K_B3_GRAFO")

@@ -367,7 +367,9 @@ if ! worker_activo "${WORKER_UNIT_NAME}"; then
     }
     # Sin release previa no hay a donde volver, pero un worker roto y habilitado
     # se quedaria en bucle de reinicios: se deshabilita (F3 de la revision).
-    [ -n "${PREV_RELEASE_DIR}" ] || revertir_worker "" "${WORKER_UNIT_NAME}" "${WORKER_UNIT_DEST}" "${RELEASE_ID}" || true
+    # (un PREV_RELEASE_DIR con valor pero sin directorio cuenta como «sin previa»)
+    { [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ]; } \
+        || revertir_worker "" "${WORKER_UNIT_NAME}" "${WORKER_UNIT_DEST}" "${RELEASE_ID}" || true
     die "worker no activo (journalctl -u ${WORKER_UNIT_NAME}); rollback ejecutado"
 fi
 

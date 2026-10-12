@@ -506,3 +506,84 @@ def test_complete_tras_un_reintento_no_conserva_el_error(db):
     assert job_store.mark_complete(job_id, result={"ok": 1}, db_path=db, locked_by="w1")
     j = _job(db, job_id)
     assert j["status"] == "complete" and j["error_message"] is None, j
+
+
+# ===========================================================================
+# 8. REVISION INDEPENDIENTE, RONDA FINAL: el LLAMADOR pasa `locked_by`
+# ===========================================================================
+
+@pytest.mark.parametrize("handler,contador", [
+    ("b3_dormir_y_fallar", "dormir_y_fallar"),
+    ("b3_dormir_y_omitir", "dormir_y_omitir"),
+], ids=["mark_failed", "mark_skipped"])
+def test_cancelado_mientras_corre_no_lo_reabre_un_fallo_tardio(tmp_path, db, handler, contador):
+    """Worker REAL: se cancela el job en `running`; cuando el handler falla
+    despues, el job sigue `cancelled` (ni `pending` ni `skipped`) y no se
+    vuelve a ejecutar."""
+    job_id = job_store.create_job("leyenda", job_type=handler, payload={"segundos": 3},
+                                  max_attempts=3, db_path=db)
+    w = _Worker(tmp_path, db, "--loop", "--sleep-seconds", "1", "--retry-backoff-seconds", "0")
+    try:
+        assert _esperar(lambda: _job(db, job_id)["status"] == "running", 15), w.texto()
+        assert job_store.mark_cancelled(job_id, db_path=db)
+        time.sleep(6)                       # el handler falla a los 3 s; margen para reintentar
+        j = _job(db, job_id)
+        invocaciones = w.invocaciones(contador)
+    finally:
+        w.parar()
+    assert j["status"] == "cancelled", (
+        "FALLO TARDIO REABRE UN CANCELADO: el worker cerro sin `locked_by` y el job "
+        "paso a %s (attempts=%s)" % (j["status"], j["attempts"]))
+    assert invocaciones == 1, "el job cancelado se volvio a ejecutar: %s" % invocaciones
+
+
+def test_la_sonda_de_escritura_no_deja_rastro_y_se_repite(db):
+    """La sonda deshace lo que escribe: si hiciera COMMIT, el segundo arranque
+    del worker fallaria con «table already exists»."""
+    import sqlite3 as _sql
+
+    job_store.comprobar_escritura(db)
+    job_store.comprobar_escritura(db)
+    con = _sql.connect(db)
+    try:
+        tablas = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    finally:
+        con.close()
+    assert "_s9k_sonda_escritura" not in tablas, "SONDA CON RASTRO: %s" % sorted(tablas)
+
+
+def test_el_contador_de_vueltas_fallidas_se_reinicia_tras_una_buena(monkeypatch, db):
+    """Fallos ALTERNOS con vueltas buenas no son una cola rota."""
+    estado = {"n": 0}
+
+    def alterna(*a, **k):
+        estado["n"] += 1
+        if estado["n"] % 2:
+            raise _sqlite_error()
+        return False
+
+    monkeypatch.setattr(worker, "process_one", alterna)
+    parar = threading.Event()
+    salida = []
+
+    def correr():
+        try:
+            worker.run("w-alterno", once=False, sleep_seconds=0.01, db_path=db,
+                       max_vueltas_fallidas=2, stop_event=parar)
+            salida.append("parado")
+        except worker.ColaInutilizable as exc:
+            salida.append(exc)
+
+    hilo = threading.Thread(target=correr)
+    hilo.start()
+    _esperar(lambda: estado["n"] >= 20 or salida, 10)
+    parar.set()
+    hilo.join(timeout=10)
+    assert salida == ["parado"], (
+        "CONTADOR SIN REINICIO: fallos alternos tumbaron el daemon tras %s vueltas: %s"
+        % (estado["n"], salida))
+
+
+def _sqlite_error():
+    import sqlite3 as _sql
+    return _sql.OperationalError("database is locked")

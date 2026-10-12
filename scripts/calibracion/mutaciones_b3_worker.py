@@ -41,6 +41,10 @@ Y las de la ronda de corrección de la revisión independiente de #273:
   MH  sin límite de vueltas fallidas        MI  la receta de primera release sin worker.env
   MJ  el rollback no deshabilita el worker  MK  decisiones humanas no compartidas
 
+Y las de la ronda final: MN/MS el LLAMADOR (`worker.py`) cierra con `mark_failed`/
+`mark_skipped` sin `locked_by`; MP la sonda hace COMMIT; MQ el contador de
+vueltas fallidas no se reinicia.
+
 LOCALIZADORES: Python con `localizadores.mutar_en_funcion` (AST, ancla única
 DENTRO de la función; para `job_store.py`, cuyos nombres se repiten como
 métodos de `JobStore`, la variante de nivel de módulo de este fichero); bash, unidad y plantillas con `mutar_unico` (ancla
@@ -302,6 +306,35 @@ def _mk_sin_decisiones_compartidas(t):
         "    for var in S9K_JOBS_DB S9K_V3_REVIEW_PROPOSALS_DIR; do\n")
 
 
+
+# --- Ronda final (APTO CON OBSERVACIONES sobre 4506df0) ---
+
+def _mn_llamador_mark_failed_sin_dueno(t):
+    return mutar_en_funcion(
+        t, "process_one",
+        "                                     db_path=db_path, retry_delay_seconds=espera,\n"
+        "                                     locked_by=worker_id):\n",
+        "                                     db_path=db_path, retry_delay_seconds=espera):\n")
+
+
+def _ms_llamador_mark_skipped_sin_dueno(t):
+    return mutar_en_funcion(
+        t, "process_one",
+        "        if not job_store.mark_skipped(job_id, message=str(exc), db_path=db_path,\n"
+        "                                      locked_by=worker_id):\n",
+        "        if not job_store.mark_skipped(job_id, message=str(exc), db_path=db_path):\n")
+
+
+def _mp_sonda_hace_commit(t):
+    return _mutar_en_funcion_de_modulo(t, "comprobar_escritura",
+                                       '            conn.execute("ROLLBACK")\n',
+                                       '            conn.execute("COMMIT")\n')
+
+
+def _mq_contador_sin_reinicio(t):
+    return mutar_en_funcion(t, "run", "            fallidas = 0\n", "            pass\n")
+
+
 MUTACIONES = [
     ("M1 — `--loop` vuelve a `if once or limit` (daemon que termina al instante)",
      WORKER, _m1_loop_vuelve_a_once_or_limit, [T_DE, T_E2E],
@@ -376,6 +409,21 @@ MUTACIONES = [
      VALIDATE_SH, _mk_sin_decisiones_compartidas, [T_ENV],
      {"test_estado_distinto_del_visor_BLOQUEA[S9K_V3_REVIEW_DATABASE_PATH-/var/lib/s9-knowledge/otras/review.sqlite3]":
           "NO BLOQUEO"}),
+    # --- Ronda final ---
+    ("MN — el worker llama a mark_failed SIN locked_by (un fallo tardio reabre un cancelado)",
+     WORKER, _mn_llamador_mark_failed_sin_dueno, [T_DE],
+     {"test_cancelado_mientras_corre_no_lo_reabre_un_fallo_tardio[mark_failed]":
+          "FALLO TARDIO REABRE UN CANCELADO"}),
+    ("MS — el worker llama a mark_skipped SIN locked_by",
+     WORKER, _ms_llamador_mark_skipped_sin_dueno, [T_DE],
+     {"test_cancelado_mientras_corre_no_lo_reabre_un_fallo_tardio[mark_skipped]":
+          "FALLO TARDIO REABRE UN CANCELADO"}),
+    ("MP — la sonda de escritura hace COMMIT (el segundo arranque fallaria)",
+     JOB_STORE, _mp_sonda_hace_commit, [T_DE],
+     {"test_la_sonda_de_escritura_no_deja_rastro_y_se_repite": "already exists"}),
+    ("MQ — el contador de vueltas fallidas no se reinicia tras una buena",
+     WORKER, _mq_contador_sin_reinicio, [T_DE],
+     {"test_el_contador_de_vueltas_fallidas_se_reinicia_tras_una_buena": "CONTADOR SIN REINICIO"}),
 ]
 
 

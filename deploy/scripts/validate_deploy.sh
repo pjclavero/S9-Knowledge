@@ -143,6 +143,12 @@ validate_secret_file() {
     if [ ! -f "${path}" ]; then
         printf 'BLOCK(secret-file): no existe: %s\n' "${path}" >&2; return 1
     fi
+    # B3 (revision independiente, ronda final): un fichero VACIO pasaba la
+    # puerta y la ingesta fallaba despues, en ejecucion. La receta lo crea con
+    # `install /dev/null`: hay que escribir el secreto antes de desplegar.
+    if [ ! -s "${path}" ]; then
+        printf 'BLOCK(secret-file): esta vacio (escribe el secreto en el fichero antes de desplegar): %s\n' "${path}" >&2; return 1
+    fi
     perms="$(stat -c '%a' "${path}" 2>/dev/null || printf '')"
     # rechaza cualquier bit de grupo/otros (perms de 3 dígitos con 2º/3er != 0)
     case "${perms}" in
