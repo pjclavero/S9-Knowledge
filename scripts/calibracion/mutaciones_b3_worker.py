@@ -33,7 +33,8 @@ Mutaciones (las seis del encargo, M1-M6, y cinco de la familia):
   M10 `deploy.sh` deja de crear el venv del motor
 
 LOCALIZADORES: Python con `localizadores.mutar_en_funcion` (AST, ancla única
-DENTRO de la función); bash, unidad y plantillas con `mutar_unico` (ancla
+DENTRO de la función; para `job_store.py`, cuyos nombres se repiten como
+métodos de `JobStore`, la variante de nivel de módulo de este fichero); bash, unidad y plantillas con `mutar_unico` (ancla
 ÚNICA en el fichero; bash y systemd no tienen AST que usar aquí) y `bash -n`
 sobre el resultado. Ancla ausente o ambigua = DETECTOR ROTO, nunca «la primera».
 
@@ -130,6 +131,34 @@ def _valido(fichero: str, texto: str) -> bool:
     return True
 
 
+def _mutar_en_funcion_de_modulo(texto: str, nombre: str, viejo: str, nuevo: str):
+    """`mutar_en_funcion`, pero SOLO entre las funciones de NIVEL DE MODULO.
+
+    `job_store.py` repite cada nombre como metodo de su envoltorio `JobStore`
+    (que delega en la funcion del modulo), y `span_de_funcion` exige un unico
+    `def` con ese nombre en todo el arbol: daba DETECTOR ROTO, medido. La
+    funcion atacada es la del modulo; el ancla sigue teniendo que ser unica
+    DENTRO de ella.
+    """
+    import ast
+
+    try:
+        arbol = ast.parse(texto)
+    except SyntaxError:
+        return None
+    nodos = [n for n in arbol.body if isinstance(n, ast.FunctionDef) and n.name == nombre]
+    if len(nodos) != 1:
+        return None
+    lineas = texto.splitlines(keepends=True)
+    inicio = sum(len(l) for l in lineas[: nodos[0].lineno - 1])
+    fin = sum(len(l) for l in lineas[: nodos[0].end_lineno])
+    cuerpo = texto[inicio:fin]
+    if cuerpo.count(viejo) != 1:
+        return None
+    mutado = texto[:inicio] + cuerpo.replace(viejo, nuevo, 1) + texto[fin:]
+    return None if mutado == texto else mutado
+
+
 # ---------------------------------------------------------------------------
 # Mutaciones
 # ---------------------------------------------------------------------------
@@ -139,13 +168,13 @@ def _m1_loop_vuelve_a_once_or_limit(t):
 
 
 def _m2_stale_sin_intentos(t):
-    return mutar_en_funcion(t, "release_stale_jobs",
+    return _mutar_en_funcion_de_modulo(t, "release_stale_jobs",
                             '            attempts = (row["attempts"] or 0) + 1\n',
                             '            attempts = row["attempts"] or 0\n')
 
 
 def _m3_next_retry_at_ignorado(t):
-    return mutar_en_funcion(
+    return _mutar_en_funcion_de_modulo(
         t, "claim_next_job",
         '    clauses = ["status = \'pending\'", "(next_retry_at IS NULL OR next_retry_at <= ?)"]\n'
         '    params = [now]\n',

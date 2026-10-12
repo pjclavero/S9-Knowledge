@@ -133,7 +133,7 @@ def _validar_unidad(unidad: Path, release: Path, worker_env: Path = None):
 
 def test_la_unidad_canonica_pasa_su_validador_por_efecto(release):
     rc, err = _validar_unidad(UNIDAD, release, WORKER_ENV_EJEMPLO)
-    assert rc == 0, "la unidad canonica no pasa validate_worker_unit:\n%s" % err
+    assert rc == 0, "la unidad canonica no pasa validate_worker_unit: %s" % err.replace("\n", " | ")
 
 
 def test_sin_venv_del_motor_la_unidad_bloquea(release):
