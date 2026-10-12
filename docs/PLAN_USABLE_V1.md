@@ -26,23 +26,23 @@ usuarios/permisos → material → ingestión → progreso → revisión → apr
 
 | Campo | Valor |
 |---|---|
-| CURRENT_MAIN | `2dd6d4790832b1759deca2c45303af291202132b` (squash de #269; #268 = `8964c36`) |
+| CURRENT_MAIN | `751995cb5254f985757f726284653c5587890aa7` (squash de #271 B2; #270 = `8d29a00`, #269 = `2dd6d47`, #268 = `8964c36`) |
 | CURRENT_PHASE | **B** (cerrar rango 1); Fase A cerrada con #268 |
-| CURRENT_HIT | B2 (H-01/H-43 familia fresh install); B1 cerrado |
-| OPEN_R1 | H-01 (+H-43), H-02 · H-03 **VERIFIED** (#269) |
+| CURRENT_HIT | **B3** (H-02 worker desatendido); B1 y B2 cerrados |
+| OPEN_R1 | H-02 · H-01 (+H-43) **VERIFIED (arnés local), RC-E2E PENDING** (#271) · H-03 **VERIFIED** (#269) |
 | OPEN_R2_BLOQUEANTES | H-04/H-18 (lado deploy cubierto en #271; el resto, Fase C), H-05, H-06, H-07, H-09, H-11/H-48, H-14, H-19, H-44 (código y arnés local en #271; RC-E2E PENDING), H-50 |
 | CURRENT_PR | PR #271 (B2, abierto; absorbe el contenido de #267 por cherry-pick) |
-| NEXT_TASK | B2: familia fresh install (H-01 + H-43 + plantillas H-44/H-49 + primer admin + HTTPS/CSRF + #267 + `preflight_ensayo_rc.py`) |
+| NEXT_TASK | B3: worker desatendido (H-02) + venv del motor (deuda heredada de B2) |
 | BLOCKERS | ninguno técnico; ensayo RC exige autorización del operador para VM110/VM111 |
 | DEBT_PARKED | WORKTREE-HYGIENE (147 worktrees, 435 ramas, 3 stashes), DEPENDENCY-MAINTENANCE (7 Dependabot, #209 major), CI-CALIBRATION-PERFORMANCE (job de 77 min serial) |
-| E2E_PENDING | P4, P5 (RC-E2E PENDING en #266/#267), P15 |
-| RC_PENDING | guion N1–N12 de `deploy/README.md` nunca ejecutado |
+| E2E_PENDING | P4, P5, B2 completo (RC-E2E PENDING en #266/#267/#271), P15 |
+| RC_PENDING | guion N1–N17 de `deploy/README.md` nunca ejecutado (VM110/VM111 apagadas; requiere autorización del operador) |
 
 ## 2. Métrica de progreso (no se mide por número de PR)
 
 | Métrica | Baseline (R2, `0cf977c`) | Actual | Delta |
 |---|---|---|---|
-| Rango 1 abiertos | 3 | **2** | −1 (H-03 VERIFIED, #269) |
+| Rango 1 abiertos | 3 | **1** (H-02) | −2 (H-03 VERIFIED #269; H-01 VERIFIED en arnés local #271, con RC-E2E PENDING como techo independiente) |
 | Rango 2 bloqueantes de USABLE-V1 | 10 | 10 | 0 |
 | Terminal post-install (recorrido mínimo) | 2 reinicios + 1 worker (+1 de protocolo) | = | 0 |
 | Ediciones manuales de fichero | 6 | = | 0 |
@@ -183,6 +183,9 @@ cuando el criterio lo nombra.
 - **Tests:** `deploy/tests/test_b2_fresh_install.py` (rápido: pasos 3–4 y 6 REALES de `deploy.sh`, plantillas, GATE A, estados) · `deploy/tests/test_b2_primera_release.py` (visor real por TLS local: máquina limpia → INSTALLATION_COMPLETE; HTTP plano reproduce el 403). **Calibrador:** `mutaciones_b2_fresh_install.py` (10 mutaciones + 7 de la ronda de corrección de la revisión independiente) en el job required «Calibracion de gates».
 - **Techo:** clon+venv de la release, systemd (pasos 7–13), nginx, CA real, navegador, VM limpia y reinicio de máquina no ejercidos; venv del motor → B3 (su único consumidor es el worker); H-08 (dos unidades del visor) documentado, no resuelto: **el camino fresh deja el visor como root** (unidad del repo sin `User=`, ahora habilitada); H-06: `auth.db` sale 0644; el registro de estados se reinicia en cada despliegue (corrección R2-a: un upgrade no hereda INSTALLATION_COMPLETE); el reinicio entre GATE B bootstrap y persistencia lo afirma el operador.
 
+- **Deuda registrada por la revisión independiente (rango 4 / CI):** la salida final de `deploy.sh` usa `python3 … | while read` con `pipefail` (un error de `estado_instalacion` tras un despliegue correcto daría rc≠0: el rc final deja de ser fiable); un SQLite ajeno sin tabla `users` se lee como `FIRST_ADMIN_PENDING` (O1); `-w` se comprueba como root, no como el usuario del servicio (H-08); GATE A exige token presente, no token nuevo (MP2c); el job «Calibracion de gates» (~2 h, +11 min por B2) no declara `timeout-minutes` y hereda 360 → deuda CI-CALIBRATION-PERFORMANCE (aparcada; fijar ~180 cuando se toque CI).
+- **Revisión independiente:** NO APTO (R2-a falsa confirmación `INSTALLATION_COMPLETE` en upgrade por evidencias heredadas; 6 huecos de detector) → corregido en el mismo PR → APTO CON OBSERVACIONES sobre `97f864c`; CI 17 required × 2 runs `pass`.
+
 ### B3 — H-02 · Worker desatendido
 - **Cadena:** job → cola → consumer → loop → servicio → ejecución → resultado → error/retry → restart.
 - **Criterio de cierre:** unidad de servicio canónica instalada por el despliegue; `--loop` real sin `rc=0` inmediato; stale/retry/cancel con tests; un job creado desde `/panel/operations` se procesa sin intervención manual; error observable en la web.
@@ -194,4 +197,5 @@ cuando el criterio lo nombra.
 |---|---|---|
 | 2026-10-11 | Creación del plan canónico a partir de la auditoría R1+R2 | `docs/audits/AUDITORIA_GLOBAL_S9_KNOWLEDGE_2026-10-10.md` (R2.11, R2.16) |
 | 2026-10-11 | Fase A cerrada (#268 → `8964c36`); B1/H-03 VERIFIED (#269 → `2dd6d47`); R1 abiertos 3 → 2; CURRENT_HIT → B2 | PR #268, PR #269, log CI run `38127086116` y runs sobre `1ce168b` (34/34 pass) |
+| 2026-10-12 | B2 cerrado (#271 → `751995c`): H-01/H-43/H-44/H-49/H-35 VERIFIED (arnés local), H-04/H-18 solo lado deploy; RC-E2E PENDING; R1 abiertos 2 → 1; CURRENT_HIT → B3 | PR #271 (HEAD `97f864c`, 3 rondas de revisión independiente), CI 17×2 pass |
 | 2026-10-11 | B2 abierto (#271): H-01/H-43/H-44/H-49 implementados y calibrados; H-04/H-18 solo lado deploy; contenido de #267 absorbido; P5 → CI_GATED; RC-E2E PENDING | PR #271 |
