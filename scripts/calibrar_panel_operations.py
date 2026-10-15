@@ -231,9 +231,20 @@ CASOS: tuple[Caso, ...] = (
     Caso(
         "B14", "`_fila` no puede emitir el texto de un error del servidor",
         ROUTER,
-        "        \"has_error\": bool(job.get(\"has_error\") or job.get(\"error_code\")),",
-        "        \"has_error\": bool(job.get(\"has_error\") or job.get(\"error_code\")),\n"
-        "        \"error_message\": job.get(\"error_message\"),",
+        # Re-anclado por ESTRUCTURA (B3 · ronda CI de #273): el ancla literal
+        # era el renglon de `has_error`, que B3 reescribio en dos lineas (la
+        # SEÑAL se deriva tambien de `error_message`; el texto sigue sin
+        # salir). El defecto que se inyecta es el mismo: que `_fila` publique
+        # el TEXTO del error. Se acota a `_fila` y se ancla en `attempts`, que
+        # no depende de como se calcule la señal.
+        lambda texto: mutar_en_funcion(
+            texto,
+            "_fila",
+            "        \"attempts\": job.get(\"attempts\"),\n",
+            "        \"attempts\": job.get(\"attempts\"),\n"
+            "        \"error_message\": job.get(\"error_message\"),\n",
+        ),
+        "",
         ("test_el_detalle_operativo_se_recorta_a_quien_no_es_autoridad_plena",),
     ),
     Caso(
