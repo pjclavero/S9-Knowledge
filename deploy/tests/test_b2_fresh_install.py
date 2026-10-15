@@ -64,6 +64,7 @@ LIB_SH = _SCRIPTS / "lib.sh"
 VALIDATE_SH = _SCRIPTS / "validate_deploy.sh"
 PLANTILLA_PRODUCTIVA = RAIZ / "deploy" / "config" / "viewer.env.example"
 PLANTILLA_VISOR = RAIZ / "viewer" / ".env.example"
+PLANTILLA_WORKER = RAIZ / "deploy" / "config" / "worker.env.example"
 ROL_COMMON = RAIZ / "deploy" / "ansible" / "roles" / "common" / "tasks" / "main.yml"
 STATE_ROOT_DE_PLANTILLA = "/var/lib/s9-knowledge"
 URL_DE_PLANTILLA = "https://cambiar.por.el.nombre.real"
@@ -353,7 +354,28 @@ def plantilla_productiva_en(tmp: Path, url: str, *, ca_file: str = None,
     state_root.mkdir(parents=True, exist_ok=True)
     for sub in _directorios_de_ansible():
         (state_root / sub).mkdir(parents=True, exist_ok=True)
+    worker_env_productivo_en(tmp, state_root)
     return env, state_root
+
+
+def worker_env_productivo_en(tmp: Path, state_root: Path) -> Path:
+    """B3 · H-02: desde B3 `worker.env` es OBLIGATORIO en el paso 6.
+
+    Es la plantilla LITERAL `deploy/config/worker.env.example`, con el mismo
+    state root que la del visor y el secreto en un fichero 0600 de este host
+    (las dos unicas rutas de host que contiene).
+    """
+    secreto = tmp / "secrets" / "neo4j_worker_password"
+    secreto.parent.mkdir(parents=True, exist_ok=True)
+    secreto.write_text("secreto-de-prueba\n", encoding="utf-8")
+    secreto.chmod(0o600)
+    texto = PLANTILLA_WORKER.read_text(encoding="utf-8")
+    nuevo = texto.replace(STATE_ROOT_DE_PLANTILLA, str(state_root)).replace(
+        "/etc/s9-knowledge/secrets/neo4j_worker_password", str(secreto))
+    worker_env = tmp / "worker.env"
+    worker_env.write_text(nuevo, encoding="utf-8")
+    worker_env.chmod(0o600)
+    return worker_env
 
 
 def _paso6(env: Path, state_root: Path, ambiente: str = "production"):

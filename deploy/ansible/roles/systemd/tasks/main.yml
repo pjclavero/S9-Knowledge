@@ -74,6 +74,92 @@
   tags:
     - systemd
 
+# B3 (USABLE-V1) · H-02 — el worker de la cola como SERVICIO.
+# NO hay plantilla Jinja del worker: se COPIA la unidad canonica de la release
+# activa (data-engine/systemd/), la MISMA que instala deploy.sh. Dos plantillas
+# de una misma unidad es exactamente H-08 (visor con y sin `User=`).
+- name: Verificar que la unidad canonica del worker existe en la release activa
+  ansible.builtin.stat:
+    path: "{{ s9k_root }}/current/data-engine/systemd/{{ s9k_worker_service }}"
+  register: _worker_unit_stat
+  changed_when: false
+  tags:
+    - systemd
+    - worker
+
+- name: Leer la unidad canonica del worker
+  ansible.builtin.slurp:
+    src: "{{ s9k_root }}/current/data-engine/systemd/{{ s9k_worker_service }}"
+  register: _worker_unit_src
+  when: _worker_unit_stat.stat.exists
+  tags:
+    - systemd
+    - worker
+
+- name: El usuario de la unidad del worker es el usuario del servicio
+  ansible.builtin.assert:
+    that:
+      - (_worker_unit_src.content | b64decode) is search('(?m)^User=' ~ s9k_service_user ~ '$')
+      - (_worker_unit_src.content | b64decode) is search('(?m)^Group=' ~ s9k_service_group ~ '$')
+    fail_msg: >-
+      La unidad canonica del worker no declara User={{ s9k_service_user }} /
+      Group={{ s9k_service_group }}: el estado mutable es de ese usuario y el
+      worker no podria escribir la cola. Cambia la unidad en el repositorio,
+      no una copia en el host.
+  when: _worker_unit_stat.stat.exists
+  tags:
+    - systemd
+    - worker
+
+- name: Instalar la unidad canonica del worker (copia literal de la release)
+  ansible.builtin.copy:
+    src: "{{ s9k_root }}/current/data-engine/systemd/{{ s9k_worker_service }}"
+    dest: "/etc/systemd/system/{{ s9k_worker_service }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+  when: _worker_unit_stat.stat.exists
+  notify: Recargar systemd
+  tags:
+    - systemd
+    - worker
+
+- name: Verificar que worker.env existe (lo crea una persona; ver worker.env.example)
+  ansible.builtin.stat:
+    path: "{{ s9k_config_root }}/worker.env"
+  register: _worker_env_stat
+  changed_when: false
+  tags:
+    - systemd
+    - worker
+
+- name: Avisar de que el worker no arranca sin worker.env
+  ansible.builtin.debug:
+    msg: >-
+      AVISO: falta {{ s9k_config_root }}/worker.env. La unidad del worker queda
+      instalada pero NO se arranca: sin su EnvironmentFile no comparte cola ni
+      almacen con el visor. deploy.sh BLOQUEA en este mismo caso.
+  when:
+    - _worker_unit_stat.stat.exists
+    - not _worker_env_stat.stat.exists
+  tags:
+    - systemd
+    - worker
+
+- name: Habilitar y arrancar el worker
+  ansible.builtin.systemd:
+    name: "{{ s9k_worker_service }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  when:
+    - _worker_unit_stat.stat.exists
+    - _worker_env_stat.stat.exists
+  tags:
+    - systemd
+    - worker
+
 - name: Instalar script de prueba periodica de restore
   ansible.builtin.template:
     src: test-latest-neo4j-restore.sh.j2

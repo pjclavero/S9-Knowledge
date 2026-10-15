@@ -33,6 +33,29 @@ from datetime import datetime, timezone, timedelta
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DEFAULT_DB_PATH = os.path.join(BASE_DIR, "state", "jobs.db")
 
+#: B3 (USABLE-V1) · H-37. UNA SOLA AUTORIDAD sobre DONDE vive `jobs.db`.
+#:
+#: Habia cuatro defaults distintos (este modulo, `run-jobs-worker.sh`,
+#: `deploy.sh` y la plantilla `viewer.env.example`) y ninguno llamaba a otro:
+#: el visor encolaba en una base y el worker reclamaba de otra, sin un error.
+#: Desde B3 hay dos rutas y las dos salen de AQUI:
+#:
+#: * ``DEFAULT_DB_PATH`` -- la del arbol de desarrollo (sin despliegue);
+#: * ``ruta_de_despliegue(state_root)`` -- la del despliegue, bajo el state
+#:   root (``<state_root>/jobs/jobs.db``). `deploy.sh` la PIDE a este modulo
+#:   (``job_store.py --ruta-despliegue --state-root ...``) y las plantillas
+#:   ``viewer.env.example`` y ``worker.env.example`` la DECLARAN como alias
+#:   literal; un testigo exige que coincidan.
+#:
+#: La precedencia en ejecucion la decide ``resolve_db_path``: argumento
+#: explicito > ``S9K_JOBS_DB`` > ``DEFAULT_DB_PATH``.
+DEPLOY_DB_RELPATH = ("jobs", "jobs.db")
+
+
+def ruta_de_despliegue(state_root: str) -> str:
+    """Ruta de `jobs.db` en un despliegue con state root `state_root`."""
+    return os.path.join(state_root, *DEPLOY_DB_RELPATH)
+
 #: Versión de esquema de `jobs.db`. Este almacén NO tiene tabla de versión: su
 #: única migración es aditiva e idempotente (`_MIGRATION_COLUMNS` vía PRAGMA
 #: table_info), así que sigue en v1 desde el origen. La constante existe para
@@ -443,9 +466,15 @@ def claim_next_job(
 
     Devuelve el job (dict) reclamado, o None si no hay ninguno pendiente que
     cumpla los filtros.
+
+    B3 (USABLE-V1) · H-02: un job con ``next_retry_at`` en el FUTURO no se
+    reclama todavia. Antes la columna existia, ``mark_failed`` no la escribia
+    y aqui no se consultaba: un reintento era inmediato, y un job que fallaba
+    gastaba sus tres intentos en tres vueltas seguidas del worker.
     """
-    clauses = ["status = 'pending'"]
-    params = []
+    now = _now_iso()
+    clauses = ["status = 'pending'", "(next_retry_at IS NULL OR next_retry_at <= ?)"]
+    params = [now]
     if job_types:
         placeholders = ", ".join(["?"] * len(job_types))
         clauses.append(f"job_type IN ({placeholders})")
@@ -455,7 +484,6 @@ def claim_next_job(
         params.append(workspace)
     where = " AND ".join(clauses)
 
-    now = _now_iso()
     conn = sqlite3.connect(db_path, timeout=30)
     conn.row_factory = sqlite3.Row
     try:
@@ -474,7 +502,7 @@ def claim_next_job(
             """
             UPDATE jobs
             SET status = 'running', locked_by = ?, locked_at = ?,
-                started_at = ?, updated_at = ?
+                started_at = ?, updated_at = ?, next_retry_at = NULL
             WHERE job_id = ? AND status = 'pending'
             """,
             (worker_id, now, now, now, job_id),
@@ -506,19 +534,44 @@ def mark_running(job_id: str, worker_id: str, db_path: str = DEFAULT_DB_PATH) ->
         return cur.rowcount > 0
 
 
-def mark_complete(job_id: str, result: dict = None, db_path: str = DEFAULT_DB_PATH) -> bool:
-    """Marca un job como 'complete', guarda result_json y libera el lock."""
+def _guardia_de_propietario(locked_by: str = None) -> tuple:
+    """Clausula WHERE extra para que SOLO el dueño vivo cierre su job.
+
+    B3 (USABLE-V1) · H-02. Sin ella, un worker que siguio vivo tras perder su
+    job --cancelado desde la CLI, o liberado por stale y reclamado por otro--
+    lo SOBRESCRIBIA al terminar: un `cancelled` volvia a `complete` (medido) y
+    dos workers podian cerrar el mismo job. Es OPCIONAL y aditiva: quien no la
+    pasa (CLI, tests historicos) conserva el comportamiento de siempre.
+    """
+    if locked_by is None:
+        return "", ()
+    return " AND status = 'running' AND locked_by = ?", (locked_by,)
+
+
+def _instante_de_reintento(delay_seconds) -> str:
+    instante = datetime.now(timezone.utc) + timedelta(seconds=float(delay_seconds))
+    return instante.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def mark_complete(job_id: str, result: dict = None, db_path: str = DEFAULT_DB_PATH,
+                  locked_by: str = None) -> bool:
+    """Marca un job como 'complete', guarda result_json y libera el lock.
+
+    Con ``locked_by``, solo si el job sigue 'running' y bloqueado por ese
+    worker (ver ``_guardia_de_propietario``); devuelve False si no.
+    """
     now = _now_iso()
     result_json = json.dumps(result, ensure_ascii=False) if result is not None else None
+    guardia, extra = _guardia_de_propietario(locked_by)
     with _connect(db_path) as conn:
         cur = conn.execute(
             """
             UPDATE jobs
             SET status = 'complete', result_json = ?, finished_at = ?,
-                updated_at = ?, locked_by = NULL, locked_at = NULL
-            WHERE job_id = ?
-            """,
-            (result_json, now, now, job_id),
+                updated_at = ?, locked_by = NULL, locked_at = NULL,
+                error_message = NULL, next_retry_at = NULL
+            WHERE job_id = ?""" + guardia,
+            (result_json, now, now, job_id) + extra,
         )
         conn.commit()
         return cur.rowcount > 0
@@ -529,6 +582,8 @@ def mark_failed(
     error_message: str,
     retry: bool = True,
     db_path: str = DEFAULT_DB_PATH,
+    retry_delay_seconds: float = 0,
+    locked_by: str = None,
 ) -> bool:
     """
     Marca un fallo, incrementa `attempts` y libera el lock.
@@ -536,11 +591,17 @@ def mark_failed(
     Si `retry=True` y attempts (tras incrementar) < max_attempts, el job
     vuelve a 'pending' para que un worker lo reintente más tarde. Si no,
     (o si se agotaron los intentos) queda en 'failed' definitivamente.
+
+    B3 · H-02: con ``retry_delay_seconds > 0`` el reintento NO es inmediato:
+    se escribe ``next_retry_at`` y ``claim_next_job`` no lo reclama antes. Con
+    ``locked_by``, solo actua si ese worker sigue siendo el dueño del job.
     """
     now = _now_iso()
+    guardia, extra = _guardia_de_propietario(locked_by)
     with _connect(db_path) as conn:
         row = conn.execute(
-            "SELECT attempts, max_attempts FROM jobs WHERE job_id = ?", (job_id,)
+            "SELECT attempts, max_attempts FROM jobs WHERE job_id = ?" + guardia,
+            (job_id,) + extra,
         ).fetchone()
         if row is None:
             return False
@@ -562,10 +623,13 @@ def mark_failed(
         }
         if not will_retry:
             fields["finished_at"] = now
+            fields["next_retry_at"] = None
+        elif retry_delay_seconds and retry_delay_seconds > 0:
+            fields["next_retry_at"] = _instante_de_reintento(retry_delay_seconds)
 
         set_clause = ", ".join(f"{k} = ?" for k in fields)
-        values = list(fields.values()) + [job_id]
-        cur = conn.execute(f"UPDATE jobs SET {set_clause} WHERE job_id = ?", values)
+        values = list(fields.values()) + [job_id] + list(extra)
+        cur = conn.execute(f"UPDATE jobs SET {set_clause} WHERE job_id = ?" + guardia, values)
         conn.commit()
         return cur.rowcount > 0
 
@@ -587,21 +651,22 @@ def mark_cancelled(job_id: str, db_path: str = DEFAULT_DB_PATH) -> bool:
         return cur.rowcount > 0
 
 
-def mark_skipped(job_id: str, message: str = "", db_path: str = DEFAULT_DB_PATH) -> bool:
+def mark_skipped(job_id: str, message: str = "", db_path: str = DEFAULT_DB_PATH,
+                 locked_by: str = None) -> bool:
     """
     Marca un job como 'skipped' (no es un fallo: p.ej. job_type sin handler
-    implementado todavía). Libera el lock.
+    implementado todavía). Libera el lock. ``locked_by``: ver ``mark_complete``.
     """
     now = _now_iso()
+    guardia, extra = _guardia_de_propietario(locked_by)
     with _connect(db_path) as conn:
         cur = conn.execute(
             """
             UPDATE jobs
             SET status = 'skipped', error_message = ?, finished_at = ?,
                 updated_at = ?, locked_by = NULL, locked_at = NULL
-            WHERE job_id = ?
-            """,
-            (message or None, now, now, job_id),
+            WHERE job_id = ?""" + guardia,
+            (message or None, now, now, job_id) + extra,
         )
         conn.commit()
         return cur.rowcount > 0
@@ -627,12 +692,21 @@ def heartbeat(job_id: str, worker_id: str, db_path: str = DEFAULT_DB_PATH) -> bo
         return cur.rowcount > 0
 
 
-def release_stale_jobs(timeout_seconds: int, db_path: str = DEFAULT_DB_PATH) -> list:
+def release_stale_jobs(timeout_seconds: int, db_path: str = DEFAULT_DB_PATH,
+                       retry_delay_seconds: float = 0) -> list:
     """
     Busca jobs 'running' cuyo locked_at sea más antiguo que `timeout_seconds`
-    (worker probablemente muerto/colgado sin heartbeat) y los recupera:
-    - si les quedan reintentos (attempts < max_attempts): vuelven a 'pending'.
+    (worker probablemente muerto/colgado sin heartbeat) y los recupera
+    GASTANDO UN INTENTO (``attempts + 1``):
+    - si tras gastarlo les quedan (attempts < max_attempts): vuelven a 'pending'
+      (con ``next_retry_at`` si se pide ``retry_delay_seconds``).
     - si no: pasan a 'failed' con un mensaje claro.
+
+    B3 (USABLE-V1) · H-02. Antes la liberacion NO incrementaba ``attempts``:
+    un job que matara al proceso (OOM, segfault de una dependencia) volvia a
+    'pending' para siempre y tumbaba al worker en cada vuelta -- bucle
+    infinito medido (5 liberaciones seguidas, ``attempts`` = 0). Morir a mitad
+    de un job ES un intento: misma regla que ``mark_failed``.
 
     Devuelve la lista de job_id afectados. No se pierde ningún job: siempre
     queda en un estado terminal o vuelve a la cola.
@@ -648,9 +722,11 @@ def release_stale_jobs(timeout_seconds: int, db_path: str = DEFAULT_DB_PATH) -> 
             "WHERE status = 'running' AND locked_at IS NOT NULL AND locked_at < ?",
             (cutoff,),
         ).fetchall()
+        reintento = (_instante_de_reintento(retry_delay_seconds)
+                     if retry_delay_seconds and retry_delay_seconds > 0 else None)
         for row in rows:
             job_id = row["job_id"]
-            attempts = row["attempts"] or 0
+            attempts = (row["attempts"] or 0) + 1
             # max_attempts=0 es válido ("sin reintentos"); no caer al default 3.
             max_attempts = row["max_attempts"] if row["max_attempts"] is not None else 3
             if attempts < max_attempts:
@@ -658,22 +734,23 @@ def release_stale_jobs(timeout_seconds: int, db_path: str = DEFAULT_DB_PATH) -> 
                     """
                     UPDATE jobs
                     SET status = 'pending', locked_by = NULL, locked_at = NULL,
-                        updated_at = ?,
+                        updated_at = ?, attempts = ?, next_retry_at = ?,
                         error_message = 'liberado: worker sin actividad (stale)'
-                    WHERE job_id = ?
+                    WHERE job_id = ? AND status = 'running'
                     """,
-                    (now, job_id),
+                    (now, attempts, reintento, job_id),
                 )
             else:
                 conn.execute(
                     """
                     UPDATE jobs
                     SET status = 'failed', locked_by = NULL, locked_at = NULL,
-                        updated_at = ?, finished_at = ?,
+                        updated_at = ?, finished_at = ?, attempts = ?,
+                        next_retry_at = NULL,
                         error_message = 'fallido: worker sin actividad (stale) y sin reintentos'
-                    WHERE job_id = ?
+                    WHERE job_id = ? AND status = 'running'
                     """,
-                    (now, now, job_id),
+                    (now, now, attempts, job_id),
                 )
             affected.append(job_id)
         conn.commit()
@@ -691,6 +768,25 @@ def get_counts_by_status(workspace: str = None, db_path: str = DEFAULT_DB_PATH) 
     with _connect(db_path) as conn:
         rows = conn.execute(sql, params).fetchall()
     return {row["status"]: row["n"] for row in rows}
+
+
+def comprobar_escritura(db_path: str) -> None:
+    """Sonda de ESCRITURA real sobre `jobs.db`; lanza `sqlite3.Error` si no se puede.
+
+    B3 · H-02 (revision independiente, F2). Abrir la base no prueba nada: con
+    un `jobs.db` de solo lectura `connect` y hasta `BEGIN IMMEDIATE` pasan
+    (medido) y el primer fallo llega al reclamar un job, dentro del bucle. Se
+    escribe de verdad (una tabla dentro de una transaccion) y se deshace.
+    """
+    conn = sqlite3.connect(db_path, timeout=30, isolation_level=None)
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            conn.execute("CREATE TABLE _s9k_sonda_escritura (x INTEGER)")
+        finally:
+            conn.execute("ROLLBACK")
+    finally:
+        conn.close()
 
 
 def resolve_db_path(db_path: str = None) -> str:
@@ -928,6 +1024,19 @@ def _cmd_selftest(args):
 
 
 def main():
+    import sys
+    if "--ruta-despliegue" in sys.argv[1:]:
+        # B3 · H-37: `deploy.sh` pide AQUI la ruta de `jobs.db` del despliegue
+        # en vez de escribir su propio literal. Solo stdlib: corre antes de
+        # que exista ningun venv. Va ANTES del parser de subcomandos, que no
+        # sabe de opciones con valor.
+        p3 = argparse.ArgumentParser()
+        p3.add_argument("--ruta-despliegue", action="store_true")
+        p3.add_argument("--state-root", required=True)
+        a3 = p3.parse_args()
+        print(ruta_de_despliegue(a3.state_root))
+        return
+
     parser = argparse.ArgumentParser(
         description="Cola de trabajos SQLite para el pipeline de fuentes externas."
     )
@@ -941,7 +1050,6 @@ def main():
     # Soporte para llamada directa: python job_store.py --init / --selftest
     args, _ = parser.parse_known_args()
 
-    import sys
     raw = sys.argv[1:]
     if "--selftest" in raw:
         _cmd_selftest(args)

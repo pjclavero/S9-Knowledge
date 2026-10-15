@@ -1,0 +1,54 @@
+# UNIDAD CANONICA del worker de la cola de jobs (B3 · USABLE-V1 · H-02).
+#
+# UNA SOLA FUENTE. Este fichero es la unica plantilla de la unidad: lo instala
+# `deploy/scripts/deploy.sh` (pasos 7-13) y lo instala el rol Ansible
+# `systemd` COPIANDO ESTE MISMO FICHERO desde la release activa. No hay una
+# segunda version en Jinja: es exactamente lo que produjo H-08 con el visor
+# (dos unidades, una con `User=` y otra sin el).
+#
+# Lo que hace: `--loop` (DAEMON: una cola vacia no lo termina), libera los
+# jobs huerfanos de un worker muerto gastando un intento
+# (`--release-stale-seconds`) y reintenta los fallos transitorios con
+# retroceso (`--retry-backoff-seconds`). `Restart=always` lo devuelve si muere.
+#
+# Usuario: el del servicio (`s9k_service_user` de Ansible, `www-data` por
+# defecto), NO root. `deploy.sh` lee `User=`/`Group=` de AQUI para dejar la
+# cola y el almacen de propuestas a su nombre; Ansible comprueba que coinciden
+# con `s9k_service_user`. `UMask=0077`: lo que escribe (propuestas, `jobs.db`
+# si la crea el) nace 0600.
+#
+# El secreto de Neo4j vive en /etc/s9-knowledge (root, 0700), que este usuario
+# no puede atravesar. `ExecStartPre=+` (como root) lo copia 0600 a su
+# RuntimeDirectory, en memoria (/run). Con `-`: si falta, el worker arranca
+# igual y la ingesta falla CERRADO con GRAPH_OBSERVATION_UNCONFIGURED, visible
+# en la web, en vez de una unidad muerta que deja la cola en `pending` sin
+# decir nada. `deploy.sh` bloquea antes si el fichero falta o no es 0600.
+#
+# La configuracion es `worker.env` (EnvironmentFile): S9K_JOBS_DB y
+# S9K_V3_REVIEW_PROPOSALS_DIR con el MISMO valor que `viewer.env` (lo exige
+# `validate_worker_env`) y la conexion de SOLO LECTURA al grafo.
+[Unit]
+Description=S9 Knowledge - worker de la cola de jobs
+After=network-online.target
+Wants=network-online.target
+AssertPathExists=/opt/s9-knowledge/current/data-engine
+AssertPathExists=/etc/s9-knowledge/worker.env
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+UMask=0077
+NoNewPrivileges=true
+WorkingDirectory=/opt/s9-knowledge/current/data-engine
+EnvironmentFile=/etc/s9-knowledge/worker.env
+RuntimeDirectory=s9-knowledge-worker
+RuntimeDirectoryMode=0700
+ExecStartPre=+-/usr/bin/install -m 0600 -o www-data -g www-data /etc/s9-knowledge/secrets/neo4j_worker_password /run/s9-knowledge-worker/neo4j_password
+ExecStart=/usr/bin/env S9K_NEO4J_PASSWORD_FILE=/run/s9-knowledge-worker/neo4j_password /opt/s9-knowledge/current/data-engine/.venv/bin/python /opt/s9-knowledge/current/data-engine/app/jobs/worker.py --loop --sleep-seconds 5 --release-stale-seconds 600 --retry-backoff-seconds 30
+Restart=always
+RestartSec=5
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target

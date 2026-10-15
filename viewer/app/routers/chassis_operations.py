@@ -246,7 +246,12 @@ def _fila(job: dict, vocabulario: Optional[frozenset]) -> dict:
         "created_at": job.get("created_at") or None,
         "updated_at": job.get("updated_at") or None,
         "attempts": job.get("attempts"),
-        "has_error": bool(job.get("has_error") or job.get("error_code")),
+        # B3 · H-02: para un ADMIN `redact_job` no recorta (no hay `has_error`),
+        # y la columna «Incidencia» decía «no» sobre un job `failed` (medido en
+        # el E2E de B3). La SEÑAL se deriva también de `error_message`; el
+        # texto sigue sin pintarse.
+        "has_error": bool(job.get("has_error") or job.get("error_code")
+                          or job.get("error_message")),
     }
 
 

@@ -192,8 +192,12 @@ python data-engine/app/cli/jobs.py list --workspace leyenda
 Luego, con el visor arrancado (paso 5 de esta guía), abrir
 `http://<IP-VM105>:8088/jobs` y comprobar que aparece el job `echo` en
 estado `complete`. Detalle completo en `docs/15-jobs-worker-panel.md`. Esta
-fase no instala systemd para el worker; se ejecuta manualmente o vía
-`scripts/run-jobs-worker.sh`.
+guía (layout legacy de VM105) no instala systemd para el worker; se ejecuta
+manualmente. En el layout de releases, desde B3 (USABLE-V1 · H-02) el worker
+es un servicio que instala `deploy/scripts/deploy.sh`
+(`data-engine/systemd/s9-knowledge-worker.service`; ver `deploy/README.md`,
+«Worker de jobs como servicio»). El antiguo `scripts/run-jobs-worker.sh` se
+ha retirado.
 
 ## Qué NO hace esta guía
 

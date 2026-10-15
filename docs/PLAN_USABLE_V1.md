@@ -28,11 +28,11 @@ usuarios/permisos → material → ingestión → progreso → revisión → apr
 |---|---|
 | CURRENT_MAIN | `751995cb5254f985757f726284653c5587890aa7` (squash de #271 B2; #270 = `8d29a00`, #269 = `2dd6d47`, #268 = `8964c36`) |
 | CURRENT_PHASE | **B** (cerrar rango 1); Fase A cerrada con #268 |
-| CURRENT_HIT | **B3** (H-02 worker desatendido); B1 y B2 cerrados |
-| OPEN_R1 | H-02 · H-01 (+H-43) **VERIFIED (arnés local), RC-E2E PENDING** (#271) · H-03 **VERIFIED** (#269) |
+| CURRENT_HIT | **B3** (H-02 worker desatendido) en PR #273 (revisión independiente pendiente); B1 y B2 cerrados |
+| OPEN_R1 | H-02 **VERIFIED (arnés local), RC-E2E PENDING** (#273, sin mergear) · H-01 (+H-43) **VERIFIED (arnés local), RC-E2E PENDING** (#271) · H-03 **VERIFIED** (#269) |
 | OPEN_R2_BLOQUEANTES | H-04/H-18 (lado deploy cubierto en #271; el resto, Fase C), H-05, H-06, H-07, H-09, H-11/H-48, H-14, H-19, H-44 (código y arnés local en #271; RC-E2E PENDING), H-50 |
-| CURRENT_PR | PR #271 (B2, abierto; absorbe el contenido de #267 por cherry-pick) |
-| NEXT_TASK | B3: worker desatendido (H-02) + venv del motor (deuda heredada de B2) |
+| CURRENT_PR | PR #273 (B3, abierto, base `7841f85`) |
+| NEXT_TASK | revisión independiente de #273 (B3); después FASE C |
 | BLOCKERS | ninguno técnico; ensayo RC exige autorización del operador para VM110/VM111 |
 | DEBT_PARKED | WORKTREE-HYGIENE (147 worktrees, 435 ramas, 3 stashes), DEPENDENCY-MAINTENANCE (7 Dependabot, #209 major), CI-CALIBRATION-PERFORMANCE (job de 77 min serial) |
 | E2E_PENDING | P4, P5, B2 completo (RC-E2E PENDING en #266/#267/#271), P15 |
@@ -189,7 +189,15 @@ cuando el criterio lo nombra.
 ### B3 — H-02 · Worker desatendido
 - **Cadena:** job → cola → consumer → loop → servicio → ejecución → resultado → error/retry → restart.
 - **Criterio de cierre:** unidad de servicio canónica instalada por el despliegue; `--loop` real sin `rc=0` inmediato; stale/retry/cancel con tests; un job creado desde `/panel/operations` se procesa sin intervención manual; error observable en la web.
-- **Estado:** NOT_STARTED.
+- **Estado:** IMPLEMENTED · TESTED · CI_GATED · **H-02 VERIFIED (arnés local) · RC-E2E PENDING** · **PR:** #273 (rama `feat/b3-h02-worker-desatendido`, base `7841f85`), revisión independiente pendiente.
+- **Reproducido antes:** `--loop` rc=0 al instante; stale ×5 → `attempts=0`; `next_retry_at` futuro reclamado; `cancelled` sobrescrito a `complete`; `heartbeat()` sin llamadores; ninguna unidad de worker en ningún ref; 4 defaults de `jobs.db`. Encontrado por el E2E: la columna «Incidencia» de `/panel/operations` decía «no» a un admin sobre un job `failed`.
+- **Demostrado (arnés local, CI required):** web → worker arrancado con los flags de la unidad canónica, su `worker.env` y su `WorkingDirectory` → `jobs.db` + propuestas en el almacén de `review_paths` → `/jobs`, `/panel/operations`, `/panel/review` → reinicio (SIGTERM rc=0) → segundo job procesado solo (`viewer/tests/test_b3_worker_desatendido_e2e.py`); negativos worker parado, error permanente/transitorio acotado, worker matado a mitad, `max_attempts` agotado, `--loop` vivo (rc=124) / `--once` rc=0 (`data-engine/app/tests/test_b3_worker_desatendido.py`); unidad por efecto y pasos 2/7/13 reales de `deploy.sh` (`deploy/tests/test_b3_worker_unidad.py`).
+- **Unidad canónica:** `data-engine/systemd/s9-knowledge-worker.service` (única plantilla; `deploy.sh` la instala, habilita y exige `active`; el rol `systemd` copia el mismo fichero). `User=www-data`, `UMask=0077`, `Restart=always`, `--loop --release-stale-seconds 600 --retry-backoff-seconds 30`, intérprete = venv del motor que crea `deploy.sh` (deuda de B2 cerrada).
+- **H-37:** VERIFIED (arnés local): `job_store.ruta_de_despliegue` es la autoridad; `deploy.sh` la pide; las plantillas la declaran; `run-jobs-worker.sh` retirado. **H-33:** sigue OPEN (no tocado).
+- **Calibrador:** `mutaciones_b3_worker.py` 25/25 CALIBRADA (346 s) en el job required «Calibracion de gates» (11 iniciales + 10 de la ronda de corrección + 4 de la ronda final: MN/MS el llamador cierra sin `locked_by`, MP sonda con COMMIT, MQ contador sin reinicio). Ronda final (APTO CON OBSERVACIONES): secreto vacío bloquea en `validate_secret_file`.
+- **Revisión independiente (ronda 1): NO APTO, corregido en #273:** F1 receta de primera release sin `worker.env` (añadida + testigo); F2 cola de solo lectura/corrupta = daemon `active` en silencio (sonda de escritura al arrancar y `rc=3` tras 5 vueltas fallidas seguidas); F3 rollback sin revertir el worker (`lib.sh::revertir_worker`: `disable --now` si la release previa no tiene venv); F5 `S9K_V3_REVIEW_DATABASE_PATH` en `worker.env.example` e igualdad con `viewer.env`; F7/F8 testigos y mutaciones ME/MC/MD/MA/MF; F13 `complete` limpia `error_message`.
+- **Techo:** systemd real, usuario del servicio sobre el state root real, propietario de `-wal/-shm` creados por root, reinicio de máquina, Neo4j/apply. H-08 sigue abierto (el visor de `deploy.sh` corre como root). **F6:** sin tiempo máximo por trabajo: un handler colgado sigue latiendo y bloquea la cola. **F10:** con `TimeoutStopSec=120` un trabajo más largo lo mata systemd al parar (queda huérfano y se libera gastando un intento).
+- **Deuda:** worker sin verificación de identidad de release (solo `is-active` ×3); `worker.env` sigue siendo manual (ahora obligatorio: un upgrade sin él bloquea en el paso 6). **F4:** la cancelación es solo del ESTADO: el paquete de propuestas que el handler ya escribió sigue visible en `/panel/review`.
 
 ## 7. Registro de cambios del plan
 
@@ -197,5 +205,6 @@ cuando el criterio lo nombra.
 |---|---|---|
 | 2026-10-11 | Creación del plan canónico a partir de la auditoría R1+R2 | `docs/audits/AUDITORIA_GLOBAL_S9_KNOWLEDGE_2026-10-10.md` (R2.11, R2.16) |
 | 2026-10-11 | Fase A cerrada (#268 → `8964c36`); B1/H-03 VERIFIED (#269 → `2dd6d47`); R1 abiertos 3 → 2; CURRENT_HIT → B2 | PR #268, PR #269, log CI run `38127086116` y runs sobre `1ce168b` (34/34 pass) |
-| 2026-10-12 | B2 cerrado (#271 → `751995c`): H-01/H-43/H-44/H-49/H-35 VERIFIED (arnés local), H-04/H-18 solo lado deploy; RC-E2E PENDING; R1 abiertos 2 → 1; CURRENT_HIT → B3 | PR #271 (HEAD `97f864c`, 3 rondas de revisión independiente), CI 17×2 pass |
 | 2026-10-11 | B2 abierto (#271): H-01/H-43/H-44/H-49 implementados y calibrados; H-04/H-18 solo lado deploy; contenido de #267 absorbido; P5 → CI_GATED; RC-E2E PENDING | PR #271 |
+| 2026-10-12 | B2 cerrado (#271 → `751995c`): H-01/H-43/H-44/H-49/H-35 VERIFIED (arnés local), H-04/H-18 solo lado deploy; RC-E2E PENDING; R1 abiertos 2 → 1; CURRENT_HIT → B3 | PR #271 (HEAD `97f864c`, 3 rondas de revisión independiente), CI 17×2 pass |
+| 2026-10-12 | B3 abierto (#273): H-02 VERIFIED (arnés local), H-37 VERIFIED (arnés local); unidad canónica del worker instalada por `deploy.sh`; calibrador 25/25 tras dos rondas de corrección (NO APTO → F1–F9; APTO CON OBSERVACIONES → ronda final); RC-E2E PENDING | PR #273 |

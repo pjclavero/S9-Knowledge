@@ -712,3 +712,75 @@ paso4_migrar_o_validar_estado() {
         *) die "jobs en ${_jobs} con decision=PROCEED: salida de detect_state incoherente" ;;
     esac
 }
+
+# ---------------------------------------------------------------------------
+# preparar_estado_del_worker <user> <group> <jobs_db> <proposals_dir>
+#   B3 (USABLE-V1) · H-02. Deja a nombre del usuario del servicio del worker el
+#   estado que COMPARTE con el visor: el directorio de la cola, `jobs.db` y sus
+#   ficheros WAL si ya existen, y el almacén de propuestas. Idempotente.
+#
+#   POR QUÉ: el visor que arranca `deploy.sh` corre como root (H-08, sin
+#   resolver) y crea `jobs.db` 0644 root:root; el worker corre como el usuario
+#   del servicio y, sin esto, abriría la cola en solo lectura y fallaría en el
+#   primer `claim` ("attempt to write a readonly database"). Al revés no hay
+#   problema: root lee y escribe ficheros ajenos (y SQLite, cuando corre como
+#   root, crea sus -wal/-shm con el dueño de la base; no medido aquí: techo).
+#   rc=0 ok; rc!=0 si falta un argumento o falla install/chown.
+# ---------------------------------------------------------------------------
+preparar_estado_del_worker() {
+    local user="${1:?usuario}" group="${2:?grupo}" jobs_db="${3:?jobs.db}" props="${4:?propuestas}" f
+    install -d -m 0750 -o "${user}" -g "${group}" "$(dirname -- "${jobs_db}")" "${props}"
+    for f in "${jobs_db}" "${jobs_db}-wal" "${jobs_db}-shm"; do
+        if [ -e "${f}" ]; then chown "${user}:${group}" -- "${f}"; fi
+    done
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# worker_activo <unit> [<lecturas>] [<pausa>]
+#   B3 · H-02. `active` en TODAS las lecturas (por defecto 3, cada 2 s). Una
+#   unidad con `Restart=always` cuyo proceso muere al arrancar alterna entre
+#   `activating` y `active`: una sola lectura afortunada la daría por buena.
+# ---------------------------------------------------------------------------
+worker_activo() {
+    local unit="${1:?unidad}" lecturas="${2:-3}" pausa="${3:-2}" i
+    for i in $(seq 1 "${lecturas}"); do
+        systemctl is-active --quiet "${unit}" || return 1
+        if [ "${i}" -lt "${lecturas}" ]; then sleep "${pausa}"; fi
+    done
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# revertir_worker <prev_release_dir|""> <unit_name> <unit_dest> <release_id>
+#   B3 · H-02 (revision independiente, F3). El rollback de los pasos 14/14b/16
+#   volvia `current` a la release previa y se limitaba a REINICIAR el worker.
+#   Si la release previa no trae el venv del motor (toda release anterior a
+#   B3), la unidad nueva apunta a un interprete que no existe: el worker quedaba
+#   HABILITADO y en bucle de reinicios. Ahora:
+#     - la release previa TIENE `data-engine/.venv/bin/python` ejecutable:
+#       se restaura la unidad respaldada en el paso 8 (`<dest>.bak-<id>`) si la
+#       hay, `daemon-reload` y reinicio del worker;
+#     - NO lo tiene (o no hay release previa): `systemctl disable --now`, se
+#       restaura la unidad respaldada si la habia y, si no, se QUITA la nueva.
+#   rc=0 siempre que systemctl responda; los errores se avisan.
+# ---------------------------------------------------------------------------
+revertir_worker() {
+    local prev="${1:-}" unit="${2:?unidad}" dest="${3:?destino}" release_id="${4:?release}"
+    local respaldo="${dest}.bak-${release_id}"
+    if [ -n "${prev}" ] && [ -x "${prev}/data-engine/.venv/bin/python" ]; then
+        if [ -f "${respaldo}" ]; then cp -a "${respaldo}" "${dest}"; fi
+        systemctl daemon-reload || warn "daemon-reload falló en el rollback del worker"
+        systemctl restart "${unit}" || warn "no se pudo reiniciar el worker en el rollback"
+        return 0
+    fi
+    warn "rollback: la release previa no puede ejecutar el worker; se deshabilita ${unit}"
+    systemctl disable --now "${unit}" || warn "no se pudo deshabilitar ${unit}"
+    if [ -f "${respaldo}" ]; then
+        cp -a "${respaldo}" "${dest}"
+    else
+        rm -f -- "${dest}"
+    fi
+    systemctl daemon-reload || warn "daemon-reload falló en el rollback del worker"
+    return 0
+}
