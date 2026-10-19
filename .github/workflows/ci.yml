@@ -1385,6 +1385,27 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/mutaciones_b2_fresh_install.py
 
+      # B3 (USABLE-V1) · H-02/H-37 — un trabajo creado desde la web lo procesa
+      # el worker COMO SERVICIO, sin intervencion manual. Veinticinco mutaciones: el
+      # daemon vuelve a `if once or limit`, stale sin gastar intentos,
+      # `next_retry_at` ignorado, handler que se traga la excepcion, unidad
+      # con un interprete inexistente, default de `jobs.db` divergente (en
+      # deploy.sh y en la plantilla), cierre sin dueño (cancelacion), latido
+      # apagado, deploy.sh sin `enable` del worker y sin venv del motor, y las
+      # diez de la revision independiente (SIGTERM, stale en cada vuelta,
+      # vuelta fallida, guardia de mark_failed, techo del retroceso, sonda de
+      # escritura, limite de vueltas, receta, rollback, decisiones). Cada
+      # rojo con su CAUSA; collected > 0 y skipped == 0 en base, mutacion y
+      # restauracion. La base corre los cuatro testigos enteros; cada mutacion,
+      # solo sus pruebas nombradas (< 10 min en total, medido).
+      #
+      # TECHO: no ejerce systemd real ni el reinicio de maquina (RC-E2E PENDING).
+      - name: "Un trabajo creado desde la web se procesa sin intervencion manual: se pone ROJO ante cada defecto (B3)"
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          S9K_ALLOW_REAL_INGEST: ""
+        run: python3 scripts/calibracion/mutaciones_b3_worker.py
+
       # MICROCARRIL DE SANEAMIENTO DE INSTRUMENTOS — los cuatro
       # `scripts/calibrar_panel_*.py`. Son los arneses de los cuatro paneles
       # del chasis (B operations, C review, F sources, G entities): cada uno

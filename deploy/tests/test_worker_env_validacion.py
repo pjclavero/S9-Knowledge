@@ -29,15 +29,16 @@ VALIDADOR = REPO / "deploy" / "scripts" / "validate_deploy.sh"
 EJEMPLO = REPO / "deploy" / "config" / "worker.env.example"
 
 
-def _correr(env_file: Path) -> subprocess.CompletedProcess:
+def _correr(env_file: Path, viewer_env: Path = None) -> subprocess.CompletedProcess:
     """Invoca la función real del script real. Sin reimplementarla aquí."""
     # EL rc SE CAPTURA, NO SE HEREDA. `validate_deploy.sh` trae `set -e`: al
     # hacerle `source`, un retorno distinto de 0 mata el shell ANTES del
     # `echo`, y el arnes se quedaba sin rc que leer aunque el validador hubiera
     # hecho exactamente lo correcto. MEDIDO: las cuatro filas de rojo daban
     # "el validador no llego a devolver un rc" con el stderr correcto al lado.
+    visor = f' "{viewer_env}"' if viewer_env else ""
     guion = (
-        f'. "{VALIDADOR}"; rc=0; validate_worker_env "{env_file}" || rc=$?; '
+        f'. "{VALIDADOR}"; rc=0; validate_worker_env "{env_file}"{visor} || rc=$?; '
         f'echo "RC=${{rc}}"'
     )
     return subprocess.run(["bash", "-c", guion], capture_output=True, text=True)
@@ -67,6 +68,10 @@ def _env(tmp_path, secreto: Path, **cambios) -> Path:
         "S9K_NEO4J_URI": "bolt://127.0.0.1:7687",
         "S9K_NEO4J_USER": "s9k_worker_lector",
         "S9K_NEO4J_PASSWORD_FILE": str(secreto),
+        # B3 · H-02: estado compartido con el visor, obligatorio.
+        "S9K_JOBS_DB": "/var/lib/s9-knowledge/jobs/jobs.db",
+        "S9K_V3_REVIEW_PROPOSALS_DIR": "/var/lib/s9-knowledge/reviews-v3/proposals",
+        "S9K_V3_REVIEW_DATABASE_PATH": "/var/lib/s9-knowledge/reviews-v3/review.sqlite3",
     }
     valores.update(cambios)
     fichero = tmp_path / "worker.env"
@@ -86,16 +91,56 @@ def test_C0_un_worker_env_correcto_pasa(tmp_path, secreto):
     assert _rc(resultado) == 0, resultado.stderr
 
 
-def test_ausente_AVISA_pero_no_bloquea(tmp_path):
-    """AUSENTE != INVÁLIDO, y es deliberado.
+def test_ausente_BLOQUEA_desde_b3(tmp_path):
+    """B3 · H-02: AUSENTE YA ES BLOQUEO (antes solo avisaba).
 
-    Hoy no hay ninguna unidad de worker instalada; exigir el fichero rompería
-    todos los despliegues actuales. Pero callarse tampoco vale: se avisa, y el
-    aviso nombra el código con el que el operador se lo encontraría.
+    Hasta B3 no habia unidad de worker y exigir el fichero habria roto los
+    despliegues. Desde B3 `deploy.sh` instala y arranca el worker y este
+    fichero es su EnvironmentFile: sin el, la ingesta pedida desde la web se
+    queda `pending`. El mensaje sigue nombrando la consecuencia visible.
     """
     resultado = _correr(tmp_path / "no-existe.env")
-    assert _rc(resultado) == 0
-    assert "GRAPH_OBSERVATION_UNCONFIGURED" in resultado.stderr, resultado.stderr
+    assert _rc(resultado) == 1, resultado.stderr
+    assert "BLOCK(worker)" in resultado.stderr, resultado.stderr
+    assert "pending" in resultado.stderr, resultado.stderr
+
+
+@pytest.mark.parametrize("falta", ["S9K_JOBS_DB", "S9K_V3_REVIEW_PROPOSALS_DIR",
+                                   "S9K_V3_REVIEW_DATABASE_PATH"])
+def test_falta_el_estado_compartido_BLOQUEA(tmp_path, secreto, falta):
+    resultado = _correr(_env(tmp_path, secreto, **{falta: None}))
+    assert _rc(resultado) == 1, resultado.stderr
+    assert falta in resultado.stderr
+
+
+def _viewer_env(tmp_path, **valores) -> Path:
+    fichero = tmp_path / "viewer.env"
+    base = {"S9K_JOBS_DB": "/var/lib/s9-knowledge/jobs/jobs.db",
+            "S9K_V3_REVIEW_PROPOSALS_DIR": "/var/lib/s9-knowledge/reviews-v3/proposals",
+            "S9K_V3_REVIEW_DATABASE_PATH": "/var/lib/s9-knowledge/reviews-v3/review.sqlite3"}
+    base.update(valores)
+    fichero.write_text("".join(f"{k}={v}\n" for k, v in base.items()), encoding="utf-8")
+    return fichero
+
+
+def test_mismo_estado_que_el_visor_pasa(tmp_path, secreto):
+    # Normalizado: la barra final o un `..` no son «otra» ruta.
+    visor = _viewer_env(tmp_path, S9K_JOBS_DB="/var/lib/s9-knowledge/x/../jobs/jobs.db")
+    resultado = _correr(_env(tmp_path, secreto), visor)
+    assert _rc(resultado) == 0, resultado.stderr
+
+
+@pytest.mark.parametrize("var,otro", [
+    ("S9K_JOBS_DB", "/var/lib/s9-knowledge/state/jobs.db"),
+    ("S9K_V3_REVIEW_PROPOSALS_DIR", "/var/lib/s9-knowledge/otras/proposals"),
+    ("S9K_V3_REVIEW_DATABASE_PATH", "/var/lib/s9-knowledge/otras/review.sqlite3"),
+])
+def test_estado_distinto_del_visor_BLOQUEA(tmp_path, secreto, var, otro):
+    """Dos valores distintos no dan error en ningún proceso: dan una cola
+    que nadie mira. Por eso se compara aquí."""
+    resultado = _correr(_env(tmp_path, secreto), _viewer_env(tmp_path, **{var: otro}))
+    assert _rc(resultado) == 1, "NO BLOQUEO: " + resultado.stderr.replace("\n", " | ")
+    assert var in resultado.stderr and "difiere" in resultado.stderr, resultado.stderr
 
 
 @pytest.mark.parametrize(
@@ -173,3 +218,12 @@ def test_el_ejemplo_no_trae_el_secreto_en_una_variable():
         assert not limpia.startswith("S9K_NEO4J_PASSWORD="), (
             f"{EJEMPLO.name}:{numero} define el secreto en una variable"
         )
+
+
+def test_un_secreto_VACIO_bloquea(tmp_path, secreto):
+    """Ronda final de B3: `install -m 0600 /dev/null` deja un fichero valido en
+    forma y vacio; pasaba la puerta y la ingesta fallaba en ejecucion."""
+    secreto.write_text("", encoding="utf-8")
+    resultado = _correr(_env(tmp_path, secreto))
+    assert _rc(resultado) == 1, "SECRETO VACIO ACEPTADO: " + resultado.stderr.replace("\n", " | ")
+    assert "vacio" in resultado.stderr, resultado.stderr

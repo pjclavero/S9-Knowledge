@@ -4,6 +4,7 @@
 s9k_root: /opt/s9-knowledge
 s9k_config_root: /etc/s9-knowledge
 s9k_viewer_service: s9-knowledge-viewer.service
+s9k_worker_service: s9-knowledge-worker.service
 s9k_providers_env: "{{ s9k_config_root }}/providers.env"
 s9k_service_user: www-data
 s9k_service_group: www-data
