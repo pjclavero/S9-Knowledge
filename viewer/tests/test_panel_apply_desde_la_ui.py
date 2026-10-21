@@ -38,6 +38,7 @@ necesita escribir para ser cierto.
 """
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import os
 import re
@@ -1263,6 +1264,15 @@ def test_si_el_proceso_muere_tras_reservar_no_se_afirma_conocimiento(
     from app.services import v3_apply as servicio
 
     motor_real = servicio._motor
+    # Testigo de que la muerte simulada OCURRIÓ de verdad dentro de `apply_v3`.
+    # Sin él, aceptar `CancelledError` (ver abajo) dejaría verde una mutación
+    # que no llegara a alcanzar `apply_v3`: cualquier cancelación del arnés
+    # pasaría por la muerte que se quiere simular.
+    murio = []
+
+    def apply_v3_que_muere(*a, **k):
+        murio.append(True)
+        raise KeyboardInterrupt("el proceso muere aquí")
 
     def motor_que_muere():
         # Se sustituye LA PIEZA POR SU NOMBRE (`apply_v3`), no por su posición.
@@ -1270,9 +1280,7 @@ def test_si_el_proceso_muere_tras_reservar_no_se_afirma_conocimiento(
         # índice que seguía siendo válido después de que el puente cambiara de
         # forma, así que la mutación habría dejado de matar nada sin decirlo.
         piezas = motor_real()
-        piezas.apply_v3 = lambda *a, **k: (_ for _ in ()).throw(
-            KeyboardInterrupt("el proceso muere aquí")
-        )
+        piezas.apply_v3 = apply_v3_que_muere
         return piezas
 
     monkeypatch.setattr(servicio, "_motor", motor_que_muere)
@@ -1281,7 +1289,16 @@ def test_si_el_proceso_muere_tras_reservar_no_se_afirma_conocimiento(
         operador.post("/panel/operations/aplicaciones",
                       data={"trabajo": job_id, "csrf_token": token})
     except BaseException as exc:  # noqa: BLE001 - la muerte puede propagarse
-        assert isinstance(exc, KeyboardInterrupt), exc
+        # Cómo llega la muerte al hilo del test es un detalle del ARNÉS, no del
+        # producto. Hasta starlette 1.8.0 el `TestClient` propagaba la
+        # `KeyboardInterrupt` tal cual; desde 1.9.0 (TestClient en streaming)
+        # anyio cancela la tarea hermana y aquí llega
+        # `concurrent.futures.CancelledError`. Las dos son la misma muerte; la
+        # garantía real son las aserciones de estado de abajo.
+        assert isinstance(
+            exc, (KeyboardInterrupt, concurrent.futures.CancelledError)
+        ), exc
+    assert murio, "la muerte simulada no llegó a ejecutarse"
     # Se restaura SÓLO el motor. `monkeypatch.undo()` revertiría también los
     # `setenv` de las fixtures —medido: dejaba el servicio apuntando al almacén
     # por defecto y la pantalla decía «sin_plan»—, y entonces lo que se estaría
