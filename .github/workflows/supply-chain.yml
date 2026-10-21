@@ -35,7 +35,7 @@ jobs:
       # Titulo:    NLTK: Model-artifact APIs bypass pathsec and touch files
       #            outside allowed roots.  Severidad alta.
       # Alta:      2026-09-02.  Excepcion abierta: 2026-09-02.
-      # REEVALUADA: 2026-10-06.  SIGUE APLICANDO.  Ver "REEVALUACIONES" al pie
+      # REEVALUADA: 2026-10-06 y 2026-10-20.  SIGUE APLICANDO.  Ver "REEVALUACIONES" al pie
       #            de este bloque: las tres condiciones de caducidad se
       #            volvieron a medir una por una y ninguna se cumple.
       #
@@ -138,6 +138,30 @@ jobs:
       #   esta atada. Mover el `--ignore-vuln` a otra version sin demostrar que
       #   el advisory le aplica seria justo el error que la guardia existe para
       #   impedir, asi que no se hace.
+      #
+      # 2026-10-20 — SIGUE APLICANDO. No se elimina y no se traslada.
+      #   Contexto: el paso estaba ROJO en `main` (70b823a, run 39295006330)
+      #   por `aiohttp` 3.14.3 y `tinytag` 2.2.1. Igual que el 2026-10-06, la
+      #   guardia de version NO salto: el log dice
+      #   `Found 4 known vulnerabilities, ignored 1 in 2 packages` y la linea
+      #   `::error::La excepcion ... y el lock fija otra version` es el ECO del
+      #   script en el grupo `##[group]Run` (va precedida de `echo "` y del
+      #   color de eco), no una anotacion emitida. El lock sigue fijando
+      #   `nltk==3.10.3`; el `git log` del lock no lo ha movido desde #203.
+      #
+      #   CONDICION 1 (existe version corregida) -> NO.
+      #     OSV `GHSA-8mgp-746c-j5xp` (modified 2026-09-02): sigue
+      #     `{introduced: 0} .. {last_affected: 3.10.3}`. `pip index versions
+      #     nltk` -> 3.10.3 sigue siendo la ultima en PyPI.
+      #   CONDICION 2 (el producto importa `nltk` o `llama_index`) -> NO.
+      #     `grep -rn --include=*.py -i nltk .`          -> 0 coincidencias.
+      #     `grep -rn --include=*.py -E 'llama_index' .` -> 0 coincidencias.
+      #   CONDICION 3 (algun camino usa las APIs de modelo) -> NO.
+      #     El grep de los cuatro nombres solo encuentra las lineas de ESTE
+      #     comentario. Cero en codigo.
+      #
+      #   CONTROL NEGATIVO repetido: con otro id en `--ignore-vuln`,
+      #   `pip-audit` vuelve a rojo con `nltk 3.10.3 PYSEC-2026-3740`.
       - name: Audit data-engine (requirements.lock)
         run: |
           set -euo pipefail
