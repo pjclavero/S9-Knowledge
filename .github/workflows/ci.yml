@@ -1573,7 +1573,11 @@ jobs:
 
   check-unicode:
     name: No dangerous Unicode (Trojan Source)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K (docs/ci/MIGRACION_COMMONS_CI.md): runner self-hosted
+    # commons-ci-s9k-01 (VM115). Sin `if:` de eventos A PROPOSITO: un job
+    # saltado cuenta como `success` en un check requerido (ver el documento).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -1587,7 +1591,9 @@ jobs:
 
   check-imports:
     name: No hardcoded absolute paths in sys.path
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: ver el comentario de `check-unicode`.
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
