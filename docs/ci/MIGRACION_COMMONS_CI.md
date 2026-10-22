@@ -265,7 +265,20 @@ literal de `--with-deps chromium` está en el `ci.yml` **sintético** de `check_
 
 ### 7.3 HEAD final de la rama
 
-RESULTADOS_FINAL
+Medido sobre `4e85451` (canario + merge de `4eb442a` + este documento); el commit siguiente solo
+rellena esta tabla.
+
+| Calibrador | rc |
+|---|---|
+| `check_ci_config.py` | 0 |
+| `check_unicode.py` | 0 |
+| `scripts/check_docs_consistency.py` | 0 |
+| `check_env_reproducibility_calibration.py` | 0 |
+| `calibra_gate_integrity.py` | 0 |
+| `check_suite_inventory.py` vía bootstrap | 0 |
+| `check_suite_inventory.py --escribir-inventario` + diff | 0 |
+
+Los arneses largos (§7.1) no se repitieron tras el merge: `4eb442a` solo toca `data-engine/requirements.lock`.
 
 ## 8. Anti-fork: guard del hook ejecutado como `runner02`
 
