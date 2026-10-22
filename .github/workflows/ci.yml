@@ -31,7 +31,9 @@ on:
 jobs:
   test-data-engine:
     name: Data Engine Tests
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
@@ -1473,7 +1475,9 @@ jobs:
   # merge se lleva por delante este bloque, el fragmento es la copia canonica.
   check-env-reproducibility:
     name: Reproducibilidad de entorno (declarado == instalado)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -1617,7 +1621,8 @@ jobs:
 
   deployment-validation:
     name: Deployment scripts validation
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
     # Este job se quedo 18 min colgado en `Install validation tools` (apt-get +
     # pip) en sus dos ejecuciones, cuando su marca normal es ~57 s. Sin tope,
     # un cuelgue de infraestructura no se distingue de un job lento: se queda
@@ -1638,8 +1643,11 @@ jobs:
           # Sin `|| true`: si la instalacion falla hay que enterarse aqui, no
           # descubrir mas tarde que el gate paso en verde sin comprobar nada.
           set -euo pipefail
-          sudo apt-get update -qq
-          sudo apt-get install -y shellcheck
+          # En commons-ci (runner sin sudo) shellcheck 0.9.0 -la misma version
+          # que ubuntu-latest- viene preinstalado (docs/ci/MIGRACION_COMMONS_CI.md
+          # §5.2); en un runner de GitHub se instala como siempre.
+          command -v shellcheck >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y shellcheck; }
+          shellcheck --version
           pip install yamllint ansible ansible-lint --quiet
 
       - name: bash syntax check
@@ -1718,7 +1726,9 @@ jobs:
   # mide una app y certifica otra nace con el defecto que dice cerrar.
   route-map-gate:
     name: Censo de rutas (configuracion canonica en codigo)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       # `fetch-depth: 0` NO es decorativo: G17 comprueba que el conjunto de
       # hallazgos DUROS no ha encogido respecto a la base, y para eso necesita
@@ -1839,7 +1849,9 @@ jobs:
   # pueda clasificar pone el job ROJO.
   metodos-de-escritura:
     name: Metodos de escritura (especificacion independiente del montaje)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
