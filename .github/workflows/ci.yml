@@ -299,7 +299,9 @@ jobs:
 
   test-neo4j-authz:
     name: Authz integration (Neo4j efímero)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     # Cubre la frontera Neo4j -> serializador -> política, que no cubría nada:
     # con 675 pruebas verdes, `partida_id` se perdía al proyectar y el
     # aislamiento entre partidas no llegaba a evaluarse sobre datos reales.
