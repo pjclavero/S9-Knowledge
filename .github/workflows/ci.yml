@@ -297,7 +297,9 @@ jobs:
 
   test-neo4j-authz:
     name: Authz integration (Neo4j efímero)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     # Cubre la frontera Neo4j -> serializador -> política, que no cubría nada:
     # con 675 pruebas verdes, `partida_id` se perdía al proyectar y el
     # aislamiento entre partidas no llegaba a evaluarse sobre datos reales.
@@ -501,7 +503,9 @@ jobs:
 
   test-login-browser:
     name: Login browser contract (Playwright)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -515,9 +519,13 @@ jobs:
           set -euo pipefail
           python -m pip install --upgrade pip
           pip install -r viewer/requirements.txt playwright uvicorn
-          # --with-deps instala las librerias del sistema que el navegador
-          # necesita; sin ellas chromium arranca y muere al instante.
-          python -m playwright install --with-deps chromium
+          # Las librerias del sistema que el navegador necesita (sin ellas
+          # chromium arranca y muere al instante) vienen preinstaladas en
+          # commons-ci con `playwright install-deps chromium` de esta misma
+          # version (docs/ci/MIGRACION_COMMONS_CI.md §5.3): el runner no tiene
+          # sudo, que es lo que `--with-deps` exige. El paso siguiente sigue
+          # comprobando el BINARIO antes de que ninguna prueba pueda omitirse.
+          python -m playwright install chromium
 
       - name: Chromium tiene que estar (fallo ruidoso, jamas un skip)
         run: |
@@ -804,7 +812,9 @@ jobs:
 
   review-ingest-contracts:
     name: Contratos review/ingest v1 (JSON Schema)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -842,7 +852,9 @@ jobs:
 
   knowledge-v3-contracts:
     name: Contratos internos V3 (v3-internal-v1)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -899,7 +911,9 @@ jobs:
 
   check-ci-config:
     name: Integridad de gates (cobertura de ramas, 0 tests, skips criticos)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -1467,7 +1481,9 @@ jobs:
   # merge se lleva por delante este bloque, el fragmento es la copia canonica.
   check-env-reproducibility:
     name: Reproducibilidad de entorno (declarado == instalado)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -1508,7 +1524,9 @@ jobs:
   # `check-ci-config` falla si alguien lo quita.
   test-graph-js:
     name: Especificacion JS del grafo (Node obligatorio)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -1573,7 +1591,11 @@ jobs:
 
   check-unicode:
     name: No dangerous Unicode (Trojan Source)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K (docs/ci/MIGRACION_COMMONS_CI.md): runner self-hosted
+    # commons-ci-s9k-01 (VM115). Sin `if:` de eventos A PROPOSITO: un job
+    # saltado cuenta como `success` en un check requerido (ver el documento).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -1587,7 +1609,9 @@ jobs:
 
   check-imports:
     name: No hardcoded absolute paths in sys.path
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: ver el comentario de `check-unicode`.
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -1605,7 +1629,8 @@ jobs:
 
   deployment-validation:
     name: Deployment scripts validation
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
     # Este job se quedo 18 min colgado en `Install validation tools` (apt-get +
     # pip) en sus dos ejecuciones, cuando su marca normal es ~57 s. Sin tope,
     # un cuelgue de infraestructura no se distingue de un job lento: se queda
@@ -1626,8 +1651,11 @@ jobs:
           # Sin `|| true`: si la instalacion falla hay que enterarse aqui, no
           # descubrir mas tarde que el gate paso en verde sin comprobar nada.
           set -euo pipefail
-          sudo apt-get update -qq
-          sudo apt-get install -y shellcheck
+          # En commons-ci (runner sin sudo) shellcheck 0.9.0 -la misma version
+          # que ubuntu-latest- viene preinstalado (docs/ci/MIGRACION_COMMONS_CI.md
+          # §5.2); en un runner de GitHub se instala como siempre.
+          command -v shellcheck >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y shellcheck; }
+          shellcheck --version
           pip install yamllint ansible ansible-lint --quiet
 
       - name: bash syntax check
@@ -1706,7 +1734,9 @@ jobs:
   # mide una app y certifica otra nace con el defecto que dice cerrar.
   route-map-gate:
     name: Censo de rutas (configuracion canonica en codigo)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       # `fetch-depth: 0` NO es decorativo: G17 comprueba que el conjunto de
       # hallazgos DUROS no ha encogido respecto a la base, y para eso necesita
@@ -1827,7 +1857,9 @@ jobs:
   # pueda clasificar pone el job ROJO.
   metodos-de-escritura:
     name: Metodos de escritura (especificacion independiente del montaje)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
