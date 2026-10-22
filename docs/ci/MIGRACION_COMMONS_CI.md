@@ -335,9 +335,111 @@ Tras el registro se repite **sin** el repo en argv (el hook lo lee del `.runner`
 `bash /var/tmp/mig-ci-guard/run_guard.sh registrado`, y se comprueba con un `push` real de la rama
 (permitido, pre y post CLEAN en el log del job).
 
-## 9. Pendiente / techo
+## 9. Fase 2: lo que se midió y lo que cambió
 
-- Registro del runner (operador), golden + reconcile de runner-02.
-- Fases 1-9 sin ejecutar: sin duraciones, RAM ni residuos medidos en VM115.
-- Anti-fork con `.runner` real y con eventos reales del repo: pendiente del registro.
+### 9.1 OOM: Data Engine Tests NO se migra (PENDING_RESOURCE_FIT)
+
+El paso «Cobertura Neo4j REAL» de `Data Engine Tests` levanta un Neo4j por módulo de test
+(`docker run --publish 127.0.0.1:…`, heap 256 MB): **8 contenedores a la vez, ~440 MiB cada uno**
+(`docker stats`). En el runner de GitHub (16 GB) cabe; en VM115 (4 GB fija, sin swap) no:
+
+| Evidencia | Valor |
+|---|---|
+| Run / job | 39818230511 / 119962248982 (push de `ba7b729`) |
+| Muestreo (cada 3 s) | RAM usada 3844 MiB, disponible **11 MiB** (19:41:25), CPU 99 %, 8 contenedores |
+| `journalctl -k` | 19:34:38 `Out of memory: Killed process … (python3)` UID 1002; 19:39:37 `github-actions-runner-02.service: Failed with result 'oom-kill'`; 19:41:25 `Killed process … (java)` |
+| Recuperación | `runner-admin reconcile --apply` (dos pasadas) → CLEAN; runs obsoletos 39818230511 y 39818237350 cancelados (autorizado, rc=0) |
+
+Decisión del operador: el job se queda en `ubuntu-latest`. No se sube RAM ni swap, no se
+serializa, no se tocan fixtures ni tests. Commit `34ee039`.
+
+### 9.2 Viewer Tests: re-anclaje de dos calibradores (autorizado por el operador)
+
+`calibra_gate_integrity.py` (casos `if: false`, `continue-on-error` e `if:` disfrazado a nivel de
+job) y `calibra_suite_inventory.py` (SUP-2 `env:` de job, SUP-4 `container.env`) anclaban sus
+mutaciones al literal `test-viewer / name: Viewer Tests / runs-on: ubuntu-latest`. La propiedad que
+calibran no depende del runner, pero al migrar el job morían con `MUTACION IMPOSIBLE`.
+
+Ahora (commit `dd28fea`) el job se localiza con `yaml.compose` por **id + `name:`** con unicidad:
+0 coincidencias → `MUTACION IMPOSIBLE`; más de una o coincidencia parcial (id sin name, name sin id)
+→ `DETECTOR ROTO`. La clave se escribe tras `name:` con la columna que da el parser y se re-parsea
+para exigir que esté **en ese job con ese valor**. La mutación inyectada es la misma.
+
+| Prueba | Resultado |
+|---|---|
+| Negativo real ANTES (Viewer migrado, calibradores originales) | gate rc=1 `MUTACION IMPOSIBLE: no se encuentra el ancla`; suite rc=1 `MUTACION IMPOSIBLE (SUP-2)` |
+| A — Viewer en `ubuntu-latest` | gate rc=0, suite rc=0 |
+| B — Viewer self-hosted | gate rc=0, suite rc=0 |
+| C — Viewer en `ubuntu-24.04` | gate rc=0, suite rc=0 |
+| Misma mutación, misma causa | primer error idéntico antes/después en las 3 filas del gate y en SUP-2/SUP-4 |
+| Casos del anclaje (función, 2 calibradores × 8 variantes × 4 claves) | 65/65 |
+| Calibrador completo: borrar job / renombrar id / renombrar name / duplicar | rc=1 (`MUTACION IMPOSIBLE` / `DETECTOR ROTO` ×3) |
+| Desconectar la mutación de la propiedad | con re-verificación: `DETECTOR ROTO`; sin ella: 3 desviaciones → rc=1 |
+
+### 9.3 Hallazgo: el toolcache era estado compartido entre jobs (hook v3)
+
+`setup-python` usa el intérprete de `_work/_tool`, y los `pip install` de cada job escribían en su
+`site-packages`; el hook conservaba `_tool` como infraestructura. Medido: **133 paquetes**
+acumulados y `_tool/Python` en 1,3 G; `playwright`, instalado por el job de Playwright, hizo que el
+Censo de rutas (otro job) encontrara el paquete sin navegador y diera 9 errores en `tests/browser`
+(job 120089980647). En GitHub cada job empieza con un intérprete limpio: **no era equivalente**.
+
+Arreglo (autorizado por el operador): hook `COMMONS-CI-20261021-VM115/3` y `runner-admin`.
+
+| Pieza | Antes | Después |
+|---|---|---|
+| `commons_ci_hook.py` | `08141d22…` (v2) | `eef170ee…` (v3) |
+| `runner-admin` | `017a4ba1…` | `f18ce9e3…` |
+| Copia previa | `/opt/github-actions/config/backup/VM115-20261023-002532-hook08141d22071f-admin017a4ba191b9-mig-ci/` (hooks, runner-admin, golden, `SHA256SUMS`) | |
+
+- **Golden del toolcache** (`/opt/github-actions/config/golden/<runner>/`, root:root, 0755/0644,
+  nada escribible por runnerNN): `golden.json` lleva el manifiesto completo de `_work/_tool`
+  (ruta, tipo, modo, tamaño, **SHA-256 de todo fichero, sin límite de tamaño**, destino de enlaces)
+  y `toolcache/files/` la copia root, verificada fichero a fichero con `sha256sum -c` contra el
+  manifiesto y por recuento. runner-02: 9350 entradas, 8869 ficheros, 338 M. runner-01: 0.
+- **Pre-job (detector)**: categoría nueva `toolcache`: nuevo/borrado/distinto → DIRTY, el job no
+  ejecuta código del repositorio. Un golden anterior a v3 exige toolcache vacío.
+- **Post-job y `reconcile` (restaurador)**: borra solo lo ausente del manifiesto (lo introdujo el
+  job) y restaura lo modificado o borrado desde la copia root **verificando su SHA-256 antes de
+  sustituir**; si falta la copia o no cuadra, no adivina: DIRTY.
+- **Node**: `_tool/node` se borró al reprovisionar; `setup-node` lo descarga en cada job y el
+  post-job lo borra (no forma parte del golden).
+- **Reprovisión**: `_tool` contaminado borrado; build oficial `python-3.13.16-linux-24.04-x64`
+  (SHA `d6f5f504…`) desplegada con su `setup.sh` como runner02; `site-packages` = solo pip 26.2.2.
+- Guard de eventos, cortafuegos, aislamiento LAN y modelo de seguridad: **sin cambios**.
+
+Calibración local (como runner02 en el espacio de montajes del servicio, sin GitHub):
+
+| Caso | Esperado | Obtenido |
+|---|---|---|
+| A base limpia | CLEAN | CLEAN |
+| B añadir (`pip install six` en el toolcache) | DIRTY `toolcache` | DIRTY `toolcache`; `reconcile` → CLEAN y `six` desaparece |
+| C modificar `this.py` | DIRTY `toolcache` | DIRTY `toolcache`; `reconcile` → SHA restaurado |
+| D borrar `this.py` | DIRTY `toolcache` | DIRTY `toolcache`; `reconcile` → restaurado con el SHA del golden |
+| E pre-job (`started`) → «job» que ensucia → post-job (`completed`) | CLEAN | rc 0 / rc 0 → CLEAN |
+| F mutante sin limpieza de toolcache | siguiente pre-job DIRTY | post rc=31; siguiente pre-job rc=23 con `toolcache` + `estado-previo` |
+| M1 workspace / M2 docker / M3 tmp / M4 detector / M5 toolcache | rojo por su causa | `workspace` / `docker`(+`mounts`) / `tmp` / `detector` / `toolcache` |
+
+Después: reinicio del servicio, `doctor` rc=0, runner-01 y runner-02 CLEAN, runner online.
+
+### 9.4 Evidencia invalidada
+
+Todo job de `commons-ci-s9k-01` que empezó después de la primera instalación en el toolcache
+(2026-10-22T16:48:41Z) queda **VALIDO=NO** (causa: toolcache compartido, pre hook v3): 110 de 115
+jobs, inventario completo en el carril (`v3_15_inventario_invalidos.txt`). Solo el canario de
+`c00e1e1` y el primer Unicode de `e2fe954` son válidos. No se borra historia: se repite todo.
+
+### 9.5 Otros arreglos de la fase
+
+- `.github/ci-fragments/*.yml` sincronizados con su job de `ci.yml` (`cdb29c2`): lo exige
+  `check_env_reproducibility.py` y lo detectó el propio gate en commons-ci.
+- `test-login-browser`: `playwright install chromium` sin `--with-deps` (dependencias de sistema
+  preinstaladas, §5.3); el comentario evita la palabra «pytest» porque `check_ci_config` la toma
+  por una invocación.
+
+## 10. Pendiente / techo
+
+- Repetición desde cero en VM115 con el hook v3 (canarios → baratos → Python → Viewer → Combined
+  con preflight → calibraciones).
+- `Data Engine Tests`: PENDING_RESOURCE_FIT.
 - PR desde un fork **real**: no probado (necesitaría otra cuenta de GitHub), igual que en commons-ci.md §18.2.
