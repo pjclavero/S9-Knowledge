@@ -80,6 +80,14 @@ Instalado el 2026-10-22: `/usr/local/bin/runner-admin` sha256 `d335b38e…`; cop
 `/opt/github-actions/config/backup/runner-admin.pre-MIGRACION-CI-S9K-20261022153449` (sha256 `cb72c080…`).
 El token sigue yendo por stdin → variable de entorno efímera de `config.sh`; nunca por argv ni a disco.
 
+**Corrección de `doctor` (2026-10-22 18:06).** Con un runner que aún no ha ejecutado ningún job,
+`ls -t "$d"/_diag/Worker_*.log 2>/dev/null | head -1` sale con 2 y, con `set -euo pipefail`, `doctor`
+abortaba (rc=2) antes de imprimir la sección de disco. Línea 149 → `… | head -1 || true)`. Copia previa
+`/opt/github-actions/config/backup/runner-admin.pre-doctor-fix-20261022180644` (sha256 `d335b38e…`, = versión
+con `--name`); resultado `/usr/local/bin/runner-admin` sha256 `017a4ba1…`. Tras el cambio `doctor` termina
+e imprime la sección de disco; runner-01 todo OK (estado y recalculado CLEAN). Sale rc=1 («CON AVISOS») solo
+por los dos avisos esperados de runner-02 (sin golden / sin estado), que desaparecen tras §3.2.
+
 ### 3.2 Registro (lo ejecuta el operador)
 
 ```bash
@@ -130,34 +138,52 @@ RAM/CPU; OOM demostrado = STOP, no se sube RAM) → 7 pip-audit → 8 combinada/
 
 ## 5. Preparación de VM115 (2026-10-22)
 
-### 5.1 Python 3.13 para `setup-python` — **BLOQUEADO, pendiente de decisión**
+### 5.1 Python 3.13.16 para `setup-python` (build OFICIAL precargada)
 
 GitHub usó CPython **3.13.16** (`Successfully set up CPython (3.13.16)` en los logs de 39651557176).
-`setup-python` no tiene builds para Debian 13 (las de `actions/python-versions` son de Ubuntu), así que el
-plan era precargar la build oficial en el toolcache de runner-02
-(`/var/lib/github-actions/work/runner-02/_tool/Python/3.13.16/x64` + `x64.complete`), ejecutando su
-`setup.sh` como runner02 con `RUNNER_TOOL_CACHE` apuntando ahí.
+`setup-python` no publica builds para Debian 13; las de `actions/python-versions` son de Ubuntu.
 
-Resultado medido:
+**Primer intento (fallido) y causa raíz.** La build oficial `python-3.13.16-linux-24.04-x64.tar.gz`
+(release `3.13.16-36805956071`, SHA-256 `d6f5f504…c872` = digest de la release) y la de 22.04
+(`1b505e67…91b0`) daban SIGSEGV al importar `ctypes` y `setup.sh` moría en `ensurepip`. Diagnóstico:
 
-| Build oficial | SHA-256 (digest de la release, verificado) | `import ctypes` como runner02 |
-|---|---|---|
-| `python-3.13.16-linux-24.04-x64.tar.gz` (release `3.13.16-36805956071`) | `d6f5f504…c872` OK | **SIGSEGV** (`ctypes/__init__.py` l.159); `setup.sh` muere en `ensurepip` |
-| `python-3.13.16-linux-22.04-x64.tar.gz` | `1b505e67…91b0` OK | **SIGSEGV** igual |
-| Python del sistema Debian 13 (3.13.5) | — | OK |
+- `journalctl -k`: `python3.13[…]: segfault at 192 … error 4 in libpython3.13.so.1.0[172699,…]`;
+- `readelf -d bin/python3.13`: `RUNPATH [/opt/hostedtoolcache/Python/3.13.16/x64/lib]` (ruta fija de los
+  runners de GitHub);
+- `ldd bin/python3.13`: sin esa ruta, `libpython3.13.so.1.0 => /lib/x86_64-linux-gnu/libpython3.13.so.1.0`,
+  la del paquete Debian `libpython3.13` (**3.13.5**);
+- con `LD_LIBRARY_PATH=<build>/lib`: `import ctypes, ssl, sqlite3, lzma, bz2` OK, `3.13.16`.
 
-`ssl`, `sqlite3`, `lzma`, `bz2`, `readline`, `zlib`, `hashlib` importan bien; solo `_ctypes` (enlazado a
-`libffi.so.8` del sistema, Debian `libffi8 3.4.8-2`) revienta. La precarga se **retiró** (sin
-`x64.complete` no la usaría `setup-python`, pero no se deja residuo): `_work/runner-02` vuelve a estar vacío.
+O sea: el intérprete 3.13.16 cargaba la libpython **3.13.5** del sistema (ABI distinta) → SIGSEGV. No era
+libffi. `setup-python` exporta `LD_LIBRARY_PATH` en Linux y lo taparía dentro del job, pero cualquier
+subproceso con entorno vacío (los arneses de este repo lanzan varios) volvería a cargar la libpython
+equivocada.
 
-Opciones (decide el organizador; ninguna aplicada):
-- (a) compilar CPython 3.13.16 desde el tarball de python.org (SHA verificado) en VM115 con las opciones
-  de `actions/python-versions`, e instalarlo en el toolcache con la misma estructura;
-- (b) build de `python-build-standalone` 3.13.16 (libffi estático) con SHA verificado;
-- (c) diagnosticar el choque con libffi 3.4.8 (p. ej. probar con la libffi de Ubuntu en `LD_LIBRARY_PATH`).
+**Solución aplicada (2026-10-22 18:06), sin tocar el binario oficial:** que el `RUNPATH` compilado resuelva.
 
-**Consecuencia:** 15 de los 17 jobs usan `setup-python`. Sin esta decisión, el canario solo puede dar verde
-en `check-imports`; `check-unicode` fallaría en `Set up Python`.
+1. `/opt/hostedtoolcache/Python/3.13.16/` (root 0755) con el enlace simbólico
+   `x64 -> /var/lib/github-actions/work/runner-02/_tool/Python/3.13.16/x64` (root).
+2. `setup.sh` de la build oficial ejecutado **como runner02**:
+   `env -i PATH=/usr/bin:/bin HOME=/home/runner02 LANG=C.UTF-8 PIP_NO_CACHE_DIR=1 RUNNER_TOOL_CACHE=/var/lib/github-actions/work/runner-02/_tool bash ./setup.sh`
+   → rc=0, crea `Python/3.13.16/x64` y `x64.complete` (estructura que busca `setup-python`), pip 26.2.2.
+   `PIP_NO_CACHE_DIR=1` para no dejar `~/.cache/pip`: el HOME de runner02 sigue con sus 3 dotfiles.
+3. Verificación como runner02, con entorno vacío (`env -i`):
+   `ldd` → `libpython3.13.so.1.0 => /opt/hostedtoolcache/Python/3.13.16/x64/lib/…` (la propia);
+   `import ctypes, ssl, sqlite3, lzma, bz2, readline, zlib, hashlib` OK; `sys.version` = `3.13.16 (main,
+   Oct 1 2026) [GCC 13.3.0]`; un subproceso de `sys.executable` con `env={}` importa `ctypes` (OK);
+   `python3 -I` OK; `python -m pip --version` = pip 26.2.2 (rc=0). Tamaño: 338 MB.
+4. Conservación: el hook trata `_tool` como infraestructura del runner (`WORKDIR_RUNNER_ENTRIES`); no
+   inspecciona ni borra su contenido. El enlace de `/opt/hostedtoolcache` queda fuera de las raíces del hook.
+
+Diferencia conocida con GitHub: `ssl.OPENSSL_VERSION` = OpenSSL **3.5.7** (la `libssl3` de Debian 13; la
+build enlaza con la del sistema), frente a la 3.0.x de Ubuntu 24.04.
+
+**Decisión del organizador frente a lo hecho:** se había decidido compilar CPython desde el tarball de python.org
+(opción a), partiendo de que la build oficial era inservible. El diagnóstico demostró que la build oficial
+funciona si encuentra su propia libpython. Se usa la build oficial, que es exactamente la de referencia, y no
+se ha compilado nada; la compilación sigue disponible si se prefiere.
+
+Node: ver §5.4.
 
 ### 5.2 shellcheck 0.9.0 (versión de `ubuntu-latest`)
 
@@ -312,7 +338,6 @@ Tras el registro se repite **sin** el repo en argv (el hook lo lee del `.runner`
 ## 9. Pendiente / techo
 
 - Registro del runner (operador), golden + reconcile de runner-02.
-- Decisión sobre Python (§5.1): bloquea 15 jobs.
 - Fases 1-9 sin ejecutar: sin duraciones, RAM ni residuos medidos en VM115.
 - Anti-fork con `.runner` real y con eventos reales del repo: pendiente del registro.
 - PR desde un fork **real**: no probado (necesitaría otra cuenta de GitHub), igual que en commons-ci.md §18.2.
