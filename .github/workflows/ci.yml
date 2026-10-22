@@ -945,7 +945,9 @@ jobs:
     # Introduce cada violacion de VERDAD sobre el arbol de trabajo, comprueba
     # que el gate se pone rojo, y restaura.
     name: Calibracion de gates (cada violacion tiene que ponerse ROJA)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 360
     steps:
       # `fetch-depth: 0` NO es decorativo: `calibra_base_materializada.py`
       # ejercita la ruta REAL de la base —derivar el merge-base con
