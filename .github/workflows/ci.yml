@@ -503,7 +503,9 @@ jobs:
 
   test-login-browser:
     name: Login browser contract (Playwright)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -517,9 +519,13 @@ jobs:
           set -euo pipefail
           python -m pip install --upgrade pip
           pip install -r viewer/requirements.txt playwright uvicorn
-          # --with-deps instala las librerias del sistema que el navegador
-          # necesita; sin ellas chromium arranca y muere al instante.
-          python -m playwright install --with-deps chromium
+          # Las librerias del sistema que el navegador necesita (sin ellas
+          # chromium arranca y muere al instante) vienen preinstaladas en
+          # commons-ci con `playwright install-deps chromium` de esta misma
+          # version (docs/ci/MIGRACION_COMMONS_CI.md §5.3): el runner no tiene
+          # sudo, que es lo que `--with-deps` exige. El paso siguiente sigue
+          # comprobando el BINARIO antes de que ninguna prueba pueda omitirse.
+          python -m playwright install chromium
 
       - name: Chromium tiene que estar (fallo ruidoso, jamas un skip)
         run: |
