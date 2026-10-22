@@ -804,7 +804,9 @@ jobs:
 
   review-ingest-contracts:
     name: Contratos review/ingest v1 (JSON Schema)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -842,7 +844,9 @@ jobs:
 
   knowledge-v3-contracts:
     name: Contratos internos V3 (v3-internal-v1)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -899,7 +903,9 @@ jobs:
 
   check-ci-config:
     name: Integridad de gates (cobertura de ramas, 0 tests, skips criticos)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
