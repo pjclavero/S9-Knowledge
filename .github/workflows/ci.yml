@@ -571,7 +571,9 @@ jobs:
 
   test-combined:
     name: Combined Test Suite (no collection errors)
-    runs-on: ubuntu-latest
+    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
+    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
