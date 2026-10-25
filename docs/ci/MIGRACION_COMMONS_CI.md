@@ -437,9 +437,52 @@ jobs, inventario completo en el carril (`v3_15_inventario_invalidos.txt`). Solo 
   preinstaladas, §5.3); el comentario evita la palabra «pytest» porque `check_ci_config` la toma
   por una invocación.
 
+### 9.6 Repetición desde cero con el hook v3
+
+Ajuste posterior de `runner-admin doctor` (`f18ce9e3…` → **`f1a0b1be…`**, copia previa
+`VM115-20261025-001813-adminf18ce9e3d880-mig-ci-doctorfix`): el aviso «posible job SIN hooks»
+comparaba el **mtime** del último `Worker_*.log`, que se actualiza hasta el final del job; un job de
+más de 2 min lo disparaba en falso. Ahora usa la hora de inicio del nombre del fichero. `doctor` rc=0.
+
+| SHA publicado | Contenido | Jobs en commons-ci-s9k-01 | Resultado |
+|---|---|---|---|
+| `dbb4cc5` | doc + todo lo ya migrado | 26 (13 × push/PR) | 26/26 success; 26 pre y post CLEAN con el toolcache restaurado; 0 OOM; RAM máx. 1683 MiB (Authz, 1 contenedor) |
+| `822b1f5` | + Viewer Tests (solo `runs-on`) | 28 | todos success salvo `pip-audit` (ver abajo); 28 pre y post CLEAN; 0 OOM; RAM máx. 1693 MiB |
+| `12f250b` | + Combined Test Suite | 30 | ídem; Combined success en push y PR |
+
+Primer par real (§14 del contrato de v3): «Contratos review/ingest» instaló paquetes en el toolcache
+y el post-job borró 28 entradas y restauró 20; el job siguiente («pip-audit») empezó con el pre-job
+CLEAN, es decir, con el toolcache igual al golden.
+
+**Viewer Tests** (job 121003744306): 9,3 min (5,3 en GitHub), 2651 passed + 68 passed en el paso
+Neo4j real; RAM usada máx. 1564 MiB, disponible mín. 2290 MiB, CPU máx. 93 %, 1 contenedor, sin
+swap ni OOM; pre y post CLEAN.
+
+**Combined Test Suite** (preflight: los 4 módulos que levantan Neo4j se omiten por su `skipif`, el
+job no define `S9K_WRITER_NEO4J_REAL` ni `NEO4J_TEST_URI`, ningún arnés las fija y el log de GitHub
+no tiene ninguna línea de contenedor): 16 min, RAM máx. 1031 MiB, 0 contenedores, 0 OOM.
+
+**Diferencia conocida (no equivalencia) con el runner de GitHub:**
+
+| Job | GitHub (`284758c`) | commons-ci | Causa |
+|---|---|---|---|
+| Combined | 9578 passed / 358 skipped | 9576 / 360 | 3 tests de `viewer/tests/test_graph_ux_v2.py` con `skipif(shutil.which("node") is None)`: `ubuntu-latest` trae Node preinstalado y VM115 no. Esos 3 tests los ejecuta `test-graph-js` con Node instalado y sin skips permitidos. A la inversa, `deploy/tests/test_release_identity.py:157` (`skipif` sin `/usr/bin/python3.13`) corre en VM115 y se omite en Ubuntu 24.04 |
+| Viewer Tests | 2654 / 186 | 2651 / 189 | los mismos 3 tests de Node |
+
+**pip-audit rojo por CVE nuevas, ajenas a la migración** (publicadas después de `#276`; el mismo
+resultado saldría en GitHub): `pypdf 6.21.1` → 6.21.2 (CVE-2026-115572, CVE-2026-115585,
+CVE-2026-115580) y `setuptools 83.0.0` → 84.1.0 (GHSA-xmj3-9gf7-h52w), ambos en
+`data-engine/requirements.lock`. Se corrige en un PR aparte, como `#276`; este PR no lo toca.
+
+**Calibración en GitHub (antes de migrarla)**: 11 de 12 ejecuciones en verde desde `cdb29c2`; la
+de push de `12f250b` (job 121027323658) salió roja en `mutaciones_b3_worker.py`, M1 «NO CALIBRADA»
+porque el testigo `test_un_trabajo_creado_desde_la_web_se_procesa_sin_intervencion_manual` no
+falló; la ejecución de PR del mismo SHA salió verde. Es dependiente de tiempos y ocurrió en un
+runner de GitHub: no lo causa la migración.
+
 ## 10. Pendiente / techo
 
-- Repetición desde cero en VM115 con el hook v3 (canarios → baratos → Python → Viewer → Combined
-  con preflight → calibraciones).
+- Calibración de gates en VM115 (timeout 360): resultado en el PR.
+- `pip-audit`: CVE nuevas del lock, PR aparte.
 - `Data Engine Tests`: PENDING_RESOURCE_FIT.
 - PR desde un fork **real**: no probado (necesitaría otra cuenta de GitHub), igual que en commons-ci.md §18.2.
