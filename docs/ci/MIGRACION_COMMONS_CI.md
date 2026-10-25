@@ -480,6 +480,56 @@ porque el testigo `test_un_trabajo_creado_desde_la_web_se_procesa_sin_intervenci
 falló; la ejecución de PR del mismo SHA salió verde. Es dependiente de tiempos y ocurrió en un
 runner de GitHub: no lo causa la migración.
 
+### 9.7 Protecciones de cierre (hook v4, 2026-10-25)
+
+| Pieza | Antes | Después |
+|---|---|---|
+| `commons_ci_hook.py` | `eef170ee…` (v3) | **`2dfea455…` (v4)** |
+| `runner-admin` | `f1a0b1be…` | **`cc278629…`** (`doctor` informa del candado y de la allowlist) |
+| `workflow-allowlist.json` (nuevo, en el directorio de hooks, root 0644) | — | `e8e73420…` |
+| Copia previa | `/opt/github-actions/config/backup/VM115-20261025-142618-hookeef170ee4602-adminf1a0b1beeb79-mig-ci-v4/` (+`SHA256SUMS`) | |
+
+- **A. Candado global de la VM** (runner-01 y runner-02): un solo job a la vez en toda VM115.
+  Fichero creado con `O_EXCL` en un directorio común `root:commons-ci 3770` (setgid + sticky: cada
+  runner solo puede borrar su candado). Lo toma el pre-job, esperando si lo tiene el otro runner
+  (nunca lo rompe), y lo suelta el post-job CLEAN; con post-job DIRTY el candado se conserva para
+  que no entre ningún job hasta `reconcile`, que libera un candado propio huérfano.
+- **B. Toolcache**: hook v3 sin cambios (§9.3).
+- **C. Anti-fork**: guard de eventos sin cambios; fixtures 14/14 con el runner registrado.
+- **D. Allowlist de workflows fuera del repositorio**: el pre-job, después del guard y antes de
+  tocar nada, exige que la ruta del workflow (`GITHUB_WORKFLOW_REF`) esté en la lista:
+  S9-Knowledge = `ci.yml` y `supply-chain.yml`; el repo de pruebas = sus 6 workflows activos.
+  Ampliarla es editar ese fichero root (y regenerar el golden: está cubierto por la integridad).
+- **E. Salida pública abstracta**: en un job, el log de GitHub solo recibe líneas
+  `COMMONS-CI preflight|postjob: … category=… action=…`; rutas, usuarios y causas detalladas van al
+  journal y al log local de la VM. Las líneas del hook eran 133 de las 190 con rutas internas de un
+  log típico; las restantes las imprime el propio runner (ver techo).
+
+Calibración local (runners ociosos, como runnerNN en el espacio de montajes de su servicio):
+A–F y M1–M5 repetidas en verde por su causa, y además:
+
+| Caso | Esperado | Obtenido |
+|---|---|---|
+| M6 candado: runner-02 lo tiene; runner-01 intenta entrar | runner-01 espera | espera 15 s y entra solo después de soltarlo (rc 0) |
+| M6 mutante sin candado | runner-01 entra con runner-02 dentro | entra (el control muerde) |
+| M7 workflow no listado | rechazado antes de nada | rc 24, candado libre, `REJECTED category=workflow-allowlist` |
+| M7 mutante sin allowlist | el mismo workflow se acepta | rc 0 |
+| P salida pública de pre/post | 0 líneas con rutas, IP, host, usuario o golden | 0 |
+
+Después: golden regenerado (runner-01 `b81ef6d9…`, runner-02 `a85702d8…`), `doctor` rc=0, los dos
+runners CLEAN, candado libre; runner-02 reactivado (enabled + active, online).
+
+Runs públicos con datos internos: inventario y copia local completa (logs + metadatos de run y
+jobs, `SHA256SUMS`) de los 40 runs de la rama; 30 con rutas internas, 0 IP privadas, 0 tokens o
+claves. **Borrado pendiente de autorización** (el clasificador de permisos lo denegó).
+
+**Techo de la sanitización**: cada job self-hosted sigue mostrando lo que imprime el propio runner y
+las acciones: `Machine name` (hostname de la VM), la ruta del workdir y del toolcache del runner
+(variables de `setup-python`, `Working directory`, `git … safe.directory`, avisos de pytest con la
+ruta del workspace) y el HOME del usuario del runner (caché de Playwright). No contienen secretos;
+solo desaparecen reubicando workdir, toolcache y HOME a rutas neutras, lo que exige volver a
+registrar el runner.
+
 ## 10. Pendiente / techo
 
 - Calibración de gates en VM115 (timeout 360): resultado en el PR.
