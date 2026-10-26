@@ -1,0 +1,581 @@
+# Migración de la CI de S9-Knowledge a COMMONS-CI (VM115)
+
+> Carril **MIGRACION-CI-S9K**. Rama `ci/migracion-commons-ci` desde `origin/main` `284758c`, con
+> `origin/main` `4eb442a` (fix de pip-audit, #276) integrado por `git merge`.
+> Documento canónico de la infraestructura: `s9-server/infraestructura/commons-ci.md` (fuera de este repo).
+> Estado de este documento: **preparación**. El runner `commons-ci-s9k-01` **no está registrado**:
+> el registro (repo público, `--allow-public`) lo hace el operador en persona. Hasta entonces, nada de
+> esta rama se empuja: con `runs-on` self-hosted y 0 runners el run se quedaría en cola sin fin.
+
+## 1. Objetivo y límites
+
+Recuperar CI operativa ejecutando los jobs en un runner self-hosted de VM115 **sin debilitar ningún gate
+ni cambiar la semántica de ningún check**. Lo único que cambia en los workflows es:
+
+- `runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]` en cada job migrado;
+- `timeout-minutes` donde falte (regla: 2 × la duración medida en GitHub, mínimo 30; calibraciones 360);
+- pasos de instalación que en `ubuntu-latest` dependían de `sudo` (§6), en forma compatible con ambos runners.
+
+**No cambia:** `name:` de ningún job (los 17 contextos requeridos se llaman igual), `on:`, `permissions`,
+tests, asserts, excepciones de pip-audit, ni la protección de rama. Prohibidos `pull_request_target`,
+`workflow_run` y `continue-on-error`.
+
+## 2. Decisión: NO se añade la condición `if:` de eventos (§18.1 de commons-ci.md)
+
+La condición recomendada como «defensa en profundidad»
+
+```yaml
+if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+```
+
+**no se aplica**, por dos razones medidas:
+
+1. **SKIPPED ≠ GREEN.** Un job saltado por `if:` informa `success` y **no bloquea** un check requerido
+   (documentación de GitHub Actions: «A job that is skipped will report its status as "Success". It will
+   not prevent a pull request from merging, even if it is a required check»). En un PR desde fork los 17
+   requeridos quedarían «verdes» sin ejecutar nada. Sin el `if:`, ese PR va al runner self-hosted y el
+   **guard del hook de inicio lo rechaza en rojo** (salida 21, ningún paso), que es lo seguro.
+2. **Rompe un gate requerido.** `check_ci_config.py` solo admite `if: always()` (`CONDICIONES_PERMITIDAS`).
+   Prueba local (2026-10-22, sobre `284758c`):
+
+   | `ci.yml` | `python3 .github/scripts/check_ci_config.py` |
+   |---|---|
+   | sin cambios | OK (rc=0) |
+   | `check-unicode` con `runs-on` self-hosted **y** el `if:` de §18.1 | `FALLO: 1 problema(s) de integridad de gates` — «el job `check-unicode` declara `if: …`. Una condicion solo puede hacer que se ejecute MENOS…» |
+   | `check-unicode` con `runs-on` self-hosted **sin** `if:` | OK |
+
+   Re-anclar el gate para admitirla sería relajar un gate, que está prohibido.
+
+**Frontera frente a forks que queda:** (1) aprobación obligatoria de **todos** los contribuidores externos
+(`all_external_contributors`, verificado por GET el 2026-10-22) y (2) guard de eventos en el hook de inicio
+de VM115 (root, fuera del alcance del PR). Flujo para PR externos: §18.4 de commons-ci.md (los forks no
+reciben CI self-hosted; el mantenedor lleva el cambio a una rama interna).
+
+## 3. Runner `commons-ci-s9k-01`
+
+| Campo | Valor |
+|---|---|
+| Nombre en GitHub | `commons-ci-s9k-01` |
+| Labels | `self-hosted`, `linux`, `x64` (automáticas) + `commons`, `ci`, `s9-knowledge` |
+| Nombre local / usuario | `runner-02` / `runner02` (uid 1002, grupo `docker`, **sin sudo**) |
+| HOME | `/home/runner02` (0700) |
+| Directorio del runner | `/opt/github-actions/runners/runner-02` (runner02 0750), runner 2.338.0, SHA-256 `af4b794c…` verificado |
+| Workdir / caché / estado | `/var/lib/github-actions/{work,cache}/runner-02` (0700), `state/runner-02` (0750) |
+| Log de hooks | `/var/log/commons-ci/runner-02-hooks.log` (root:runner02 0660) + entrada en `/etc/logrotate.d/commons-ci` |
+| `.env` | idéntico al de runner-01 (`LANG` + `ACTIONS_RUNNER_HOOK_JOB_STARTED/COMPLETED`), root:runner02 0640 |
+| Servicio | `github-actions-runner-02.service` (lo crea `runner-admin add` desde la plantilla; `User=runner02`) |
+| Hooks / guard | los mismos ficheros de `/opt/github-actions/tools/hooks/` (el hook deriva rutas del usuario `runnerNN`); golden y estado CLEAN/DIRTY propios |
+| Concurrencia | 1 job a la vez. `runner-01` (`commons-ci-01`, repo de pruebas) **no se toca** |
+
+### 3.1 Parche de `runner-admin` (nombre y labels)
+
+`runner-admin add` fijaba el nombre en GitHub como `commons-ci-<NN>` y las labels como `commons,ci`.
+Para obtener el nombre pedido sin editar a mano ficheros de credenciales se añadieron dos opciones
+**opcionales** (sin ellas el comportamiento es el de antes):
+
+- `--name <commons-ci-…>` — nombre en GitHub (validado: `^commons-ci-[a-z0-9-]{1,40}$`);
+- `--extra-labels <a,b>` — labels que se **añaden** a `commons,ci` (nunca las sustituyen).
+
+Instalado el 2026-10-22: `/usr/local/bin/runner-admin` sha256 `d335b38e…`; copia previa en
+`/opt/github-actions/config/backup/runner-admin.pre-MIGRACION-CI-S9K-20261022153449` (sha256 `cb72c080…`).
+El token sigue yendo por stdin → variable de entorno efímera de `config.sh`; nunca por argv ni a disco.
+
+**Corrección de `doctor` (2026-10-22 18:06).** Con un runner que aún no ha ejecutado ningún job,
+`ls -t "$d"/_diag/Worker_*.log 2>/dev/null | head -1` sale con 2 y, con `set -euo pipefail`, `doctor`
+abortaba (rc=2) antes de imprimir la sección de disco. Línea 149 → `… | head -1 || true)`. Copia previa
+`/opt/github-actions/config/backup/runner-admin.pre-doctor-fix-20261022180644` (sha256 `d335b38e…`, = versión
+con `--name`); resultado `/usr/local/bin/runner-admin` sha256 `017a4ba1…`. Tras el cambio `doctor` termina
+e imprime la sección de disco; runner-01 todo OK (estado y recalculado CLEAN). Sale rc=1 («CON AVISOS») solo
+por los dos avisos esperados de runner-02 (sin golden / sin estado), que desaparecen tras §3.2.
+
+### 3.2 Registro (lo ejecuta el operador)
+
+```bash
+gh api -X POST repos/pjclavero/S9-Knowledge/actions/runners/registration-token --jq .token \
+  | ssh ciadmin@192.168.1.215 sudo runner-admin add pjclavero/S9-Knowledge runner-02 \
+      --allow-public --name commons-ci-s9k-01 --extra-labels s9-knowledge
+ssh ciadmin@192.168.1.215 'sudo runner-admin golden runner-02 && sudo runner-admin reconcile runner-02 --apply --confirm runner-02 && sudo runner-admin doctor'
+gh api repos/pjclavero/S9-Knowledge/actions/runners --jq '.runners[]|{name,status,labels:[.labels[].name]}'
+```
+
+**Orden importante:** el golden se genera con el HOME de runner02 limpio. Las precargas de §5 viven en
+`_work/_tool` (entrada de infraestructura que el hook conserva), no en HOME ni en la caché propia.
+
+Retirada: `remove-token` por stdin → `runner-admin remove pjclavero/S9-Knowledge runner-02`.
+
+## 4. Inventario de jobs (17 requeridos)
+
+Duraciones del último run verde de `main` (`284758c`, run CI 39651557176, `ubuntu-24.04`, 4 vCPU/16 GB).
+pip-audit: run 38258343199 (último verde; el de `284758c` falla por CVE nuevas que corrige otro carril).
+Todos los contextos son requeridos (strict=true, app_id 15368) y hoy todos usan `ubuntu-latest`.
+
+| # orden | job id | `name` (= contexto requerido) | Duración GitHub | Dependencias | Riesgo en VM115 | timeout propuesto |
+|---|---|---|---|---|---|---|
+| 1 | `check-unicode` | No dangerous Unicode (Trojan Source) | 0,1 min | setup-python 3.13 | bajo (depende de §5.1) | 30 |
+| 1 | `check-imports` | No hardcoded absolute paths in sys.path | 0,1 min | solo `grep` | nulo | 30 |
+| 2 | `check-ci-config` | Integridad de gates (cobertura de ramas, 0 tests, skips criticos) | 0,2 min | Python + PyYAML | bajo | 30 |
+| 2 | `review-ingest-contracts` | Contratos review/ingest v1 (JSON Schema) | 0,2 min | Python, jsonschema | bajo | 30 |
+| 2 | `knowledge-v3-contracts` | Contratos internos V3 (v3-internal-v1) | 0,2 min | Python, jsonschema, `git status` | bajo | 30 |
+| 3 | `test-data-engine` | Data Engine Tests | 10,8 min | Python, lock data-engine, **Docker** (Neo4j efímero por `docker run --publish 127.0.0.1:…`), `fetch-depth: 0` | medio: RAM (Neo4j heap 256 MB) | 30 |
+| 3 | `test-viewer` | Viewer Tests | 5,3 min | Python, viewer, **Docker** (Neo4j efímero) | medio | 30 |
+| 3 | `deployment-validation` | Deployment scripts validation | 0,7 min | **shellcheck 0.11.0** (era `sudo apt-get`), yamllint, ansible (pip) | medio: paso con `sudo` (§6) | 15 (ya existe) |
+| 3 | `route-map-gate` | Censo de rutas (configuracion canonica en codigo) | 4,2 min | Python, viewer, `git fetch origin main` | bajo | 30 |
+| 3 | `metodos-de-escritura` | Metodos de escritura (especificacion independiente del montaje) | 7,8 min | Python, viewer | bajo | 30 |
+| 3 | `check-env-reproducibility` | Reproducibilidad de entorno (declarado == instalado) | 0,9 min | Python, lock + viewer | bajo | 30 |
+| 4 | `test-graph-js` | Especificacion JS del grafo (Node obligatorio) | 0,4 min | Python, **Node 20** (setup-node, 20.20.2) | bajo | 30 |
+| 5 | `test-neo4j-authz` | Authz integration (Neo4j efímero) | 3,9 min | `services: neo4j:5.26.0` (pagecache 128M, puerto 7687 → loopback por `daemon.json`) | medio: RAM | 30 |
+| 6 | `test-login-browser` | Login browser contract (Playwright) | 4,8 min | Playwright 1.64.0 + Chromium 156; deps de sistema (era `--with-deps` con `sudo`) | **alto**: RAM 4 GB | 30 |
+| 7 | `pip-audit` (supply-chain.yml) | pip-audit (data-engine + viewer) | 0,5 min | Python, pip-audit, red a PyPI/OSV | bajo | 30 |
+| 8 | `test-combined` | Combined Test Suite (no collection errors) | 10,4 min | Python, lock + viewer, `fetch-depth: 0`, bootstrap de certificación | medio | 30 |
+| 9 | `calibracion-de-gates` | Calibracion de gates (cada violacion tiene que ponerse ROJA) | **150,1 min** | Python, lock + viewer, Node 20, `fetch-depth: 0`; muta y restaura el árbol | alto: duración en 2 vCPU | **360** |
+
+Suma en serie (un solo runner): ≈ 201 min en GitHub; en VM115 (2 vCPU) previsiblemente más. Se mide
+por fases; las calibraciones van las últimas y **sin optimizar**.
+
+Orden de migración (un commit por grupo, verificando cada uno antes del siguiente): 1 canario →
+2 estáticos/auditoría → 3 Python simple → 4 Node → 5 Neo4j efímero → 6 Playwright (con muestreo de
+RAM/CPU; OOM demostrado = STOP, no se sube RAM) → 7 pip-audit → 8 combinada/integridad → 9 calibraciones.
+
+## 5. Preparación de VM115 (2026-10-22)
+
+### 5.1 Python 3.13.16 para `setup-python` (build OFICIAL precargada)
+
+GitHub usó CPython **3.13.16** (`Successfully set up CPython (3.13.16)` en los logs de 39651557176).
+`setup-python` no publica builds para Debian 13; las de `actions/python-versions` son de Ubuntu.
+
+**Primer intento (fallido) y causa raíz.** La build oficial `python-3.13.16-linux-24.04-x64.tar.gz`
+(release `3.13.16-36805956071`, SHA-256 `d6f5f504…c872` = digest de la release) y la de 22.04
+(`1b505e67…91b0`) daban SIGSEGV al importar `ctypes` y `setup.sh` moría en `ensurepip`. Diagnóstico:
+
+- `journalctl -k`: `python3.13[…]: segfault at 192 … error 4 in libpython3.13.so.1.0[172699,…]`;
+- `readelf -d bin/python3.13`: `RUNPATH [/opt/hostedtoolcache/Python/3.13.16/x64/lib]` (ruta fija de los
+  runners de GitHub);
+- `ldd bin/python3.13`: sin esa ruta, `libpython3.13.so.1.0 => /lib/x86_64-linux-gnu/libpython3.13.so.1.0`,
+  la del paquete Debian `libpython3.13` (**3.13.5**);
+- con `LD_LIBRARY_PATH=<build>/lib`: `import ctypes, ssl, sqlite3, lzma, bz2` OK, `3.13.16`.
+
+O sea: el intérprete 3.13.16 cargaba la libpython **3.13.5** del sistema (ABI distinta) → SIGSEGV. No era
+libffi. `setup-python` exporta `LD_LIBRARY_PATH` en Linux y lo taparía dentro del job, pero cualquier
+subproceso con entorno vacío (los arneses de este repo lanzan varios) volvería a cargar la libpython
+equivocada.
+
+**Solución aplicada (2026-10-22 18:06), sin tocar el binario oficial:** que el `RUNPATH` compilado resuelva.
+
+1. `/opt/hostedtoolcache/Python/3.13.16/` (root 0755) con el enlace simbólico
+   `x64 -> /var/lib/github-actions/work/runner-02/_tool/Python/3.13.16/x64` (root).
+2. `setup.sh` de la build oficial ejecutado **como runner02**:
+   `env -i PATH=/usr/bin:/bin HOME=/home/runner02 LANG=C.UTF-8 PIP_NO_CACHE_DIR=1 RUNNER_TOOL_CACHE=/var/lib/github-actions/work/runner-02/_tool bash ./setup.sh`
+   → rc=0, crea `Python/3.13.16/x64` y `x64.complete` (estructura que busca `setup-python`), pip 26.2.2.
+   `PIP_NO_CACHE_DIR=1` para no dejar `~/.cache/pip`: el HOME de runner02 sigue con sus 3 dotfiles.
+3. Verificación como runner02, con entorno vacío (`env -i`):
+   `ldd` → `libpython3.13.so.1.0 => /opt/hostedtoolcache/Python/3.13.16/x64/lib/…` (la propia);
+   `import ctypes, ssl, sqlite3, lzma, bz2, readline, zlib, hashlib` OK; `sys.version` = `3.13.16 (main,
+   Oct 1 2026) [GCC 13.3.0]`; un subproceso de `sys.executable` con `env={}` importa `ctypes` (OK);
+   `python3 -I` OK; `python -m pip --version` = pip 26.2.2 (rc=0). Tamaño: 338 MB.
+4. Conservación: el hook trata `_tool` como infraestructura del runner (`WORKDIR_RUNNER_ENTRIES`); no
+   inspecciona ni borra su contenido. El enlace de `/opt/hostedtoolcache` queda fuera de las raíces del hook.
+
+Diferencia conocida con GitHub: `ssl.OPENSSL_VERSION` = OpenSSL **3.5.7** (la `libssl3` de Debian 13; la
+build enlaza con la del sistema), frente a la 3.0.x de Ubuntu 24.04.
+
+**Decisión del organizador frente a lo hecho:** se había decidido compilar CPython desde el tarball de python.org
+(opción a), partiendo de que la build oficial era inservible. El diagnóstico demostró que la build oficial
+funciona si encuentra su propia libpython. Se usa la build oficial, que es exactamente la de referencia, y no
+se ha compilado nada; la compilación sigue disponible si se prefiere.
+
+Node: ver §5.4.
+
+### 5.2 shellcheck 0.11.0 (versión de `ubuntu-latest` en el momento del cierre)
+
+**Corrección (2026-10-26, revisión independiente de #277, P1).** La primera versión de esta sección
+partía de que `ubuntu-latest` era `ubuntu-24.04` con `shellcheck 0.9.0-1`, y por eso se instaló 0.9.0
+en VM115. **Esa premisa ya es falsa:** hoy `ubuntu-latest` es `ubuntu-26.04` y trae
+`shellcheck 0.11.0-2` (log de `main` `b137aa9`, run 40204968844: «shellcheck is already the newest
+version (0.11.0-2)»). Con 0.9.0 el gate podía dar verde donde GitHub da rojo: el mutante del revisor
+(`$(… > fichero)` sin uso, `[ -a … ]`) da rc=0 con 0.9.0 y rc=1 con 0.11.0.
+
+Arreglo en VM115 (sin tocar el paso condicional `command -v shellcheck || sudo apt-get …` de `ci.yml`):
+
+| | Antes | Después |
+|---|---|---|
+| `/usr/local/bin/shellcheck` | 0.9.0, sha256 `59d20b9f…43ce` (paquete Debian bookworm 0.9.0-1, cadena firmada de Debian) | **0.11.0**, sha256 `4da528dd…a55b` |
+| Origen | — | release oficial `koalaman/shellcheck` v0.11.0, `shellcheck-v0.11.0.linux.x86_64.tar.gz`, sha256 `b7af85e4…e6f6` = digest publicado por la release en la API de GitHub (verificado con `sha256sum -c`) |
+| Copia previa | `/opt/github-actions/config/backup/VM115-20261026-102313-shellcheck0.9.0-59d20b9f02f5-mig-ci/shellcheck-0.9.0` | |
+
+Cierre demostrado en VM115: `shellcheck --version` como runner02 = 0.11.0; mutante del revisor por
+stdin como runner02 → **rc=1** (SC2327, SC2328, SC2331; con 0.9.0 daba rc=0); los 8
+`deploy/scripts/*.sh` con la misma orden que `ci.yml` (`shellcheck -x -e SC1091`) → **rc=0**.
+
+**Deriva futura:** si `ubuntu-latest` cambia de versión de shellcheck, la de VM115 hay que alinearla
+a mano (deuda D-SC de §11).
+
+### 5.3 Dependencias de sistema de Playwright 1.64.0
+
+GitHub usó Playwright 1.64.0 (Chrome for Testing 156.0.8078.4). Se instalaron con
+`playwright install-deps chromium` (Playwright 1.64.0 en un venv temporal de ciadmin, como root):
+**91 paquetes** apt, lista exacta abajo (rc=0, disco 3,7 G → 4,1 G).
+Comprobación: Chromium 156.0.8078.4 descargado a un directorio temporal de ciadmin arranca headless y
+renderiza una página (`LAUNCH_OK`). Venv y navegador de prueba borrados después.
+El navegador del job se sigue descargando en cada ejecución a `~/.cache/ms-playwright` de runner02
+(el hook lo borra al terminar: no hay cachés de HOME autorizadas).
+
+<details><summary>91 paquetes instalados</summary>
+
+`at-spi2-common` `fontconfig` `fontconfig-config` `fonts-freefont-ttf` `fonts-ipafont-gothic` `fonts-liberation` `fonts-noto-color-emoji` `fonts-tlwg-loma-otf` `fonts-unifont` `fonts-wqy-zenhei` `libasound2-data` `libasound2t64` `libatk-bridge2.0-0t64` `libatk1.0-0t64` `libatspi2.0-0t64` `libavahi-client3` `libavahi-common-data` `libavahi-common3` `libcairo2` `libcups2t64` `libdatrie1` `libdrm-amdgpu1` `libdrm-common` `libdrm-intel1` `libdrm2` `libfontconfig1` `libfontenc1` `libfribidi0` `libgbm1` `libgl1` `libgl1-mesa-dri` `libglvnd0` `libglx-mesa0` `libglx0` `libgraphite2-3` `libharfbuzz0b` `libice6` `libllvm19` `libnspr4` `libnss3` `libpango-1.0-0` `libpciaccess0` `libpixman-1-0` `libsensors-config` `libsensors5` `libsm6` `libthai-data` `libthai0` `libunwind8` `libvulkan1` `libwayland-server0` `libx11-6` `libx11-data` `libx11-xcb1` `libxau6` `libxaw7` `libxcb-dri3-0` `libxcb-glx0` `libxcb-present0` `libxcb-randr0` `libxcb-render0` `libxcb-shm0` `libxcb-sync1` `libxcb-xfixes0` `libxcb1` `libxcomposite1` `libxdamage1` `libxdmcp6` `libxext6` `libxfixes3` `libxfont2` `libxi6` `libxkbcommon0` `libxkbfile1` `libxmu6` `libxpm4` `libxrandr2` `libxrender1` `libxshmfence1` `libxt6t64` `libxxf86vm1` `libz3-4` `mesa-libgallium` `x11-common` `x11-xkb-utils` `xfonts-encodings` `xfonts-scalable` `xfonts-utils` `xkb-data` `xserver-common` `xvfb`
+
+</details>
+
+### 5.4 Node
+
+`setup-node@v4` descarga `node-20.20.2-linux-x64.tar.gz` de `actions/node-versions` (binario genérico de
+Linux, sin filtro de distribución): no necesita precarga. Queda en `_work/_tool`, que el hook conserva.
+
+## 6. Pasos con `sudo` (fase 2, no incluidos en el canario)
+
+`runner02` no tiene sudo y la unidad lleva `NoNewPrivileges=yes`. Cambios previstos, compatibles con
+ambos runners:
+
+- `deployment-validation`: `sudo apt-get update -qq; sudo apt-get install -y shellcheck` →
+  `command -v shellcheck >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y shellcheck; }`
+  (en VM115 encuentra el preinstalado de §5.2, hoy 0.11.0; en GitHub instala como hoy).
+- `test-login-browser`: `python -m playwright install --with-deps chromium` → `python -m playwright install chromium`
+  (deps ya en VM115, §5.3). El ancla `playwright install` de `check_ci_config.py`/`check_env_reproducibility.py`
+  se conserva.
+
+Resultado PRE-PUSH de estos dos cambios: §7.
+
+## 7. PRE-PUSH (calibradores que vigilan `ci.yml`)
+
+Calibradores localizados por `grep` (leen `ci.yml`/`supply-chain.yml`): `.github/scripts/check_ci_config.py`,
+`check_suite_inventory.py` (+ `bootstrap_certificacion.py`), `check_env_reproducibility*.py`,
+`calibra_*.py`, `check_ejecucion_real.py`, `registro_xfail.py`, `normaliza_shell.py`, `estado_de_fabrica.py`,
+`scripts/calibracion/mutaciones_calidad_datos.py`, `scripts/check_docs_consistency.py`.
+Ejecutados en ia-server con un venv Python 3.13.5 (lock de data-engine + viewer + PyYAML + jsonschema),
+**después de commitear** (los arneses mutan y restauran el árbol). En todas las filas el árbol quedó limpio
+(`git status --porcelain` = 0) y el HEAD intacto.
+
+### 7.1 Canario (`9024e98`: `check-unicode` y `check-imports` → self-hosted + `timeout-minutes: 30`)
+
+| Calibrador | rc | Duración |
+|---|---|---|
+| `check_ci_config.py` | 0 | 2 s |
+| `check_env_reproducibility_calibration.py` | 0 | 40 s |
+| `scripts/check_docs_consistency.py` | 0 | 4 s |
+| `calibra_gate_integrity.py` | 0 | 59 s |
+| `check_suite_inventory.py` vía bootstrap desde el objeto Git (como en `test-combined`) | 0 | 53 s |
+| `check_suite_inventory.py --escribir-inventario` + `git diff --quiet` del inventario | 0 | 35 s |
+| `calibra_suite_inventory.py` | 0 | 37 min |
+| `calibra_desarme.py` | **1** (ver abajo) | 9 min |
+| `calibra_registro_xfail.py` | 0 | 10 min |
+| `calibra_ejecucion_real.py` | 0 | 52 min |
+| `calibra_a2_linaje.py` | 0 | 6 min |
+| `calibra_base_materializada.py` | 0 | 3 min |
+| `scripts/calibracion/mutaciones_calidad_datos.py` | 0 | 49 s |
+
+**`calibra_desarme.py` rc=1 es del entorno local, no del cambio.** Control A/B: el mismo arnés sobre la
+base intacta `284758c` da también rc=1 con **las mismas 7 desviaciones**, fila por fila (`diff` vacío). Todas
+son de la familia «`usercustomize` EXTERNO» y `-s`, que en un venv no se pueden ejercer (el venv desactiva el
+*user site*). La fila que compara la construcción de `ci.yml` (`M0 el arnes mide la MISMA construccion que
+ci.yml`) sale **OK**. En CI corre con el Python de `setup-python`, no en un venv.
+
+Tras integrar `origin/main` (`4eb442a`, fix de pip-audit, merge `02c3f3b`, sin conflictos; solo cambia
+`data-engine/requirements.lock`) se repitieron los rápidos sobre el HEAD final: ver §7.3.
+
+### 7.2 Pasos sin `sudo` de §6 (rama local temporal, **no** incluidos en el canario)
+
+| Calibrador | rc |
+|---|---|
+| `check_ci_config.py` | 0 |
+| `check_env_reproducibility_calibration.py` | 0 |
+| `scripts/check_docs_consistency.py` | 0 |
+| `calibra_gate_integrity.py` | 0 |
+| `check_suite_inventory.py` vía bootstrap | 0 |
+| `check_suite_inventory.py --escribir-inventario` + diff | 0 |
+| `check_env_reproducibility.py runtimes --require chromium` | 1 — esperado: en ia-server no hay Playwright instalado; es el gate de tiempo de ejecución funcionando, no un ancla sobre `ci.yml` |
+
+Ningún calibrador exige la línea literal `--with-deps` ni `sudo apt-get`: el ancla de
+`check_ci_config.py` / `check_env_reproducibility.py` es la subcadena `playwright install`, y la única aparición
+literal de `--with-deps chromium` está en el `ci.yml` **sintético** de `check_env_reproducibility_calibration.py`.
+
+### 7.3 HEAD final de la rama
+
+Medido sobre `4e85451` (canario + merge de `4eb442a` + este documento); el commit siguiente solo
+rellena esta tabla.
+
+| Calibrador | rc |
+|---|---|
+| `check_ci_config.py` | 0 |
+| `check_unicode.py` | 0 |
+| `scripts/check_docs_consistency.py` | 0 |
+| `check_env_reproducibility_calibration.py` | 0 |
+| `calibra_gate_integrity.py` | 0 |
+| `check_suite_inventory.py` vía bootstrap | 0 |
+| `check_suite_inventory.py --escribir-inventario` + diff | 0 |
+
+Los arneses largos (§7.1) no se repitieron tras el merge: `4eb442a` solo toca `data-engine/requirements.lock`.
+
+## 8. Anti-fork: guard del hook ejecutado como `runner02`
+
+14 payloads fabricados (sin atacante real, sin ejecutar código externo: el modo `guard` solo parsea JSON),
+en `/var/tmp/mig-ci-guard/` de VM115 (root 0644), evaluados con
+`sudo -u runner02 env -i … python3 -I /opt/github-actions/tools/hooks/commons_ci_hook.py guard EVENTO PAYLOAD pjclavero/S9-Knowledge`
+(repo esperado por argv porque el runner aún no está registrado). Resultado: **14/14 con la decisión
+esperada, FALLOS=0, rc=0**.
+
+| Caso | Evento | Decisión (rc) |
+|---|---|---|
+| 01 push a rama propia | push | PERMITIDO (0) |
+| 02 push de tag | push | RECHAZADO (21) |
+| 03 dispatch de rama | workflow_dispatch | PERMITIDO (0) |
+| 04 schedule | schedule | PERMITIDO (0) |
+| 05 PR de rama interna | pull_request | PERMITIDO (0) |
+| 06 PR desde fork | pull_request | RECHAZADO (21) |
+| 07 PR con `head.repo.fork=true` | pull_request | RECHAZADO (21) |
+| 08 PR con `head.repo` nulo | pull_request | RECHAZADO (21) |
+| 09 `pull_request_target` desde fork | pull_request_target | RECHAZADO (21) |
+| 10 `workflow_run` | workflow_run | RECHAZADO (21) |
+| 11 `issue_comment` | issue_comment | RECHAZADO (21) |
+| 12 push de otro repo | push | RECHAZADO (21) |
+| 13 push con `pull_request` falsificado | push | RECHAZADO (21) |
+| 14 `merge_group` | merge_group | RECHAZADO (21) |
+
+Tras el registro se repite **sin** el repo en argv (el hook lo lee del `.runner` de runner-02):
+`bash /var/tmp/mig-ci-guard/run_guard.sh registrado`, y se comprueba con un `push` real de la rama
+(permitido, pre y post CLEAN en el log del job).
+
+## 9. Fase 2: lo que se midió y lo que cambió
+
+### 9.1 OOM: Data Engine Tests NO se migra (PENDING_RESOURCE_FIT)
+
+El paso «Cobertura Neo4j REAL» de `Data Engine Tests` levanta un Neo4j por módulo de test
+(`docker run --publish 127.0.0.1:…`, heap 256 MB): **8 contenedores a la vez, ~440 MiB cada uno**
+(`docker stats`). En el runner de GitHub (16 GB) cabe; en VM115 (4 GB fija, sin swap) no:
+
+| Evidencia | Valor |
+|---|---|
+| Run / job | 39818230511 / 119962248982 (push de `ba7b729`) |
+| Muestreo (cada 3 s) | RAM usada 3844 MiB, disponible **11 MiB** (19:41:25), CPU 99 %, 8 contenedores |
+| `journalctl -k` | 19:34:38 `Out of memory: Killed process … (python3)` UID 1002; 19:39:37 `github-actions-runner-02.service: Failed with result 'oom-kill'`; 19:41:25 `Killed process … (java)` |
+| Recuperación | `runner-admin reconcile --apply` (dos pasadas) → CLEAN; runs obsoletos 39818230511 y 39818237350 cancelados (autorizado, rc=0) |
+
+Decisión del operador: el job se queda en `ubuntu-latest`. No se sube RAM ni swap, no se
+serializa, no se tocan fixtures ni tests. Commit `34ee039`.
+
+### 9.2 Viewer Tests: re-anclaje de dos calibradores (autorizado por el operador)
+
+`calibra_gate_integrity.py` (casos `if: false`, `continue-on-error` e `if:` disfrazado a nivel de
+job) y `calibra_suite_inventory.py` (SUP-2 `env:` de job, SUP-4 `container.env`) anclaban sus
+mutaciones al literal `test-viewer / name: Viewer Tests / runs-on: ubuntu-latest`. La propiedad que
+calibran no depende del runner, pero al migrar el job morían con `MUTACION IMPOSIBLE`.
+
+Ahora (commit `dd28fea`) el job se localiza con `yaml.compose` por **id + `name:`** con unicidad:
+0 coincidencias → `MUTACION IMPOSIBLE`; más de una o coincidencia parcial (id sin name, name sin id)
+→ `DETECTOR ROTO`. La clave se escribe tras `name:` con la columna que da el parser y se re-parsea
+para exigir que esté **en ese job con ese valor**. La mutación inyectada es la misma.
+
+| Prueba | Resultado |
+|---|---|
+| Negativo real ANTES (Viewer migrado, calibradores originales) | gate rc=1 `MUTACION IMPOSIBLE: no se encuentra el ancla`; suite rc=1 `MUTACION IMPOSIBLE (SUP-2)` |
+| A — Viewer en `ubuntu-latest` | gate rc=0, suite rc=0 |
+| B — Viewer self-hosted | gate rc=0, suite rc=0 |
+| C — Viewer en `ubuntu-24.04` | gate rc=0, suite rc=0 |
+| Misma mutación, misma causa | primer error idéntico antes/después en las 3 filas del gate y en SUP-2/SUP-4 |
+| Casos del anclaje (función, 2 calibradores × 8 variantes × 4 claves) | 65/65 |
+| Calibrador completo: borrar job / renombrar id / renombrar name / duplicar | rc=1 (`MUTACION IMPOSIBLE` / `DETECTOR ROTO` ×3) |
+| Desconectar la mutación de la propiedad | con re-verificación: `DETECTOR ROTO`; sin ella: 3 desviaciones → rc=1 |
+
+### 9.3 Hallazgo: el toolcache era estado compartido entre jobs (hook v3)
+
+`setup-python` usa el intérprete de `_work/_tool`, y los `pip install` de cada job escribían en su
+`site-packages`; el hook conservaba `_tool` como infraestructura. Medido: **133 paquetes**
+acumulados y `_tool/Python` en 1,3 G; `playwright`, instalado por el job de Playwright, hizo que el
+Censo de rutas (otro job) encontrara el paquete sin navegador y diera 9 errores en `tests/browser`
+(job 120089980647). En GitHub cada job empieza con un intérprete limpio: **no era equivalente**.
+
+Arreglo (autorizado por el operador): hook `COMMONS-CI-20261021-VM115/3` y `runner-admin`.
+
+| Pieza | Antes | Después |
+|---|---|---|
+| `commons_ci_hook.py` | `08141d22…` (v2) | `eef170ee…` (v3) |
+| `runner-admin` | `017a4ba1…` | `f18ce9e3…` |
+| Copia previa | `/opt/github-actions/config/backup/VM115-20261023-002532-hook08141d22071f-admin017a4ba191b9-mig-ci/` (hooks, runner-admin, golden, `SHA256SUMS`) | |
+
+- **Golden del toolcache** (`/opt/github-actions/config/golden/<runner>/`, root:root, 0755/0644,
+  nada escribible por runnerNN): `golden.json` lleva el manifiesto completo de `_work/_tool`
+  (ruta, tipo, modo, tamaño, **SHA-256 de todo fichero, sin límite de tamaño**, destino de enlaces)
+  y `toolcache/files/` la copia root, verificada fichero a fichero con `sha256sum -c` contra el
+  manifiesto y por recuento. runner-02: 9350 entradas, 8869 ficheros, 338 M. runner-01: 0.
+- **Pre-job (detector)**: categoría nueva `toolcache`: nuevo/borrado/distinto → DIRTY, el job no
+  ejecuta código del repositorio. Un golden anterior a v3 exige toolcache vacío.
+- **Post-job y `reconcile` (restaurador)**: borra solo lo ausente del manifiesto (lo introdujo el
+  job) y restaura lo modificado o borrado desde la copia root **verificando su SHA-256 antes de
+  sustituir**; si falta la copia o no cuadra, no adivina: DIRTY.
+- **Node**: `_tool/node` se borró al reprovisionar; `setup-node` lo descarga en cada job y el
+  post-job lo borra (no forma parte del golden).
+- **Reprovisión**: `_tool` contaminado borrado; build oficial `python-3.13.16-linux-24.04-x64`
+  (SHA `d6f5f504…`) desplegada con su `setup.sh` como runner02; `site-packages` = solo pip 26.2.2.
+- Guard de eventos, cortafuegos, aislamiento LAN y modelo de seguridad: **sin cambios**.
+
+Calibración local (como runner02 en el espacio de montajes del servicio, sin GitHub):
+
+| Caso | Esperado | Obtenido |
+|---|---|---|
+| A base limpia | CLEAN | CLEAN |
+| B añadir (`pip install six` en el toolcache) | DIRTY `toolcache` | DIRTY `toolcache`; `reconcile` → CLEAN y `six` desaparece |
+| C modificar `this.py` | DIRTY `toolcache` | DIRTY `toolcache`; `reconcile` → SHA restaurado |
+| D borrar `this.py` | DIRTY `toolcache` | DIRTY `toolcache`; `reconcile` → restaurado con el SHA del golden |
+| E pre-job (`started`) → «job» que ensucia → post-job (`completed`) | CLEAN | rc 0 / rc 0 → CLEAN |
+| F mutante sin limpieza de toolcache | siguiente pre-job DIRTY | post rc=31; siguiente pre-job rc=23 con `toolcache` + `estado-previo` |
+| M1 workspace / M2 docker / M3 tmp / M4 detector / M5 toolcache | rojo por su causa | `workspace` / `docker`(+`mounts`) / `tmp` / `detector` / `toolcache` |
+
+Después: reinicio del servicio, `doctor` rc=0, runner-01 y runner-02 CLEAN, runner online.
+
+### 9.4 Evidencia invalidada
+
+Todo job de `commons-ci-s9k-01` que empezó después de la primera instalación en el toolcache
+(2026-10-22T16:48:41Z) queda **VALIDO=NO** (causa: toolcache compartido, pre hook v3): 110 de 115
+jobs, inventario completo en el carril (`v3_15_inventario_invalidos.txt`). Solo el canario de
+`c00e1e1` y el primer Unicode de `e2fe954` son válidos. No se borra historia: se repite todo.
+
+### 9.5 Otros arreglos de la fase
+
+- `.github/ci-fragments/*.yml` sincronizados con su job de `ci.yml` (`cdb29c2`): lo exige
+  `check_env_reproducibility.py` y lo detectó el propio gate en commons-ci.
+- `test-login-browser`: `playwright install chromium` sin `--with-deps` (dependencias de sistema
+  preinstaladas, §5.3); el comentario evita la palabra «pytest» porque `check_ci_config` la toma
+  por una invocación.
+
+### 9.6 Repetición desde cero con el hook v3
+
+Ajuste posterior de `runner-admin doctor` (`f18ce9e3…` → **`f1a0b1be…`**, copia previa
+`VM115-20261025-001813-adminf18ce9e3d880-mig-ci-doctorfix`): el aviso «posible job SIN hooks»
+comparaba el **mtime** del último `Worker_*.log`, que se actualiza hasta el final del job; un job de
+más de 2 min lo disparaba en falso. Ahora usa la hora de inicio del nombre del fichero. `doctor` rc=0.
+
+| SHA publicado | Contenido | Jobs en commons-ci-s9k-01 | Resultado |
+|---|---|---|---|
+| `dbb4cc5` | doc + todo lo ya migrado | 26 (13 × push/PR) | 26/26 success; 26 pre y post CLEAN con el toolcache restaurado; 0 OOM; RAM máx. 1683 MiB (Authz, 1 contenedor) |
+| `822b1f5` | + Viewer Tests (solo `runs-on`) | 28 | todos success salvo `pip-audit` (ver abajo); 28 pre y post CLEAN; 0 OOM; RAM máx. 1693 MiB |
+| `12f250b` | + Combined Test Suite | 30 | ídem; Combined success en push y PR |
+
+Primer par real (§14 del contrato de v3): «Contratos review/ingest» instaló paquetes en el toolcache
+y el post-job borró 28 entradas y restauró 20; el job siguiente («pip-audit») empezó con el pre-job
+CLEAN, es decir, con el toolcache igual al golden.
+
+**Viewer Tests** (job 121003744306): 9,3 min (5,3 en GitHub), 2651 passed + 68 passed en el paso
+Neo4j real; RAM usada máx. 1564 MiB, disponible mín. 2290 MiB, CPU máx. 93 %, 1 contenedor, sin
+swap ni OOM; pre y post CLEAN.
+
+**Combined Test Suite** (preflight: los 4 módulos que levantan Neo4j se omiten por su `skipif`, el
+job no define `S9K_WRITER_NEO4J_REAL` ni `NEO4J_TEST_URI`, ningún arnés las fija y el log de GitHub
+no tiene ninguna línea de contenedor): 16 min, RAM máx. 1031 MiB, 0 contenedores, 0 OOM.
+
+**Diferencia conocida (no equivalencia) con el runner de GitHub:**
+
+| Job | GitHub (`284758c`) | commons-ci | Causa |
+|---|---|---|---|
+| Combined | 9578 passed / 358 skipped | 9576 / 360 | 3 tests de `viewer/tests/test_graph_ux_v2.py` con `skipif(shutil.which("node") is None)`: `ubuntu-latest` trae Node preinstalado y VM115 no. Esos 3 tests los ejecuta `test-graph-js` con Node instalado y sin skips permitidos. A la inversa, `deploy/tests/test_release_identity.py:157` (`skipif` sin `/usr/bin/python3.13`) corre en VM115 y se omite en Ubuntu 24.04 |
+| Viewer Tests | 2654 / 186 | 2651 / 189 | los mismos 3 tests de Node |
+
+**pip-audit rojo por CVE nuevas, ajenas a la migración** (publicadas después de `#276`; el mismo
+resultado saldría en GitHub): `pypdf 6.21.1` → 6.21.2 (CVE-2026-115572, CVE-2026-115585,
+CVE-2026-115580) y `setuptools 83.0.0` → 84.1.0 (GHSA-xmj3-9gf7-h52w), ambos en
+`data-engine/requirements.lock`. Se corrige en un PR aparte, como `#276`; este PR no lo toca.
+
+**Calibración en GitHub (antes de migrarla)**: 11 de 12 ejecuciones en verde desde `cdb29c2`; la
+de push de `12f250b` (job 121027323658) salió roja en `mutaciones_b3_worker.py`, M1 «NO CALIBRADA»
+porque el testigo `test_un_trabajo_creado_desde_la_web_se_procesa_sin_intervencion_manual` no
+falló; la ejecución de PR del mismo SHA salió verde. Es dependiente de tiempos y ocurrió en un
+runner de GitHub: no lo causa la migración.
+
+### 9.7 Protecciones de cierre (hook v4, 2026-10-25)
+
+| Pieza | Antes | Después |
+|---|---|---|
+| `commons_ci_hook.py` | `eef170ee…` (v3) | **`2dfea455…` (v4)** |
+| `runner-admin` | `f1a0b1be…` | **`cc278629…`** (`doctor` informa del candado y de la allowlist) |
+| `workflow-allowlist.json` (nuevo, en el directorio de hooks, root 0644) | — | `e8e73420…` |
+| Copia previa | `/opt/github-actions/config/backup/VM115-20261025-142618-hookeef170ee4602-adminf1a0b1beeb79-mig-ci-v4/` (+`SHA256SUMS`) | |
+
+- **A. Candado global de la VM** (runner-01 y runner-02): un solo job a la vez en toda VM115.
+  Fichero creado con `O_EXCL` en un directorio común `root:commons-ci 3770` (setgid + sticky: cada
+  runner solo puede borrar su candado). Lo toma el pre-job, esperando si lo tiene el otro runner
+  (nunca lo rompe), y lo suelta el post-job CLEAN; con post-job DIRTY el candado se conserva para
+  que no entre ningún job hasta `reconcile`, que libera un candado propio huérfano.
+- **B. Toolcache**: hook v3 sin cambios (§9.3).
+- **C. Anti-fork**: guard de eventos sin cambios; fixtures 14/14 con el runner registrado.
+- **D. Allowlist de workflows fuera del repositorio**: el pre-job, después del guard y antes de
+  tocar nada, exige que la ruta del workflow (`GITHUB_WORKFLOW_REF`) esté en la lista:
+  S9-Knowledge = `ci.yml` y `supply-chain.yml`; el repo de pruebas = sus 6 workflows activos.
+  Ampliarla es editar ese fichero root (y regenerar el golden: está cubierto por la integridad).
+- **E. Salida pública abstracta**: en un job, el log de GitHub solo recibe líneas
+  `COMMONS-CI preflight|postjob: … category=… action=…`; rutas, usuarios y causas detalladas van al
+  journal y al log local de la VM. Las líneas del hook eran 133 de las 190 con rutas internas de un
+  log típico; las restantes las imprime el propio runner (ver techo).
+
+Calibración local (runners ociosos, como runnerNN en el espacio de montajes de su servicio):
+A–F y M1–M5 repetidas en verde por su causa, y además:
+
+| Caso | Esperado | Obtenido |
+|---|---|---|
+| M6 candado: runner-02 lo tiene; runner-01 intenta entrar | runner-01 espera | espera 15 s y entra solo después de soltarlo (rc 0) |
+| M6 mutante sin candado | runner-01 entra con runner-02 dentro | entra (el control muerde) |
+| M7 workflow no listado | rechazado antes de nada | rc 24, candado libre, `REJECTED category=workflow-allowlist` |
+| M7 mutante sin allowlist | el mismo workflow se acepta | rc 0 |
+| P salida pública de pre/post | 0 líneas con rutas, IP, host, usuario o golden | 0 |
+
+Después: golden regenerado (runner-01 `b81ef6d9…`, runner-02 `a85702d8…`), `doctor` rc=0, los dos
+runners CLEAN, candado libre; runner-02 reactivado (enabled + active, online).
+
+Runs públicos con datos internos: inventario y copia local completa (logs + metadatos de run y
+jobs, `SHA256SUMS`) de los 40 runs de la rama; 30 con rutas internas, 0 IP privadas, 0 tokens o
+claves. **Borrado pendiente de autorización** (el clasificador de permisos lo denegó).
+
+**Techo de la sanitización**: cada job self-hosted sigue mostrando lo que imprime el propio runner y
+las acciones: `Machine name` (hostname de la VM), la ruta del workdir y del toolcache del runner
+(variables de `setup-python`, `Working directory`, `git … safe.directory`, avisos de pytest con la
+ruta del workspace) y el HOME del usuario del runner (caché de Playwright). No contienen secretos;
+solo desaparecen reubicando workdir, toolcache y HOME a rutas neutras, lo que exige volver a
+registrar el runner.
+
+### 9.8 Cierre de la repetición sobre el SHA final
+
+- **Runs públicos borrados por el operador**: 30/30 (todos verificados BORRADO), con copia local
+  completa y `SHA256SUMS` previos (inventario por run: id, workflow, SHA, fecha y motivo).
+  Reescaneo de los runs restantes: 0 IP privadas, 0 tokens o claves y **0 líneas del hook** con
+  rutas; quedan las que imprime el propio runner (deuda D-LOG).
+- **Calibración de gates en VM115**: verde dos veces en `6820013` (3h23m y 3h23m) y dos en `6ad528a`
+  (3h27m y 3h22m), con `timeout-minutes: 360`; pre y post CLEAN.
+- **`6ad528a` (main con #278 integrado)**: 32 jobs en commons-ci-s9k-01, todos con pre y post CLEAN,
+  0 OOM, RAM usada máx. 1740 MiB, disponible mín. 2114 MiB, como mucho 1 contenedor, sin swap.
+  `pip-audit` en verde. **Authz integration**: intento 1 del run de push en rojo en
+  `test_tras_la_restauracion_el_identificador_fisico_de_neo4j_CAMBIO` (tras restaurar, Neo4j
+  reutilizó el mismo `elementId` y el test exige que cambie); el organizador lo relanzó y el intento 2
+  salió verde. El run de PR del mismo SHA, y las ejecuciones anteriores en VM115, en verde
+  (deuda D-AUTHZ).
+- **Viewer Tests**: `timeout-minutes: 30` (2× lo medido, ~9 min, redondeado como el resto).
+
+## 10. Pendiente / techo
+
+- Calibración de gates en VM115: hecha (§9.8).
+- `pip-audit`: resuelto en `main` por #278.
+- `Data Engine Tests`: PENDING_RESOURCE_FIT.
+- PR desde un fork **real**: no probado (necesitaría otra cuenta de GitHub), igual que en commons-ci.md §18.2.
+
+## 11. Deuda documentada (no abre carril)
+
+| Id | Deuda | Por qué no bloquea / qué haría falta |
+|---|---|---|
+| D-LAT | Latencia: con un solo runner y un job a la vez en toda la VM, un SHA completo (32 jobs self-hosted × push y PR, con dos calibraciones de ~3,4 h) tarda **~17 h** | Recursos fijados por el operador (2 vCPU / 4 GB / 1 job). Reducirla exige más runners o menos ejecuciones duplicadas (push + PR) |
+| D-COLA | Un job en cola más de **24 h** lo cancela GitHub; con dos SHA seguidos en cola, el último puede acercarse a ese límite | Publicar el siguiente SHA solo cuando el anterior haya terminado, o cancelar a sabiendas los runs de SHA superados |
+| D-LOG | Los logs públicos siguen mostrando lo que imprime el runner: `Machine name`, rutas del workdir/toolcache (`setup-python`, `Working directory`, `git safe.directory`, avisos de pytest) y el HOME del usuario del runner. Sin secretos | Solo desaparece reubicando workdir, toolcache y HOME a rutas neutras (re-registro del runner) |
+| D-SC | La versión de shellcheck de VM115 está fijada a mano (0.11.0) y puede divergir cuando cambie `ubuntu-latest` | Alinear a mano cuando cambie la imagen de GitHub, o fijar la versión en el workflow (cambio de producto) |
+| D-NODE | 3 tests de `test_graph_ux_v2.py` se omiten en VM115 (sin Node) en Combined y Viewer; GitHub los ejecutaba porque su imagen trae Node. Los cubre `test-graph-js` con Node y sin skips | Instalar Node en la VM cambiaría el entorno; se deja como diferencia conocida (§9.6) |
+| D-AUTHZ | `test_tras_la_restauracion_el_identificador_fisico_de_neo4j_CAMBIO` depende de que Neo4j no reutilice el `elementId` tras borrar y recrear: falló una vez en VM115 | Es del test, no del runner; corregirlo es cambio de producto (fuera de este PR) |
+| D-B3 | La calibración B3 (`mutaciones_b3_worker.py`, M1) falló una vez por tiempos en un runner de GitHub (§9.6) | Igual: del arnés, no de la migración |
+| D-DE | `Data Engine Tests` sigue en GitHub (OOM medido) | PENDING_RESOURCE_FIT; solo cambia con más RAM o con otra arquitectura de los tests |
+| D-PY | El intérprete del toolcache es la build oficial de Ubuntu sobre Debian 13, con la libssl3 del sistema (OpenSSL 3.5 frente a 3.0 en Ubuntu 24.04) y un enlace `/opt/hostedtoolcache/…` para su RUNPATH | Funciona y está calibrado; es una diferencia de entorno conocida |
+| D-FORK | El PR desde un fork **real** no se ha probado de extremo a extremo (sin segunda cuenta) | Cubierto por aprobación de externos + guard del hook + fixtures 14/14 |
+
+La revisión independiente de #277 numeró su propia lista D1–D10; esta tabla recoge la deuda tal como
+consta en las evidencias del carril (el texto de esa lista no está en el repositorio).

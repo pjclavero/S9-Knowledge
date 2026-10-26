@@ -225,14 +225,87 @@ def m_borra_workflow() -> None:
 # --- Ejecucion condicional: apagar la barrera sin tocar la barrera ---------
 # Ancla: un job de PRUEBAS de verdad. Neutralizarlo con una sola linea es el
 # PoC que un revisor independiente demostro VIVO contra la version anterior.
-ANCLA_JOB = "  test-viewer:\n    name: Viewer Tests\n    runs-on: ubuntu-latest\n"
+# El job sobre el que se inyectan las claves de NIVEL DE JOB se identifica por
+# su IDENTIDAD ESTRUCTURAL —id del job + `name:` (el contexto requerido)—,
+# resuelta con el parser YAML, y no por un literal de texto. El ancla anterior
+# era `test-viewer / name / runs-on: ubuntu-latest`: la propiedad que se calibra
+# (que el gate vea una clave de job que lo apaga) no depende del runner, y en
+# cuanto el job se movio a un runner self-hosted (MIGRACION-CI-S9K) el caso
+# murio con `MUTACION IMPOSIBLE`. Ver `_inserta_clave_de_job`.
+JOB_ANCLA = ("test-viewer", "Viewer Tests")
 ANCLA_PASO = "      - name: Run viewer tests\n"
+
+
+def _inserta_clave_de_job(ruta: Path, job_id: str, nombre: str, clave: str) -> None:
+    """Inserta `clave` (YAML de una o varias lineas escrito en la columna 0,
+    p. ej. `if: false`) a NIVEL DE JOB en `job_id`/`nombre`.
+
+    - El job se localiza con `yaml.compose` (nodos del parser con su posicion
+      real), no con `replace`, primera aparicion, numero de linea fijo,
+      indentacion supuesta ni grep.
+    - UNICIDAD: tiene que existir EXACTAMENTE un job con ese id y ese `name:`, y
+      ningun otro job puede compartir el id o el `name:`. Cero -> el caso no
+      puede mutar (`MUTACION IMPOSIBLE`, calibracion ROJA). Mas de uno o una
+      coincidencia parcial -> `DETECTOR ROTO` (ROJA): no se sabe que se mide.
+    - La clave se escribe justo despues de `name:`, con la columna que el
+      parser da para las claves de ese job: queda dentro del mapeo del job.
+      Despues se re-parsea y se exige que cada clave este EN ESE job con ese
+      valor; si no, `DETECTOR ROTO` (la mutacion se habria desconectado).
+    """
+    import yaml
+
+    texto = ruta.read_text(encoding="utf-8")
+    raiz = yaml.compose(texto)
+    if not isinstance(raiz, yaml.MappingNode):
+        raise SystemExit(f"DETECTOR ROTO: {ruta.name} no es un mapeo YAML")
+    jobs = [v for k, v in raiz.value if k.value == "jobs"]
+    if len(jobs) != 1 or not isinstance(jobs[0], yaml.MappingNode):
+        raise SystemExit(f"DETECTOR ROTO: {ruta.name} tiene {len(jobs)} bloques `jobs`")
+
+    def nombre_de(nodo):
+        if not isinstance(nodo, yaml.MappingNode):
+            return None
+        valores = [v.value for k, v in nodo.value if k.value == "name"]
+        return valores[0] if len(valores) == 1 else None
+
+    exactos, parciales = [], []
+    for k, v in jobs[0].value:
+        coincide_id, coincide_nombre = k.value == job_id, nombre_de(v) == nombre
+        if coincide_id and coincide_nombre:
+            exactos.append((k, v))
+        elif coincide_id or coincide_nombre:
+            parciales.append(k.value)
+    if not exactos and not parciales:
+        raise SystemExit(f"MUTACION IMPOSIBLE: no hay ningun job `{job_id}` con "
+                         f"name `{nombre}` en {ruta.name}")
+    if len(exactos) != 1 or parciales:
+        raise SystemExit(f"DETECTOR ROTO: job `{job_id}`/`{nombre}`: {len(exactos)} "
+                         f"coincidencias exactas y parciales {parciales} en "
+                         f"{ruta.name}; se exige exactamente una")
+    _, mapeo = exactos[0]
+    claves_nombre = [(k, v) for k, v in mapeo.value if k.value == "name"]
+    k_nombre, v_nombre = claves_nombre[0]
+    columna = k_nombre.start_mark.column
+    tras = v_nombre.end_mark.line + 1   # primera linea despues del valor de `name:`
+    lineas = texto.splitlines(keepends=True)
+    lineas[tras:tras] = [" " * columna + l + "\n" for l in clave.splitlines()]
+    nuevo = "".join(lineas)
+
+    # Comprobacion de que la mutacion ESTA donde se dice: si no, el caso podria
+    # salir ROJO por otra razon (o VERDE) sin haber tocado el job.
+    datos = yaml.safe_load(nuevo)
+    job = (datos.get("jobs") or {}).get(job_id) or {}
+    for nombre_clave, esperado in yaml.safe_load(clave).items():
+        obtenido = job.get(nombre_clave, "<ausente>")
+        if obtenido != esperado:
+            raise SystemExit(f"DETECTOR ROTO: tras insertar `{nombre_clave}` el job "
+                             f"`{job_id}` tiene {obtenido!r} en vez de {esperado!r}")
+    ruta.write_text(nuevo, encoding="utf-8")
 
 
 def m_if_false_job() -> None:
     """`if: false` a nivel de job: no se ejecuta y reporta `skipped`, no `failure`."""
-    _sustituye(CI, ANCLA_JOB,
-               ANCLA_JOB.replace("    runs-on:", "    if: false\n    runs-on:"))
+    _inserta_clave_de_job(CI, *JOB_ANCLA, "if: false")
 
 
 def m_if_false_paso() -> None:
@@ -242,8 +315,7 @@ def m_if_false_paso() -> None:
 
 def m_continue_on_error_job() -> None:
     """El job falla y aun asi reporta exito: la barrera no puede bloquear."""
-    _sustituye(CI, ANCLA_JOB,
-               ANCLA_JOB.replace("    runs-on:", "    continue-on-error: true\n    runs-on:"))
+    _inserta_clave_de_job(CI, *JOB_ANCLA, "continue-on-error: true")
 
 
 def m_continue_on_error_paso() -> None:
@@ -256,9 +328,7 @@ def m_if_disfrazado() -> None:
     Comprueba que la lista permitida no se pueda ensanchar de tapadillo con
     algo que «parece» inofensivo.
     """
-    _sustituye(CI, ANCLA_JOB,
-               ANCLA_JOB.replace("    runs-on:",
-                                 "    if: ${{ github.event_name == 'schedule' }}\n    runs-on:"))
+    _inserta_clave_de_job(CI, *JOB_ANCLA, "if: ${{ github.event_name == 'schedule' }}")
 
 
 def m_always_permitido() -> None:
