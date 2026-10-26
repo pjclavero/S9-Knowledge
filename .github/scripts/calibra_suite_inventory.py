@@ -706,9 +706,14 @@ def m_descritificar_declarando_OTRA_suite() -> None:
 # `export `. Es E2, la grave: medido, recolectaba 0 de 22 tests con EXIT=0.
 ANCLA_INVOCACION = ('          out="$(python -m pytest viewer/tests/ -v '
                     '--tb=short --no-header 2>&1)"')
-ANCLA_JOB_VIEWER = ("  test-viewer:\n"
-                    "    name: Viewer Tests\n"
-                    "    runs-on: ubuntu-latest\n")
+# El job del visor se identifica por su IDENTIDAD ESTRUCTURAL (id + `name:`,
+# que es el contexto requerido), resuelta con el parser YAML. El ancla
+# anterior incluia el literal `runs-on: ubuntu-latest`, y al migrar el job a un
+# runner self-hosted (MIGRACION-CI-S9K) SUP-2/SUP-4 murieron con
+# `MUTACION IMPOSIBLE` sin que la propiedad calibrada (un `env:` de job que
+# apaga la suite) dependiera del runner. Misma funcion que en
+# `calibra_gate_integrity.py`.
+JOB_VIEWER = ("test-viewer", "Viewer Tests")
 ANCLA_PASO_VIEWER = ("      - name: Run viewer tests\n"
                      "        env:\n"
                      '          S9K_ALLOW_REAL_INGEST: ""\n')
@@ -729,6 +734,73 @@ def _sustituye_en_ci(ancla: str, nuevo: str, etiqueta: str) -> None:
     CI.write_text(texto.replace(ancla, nuevo, 1), encoding="utf-8")
 
 
+def _inserta_clave_de_job(ruta: Path, job_id: str, nombre: str, clave: str) -> None:
+    """Inserta `clave` (YAML de una o varias lineas escrito en la columna 0,
+    p. ej. `if: false`) a NIVEL DE JOB en `job_id`/`nombre`.
+
+    - El job se localiza con `yaml.compose` (nodos del parser con su posicion
+      real), no con `replace`, primera aparicion, numero de linea fijo,
+      indentacion supuesta ni grep.
+    - UNICIDAD: tiene que existir EXACTAMENTE un job con ese id y ese `name:`, y
+      ningun otro job puede compartir el id o el `name:`. Cero -> el caso no
+      puede mutar (`MUTACION IMPOSIBLE`, calibracion ROJA). Mas de uno o una
+      coincidencia parcial -> `DETECTOR ROTO` (ROJA): no se sabe que se mide.
+    - La clave se escribe justo despues de `name:`, con la columna que el
+      parser da para las claves de ese job: queda dentro del mapeo del job.
+      Despues se re-parsea y se exige que cada clave este EN ESE job con ese
+      valor; si no, `DETECTOR ROTO` (la mutacion se habria desconectado).
+    """
+    import yaml
+
+    texto = ruta.read_text(encoding="utf-8")
+    raiz = yaml.compose(texto)
+    if not isinstance(raiz, yaml.MappingNode):
+        raise SystemExit(f"DETECTOR ROTO: {ruta.name} no es un mapeo YAML")
+    jobs = [v for k, v in raiz.value if k.value == "jobs"]
+    if len(jobs) != 1 or not isinstance(jobs[0], yaml.MappingNode):
+        raise SystemExit(f"DETECTOR ROTO: {ruta.name} tiene {len(jobs)} bloques `jobs`")
+
+    def nombre_de(nodo):
+        if not isinstance(nodo, yaml.MappingNode):
+            return None
+        valores = [v.value for k, v in nodo.value if k.value == "name"]
+        return valores[0] if len(valores) == 1 else None
+
+    exactos, parciales = [], []
+    for k, v in jobs[0].value:
+        coincide_id, coincide_nombre = k.value == job_id, nombre_de(v) == nombre
+        if coincide_id and coincide_nombre:
+            exactos.append((k, v))
+        elif coincide_id or coincide_nombre:
+            parciales.append(k.value)
+    if not exactos and not parciales:
+        raise SystemExit(f"MUTACION IMPOSIBLE: no hay ningun job `{job_id}` con "
+                         f"name `{nombre}` en {ruta.name}")
+    if len(exactos) != 1 or parciales:
+        raise SystemExit(f"DETECTOR ROTO: job `{job_id}`/`{nombre}`: {len(exactos)} "
+                         f"coincidencias exactas y parciales {parciales} en "
+                         f"{ruta.name}; se exige exactamente una")
+    _, mapeo = exactos[0]
+    claves_nombre = [(k, v) for k, v in mapeo.value if k.value == "name"]
+    k_nombre, v_nombre = claves_nombre[0]
+    columna = k_nombre.start_mark.column
+    tras = v_nombre.end_mark.line + 1   # primera linea despues del valor de `name:`
+    lineas = texto.splitlines(keepends=True)
+    lineas[tras:tras] = [" " * columna + l + "\n" for l in clave.splitlines()]
+    nuevo = "".join(lineas)
+
+    # Comprobacion de que la mutacion ESTA donde se dice: si no, el caso podria
+    # salir ROJO por otra razon (o VERDE) sin haber tocado el job.
+    datos = yaml.safe_load(nuevo)
+    job = (datos.get("jobs") or {}).get(job_id) or {}
+    for nombre_clave, esperado in yaml.safe_load(clave).items():
+        obtenido = job.get(nombre_clave, "<ausente>")
+        if obtenido != esperado:
+            raise SystemExit(f"DETECTOR ROTO: tras insertar `{nombre_clave}` el job "
+                             f"`{job_id}` tiene {obtenido!r} en vez de {esperado!r}")
+    ruta.write_text(nuevo, encoding="utf-8")
+
+
 def m_sup1_env_workflow() -> None:
     """SUP-1: `env:` a nivel de WORKFLOW: afecta a TODOS los jobs de una vez."""
     texto = CI.read_text(encoding="utf-8")
@@ -741,10 +813,7 @@ def m_sup1_env_workflow() -> None:
 
 def m_sup2_env_job() -> None:
     """SUP-2: `env:` del JOB que ejecuta la suite del visor."""
-    _sustituye_en_ci(
-        ANCLA_JOB_VIEWER,
-        ANCLA_JOB_VIEWER + f"    env:\n      PYTEST_ADDOPTS: {ADDOPTS}\n",
-        "SUP-2")
+    _inserta_clave_de_job(CI, *JOB_VIEWER, f"env:\n  PYTEST_ADDOPTS: {ADDOPTS}")
 
 
 def m_sup3_env_paso() -> None:
@@ -757,11 +826,9 @@ def m_sup3_env_paso() -> None:
 
 def m_sup4_env_container() -> None:
     """SUP-4: `container.env` del job. GitHub lo inyecta en todos sus pasos."""
-    _sustituye_en_ci(
-        ANCLA_JOB_VIEWER,
-        ANCLA_JOB_VIEWER + "    container:\n      image: python:3.13\n"
-                           f"      env:\n        PYTEST_ADDOPTS: {ADDOPTS}\n",
-        "SUP-4")
+    _inserta_clave_de_job(CI, *JOB_VIEWER,
+                          "container:\n  image: python:3.13\n"
+                          f"  env:\n    PYTEST_ADDOPTS: {ADDOPTS}")
 
 
 def m_sup5_env_servicio() -> None:
