@@ -118,7 +118,7 @@ Todos los contextos son requeridos (strict=true, app_id 15368) y hoy todos usan 
 | 2 | `knowledge-v3-contracts` | Contratos internos V3 (v3-internal-v1) | 0,2 min | Python, jsonschema, `git status` | bajo | 30 |
 | 3 | `test-data-engine` | Data Engine Tests | 10,8 min | Python, lock data-engine, **Docker** (Neo4j efímero por `docker run --publish 127.0.0.1:…`), `fetch-depth: 0` | medio: RAM (Neo4j heap 256 MB) | 30 |
 | 3 | `test-viewer` | Viewer Tests | 5,3 min | Python, viewer, **Docker** (Neo4j efímero) | medio | 30 |
-| 3 | `deployment-validation` | Deployment scripts validation | 0,7 min | **shellcheck 0.9.0** (era `sudo apt-get`), yamllint, ansible (pip) | medio: paso con `sudo` (§6) | 15 (ya existe) |
+| 3 | `deployment-validation` | Deployment scripts validation | 0,7 min | **shellcheck 0.11.0** (era `sudo apt-get`), yamllint, ansible (pip) | medio: paso con `sudo` (§6) | 15 (ya existe) |
 | 3 | `route-map-gate` | Censo de rutas (configuracion canonica en codigo) | 4,2 min | Python, viewer, `git fetch origin main` | bajo | 30 |
 | 3 | `metodos-de-escritura` | Metodos de escritura (especificacion independiente del montaje) | 7,8 min | Python, viewer | bajo | 30 |
 | 3 | `check-env-reproducibility` | Reproducibilidad de entorno (declarado == instalado) | 0,9 min | Python, lock + viewer | bajo | 30 |
@@ -185,21 +185,29 @@ se ha compilado nada; la compilación sigue disponible si se prefiere.
 
 Node: ver §5.4.
 
-### 5.2 shellcheck 0.9.0 (versión de `ubuntu-latest`)
+### 5.2 shellcheck 0.11.0 (versión de `ubuntu-latest` en el momento del cierre)
 
-`ubuntu-24.04` trae `shellcheck 0.9.0-1` (log del job 119400915508: «shellcheck is already the newest
-version (0.9.0-1)»); Debian 13 ofrece 0.10.0-1. La release de koalaman/shellcheck v0.9.0 **no publica
-checksums**, así que se usó el **mismo paquete fuente 0.9.0-1** de Debian bookworm, verificado por la
-cadena firmada de Debian:
+**Corrección (2026-10-26, revisión independiente de #277, P1).** La primera versión de esta sección
+partía de que `ubuntu-latest` era `ubuntu-24.04` con `shellcheck 0.9.0-1`, y por eso se instaló 0.9.0
+en VM115. **Esa premisa ya es falsa:** hoy `ubuntu-latest` es `ubuntu-26.04` y trae
+`shellcheck 0.11.0-2` (log de `main` `b137aa9`, run 40204968844: «shellcheck is already the newest
+version (0.11.0-2)»). Con 0.9.0 el gate podía dar verde donde GitHub da rojo: el mutante del revisor
+(`$(… > fichero)` sin uso, `[ -a … ]`) da rc=0 con 0.9.0 y rc=1 con 0.11.0.
 
-1. `dists/bookworm/InRelease` — `gpgv` contra `/usr/share/keyrings/debian-archive-keyring.gpg`:
-   «Good signature from Debian Stable Release Key (12/bookworm)», rc=0;
-2. `main/binary-amd64/Packages.xz` — SHA-256 `9e0b5aab…88c5` del InRelease: OK;
-3. `shellcheck_0.9.0-1_amd64.deb` — SHA-256 `8c40f8a4…fa4f` del Packages: OK.
+Arreglo en VM115 (sin tocar el paso condicional `command -v shellcheck || sudo apt-get …` de `ci.yml`):
 
-Se extrajo solo el binario (sin instalar el .deb de otra versión de Debian) a `/usr/local/bin/shellcheck`
-(root 0755, sha256 `59d20b9f…43ce`). Dependencias (`libc6`, `libffi8`, `libgmp10`) presentes; `ldd` sin
-ausencias; `shellcheck --version` = 0.9.0 como runner02.
+| | Antes | Después |
+|---|---|---|
+| `/usr/local/bin/shellcheck` | 0.9.0, sha256 `59d20b9f…43ce` (paquete Debian bookworm 0.9.0-1, cadena firmada de Debian) | **0.11.0**, sha256 `4da528dd…a55b` |
+| Origen | — | release oficial `koalaman/shellcheck` v0.11.0, `shellcheck-v0.11.0.linux.x86_64.tar.gz`, sha256 `b7af85e4…e6f6` = digest publicado por la release en la API de GitHub (verificado con `sha256sum -c`) |
+| Copia previa | `/opt/github-actions/config/backup/VM115-20261026-102313-shellcheck0.9.0-59d20b9f02f5-mig-ci/shellcheck-0.9.0` | |
+
+Cierre demostrado en VM115: `shellcheck --version` como runner02 = 0.11.0; mutante del revisor por
+stdin como runner02 → **rc=1** (SC2327, SC2328, SC2331; con 0.9.0 daba rc=0); los 8
+`deploy/scripts/*.sh` con la misma orden que `ci.yml` (`shellcheck -x -e SC1091`) → **rc=0**.
+
+**Deriva futura:** si `ubuntu-latest` cambia de versión de shellcheck, la de VM115 hay que alinearla
+a mano (deuda D-SC de §11).
 
 ### 5.3 Dependencias de sistema de Playwright 1.64.0
 
@@ -229,7 +237,7 @@ ambos runners:
 
 - `deployment-validation`: `sudo apt-get update -qq; sudo apt-get install -y shellcheck` →
   `command -v shellcheck >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y shellcheck; }`
-  (en VM115 encuentra el 0.9.0 de §5.2; en GitHub instala como hoy).
+  (en VM115 encuentra el preinstalado de §5.2, hoy 0.11.0; en GitHub instala como hoy).
 - `test-login-browser`: `python -m playwright install --with-deps chromium` → `python -m playwright install chromium`
   (deps ya en VM115, §5.3). El ancla `playwright install` de `check_ci_config.py`/`check_env_reproducibility.py`
   se conserva.
@@ -530,9 +538,44 @@ ruta del workspace) y el HOME del usuario del runner (caché de Playwright). No 
 solo desaparecen reubicando workdir, toolcache y HOME a rutas neutras, lo que exige volver a
 registrar el runner.
 
+### 9.8 Cierre de la repetición sobre el SHA final
+
+- **Runs públicos borrados por el operador**: 30/30 (todos verificados BORRADO), con copia local
+  completa y `SHA256SUMS` previos (inventario por run: id, workflow, SHA, fecha y motivo).
+  Reescaneo de los runs restantes: 0 IP privadas, 0 tokens o claves y **0 líneas del hook** con
+  rutas; quedan las que imprime el propio runner (deuda D-LOG).
+- **Calibración de gates en VM115**: verde dos veces en `6820013` (3h23m y 3h23m) y dos en `6ad528a`
+  (3h27m y 3h22m), con `timeout-minutes: 360`; pre y post CLEAN.
+- **`6ad528a` (main con #278 integrado)**: 32 jobs en commons-ci-s9k-01, todos con pre y post CLEAN,
+  0 OOM, RAM usada máx. 1740 MiB, disponible mín. 2114 MiB, como mucho 1 contenedor, sin swap.
+  `pip-audit` en verde. **Authz integration**: intento 1 del run de push en rojo en
+  `test_tras_la_restauracion_el_identificador_fisico_de_neo4j_CAMBIO` (tras restaurar, Neo4j
+  reutilizó el mismo `elementId` y el test exige que cambie); el organizador lo relanzó y el intento 2
+  salió verde. El run de PR del mismo SHA, y las ejecuciones anteriores en VM115, en verde
+  (deuda D-AUTHZ).
+- **Viewer Tests**: `timeout-minutes: 30` (2× lo medido, ~9 min, redondeado como el resto).
+
 ## 10. Pendiente / techo
 
-- Calibración de gates en VM115 (timeout 360): resultado en el PR.
-- `pip-audit`: CVE nuevas del lock, PR aparte.
+- Calibración de gates en VM115: hecha (§9.8).
+- `pip-audit`: resuelto en `main` por #278.
 - `Data Engine Tests`: PENDING_RESOURCE_FIT.
 - PR desde un fork **real**: no probado (necesitaría otra cuenta de GitHub), igual que en commons-ci.md §18.2.
+
+## 11. Deuda documentada (no abre carril)
+
+| Id | Deuda | Por qué no bloquea / qué haría falta |
+|---|---|---|
+| D-LAT | Latencia: con un solo runner y un job a la vez en toda la VM, un SHA completo (32 jobs self-hosted × push y PR, con dos calibraciones de ~3,4 h) tarda **~17 h** | Recursos fijados por el operador (2 vCPU / 4 GB / 1 job). Reducirla exige más runners o menos ejecuciones duplicadas (push + PR) |
+| D-COLA | Un job en cola más de **24 h** lo cancela GitHub; con dos SHA seguidos en cola, el último puede acercarse a ese límite | Publicar el siguiente SHA solo cuando el anterior haya terminado, o cancelar a sabiendas los runs de SHA superados |
+| D-LOG | Los logs públicos siguen mostrando lo que imprime el runner: `Machine name`, rutas del workdir/toolcache (`setup-python`, `Working directory`, `git safe.directory`, avisos de pytest) y el HOME del usuario del runner. Sin secretos | Solo desaparece reubicando workdir, toolcache y HOME a rutas neutras (re-registro del runner) |
+| D-SC | La versión de shellcheck de VM115 está fijada a mano (0.11.0) y puede divergir cuando cambie `ubuntu-latest` | Alinear a mano cuando cambie la imagen de GitHub, o fijar la versión en el workflow (cambio de producto) |
+| D-NODE | 3 tests de `test_graph_ux_v2.py` se omiten en VM115 (sin Node) en Combined y Viewer; GitHub los ejecutaba porque su imagen trae Node. Los cubre `test-graph-js` con Node y sin skips | Instalar Node en la VM cambiaría el entorno; se deja como diferencia conocida (§9.6) |
+| D-AUTHZ | `test_tras_la_restauracion_el_identificador_fisico_de_neo4j_CAMBIO` depende de que Neo4j no reutilice el `elementId` tras borrar y recrear: falló una vez en VM115 | Es del test, no del runner; corregirlo es cambio de producto (fuera de este PR) |
+| D-B3 | La calibración B3 (`mutaciones_b3_worker.py`, M1) falló una vez por tiempos en un runner de GitHub (§9.6) | Igual: del arnés, no de la migración |
+| D-DE | `Data Engine Tests` sigue en GitHub (OOM medido) | PENDING_RESOURCE_FIT; solo cambia con más RAM o con otra arquitectura de los tests |
+| D-PY | El intérprete del toolcache es la build oficial de Ubuntu sobre Debian 13, con la libssl3 del sistema (OpenSSL 3.5 frente a 3.0 en Ubuntu 24.04) y un enlace `/opt/hostedtoolcache/…` para su RUNPATH | Funciona y está calibrado; es una diferencia de entorno conocida |
+| D-FORK | El PR desde un fork **real** no se ha probado de extremo a extremo (sin segunda cuenta) | Cubierto por aprobación de externos + guard del hook + fixtures 14/14 |
+
+La revisión independiente de #277 numeró su propia lista D1–D10; esta tabla recoge la deuda tal como
+consta en las evidencias del carril (el texto de esa lista no está en el repositorio).
