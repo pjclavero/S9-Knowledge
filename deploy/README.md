@@ -610,6 +610,74 @@ existe **un solo resolvedor** (`data-engine/app/knowledge_v3/review_paths.py`)
 y el visor lo importa en vez de derivar la suya. Un caso lo comprueba por
 enumeración del árbol.
 
+## Las decisiones humanas persisten: `review.sqlite3` lo crea el DESPLIEGUE (C1 · USABLE-V1 · H-04 + H-18)
+
+### ESTADO DE ESTA SECCIÓN (leer antes de seguir)
+
+```
+CODE         PASS      deploy/scripts/review_store.py + pasos 6 y 13 reales de deploy.sh en arnés; E2E local fresh -> decisión -> upgrade
+CALIBRATION  PASS      scripts/calibracion/mutaciones_c1_persistencia_revision.py (job «Calibracion de gates»)
+RC-E2E       PENDING   sin systemd, sin usuario de servicio real (www-data), sin VM limpia
+```
+
+Antes de C1 el estado de revisión vivía **por defecto dentro de la release** y,
+si faltaba, nadie lo decía: el motor leía `{}` («nadie ha decidido nada») y el
+visor **creaba una base vacía**. Un `deploy.sh` con una ruta nueva bajo el
+state root daba «APTO: el estado sobrevive» mientras las decisiones humanas
+quedaban huérfanas.
+
+**Contrato.** *Deploy* es la autoridad que decide y prepara el almacén; el
+*runtime* (visor y motor) lo **consume y verifica** y, con la ruta declarada,
+**nunca lo crea** ni lo sustituye por `{}`.
+
+| Situación | Qué hace el despliegue (paso 6 de `deploy.sh`, `review_store.py`) |
+|---|---|
+| `--mode fresh`, ruta libre | **crea** `review.sqlite3` con el schema del producto (`0660`, dueño = usuario del worker) y lo **verifica por efecto**: existe, abre, tiene `human_decisions`, lo escribe el usuario del servicio |
+| `--mode fresh`, ya hay un almacén **con decisiones** | **BLOQUEA**: con estado existente se usa `--mode upgrade` |
+| `--mode upgrade`, almacén válido (aunque vacío: *vacío ≠ ausente*) | lo **preserva**; no crea ni toca nada |
+| `--mode upgrade`, **sin almacén** | **STOP** por defecto: o la ruta cambió, o el estado se perdió |
+| `--mode upgrade --autorizar-creacion-review-db`, sin almacén ni candidata legacy con decisiones | crea y **anota** la excepción en el log del despliegue |
+| cualquier modo, almacén corrupto / directorio / schema ajeno / sin permisos | **STOP** con la causa real. La autorización **no es un `--force`**: nunca sobrescribe, repara ni adopta |
+| ruta ausente pero hay una candidata legacy con decisiones (`${release previa}/viewer/output/reviews-v3/`, `/opt/knowledge-services/s9-knowledge-repo/…`) | **STOP aunque esté autorizado**: migrar es una decisión del operador |
+
+**Primer upgrade tras C1 en una instalación que nunca abrió la revisión.** No
+existe `review.sqlite3` en la ruta declarada y tampoco hay candidata con
+decisiones: el despliegue se detendrá con «UPGRADE sin almacen…». Repetir con
+`deploy.sh --mode upgrade --autorizar-creacion-review-db …`. Si en cambio
+**había** decisiones en la release anterior, el STOP es correcto: hay que
+migrarlas antes (no lo hace este guion).
+
+**La variable declarada tiene que significar algo.** `S9K_V3_REVIEW_DATABASE_PATH`
+vacía, de solo espacios, relativa o apuntando a un directorio se rechaza en
+`validate_viewer_env` (paso 6) y también en el runtime, con un diagnóstico que
+nombra la causa (*no existe* ≠ *no es escribible* ≠ *no es un fichero* ≠
+*schema inválido*).
+
+**Una sola resolución de la ruta** (`review_paths.default_review_db()`),
+compartida por visor, motor y preflight; `ReviewService(database_path=…)` es la
+única costura de test. Sin la variable declarada (desarrollo) se conserva el
+defecto del repositorio como **techo declarado**: ahí el visor puede crear el
+fichero y el motor lee `{}` si no existe. Una instalación productiva no puede
+estar en ese caso: la variable está en `CRITICAL_ENV_VARS`.
+
+**Worker.** `ingest_v3` con la ruta declarada ausente termina `FAILED` con
+`REVIEW_STORE_UNAVAILABLE` (o `REVIEW_STORE_PERMISSIONS` si es de permisos), sin
+gastar la corrida y **sin publicar paquete**. El paso 13 deja el directorio del
+almacén y sus `-wal`/`-shm` a nombre del usuario del worker
+(`preparar_estado_del_worker`) y vuelve a **verificarlo por efecto**.
+
+`preflight_ensayo_rc.py --grupo despliegue` acepta `--modo upgrade` (defecto,
+estricto: el almacén tiene que existir) o `--modo fresh` (puede no existir aún) y
+`--usuario-servicio` (evalúa los permisos del almacén para ese usuario, por bits
+de modo, no para quien ejecuta).
+
+**Medido** (CI required): `deploy/tests/test_c1_revision_deploy.py` (P1–P3,
+N1, N4–N16, paso 6 y 13 reales, E2E local con dos releases exportadas) y
+`viewer/tests/test_c1_revision_runtime.py` (N2, N3, N7–N10, N13, N17, N18, P1,
+P2, techo). **No medido** (RC-E2E PENDING): `chown` a `www-data` de verdad, el
+reparto de propietarios de `-wal`/`-shm` entre el visor (root, H-08) y el
+worker, `systemctl` y el reinicio de máquina.
+
 ## Invariante: el worker tiene que poder OBSERVAR el grafo
 
 **Slice 2 · Corte 5.** Hasta este corte el worker no tenía ni una referencia a

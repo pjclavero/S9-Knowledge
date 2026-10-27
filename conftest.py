@@ -99,8 +99,10 @@ def _almacen_de_decisiones_declarado_y_fresco(tmp_path_factory, monkeypatch):
     # Directorio PROPIO del caso, NO `tmp_path`: hay suites que cuentan lo que
     # hay dentro de `tmp_path` y un `reviews-v3/` ajeno les cambia el recuento.
     ruta = tmp_path_factory.mktemp("c1-decisiones") / "reviews-v3" / "review.sqlite3"
+    # La variable DECLARADA manda sobre `S9K_V3_REVIEW_DECISIONS_PATH` (que solo
+    # sigue gobernando el `decisions.jsonl` de auditoria): no se toca, porque
+    # varios casos del navegador la fijan para NO escribir en el arbol del repo.
     monkeypatch.setenv("S9K_V3_REVIEW_DATABASE_PATH", str(ruta))
-    monkeypatch.delenv("S9K_V3_REVIEW_DECISIONS_PATH", raising=False)
     crear_almacen_fresh(ruta)
 
 
