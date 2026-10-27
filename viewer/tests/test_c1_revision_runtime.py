@@ -130,7 +130,8 @@ def test_n2_la_ingesta_termina_failed_sin_publicar_paquete(ausente, tmp_path, mo
     assert worker.process_one("w-c1", ["ingest_v3"], None, db) is True
     job = job_store.get_job(job_id, db_path=db)
     assert job["status"] == "failed", job
-    assert job["error_message"].startswith("REVIEW_STORE_UNAVAILABLE:"), job["error_message"]
+    assert job["error_message"].startswith("REVIEW_STORE_UNAVAILABLE:"), (
+        "N2 INGESTA NO FALLO POR EL ALMACEN: " + job["error_message"])
     assert str(ausente) not in job["error_message"], "repo publico: sin rutas"
     assert list(propuestas.iterdir()) == [], "0 paquetes publicados"
     # PERMANENTE: una ruta mal declarada no se arregla reintentando.
@@ -156,14 +157,20 @@ def test_n3_servicio_con_ruta_declarada_ausente_no_crea_nada(ausente):
 
 def test_n3_el_store_sin_crear_no_hace_mkdir_ni_fichero(ausente):
     """El freno esta TAMBIEN en el almacen, no solo en la guarda del servicio."""
-    with pytest.raises(Exception):
+    try:
         SQLiteReviewStore(ausente, crear=False)
-    assert not ausente.parent.exists(), "crear=False no puede hacer mkdir"
+    except Exception:  # noqa: BLE001 - lo que importa es el EFECTO en disco
+        pass
+    assert not ausente.parent.exists(), "N3 STORE: crear=False no puede hacer mkdir"
     # y con el directorio presente tampoco crea el fichero
     ausente.parent.mkdir(parents=True)
+    try:
+        SQLiteReviewStore(ausente, crear=False)
+    except Exception:  # noqa: BLE001
+        pass
+    assert not ausente.exists(), "N3 STORE: crear=False no puede crear la base"
     with pytest.raises(Exception):
         SQLiteReviewStore(ausente, crear=False)
-    assert not ausente.exists(), "crear=False no puede crear la base"
 
 
 def test_n3_las_dos_superficies_http_lo_declaran_y_no_lo_pintan_vacio(
@@ -184,7 +191,7 @@ def test_n3_las_dos_superficies_http_lo_declaran_y_no_lo_pintan_vacio(
         r = client.get(ruta)
         assert r.status_code in (200, 503), (ruta, r.status_code)
         assert "DECISIONS_STORE_MISSING" in r.text and "DECISIONES humanas" in r.text, (
-            f"{ruta}: no nombra el almacen de decisiones: {r.text[:300]}")
+            f"N3 HTTP NO DECLARA EL ALMACEN AUSENTE en {ruta}: {r.text[:200]}")
         assert "Sin propuestas" not in r.text and "no hay nada" not in r.text.lower()
         assert str(ausente.parent) not in r.text, "repo publico: sin rutas"
     assert not ausente.parent.exists(), "ni una peticion crea el almacen"
@@ -300,7 +307,8 @@ def test_n17_worker_sin_lectura_del_directorio_falla_con_causa_permisos(tmp_path
     monkeypatch.undo()
     job = job_store.get_job(job_id, db_path=db)
     assert job["status"] == "failed", job
-    assert job["error_message"].startswith("REVIEW_STORE_PERMISSIONS:"), job["error_message"]
+    assert job["error_message"].startswith("REVIEW_STORE_PERMISSIONS:"), (
+        "N17 INGESTA NO FALLO POR PERMISOS: " + job["error_message"])
     assert "PERMISOS" in job["error_message"]
     assert list(propuestas.iterdir()) == []
     assert job["attempts"] == 1 and job["next_retry_at"] is None

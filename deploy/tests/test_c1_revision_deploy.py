@@ -562,9 +562,10 @@ preparar_estado_del_worker usr grp %(jobs)s %(props)s %(review)s
     r = subprocess.run(["bash", "-c", guion], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
     llamadas = log.read_text(encoding="utf-8")
-    assert "install -d -m 0750 -o usr -g grp %s\n" % review.parent in llamadas, llamadas
+    assert "install -d -m 0750 -o usr -g grp %s\n" % review.parent in llamadas, (
+        "N17 SIN INSTALL DE LA REVISION: " + llamadas)
     for f in (review, Path(str(review) + "-wal"), Path(str(review) + "-shm")):
-        assert "chown usr:grp -- %s\n" % f in llamadas, (f, llamadas)
+        assert "chown usr:grp -- %s\n" % f in llamadas, "N17 SIN CHOWN DE LA REVISION: %s\n%s" % (f, llamadas)
 
 
 def test_preparar_estado_del_worker_exige_la_ruta_de_revision(tmp_path):
