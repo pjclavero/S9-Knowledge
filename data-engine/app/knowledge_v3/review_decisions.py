@@ -59,7 +59,6 @@ respetarlo haria que deshacer no deshiciera nada para el motor.
 from __future__ import annotations
 
 import json
-import os
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
@@ -76,12 +75,19 @@ NON_AUTHORITATIVE_EXPORT = "decisions.jsonl"
 
 
 class ReviewDecisionsError(RuntimeError):
-    """El almacen autoritativo existe pero no se puede leer.
+    """El almacen autoritativo no existe (declarado) o no se puede leer.
 
     FALLA CERRADO a proposito: si no se puede saber que decidio el humano, el
     motor NO puede seguir como si nadie hubiera decidido nada. Un almacen
-    ilegible no es un almacen vacio.
+    ilegible no es un almacen vacio, y uno AUSENTE con la ruta declarada
+    tampoco (C1 · H-18). `causa` es el codigo estable de
+    `review_paths.CAUSAS` (NO_EXISTE, SIN_PERMISOS, NO_ES_FICHERO, CORRUPTA,
+    SCHEMA_INVALIDO, VAR_*) o ``None`` si no hay una mas especifica.
     """
+
+    def __init__(self, mensaje: str, causa: "str | None" = None):
+        super().__init__(mensaje)
+        self.causa = causa
 
 
 @dataclass(frozen=True)
@@ -112,25 +118,43 @@ class HumanDecision:
         }
 
 
-def default_decisions_db() -> Optional[Path]:
-    """El MISMO contrato de ruta que usa el visor. Un solo camino de lectura.
+def _review_paths():
+    """El resolvedor CANONICO (`review_paths`), cargable como paquete o por ruta.
 
-    Se respeta el orden de precedencia del visor
-    (``app/services/v3_review.py``): variable explicita de la base, si no la
-    carpeta que declare ``S9K_V3_REVIEW_DECISIONS_PATH``, si no la ubicacion
-    por defecto del repositorio. Devuelve ``None`` cuando no hay visor montado.
+    Este modulo lo carga tambien el preflight del despliegue POR RUTA (sin
+    paquete padre), donde un import relativo no existe: se cae a cargar el
+    hermano por ruta, registrandolo con el MISMO nombre que usa el preflight
+    para que haya una sola instancia.
     """
-    configured = os.environ.get("S9K_V3_REVIEW_DATABASE_PATH")
-    if configured:
-        return Path(configured)
-    decisions = os.environ.get("S9K_V3_REVIEW_DECISIONS_PATH")
-    if decisions:
-        return Path(decisions).with_name("review.sqlite3")
-    guess = (
-        Path(__file__).resolve().parents[3]
-        / "viewer" / "output" / "reviews-v3" / "review.sqlite3"
-    )
-    return guess if guess.exists() else None
+    try:
+        from . import review_paths  # type: ignore
+        return review_paths
+    except ImportError:
+        import importlib.util
+        import sys
+        nombre = "_s9k_review_paths"
+        if nombre in sys.modules:
+            return sys.modules[nombre]
+        spec = importlib.util.spec_from_file_location(
+            nombre, Path(__file__).with_name("review_paths.py"))
+        modulo = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+        sys.modules[nombre] = modulo
+        spec.loader.exec_module(modulo)  # type: ignore[union-attr]
+        return modulo
+
+
+def default_decisions_db() -> Path:
+    """La ruta del almacen: DELEGADA en la resolucion canonica de `review_paths`.
+
+    Aqui no se deriva nada (C1 · contrato 6). Con la variable declarada
+    invalida (vacia, relativa, directorio) levanta `ReviewDecisionsError`
+    nombrando la causa, en vez de caer en un defecto.
+    """
+    paths = _review_paths()
+    try:
+        return paths.default_review_db()
+    except paths.ReviewDbConfigError as exc:
+        raise ReviewDecisionsError(str(exc), causa=exc.causa) from exc
 
 
 def _records(db_path: Path) -> list[dict[str, Any]]:
@@ -205,6 +229,34 @@ def active_decisions(records: Iterable[Mapping[str, Any]]) -> dict[str, HumanDec
     return active
 
 
+def verify_decisions_store(db_path: "Path | None" = None) -> "Path | None":
+    """Comprueba el almacen y devuelve su ruta; ``None`` == TECHO de desarrollo.
+
+    Es la comprobacion que comparten `read_active_decisions` y el worker
+    (`ingest_v3`, ANTES de gastar una corrida). Levanta ``ReviewDecisionsError``
+    con la causa si la ruta esta declarada (o se pasa explicita) y el almacen
+    no existe / no es fichero / no se puede leer / esta corrupto / es ajeno.
+    Devuelve ``None`` solo cuando NO hay variable declarada y el fichero por
+    defecto no existe: el unico caso en que "sin almacen" sigue valiendo.
+    Nunca crea ni escribe nada.
+    """
+    paths = _review_paths()
+    if db_path is not None:
+        path, declarada = Path(db_path), True
+    else:
+        try:
+            ref = paths.resolve_review_db()
+        except paths.ReviewDbConfigError as exc:
+            raise ReviewDecisionsError(str(exc), causa=exc.causa) from exc
+        path, declarada = ref.path, ref.declarada
+    if not declarada and not path.exists():
+        return None
+    inspeccion = paths.inspect_review_db(path)
+    if not inspeccion.valido:
+        raise ReviewDecisionsError(inspeccion.detalle, causa=inspeccion.causa)
+    return path
+
+
 def read_active_decisions(
     db_path: "Path | None" = None,
     *,
@@ -212,14 +264,22 @@ def read_active_decisions(
 ) -> dict[str, HumanDecision]:
     """Las decisiones humanas activas. EL UNICO camino de lectura del motor.
 
-    Sin almacen no hay decisiones: se devuelve vacio y el motor se comporta
-    como siempre. Con almacen ilegible se levanta ``ReviewDecisionsError``: eso
-    es un fallo, no un silencio.
+    CONTRATO (C1 · H-18):
+
+      * ruta DECLARADA (``S9K_V3_REVIEW_DATABASE_PATH``) o pasada de forma
+        explicita en ``db_path``: el almacen TIENE que existir y ser valido.
+        Ausente, no-fichero, sin permisos, corrupto o con schema ajeno
+        levanta ``ReviewDecisionsError`` con su causa. NO hay fallback ``{}``.
+      * SIN variable declarada (desarrollo): se conserva el defecto del
+        repositorio y, si el fichero no existe, ``{}`` (TECHO DECLARADO, con su
+        test propio). Si existe y no es valido, tambien levanta.
+
+    Nunca crea ni escribe nada.
     """
-    path = db_path if db_path is not None else default_decisions_db()
-    if path is None or not Path(path).exists():
-        return {}
-    active = active_decisions(_records(Path(path)))
+    path = verify_decisions_store(db_path)
+    if path is None:
+        return {}  # TECHO DECLARADO: sin variable declarada (desarrollo)
+    active = active_decisions(_records(path))
     if workspace is None:
         return active
     return {
@@ -248,6 +308,7 @@ __all__ = [
     "ReviewDecisionsError",
     "HumanDecision",
     "default_decisions_db",
+    "verify_decisions_store",
     "active_decisions",
     "read_active_decisions",
     "resolved_proposal_ids",

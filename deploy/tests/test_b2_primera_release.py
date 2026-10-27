@@ -164,7 +164,7 @@ def test_de_maquina_limpia_a_installation_complete(tmp_path, cert_localhost):
     cert, _ = cert_localhost
     puerto = _puerto_libre()
     url = "https://localhost:%d" % puerto
-    env, raiz = plantilla_productiva_en(tmp_path, url, ca_file=str(cert))
+    env, raiz = plantilla_productiva_en(tmp_path, url, ca_file=str(cert), almacen=False)
     entorno = rc_mod.entorno_desde_env_file(env)
     auth_db = Path(entorno["S9K_AUTH_DB_PATH"])
     jobs_db = Path(entorno["S9K_JOBS_DB"])
@@ -176,9 +176,13 @@ def test_de_maquina_limpia_a_installation_complete(tmp_path, cert_localhost):
     # Pasos 3-4: maquina limpia + --mode fresh -> sigue, primer admin PENDIENTE.
     rc, out = _paso4(tmp_path, "fresh", new_auth=auth_db, new_jobs=jobs_db)
     assert rc == 0 and "FIRST_ADMIN_PENDING" in out, out
-    # Paso 6: la plantilla literal pasa.
-    rc, out = _paso6(env, raiz)
+    # Paso 6: la plantilla literal pasa y, en FRESH, el DESPLIEGUE crea el
+    # almacen de decisiones humanas (C1): el visor de abajo lo CONSUME.
+    assert not Path(entorno["S9K_V3_REVIEW_DATABASE_PATH"]).exists()
+    rc, out = _paso6(env, raiz, modo="fresh")
     assert rc == 0, out
+    assert Path(entorno["S9K_V3_REVIEW_DATABASE_PATH"]).is_file(), (
+        "fresh: el paso 6 tenia que crear review.sqlite3\n" + out)
     # Paso 12: `current` activo.
     current = _activar_current(s9k_root)
 

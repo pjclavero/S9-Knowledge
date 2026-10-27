@@ -103,10 +103,19 @@ class Resultado:
 
 @dataclass(frozen=True)
 class Contexto:
-    """Lo que las comprobaciones necesitan saber del ensayo."""
+    """Lo que las comprobaciones necesitan saber del ensayo.
+
+    `modo` (C1): ``upgrade`` (defecto, ESTRICTO: el almacen de revision tiene
+    que existir ya) o ``fresh`` (el almacen aun puede no existir: lo creara el
+    despliegue). `usuario_servicio`: si se da, los permisos del almacen se
+    evaluan para ESE usuario (por bits de modo), no para quien ejecuta.
+    """
 
     env: dict
     workspace: str
+    modo: str = "upgrade"
+    usuario_servicio: Optional[str] = None
+    grupo_servicio: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -279,30 +288,48 @@ def review_db_compartida(ctx: Contexto) -> Resultado:
 
     Si se separan los volumenes, el falso exito vuelve POR DESPLIEGUE: el
     operador decide, el motor no ve la decision, y nadie ve un error.
+
+    C1: ya no hay tres derivaciones que comparar. La ruta sale de UNA funcion
+    (`review_paths.default_review_db`), que visor y motor llaman. Lo que se
+    comprueba aqui es que la DECLARACION es valida (no vacia, no relativa, no
+    un directorio) y que el motor, resolviendo con ESE entorno, devuelve la
+    ruta declarada.
     """
     base = ctx.env.get("S9K_V3_REVIEW_DATABASE_PATH")
     decisiones = ctx.env.get("S9K_V3_REVIEW_DECISIONS_PATH")
-    if not base and not decisiones:
+    if base is None and not decisiones:
         return Resultado(
             "review_db.compartida", ROJO,
             "ni S9K_V3_REVIEW_DATABASE_PATH ni S9K_V3_REVIEW_DECISIONS_PATH: "
             "cada proceso caeria en el defecto de SU arbol",
         )
     try:
+        resolvedor = _review_paths()
         motor = _review_decisions()
     except Exception as exc:  # noqa: BLE001
         return Resultado("review_db.compartida", PENDIENTE,
                          f"no se pudo cargar el lector del motor: {type(exc).__name__}")
+    if base is not None:
+        # DECLARADA: su forma se juzga con la validacion canonica, y se dice
+        # POR QUE (vacia != relativa != directorio).
+        try:
+            resolvedor.validar_declaracion(base)
+        except resolvedor.ReviewDbConfigError as exc:
+            return Resultado("review_db.compartida", ROJO,
+                             f"S9K_V3_REVIEW_DATABASE_PATH invalida [{exc.causa}]: {exc}")
     guardado = {k: os.environ.get(k) for k in
                 ("S9K_V3_REVIEW_DATABASE_PATH", "S9K_V3_REVIEW_DECISIONS_PATH")}
     for clave, valor in (("S9K_V3_REVIEW_DATABASE_PATH", base),
                          ("S9K_V3_REVIEW_DECISIONS_PATH", decisiones)):
-        if valor:
+        if valor is not None and (valor or clave.endswith("DATABASE_PATH")):
             os.environ[clave] = valor
         else:
             os.environ.pop(clave, None)
     try:
         del_motor = motor.default_decisions_db()
+    except Exception as exc:  # noqa: BLE001
+        return Resultado("review_db.compartida", ROJO,
+                         f"el motor no resuelve la base: {exc}")
     finally:
         for clave, valor in guardado.items():
             if valor is None:
@@ -312,7 +339,7 @@ def review_db_compartida(ctx: Contexto) -> Resultado:
     if del_motor is None:
         return Resultado("review_db.compartida", ROJO,
                          "el motor no resuelve NINGUNA base de decisiones")
-    esperada = Path(base) if base else Path(decisiones).with_name("review.sqlite3")
+    esperada = Path(base) if base is not None else Path(decisiones).with_name("review.sqlite3")
     if Path(del_motor) != esperada:
         return Resultado("review_db.compartida", ROJO,
                          "visor y motor resuelven ficheros DISTINTOS")
@@ -323,10 +350,79 @@ def review_db_compartida(ctx: Contexto) -> Resultado:
                          "review.sqlite3 bajo el arbol del codigo: un redespliegue "
                          "se lleva por delante las decisiones humanas")
     if not esperada.parent.is_dir():
+        # En fresh el directorio lo crea el despliegue junto con el almacen.
+        if ctx.modo == "fresh":
+            return Resultado("review_db.compartida", VERDE,
+                             f"visor y motor resuelven el mismo fichero: {esperada} "
+                             "(el directorio lo creara el despliegue: fresh)")
         return Resultado("review_db.compartida", ROJO,
                          "el directorio de review.sqlite3 no existe")
     return Resultado("review_db.compartida", VERDE,
                      f"visor y motor resuelven el mismo fichero: {esperada}")
+
+
+def review_db_existente(ctx: Contexto) -> Resultado:
+    """C1 · H-04/H-18. El almacen de decisiones EXISTE y es el de revision.
+
+    ESTE es el falso verde que se medio: en un upgrade con una ruta nueva bajo
+    el state root el preflight decia «APTO: el estado sobrevive» mientras las
+    decisiones quedaban huerfanas y el visor creaba una base vacia. La
+    SUPERVIVENCIA del estado se observa: el fichero esta, abre y tiene
+    `human_decisions`.
+
+    * `upgrade` (defecto): AUSENTE es ROJO. Vacia (schema correcto, 0 filas)
+      es VERDE: vacia != ausente.
+    * `fresh`: AUSENTE es VERDE (lo crea el despliegue); lo que ya esta y no es
+      valido (corrupto, ajeno, directorio, sin permisos) es ROJO igual.
+    """
+    base = ctx.env.get("S9K_V3_REVIEW_DATABASE_PATH")
+    if base is None:
+        return Resultado("review_db.existente", PENDIENTE,
+                         "S9K_V3_REVIEW_DATABASE_PATH sin declarar: no hay "
+                         "almacen que mirar")
+    try:
+        resolvedor = _review_paths()
+        ruta = resolvedor.validar_declaracion(base)
+    except resolvedor.ReviewDbConfigError as exc:
+        return Resultado("review_db.existente", ROJO,
+                         f"declaracion invalida [{exc.causa}]: {exc}")
+    except Exception as exc:  # noqa: BLE001
+        return Resultado("review_db.existente", PENDIENTE,
+                         f"no se pudo cargar el resolvedor: {type(exc).__name__}")
+    como = None
+    if ctx.usuario_servicio:
+        try:
+            como = _como_servicio(ctx.usuario_servicio, ctx.grupo_servicio)
+        except Exception as exc:  # noqa: BLE001
+            return Resultado("review_db.existente", PENDIENTE,
+                             f"usuario del servicio no resoluble: {type(exc).__name__}")
+    ins = resolvedor.inspect_review_db(ruta, escritura=True, como=como)
+    if ins.valido:
+        return Resultado("review_db.existente", VERDE,
+                         f"almacen existente, abre y tiene human_decisions "
+                         f"({ins.decisiones} decision(es)), escribible")
+    if ins.causa == resolvedor.CAUSA_NO_EXISTE and ctx.modo == "fresh":
+        return Resultado("review_db.existente", VERDE,
+                         "AUSENTE en modo fresh: lo creara el despliegue")
+    return Resultado("review_db.existente", ROJO,
+                     f"[{ins.causa}] {ins.detalle}")
+
+
+def _como_servicio(usuario: str, grupo: Optional[str]):
+    import grp  # noqa: PLC0415
+    import pwd  # noqa: PLC0415
+
+    uid = int(usuario) if usuario.isdigit() else pwd.getpwnam(usuario).pw_uid
+    gids = set()
+    if grupo:
+        gids.add(int(grupo) if grupo.isdigit() else grp.getgrnam(grupo).gr_gid)
+    try:
+        info = pwd.getpwuid(uid)
+        gids.add(info.pw_gid)
+        gids.update(g.gr_gid for g in grp.getgrall() if info.pw_name in g.gr_mem)
+    except KeyError:
+        pass
+    return uid, frozenset(gids)
 
 
 def estado_persistente_sobrevive(ctx: Contexto) -> Resultado:
@@ -833,6 +929,7 @@ COMPROBACIONES: tuple[tuple[str, Callable[[Contexto], Resultado]], ...] = (
     ("propuestas.utilizable", propuestas_utilizable),
     ("propuestas.derivacion_unica", propuestas_derivacion_unica),
     ("review_db.compartida", review_db_compartida),
+    ("review_db.existente", review_db_existente),
     ("estado.persistente", estado_persistente_sobrevive),
     ("reinicio.no_reprocesa", reinicio_no_reprocesa),
     ("auth.activa", autenticacion_activa),
@@ -856,6 +953,7 @@ GRUPO_DESPLIEGUE = frozenset({
     "propuestas.utilizable",
     "propuestas.derivacion_unica",
     "review_db.compartida",
+    "review_db.existente",
     "estado.persistente",
 })
 
@@ -890,7 +988,9 @@ def entorno_desde_env_file(ruta: Path) -> dict:
     entorno = {}
     for clave in claves:
         valor = valor_de_env_file(ruta, clave)
-        if valor:
+        # `S9K_V3_REVIEW_DATABASE_PATH=` (vacia) es una DECLARACION invalida, no
+        # una ausencia (C1): se conserva para que se juzgue por lo que es.
+        if valor or clave == "S9K_V3_REVIEW_DATABASE_PATH":
             entorno[clave] = valor
     return entorno
 
@@ -929,6 +1029,14 @@ def main(argv: Optional[list] = None) -> int:
     parser.add_argument("--env-file",
                         help="leer las variables de este EnvironmentFile en "
                              "vez del entorno del proceso")
+    parser.add_argument("--modo", choices=["upgrade", "fresh"], default="upgrade",
+                        help="upgrade (defecto, estricto): el almacen de "
+                             "revision tiene que EXISTIR; fresh: aun puede no "
+                             "existir (lo crea el despliegue)")
+    parser.add_argument("--usuario-servicio",
+                        help="evalua los permisos del almacen para este "
+                             "usuario (nombre o uid)")
+    parser.add_argument("--grupo-servicio")
     parser.add_argument("--state-root",
                         help="state root del despliegue (S9K_STATE_ROOT); "
                              "lo conoce deploy.sh, no el visor")
@@ -949,7 +1057,9 @@ def main(argv: Optional[list] = None) -> int:
         return 3
     print(f"canario           {prueba.detalle}")
 
-    ctx = Contexto(env=entorno, workspace=workspace)
+    ctx = Contexto(env=entorno, workspace=workspace, modo=args.modo,
+                   usuario_servicio=args.usuario_servicio,
+                   grupo_servicio=args.grupo_servicio)
     resultados = ejecutar(ctx, GRUPOS[args.grupo])
     ancho = max(len(r.id) for r in resultados)
     for r in resultados:

@@ -714,10 +714,13 @@ paso4_migrar_o_validar_estado() {
 }
 
 # ---------------------------------------------------------------------------
-# preparar_estado_del_worker <user> <group> <jobs_db> <proposals_dir>
+# preparar_estado_del_worker <user> <group> <jobs_db> <proposals_dir> <review_db>
 #   B3 (USABLE-V1) · H-02. Deja a nombre del usuario del servicio del worker el
 #   estado que COMPARTE con el visor: el directorio de la cola, `jobs.db` y sus
 #   ficheros WAL si ya existen, y el almacén de propuestas. Idempotente.
+#   C1 · H-04/H-18: tambien el almacen de DECISIONES humanas (`review.sqlite3`):
+#   su directorio (SQLite crea ahi los -wal/-shm) y la base con sus WAL. Es
+#   obligatorio: el worker lee las decisiones antes de proponer.
 #
 #   POR QUÉ: el visor que arranca `deploy.sh` corre como root (H-08, sin
 #   resolver) y crea `jobs.db` 0644 root:root; el worker corre como el usuario
@@ -728,9 +731,10 @@ paso4_migrar_o_validar_estado() {
 #   rc=0 ok; rc!=0 si falta un argumento o falla install/chown.
 # ---------------------------------------------------------------------------
 preparar_estado_del_worker() {
-    local user="${1:?usuario}" group="${2:?grupo}" jobs_db="${3:?jobs.db}" props="${4:?propuestas}" f
+    local user="${1:?usuario}" group="${2:?grupo}" jobs_db="${3:?jobs.db}" props="${4:?propuestas}" review_db="${5:?review.sqlite3}" f
     install -d -m 0750 -o "${user}" -g "${group}" "$(dirname -- "${jobs_db}")" "${props}"
-    for f in "${jobs_db}" "${jobs_db}-wal" "${jobs_db}-shm"; do
+    install -d -m 0750 -o "${user}" -g "${group}" "$(dirname -- "${review_db}")"
+    for f in "${jobs_db}" "${jobs_db}-wal" "${jobs_db}-shm" "${review_db}" "${review_db}-wal" "${review_db}-shm"; do
         if [ -e "${f}" ]; then chown "${user}:${group}" -- "${f}"; fi
     done
     return 0

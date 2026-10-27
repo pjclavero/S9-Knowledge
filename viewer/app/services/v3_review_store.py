@@ -153,9 +153,19 @@ class SealConflict(RuntimeError):
 class SQLiteReviewStore:
     """Short SQLite transactions with WAL and database-enforced uniqueness."""
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, *, crear: bool = True):
+        """Abre el almacén.
+
+        ``crear=True`` (defecto: costura de tests y herramienta de DESPLIEGUE,
+        que es quien crea el fichero canónico) crea directorio y fichero si
+        faltan. ``crear=False`` es el modo RUNTIME con la ruta declarada
+        (C1 · H-04): NO hace `mkdir`, abre con ``mode=rw`` (SQLite no puede
+        crear el fichero) y levanta si no existe. El runtime consume; no crea.
+        """
         self.path = path
-        path.parent.mkdir(parents=True, exist_ok=True)
+        self._crear = crear
+        if crear:
+            path.parent.mkdir(parents=True, exist_ok=True)
         for attempt in range(60):
             try:
                 with self.connection() as connection:
@@ -206,7 +216,12 @@ class SQLiteReviewStore:
             connection.execute(f"ALTER TABLE {tabla} ADD COLUMN {columna} {tipo}")
 
     def connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.path, timeout=30, isolation_level=None)
+        if self._crear:
+            connection = sqlite3.connect(self.path, timeout=30, isolation_level=None)
+        else:
+            connection = sqlite3.connect(
+                f"file:{self.path}?mode=rw", uri=True, timeout=30,
+                isolation_level=None)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA busy_timeout=30000")
         connection.execute("PRAGMA synchronous=FULL")

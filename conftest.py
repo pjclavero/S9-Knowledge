@@ -64,3 +64,47 @@ def _almacen_de_propuestas_aislado(tmp_path, monkeypatch):
     monkeypatch.setenv(
         "S9K_V3_REVIEW_PROPOSALS_DIR", str(tmp_path / "reviews-v3" / "proposals")
     )
+
+
+# ---------------------------------------------------------------------------
+# Almacén de decisiones humanas (`review.sqlite3`): DECLARADO y FRESCO por caso.
+# ---------------------------------------------------------------------------
+# C1 (USABLE-V1) · H-04 + H-18. Hasta C1 el visor CREABA `review.sqlite3` al
+# primer uso y el motor leía `{}` si no estaba: la suite entera vivía de ese
+# comportamiento. Con la ruta DECLARADA, el runtime ya no crea nada (lo crea el
+# despliegue), así que cada caso nace como nace una instalación fresh: ruta
+# declarada y almacén creado POR LA MISMA HERRAMIENTA que usa `deploy.sh`
+# (`deploy/scripts/review_store.py preparar --modo fresh`), no por un atajo de
+# test. Un caso que quiera otro estado (ausente, corrupto, sin declarar, ...)
+# lo cambia en SU propio fixture, que corre después de éste y manda sobre él.
+def crear_almacen_fresh(ruta):
+    """Crea `ruta` exactamente como el despliegue fresh. Devuelve la ruta."""
+    import importlib.util as _ilu
+
+    nombre = "_s9k_review_store_deploy_tests"
+    modulo = sys.modules.get(nombre)
+    if modulo is None:
+        spec = _ilu.spec_from_file_location(
+            nombre, repo_root / "deploy" / "scripts" / "review_store.py")
+        modulo = _ilu.module_from_spec(spec)
+        sys.modules[nombre] = modulo
+        spec.loader.exec_module(modulo)
+    resultado = modulo.preparar("fresh", str(ruta))
+    assert resultado.rc == 0, resultado.lineas
+    return ruta
+
+
+@pytest.fixture(autouse=True)
+def _almacen_de_decisiones_declarado_y_fresco(tmp_path_factory, monkeypatch):
+    # Directorio PROPIO del caso, NO `tmp_path`: hay suites que cuentan lo que
+    # hay dentro de `tmp_path` y un `reviews-v3/` ajeno les cambia el recuento.
+    ruta = tmp_path_factory.mktemp("c1-decisiones") / "reviews-v3" / "review.sqlite3"
+    monkeypatch.setenv("S9K_V3_REVIEW_DATABASE_PATH", str(ruta))
+    monkeypatch.delenv("S9K_V3_REVIEW_DECISIONS_PATH", raising=False)
+    crear_almacen_fresh(ruta)
+
+
+@pytest.fixture
+def almacen_fresh():
+    """La función `crear_almacen_fresh` como fixture (los tests no importan conftest)."""
+    return crear_almacen_fresh

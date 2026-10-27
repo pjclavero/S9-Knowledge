@@ -316,6 +316,34 @@ validate_https_contract() {
 }
 
 # ---------------------------------------------------------------------------
+# validate_review_db_var <env_file>
+#   C1 (USABLE-V1) · H-04/H-18. El VALOR de S9K_V3_REVIEW_DATABASE_PATH, no solo
+#   su presencia. `S9K_V3_REVIEW_DATABASE_PATH=""` pasa la comprobacion de
+#   presencia de `validate_viewer_env` (la linea tiene caracteres) y declara...
+#   nada. Vacia, solo espacios, relativa o apuntando a un directorio
+#   existente BLOQUEA, y el mensaje NOMBRA la causa real. Nunca crea nada.
+#   rc=0 ok, rc=1 mal.
+# ---------------------------------------------------------------------------
+validate_review_db_var() {
+    local env_file="${1}" val
+    val="$(_env_value "${env_file}" S9K_V3_REVIEW_DATABASE_PATH)"
+    if [ -z "${val//[[:space:]]/}" ]; then
+        printf 'BLOCK(review): S9K_V3_REVIEW_DATABASE_PATH esta declarada pero VACIA (o solo espacios)\n' >&2
+        return 1
+    fi
+    case "${val}" in
+        /*) ;;
+        *) printf 'BLOCK(review): S9K_V3_REVIEW_DATABASE_PATH es RELATIVA: dos procesos con distinto directorio de trabajo resolverian dos almacenes\n' >&2
+           return 1 ;;
+    esac
+    if [ -d "${val}" ]; then
+        printf 'BLOCK(review): S9K_V3_REVIEW_DATABASE_PATH apunta a un DIRECTORIO, no a un fichero\n' >&2
+        return 1
+    fi
+    return 0
+}
+
+# ---------------------------------------------------------------------------
 # validate_viewer_env <viewer.env>
 #   Falla (rc=1) si el fichero no existe o si falta/está vacía una variable crítica.
 #   No imprime valores; solo el NOMBRE de las variables ausentes.
@@ -338,6 +366,8 @@ validate_viewer_env() {
         printf 'BLOCK: faltan variables críticas en viewer.env: %s\n' "${missing[*]}" >&2
         return 1
     fi
+    # C1: presente != declarada con sentido (vacia, espacios, relativa, directorio).
+    validate_review_db_var "${env_file}" || return 1
     return 0
 }
 

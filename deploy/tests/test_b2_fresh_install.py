@@ -55,6 +55,7 @@ if str(_TESTS) not in sys.path:
 
 import detect_state as ds  # noqa: E402
 import estado_instalacion as ei  # noqa: E402
+import review_store as rs  # noqa: E402
 import preflight_setup_admin as ps  # noqa: E402
 from preflight_https import valor_de_env_file  # noqa: E402
 
@@ -327,11 +328,14 @@ def _directorios_de_ansible() -> list:
 
 
 def plantilla_productiva_en(tmp: Path, url: str, *, ca_file: str = None,
-                            quitar: tuple = ()) -> tuple:
+                            quitar: tuple = (), almacen: bool = True) -> tuple:
     """La plantilla LITERAL con solo el state root y la URL de este host.
 
     Devuelve ``(viewer_env, state_root)``. Crea los directorios que crearia el
-    rol Ansible `common`, ni uno mas.
+    rol Ansible `common`, ni uno mas. Con ``almacen=True`` (defecto) deja
+    ademas `review.sqlite3` creado como lo deja un despliegue previo (C1: un
+    UPGRADE lo exige); ``almacen=False`` es la maquina limpia (fresh), donde lo
+    crea el paso 6.
     """
     state_root = tmp / "var-lib-s9k"
     texto = PLANTILLA_PRODUCTIVA.read_text(encoding="utf-8")
@@ -355,7 +359,34 @@ def plantilla_productiva_en(tmp: Path, url: str, *, ca_file: str = None,
     for sub in _directorios_de_ansible():
         (state_root / sub).mkdir(parents=True, exist_ok=True)
     worker_env_productivo_en(tmp, state_root)
+    if almacen:
+        res = rs.preparar("fresh", str(state_root / "reviews-v3" / "review.sqlite3"))
+        assert res.rc == 0, res.lineas
     return env, state_root
+
+
+def release_falsa_con_unidad(tmp: Path) -> Path:
+    """Una `RELEASE_DIR` con la unidad REAL del worker, con el usuario de ESTE proceso.
+
+    El paso 6 lee `User=`/`Group=` de la unidad de la release que se va a
+    activar (la misma fuente que el paso 7). En el arnes el usuario del
+    servicio es quien ejecuta la prueba: sin root no se puede dar un fichero a
+    `www-data`.
+    """
+    import grp  # noqa: PLC0415
+    import pwd  # noqa: PLC0415
+
+    release = tmp / "release-falsa"
+    destino = release / "data-engine" / "systemd" / "s9-knowledge-worker.service"
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    texto = (RAIZ / "data-engine" / "systemd" / "s9-knowledge-worker.service").read_text(
+        encoding="utf-8")
+    texto = re.sub(r"^User=.*$", "User=%s" % pwd.getpwuid(os.getuid()).pw_name,
+                   texto, flags=re.M)
+    texto = re.sub(r"^Group=.*$", "Group=%s" % grp.getgrgid(os.getgid()).gr_name,
+                   texto, flags=re.M)
+    destino.write_text(texto, encoding="utf-8")
+    return release
 
 
 def worker_env_productivo_en(tmp: Path, state_root: Path) -> Path:
@@ -378,15 +409,32 @@ def worker_env_productivo_en(tmp: Path, state_root: Path) -> Path:
     return worker_env
 
 
-def _paso6(env: Path, state_root: Path, ambiente: str = "production"):
+def _paso6(env: Path, state_root: Path, ambiente: str = "production", *,
+           modo: str = "upgrade", autorizar: int = 0, actual: Path = None,
+           legacy_root: Path = None):
+    """El PASO 6 REAL de deploy.sh (texto entre marcas), con C1.
+
+    `modo`/`autorizar`/`actual`/`legacy_root` son las globales que `deploy.sh`
+    ya tiene definidas cuando llega al paso 6.
+    """
+    tmp = env.parent
+    release = release_falsa_con_unidad(tmp)
+    s9k_root = actual if actual is not None else tmp / "opt-s9k-vacio"
     cuerpo = """
 HERE=%s
 VIEWER_ENV=%s
 ENVIRONMENT=%s
 S9K_STATE_ROOT=%s
 S9K_CONFIG_ROOT=%s
+MODE=%s
+RELEASE_DIR=%s
+WORKER_UNIT_NAME=s9-knowledge-worker.service
+S9K_ROOT=%s
+LEGACY_ROOT=%s
+AUTORIZAR_CREACION_REVIEW_DB=%d
 %s
-""" % (_SCRIPTS, env, ambiente, state_root, env.parent,
+""" % (_SCRIPTS, env, ambiente, state_root, env.parent, modo, release, s9k_root,
+       legacy_root or (tmp / "legacy-no-existe"), autorizar,
        _tramo_de_deploy("# Paso 6: validar viewer.env", "# --- fin del paso 6 ---"))
     r = _correr_bash(cuerpo, {})
     return r.returncode, r.stdout + r.stderr
@@ -938,7 +986,7 @@ def test_cada_comprobacion_del_grupo_despliegue_existe():
     # veia borrar un nombre (MP14).
     esperado = {"propuestas.declarada", "propuestas.utilizable",
                 "propuestas.derivacion_unica", "review_db.compartida",
-                "estado.persistente"}
+                "review_db.existente", "estado.persistente"}
     assert set(rc_mod.GRUPO_DESPLIEGUE) == esperado, (
         "GRUPO_DESPLIEGUE ALTERADO: falta %s, sobra %s"
         % (sorted(esperado - set(rc_mod.GRUPO_DESPLIEGUE)),

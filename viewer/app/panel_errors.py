@@ -239,6 +239,17 @@ CATALOGO: dict[str, str] = {
         "No se ha podido consultar el grafo, asi que la ingesta no puede "
         "comprobar contra el que existe lo que va a proponer. No se ha "
         "ingerido nada; puedes volver a intentarlo cuando el grafo responda.",
+    # --- almacen de decisiones humanas (C1 · H-18) ---
+    "REVIEW_STORE_UNAVAILABLE":
+        "El almacen de decisiones humanas de revision no esta disponible "
+        "(no existe, no es valido o la ruta declarada es incorrecta), asi que "
+        "la ingesta no puede respetar lo que ya se ha decidido. No se ha "
+        "ingerido nada. Avisa a quien administra el servicio.",
+    "REVIEW_STORE_PERMISSIONS":
+        "El worker no tiene PERMISOS sobre el almacen de decisiones humanas "
+        "de revision, asi que la ingesta no puede respetar lo que ya se ha "
+        "decidido. No se ha ingerido nada. Avisa a quien administra el "
+        "servicio.",
 }
 
 

@@ -157,6 +157,16 @@ PACKAGE_INVALID = "PACKAGE_INVALID"
 #: cuyas ambigüedades no ha visto.
 PROPOSALS_STORE_MISSING = "PROPOSALS_STORE_MISSING"
 PROPOSALS_STORE_UNREADABLE = "PROPOSALS_STORE_UNREADABLE"
+#: C1 · H-04/H-18 — el almacén de DECISIONES humanas (`review.sqlite3`). Mismo
+#: criterio que el de propuestas: ausencia, ilegibilidad o forma ajena NO son
+#: «no hay decisiones»; son «no se sabe». Un código por causa real, para que
+#: «no existe» no se lea como «no es escribible» ni como «schema inválido».
+DECISIONS_STORE_MISSING = "DECISIONS_STORE_MISSING"
+DECISIONS_STORE_PERMISSIONS = "DECISIONS_STORE_PERMISSIONS"
+DECISIONS_STORE_NOT_A_FILE = "DECISIONS_STORE_NOT_A_FILE"
+DECISIONS_STORE_CORRUPT = "DECISIONS_STORE_CORRUPT"
+DECISIONS_STORE_FOREIGN = "DECISIONS_STORE_FOREIGN"
+DECISIONS_STORE_BAD_CONFIG = "DECISIONS_STORE_BAD_CONFIG"
 PROPOSAL_INVALID = "PROPOSAL_INVALID"
 INVALID_HUMAN_DECISION = "INVALID_HUMAN_DECISION"
 REQUEST_ID_REUSED = "REQUEST_ID_REUSED"
@@ -214,6 +224,33 @@ PROPOSALS_STORE_MESSAGES = {
         "Tampoco significa que no haya nada que revisar: revisa los permisos "
         "del directorio en el servidor."
     ),
+    DECISIONS_STORE_MISSING: (
+        "El almacen de DECISIONES humanas de revision NO EXISTE en la ruta "
+        "declarada. Esto no significa que nadie haya decidido nada: significa "
+        "que no se sabe. Lo crea el despliegue, no este visor; avisa a quien "
+        "administra el servicio."
+    ),
+    DECISIONS_STORE_PERMISSIONS: (
+        "El almacen de DECISIONES humanas de revision existe pero este visor "
+        "NO TIENE PERMISOS sobre el (lectura o escritura). Revisa propietario "
+        "y modo en el servidor."
+    ),
+    DECISIONS_STORE_NOT_A_FILE: (
+        "La ruta declarada para el almacen de DECISIONES humanas de revision "
+        "no es un fichero (es un directorio u otro objeto)."
+    ),
+    DECISIONS_STORE_CORRUPT: (
+        "El almacen de DECISIONES humanas de revision esta CORRUPTO: no es "
+        "una base SQLite legible. No se ha tocado; restaura la copia."
+    ),
+    DECISIONS_STORE_FOREIGN: (
+        "El fichero declarado como almacen de DECISIONES humanas de revision "
+        "no tiene la forma esperada (es otra base de datos). No se adopta."
+    ),
+    DECISIONS_STORE_BAD_CONFIG: (
+        "S9K_V3_REVIEW_DATABASE_PATH esta mal declarada (vacia, relativa o "
+        "apunta a un directorio). Corrigela en la configuracion del servicio."
+    ),
 }
 
 
@@ -240,6 +277,30 @@ class ProposalStoreUnavailable(ReviewError):
     """
 
     code = PROPOSALS_STORE_MISSING
+
+
+#: causa de `review_paths` -> código estable de pantalla.
+_DECISIONS_CODE_BY_CAUSE = {
+    "NO_EXISTE": DECISIONS_STORE_MISSING,
+    "SIN_PERMISOS": DECISIONS_STORE_PERMISSIONS,
+    "NO_ES_FICHERO": DECISIONS_STORE_NOT_A_FILE,
+    "CORRUPTA": DECISIONS_STORE_CORRUPT,
+    "SCHEMA_INVALIDO": DECISIONS_STORE_FOREIGN,
+    "VAR_VACIA": DECISIONS_STORE_BAD_CONFIG,
+    "VAR_RELATIVA": DECISIONS_STORE_BAD_CONFIG,
+}
+
+
+class DecisionStoreUnavailable(ProposalStoreUnavailable):
+    """El almacén de DECISIONES humanas no se pudo CONSULTAR (C1).
+
+    Subclase de `ProposalStoreUnavailable` a propósito: las dos superficies
+    HTTP de revisión (`/panel/review`, `/v3/review`) ya traducen esa familia a
+    «el dato no está», no a una cola vacía ni a un 500. El runtime NO crea el
+    almacén: lo crea el despliegue.
+    """
+
+    code = DECISIONS_STORE_MISSING
 
 
 class HistoryIntegrityError(ReviewError):
@@ -474,10 +535,14 @@ def default_audit_path() -> Path:
 
 
 def default_database_path() -> Path:
-    configured = os.environ.get("S9K_V3_REVIEW_DATABASE_PATH")
-    if configured:
-        return Path(configured)
-    return default_decisions_path().with_name("review.sqlite3")
+    """La ruta de `review.sqlite3`. NO se resuelve aquí: se delega (C1).
+
+    Una sola resolución canónica compartida por visor, motor y preflight:
+    `knowledge_v3.review_paths.default_review_db`. Esta función dejó de leer
+    el entorno; con la variable declarada inválida levanta
+    `ReviewDbConfigError`.
+    """
+    return _engine_review_paths().default_review_db()
 
 
 def default_glossary_root() -> Path:
@@ -808,17 +873,68 @@ class ReviewService:
         decisions_path: Path | None = None,
         *,
         graph_driver: Any = None,
+        database_path: Path | None = None,
     ) -> None:
         self.proposals_dir = proposals_dir or default_proposals_dir()
         self.decisions_path = decisions_path or default_decisions_path()
-        self.database_path = (
-            default_database_path()
-            if self.decisions_path == default_decisions_path()
-            else self.decisions_path.with_suffix(".sqlite3")
-        )
-        self.store = SQLiteReviewStore(self.database_path)
+        # C1 (contrato 6): UNA sola resolución canónica. `database_path=` es la
+        # costura EXPLÍCITA de test (sustituye a D4: derivar la base de
+        # `decisions_path.with_suffix(".sqlite3")`); sin ella se resuelve por
+        # `review_paths.default_review_db()`, igual que el motor y el preflight.
+        self._database_path_explicita = database_path is not None
+        self._store: SQLiteReviewStore | None = None
+        self._fallo_de_configuracion: Exception | None = None
+        self._declarada = False
+        if database_path is not None:
+            self.database_path: Path | None = Path(database_path)
+        else:
+            try:
+                ref = _engine_review_paths().resolve_review_db()
+                self.database_path = ref.path
+                self._declarada = ref.declarada
+            except Exception as exc:  # ReviewDbConfigError: se diferencia al abrir
+                self.database_path = None
+                self._fallo_de_configuracion = exc
         # Kept only as a testable boundary: this service must never dereference it.
         self._graph_driver = graph_driver
+
+    @property
+    def store(self) -> SQLiteReviewStore:
+        """El almacén de decisiones, abierto PERO NUNCA CREADO con ruta declarada.
+
+        Quién crea: el DESPLIEGUE (`deploy/scripts/review_store.py`). Este
+        servicio CONSUME y VERIFICA: con la ruta declarada exige un fichero
+        existente, legible, escribible y con la tabla `human_decisions`, y si
+        no, levanta `DecisionStoreUnavailable` con la causa real (sin ruta).
+        Sin variable declarada (desarrollo) se conserva el defecto del
+        repositorio —que el visor cree el fichero— como TECHO DECLARADO. La
+        costura explícita `database_path=` (tests) tampoco lo exige.
+
+        No se cachea el FALLO: si el despliegue repara el almacén, la
+        siguiente petición lo ve sin reiniciar el visor.
+        """
+        if self._store is not None:
+            return self._store
+        paths = _engine_review_paths()
+        if self._fallo_de_configuracion is not None:
+            causa = getattr(self._fallo_de_configuracion, "causa", None)
+            raise DecisionStoreUnavailable(
+                str(self._fallo_de_configuracion),
+                _DECISIONS_CODE_BY_CAUSE.get(causa, DECISIONS_STORE_BAD_CONFIG),
+            )
+        assert self.database_path is not None
+        if self._declarada:
+            inspeccion = paths.inspect_review_db(self.database_path, escritura=True)
+            if not inspeccion.valido:
+                raise DecisionStoreUnavailable(
+                    inspeccion.detalle,
+                    _DECISIONS_CODE_BY_CAUSE.get(
+                        inspeccion.causa, DECISIONS_STORE_MISSING),
+                )
+            self._store = SQLiteReviewStore(self.database_path, crear=False)
+        else:
+            self._store = SQLiteReviewStore(self.database_path)
+        return self._store
 
     def workspaces(self, scope: "VisibilityScope | None" = None) -> tuple[str, ...]:
         """Workspaces con al menos una propuesta VISIBLE en el ámbito."""
