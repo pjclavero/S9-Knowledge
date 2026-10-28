@@ -369,7 +369,7 @@
     "viewer/tests/test_b3_worker_desatendido_e2e.py": 4,
     "viewer/tests/test_banco_perf_visibilidad_regresion.py": 8,
     "viewer/tests/test_bootstrap_primer_admin.py": 29,
-    "viewer/tests/test_c1_revision_runtime.py": 24,
+    "viewer/tests/test_c1_revision_runtime.py": 25,
     "viewer/tests/test_calidad_de_datos_v2.py": 27,
     "viewer/tests/test_chassis_mount_contract.py": 45,
     "viewer/tests/test_config.py": 2,
@@ -503,7 +503,7 @@
     "viewer/tests/test_graph_ux_v2.py",
     "viewer/tests/test_panel_apply_desde_la_ui.py"
   ],
-  "total": 9740,
+  "total": 9741,
   "modulos": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 526,
     "contracts/review-ingest/v1/tests/test_contracts_v1.py": 38,
@@ -747,7 +747,7 @@
     "viewer/tests/test_b3_worker_desatendido_e2e.py": 4,
     "viewer/tests/test_banco_perf_visibilidad_regresion.py": 11,
     "viewer/tests/test_bootstrap_primer_admin.py": 32,
-    "viewer/tests/test_c1_revision_runtime.py": 30,
+    "viewer/tests/test_c1_revision_runtime.py": 31,
     "viewer/tests/test_calidad_de_datos_v2.py": 86,
     "viewer/tests/test_chassis_mount_contract.py": 89,
     "viewer/tests/test_config.py": 2,

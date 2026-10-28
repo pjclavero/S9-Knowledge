@@ -38,6 +38,7 @@ import hashlib
 import inspect
 import os
 import sys
+import uuid
 from pathlib import Path
 
 import pytest
@@ -195,6 +196,58 @@ def test_n3_las_dos_superficies_http_lo_declaran_y_no_lo_pintan_vacio(
         assert "Sin propuestas" not in r.text and "no hay nada" not in r.text.lower()
         assert str(ausente.parent) not in r.text, "repo publico: sin rutas"
     assert not ausente.parent.exists(), "ni una peticion crea el almacen"
+
+
+def _arbol_de(base: Path):
+    return sorted(str(p.relative_to(base)) for p in base.rglob("*")) if base.exists() else None
+
+
+def test_n3_ninguna_ruta_del_visor_da_500_ni_crea_nada_con_la_ruta_ausente(
+    tmp_path, workdir, auth_env, client_factory, monkeypatch
+):
+    """P1-1 de la revision independiente: TODAS las rutas que tocan el almacen.
+
+    El primer N3 solo recorria `/v3/review` y `/panel/review`; `/v3/review/
+    glossary-candidates` abria el almacen de decisiones FUERA del `try` y daba
+    500. Aqui se recorre cada superficie (lecturas y POST) con la ruta
+    declarada ausente: ninguna 500 y NADA en disco (ni fichero, ni -wal/-shm,
+    ni directorio).
+    """
+    estado = tmp_path / "estado-ausente"
+    estado.mkdir()
+    ruta = estado / "reviews-v3" / "review.sqlite3"
+    monkeypatch.setenv(VAR, str(ruta))
+    proposals_dir, _ = workdir
+    monkeypatch.setenv("S9K_V3_REVIEW_PROPOSALS_DIR", str(proposals_dir))
+    monkeypatch.setenv("S9K_PANEL_C_ENABLED", "true")
+    monkeypatch.setenv("S9K_PANEL_B_ENABLED", "true")
+    from app.routers import chassis_review, v3_review as router_v3  # noqa: PLC0415
+    monkeypatch.setattr(router_v3, "_service", lambda: ReviewService())
+    monkeypatch.setattr(chassis_review, "_service", lambda: ReviewService())
+    cliente = client_factory("admin")
+    csrf = {"csrf_token": "t"}
+    estados = {}
+    for url in (f"/v3/review?workspace={WORKSPACE}", "/v3/review",
+                f"/v3/review/glossary-candidates?workspace={WORKSPACE}",
+                "/v3/review/glossary-candidates",
+                f"/panel/review?workspace={WORKSPACE}", "/panel/review",
+                f"/panel/review/item/xyz?workspace={WORKSPACE}",
+                "/panel/operations"):
+        r = cliente.get(url)
+        estados[url] = r.status_code
+    r = cliente.post("/v3/review/decide", data={
+        "workspace": WORKSPACE, "proposal_id": "x", "human_decision": "APPROVE",
+        "request_id": str(uuid.uuid4()), "expected_proposal_hash": "h", **csrf})
+    estados["POST /v3/review/decide"] = r.status_code
+    r = cliente.post("/v3/review/undo", data={
+        "workspace": WORKSPACE, "proposal_id": "x", "request_id": str(uuid.uuid4()), **csrf})
+    estados["POST /v3/review/undo"] = r.status_code
+    malas = {u: c for u, c in estados.items() if c >= 500 and c != 503}
+    assert not malas, "N3 RUTA CON 500: %r" % (malas,)
+    glosario = cliente.get(f"/v3/review/glossary-candidates?workspace={WORKSPACE}")
+    assert glosario.status_code == 200 and "DECISIONS_STORE_MISSING" in glosario.text, (
+        "N3 GLOSARIO NO DECLARA EL ALMACEN AUSENTE: %s" % glosario.status_code)
+    assert _arbol_de(estado) == [], "N3 EL RUNTIME CREO ALGO: %r" % (_arbol_de(estado),)
 
 
 # ===========================================================================

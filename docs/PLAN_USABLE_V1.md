@@ -208,6 +208,16 @@ cuando el criterio lo nombra.
 - **Cambio de contrato declarado:** `test_sin_almacen_el_motor_se_comporta_como_siempre` → con ruta declarada la ausencia levanta `ReviewDecisionsError`; sin variable declarada (desarrollo) se conserva el defecto del repo como **techo declarado**, con test propio.
 - **Demostrado (arnés local, CI required):** matriz P1–P3 / N1–N18 en `deploy/tests/test_c1_revision_deploy.py` y `viewer/tests/test_c1_revision_runtime.py`; E2E local fresh → decisión → upgrade con dos releases exportadas del árbol; calibrador `mutaciones_c1_persistencia_revision.py` 18/18.
 - **Techo independiente:** systemd real, `chown` a `www-data`, propietario de `-wal/-shm` creados por root (H-08), VM limpia y reinicio de máquina: RC-E2E PENDING. No se migra ninguna BD legacy ni se toca `decisions.jsonl`.
+- **Revisión independiente:** NO APTO por P1-1 (`/v3/review/glossary-candidates` abría el almacén de decisiones fuera del `try` → 500 con ruta ausente), corregido en el mismo PR con test que recorre todas las rutas del visor y el mutante M16.
+- **Deuda documentada C1** (rango 4, sin abrir carril):
+  - **D1** El censo AST de N18 solo ve el literal `S9K_V3_REVIEW_DATABASE_PATH` y solo en `viewer/app` + `data-engine/app`: un alias o una concatenación no se detectan (techo declarado).
+  - **D2** No hay testigo de que `export_review_package` no se trague un `ReviewDecisionsError`.
+  - **D3** Un symlink colgante en la ruta declarada: fresh/autorizado crea en el destino, posiblemente fuera del state root (el juicio de ubicación es léxico).
+  - **D4** Inspeccionar una candidata legacy en WAL crea su `-shm`, también en dry-run.
+  - **D5** Las URIs `file:{path}?mode=…` de `v3_review_store.connect` y `_records` no escapan `%` (rutas con `%`, `#`, `?`).
+  - **D6** Directorio no escribible: `OperationalError` crudo en el visor y `REVIEW_STORE_UNAVAILABLE` (no PERMISSIONS) en el worker.
+  - **D7** Quitar `--usuario-servicio` del preflight del paso 6 (o la exigencia de escritura) no pone nada rojo hasta el paso 13, ya con la release activada.
+  - **D8** Orden: en el paso 6 `review_store preparar` crea antes de `preflight` y `validate_worker_env`; si estos mueren, queda la BD creada.
 
 ## 8. Reglas del programa (vigentes para todo carril)
 

@@ -647,6 +647,13 @@ decisiones: el despliegue se detendrá con «UPGRADE sin almacen…». Repetir c
 **había** decisiones en la release anterior, el STOP es correcto: hay que
 migrarlas antes (no lo hace este guion).
 
+**Primer upgrade tras C1 donde el visor (root) creó `review.sqlite3`.** Es el
+caso habitual: el visor de `deploy.sh` corre como root (H-08) y dejó
+`review.sqlite3` como `root:root 0644`. El paso 6 se detendrá con
+`STOP … [SIN_PERMISOS]`, porque el usuario del servicio no puede escribirlo.
+Receta: `chown <usuario-servicio>: review.sqlite3*` (la base y sus `-wal`/`-shm`
+si existen) y repetir el despliegue.
+
 **La variable declarada tiene que significar algo.** `S9K_V3_REVIEW_DATABASE_PATH`
 vacía, de solo espacios, relativa o apuntando a un directorio se rechaza en
 `validate_viewer_env` (paso 6) y también en el runtime, con un diagnóstico que
@@ -677,6 +684,17 @@ N1, N4–N16, paso 6 y 13 reales, E2E local con dos releases exportadas) y
 P2, techo). **No medido** (RC-E2E PENDING): `chown` a `www-data` de verdad, el
 reparto de propietarios de `-wal`/`-shm` entre el visor (root, H-08) y el
 worker, `systemctl` y el reinicio de máquina.
+
+### Deuda documentada C1 (sin carril abierto)
+
+- **D1** El censo AST de N18 solo ve el literal `S9K_V3_REVIEW_DATABASE_PATH` y solo en `viewer/app` + `data-engine/app`: un alias o una concatenación no se detectan (techo declarado).
+- **D2** No hay testigo de que `export_review_package` no se trague un `ReviewDecisionsError`.
+- **D3** Un symlink colgante en la ruta declarada: fresh/autorizado crea en el destino, posiblemente fuera del state root (el juicio de ubicación es léxico).
+- **D4** Inspeccionar una candidata legacy en WAL crea su `-shm`, también en dry-run.
+- **D5** Las URIs `file:{path}?mode=…` de `v3_review_store.connect` y `_records` no escapan `%` (rutas con `%`, `#`, `?`).
+- **D6** Directorio no escribible: `OperationalError` crudo en el visor y `REVIEW_STORE_UNAVAILABLE` (no PERMISSIONS) en el worker.
+- **D7** Quitar `--usuario-servicio` del preflight del paso 6 (o la exigencia de escritura) no pone nada rojo hasta el paso 13, ya con la release activada.
+- **D8** Orden: en el paso 6 `review_store preparar` crea antes de `preflight` y `validate_worker_env`; si estos mueren, queda la BD creada.
 
 ## Invariante: el worker tiene que poder OBSERVAR el grafo
 

@@ -38,6 +38,7 @@ Las diez mutaciones del encargo (M1-M10) y las de apoyo:
   M13 `VAR=""` deja de ser una declaración inválida                    (N7/N8)
   M14 el candidato legacy con decisiones ya no impide crear            (N6)
   M15 la autorización crea aunque la BD ya exista (se aplica a fresh)  (N14)
+  M16 /v3/review/glossary-candidates abre el almacén FUERA del try     (N3)
 
 LOCALIZADORES
 -------------
@@ -82,6 +83,7 @@ DECISIONS = "data-engine/app/knowledge_v3/review_decisions.py"
 STORE = "viewer/app/services/v3_review_store.py"
 SERVICE = "viewer/app/services/v3_review.py"
 HANDLER = "data-engine/app/jobs/handlers/ingest_v3.py"
+ROUTER_V3 = "viewer/app/routers/v3_review.py"
 
 
 def _sh(cmd: list) -> subprocess.CompletedProcess:
@@ -261,6 +263,25 @@ def _m15_autorizacion_con_la_bd_presente(texto: str):
         "        if False:\n            res.decir(\"ANOTACION\", \"--autorizar-creacion-review-db IGNORADA")
 
 
+def _m16_glosario_fuera_del_try(texto: str):
+    # P1-1 de la revision independiente: la llamada que abre el almacen de
+    # decisiones sale del `try` que traduce `ProposalStoreUnavailable`.
+    paso1 = mutar_en_funcion(
+        texto, "glossary_candidates",
+        "        items = _service().glossary_candidates(selected, scope=scope) if selected else []\n"
+        "    except ProposalStoreUnavailable as exc:",
+        "        items = []\n    except ProposalStoreUnavailable as exc:")
+    if paso1 is None:
+        return None
+    return mutar_en_funcion(
+        paso1, "glossary_candidates",
+        '    return templates.TemplateResponse(\n        request, "v3_glossary_candidates.html",\n'
+        '        {"auth_user": guard, "workspaces": workspaces, "workspace": selected,',
+        '    items = _service().glossary_candidates(selected, scope=scope) if selected else []\n'
+        '    return templates.TemplateResponse(\n        request, "v3_glossary_candidates.html",\n'
+        '        {"auth_user": guard, "workspaces": workspaces, "workspace": selected,')
+
+
 _D = "deploy"
 MUTACIONES = [
     ("M1 — el visor vuelve a derivar su ruta de review.sqlite3 (N18)",
@@ -336,6 +357,9 @@ MUTACIONES = [
     ("M15 — la autorización con la BD presente ya no se ignora ni se anota (N14)",
      [(REVIEW_STORE, _m15_autorizacion_con_la_bd_presente)],
      {"test_n14_autorizacion_con_la_bd_presente_se_ignora_y_se_anota": "N14 IGNORADA SIN ANOTAR"}),
+    ("M16 — /v3/review/glossary-candidates abre el almacén de decisiones FUERA del try (N3, P1-1)",
+     [(ROUTER_V3, _m16_glosario_fuera_del_try)],
+     {"test_n3_ninguna_ruta_del_visor_da_500_ni_crea_nada_con_la_ruta_ausente": "N3 RUTA CON 500"}),
 ]
 
 
