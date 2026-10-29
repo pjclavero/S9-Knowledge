@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+import sys
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -150,12 +151,38 @@ class SealConflict(RuntimeError):
     """
 
 
+def _review_paths():
+    """El resolvedor CANONICO del motor (`knowledge_v3.review_paths`).
+
+    Mismo puente que `app.services.v3_review._engine_review_paths` (visor ->
+    motor por `sys.path`, nunca `app.*`); se repite aqui y no se importa de
+    `v3_review` porque ese modulo importa este. Solo se llama al abrir con
+    ``crear=False``: la herramienta de despliegue, que carga este fichero por
+    ruta y abre con ``crear=True``, no lo necesita.
+    """
+    motor = Path(__file__).resolve().parents[3] / "data-engine" / "app"
+    if str(motor) not in sys.path:
+        sys.path.insert(0, str(motor))
+    from knowledge_v3 import review_paths  # type: ignore  # noqa: PLC0415
+    return review_paths
+
+
 class SQLiteReviewStore:
     """Short SQLite transactions with WAL and database-enforced uniqueness."""
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, *, crear: bool = True):
+        """Abre el almacén.
+
+        ``crear=True`` (defecto: costura de tests y herramienta de DESPLIEGUE,
+        que es quien crea el fichero canónico) crea directorio y fichero si
+        faltan. ``crear=False`` es el modo RUNTIME con la ruta declarada
+        (C1 · H-04): NO hace `mkdir`, abre con ``mode=rw`` (SQLite no puede
+        crear el fichero) y levanta si no existe. El runtime consume; no crea.
+        """
         self.path = path
-        path.parent.mkdir(parents=True, exist_ok=True)
+        self._crear = crear
+        if crear:
+            path.parent.mkdir(parents=True, exist_ok=True)
         for attempt in range(60):
             try:
                 with self.connection() as connection:
@@ -206,7 +233,15 @@ class SQLiteReviewStore:
             connection.execute(f"ALTER TABLE {tabla} ADD COLUMN {columna} {tipo}")
 
     def connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.path, timeout=30, isolation_level=None)
+        if self._crear:
+            connection = sqlite3.connect(self.path, timeout=30, isolation_level=None)
+        else:
+            # La URI la construye `review_paths.sqlite_uri`, la MISMA que usan
+            # el motor y la inspeccion (P1-2): a mano, un `#`/`?` en la ruta
+            # cortaba la URI, `mode=rw` se perdia y SQLite CREABA otro fichero.
+            connection = sqlite3.connect(
+                _review_paths().sqlite_uri(self.path, "rw"), uri=True, timeout=30,
+                isolation_level=None)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA busy_timeout=30000")
         connection.execute("PRAGMA synchronous=FULL")

@@ -44,7 +44,8 @@ from app.chassis import FEATURE_SLOTS, slot_enabled
 from app.routers.chassis_slot import slot_context, slot_guard
 from app.services import review_console_v2 as console
 from app.services.v3_review import (
-    PROPOSALS_STORE_MISSING, PROPOSALS_STORE_UNREADABLE, ReviewError, ReviewService,
+    PROPOSALS_STORE_MESSAGES, PROPOSALS_STORE_MISSING, PROPOSALS_STORE_UNREADABLE,
+    ReviewError, ReviewService,
 )
 
 #: LOS TRES DESENLACES DEL ALMACEN, DICHOS DISTINTO.
@@ -72,6 +73,15 @@ ALMACEN_NO_DISPONIBLE = {
         503,
     ),
 }
+
+# C1 · H-04/H-18: el almacen de DECISIONES humanas (`review.sqlite3`) tampoco
+# es «no hay nada»: mismas frases que la tabla canonica del servicio, sin
+# volver a escribirlas (la prueba de divergencia las sigue comparando).
+ALMACEN_NO_DISPONIBLE.update({
+    codigo: (texto, 503)
+    for codigo, texto in PROPOSALS_STORE_MESSAGES.items()
+    if codigo.startswith("DECISIONS_STORE_")
+})
 
 #: El de siempre, para paquete corrupto o invalido: ahi el almacen SI se leyo.
 PAQUETE_ILEGIBLE = (

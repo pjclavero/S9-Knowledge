@@ -1426,6 +1426,26 @@ jobs:
           S9K_ALLOW_REAL_INGEST: ""
         run: python3 scripts/calibracion/mutaciones_b3_worker.py
 
+      # C1 (USABLE-V1) · H-04 + H-18 — las decisiones humanas (`review.sqlite3`)
+      # sobreviven a un redespliegue y NADIE las ignora en silencio. DEPLOY es
+      # la autoridad que decide y prepara el almacen; el runtime lo consume y lo
+      # verifica y, con la ruta declarada, nunca lo crea. Quince mutaciones: el
+      # visor vuelve a derivar su ruta, el motor vuelve a leer `{}` si falta,
+      # el almacen recupera mkdir/creacion, el preflight pierde la existencia o
+      # trata upgrade como fresh, deploy.sh crea en upgrade, se adopta un
+      # SQLite ajeno, fresh ignora una BD existente, el worker no recibe la
+      # revision, la autorizacion sobrescribe, la variable vacia deja de ser
+      # invalida, la ingesta no comprueba el almacen, el legacy con decisiones
+      # no impide crear. Cada rojo con su CAUSA; collected > 0 y skipped == 0
+      # en base, mutacion y restauracion.
+      #
+      # TECHO: no ejerce systemd real, el usuario de servicio real ni una VM
+      # limpia (RC-E2E PENDING).
+      - name: "Las decisiones humanas persisten y nadie las ignora en silencio: se pone ROJO ante cada defecto (C1)"
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/mutaciones_c1_persistencia_revision.py
+
       # MICROCARRIL DE SANEAMIENTO DE INSTRUMENTOS — los cuatro
       # `scripts/calibrar_panel_*.py`. Son los arneses de los cuatro paneles
       # del chasis (B operations, C review, F sources, G entities): cada uno

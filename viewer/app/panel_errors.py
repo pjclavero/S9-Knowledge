@@ -117,10 +117,17 @@ CATALOGO: dict[str, str] = {
         "No se ha podido registrar la solicitud de ingesta. No se ha empezado "
         "nada; puedes volver a intentarlo.",
     # --- sellado y aplicacion del plan revisado (Slice 2 - Apply) ---
+    # UNA sola entrada para el codigo, y su frase vale para los DOS contextos
+    # que lo emiten (sellar/aplicar en el panel, e ingesta en el worker). C1
+    # anadio una segunda clave literal `REVIEW_STORE_UNAVAILABLE` mas abajo y,
+    # en un dict, la ultima PISA a la primera en silencio: el sellado acababa
+    # diciendo «No se ha ingerido nada».
     "REVIEW_STORE_UNAVAILABLE":
-        "No se puede consultar la cola de revision en este despliegue, asi que "
-        "no se sabe que hay aprobado. No se ha aplicado nada. Avisa a quien "
-        "administra el servicio.",
+        "El almacen de revision (propuestas o decisiones humanas) no esta "
+        "disponible en este despliegue: no existe, no es valido o la ruta "
+        "declarada es incorrecta. Sin el no se sabe que hay aprobado ni que se "
+        "ha decidido, asi que no se ha preparado, aplicado ni ingerido nada. "
+        "Avisa a quien administra el servicio.",
     "NO_APPROVED_PROPOSALS":
         "No hay ninguna propuesta aprobada en esta ingesta, asi que no hay nada "
         "que preparar. Aprueba primero en la pantalla de revision.",
@@ -239,6 +246,13 @@ CATALOGO: dict[str, str] = {
         "No se ha podido consultar el grafo, asi que la ingesta no puede "
         "comprobar contra el que existe lo que va a proponer. No se ha "
         "ingerido nada; puedes volver a intentarlo cuando el grafo responda.",
+    # --- almacen de decisiones humanas (C1 · H-18) ---
+    # (`REVIEW_STORE_UNAVAILABLE` esta arriba, una sola vez: ver alli.)
+    "REVIEW_STORE_PERMISSIONS":
+        "El worker no tiene PERMISOS sobre el almacen de decisiones humanas "
+        "de revision, asi que la ingesta no puede respetar lo que ya se ha "
+        "decidido. No se ha ingerido nada. Avisa a quien administra el "
+        "servicio.",
 }
 
 

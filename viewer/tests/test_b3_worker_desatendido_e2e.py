@@ -174,7 +174,7 @@ def _entorno_limpio():
 
 
 @pytest.fixture
-def despliegue(tmp_path, monkeypatch) -> dict:
+def despliegue(tmp_path, monkeypatch, almacen_fresh) -> dict:
     """El estado del despliegue bajo un state root temporal.
 
     VISOR y WORKER salen de SUS plantillas productivas con el mismo state root:
@@ -188,6 +188,10 @@ def despliegue(tmp_path, monkeypatch) -> dict:
     monkeypatch.setenv("S9K_V3_REVIEW_DECISIONS_PATH", str(raiz / "reviews-v3" / "decisions.jsonl"))
     monkeypatch.setenv("S9K_HEALTH_REPORT_PATH", str(tmp_path / "health" / "last.json"))
     Path(visor["S9K_JOBS_DB"]).parent.mkdir(parents=True, exist_ok=True)
+    # C1 · H-04/H-18: el almacen de decisiones lo CREA EL DESPLIEGUE (fresh), no
+    # el visor ni el worker. Aqui se materializa con la MISMA herramienta que
+    # `deploy.sh` (`review_store.py preparar --modo fresh`).
+    almacen_fresh(Path(visor["S9K_V3_REVIEW_DATABASE_PATH"]))
     from app.config import get_settings
     get_settings.cache_clear()
 

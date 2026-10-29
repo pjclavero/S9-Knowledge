@@ -3,7 +3,7 @@
 #
 # Uso: deploy.sh --environment <lab|production> --release-ref <commit|tag|branch>
 #                [--confirm | --confirm-production] [--dry-run]
-#                [--mode upgrade|fresh]
+#                [--mode upgrade|fresh] [--autorizar-creacion-review-db]
 #
 # Por defecto: DRY-RUN. Sin --confirm (lab) o --confirm-production (producción)
 # no se aplica ningún cambio: 0 archivos, 0 migraciones, 0 cambios de symlink,
@@ -34,6 +34,11 @@ ENVIRONMENT=""
 RELEASE_REF=""
 DRY_RUN=1
 MODE="upgrade"
+# C1 · H-04/H-18: excepcion EXPLICITA para un UPGRADE sin almacen de revision
+# (instalacion que nunca abrio la revision). NO es un --force: solo vale con el
+# almacen realmente AUSENTE y sin candidata legacy con decisiones. Ver
+# `review_store.py` y deploy/README.md.
+AUTORIZAR_CREACION_REVIEW_DB=0
 _CLEANUP_TMPDIR=""
 
 # Rutas del layout LEGACY (solo lectura; nunca se modifican).
@@ -57,6 +62,7 @@ usage() {
     cat <<USAGE
 uso: deploy.sh --environment <lab|production> --release-ref <ref>
                [--confirm | --confirm-production] [--dry-run] [--mode upgrade|fresh]
+               [--autorizar-creacion-review-db]
 USAGE
 }
 
@@ -68,6 +74,7 @@ while [ $# -gt 0 ]; do
         --confirm)            DRY_RUN=0; shift ;;
         --confirm-production) DRY_RUN=0; shift ;;
         --dry-run)            DRY_RUN=1; shift ;;
+        --autorizar-creacion-review-db) AUTORIZAR_CREACION_REVIEW_DB=1; shift ;;
         -h|--help)            usage; exit 0 ;;
         *) die "argumento desconocido: $1" ;;
     esac
@@ -138,6 +145,21 @@ if [ "${DRY_RUN}" -eq 1 ]; then
     set -e
     if [ "${detect_rc}" -eq 3 ]; then
         warn "  -> En APLICAR, el estado BLOQUEARÍA el despliegue (ver 'decision: BLOCK')."
+    fi
+    # C1: el almacén de revisión, SOLO LECTURA (no se crea nada en dry-run).
+    if [ -f "${VIEWER_ENV}" ]; then
+        info "  6. Almacén de revisión (review.sqlite3), solo lectura:"
+        REVIEW_AUTORIZAR_DRY=()
+        [ "${AUTORIZAR_CREACION_REVIEW_DB}" -eq 1 ] && REVIEW_AUTORIZAR_DRY=(--autorizar-creacion-review-db)
+        _review_actual="$(readlink -f "${S9K_ROOT}/current" 2>/dev/null || true)"
+        set +e
+        python3 "${HERE}/review_store.py" preparar --modo "${MODE}" --solo-lectura \
+            --db "$(_env_value "${VIEWER_ENV}" S9K_V3_REVIEW_DATABASE_PATH)" \
+            --candidata "${_review_actual}/viewer/output/reviews-v3/review.sqlite3" \
+            --candidata "${LEGACY_ROOT}/viewer/output/reviews-v3/review.sqlite3" \
+            "${REVIEW_AUTORIZAR_DRY[@]}"
+        [ $? -eq 3 ] && warn "  -> En APLICAR, el almacén de revisión BLOQUEARÍA el despliegue."
+        set -e
     fi
     log "=== DRY-RUN completado. 0 archivos, 0 migraciones, 0 symlink, 0 daemon-reload, 0 reinicios. ==="
     exit 0
@@ -227,11 +249,34 @@ set -e
 log "--- 6. validar viewer.env"
 validate_viewer_env "${VIEWER_ENV}" || die "viewer.env inválido/incompleto"
 validate_viewer_secrets "${VIEWER_ENV}" || die "viewer.env: secretos inválidos (CSRF/fichero)"
+# C1 · USABLE-V1 (H-04 + H-18): EL DESPLIEGUE ES LA AUTORIDAD sobre el almacén de
+# decisiones humanas (`review.sqlite3`). Lo decide y lo prepara AQUÍ; el visor
+# y el motor sólo lo CONSUMEN y lo VERIFICAN (nunca lo crean con la ruta
+# declarada). fresh: lo crea y lo verifica por efecto. upgrade: exige uno
+# válido y lo preserva (UPGRADE SIN ALMACÉN -> STOP, salvo
+# --autorizar-creacion-review-db y sólo con ausencia real). Las candidatas
+# legacy se miran para no dejar huérfanas decisiones ya tomadas.
+WORKER_UNIT_PREVIA="${RELEASE_DIR}/data-engine/systemd/${WORKER_UNIT_NAME}"
+REVIEW_USER="$(_unit_value "${WORKER_UNIT_PREVIA}" User)"
+REVIEW_GROUP="$(_unit_value "${WORKER_UNIT_PREVIA}" Group)"
+[ -n "${REVIEW_USER}" ] && [ -n "${REVIEW_GROUP}" ] \
+    || die "la unidad del worker (${WORKER_UNIT_PREVIA}) no declara User/Group: no se sabe a quién dar el almacén de revisión"
+REVIEW_ACTUAL="$(readlink -f "${S9K_ROOT}/current" 2>/dev/null || true)"
+REVIEW_AUTORIZAR=()
+[ "${AUTORIZAR_CREACION_REVIEW_DB}" -eq 1 ] && REVIEW_AUTORIZAR=(--autorizar-creacion-review-db)
+python3 "${HERE}/review_store.py" preparar --modo "${MODE}" \
+    --db "$(_env_value "${VIEWER_ENV}" S9K_V3_REVIEW_DATABASE_PATH)" \
+    --usuario "${REVIEW_USER}" --grupo "${REVIEW_GROUP}" \
+    --candidata "${REVIEW_ACTUAL}/viewer/output/reviews-v3/review.sqlite3" \
+    --candidata "${LEGACY_ROOT}/viewer/output/reviews-v3/review.sqlite3" \
+    "${REVIEW_AUTORIZAR[@]}" \
+    || die "almacén de revisión (review.sqlite3) no preparado: STOP (causa arriba). Nunca se sobrescribe una base existente"
 # B2 · USABLE-V1 (H-04/H-18, LADO DEPLOY): el estado de revisión V3 tiene que
 # vivir FUERA de la release y lo tienen que resolver igual visor y motor. No se
 # reimplementa: es el MISMO guion del ensayo RC, restringido a su grupo de
 # comprobaciones de despliegue y leyendo el EnvironmentFile del visor.
 python3 "${HERE}/preflight_ensayo_rc.py" --grupo despliegue \
+    --modo "${MODE}" --usuario-servicio "${REVIEW_USER}" --grupo-servicio "${REVIEW_GROUP}" \
     --env-file "${VIEWER_ENV}" --state-root "${S9K_STATE_ROOT}" \
     || die "estado de revisión V3 no persistente o no compartido (causa arriba): un redespliegue lo perdería"
 # Slice 2 · Corte 5 + B3 · H-02: el entorno del WORKER. Desde B3 este guion
@@ -327,7 +372,14 @@ log "--- 13. reiniciar servicios (worker y visor)"
 # worker en "attempt to write a readonly database".
 preparar_estado_del_worker "${WORKER_USER}" "${WORKER_GROUP}" "${NEW_JOBS_DB}" \
     "$(_env_value "${WORKER_ENV}" S9K_V3_REVIEW_PROPOSALS_DIR)" \
+    "$(_env_value "${WORKER_ENV}" S9K_V3_REVIEW_DATABASE_PATH)" \
     || die "no se pudo preparar el estado compartido del worker"
+# C1: VERIFICACIÓN POR EFECTO del almacén de decisiones ya con su dueño final:
+# existe, abre, tiene `human_decisions` y lo ESCRIBE el usuario del servicio.
+python3 "${HERE}/review_store.py" verificar \
+    --db "$(_env_value "${VIEWER_ENV}" S9K_V3_REVIEW_DATABASE_PATH)" \
+    --usuario "${WORKER_USER}" --grupo "${WORKER_GROUP}" \
+    || die "el almacén de revisión no verifica para el usuario del servicio (causa arriba)"
 # El worker se HABILITA siempre, no solo en fresh: hasta B3 no existía ninguna
 # unidad de worker, así que todo upgrade es también su primera instalación.
 systemctl enable "${WORKER_UNIT_NAME}" || die "no se pudo habilitar el worker"
