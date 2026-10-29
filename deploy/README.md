@@ -651,14 +651,35 @@ migrarlas antes (no lo hace este guion).
 caso habitual: el visor de `deploy.sh` corre como root (H-08) y dejó
 `review.sqlite3` como `root:root 0644`. El paso 6 se detendrá con
 `STOP … [SIN_PERMISOS]`, porque el usuario del servicio no puede escribirlo.
-Receta: `chown <usuario-servicio>: review.sqlite3*` (la base y sus `-wal`/`-shm`
-si existen) y repetir el despliegue.
+Receta (sólo documentada; se ejecuta a mano, en el host, sabiendo lo que se toca):
+
+1. **Inspeccionar** sin modificar nada. `<dir>` es el directorio de
+   `S9K_V3_REVIEW_DATABASE_PATH` en `viewer.env`:
+   `ls -ld <dir>` · `ls -l <dir>/review.sqlite3*` ·
+   `stat -c '%U:%G %a %n' <dir> <dir>/review.sqlite3*`.
+2. **Propietario esperado**: el usuario y grupo del servicio, los de
+   `User=`/`Group=` de la unidad del worker (`data-engine/systemd/s9-knowledge-worker.service`); es lo
+   que `deploy.sh` lee para el paso 6 (`REVIEW_USER`/`REVIEW_GROUP`) y el 13.
+3. **Modo esperado** (política actual de `review_store.py` y de
+   `preparar_estado_del_worker` en `lib.sh`): fichero `review.sqlite3` **`0660`**
+   y directorio que lo contiene **`0750`**, ambos a nombre del usuario del
+   servicio (SQLite crea ahí los `-wal`/`-shm`, que también son suyos).
+4. **Corregir**: `chown <usuario>:<grupo> <dir> <dir>/review.sqlite3*` ·
+   `chmod 0750 <dir>` · `chmod 0660 <dir>/review.sqlite3`.
+5. **Repetir** el despliegue (`deploy.sh --mode upgrade …`); el paso 6 vuelve
+   a verificarlo por efecto (existe, abre, `human_decisions`, escribible por el
+   servicio). Ni el `chown` ni el `chmod` lo hace el guion por su cuenta sobre
+   una base existente: la autorización no es un `--force`.
 
 **La variable declarada tiene que significar algo.** `S9K_V3_REVIEW_DATABASE_PATH`
-vacía, de solo espacios, relativa o apuntando a un directorio se rechaza en
+vacía, de solo espacios, relativa, apuntando a un directorio o con un carácter
+que SQLite interpreta en una URI (`#`, `?`, `%`) o de control se rechaza en
 `validate_viewer_env` (paso 6) y también en el runtime, con un diagnóstico que
 nombra la causa (*no existe* ≠ *no es escribible* ≠ *no es un fichero* ≠
-*schema inválido*).
+*schema inválido* ≠ *carácter no permitido en la ruta del almacén*, N19). Con
+`#` o `?` en la ruta, una URI `file:` sin escapar se cortaba y SQLite abría
+—creándolo— **otro** fichero; por eso, además del rechazo, toda URI del
+almacén sale de una sola función (`review_paths.sqlite_uri`) que escapa la ruta.
 
 **Una sola resolución de la ruta** (`review_paths.default_review_db()`),
 compartida por visor, motor y preflight; `ReviewService(database_path=…)` es la

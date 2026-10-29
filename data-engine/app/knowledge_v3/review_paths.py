@@ -49,9 +49,9 @@ __all__ = [
     "ReviewDbConfigError", "ReviewDbRef", "Inspeccion",
     "CAUSA_VAR_VACIA", "CAUSA_VAR_RELATIVA", "CAUSA_NO_EXISTE",
     "CAUSA_NO_ES_FICHERO", "CAUSA_SIN_PERMISOS", "CAUSA_CORRUPTA",
-    "CAUSA_SCHEMA_INVALIDO", "CAUSAS",
+    "CAUSA_SCHEMA_INVALIDO", "CAUSA_CARACTER_NO_PERMITIDO", "CAUSAS",
     "resolve_review_db", "default_review_db", "inspect_review_db",
-    "validar_declaracion",
+    "validar_declaracion", "sqlite_uri",
 ]
 
 #: La variable del invariante de despliegue. Se nombra una sola vez en todo el
@@ -108,6 +108,7 @@ CAUSA_NO_ES_FICHERO = "NO_ES_FICHERO"
 CAUSA_SIN_PERMISOS = "SIN_PERMISOS"
 CAUSA_CORRUPTA = "CORRUPTA"
 CAUSA_SCHEMA_INVALIDO = "SCHEMA_INVALIDO"
+CAUSA_CARACTER_NO_PERMITIDO = "CARACTER_NO_PERMITIDO"
 
 #: Cada causa tiene SU frase: «no existe» no es «no es escribible» no es «no
 #: es un fichero» no es «schema invalido». Sin rutas: el repositorio es publico
@@ -133,7 +134,43 @@ CAUSAS = {
     CAUSA_SCHEMA_INVALIDO: (
         "el fichero declarado es SQLite pero no tiene la tabla human_decisions "
         "con la forma esperada: no es el almacen de revision"),
+    CAUSA_CARACTER_NO_PERMITIDO: (
+        "caracter no permitido en la ruta del almacen: S9K_V3_REVIEW_DATABASE_PATH "
+        "contiene '#', '?', '%' o un caracter de control, que SQLite interpreta "
+        "como parte de una URI y cortaria la ruta (abriendo OTRO fichero)"),
 }
+
+#: Caracteres que una URI ``file:`` de SQLite interpreta (fragmento, consulta,
+#: escape) y los de control. Una ruta DECLARADA no puede llevarlos (P1-2 de la
+#: revision independiente de C1): con ``#`` o ``?`` SQLite cortaba la ruta,
+#: perdia ``mode=`` y abria —CREANDOLO— otro fichero. `sqlite_uri` los escapa
+#: igualmente (defensa en profundidad); esto es la frontera fail-closed.
+CARACTERES_NO_PERMITIDOS = frozenset("#?%")
+
+
+def _tiene_caracter_no_permitido(texto: str) -> bool:
+    return any(c in CARACTERES_NO_PERMITIDOS or ord(c) < 32 or ord(c) == 127
+               for c in texto)
+
+
+def sqlite_uri(path, mode: str, *, immutable: bool = False) -> str:
+    """LA unica construccion de URI ``file:`` del almacen de revision.
+
+    La comparten `inspect_review_db` (despliegue y runtime), el almacen del
+    visor (`SQLiteReviewStore` con ``crear=False``) y la lectura del motor
+    (`review_decisions._records`). Construirla a mano en otro sitio es repetir
+    el P1-2: sin escapar, ``#``/``?`` en la ruta cortan la URI, ``mode=`` se
+    pierde y SQLite abre en ``rwc``: el runtime CREA un fichero ajeno y lee
+    cero decisiones.
+
+    ``mode`` solo admite ``ro`` y ``rw``: el runtime NUNCA crea (``rwc``).
+    """
+    if mode not in ("ro", "rw"):
+        raise ValueError("modo de apertura no admitido para el almacen: %r" % (mode,))
+    uri = "file:%s?mode=%s" % (quote(str(path), safe="/"), mode)
+    if immutable:
+        uri += "&immutable=1"
+    return uri
 
 #: Columnas que `human_decisions` DEBE tener para ser el almacen de revision.
 COLUMNAS_HUMAN_DECISIONS = frozenset({
@@ -171,8 +208,9 @@ def validar_declaracion(crudo: Optional[str]) -> Path:
     """Valida el VALOR de una declaracion de `S9K_V3_REVIEW_DATABASE_PATH`.
 
     ``None`` no es una declaracion (el llamador decide). Vacia, solo espacios,
-    relativa o apuntando a un directorio levantan `ReviewDbConfigError` con la
-    causa real. Es la unica validacion: la usan `resolve_review_db` (runtime) y
+    relativa, con un caracter que SQLite interpreta en una URI (``#``, ``?``,
+    ``%``, control: N19) o apuntando a un directorio levantan
+    `ReviewDbConfigError` con la causa real. Es la unica validacion: la usan `resolve_review_db` (runtime) y
     la herramienta de despliegue.
     """
     if crudo is None or crudo.strip() == "":
@@ -180,6 +218,8 @@ def validar_declaracion(crudo: Optional[str]) -> Path:
     ruta = Path(crudo)
     if not ruta.is_absolute():
         raise ReviewDbConfigError(CAUSA_VAR_RELATIVA)
+    if _tiene_caracter_no_permitido(crudo):
+        raise ReviewDbConfigError(CAUSA_CARACTER_NO_PERMITIDO)
     try:
         es_directorio = ruta.is_dir()
     except OSError:
@@ -290,7 +330,7 @@ def inspect_review_db(path: Path, *, escritura: bool = False,
         hay_wal = wal.exists() and wal.stat().st_size > 0
     except OSError:
         hay_wal = True
-    uri = f"file:{quote(str(path))}?mode=ro" + ("" if hay_wal else "&immutable=1")
+    uri = sqlite_uri(path, "ro", immutable=not hay_wal)
     try:
         conexion = sqlite3.connect(uri, uri=True)
     except sqlite3.Error:

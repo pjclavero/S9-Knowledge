@@ -158,8 +158,13 @@ def default_decisions_db() -> Path:
 
 
 def _records(db_path: Path) -> list[dict[str, Any]]:
-    """Las decisiones crudas, en el orden en que el visor las escribio."""
-    uri = f"file:{db_path}?mode=ro"
+    """Las decisiones crudas, en el orden en que el visor las escribio.
+
+    La URI sale de `review_paths.sqlite_uri` (P1-2): escrita a mano, un ``#`` o
+    un ``?`` en la ruta cortaban la URI, ``mode=ro`` se perdia y SQLite CREABA
+    otro fichero del que leia ``{}``.
+    """
+    uri = _review_paths().sqlite_uri(db_path, "ro")
     try:
         connection = sqlite3.connect(uri, uri=True)
     except sqlite3.Error as exc:  # almacen presente pero inabordable

@@ -23,11 +23,12 @@ ESTADO
 MATRIZ (identificador -> test)
 ------------------------------
 N2   motor con ruta declarada inexistente           test_n2_*
-N3   visor con ruta declarada ausente               test_n3_*
+N3   visor con ruta declarada ausente               test_n3_* (+ test_c1_n3_rutas_consumidoras.py)
 N7-10 VAR vacia / espacios / relativa / directorio  test_n7_n10_*
 N13  permisos erroneos -> diagnostico de permisos   test_n13_*
 N17  worker sin lectura del directorio              test_n17_*
 N18  dos resoluciones divergentes: imposible        test_n18_*
+N19  ruta con '#', '?', '%' o control: rechazo, y URI escapada  test_n19_*
 P1   fresh -> ingesta lee `{}` de BD EXISTENTE -> decision -> excluida
 P2   upgrade normal: visor y motor ven lo mismo, nada creado
 """
@@ -38,7 +39,6 @@ import hashlib
 import inspect
 import os
 import sys
-import uuid
 from pathlib import Path
 
 import pytest
@@ -198,56 +198,10 @@ def test_n3_las_dos_superficies_http_lo_declaran_y_no_lo_pintan_vacio(
     assert not ausente.parent.exists(), "ni una peticion crea el almacen"
 
 
-def _arbol_de(base: Path):
-    return sorted(str(p.relative_to(base)) for p in base.rglob("*")) if base.exists() else None
-
-
-def test_n3_ninguna_ruta_del_visor_da_500_ni_crea_nada_con_la_ruta_ausente(
-    tmp_path, workdir, auth_env, client_factory, monkeypatch
-):
-    """P1-1 de la revision independiente: TODAS las rutas que tocan el almacen.
-
-    El primer N3 solo recorria `/v3/review` y `/panel/review`; `/v3/review/
-    glossary-candidates` abria el almacen de decisiones FUERA del `try` y daba
-    500. Aqui se recorre cada superficie (lecturas y POST) con la ruta
-    declarada ausente: ninguna 500 y NADA en disco (ni fichero, ni -wal/-shm,
-    ni directorio).
-    """
-    estado = tmp_path / "estado-ausente"
-    estado.mkdir()
-    ruta = estado / "reviews-v3" / "review.sqlite3"
-    monkeypatch.setenv(VAR, str(ruta))
-    proposals_dir, _ = workdir
-    monkeypatch.setenv("S9K_V3_REVIEW_PROPOSALS_DIR", str(proposals_dir))
-    monkeypatch.setenv("S9K_PANEL_C_ENABLED", "true")
-    monkeypatch.setenv("S9K_PANEL_B_ENABLED", "true")
-    from app.routers import chassis_review, v3_review as router_v3  # noqa: PLC0415
-    monkeypatch.setattr(router_v3, "_service", lambda: ReviewService())
-    monkeypatch.setattr(chassis_review, "_service", lambda: ReviewService())
-    cliente = client_factory("admin")
-    csrf = {"csrf_token": "t"}
-    estados = {}
-    for url in (f"/v3/review?workspace={WORKSPACE}", "/v3/review",
-                f"/v3/review/glossary-candidates?workspace={WORKSPACE}",
-                "/v3/review/glossary-candidates",
-                f"/panel/review?workspace={WORKSPACE}", "/panel/review",
-                f"/panel/review/item/xyz?workspace={WORKSPACE}",
-                "/panel/operations"):
-        r = cliente.get(url)
-        estados[url] = r.status_code
-    r = cliente.post("/v3/review/decide", data={
-        "workspace": WORKSPACE, "proposal_id": "x", "human_decision": "APPROVE",
-        "request_id": str(uuid.uuid4()), "expected_proposal_hash": "h", **csrf})
-    estados["POST /v3/review/decide"] = r.status_code
-    r = cliente.post("/v3/review/undo", data={
-        "workspace": WORKSPACE, "proposal_id": "x", "request_id": str(uuid.uuid4()), **csrf})
-    estados["POST /v3/review/undo"] = r.status_code
-    malas = {u: c for u, c in estados.items() if c >= 500 and c != 503}
-    assert not malas, "N3 RUTA CON 500: %r" % (malas,)
-    glosario = cliente.get(f"/v3/review/glossary-candidates?workspace={WORKSPACE}")
-    assert glosario.status_code == 200 and "DECISIONS_STORE_MISSING" in glosario.text, (
-        "N3 GLOSARIO NO DECLARA EL ALMACEN AUSENTE: %s" % glosario.status_code)
-    assert _arbol_de(estado) == [], "N3 EL RUNTIME CREO ALGO: %r" % (_arbol_de(estado),)
+# N3 AMPLIADO (D9): el recorrido de TODAS las rutas consumidoras, con CSRF
+# valido y derivado del router (no de una lista manual), vive en
+# `test_c1_n3_rutas_consumidoras.py`. La lista manual que habia aqui hacia
+# morir los POST en 403 antes de tocar el almacen.
 
 
 # ===========================================================================
@@ -286,6 +240,117 @@ def test_n7_n10_una_variable_invalida_no_cae_al_defecto(tmp_path, monkeypatch):
     _declarar(monkeypatch, "")
     with pytest.raises(review_paths.ReviewDbConfigError):
         review_paths.resolve_review_db()
+
+
+# ===========================================================================
+# N19 — ruta con caracteres que SQLite interpreta en una URI (P1-2)
+# ===========================================================================
+# Antes: `file:{ruta}?mode=rw` / `?mode=ro` sin escapar. Con `#` o `?` en la
+# ruta SQLite cortaba la URI, perdia `mode=` y abria en `rwc`: el visor y el
+# motor CREABAN otro fichero (`al` para `al#moh/review.sqlite3`) y leian cero
+# decisiones, mientras el despliegue (que si escapaba) lo daba por bueno.
+
+_N19 = [("al#moh", "N19-almohadilla"), ("al?moh", "N19-interrogacion"),
+        ("al%moh", "N19-porcentaje"), ("al\x01moh", "N19-control")]
+
+
+def _almacen_con_una_decision(ruta: Path) -> Path:
+    """Un almacen REAL (schema del visor) con UNA decision dentro."""
+    import json  # noqa: PLC0415
+    import sqlite3  # noqa: PLC0415
+
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    SQLiteReviewStore(ruta, crear=True)
+    registro = {"decision_id": "d1", "workspace": WORKSPACE, "proposal_id": "p1",
+                "request_id": "r1", "human_decision": "REJECT",
+                "proposal": {"proposal_id": "p1"}, "timestamp": "2026-01-01T00:00:00Z"}
+    con = sqlite3.connect(ruta)
+    con.execute("INSERT INTO human_decisions (decision_id, workspace, proposal_id, "
+                "request_id, record_json, created_at) VALUES (?,?,?,?,?,?)",
+                ("d1", WORKSPACE, "p1", "r1", json.dumps(registro), "2026-01-01"))
+    con.commit()
+    con.close()
+    return ruta
+
+
+def _todo(base: Path) -> list:
+    return sorted(str(p.relative_to(base)) for p in base.rglob("*"))
+
+
+@pytest.mark.parametrize("trozo", [t for t, _ in _N19], ids=[i for _, i in _N19])
+def test_n19_ruta_declarada_con_caracter_de_uri_se_rechaza_en_runtime(tmp_path, monkeypatch, trozo):
+    base = tmp_path / "estado-n19"
+    ruta = _almacen_con_una_decision(base / trozo / "review.sqlite3")
+    antes = _todo(base)
+    _declarar(monkeypatch, str(ruta))
+
+    def _causa(fn):
+        try:
+            fn()
+        except (review_paths.ReviewDbConfigError, review_decisions.ReviewDecisionsError) as exc:
+            return exc.causa
+        return None
+
+    esperada = review_paths.CAUSA_CARACTER_NO_PERMITIDO
+    assert _causa(review_paths.default_review_db) == esperada, "N19 RUNTIME NO RECHAZO (canonica)"
+    assert _causa(lambda: review_decisions.read_active_decisions(workspace=WORKSPACE)) == esperada, (
+        "N19 RUNTIME NO RECHAZO (motor)")
+    try:
+        ReviewService().store  # noqa: B018
+        visor = None
+    except DecisionStoreUnavailable as exc:
+        visor = exc
+    assert visor is not None and visor.code == v3_review.DECISIONS_STORE_BAD_CONFIG, (
+        "N19 RUNTIME NO RECHAZO (visor)")
+    assert "caracter no permitido" in str(visor) and str(base) not in str(visor)
+    assert _todo(base) == antes, "N19 EL RUNTIME CREO ALGO: %r" % (_todo(base),)
+
+
+def test_n19_costura_con_ruta_de_uri_lee_la_decision_real_sin_fichero_extra(tmp_path, monkeypatch):
+    """Defensa en profundidad (`sqlite_uri`): aun sin la frontera de la
+    declaracion, la ruta con `#` llega ESCAPADA a SQLite: visor y motor leen
+    la decision que hay, y no aparece ningun fichero hermano."""
+    monkeypatch.delenv(VAR, raising=False)
+    base = tmp_path / "estado-n19"
+    ruta = _almacen_con_una_decision(base / "al#moh" / "review.sqlite3")
+    hermanos_antes = sorted(p.name for p in base.iterdir())
+    servicio = ReviewService(tmp_path / "p", tmp_path / "d.jsonl", database_path=ruta)
+    assert len(servicio.store.decisions()) == 1, "N19 LECTURA: el visor no ve la decision"
+    assert len(SQLiteReviewStore(ruta, crear=False).decisions()) == 1, (
+        "N19 LECTURA: el almacen sin crear no ve la decision")
+    assert sorted(review_decisions.read_active_decisions(ruta)) == ["p1"], (
+        "N19 LECTURA: el motor no ve la decision")
+    assert review_paths.inspect_review_db(ruta).decisiones == 1, "N19 LECTURA: inspeccion"
+    assert sorted(p.name for p in base.iterdir()) == hermanos_antes, (
+        "N19 FICHERO EXTRA: %r" % (sorted(p.name for p in base.iterdir()),))
+
+
+def test_n19_ninguna_uri_del_almacen_se_construye_a_mano():
+    """Censo por AST: en los consumidores del almacen, toda `sqlite3.connect(
+    ..., uri=True)` recibe la URI de `sqlite_uri`, nunca una cadena `file:`."""
+    ficheros = [
+        _REPO / "viewer" / "app" / "services" / "v3_review_store.py",
+        _ENGINE / "knowledge_v3" / "review_decisions.py",
+        _ENGINE / "knowledge_v3" / "review_paths.py",
+    ]
+    a_mano = []
+    for fichero in ficheros:
+        arbol = ast.parse(fichero.read_text(encoding="utf-8"))
+        for nodo in ast.walk(arbol):
+            if isinstance(nodo, ast.Constant) and isinstance(nodo.value, str) \
+                    and nodo.value.startswith("file:"):
+                a_mano.append("%s:%s" % (fichero.name, nodo.lineno))
+            if isinstance(nodo, ast.JoinedStr) and nodo.values and isinstance(
+                    nodo.values[0], ast.Constant) and str(nodo.values[0].value).startswith("file:"):
+                a_mano.append("%s:%s" % (fichero.name, nodo.lineno))
+    # La UNICA construccion permitida es la de `sqlite_uri`.
+    permitidas = {"review_paths.py:%s" % n.lineno
+                  for n in ast.walk(ast.parse(ficheros[2].read_text(encoding="utf-8")))
+                  if isinstance(n, ast.FunctionDef) and n.name == "sqlite_uri"
+                  for n in ast.walk(n) if isinstance(n, ast.Constant)
+                  and isinstance(n.value, str) and n.value.startswith("file:")}
+    assert permitidas, "N19 CENSO: sqlite_uri ya no construye la URI"
+    assert set(a_mano) == permitidas, "N19 URI A MANO: %r" % (sorted(set(a_mano) - permitidas),)
 
 
 # ===========================================================================

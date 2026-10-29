@@ -32,6 +32,7 @@ N13 permisos erroneos -> diagnostico de permisos                  test_n13_*
 N14 autorizacion sin ausencia real -> se ignora y se anota        test_n14_*
 N15 fresh sobre ruta con directorio -> STOP                       test_n15_*
 N16 upgrade con BD presente pero vacia -> VERDE                   test_n16_*
+N19 ruta con '#', '?', '%' o control -> rechazo con causa, nada creado  test_n19_*
 P1  fresh: la crea el deploy, preflight VERDE                     test_p1_*
 P2  upgrade normal: misma ruta con decisiones -> VERDE, nada creado   test_p2_*
 P3  upgrade autorizado sin BD ni candidata: crea, anota, sigue    test_p3_*
@@ -400,6 +401,75 @@ def test_n7_n10_la_herramienta_de_despliegue_nombra_la_causa(tmp_path, valor, pa
         res = rs.preparar(modo, valor.strip('"'), autorizar=True)
         assert res.rc == 3 and causa in " ".join(res.lineas), (
             "N7-10 HERRAMIENTA SIN CAUSA %s %r" % (modo, res.lineas))
+
+
+# ===========================================================================
+# N19 — caracteres que SQLite interpreta en una URI: rechazo en DESPLIEGUE
+# ===========================================================================
+# P1-2 de la revision independiente: con `#` o `?` en la ruta, la URI `file:`
+# construida a mano se cortaba, `mode=` se perdia y el runtime CREABA otro
+# fichero (p. ej. `al` para `al#moh/review.sqlite3`) del que leia cero
+# decisiones, mientras el despliegue lo daba por bueno. La frontera fail-closed
+# es la DECLARACION: deploy y runtime la rechazan con su causa.
+
+_N19 = [
+    ("al#moh", "N19-almohadilla"),
+    ("al?moh", "N19-interrogacion"),
+    ("al%moh", "N19-porcentaje"),
+    ("al\tmoh", "N19-control"),
+]
+
+
+def _ruta_n19(tmp_path: Path, trozo: str) -> Path:
+    return tmp_path / "estado-n19" / trozo / "review.sqlite3"
+
+
+@pytest.mark.parametrize("trozo", [t for t, _ in _N19], ids=[i for _, i in _N19])
+def test_n19_validate_viewer_env_rechaza_caracteres_de_uri(tmp_path, trozo):
+    env, raiz, db = _entorno(tmp_path)
+    _cambiar_db(env, str(_ruta_n19(tmp_path, trozo)))
+    r = subprocess.run(["bash", "-c", 'source "$1"; validate_viewer_env "$2"', "_",
+                        str(VALIDATE_SH), str(env)], capture_output=True, text=True)
+    assert r.returncode != 0, "N19 VALIDATE NO RECHAZO\n" + r.stdout + r.stderr
+    assert "BLOCK(review)" in r.stderr and "caracter no permitido" in r.stderr, (
+        "N19 VALIDATE SIN CAUSA\n" + r.stderr)
+    assert not (tmp_path / "estado-n19").exists(), "N19: validar no crea nada"
+
+
+@pytest.mark.parametrize("trozo", [t for t, _ in _N19], ids=[i for _, i in _N19])
+def test_n19_la_herramienta_y_el_preflight_rechazan_y_no_crean_nada(tmp_path, trozo):
+    ruta = _ruta_n19(tmp_path, trozo)
+    ruta.parent.mkdir(parents=True)
+    antes = _arbol(tmp_path / "estado-n19")
+    for modo in ("fresh", "upgrade"):
+        res = rs.preparar(modo, str(ruta), autorizar=True)
+        assert res.rc == 3 and "CARACTER_NO_PERMITIDO" in " ".join(res.lineas), (
+            "N19 HERRAMIENTA NO RECHAZO %s %r" % (modo, res.lineas))
+    assert _arbol(tmp_path / "estado-n19") == antes, "N19 LA HERRAMIENTA CREO ALGO"
+    env, raiz, _ = _entorno(tmp_path, almacen=True)
+    _cambiar_db(env, str(ruta))
+    rc, out = _preflight(env, raiz, "upgrade")
+    assert rc == 2 and "CARACTER_NO_PERMITIDO" in _linea(out, "review_db.compartida"), (
+        "N19 PREFLIGHT NO ROJO\n" + out)
+    assert _arbol(tmp_path / "estado-n19") == antes, "N19 EL PREFLIGHT CREO ALGO"
+
+
+def test_n19_inspeccion_con_ruta_de_uri_lee_el_almacen_real_y_no_crea_otro(tmp_path):
+    """Defensa en profundidad: aunque una ruta asi llegase a `inspect_review_db`
+    (costura, no declaracion), la URI escapada lee ESE fichero y no crea nada."""
+    base = tmp_path / "estado-n19"
+    ruta = base / "al#moh" / "review.sqlite3"
+    ruta.parent.mkdir(parents=True)
+    rs._store_del_visor().SQLiteReviewStore(ruta, crear=True)
+    con = sqlite3.connect(ruta)
+    con.execute("INSERT INTO human_decisions (decision_id, workspace, proposal_id, "
+                "request_id, record_json, created_at) VALUES ('d1','ws','p1','r1','{}','t')")
+    con.commit()
+    con.close()
+    antes = _arbol(base)
+    ins = rs._review_paths().inspect_review_db(ruta)
+    assert ins.valido and ins.decisiones == 1, "N19 INSPECCION NO VE EL REAL: %r" % (ins,)
+    assert _arbol(base) == antes, "N19 FICHERO EXTRA: %r" % (_arbol(base),)
 
 
 # ===========================================================================

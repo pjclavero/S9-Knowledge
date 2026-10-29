@@ -39,6 +39,10 @@ Las diez mutaciones del encargo (M1-M10) y las de apoyo:
   M14 el candidato legacy con decisiones ya no impide crear            (N6)
   M15 la autorización crea aunque la BD ya exista (se aplica a fresh)  (N14)
   M16 /v3/review/glossary-candidates abre el almacén FUERA del try     (N3)
+  M17 `sqlite_uri` deja de escapar la ruta (P1-2)                      (N19)
+  M18 `validar_declaracion` deja de rechazar '#', '?', '%', control    (N19)
+  M19 `validate_review_db_var` (validate_viewer_env) deja de rechazar  (N19)
+  M20 el Apply vuelve a tragarse el almacén ausente como APPLY_FAILED  (N3/D9)
 
 LOCALIZADORES
 -------------
@@ -72,6 +76,7 @@ RAIZ = Path(__file__).resolve().parents[2]
 TESTIGOS = [
     "deploy/tests/test_c1_revision_deploy.py",
     "viewer/tests/test_c1_revision_runtime.py",
+    "viewer/tests/test_c1_n3_rutas_consumidoras.py",
 ]
 DEPLOY_SH = "deploy/scripts/deploy.sh"
 LIB_SH = "deploy/scripts/lib.sh"
@@ -84,6 +89,7 @@ STORE = "viewer/app/services/v3_review_store.py"
 SERVICE = "viewer/app/services/v3_review.py"
 HANDLER = "data-engine/app/jobs/handlers/ingest_v3.py"
 ROUTER_V3 = "viewer/app/routers/v3_review.py"
+APPLY = "viewer/app/services/v3_apply.py"
 
 
 def _sh(cmd: list) -> subprocess.CompletedProcess:
@@ -282,6 +288,33 @@ def _m16_glosario_fuera_del_try(texto: str):
         '        {"auth_user": guard, "workspaces": workspaces, "workspace": selected,')
 
 
+def _m17_uri_sin_escapar(texto: str):
+    # P1-2: la URI vuelve a construirse con la ruta CRUDA. `#`/`?` la cortan,
+    # `mode=` se pierde y SQLite abre en rwc (crea otro fichero).
+    return mutar_en_funcion(texto, "sqlite_uri", 'quote(str(path), safe="/")', "str(path)")
+
+
+def _m18_declaracion_admite_caracteres_de_uri(texto: str):
+    return mutar_en_funcion(
+        texto, "validar_declaracion",
+        "    if _tiene_caracter_no_permitido(crudo):\n",
+        "    if False:\n")
+
+
+def _m19_validate_admite_caracteres_de_uri(texto: str):
+    return mutar_unico(texto, "        *'#'*|*'?'*|*'%'*|*[[:cntrl:]]*)\n",
+                       "        __n19_nunca__)\n")
+
+
+def _m20_apply_traga_el_almacen_ausente(texto: str):
+    return mutar_en_funcion(
+        texto, "store",
+        "        try:\n            return self.review.store\n"
+        "        except ReviewError as exc:\n"
+        '            raise ApplyError("REVIEW_STORE_UNAVAILABLE", str(exc)) from exc\n',
+        "        return self.review.store\n")
+
+
 _D = "deploy"
 MUTACIONES = [
     ("M1 — el visor vuelve a derivar su ruta de review.sqlite3 (N18)",
@@ -360,6 +393,33 @@ MUTACIONES = [
     ("M16 — /v3/review/glossary-candidates abre el almacén de decisiones FUERA del try (N3, P1-1)",
      [(ROUTER_V3, _m16_glosario_fuera_del_try)],
      {"test_n3_ninguna_ruta_del_visor_da_500_ni_crea_nada_con_la_ruta_ausente": "N3 RUTA CON 500"}),
+    ("M17 — `sqlite_uri` deja de escapar la ruta: '#'/'?' cortan la URI (N19, P1-2)",
+     [(PATHS, _m17_uri_sin_escapar)],
+     {"test_n19_costura_con_ruta_de_uri_lee_la_decision_real_sin_fichero_extra": "N19 LECTURA",
+      "test_n19_inspeccion_con_ruta_de_uri_lee_el_almacen_real_y_no_crea_otro":
+          "N19 INSPECCION NO VE EL REAL"}),
+    ("M18 — `validar_declaracion` deja de rechazar '#', '?', '%' y control (N19)",
+     [(PATHS, _m18_declaracion_admite_caracteres_de_uri)],
+     {"test_n19_la_herramienta_y_el_preflight_rechazan_y_no_crean_nada[N19-almohadilla]":
+          "N19 HERRAMIENTA NO RECHAZO",
+      "test_n19_la_herramienta_y_el_preflight_rechazan_y_no_crean_nada[N19-porcentaje]":
+          "N19 HERRAMIENTA NO RECHAZO",
+      "test_n19_ruta_declarada_con_caracter_de_uri_se_rechaza_en_runtime[N19-almohadilla]":
+          "N19 RUNTIME NO RECHAZO",
+      "test_n19_ruta_declarada_con_caracter_de_uri_se_rechaza_en_runtime[N19-interrogacion]":
+          "N19 RUNTIME NO RECHAZO"}),
+    ("M19 — validate_viewer_env (`validate_review_db_var`) deja de rechazar '#', '?', '%' (N19)",
+     [(VALIDATE, _m19_validate_admite_caracteres_de_uri)],
+     {"test_n19_validate_viewer_env_rechaza_caracteres_de_uri[N19-almohadilla]":
+          "N19 VALIDATE NO RECHAZO",
+      "test_n19_validate_viewer_env_rechaza_caracteres_de_uri[N19-interrogacion]":
+          "N19 VALIDATE NO RECHAZO",
+      "test_n19_validate_viewer_env_rechaza_caracteres_de_uri[N19-control]":
+          "N19 VALIDATE NO RECHAZO"}),
+    ("M20 — el Apply vuelve a tragarse el almacén ausente como APPLY_FAILED (N3, D9)",
+     [(APPLY, _m20_apply_traga_el_almacen_ausente)],
+     {"test_n3_ninguna_ruta_del_visor_da_500_ni_crea_nada_con_la_ruta_ausente":
+          "N3 RUTA NO NOMBRA EL ALMACEN AUSENTE"}),
 ]
 
 

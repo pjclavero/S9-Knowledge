@@ -320,8 +320,9 @@ validate_https_contract() {
 #   C1 (USABLE-V1) · H-04/H-18. El VALOR de S9K_V3_REVIEW_DATABASE_PATH, no solo
 #   su presencia. `S9K_V3_REVIEW_DATABASE_PATH=""` pasa la comprobacion de
 #   presencia de `validate_viewer_env` (la linea tiene caracteres) y declara...
-#   nada. Vacia, solo espacios, relativa o apuntando a un directorio
-#   existente BLOQUEA, y el mensaje NOMBRA la causa real. Nunca crea nada.
+#   nada. Vacia, solo espacios, relativa, con '#', '?', '%' o caracteres de
+#   control (N19), o apuntando a un directorio existente BLOQUEA, y el mensaje
+#   NOMBRA la causa real. Nunca crea nada.
 #   rc=0 ok, rc=1 mal.
 # ---------------------------------------------------------------------------
 validate_review_db_var() {
@@ -334,6 +335,15 @@ validate_review_db_var() {
     case "${val}" in
         /*) ;;
         *) printf 'BLOCK(review): S9K_V3_REVIEW_DATABASE_PATH es RELATIVA: dos procesos con distinto directorio de trabajo resolverian dos almacenes\n' >&2
+           return 1 ;;
+    esac
+    # N19 (P1-2 de la revision de C1): '#', '?' y '%' los interpreta SQLite en
+    # una URI `file:` (fragmento, consulta, escape) y cortarian la ruta; los de
+    # control no tienen sentido en una ruta. Misma regla que
+    # `review_paths.validar_declaracion`.
+    case "${val}" in
+        *'#'*|*'?'*|*'%'*|*[[:cntrl:]]*)
+           printf 'BLOCK(review): caracter no permitido en la ruta del almacen: S9K_V3_REVIEW_DATABASE_PATH contiene #, ?, %% o un caracter de control (SQLite cortaria la ruta como URI)\n' >&2
            return 1 ;;
     esac
     if [ -d "${val}" ]; then
