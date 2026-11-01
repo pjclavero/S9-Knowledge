@@ -26,13 +26,13 @@ usuarios/permisos → material → ingestión → progreso → revisión → apr
 
 | Campo | Valor |
 |---|---|
-| CURRENT_MAIN | `70b823ac3d6884ee7412ab3d0cfd9957fdb2e9e6` (squash de #273 B3; #272 = `7841f85`, #271 = `751995c`, #270 = `8d29a00`, #269 = `2dd6d47`, #268 = `8964c36`) |
+| CURRENT_MAIN | `2cf2361` (squash de #279 C1; #274 = `a401e45`, #277 = `d35f863` MAIN_CI_MIGRATED_SHA, #278 = `b137aa9`, #276 = `4eb442a`, #275 = `284758c`, #273 = `70b823a`; #272 = `7841f85`, #271 = `751995c`, #270 = `8d29a00`, #269 = `2dd6d47`, #268 = `8964c36`) |
 | CURRENT_PHASE | **C** (integridad y seguridad rango 2); Fase B cerrada con #273 (R1 abiertos = 0 en el alcance demostrado; RC-E2E PENDING como techo independiente de B2/B3) |
-| CURRENT_HIT | **C1** (H-04 + H-18 como unidad: persistencia de decisiones humanas) · PR en **draft**, pendiente de CI completo y de revisión independiente: H-04/H-18 pasan a **VERIFIED (arnés local), RC-E2E PENDING** solo al mergear |
+| CURRENT_HIT | **PRE-H05** (análisis read-only de H-05 · Host/Location antes de cualquier implementación) · C1 **CERRADO** (#279 → `2cf2361`): H-04/H-18 **VERIFIED (arnés local), RC-E2E PENDING** |
 | OPEN_R1 | **ninguno** · H-02 **VERIFIED (arnés local), RC-E2E PENDING** (#273 → `70b823a`) · H-01 (+H-43) **VERIFIED (arnés local), RC-E2E PENDING** (#271) · H-03 **VERIFIED** (#269) |
-| OPEN_R2_BLOQUEANTES | H-04/H-18 (C1 en draft: código y arnés local completos, sin mergear; RC-E2E PENDING), H-05, H-06, H-07, H-09, H-11/H-48, H-14, H-19, H-44 (código y arnés local en #271; RC-E2E PENDING), H-50 |
-| CURRENT_PR | PR #273 (B3, abierto, base `7841f85`) |
-| NEXT_TASK | cerrar C1 (revisión independiente + CI 17×2 + merge); después H-05 (Host) como carril propio y H-06+H-08 juntos |
+| OPEN_R2_BLOQUEANTES | H-05, H-06, H-07, H-09, H-11/H-48, H-14, H-19, H-44 (código y arnés local en #271; RC-E2E PENDING), H-50 |
+| CURRENT_PR | ninguno de código (plan: este PR) |
+| NEXT_TASK | PRE-H05 read-only (reconstruir H-05 desde plan, auditoría, código, tests, calibradores y PRs); lanzar H-05 solo con corte inequívoco; después H-06+H-08 juntos |
 | BLOCKERS | ninguno técnico; ensayo RC exige autorización del operador para VM110/VM111 |
 | DEBT_PARKED | WORKTREE-HYGIENE (147 worktrees, 435 ramas, 3 stashes), DEPENDENCY-MAINTENANCE (7 Dependabot, #209 major), CI-CALIBRATION-PERFORMANCE (job de 77 min serial) |
 | E2E_PENDING | P4, P5, B2 completo (RC-E2E PENDING en #266/#267/#271), P15 |
@@ -177,8 +177,8 @@ cuando el criterio lo nombra.
 - **Estado:** IMPLEMENTED · TESTED · CI_GATED · **RC-E2E PENDING** (nunca DONE sin el ensayo RC) · **PR:** #271 (rama `feat/b2-h01-fresh-install`, base `8d29a00`).
 - **Camino elegido:** `deploy.sh --mode fresh` (una sola autoridad que construye releases); Ansible prepara la máquina y avisa de que la primera release no es suya. Documentado en `deploy/README.md` «Primera release».
 - **Por hallazgo** (todo **VERIFIED (arnés local)**: ejecutado sobre el texto real de `deploy.sh` y el visor real por TLS local, **no** en máquina limpia; RC-E2E PENDING para todos): H-01 (paso 4 decide por `decision`; fresh procede en máquina limpia y bloquea con usuarios/sello/corrupción, por estado del producto) · H-43 (`jobs.db` ausente/vacía no bloquea) · H-44 (plantillas `not_configured`; el 403 del setup nombra la causa observada; **sigue en OPEN_R2 hasta el RC**) · H-49 (plantilla y `validate_deploy.sh` alineados con #248; `S9K_V3_REVIEW_*` declaradas) · H-35 (texto del setup; `security.py` sin cambios).
-- **H-04 · lado deploy** (`CRITICAL_ENV_VARS` + plantilla + `preflight_ensayo_rc --grupo despliegue` en el paso 6): **VERIFIED (arnés local)** · persistencia completa del estado de revisión: **OPEN (Fase C)**.
-- **H-18 · lado config/preflight**: **VERIFIED (arnés local)** · consumo/ausencia silenciosa en runtime (`review_decisions` → `{}`): **OPEN (Fase C)**.
+- **H-04 · lado deploy** (`CRITICAL_ENV_VARS` + plantilla + `preflight_ensayo_rc --grupo despliegue` en el paso 6): **VERIFIED (arnés local)** · persistencia completa del estado de revisión: **VERIFIED (arnés local), RC-E2E PENDING** (C1, #279 → `2cf2361`).
+- **H-18 · lado config/preflight**: **VERIFIED (arnés local)** · consumo/ausencia silenciosa en runtime (`review_decisions` → `{}`): **VERIFIED (arnés local), RC-E2E PENDING** (C1: con ruta declarada la ausencia falla cerrado; sin declarar = techo documentado).
 - **Estados medibles:** `estado_instalacion.py` (DEPLOY_OK → HTTPS_BOOTSTRAP_PATH_VERIFIED → FIRST_ADMIN_PENDING → FIRST_ADMIN_VERIFIED → INSTALLATION_COMPLETE; `deploy.sh` nunca ANOTA evidencia de gates no observada; en upgrade declara `ESTADO_OBSERVADO=DEPLOY_OK` y, por separado, `ESTADO_DEL_PRODUCTO=` leído de la auth DB (sello + admins)).
 - **Tests:** `deploy/tests/test_b2_fresh_install.py` (rápido: pasos 3–4 y 6 REALES de `deploy.sh`, plantillas, GATE A, estados) · `deploy/tests/test_b2_primera_release.py` (visor real por TLS local: máquina limpia → INSTALLATION_COMPLETE; HTTP plano reproduce el 403). **Calibrador:** `mutaciones_b2_fresh_install.py` (10 mutaciones + 7 de la ronda de corrección de la revisión independiente) en el job required «Calibracion de gates».
 - **Techo:** clon+venv de la release, systemd (pasos 7–13), nginx, CA real, navegador, VM limpia y reinicio de máquina no ejercidos; venv del motor → B3 (su único consumidor es el worker); H-08 (dos unidades del visor) documentado, no resuelto: **el camino fresh deja el visor como root** (unidad del repo sin `User=`, ahora habilitada); H-06: `auth.db` sale 0644; el registro de estados se reinicia en cada despliegue (corrección R2-a: un upgrade no hereda INSTALLATION_COMPLETE); el reinicio entre GATE B bootstrap y persistencia lo afirma el operador.
@@ -201,7 +201,7 @@ cuando el criterio lo nombra.
 - **Deuda:** worker sin verificación de identidad de release (solo `is-active` ×3); `worker.env` sigue siendo manual (ahora obligatorio: un upgrade sin él bloquea en el paso 6). **F4:** la cancelación es solo del ESTADO: el paquete de propuestas que el handler ya escribió sigue visible en `/panel/review`.
 
 ### C1 — H-04 + H-18 · Persistencia de decisiones humanas (`review.sqlite3`)
-- **Estado:** IMPLEMENTED · TESTED · CI_GATED (calibrador en el job required «Calibracion de gates») · **PR:** C1 (draft; base `a401e45`, rama `feat/c1-persistencia-decisiones-revision`) · **H-04/H-18: VERIFIED (arnés local) solo al mergear, RC-E2E PENDING**.
+- **Estado:** **MERGED** (#279 → `2cf2361`, base `a401e45`; HEAD final `4236331`) · CI_GATED (calibrador 23/23 en el job required «Calibracion de gates»; 34/34 check-runs, 17/17 required, sin relanzamientos en el SHA final) · revisión independiente final **APTO CON OBSERVACIONES** · **H-04/H-18: VERIFIED (arnés local), RC-E2E PENDING**.
 - **Contrato del operador:** *deploy* es la autoridad que decide y prepara el almacén; el *runtime* (visor y motor) lo consume y lo verifica y, con la ruta declarada, **nunca lo crea** ni lo sustituye por `{}`. Fresh crea y verifica por efecto; upgrade exige uno válido y lo preserva (vacío ≠ ausente); upgrade sin almacén = STOP por defecto, con excepción explícita `--autorizar-creacion-review-db` (solo con ausencia real y sin candidata legacy con decisiones; **no es un `--force`**).
 - **Una sola resolución** (`review_paths.default_review_db`) para visor, motor y preflight; `ReviewService(database_path=…)` sustituye a la derivación D4. Variable declarada vacía / espacios / relativa / directorio / con `#`, `?`, `%` o control (N19): rechazo con la causa real en `validate_viewer_env` y en el runtime. Toda URI `file:` del almacén sale de **una** función, `review_paths.sqlite_uri` (escapa la ruta; solo `ro`/`rw`, nunca `rwc`), que usan la inspección, el almacén del visor y la lectura del motor.
 - **Worker:** `ingest_v3` con la ruta declarada ausente termina `FAILED` (`REVIEW_STORE_UNAVAILABLE` / `REVIEW_STORE_PERMISSIONS`) sin publicar paquete; `preparar_estado_del_worker` deja el directorio y los `-wal/-shm` de la revisión al worker.
@@ -218,7 +218,10 @@ cuando el criterio lo nombra.
   - **D6** Directorio no escribible: `OperationalError` crudo en el visor y `REVIEW_STORE_UNAVAILABLE` (no PERMISSIONS) en el worker.
   - **D7** Quitar `--usuario-servicio` del preflight del paso 6 (o la exigencia de escritura) no pone nada rojo hasta el paso 13, ya con la release activada.
   - **D8** Orden: en el paso 6 `review_store preparar` crea antes de `preflight` y `validate_worker_env`; si estos mueren, queda la BD creada.
-  - Deuda restante D1–D4, D6–D8: documentada, **no bloquea** el cierre de C1.
+  - **D10** `review_paths.sqlite_uri` acepta `immutable=True` con `mode="rw"` (ningún llamador lo usa).
+  - **D11** (detector) El inventario estructural de N3 no ve un consumidor importado con alias (`import ReviewService as X`) ni uno alcanzado vía función de otro módulo (techo declarado).
+  - Flakies conocidos, ajenos a C1: Authz (`…identificador_fisico…CAMBIO`, reutilización de id en Neo4j) y Viewer (`test_si_el_proceso_muere_tras_reservar…`, «This portal is not running»); se relanza solo el job cuando la firma coincide.
+  - Deuda restante D1–D4, D6–D8, D10–D11: documentada, **no bloquea** el cierre de C1.
 
 ## 8. Reglas del programa (vigentes para todo carril)
 
@@ -272,4 +275,5 @@ cuando el criterio lo nombra.
 | 2026-10-26 | Infraestructura: CI migrada a COMMONS-CI (VM115, runner `commons-ci-s9k-01`) por #276/#278 (pip-audit) y #277 → **MAIN_CI_MIGRATED_SHA = `d35f863`**; 16 jobs self-hosted, `Data Engine Tests` sigue en `ubuntu-latest` (PENDING_RESOURCE_FIT por OOM medido); 17 contextos required sin cambios; calibradores de CI re-anclados a identidad `id+name`; deuda documentada en `docs/ci/MIGRACION_COMMONS_CI.md` §11; ~17 h de CI por SHA en serie | PR #277 (revisión OPUS independiente: P1 shellcheck corregido en `6edf0fe`), `docs/ci/MIGRACION_COMMONS_CI.md` |
 | 2026-10-27 | C1 abierto (draft): H-04 + H-18 como unidad; `review.sqlite3` lo crea el despliegue y el runtime lo consume y verifica; resolución única en `review_paths`; calibrador 18/18; RC-E2E PENDING | PR C1 (draft, rama `feat/c1-persistencia-decisiones-revision`) |
 | 2026-10-29 | C1 · cierre del P1-2 (URI sin escapar → el runtime creaba otro fichero): `sqlite_uri` única + N19 en despliegue y runtime; D9 cerrado (N3 estructural, 14 rutas, POST con CSRF válido; Apply nombra el almacén); README con la receta de inspección/propietario/modo del primer upgrade; calibrador 23/23; sigue draft, RC-E2E PENDING | PR #279 (draft) |
+| 2026-11-01 | **C1 CERRADO** (#279 → `2cf2361`): H-04/H-18 → VERIFIED (arnés local), RC-E2E PENDING; deploy única autoridad de creación (fresh crea y verifica; upgrade preserva; autorización explícita no sobrescribe), runtime nunca crea y falla cerrado con causa, `review_paths` + `sqlite_uri` únicas, N1–N19, calibrador 23/23, N3 estructural 14 rutas; revisión independiente: NO APTO (P1-1) → NO APTO (P1-2) → APTO CON OBSERVACIONES; deuda D1–D4, D6–D8, D10–D11; CURRENT_HIT → PRE-H05 | PR #279 (34/34, 17/17 required), `docs/PLAN_USABLE_V1.md` §5 C1 |
 | 2026-10-12 | B3 abierto (#273): H-02 VERIFIED (arnés local), H-37 VERIFIED (arnés local); unidad canónica del worker instalada por `deploy.sh`; calibrador 25/25 tras dos rondas de corrección (NO APTO → F1–F9; APTO CON OBSERVACIONES → ronda final); RC-E2E PENDING | PR #273 |

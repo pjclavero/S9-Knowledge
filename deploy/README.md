@@ -712,7 +712,7 @@ worker, `systemctl` y el reinicio de máquina.
 - **D2** No hay testigo de que `export_review_package` no se trague un `ReviewDecisionsError`.
 - **D3** Un symlink colgante en la ruta declarada: fresh/autorizado crea en el destino, posiblemente fuera del state root (el juicio de ubicación es léxico).
 - **D4** Inspeccionar una candidata legacy en WAL crea su `-shm`, también en dry-run.
-- **D5** Las URIs `file:{path}?mode=…` de `v3_review_store.connect` y `_records` no escapan `%` (rutas con `%`, `#`, `?`).
+- ~~**D5**~~ **CERRADA (P1-2, #279):** las URIs del almacén de revisión salen solo de `review_paths.sqlite_uri` (escapada; modos `ro`/`rw`) y una declaración con `#`, `?`, `%` o caracteres de control se rechaza (N19). Censo: fuera del almacén de revisión siguen URIs construidas a mano para otros almacenes (auth.db, jobs.db, backups) en `viewer/app/health/checks.py`, `viewer/app/auth/db.py`, `viewer/app/auth/schema_compat.py`, `deploy/scripts/detect_state.py` y `deploy/scripts/migrate_sqlite.py`; otro contrato, sin carril.
 - **D6** Directorio no escribible: `OperationalError` crudo en el visor y `REVIEW_STORE_UNAVAILABLE` (no PERMISSIONS) en el worker.
 - **D7** Quitar `--usuario-servicio` del preflight del paso 6 (o la exigencia de escritura) no pone nada rojo hasta el paso 13, ya con la release activada.
 - **D8** Orden: en el paso 6 `review_store preparar` crea antes de `preflight` y `validate_worker_env`; si estos mueren, queda la BD creada.
