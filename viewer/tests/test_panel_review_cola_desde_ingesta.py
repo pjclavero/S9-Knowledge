@@ -97,7 +97,7 @@ def _salud_aislada(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def almacen_de_propuestas(tmp_path, monkeypatch) -> Path:
+def almacen_de_propuestas(tmp_path, monkeypatch, almacen_fresh) -> Path:
     """EL INVARIANTE DE DESPLIEGUE, ejercido: escritor y lector, un almacén.
 
     Se declara UNA variable y la ven los dos lados porque los dos la resuelven
@@ -113,6 +113,8 @@ def almacen_de_propuestas(tmp_path, monkeypatch) -> Path:
                        str(tmp_path / "reviews-v3" / "decisions.jsonl"))
     monkeypatch.setenv("S9K_V3_REVIEW_DATABASE_PATH",
                        str(tmp_path / "reviews-v3" / "review.sqlite3"))
+    # C1: el almacen de decisiones lo CREA EL DESPLIEGUE (fresh), no el runtime.
+    almacen_fresh(tmp_path / "reviews-v3" / "review.sqlite3")
     return directorio
 
 

@@ -132,7 +132,7 @@ def _grafo_de_mentira(monkeypatch):
 
 
 @pytest.fixture
-def almacenes(tmp_path, monkeypatch) -> dict:
+def almacenes(tmp_path, monkeypatch, almacen_fresh) -> dict:
     """Propuestas y decisiones, aislados y VACÍOS. El mismo resolvedor único."""
     propuestas = tmp_path / "reviews-v3" / "proposals"
     base = tmp_path / "reviews-v3" / "review.sqlite3"
@@ -140,6 +140,8 @@ def almacenes(tmp_path, monkeypatch) -> dict:
     monkeypatch.setenv("S9K_V3_REVIEW_DECISIONS_PATH",
                        str(tmp_path / "reviews-v3" / "decisions.jsonl"))
     monkeypatch.setenv("S9K_V3_REVIEW_DATABASE_PATH", str(base))
+    # C1: el almacen de decisiones lo CREA EL DESPLIEGUE (fresh), no el runtime.
+    almacen_fresh(base)
     assert not propuestas.exists(), "el almacén tiene que empezar vacío"
     return {"propuestas": propuestas, "base": base}
 

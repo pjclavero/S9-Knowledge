@@ -306,11 +306,23 @@ def _paso13(tmp: Path, modo: str = "upgrade", jobs_previa: bool = True):
         jobs_db.chmod(0o644)
     props = state / "reviews-v3" / "proposals"
     worker_env = tmp / "worker.env"
-    worker_env.write_text("S9K_V3_REVIEW_PROPOSALS_DIR=%s\n" % props, encoding="utf-8")
+    review_db = state / "reviews-v3" / "review.sqlite3"
+    worker_env.write_text(
+        "S9K_V3_REVIEW_PROPOSALS_DIR=%s\nS9K_V3_REVIEW_DATABASE_PATH=%s\n" % (props, review_db),
+        encoding="utf-8")
+    # C1: el paso 13 VERIFICA por efecto el almacen de decisiones que el paso 6
+    # ya dejo preparado: aqui existe, como lo deja un despliegue previo.
+    import review_store as rs  # noqa: PLC0415
+    res = rs.preparar("fresh", str(review_db))
+    assert res.rc == 0, res.lineas
+    viewer_env = tmp / "viewer.env"
+    viewer_env.write_text("S9K_V3_REVIEW_DATABASE_PATH=%s\n" % review_db, encoding="utf-8")
     llamadas = tmp / "systemctl.log"
     cuerpo = """
 systemctl() { echo "$*" >> %s; }
 sleep() { :; }
+HERE=%s
+VIEWER_ENV=%s
 MODE=%s
 NEW_JOBS_DB=%s
 WORKER_ENV=%s
@@ -318,7 +330,7 @@ WORKER_UNIT_NAME=%s
 WORKER_USER=%s
 WORKER_GROUP=%s
 %s
-""" % (llamadas, modo, jobs_db, worker_env, UNIDAD.name,
+""" % (llamadas, _SCRIPTS, viewer_env, modo, jobs_db, worker_env, UNIDAD.name,
        pwd.getpwuid(os.getuid()).pw_name, grp.getgrgid(os.getgid()).gr_name,
        _tramo_de_deploy("# Paso 13: reiniciar solo servicios afectados", "# --- fin del paso 13 ---"))
     r = _correr_bash(cuerpo, {})

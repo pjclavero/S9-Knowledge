@@ -196,8 +196,17 @@ def glossary_candidates(
     # NO se arregla devolviendo `[]`: eso reintroduce «ausencia == cero», que
     # es el defecto que este corte viene a cerrar, y encima en la superficie
     # que tiene las ÚNICAS escrituras de dominio.
+    #
+    # C1 (P1-1 de la revision): `glossary_candidates()` abre el almacen de
+    # DECISIONES (`self.store`), asi que su llamada va DENTRO del mismo `try`:
+    # con la ruta declarada ausente levanta `DecisionStoreUnavailable` (subclase
+    # de `ProposalStoreUnavailable`) y es el mismo «el dato no esta», no un 500.
     try:
         workspaces = _service().workspaces(scope=scope)
+        selected = workspace or (workspaces[0] if len(workspaces) == 1 else None)
+        if selected and selected not in workspaces:
+            raise HTTPException(status_code=404, detail="Workspace no encontrado")
+        items = _service().glossary_candidates(selected, scope=scope) if selected else []
     except ProposalStoreUnavailable as exc:
         return templates.TemplateResponse(
             request, "v3_glossary_candidates.html",
@@ -205,10 +214,6 @@ def glossary_candidates(
              "almacen": store_unavailable_view(exc),
              "autoridad_workspace": _aviso_autoridad()},
         )
-    selected = workspace or (workspaces[0] if len(workspaces) == 1 else None)
-    if selected and selected not in workspaces:
-        raise HTTPException(status_code=404, detail="Workspace no encontrado")
-    items = _service().glossary_candidates(selected, scope=scope) if selected else []
     return templates.TemplateResponse(
         request, "v3_glossary_candidates.html",
         {"auth_user": guard, "workspaces": workspaces, "workspace": selected,

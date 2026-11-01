@@ -435,11 +435,34 @@ def test_almacen_ilegible_no_se_confunde_con_almacen_vacio(tmp_path):
         review_decisions.read_active_decisions(roto, workspace=WORKSPACE)
 
 
-def test_sin_almacen_el_motor_se_comporta_como_siempre(tmp_path):
-    """Sin visor montado no hay decisiones: vacío, sin reventar."""
-    assert review_decisions.read_active_decisions(
-        tmp_path / "no-existe.sqlite3", workspace=WORKSPACE
-    ) == {}
+def test_sin_almacen_con_ruta_declarada_el_motor_falla_cerrado(tmp_path):
+    """C1 · H-18 — CAMBIO CONSCIENTE DE CONTRATO.
+
+    Antes («sin almacen -> `{}`», test `..._se_comporta_como_siempre`) un
+    almacen ausente se leia como «nadie ha decidido nada» y el motor volvia a
+    proponer lo que una persona ya habia resuelto. Con la ruta DECLARADA (o
+    pasada explicita) la ausencia ya NO es vacio: es `ReviewDecisionsError`
+    con su causa. El vacio sin declaracion sigue existiendo como TECHO
+    DECLARADO y tiene su propio test (`test_sin_variable_declarada_...`).
+    """
+    with pytest.raises(review_decisions.ReviewDecisionsError) as excinfo:
+        review_decisions.read_active_decisions(
+            tmp_path / "no-existe.sqlite3", workspace=WORKSPACE
+        )
+    assert excinfo.value.causa == "NO_EXISTE"
+
+
+def test_sin_variable_declarada_el_defecto_del_repo_es_techo_declarado(
+    tmp_path, monkeypatch
+):
+    """TECHO DECLARADO (desarrollo): sin `S9K_V3_REVIEW_DATABASE_PATH` y con un
+    defecto que no existe, el motor lee `{}`. NO es el contrato de produccion:
+    ahi la variable esta en `CRITICAL_ENV_VARS` y el preflight la exige."""
+    monkeypatch.delenv("S9K_V3_REVIEW_DATABASE_PATH", raising=False)
+    monkeypatch.setenv("S9K_V3_REVIEW_DECISIONS_PATH", str(tmp_path / "dev" / "decisions.jsonl"))
+    assert not (tmp_path / "dev" / "review.sqlite3").exists()
+    assert review_decisions.read_active_decisions(workspace=WORKSPACE) == {}
+    assert not (tmp_path / "dev").exists(), "el motor jamas crea nada"
 
 
 def test_el_ambito_de_workspace_se_respeta(

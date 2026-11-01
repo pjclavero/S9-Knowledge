@@ -610,6 +610,113 @@ existe **un solo resolvedor** (`data-engine/app/knowledge_v3/review_paths.py`)
 y el visor lo importa en vez de derivar la suya. Un caso lo comprueba por
 enumeración del árbol.
 
+## Las decisiones humanas persisten: `review.sqlite3` lo crea el DESPLIEGUE (C1 · USABLE-V1 · H-04 + H-18)
+
+### ESTADO DE ESTA SECCIÓN (leer antes de seguir)
+
+```
+CODE         PASS      deploy/scripts/review_store.py + pasos 6 y 13 reales de deploy.sh en arnés; E2E local fresh -> decisión -> upgrade
+CALIBRATION  PASS      scripts/calibracion/mutaciones_c1_persistencia_revision.py (job «Calibracion de gates»)
+RC-E2E       PENDING   sin systemd, sin usuario de servicio real (www-data), sin VM limpia
+```
+
+Antes de C1 el estado de revisión vivía **por defecto dentro de la release** y,
+si faltaba, nadie lo decía: el motor leía `{}` («nadie ha decidido nada») y el
+visor **creaba una base vacía**. Un `deploy.sh` con una ruta nueva bajo el
+state root daba «APTO: el estado sobrevive» mientras las decisiones humanas
+quedaban huérfanas.
+
+**Contrato.** *Deploy* es la autoridad que decide y prepara el almacén; el
+*runtime* (visor y motor) lo **consume y verifica** y, con la ruta declarada,
+**nunca lo crea** ni lo sustituye por `{}`.
+
+| Situación | Qué hace el despliegue (paso 6 de `deploy.sh`, `review_store.py`) |
+|---|---|
+| `--mode fresh`, ruta libre | **crea** `review.sqlite3` con el schema del producto (`0660`, dueño = usuario del worker) y lo **verifica por efecto**: existe, abre, tiene `human_decisions`, lo escribe el usuario del servicio |
+| `--mode fresh`, ya hay un almacén **con decisiones** | **BLOQUEA**: con estado existente se usa `--mode upgrade` |
+| `--mode upgrade`, almacén válido (aunque vacío: *vacío ≠ ausente*) | lo **preserva**; no crea ni toca nada |
+| `--mode upgrade`, **sin almacén** | **STOP** por defecto: o la ruta cambió, o el estado se perdió |
+| `--mode upgrade --autorizar-creacion-review-db`, sin almacén ni candidata legacy con decisiones | crea y **anota** la excepción en el log del despliegue |
+| cualquier modo, almacén corrupto / directorio / schema ajeno / sin permisos | **STOP** con la causa real. La autorización **no es un `--force`**: nunca sobrescribe, repara ni adopta |
+| ruta ausente pero hay una candidata legacy con decisiones (`${release previa}/viewer/output/reviews-v3/`, `/opt/knowledge-services/s9-knowledge-repo/…`) | **STOP aunque esté autorizado**: migrar es una decisión del operador |
+
+**Primer upgrade tras C1 en una instalación que nunca abrió la revisión.** No
+existe `review.sqlite3` en la ruta declarada y tampoco hay candidata con
+decisiones: el despliegue se detendrá con «UPGRADE sin almacen…». Repetir con
+`deploy.sh --mode upgrade --autorizar-creacion-review-db …`. Si en cambio
+**había** decisiones en la release anterior, el STOP es correcto: hay que
+migrarlas antes (no lo hace este guion).
+
+**Primer upgrade tras C1 donde el visor (root) creó `review.sqlite3`.** Es el
+caso habitual: el visor de `deploy.sh` corre como root (H-08) y dejó
+`review.sqlite3` como `root:root 0644`. El paso 6 se detendrá con
+`STOP … [SIN_PERMISOS]`, porque el usuario del servicio no puede escribirlo.
+Receta (sólo documentada; se ejecuta a mano, en el host, sabiendo lo que se toca):
+
+1. **Inspeccionar** sin modificar nada. `<dir>` es el directorio de
+   `S9K_V3_REVIEW_DATABASE_PATH` en `viewer.env`:
+   `ls -ld <dir>` · `ls -l <dir>/review.sqlite3*` ·
+   `stat -c '%U:%G %a %n' <dir> <dir>/review.sqlite3*`.
+2. **Propietario esperado**: el usuario y grupo del servicio, los de
+   `User=`/`Group=` de la unidad del worker (`data-engine/systemd/s9-knowledge-worker.service`); es lo
+   que `deploy.sh` lee para el paso 6 (`REVIEW_USER`/`REVIEW_GROUP`) y el 13.
+3. **Modo esperado** (política actual de `review_store.py` y de
+   `preparar_estado_del_worker` en `lib.sh`): fichero `review.sqlite3` **`0660`**
+   y directorio que lo contiene **`0750`**, ambos a nombre del usuario del
+   servicio (SQLite crea ahí los `-wal`/`-shm`, que también son suyos).
+4. **Corregir**: `chown <usuario>:<grupo> <dir> <dir>/review.sqlite3*` ·
+   `chmod 0750 <dir>` · `chmod 0660 <dir>/review.sqlite3`.
+5. **Repetir** el despliegue (`deploy.sh --mode upgrade …`); el paso 6 vuelve
+   a verificarlo por efecto (existe, abre, `human_decisions`, escribible por el
+   servicio). Ni el `chown` ni el `chmod` lo hace el guion por su cuenta sobre
+   una base existente: la autorización no es un `--force`.
+
+**La variable declarada tiene que significar algo.** `S9K_V3_REVIEW_DATABASE_PATH`
+vacía, de solo espacios, relativa, apuntando a un directorio o con un carácter
+que SQLite interpreta en una URI (`#`, `?`, `%`) o de control se rechaza en
+`validate_viewer_env` (paso 6) y también en el runtime, con un diagnóstico que
+nombra la causa (*no existe* ≠ *no es escribible* ≠ *no es un fichero* ≠
+*schema inválido* ≠ *carácter no permitido en la ruta del almacén*, N19). Con
+`#` o `?` en la ruta, una URI `file:` sin escapar se cortaba y SQLite abría
+—creándolo— **otro** fichero; por eso, además del rechazo, toda URI del
+almacén sale de una sola función (`review_paths.sqlite_uri`) que escapa la ruta.
+
+**Una sola resolución de la ruta** (`review_paths.default_review_db()`),
+compartida por visor, motor y preflight; `ReviewService(database_path=…)` es la
+única costura de test. Sin la variable declarada (desarrollo) se conserva el
+defecto del repositorio como **techo declarado**: ahí el visor puede crear el
+fichero y el motor lee `{}` si no existe. Una instalación productiva no puede
+estar en ese caso: la variable está en `CRITICAL_ENV_VARS`.
+
+**Worker.** `ingest_v3` con la ruta declarada ausente termina `FAILED` con
+`REVIEW_STORE_UNAVAILABLE` (o `REVIEW_STORE_PERMISSIONS` si es de permisos), sin
+gastar la corrida y **sin publicar paquete**. El paso 13 deja el directorio del
+almacén y sus `-wal`/`-shm` a nombre del usuario del worker
+(`preparar_estado_del_worker`) y vuelve a **verificarlo por efecto**.
+
+`preflight_ensayo_rc.py --grupo despliegue` acepta `--modo upgrade` (defecto,
+estricto: el almacén tiene que existir) o `--modo fresh` (puede no existir aún) y
+`--usuario-servicio` (evalúa los permisos del almacén para ese usuario, por bits
+de modo, no para quien ejecuta).
+
+**Medido** (CI required): `deploy/tests/test_c1_revision_deploy.py` (P1–P3,
+N1, N4–N16, paso 6 y 13 reales, E2E local con dos releases exportadas) y
+`viewer/tests/test_c1_revision_runtime.py` (N2, N3, N7–N10, N13, N17, N18, P1,
+P2, techo). **No medido** (RC-E2E PENDING): `chown` a `www-data` de verdad, el
+reparto de propietarios de `-wal`/`-shm` entre el visor (root, H-08) y el
+worker, `systemctl` y el reinicio de máquina.
+
+### Deuda documentada C1 (sin carril abierto)
+
+- **D1** El censo AST de N18 solo ve el literal `S9K_V3_REVIEW_DATABASE_PATH` y solo en `viewer/app` + `data-engine/app`: un alias o una concatenación no se detectan (techo declarado).
+- **D2** No hay testigo de que `export_review_package` no se trague un `ReviewDecisionsError`.
+- **D3** Un symlink colgante en la ruta declarada: fresh/autorizado crea en el destino, posiblemente fuera del state root (el juicio de ubicación es léxico).
+- **D4** Inspeccionar una candidata legacy en WAL crea su `-shm`, también en dry-run.
+- **D5** Las URIs `file:{path}?mode=…` de `v3_review_store.connect` y `_records` no escapan `%` (rutas con `%`, `#`, `?`).
+- **D6** Directorio no escribible: `OperationalError` crudo en el visor y `REVIEW_STORE_UNAVAILABLE` (no PERMISSIONS) en el worker.
+- **D7** Quitar `--usuario-servicio` del preflight del paso 6 (o la exigencia de escritura) no pone nada rojo hasta el paso 13, ya con la release activada.
+- **D8** Orden: en el paso 6 `review_store preparar` crea antes de `preflight` y `validate_worker_env`; si estos mueren, queda la BD creada.
+
 ## Invariante: el worker tiene que poder OBSERVAR el grafo
 
 **Slice 2 · Corte 5.** Hasta este corte el worker no tenía ni una referencia a

@@ -136,6 +136,23 @@ CODIGOS = {
         "comprobar contra el que existe lo que va a proponer. No se ha "
         "ingerido nada; puedes volver a intentarlo cuando el grafo responda."
     ),
+    # --- almacen de decisiones humanas (C1 · H-18) ---
+    #
+    # Sin saber que decidio el humano, el motor volveria a proponer lo ya
+    # resuelto: una ingesta «correcta» que ignora las decisiones. Por eso se
+    # falla ANTES de gastar la corrida y sin publicar ningun paquete.
+    "REVIEW_STORE_UNAVAILABLE": (
+        "El almacen de decisiones humanas de revision no esta disponible "
+        "(no existe, no es valido o la ruta declarada es incorrecta), asi que "
+        "la ingesta no puede respetar lo que ya se ha decidido. No se ha "
+        "ingerido nada. Avisa a quien administra el servicio."
+    ),
+    "REVIEW_STORE_PERMISSIONS": (
+        "El worker no tiene PERMISOS sobre el almacen de decisiones humanas "
+        "de revision, asi que la ingesta no puede respetar lo que ya se ha "
+        "decidido. No se ha ingerido nada. Avisa a quien administra el "
+        "servicio."
+    ),
 }
 
 
@@ -156,7 +173,25 @@ PERMANENTES = frozenset({
     "SOURCE_PACKAGE_INVALID",
     "GRAPH_OBSERVATION_UNCONFIGURED",
     "PARTIDA_SIN_SESION_DECLARADA",
+    # Una ruta mal declarada o un permiso mal puesto no se arreglan solos entre
+    # dos intentos.
+    "REVIEW_STORE_UNAVAILABLE",
+    "REVIEW_STORE_PERMISSIONS",
 })
+
+
+def _exigir_almacen_de_decisiones() -> None:
+    """Falla cerrado, con codigo, si el almacen de decisiones no es utilizable."""
+    from knowledge_v3 import review_decisions  # noqa: PLC0415
+
+    try:
+        review_decisions.verify_decisions_store()
+    except review_decisions.ReviewDecisionsError as exc:
+        log.error("almacen de decisiones humanas inutilizable: %s (causa=%s)",
+                  exc, getattr(exc, "causa", None))
+        if getattr(exc, "causa", None) == "SIN_PERMISOS":
+            raise IngestV3Error("REVIEW_STORE_PERMISSIONS") from exc
+        raise IngestV3Error("REVIEW_STORE_UNAVAILABLE") from exc
 
 
 class IngestV3Error(RuntimeError):
@@ -520,6 +555,14 @@ def handle_ingest_v3(payload: dict, *, job_id: Optional[str] = None) -> dict:
         log.error("perfil ausente o no es un fichero: %s", perfil)
         raise IngestV3Error("SOURCE_PACKAGE_INVALID")
 
+    # EL ALMACEN DE DECISIONES HUMANAS, ANTES DE GASTAR NADA (C1 · H-18).
+    #
+    # Con la ruta declarada, un almacen ausente / sin permisos / corrupto / ajeno
+    # termina la corrida FAILED con un codigo y SIN publicar paquete: seguir
+    # volveria a proponer lo que una persona ya resolvio, y el job saldria
+    # «completo». La causa concreta (sin rutas) se registra en el log.
+    _exigir_almacen_de_decisiones()
+
     # LA OBSERVACION SE ABRE ANTES DE EXTRAER, Y FALLA CERRADO.
     #
     # Va aqui, despues de validar el paquete de la fuente y antes de gastar una
@@ -569,6 +612,12 @@ def handle_ingest_v3(payload: dict, *, job_id: Optional[str] = None) -> dict:
         # `PLAN_SESION_NO_DECLARADA` cuando el ambito es de partida y no hay
         # sesion de revelacion. Traducirlo a SOURCE_PACKAGE_INVALID mandaria al
         # operador a revisar un fichero que esta perfectamente bien.
+        if nombre == "ReviewDecisionsError":
+            # Defensa en profundidad: lo normal es que lo cace la comprobacion
+            # previa; esto cubre una carrera (el almacen se rompe a mitad).
+            if getattr(exc, "causa", None) == "SIN_PERMISOS":
+                raise IngestV3Error("REVIEW_STORE_PERMISSIONS") from exc
+            raise IngestV3Error("REVIEW_STORE_UNAVAILABLE") from exc
         if nombre == "PipelineError" and "PLAN_SESION_NO_DECLARADA" in str(exc):
             raise IngestV3Error("PARTIDA_SIN_SESION_DECLARADA") from exc
         if nombre in {"PipelineError", "FileNotFoundError", "ValueError",

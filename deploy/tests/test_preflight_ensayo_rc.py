@@ -46,7 +46,7 @@ WS = "ensayo-rc"
 
 
 @pytest.fixture
-def entorno(tmp_path: Path) -> dict:
+def entorno(tmp_path: Path, almacen_fresh) -> dict:
     """Un despliegue correcto para el ensayo, entero en `tmp_path`.
 
     `tmp_path` esta FUERA del arbol del repositorio a proposito: es justo lo
@@ -56,6 +56,9 @@ def entorno(tmp_path: Path) -> dict:
     propuestas = raiz / "reviews-v3" / "proposals"
     propuestas.mkdir(parents=True)
     (raiz / "reviews-v3").mkdir(exist_ok=True)
+    # C1: el almacen de decisiones lo crea el DESPLIEGUE (fresh); un entorno
+    # correcto para el ensayo ya lo tiene, y el preflight lo EXIGE.
+    almacen_fresh(raiz / "reviews-v3" / "review.sqlite3")
     fuentes = tmp_path / "fuentes"
     fuentes.mkdir()
     (fuentes / "cronica-de-ejemplo.md").write_text("texto\n", encoding="utf-8")
@@ -121,6 +124,8 @@ def test_main_aborta_si_el_canario_no_da_rojo(monkeypatch, entorno, capsys):
 IMPORTS_PERMITIDOS = {
     "__future__", "argparse", "ast", "importlib", "importlib.util", "os",
     "stat", "sys", "dataclasses", "pathlib", "typing", "urllib.parse",
+    # C1: el usuario del servicio se resuelve con la biblioteca estandar.
+    "pwd", "grp",
     # B2: el lector de EnvironmentFile del despliegue se IMPORTA del modulo
     # hermano (no se copia). Ese modulo es a su vez solo biblioteca estandar,
     # y lo comprueba abajo `test_el_hermano_importado_es_solo_stdlib`.

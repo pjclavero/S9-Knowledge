@@ -484,7 +484,20 @@ class ReviewApplyService:
 
     @property
     def store(self):
-        return self.review.store
+        """El almacen de decisiones, o `ApplyError("REVIEW_STORE_UNAVAILABLE")`.
+
+        C1 (D9 de la revision independiente): con la ruta declarada ausente,
+        invalida o sin permisos, `ReviewService.store` levanta
+        `DecisionStoreUnavailable` (una `ReviewError`). Sin traducirla aqui,
+        sellar, aplicar y aprobar altas acababan en el `except Exception` del
+        router como `APPLY_FAILED` --«no ha terminado correctamente»-- y el
+        operador no sabia que lo que falta es el ALMACEN. El codigo estable
+        nombra la causa; el detalle (sin ruta) va al log.
+        """
+        try:
+            return self.review.store
+        except ReviewError as exc:
+            raise ApplyError("REVIEW_STORE_UNAVAILABLE", str(exc)) from exc
 
     # -- lectura -----------------------------------------------------------
 
