@@ -112,7 +112,9 @@ def _m3(t: str) -> str | None:
 
 def _m4(t: str) -> str | None:
     return mutar_en_funcion(
-        t, "interpretar_url_publica", "if canonico == PLACEHOLDER_HOST:", "if False:")
+        t, "interpretar_url_publica",
+        'if canonico == PLACEHOLDER_HOST or canonico.endswith("." + PLACEHOLDER_HOST):',
+        "if False:")
 
 
 def _m5(t: str) -> str | None:
@@ -140,8 +142,15 @@ def _m7(t: str) -> str | None:
 
 
 def _m9(t: str) -> str | None:
-    return mutar_en_funcion(
+    # Las DOS guardas ASCII (cabecera y hostname): la defensa es redundante a
+    # proposito y el defecto exige quitar ambas.
+    m = mutar_en_funcion(
         t, "normalizar_host", "if not host.isascii():", "if False:")
+    if m is None:
+        return None
+    return mutar_en_funcion(
+        m, "normalizar_host_cabecera",
+        "if not valor or not valor.isascii():", "if not valor:")
 
 
 def _m8(t: str) -> str | None:
