@@ -23,6 +23,11 @@ las FUNCIONES de prueba esperadas, (2) que el mensaje del rojo dice la causa, y
 Las mutaciones se aplican sobre el FUENTE (no se fabrica la entrada de la
 prueba con la transformación bajo medida) y se restauran siempre.
 
+NOTA SOBRE M9: la guarda ASCII existe DOS veces (`normalizar_host` y
+`normalizar_host_cabecera`) a proposito, como defensa redundante; ningun test
+aisla la de cabecera (con la de hostname viva, la ruta de cabecera tambien
+cae), por eso M9 quita ambas.
+
 TECHO DECLARADO: calibra `public_endpoint.py`, `public_host_middleware.py` y el
 registro en `main.py`. No calibra el preflight de despliegue
 (`deploy/tests/test_h05b_endpoint_publico_despliegue.py` tiene su propia
@@ -207,7 +212,7 @@ MUTACIONES = [
       T + "n19_sharp_s_en_bytes_crudos_con_servidor_real",
       T + "n19_barrido_latin1_0x80_0xff_todo_400",
       T + "n19_config_con_sharp_s_es_invalid_hostname_sin_convertir"},
-     "cla"),
+     "test_n19_"),
     ("M8 — un Host no declarado llega al endpoint",
      [(MIDDLEWARE, _m8)],
      {LISTA_400, LLEGA, T + "host_malformado_da_400", T + "host_ausente_da_400"},

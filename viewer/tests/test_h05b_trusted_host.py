@@ -1015,3 +1015,21 @@ def test_placeholder_tambien_como_sufijo_o_subdominio(url):
 def test_puerto_con_salto_de_linea_final_es_invalido():
     for host in ("public.example:443\n", "[::1]:8088\n", "public.example:44\n3"):
         assert pe.normalizar_host_cabecera(host) is None, repr(host)
+
+
+@pytest.mark.parametrize("host", ["00.0.0.0", "0", "0x0.0.0.0", "0x7f.0.0.1", "2130706433",
+                                  "127.1", "0177.0.0.1", "1.2.3.0x4"])
+def test_forma_numerica_no_canonica_se_rechaza_en_config_y_cabecera(host):
+    with pytest.raises(pe.PublicEndpointError) as e:
+        pe.resolve_trusted_hosts("https://" + host)
+    assert e.value.code == "PUBLIC_URL_INVALID_HOSTNAME", host
+    assert pe.normalizar_host(host) is None and pe.normalizar_host_cabecera(host) is None
+
+
+def test_forma_numerica_control_positivo_loopback_y_localhost_siguen_aceptados():
+    for url in ("http://127.0.0.1:8088", "http://localhost", "https://1.2.3.4",
+                "https://public.example"):
+        assert pe.resolve_trusted_hosts(url)
+    assert pe.normalizar_host("127.0.0.1") == "127.0.0.1"
+    assert pe.normalizar_host("localhost") == "localhost"
+    assert pe.normalizar_host_cabecera("127.0.0.1:8088") == "127.0.0.1"

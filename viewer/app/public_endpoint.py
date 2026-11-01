@@ -131,6 +131,12 @@ def normalizar_host(host: str) -> Optional[str]:
         return ipaddress.ip_address(candidato).compressed
     except ValueError:
         pass
+    # Forma numerica que NO es una IPv4 canonica (`0`, `00.0.0.0`, `2130706433`,
+    # `0x7f.0.0.1`): `inet_aton` la resuelve a una direccion y un cliente o un
+    # proxy podrian leerla asi. Un nombre cuyo ultimo tramo es numerico/hex no
+    # es un nombre DNS valido: se rechaza, no se interpreta.
+    if re.fullmatch(r"[0-9]+|0[xX][0-9a-fA-F]*", candidato.rsplit(".", 1)[-1]):
+        return None
     if len(candidato) > 253:
         return None
     if not all(_ETIQUETA_DNS.match(e) for e in candidato.split(".")):
