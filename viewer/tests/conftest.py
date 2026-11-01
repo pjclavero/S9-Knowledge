@@ -81,6 +81,40 @@ def _s9k_auth_enabled_linea_base_false():
     get_auth_settings.cache_clear()
 
 
+#: URL pública DECLARADA del entorno de tests (H-05 corte B). Dominio
+#: reservado `.example` (RFC 2606): ni es un host real ni el placeholder.
+URL_PUBLICA_DE_TESTS = "https://knowledge.tests.example"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _h05b_entorno_de_tests_declarado():
+    """Declara EXPLÍCITAMENTE el entorno de tests de la frontera de host.
+
+    El visor es fail-closed (H-05 corte B): sin `S9K_PUBLIC_BASE_URL` válida
+    no arranca ni atiende peticiones, y `testserver` (el Host del
+    `TestClient`) no figura en la lista de producción. Este fixture:
+
+      1. declara la URL pública del entorno de tests (variable real, la misma
+         autoridad que lee producción), y
+      2. declara `testserver` como host EXTRA, por la costura de tests
+         `app.public_host_middleware.HOSTS_EXTRA_DE_PRUEBAS`, la única vía
+         por la que ese nombre llega a la lista.
+
+    NO se deduce el modo test por hostname ni por ausencia de configuración.
+    Los tests que miden la frontera real (`test_h05b_trusted_host.py`) retiran
+    o sustituyen estos valores en su propio fixture.
+    """
+    from app import public_host_middleware
+
+    # Ámbito de SESIÓN: los fixtures de módulo (p. ej. un servidor uvicorn o
+    # un banco que monta la app) se crean ANTES que cualquier fixture de
+    # función y también necesitan el entorno declarado.
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("S9K_PUBLIC_BASE_URL", URL_PUBLICA_DE_TESTS)
+        mp.setattr(public_host_middleware, "HOSTS_EXTRA_DE_PRUEBAS", ("testserver",))
+        yield
+
+
 @pytest.fixture
 def lector_por_dependencia():
     """Instala un LECTOR LEGÍTIMO sustituyendo las dependencias que SÍ muerden.

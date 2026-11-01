@@ -270,7 +270,7 @@ def test_http_plano_reproduce_el_fallo_y_no_se_declara_completo(tmp_path):
 
 
 def test_la_plantilla_de_desarrollo_literal_pasa_el_gate_a_por_https(tmp_path, cert_localhost):
-    """`cp viewer/.env.example .env` tal cual, servido por HTTPS: CSRF funcional.
+    """`cp viewer/.env.example .env` (salvo la URL publica), servido por HTTPS: CSRF funcional.
 
     Solo se fijan las RUTAS de estado (la plantilla las deja vacias y caerian
     dentro del arbol del repositorio que el testigo no debe ensuciar).
@@ -288,6 +288,10 @@ def test_la_plantilla_de_desarrollo_literal_pasa_el_gate_a_por_https(tmp_path, c
         "S9K_JOBS_DB": str(estado / "jobs.db"),
         "S9K_V3_REVIEW_DATABASE_PATH": str(estado / "reviews-v3" / "review.sqlite3"),
         "S9K_V3_REVIEW_PROPOSALS_DIR": str(estado / "reviews-v3" / "proposals"),
+        # H-05 corte B: lo UNICO que la plantilla exige cambiar es la URL
+        # publica (la literal es un placeholder que el visor rechaza al
+        # arrancar). Se declara la del propio laboratorio.
+        "S9K_PUBLIC_BASE_URL": "https://localhost:%d" % puerto,
     })
     visor = VisorDesdeCurrent(VIEWER, entorno, cert_localhost, puerto)
     try:

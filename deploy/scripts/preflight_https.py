@@ -86,6 +86,7 @@ from __future__ import annotations
 
 import argparse
 import http.client
+import importlib.util
 import socket
 import ssl
 import sys
@@ -109,6 +110,27 @@ RUTA_DE_SONDEO = "/api/status"
 VALORES_VERDADEROS = frozenset({"1", "true", "yes", "on", "si"})
 
 TIEMPO_LIMITE = 10.0
+
+#: AUTORIDAD UNICA del endpoint publico (H-05 corte B): la interpretacion de
+#: ``S9K_PUBLIC_BASE_URL`` (placeholder, comodin, sin hostname, malformada) vive
+#: en ``viewer/app/public_endpoint.py`` y es la MISMA que usa el visor al
+#: arrancar. Este guion corre fuera del venv, asi que carga ese fichero (solo
+#: biblioteca estandar) por RUTA en vez de reimplementarlo.
+RUTA_PUBLIC_ENDPOINT = (Path(__file__).resolve().parents[2]
+                        / "viewer" / "app" / "public_endpoint.py")
+_public_endpoint = None
+
+
+def _cargar_public_endpoint():
+    global _public_endpoint
+    if _public_endpoint is None:
+        spec = importlib.util.spec_from_file_location(
+            "s9k_public_endpoint", RUTA_PUBLIC_ENDPOINT)
+        modulo = importlib.util.module_from_spec(spec)
+        sys.modules["s9k_public_endpoint"] = modulo  # dataclass lo necesita
+        spec.loader.exec_module(modulo)
+        _public_endpoint = modulo
+    return _public_endpoint
 
 
 @dataclass(frozen=True)
@@ -178,6 +200,23 @@ def comprobar_url_declarada(url: Optional[str]) -> Optional[Hallazgo]:
             "dice por donde se la alcanza no se puede verificar, y sin "
             "verificar no esta completa.",
         )
+    return None
+
+
+def comprobar_endpoint_publico(url: Optional[str]) -> Optional[Hallazgo]:
+    """La URL publica es UTILIZABLE por el visor (H-05 corte B).
+
+    Misma interpretacion que ``viewer/app/public_endpoint.py`` (la que hace
+    abortar el arranque del visor): placeholder de la plantilla, comodin,
+    sin hostname o malformada -> hallazgo con el CODIGO ESTABLE del visor como
+    causa. Una instalacion con una URL que el visor se niega a servir NO esta
+    completa, y mejor que lo diga el despliegue que un servicio que no arranca.
+    """
+    modulo = _cargar_public_endpoint()
+    try:
+        modulo.interpretar_url_publica(url)
+    except modulo.PublicEndpointError as exc:
+        return Hallazgo(exc.code, exc.message)
     return None
 
 
@@ -378,19 +417,24 @@ class Entrada:
     timeout: float = TIEMPO_LIMITE
 
 
-def verificar(entrada: Entrada) -> list:
-    """Todos los hallazgos. Lista vacia = via HTTPS verificada AHORA."""
-    hallazgos = []
+def verificar_estatico(entrada: Entrada) -> list:
+    """Solo la mitad estatica (sin sockets). Lista vacia = nada que objetar."""
     falta = comprobar_url_declarada(entrada.url)
     if falta is not None:
         return [falta]
     url = (entrada.url or "").strip()
-
     estaticos = [
+        comprobar_endpoint_publico(url),
         comprobar_esquema_https(url),
         comprobar_cookie_secure_coherente(url, entrada.session_secure),
     ]
-    hallazgos.extend(h for h in estaticos if h is not None)
+    return [h for h in estaticos if h is not None]
+
+
+def verificar(entrada: Entrada) -> list:
+    """Todos los hallazgos. Lista vacia = via HTTPS verificada AHORA."""
+    url = (entrada.url or "").strip()
+    hallazgos = verificar_estatico(entrada)
     if hallazgos:
         # Sin HTTPS no hay nada que sondear: sondear http:// aqui seria
         # exactamente el fallback a HTTP que D3 prohibe.
@@ -430,6 +474,10 @@ def main(argv: Optional[list] = None) -> int:
                     help="valor efectivo de S9K_SESSION_SECURE")
     ap.add_argument("--ca-file", help="almacen de confianza declarado")
     ap.add_argument("--timeout", type=float, default=TIEMPO_LIMITE)
+    ap.add_argument("--solo-endpoint-publico", action="store_true",
+                    help="solo comprueba que la URL publica es utilizable por el "
+                         "visor (placeholder, comodin, sin hostname, malformada); "
+                         "no abre ningun socket. Lo usa validate_deploy.sh")
     args = ap.parse_args(argv)
 
     if args.env_file:
@@ -444,11 +492,16 @@ def main(argv: Optional[list] = None) -> int:
         timeout=args.timeout,
     )
 
-    hallazgos = verificar(entrada)
+    if args.solo_endpoint_publico:
+        hallazgos = [h for h in (comprobar_endpoint_publico(entrada.url),) if h is not None]
+    else:
+        hallazgos = verificar(entrada)
     for h in hallazgos:
         print(str(h))
     rc = codigo_de_salida(hallazgos)
-    if rc == 0:
+    if rc == 0 and args.solo_endpoint_publico:
+        print("OK: la URL publica es utilizable por el visor (solo esa comprobacion).")
+    elif rc == 0:
         print("OK: la via HTTPS declarada verifica y CONTESTA en este momento.")
         print("    Esto NO es el ensayo RC (ver deploy/README.md).")
     else:

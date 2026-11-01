@@ -151,6 +151,9 @@ class VisorReal:
             "S9K_SESSION_SECURE": "true",
             "S9K_CSRF_SECRET": "csrf-de-laboratorio-%s" % secrets.token_hex(8),
             "S9K_GRAPH_PROVIDER": "mock",
+            # H-05 corte B: la instalacion DECLARA su URL publica (el visor es
+            # fail-closed sin ella). Es la del propio laboratorio.
+            "S9K_PUBLIC_BASE_URL": self.base_url,
             "PYTHONPATH": str(VIEWER),
             "PYTHONDONTWRITEBYTECODE": "1",
         })

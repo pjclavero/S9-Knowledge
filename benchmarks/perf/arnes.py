@@ -54,6 +54,10 @@ def preparar_entorno(ruta_grafo: Path) -> None:
     os.environ["S9K_SESSION_SECURE"] = "false"
     os.environ.setdefault("S9K_CSRF_SECRET", "perf-lab-secret-no-produccion-000000")
     os.environ["S9K_ALLOW_REAL_INGEST"] = ""
+    # H-05 corte B: entorno de laboratorio DECLARADO (frontera de host
+    # fail-closed): URL publica propia del banco; `testserver` se declara al
+    # construir el cliente.
+    os.environ["S9K_PUBLIC_BASE_URL"] = "https://perf-lab.example"
 
 
 def contexto_del_banco():
@@ -115,9 +119,11 @@ def construir_cliente(ruta_grafo: Path):
     from app.authz.filtered_provider import PolicyFilteredProvider
     from app.config import get_settings
     from app.deps import get_provider
+    from app import public_host_middleware
     from app.main import app
     from app.providers.mock_provider import MockGraphProvider
 
+    public_host_middleware.HOSTS_EXTRA_DE_PRUEBAS = ("testserver",)
     get_settings.cache_clear()
     contador = CountingProvider(MockGraphProvider(ruta_grafo))
     app.dependency_overrides[get_provider] = lambda: contador

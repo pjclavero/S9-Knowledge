@@ -33,6 +33,8 @@ from app.authz.dependencies import get_filtered_provider, get_visibility_scope
 from app.authz.scope import VisibilityScope
 from app.chassis import FEATURE_SLOTS, ChassisContractError, install_nav_globals
 from app.presentacion_etiquetas import install_label_globals
+from app.public_endpoint import resolve_trusted_hosts
+from app.public_host_middleware import PublicHostMiddleware
 from app.provider_banner import install_provider_banner_globals
 from app.config import get_settings
 from app.deps import get_default_workspace, get_provider
@@ -68,6 +70,21 @@ app = FastAPI(
 
 # Middleware de autenticación (no-op cuando S9K_AUTH_ENABLED=false)
 app.add_middleware(AuthMiddleware)
+
+# H-05 corte B · frontera de host. Se registra DESPUÉS de AuthMiddleware: en
+# Starlette `add_middleware` inserta en cabeza, así que éste es el más EXTERNO
+# y un `Host` no declarado recibe 400 antes de la sesión, las rutas, los
+# almacenes y los redirects automáticos. Los hosts los decide
+# `app.public_endpoint` (S9K_PUBLIC_BASE_URL); aquí no se interpreta nada.
+app.add_middleware(PublicHostMiddleware)
+
+
+@app.on_event("startup")
+async def _startup_public_endpoint() -> None:
+    """Fail-closed: sin URL pública válida el visor NO arranca (ni en modo
+    parcialmente protegido). Lanza `PublicEndpointError` con código estable:
+    ausente, placeholder, comodín, sin hostname o malformada."""
+    resolve_trusted_hosts()
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")

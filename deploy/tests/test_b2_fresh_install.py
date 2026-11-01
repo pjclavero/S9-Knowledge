@@ -674,9 +674,15 @@ def setup_en_proceso(tmp_path):
     """El router REAL de /setup/admin en proceso (TestClient habla http://)."""
     from fastapi.testclient import TestClient  # noqa: PLC0415
     from app.auth.config import get_auth_settings  # noqa: PLC0415
-    claves = ("S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_CSRF_SECRET", "S9K_SESSION_SECURE")
+    from app import public_host_middleware  # noqa: PLC0415
+    claves = ("S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_CSRF_SECRET", "S9K_SESSION_SECURE",
+              "S9K_PUBLIC_BASE_URL")
     previos = {k: os.environ.get(k) for k in claves}
+    host_extra_previo = public_host_middleware.HOSTS_EXTRA_DE_PRUEBAS
+    # H-05 corte B: entorno de tests DECLARADO (URL pública + `testserver`).
+    public_host_middleware.HOSTS_EXTRA_DE_PRUEBAS = ("testserver",)
     os.environ.update({
+        "S9K_PUBLIC_BASE_URL": "https://knowledge.tests.example",
         "S9K_AUTH_ENABLED": "true",
         "S9K_AUTH_DB_PATH": str(_auth_de_producto(tmp_path / "auth.db")),
         "S9K_CSRF_SECRET": "csrf-ficticio-de-b2-%s" % ("x9" * 12),
@@ -689,6 +695,7 @@ def setup_en_proceso(tmp_path):
     try:
         yield TestClient(app, raise_server_exceptions=False, follow_redirects=False)
     finally:
+        public_host_middleware.HOSTS_EXTRA_DE_PRUEBAS = host_extra_previo
         for k, v in previos.items():
             if v is None:
                 os.environ.pop(k, None)

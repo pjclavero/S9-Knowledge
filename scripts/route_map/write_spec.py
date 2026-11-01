@@ -144,6 +144,13 @@ def bootstrap(repo: Path) -> None:
                           str(viewer / "examples" / "sample_graph.json"))
     os.environ.setdefault("S9K_CSRF_SECRET", secrets.token_urlsafe(48))
     os.environ.setdefault("S9K_SESSION_SECURE", "false")
+    # H-05 corte B: entorno de pruebas DECLARADO (URL pública + `testserver`).
+    # Sin esto el visor real rechaza el Host del TestClient (frontera de host
+    # fail-closed). Es el mismo par que declara `viewer/tests/conftest.py`.
+    os.environ.setdefault("S9K_PUBLIC_BASE_URL", "https://knowledge.tests.example")
+    from app import public_host_middleware
+
+    public_host_middleware.HOSTS_EXTRA_DE_PRUEBAS = ("testserver",)
     # HIGIENE, y costó una medición: `storage.default_report_path()` devuelve una
     # ruta RELATIVA (`viewer/state/health/last_report.json`), así que una sonda
     # que consiga escribir —por ejemplo contra un endpoint inyectado por la
