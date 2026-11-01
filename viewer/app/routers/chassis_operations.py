@@ -1124,7 +1124,7 @@ def solicitar_ingesta(
             CAPACIDAD_INGESTA.name, quien, fuente, codigo,
         )
         return RedirectResponse(
-            url=f"{request.url_for('chassis_operations')}?aviso={codigo}",
+            url=f"{request.app.url_path_for('chassis_operations')}?aviso={codigo}",
             status_code=303,
         )
 
@@ -1203,7 +1203,7 @@ def solicitar_ingesta(
         workspace, ambito.partida_id, ambito.visibility, ambito.regla,
     )
     return RedirectResponse(
-        url=f"{request.url_for('chassis_operations')}?solicitado={job_id}",
+        url=f"{request.app.url_path_for('chassis_operations')}?solicitado={job_id}",
         status_code=303,
     )
 
@@ -1251,7 +1251,8 @@ def _vuelta(request: Request, destino: str, job_id: str, codigo: str) -> str:
     despues de una aprobacion correcta, que es el peor desenlace posible --el
     operador no sabe si aprobo o no.
     """
-    base = request.url_for(destino)
+    # H-05: PATH relativo, nunca un origen derivado de `Host`.
+    base = request.app.url_path_for(destino)
     clave = "trabajo" if destino == "chassis_operations_altas" else "solicitado"
     return f"{base}?{clave}={job_id}&aviso={codigo}"
 
