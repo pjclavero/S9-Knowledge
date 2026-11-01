@@ -117,8 +117,7 @@ def _m4(t: str) -> str | None:
 def _m5(t: str) -> str | None:
     return mutar_en_funcion(
         t, "__call__",
-        'await PlainTextResponse("Public endpoint misconfigured", status_code=503)'
-        "(scope, receive, send)",
+        'await _responder(503, "Public endpoint misconfigured", scope, receive, send)',
         "await self.app(scope, receive, send)")
 
 
@@ -142,8 +141,7 @@ def _m7(t: str) -> str | None:
 def _m8(t: str) -> str | None:
     return mutar_en_funcion(
         t, "__call__",
-        'await PlainTextResponse("Invalid host header", status_code=400)'
-        "(scope, receive, send)",
+        'await _responder(400, "Invalid host header", scope, receive, send)',
         "await self.app(scope, receive, send)")
 
 
@@ -187,7 +185,7 @@ MUTACIONES = [
     ("M7 — segunda autoridad: el middleware lee la variable y parsea la URL",
      [(MIDDLEWARE, _m7)],
      {GATE},
-     "FUERA_DE_AUTORIDAD"),
+     "URLSPLIT_FUERA_DE_AUTORIDAD"),
     ("M8 — un Host no declarado llega al endpoint",
      [(MIDDLEWARE, _m8)],
      {LISTA_400, LLEGA, T + "host_malformado_da_400", T + "host_ausente_da_400"},

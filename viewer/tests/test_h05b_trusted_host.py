@@ -861,7 +861,8 @@ def test_gate_unicidad_el_arbol_real_no_tiene_segunda_autoridad():
     fuentes = _fuentes_de_produccion()
     assert any(r.endswith("public_endpoint.py") for r in fuentes)  # el gate ve la autoridad
     assert len(fuentes) > 50                                       # y el árbol, no un trozo
-    assert _hallazgos_de_unicidad(fuentes) == []
+    hallazgos = _hallazgos_de_unicidad(fuentes)
+    assert hallazgos == [], "segunda autoridad: %s" % [(r, c) for r, _, c, _ in hallazgos]
 
 
 PLANTADAS = {

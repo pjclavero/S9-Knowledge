@@ -47,6 +47,11 @@ __all__ = ["PublicHostMiddleware", "HOSTS_EXTRA_DE_PRUEBAS"]
 HOSTS_EXTRA_DE_PRUEBAS: tuple = ()
 
 
+async def _responder(estado: int, texto: str, scope: Scope, receive: Receive,
+                     send: Send) -> None:
+    await PlainTextResponse(texto, status_code=estado)(scope, receive, send)
+
+
 class PublicHostMiddleware:
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
@@ -59,8 +64,7 @@ class PublicHostMiddleware:
         try:
             permitidos = resolve_trusted_hosts(extra=HOSTS_EXTRA_DE_PRUEBAS)
         except PublicEndpointError:
-            await PlainTextResponse(
-                "Public endpoint misconfigured", status_code=503)(scope, receive, send)
+            await _responder(503, "Public endpoint misconfigured", scope, receive, send)
             return
 
         cabeceras = Headers(scope=scope).getlist("host")
@@ -68,4 +72,4 @@ class PublicHostMiddleware:
         if host is not None and host in permitidos:
             await self.app(scope, receive, send)
             return
-        await PlainTextResponse("Invalid host header", status_code=400)(scope, receive, send)
+        await _responder(400, "Invalid host header", scope, receive, send)
