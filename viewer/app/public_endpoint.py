@@ -30,10 +30,18 @@ DECISIONES DEL OPERADOR (contrato H-05B) que gobiernan este módulo:
 * El placeholder de la plantilla (``cambiar.por.el.nombre.real``) se rechaza
   aunque sea una URL sintácticamente válida.
 * ``testserver`` NO está aquí. Sólo un entorno de tests lo declara, de forma
-  explícita, por ``app.state.extra_trusted_hosts`` (ver el middleware); esta
+  explícita, por ``HOSTS_EXTRA_DE_PRUEBAS`` (ver el middleware); esta
   función no lo conoce.
 * Hosts adicionales futuros = configuración de despliegue explícita (otro
   corte), no deducción.
+
+TECHO DECLARADO del gate de unicidad (viewer/tests/test_h05b_trusted_host.py):
+es AST estático sobre ``viewer/app``. NO ve: ``Settings`` pydantic paralelas
+(salvo el patrón de nombre de campo), ``URL(...).hostname`` de Starlette,
+``split`` manual de una URL, nombres de variable construidos por concatenación,
+``socket.gethostname()``/autodetección, ni una IP LAN hardcodeada. Lo que lo
+cubre es el comportamiento: la lista exacta de hosts, los 400 por host ajeno y
+el calibrador (M6, M7).
 """
 from __future__ import annotations
 
@@ -70,7 +78,7 @@ LOOPBACK_HOSTS: Tuple[str, ...] = ("localhost", "127.0.0.1", "::1")
 
 _ESQUEMAS = ("http", "https")
 _ETIQUETA_DNS = re.compile(r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")
-_PUERTO = re.compile(r"^[0-9]{1,5}$")
+_PUERTO = re.compile(r"[0-9]{1,5}")  # siempre con fullmatch (nunca `$`: acepta "\n")
 _PROHIBIDOS_EN_HOST = re.compile(r"[\s\x00-\x1f\x7f/\\@,?#]")
 _BLANCOS_O_CONTROL = re.compile(r"[\s\x00-\x1f\x7f]")
 
@@ -108,6 +116,12 @@ def normalizar_host(host: str) -> Optional[str]:
     """
     if not isinstance(host, str) or not host or _PROHIBIDOS_EN_HOST.search(host):
         return None
+    # GUARDA ASCII ANTES de cualquier plegado: `casefold()` pliega "\xdf" (ß,
+    # alcanzable con un byte latin-1 0xDF en una cabecera real) a "ss", y
+    # `knowledge.cla\xdf.example` pasaria por `knowledge.class.example`.
+    # Un host no ASCII se rechaza; no se convierte en silencio (IDN: punycode).
+    if not host.isascii():
+        return None
     candidato = host.casefold()
     if candidato.endswith("."):
         candidato = candidato[:-1]
@@ -134,14 +148,14 @@ def normalizar_host_cabecera(valor: Optional[str]) -> Optional[str]:
     (varios ``:`` sin corchetes, puerto no numérico, espacios, ``@``, ``/``)
     es inválida: fail-closed.
     """
-    if not valor:
+    if not valor or not valor.isascii():
         return None
     if valor.startswith("["):
         cierre = valor.find("]")
         if cierre < 0:
             return None
         dentro, resto = valor[1:cierre], valor[cierre + 1:]
-        if resto and not (resto.startswith(":") and _PUERTO.match(resto[1:])):
+        if resto and not (resto.startswith(":") and _PUERTO.fullmatch(resto[1:])):
             return None
         try:
             ip = ipaddress.ip_address(dentro)
@@ -155,7 +169,7 @@ def normalizar_host_cabecera(valor: Optional[str]) -> Optional[str]:
     nombre = valor
     if ":" in valor:
         nombre, puerto = valor.split(":", 1)
-        if not _PUERTO.match(puerto):
+        if not _PUERTO.fullmatch(puerto):
             return None
     return normalizar_host(nombre)
 
@@ -178,6 +192,12 @@ def interpretar_url_publica(raw: Optional[str]) -> PublicEndpoint:
         raise PublicEndpointError(
             "PUBLIC_URL_MALFORMED",
             "%s contiene espacios o caracteres de control." % PUBLIC_BASE_URL_VAR)
+    if not raw.isascii():
+        # Antes de `urlsplit`, cuyo `.hostname` ya pliega mayusculas Unicode
+        # (KELVIN SIGN -> "k"). Sin conversion silenciosa: IDN en punycode.
+        raise PublicEndpointError(
+            "PUBLIC_URL_INVALID_HOSTNAME",
+            "%s contiene caracteres no ASCII (un IDN va en punycode)." % PUBLIC_BASE_URL_VAR)
     if "*" in raw:
         raise PublicEndpointError(
             "PUBLIC_URL_WILDCARD",
@@ -207,8 +227,17 @@ def interpretar_url_publica(raw: Optional[str]) -> PublicEndpoint:
     if canonico is None:
         raise PublicEndpointError(
             "PUBLIC_URL_INVALID_HOSTNAME",
-            "el hostname de %s no es válido." % PUBLIC_BASE_URL_VAR)
-    if canonico == PLACEHOLDER_HOST:
+            "el hostname de %s no es válido (sólo ASCII; un IDN va en punycode)."
+            % PUBLIC_BASE_URL_VAR)
+    try:
+        sin_especificar = ipaddress.ip_address(canonico).is_unspecified
+    except ValueError:
+        sin_especificar = False
+    if sin_especificar:
+        raise PublicEndpointError(
+            "PUBLIC_URL_INVALID_HOSTNAME",
+            "la dirección no especificada (0.0.0.0 / ::) no es un host público.")
+    if canonico == PLACEHOLDER_HOST or canonico.endswith("." + PLACEHOLDER_HOST):
         raise PublicEndpointError(
             "PUBLIC_URL_PLACEHOLDER",
             "%s conserva el placeholder de la plantilla (%s): hay que declarar "
@@ -231,7 +260,7 @@ def resolve_trusted_hosts(raw: Optional[str] = EFECTIVO,
                           extra: Iterable[str] = ()) -> Tuple[str, ...]:
     """Hosts aceptados: hostname público + loopback (+ ``extra`` explícito).
 
-    ``extra`` es la costura de TESTS (``app.state.extra_trusted_hosts``): el
+    ``extra`` es la costura de TESTS (``HOSTS_EXTRA_DE_PRUEBAS``): el
     código de producción nunca lo pasa. Cada extra se normaliza y valida con
     las mismas reglas (sin comodín); uno inválido aborta, no se descarta.
     """

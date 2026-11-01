@@ -821,6 +821,9 @@ def _hallazgos_de_unicidad(fuentes: dict) -> list:
                     causas.append((ruta, n.lineno, "COMODIN_EN_LA_FRONTERA", v))
                 if any(h in v.lower() for h in HOSTS_PRODUCTIVOS_CONOCIDOS) and len(v) < 120:
                     causas.append((ruta, n.lineno, "HOST_PRODUCTIVO_HARDCODEADO", v))
+            if isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name) \
+                    and PATRON_VARIABLE.search(n.target.id) and nombre != AUTORIDAD:
+                causas.append((ruta, n.lineno, "SETTINGS_PARALELA_DE_URL_PUBLICA", n.target.id))
             if isinstance(n, (ast.Import, ast.ImportFrom)):
                 modulo = getattr(n, "module", None) or ""
                 alias = [a.name for a in n.names]
@@ -874,6 +877,9 @@ PLANTADAS = {
     "HOST_PRODUCTIVO_HARDCODEADO": "HOSTS = ('knowledge.seccionnueve.duckdns.org',)\n",
     "SEGUNDA_FRONTERA_DE_HOST": (
         "from starlette.middleware.trustedhost import TrustedHostMiddleware\n"),
+    "SETTINGS_PARALELA_DE_URL_PUBLICA": (
+        "from pydantic_settings import BaseSettings\n"
+        "class S(BaseSettings):\n    S9K_PUBLIC_BASE_URL: str = ''\n"),
     "COSTURA_DE_TESTS_TOCADA_EN_PRODUCCION": (
         "import app.public_host_middleware as m\nm.HOSTS_EXTRA_DE_PRUEBAS = ('x',)\n"),
 }
@@ -914,3 +920,98 @@ def test_gate_unicidad_el_preflight_de_despliegue_usa_la_misma_interpretacion():
     texto = (REPO / "deploy" / "scripts" / "preflight_https.py").read_text(encoding="utf-8")
     assert "public_endpoint.py" in texto and "interpretar_url_publica" in texto
     assert pe.PLACEHOLDER_HOST not in texto  # no copia el literal del placeholder
+
+
+# ---------------------------------------------------------------------------
+# N19 y endurecimientos de la revision adversarial
+# ---------------------------------------------------------------------------
+
+URL_CLASS = "https://knowledge.class.example"
+HOST_SHARP_S = "knowledge.cla\xdf.example"  # 0xDF: casefold() -> "ss"
+
+
+def test_n19_sharp_s_no_se_pliega_a_ss_por_asgi(real_app, config_productiva, monkeypatch):
+    monkeypatch.setenv("S9K_PUBLIC_BASE_URL", URL_CLASS)
+    assert _asgi(real_app, [(b"host", b"knowledge.class.example")]) == 200  # control
+    assert _asgi(real_app, [(b"host", HOST_SHARP_S.encode("latin-1"))]) == 400
+
+
+def test_n19_sharp_s_en_bytes_crudos_con_servidor_real(config_productiva, monkeypatch, tmp_path):
+    """Bytes crudos por un socket contra uvicorn, como lo haria un cliente real."""
+    import threading
+    import time
+    from contextlib import closing
+
+    import uvicorn
+
+    monkeypatch.setenv("S9K_PUBLIC_BASE_URL", URL_CLASS)
+    from app.main import app
+
+    with closing(socket.socket()) as s:
+        s.bind(("127.0.0.1", 0))
+        puerto = s.getsockname()[1]
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=puerto,
+                                           log_level="critical", lifespan="off"))
+    hilo = threading.Thread(target=server.run, daemon=True)
+    hilo.start()
+    for _ in range(200):
+        if server.started:
+            break
+        time.sleep(0.05)
+    assert server.started
+
+    def estado(host: bytes) -> int:
+        with closing(socket.create_connection(("127.0.0.1", puerto), timeout=10)) as c:
+            c.sendall(b"GET /api/status HTTP/1.1\r\nHost: " + host + b"\r\nConnection: close\r\n\r\n")
+            datos = b""
+            while True:
+                trozo = c.recv(4096)
+                if not trozo:
+                    break
+                datos += trozo
+        return int(datos.split(b" ", 2)[1])
+
+    try:
+        assert estado(b"knowledge.class.example") == 200
+        assert estado(HOST_SHARP_S.encode("latin-1")) == 400
+    finally:
+        server.should_exit = True
+        hilo.join(timeout=10)
+
+
+def test_n19_barrido_latin1_0x80_0xff_todo_400(real_app, config_productiva, monkeypatch):
+    monkeypatch.setenv("S9K_PUBLIC_BASE_URL", URL_CLASS)
+    for b in range(0x80, 0x100):
+        for host in (b"knowledge.cla" + bytes([b]) + b".example",
+                     b"knowledge.class" + bytes([b]) + b".example", bytes([b]) + b"ocalhost"):
+            assert _asgi(real_app, [(b"host", host)]) == 400, host
+
+
+def test_n19_config_con_sharp_s_es_invalid_hostname_sin_convertir():
+    for url in ("https://knowledge.cla\xdf.example", "https://caf\u00e9.example",
+                "https://\u212a.example"):  # KELVIN SIGN: tambien se pliega
+        with pytest.raises(pe.PublicEndpointError) as e:
+            pe.resolve_trusted_hosts(url)
+        assert e.value.code == "PUBLIC_URL_INVALID_HOSTNAME", url
+    assert pe.normalizar_host("cla\xdf") is None and pe.normalizar_host_cabecera("cla\xdf") is None
+
+
+@pytest.mark.parametrize("url", ["https://0.0.0.0", "http://0.0.0.0:8088", "https://[::]"])
+def test_config_con_direccion_no_especificada_se_rechaza(url):
+    with pytest.raises(pe.PublicEndpointError) as e:
+        pe.resolve_trusted_hosts(url)
+    assert e.value.code == "PUBLIC_URL_INVALID_HOSTNAME"
+
+
+@pytest.mark.parametrize("url", [
+    "https://sub.cambiar.por.el.nombre.real", "https://a.b.cambiar.por.el.nombre.real:8443",
+])
+def test_placeholder_tambien_como_sufijo_o_subdominio(url):
+    with pytest.raises(pe.PublicEndpointError) as e:
+        pe.resolve_trusted_hosts(url)
+    assert e.value.code == "PUBLIC_URL_PLACEHOLDER"
+
+
+def test_puerto_con_salto_de_linea_final_es_invalido():
+    for host in ("public.example:443\n", "[::1]:8088\n", "public.example:44\n3"):
+        assert pe.normalizar_host_cabecera(host) is None, repr(host)

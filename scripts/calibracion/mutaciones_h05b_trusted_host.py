@@ -18,6 +18,7 @@ las FUNCIONES de prueba esperadas, (2) que el mensaje del rojo dice la causa, y
   M7  segunda autoridad: el middleware lee la variable y parsea la URL por su
       cuenta (lo caza el gate de unicidad).
   M8  un Host no declarado llega al endpoint (el middleware deja pasar).
+  M9  quitar la guarda ASCII de `normalizar_host` (`\xdf` -> `ss` suplanta al público).
 
 Las mutaciones se aplican sobre el FUENTE (no se fabrica la entrada de la
 prueba con la transformación bajo medida) y se restauran siempre.
@@ -138,6 +139,11 @@ def _m7(t: str) -> str | None:
         '"localhost", "127.0.0.1", "::1", "testserver") if h)')
 
 
+def _m9(t: str) -> str | None:
+    return mutar_en_funcion(
+        t, "normalizar_host", "if not host.isascii():", "if False:")
+
+
 def _m8(t: str) -> str | None:
     return mutar_en_funcion(
         t, "__call__",
@@ -186,6 +192,13 @@ MUTACIONES = [
      [(MIDDLEWARE, _m7)],
      {GATE},
      "URLSPLIT_FUERA_DE_AUTORIDAD"),
+    ("M9 — quitar la guarda ASCII: «\xdf» se pliega a «ss» y suplanta al host público",
+     [(ENDPOINT, _m9)],
+     {T + "n19_sharp_s_no_se_pliega_a_ss_por_asgi",
+      T + "n19_sharp_s_en_bytes_crudos_con_servidor_real",
+      T + "n19_barrido_latin1_0x80_0xff_todo_400",
+      T + "n19_config_con_sharp_s_es_invalid_hostname_sin_convertir"},
+     "cla"),
     ("M8 — un Host no declarado llega al endpoint",
      [(MIDDLEWARE, _m8)],
      {LISTA_400, LLEGA, T + "host_malformado_da_400", T + "host_ausente_da_400"},

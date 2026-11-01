@@ -280,9 +280,11 @@ cuando el criterio lo nombra.
   antes de declarar la instalación completa. Cierra **O1** de la revisión de A (307 de `redirect_slashes`
   con Host del cliente: ahora 400). Tests `test_h05b_trusted_host.py` (190) +
   `deploy/tests/test_h05b_endpoint_publico_despliegue.py` (19); calibrador
-  `mutaciones_h05b_trusted_host.py` 8/8 en «Calibracion de gates»; gate AST de unicidad.
-  **Techo B:** gate AST sólo sobre `viewer/app` (sin aliasing dinámico; `deploy/` y `scripts/` no
-  vigilados); frontera sobre la cabecera `Host` (detrás de un proxy que la reescriba manda el valor
+  `mutaciones_h05b_trusted_host.py` 9/9 (M9 = guarda ASCII, `ß`→`ss`) en «Calibracion de gates»; gate AST de unicidad.
+  **Techo B:** gate AST sólo sobre `viewer/app` (ciego a `Settings` pydantic paralelas con otro nombre
+  de campo, `URL(...).hostname` de Starlette, `split` manual, nombres concatenados,
+  `socket.gethostname()` e IP LAN hardcodeada, aliasing dinámico; `deploy/` y `scripts/` no
+  vigilados; lo cubren el comportamiento y el calibrador M1–M9); frontera sobre la cabecera `Host` (detrás de un proxy que la reescriba manda el valor
   reescrito); `root_path` y las 35 URLs absolutas de plantillas siguen abiertos (con Host validado ya no
   los gobierna el cliente); O3 (query sin urlencode) y O4 (precisión del calibrador A) = deuda.
   **Deuda de despliegue:** una instalación existente sin `S9K_PUBLIC_BASE_URL` declarada (o con el
@@ -314,4 +316,4 @@ cuando el criterio lo nombra.
 | 2026-10-29 | C1 · cierre del P1-2 (URI sin escapar → el runtime creaba otro fichero): `sqlite_uri` única + N19 en despliegue y runtime; D9 cerrado (N3 estructural, 14 rutas, POST con CSRF válido; Apply nombra el almacén); README con la receta de inspección/propietario/modo del primer upgrade; calibrador 23/23; sigue draft, RC-E2E PENDING | PR #279 (draft) |
 | 2026-10-12 | B3 abierto (#273): H-02 VERIFIED (arnés local), H-37 VERIFIED (arnés local); unidad canónica del worker instalada por `deploy.sh`; calibrador 25/25 tras dos rondas de corrección (NO APTO → F1–F9; APTO CON OBSERVACIONES → ronda final); RC-E2E PENDING | PR #273 |
 | 2026-11-01 | H-05 corte A abierto (draft): `Location` relativo en las redirecciones de `/panel/operations` (3 sitios de `chassis_operations.py`); tests + calibrador 5/5; techo: 35 URLs absolutas de plantillas y TrustedHost (corte B) abiertos | PR draft `feat/h05a-location-relativo`; informe PRE-H05 |
-| 2026-11-01 | H-05 corte B implementado en local (sin publicar): autoridad única `S9K_PUBLIC_BASE_URL` → hostname → hosts de confianza, `PublicHostMiddleware` (400) más externo, arranque fail-closed, preflight/deploy con la misma interpretación; tests 190+19, calibrador 8/8, gate AST de unicidad; techo: aliasing dinámico, proxy que reescribe Host, `root_path`, 35 URLs de plantillas | rama `feat/h05b-trusted-host` (sobre `feat/h05a-location-relativo`) |
+| 2026-11-01 | H-05 corte B implementado en local (sin publicar): autoridad única `S9K_PUBLIC_BASE_URL` → hostname → hosts de confianza, `PublicHostMiddleware` (400) más externo, arranque fail-closed, preflight/deploy con la misma interpretación; tests 190+19, calibrador 9/9, gate AST de unicidad; techo: aliasing dinámico, proxy que reescribe Host, `root_path`, 35 URLs de plantillas | rama `feat/h05b-trusted-host` (sobre `feat/h05a-location-relativo`) |
