@@ -40,6 +40,7 @@
     "viewer/tests/test_f2_autoridad_canonica_workspace.py",
     "viewer/tests/test_f2_divergencia_visible_desde_el_producto.py",
     "viewer/tests/test_graph_ux_v2.py",
+    "viewer/tests/test_h05a_location_relativo.py",
     "viewer/tests/test_identidad_durable.py",
     "viewer/tests/test_instalacion_cerrada_fabrica.py",
     "viewer/tests/test_neo4j_integration_authz.py",
@@ -387,6 +388,7 @@
     "viewer/tests/test_f2_divergencia_visible_desde_el_producto.py": 32,
     "viewer/tests/test_f2_vault_workspace_hasta_neo4j.py": 2,
     "viewer/tests/test_fixtures_sin_referencias_a_material_restringido.py": 2,
+    "viewer/tests/test_h05a_location_relativo.py": 4,
     "viewer/tests/test_health.py": 33,
     "viewer/tests/test_health_admin_get_sin_escritura.py": 9,
     "viewer/tests/test_health_backups.py": 26,
@@ -504,7 +506,7 @@
     "viewer/tests/test_graph_ux_v2.py",
     "viewer/tests/test_panel_apply_desde_la_ui.py"
   ],
-  "total": 9757,
+  "total": 9798,
   "modulos": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 526,
     "contracts/review-ingest/v1/tests/test_contracts_v1.py": 38,
@@ -766,6 +768,7 @@
     "viewer/tests/test_f2_divergencia_visible_desde_el_producto.py": 32,
     "viewer/tests/test_f2_vault_workspace_hasta_neo4j.py": 2,
     "viewer/tests/test_fixtures_sin_referencias_a_material_restringido.py": 5,
+    "viewer/tests/test_h05a_location_relativo.py": 41,
     "viewer/tests/test_health.py": 33,
     "viewer/tests/test_health_admin_get_sin_escritura.py": 9,
     "viewer/tests/test_health_backups.py": 26,

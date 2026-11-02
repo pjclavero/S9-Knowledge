@@ -267,6 +267,12 @@ cuando el criterio lo nombra.
   **Techo explícito: siguen ABIERTAS** las 35 URLs absolutas de plantillas (`action=`/`href=` con
   el `Host` del cliente) y la ausencia de `TrustedHostMiddleware` = **corte B**, pendiente de
   decisiones del operador; `root_path` no cubierto (el visor no se monta bajo prefijo).
+  **Revisión independiente de A: APTO CON OBSERVACIONES.** O1: el `redirect_slashes` de Starlette
+  emite 307 con el `Host` del cliente en 22 rutas (ya en main; lo cierra el corte B con el 400;
+  techo de A). O2: `url_path_for` no antepone `root_path` → regresión aceptada (el visor no se
+  monta bajo prefijo). O3: query sin urlencode en `trabajo`/`job_id`/`codigo` (preexistente,
+  rango 3). O4: el chequeo «MENSAJE contiene evil.example» del calibrador es poco discriminante y
+  el censo AST no ve alias (deuda).
 - **H-06 (auth.db 0644):** reproducido (auth.db, lock, bak, `jobs.db*`, `review.sqlite3` en 0644;
   solo `.csrf_secret` 0600). Autoridad única: `UMask=0077` en las dos unidades del visor (como el
   healthcheck y el worker de B3) + `chmod` puntual en Ansible; `chmod` en código no cubre WAL/SHM.
