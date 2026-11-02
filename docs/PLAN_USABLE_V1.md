@@ -255,6 +255,15 @@ cuando el criterio lo nombra.
   `chassis_operations.py`) + B (`TrustedHostMiddleware` derivado de `S9K_PUBLIC_BASE_URL` por la
   autoridad efectiva, sin variable nueva). Calibradores afectados: `calibrar_panel_operations` (B15),
   `f2_autoridad_workspace` (firma de `_fallo`). Carril propio.
+  **Corte A (Location relativo): IMPLEMENTED + TESTED + CI_GATED** (PR draft, rama
+  `feat/h05a-location-relativo`; `VERIFIED (arnés local)` solo al mergear). Los 3 `url_for` de
+  `chassis_operations.py` pasan a `request.app.url_path_for` (path + query); tests
+  `test_h05a_location_relativo.py` (4 rutas × fallo/éxito × Host hostil con y sin puerto,
+  seguimiento de la redirección, control positivo, censo AST); calibrador
+  `mutaciones_h05a_location.py` 5/5 en el job required «Calibracion de gates».
+  **Techo explícito: siguen ABIERTAS** las 35 URLs absolutas de plantillas (`action=`/`href=` con
+  el `Host` del cliente) y la ausencia de `TrustedHostMiddleware` = **corte B**, pendiente de
+  decisiones del operador; `root_path` no cubierto (el visor no se monta bajo prefijo).
 - **H-06 (auth.db 0644):** reproducido (auth.db, lock, bak, `jobs.db*`, `review.sqlite3` en 0644;
   solo `.csrf_secret` 0600). Autoridad única: `UMask=0077` en las dos unidades del visor (como el
   healthcheck y el worker de B3) + `chmod` puntual en Ansible; `chmod` en código no cubre WAL/SHM.
@@ -273,3 +282,4 @@ cuando el criterio lo nombra.
 | 2026-10-27 | C1 abierto (draft): H-04 + H-18 como unidad; `review.sqlite3` lo crea el despliegue y el runtime lo consume y verifica; resolución única en `review_paths`; calibrador 18/18; RC-E2E PENDING | PR C1 (draft, rama `feat/c1-persistencia-decisiones-revision`) |
 | 2026-10-29 | C1 · cierre del P1-2 (URI sin escapar → el runtime creaba otro fichero): `sqlite_uri` única + N19 en despliegue y runtime; D9 cerrado (N3 estructural, 14 rutas, POST con CSRF válido; Apply nombra el almacén); README con la receta de inspección/propietario/modo del primer upgrade; calibrador 23/23; sigue draft, RC-E2E PENDING | PR #279 (draft) |
 | 2026-10-12 | B3 abierto (#273): H-02 VERIFIED (arnés local), H-37 VERIFIED (arnés local); unidad canónica del worker instalada por `deploy.sh`; calibrador 25/25 tras dos rondas de corrección (NO APTO → F1–F9; APTO CON OBSERVACIONES → ronda final); RC-E2E PENDING | PR #273 |
+| 2026-11-01 | H-05 corte A abierto (draft): `Location` relativo en las redirecciones de `/panel/operations` (3 sitios de `chassis_operations.py`); tests + calibrador 5/5; techo: 35 URLs absolutas de plantillas y TrustedHost (corte B) abiertos | PR draft `feat/h05a-location-relativo`; informe PRE-H05 |
