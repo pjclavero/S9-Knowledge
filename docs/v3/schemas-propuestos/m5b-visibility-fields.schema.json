@@ -1,0 +1,66 @@
+{
+  "$comment": "PROPUESTA — borrador de diseño, no vinculante. No sustituye ni modifica ningún esquema real de contracts/knowledge-v3/v1/. Ver docs/v3/50-m5b-niebla-de-guerra-diseno.md §2, §5, §9 para la justificación completa y el criterio de versionado aditivo (sin bump de contract_version).",
+  "$id": "https://s9-knowledge.example/schemas-propuestos/m5b-visibility-fields.schema.json",
+  "title": "M5b — campos de visibilidad por conocimiento de personaje (PROPUESTA)",
+  "type": "object",
+  "definitions": {
+    "known_by_scope": {
+      "$comment": "Quien produjo/registro el conocimiento en primera instancia. Ausente => tratado como UNKNOWN (docs/v3/50 §2.4).",
+      "type": "string",
+      "enum": ["GLOBAL", "GAME", "CAMPAIGN", "SESSION", "CHARACTER", "FACTION", "GM_ONLY", "UNKNOWN"]
+    },
+    "known_by_scope_or_null": {
+      "anyOf": [{ "$ref": "#/definitions/known_by_scope" }, { "type": "null" }]
+    },
+    "visibility_scope": {
+      "$comment": "A quien se le permite ver el dato. Ausente => tratado como DENY (docs/v3/50 §2.4). Eje ortogonal a known_by_scope.",
+      "type": "string",
+      "enum": ["PUBLIC", "WORKSPACE", "CAMPAIGN", "SUBJECTS", "ADMIN_ONLY", "DENY"]
+    },
+    "visibility_scope_or_null": {
+      "anyOf": [{ "$ref": "#/definitions/visibility_scope" }, { "type": "null" }]
+    },
+    "visibility_subjects": {
+      "$comment": "Solo relevante si visibility_scope=SUBJECTS. Vacia o ausente con SUBJECTS => DENY efectivo (fail-closed, docs/v3/50 §2.4). Cada elemento es un character_id (mismo espacio que user_character_link.character_id en access_store.py) o 'faction:<id>'.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    }
+  },
+  "properties": {
+    "claim_proposal_visibility_hints": {
+      "$comment": "Campos PROPUESTOS para claim-proposal-v3.schema.json, fuera de `required`, sufijo _hint porque son PROPUESTA de un modelo (determinista o IA externa), no la decision sellada. Ver docs/v3/50 §4 y §5.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "known_by_scope_hint": { "$ref": "#/definitions/known_by_scope_or_null" },
+        "visibility_scope_hint": { "$ref": "#/definitions/visibility_scope_or_null" },
+        "visibility_subjects_hint": { "$ref": "#/definitions/visibility_subjects" }
+      }
+    },
+    "fact_assertion_visibility_fields": {
+      "$comment": "Campos PROPUESTOS para fact-assertion-v3.schema.json, fuera de `required`, sin sufijo _hint: representan la afirmacion decidida y sellada por el writer en admision (docs/v3/50 §4 punto 3). Ver tambien graph-mutation-plan-v3.schema.json para el mismo trio como props de creacion/actualizacion.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "known_by_scope": { "$ref": "#/definitions/known_by_scope_or_null" },
+        "visibility_scope": { "$ref": "#/definitions/visibility_scope_or_null" },
+        "visibility_subjects": { "$ref": "#/definitions/visibility_subjects" }
+      }
+    },
+    "episode_participants_field": {
+      "$comment": "Campo PROPUESTO para source-episode-v3.schema.json (docs/v3/50 §5, §14.1 via (a)): IDs de personaje presentes/mencionados en el episodio, base barata para derivar known_by_scope=CHARACTER sin NLP nuevo.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "participants": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  },
+  "admission_validation_notes": {
+    "$comment": "No es parte del JSON Schema formal — nota de diseño para writer/admission.py (docs/v3/50 §4 punto 3, §9). Reglas estructurales propuestas, verificadas SIN tocar Neo4j: (1) visibility_scope=SUBJECTS exige visibility_subjects no vacio; (2) visibility_scope ausente o fuera de enum => rechazo estructural (no defecto implicito, el writer no infiere DENY silenciosamente sin dejar codigo de rechazo trazable); (3) GM_ONLY + PUBLIC/WORKSPACE es incoherencia marcada para auditoria pero no bloqueante en lectura (docs/v3/50 §2.4); (4) plan de origen IA sin confirmacion humana explicita => review_required=True obligatorio cuando el known_by_scope propuesto es GM_ONLY y el visibility_scope propuesto es SUBJECTS o PUBLIC."
+  }
+}
