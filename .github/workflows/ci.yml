@@ -1165,6 +1165,18 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/mutaciones_s1_resultado_sin_enlace_muerto.py
 
+      # H-05 corte A: las redirecciones de /panel/operations llevan Location
+      # RELATIVO (path + query), nunca un origen derivado del `Host` del
+      # cliente. Cinco mutaciones por AST: `request.url_for` vuelve en cada uno
+      # de los tres sitios, `_vuelta` devuelve `base_url` + path, y el censo AST
+      # deja de mirar `url_for`. Techo: solo `chassis_operations.py`; las 35
+      # `url_for` de plantillas y TrustedHost son el corte B.
+      - name: "Las redirecciones de operaciones llevan Location relativo: se pone ROJO ante cada defecto (H-05 corte A)"
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/mutaciones_h05a_location.py
+
       # Y la calibracion del corte S-1 «el selector no ofrece lo que el
       # producto rechaza» (multipartida). Cubre cuatro formas de romper la
       # propiedad: el defecto original (el middleware vuelve a pintar el
