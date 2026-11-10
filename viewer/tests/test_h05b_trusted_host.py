@@ -335,8 +335,10 @@ def test_el_middleware_estandar_de_starlette_no_sirve_y_por_eso_no_se_usa():
         await PlainTextResponse("ok")(scope, receive, send)
 
     estandar = TrustedHostMiddleware(ok, allowed_hosts=["public.example", "::1"])
+    # Medido en Starlette 1.3.1 y 1.10.0 (CI): IPv6 y punto final fallan en las
+    # dos. El casing sólo falla en 1.3.1 (1.10.0 lo arregló), así que NO se
+    # afirma aquí: la prueba no puede depender de la versión instalada.
     assert _asgi(estandar, [(b"host", b"[::1]:8088")]) == 400      # IPv6 roto
-    assert _asgi(estandar, [(b"host", b"Public.Example")]) == 400  # casing
     assert _asgi(estandar, [(b"host", b"public.example.")]) == 400  # punto final
     # El nuestro, con la MISMA lista, acepta las tres.
     assert pe.normalizar_host_cabecera("[::1]:8088") in ("::1",)

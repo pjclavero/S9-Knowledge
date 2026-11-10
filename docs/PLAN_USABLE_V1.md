@@ -283,8 +283,8 @@ cuando el criterio lo nombra.
   da 503, nunca «permitir todo»). Lista = hostname público + `localhost` + `127.0.0.1` + `::1`; sin
   comodín, sin autodetección; placeholder `cambiar.por.el.nombre.real` rechazado aunque sea URL válida.
   `testserver` sólo por la costura de tests `HOSTS_EXTRA_DE_PRUEBAS` (vacía en producción). **No se usa
-  `TrustedHostMiddleware` de Starlette** (medido en 1.3.1: `[::1]:8088` → host `[`, distingue casing y
-  punto final, `*` por defecto). Despliegue: `preflight_https`, `preflight_setup_admin` y
+  `TrustedHostMiddleware` de Starlette** (medido en 1.3.1 y 1.10.0: `[::1]:8088` → host `[` y punto final
+  rechazado; en 1.3.1 además distingue casing; `*` por defecto). Despliegue: `preflight_https`, `preflight_setup_admin` y
   `validate_deploy.sh::validate_https_contract` cargan la MISMA interpretación (por ruta) y bloquean
   antes de declarar la instalación completa. Cierra **O1** de la revisión de A (307 de `redirect_slashes`
   con Host del cliente: ahora 400). Tests `test_h05b_trusted_host.py` (190) +

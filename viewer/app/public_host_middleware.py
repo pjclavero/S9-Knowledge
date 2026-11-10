@@ -1,12 +1,13 @@
 """Frontera de host del visor (H-05 corte B): 400 ANTES de cualquier lógica.
 
 Por qué no es ``starlette.middleware.trustedhost.TrustedHostMiddleware``
-(comprobado por EJECUCIÓN contra la Starlette instalada, 1.3.1):
+(comprobado por EJECUCIÓN en Starlette 1.3.1 y 1.10.0; lo marcado «sólo
+1.3.1» ya no ocurre en la 1.10.0 que instala CI):
 
 * extrae el host con ``split(":")[0]``: para ``Host: [::1]:8000`` obtiene
   ``[`` y rechaza el loopback IPv6 que el contrato exige permitir;
-* compara sin normalizar: ``Public.Example`` y ``public.example.`` (punto
-  final, FQDN legítimo) se rechazan;
+* compara sin normalizar: ``public.example.`` (punto final, FQDN legítimo) se
+  rechaza y, sólo en 1.3.1, también ``Public.Example``;
 * con ``allowed_hosts=None`` o ``"*"`` deja pasar todo (``allow_any``), y
   ``www_redirect=True`` por defecto REDIRIGE en vez de rechazar.
 
