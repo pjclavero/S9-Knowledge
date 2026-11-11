@@ -196,7 +196,7 @@ INVENTARIO = {
     "viewer/app/services/v3_review_store.py": (3, "STATE", "S9K_V3_REVIEW_DATABASE_PATH: review.sqlite3 (la CREA el despliegue; el runtime solo abre)"),
     "viewer/app/service_identity.py": (3, "STATE", "open_private_append: JSONL de decisiones/auditoria/candidatos, 0600 en directorio 0700"),
     "viewer/app/services/review_console.py": (3, "TMP", "S9K_REVIEW_LAB_DIR o tempdir; consola de revision APAGADA por defecto (PR-1)"),
-    "viewer/app/vault_writer.py": (8, "EXTERNO", "S9K_VAULT_ROOT: boveda del operador (fuera del state root; opt-in); TD-H06-02"),
+    "viewer/app/vault_writer.py": (8, "EXTERNO_SIN_DECIDIR", "S9K_VAULT_ROOT: perfil-operador.json en la boveda del operador; NO es STATE ni SECRET sin ambiguedad -> decision del operador (TD-H06-02, STOP del §11)"),
     # ---- WORKER (cierre estatico de worker.py) ----------------------------
     "data-engine/app/jobs/job_store.py": (5, "STATE", "S9K_JOBS_DB: jobs.db(-wal,-shm) (nace 0600)"),
     "data-engine/app/knowledge_v3/review_decisions.py": (1, "STATE", "S9K_V3_REVIEW_DATABASE_PATH: lectura de decisiones (conexion sqlite)"),
@@ -206,11 +206,11 @@ INVENTARIO = {
     "data-engine/app/knowledge_v3/ledger/store.py": (2, "STATE", "ledger de la ingesta"),
     "data-engine/app/knowledge_v3/writer/audit.py": (3, "STATE", "auditoria del escritor (ruta que se le pasa)"),
     "data-engine/app/knowledge_v3/writer/idempotency.py": (4, "STATE", "indice de idempotencia del escritor"),
-    "data-engine/app/knowledge_v3/service_state.py": (3, "STATE", "sondas efimeras de acceso (se borran)"),
+    "data-engine/app/knowledge_v3/service_state.py": (4, "STATE", "sondas efimeras de acceso (se borran)"),
     # Alcanzables por importacion estatica pero NO ejecutados en la ruta del
     # worker (modulos de herramientas): sus escrituras estan DECLARADAS, no ocultas.
-    "data-engine/app/external_ai/cache.py": (2, "REPO", "state/external_ai_cache DENTRO de la release; solo el flujo NVIDIA-sombra (no el worker); TD-H06-03"),
-    "data-engine/app/glossary/glossary_store.py": (2, "REPO", "S9K_GLOSSARY_DB o state/glossary.db; el worker solo importa normalize_term, no instancia el almacen; TD-H06-03"),
+    "data-engine/app/external_ai/cache.py": (2, "STATE", "S9K_EXTERNAL_AI_CACHE_DIR: cache de IA externa, por defecto <state root>/external_ai_cache (ya no en la release)"),
+    "data-engine/app/glossary/glossary_store.py": (2, "STATE", "S9K_GLOSSARY_DB: glossary.db, por defecto <state root>/glossary (ya no en la release)"),
     "data-engine/app/review/export_import.py": (4, "CLI", "export/import offline de revision (herramienta de operador)"),
 }
 #: Modulos del cierre del worker que son HERRAMIENTAS de operador/offline o datos de
@@ -274,7 +274,7 @@ def test_el_inventario_no_declara_modulos_que_ya_no_existen():
 
 
 def test_cada_entrada_del_inventario_tiene_clase_y_gobierno():
-    clases = {"STATE", "TMP", "EXTERNO", "CLI", "REPO"}
+    clases = {"STATE", "TMP", "EXTERNO_SIN_DECIDIR", "CLI"}
     for ruta, (techo, clase, gobierno) in INVENTARIO.items():
         assert clase in clases and gobierno.strip() and techo >= 0, ruta
 
@@ -300,6 +300,24 @@ def test_toda_escritura_de_clase_STATE_del_visor_pertenece_a_una_variable_de_rut
                      if tok.startswith("S9K_")]
         for v in variables:
             assert v in ss.STATE_PATH_VARS, "%s: %s no es una variable de ruta de la autoridad" % (ruta, v)
+
+
+#: §7 · CLASIFICACION de lo persistente (no solo de lo que escribe codigo): las cuatro clases.
+CLASIFICACION = {
+    "auth.db(-wal,-shm)": "STATE", "review.sqlite3(-wal,-shm)": "STATE", "jobs.db(-wal,-shm)": "STATE",
+    "decisions.jsonl": "STATE", "audit.jsonl": "STATE", "glossary-candidates": "STATE",
+    "glossary.db": "STATE", "cache de IA externa": "STATE", ".csrf_secret": "STATE",
+    "password Neo4j (/etc/s9-knowledge/secrets)": "SECRET", "viewer.env": "SECRET",
+    "releases (codigo, venvs, templates)": "RELEASE",
+    "backups (raiz separada del state)": "BACKUP",
+}
+
+
+def test_la_clasificacion_usa_las_cuatro_clases_del_contrato():
+    assert set(CLASIFICACION.values()) == {"STATE", "SECRET", "RELEASE", "BACKUP"}
+    readme = (RAIZ / "deploy" / "README.md").read_text(encoding="utf-8")
+    for clave in CLASIFICACION:
+        assert clave.split("(")[0].strip() in readme, "el README no clasifica %s" % clave
 
 
 def test_hay_inventario_documentado_en_el_readme():

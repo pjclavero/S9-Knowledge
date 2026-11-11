@@ -94,10 +94,12 @@ def test_N7_N8_N9_las_unidades_declaran_la_identidad_de_la_autoridad(unidad):
     assert _valor(t, "User") not in ("root", "www-data", None)
 
 
-@pytest.mark.parametrize("unidad", [U_VISOR, U_WORKER], ids=["visor", "worker"])
-def test_las_unidades_de_servicio_encienden_la_comprobacion_de_arranque(unidad):
-    t = unidad.read_text(encoding="utf-8")
-    assert "\nEnvironment=%s=1\n" % ss.ENFORCE_ENV in t
+@pytest.mark.parametrize("unidad", [U_VISOR, U_WORKER, U_HEALTH], ids=["visor", "worker", "health"])
+def test_la_validacion_de_arranque_no_depende_de_la_unidad(unidad):
+    """§12: ni la excepcion de tests ni el interruptor retirado aparecen en una unidad operativa
+    (la validacion es obligatoria; una unidad no puede encenderla ni apagarla)."""
+    codigo = "\n".join(l for l in unidad.read_text(encoding="utf-8").splitlines() if not l.lstrip().startswith("#"))
+    assert ss.VALIDATION_EXCEPTION_ENV not in codigo and ss.ENFORCE_ENV not in codigo
 
 
 def test_N9_el_healthcheck_no_lleva_capabilities_ni_privilegios():
@@ -105,10 +107,8 @@ def test_N9_el_healthcheck_no_lleva_capabilities_ni_privilegios():
     assert _valor(t, "CapabilityBoundingSet") == "", "el healthcheck declara capabilities"
     assert _valor(t, "NoNewPrivileges") == "true"
     assert "AmbientCapabilities" not in t and "PermissionsStartOnly" not in t
-    # ExecStartPre con `+` SOLO copia el secreto a /run: nada mas corre con privilegios.
-    pre = [l for l in t.splitlines() if l.startswith("ExecStartPre=")]
-    assert len(pre) == 1 and pre[0].startswith("ExecStartPre=+-/usr/bin/install -m 0600 -o %s -g %s " % (
-        ss.SERVICE_USER, ss.SERVICE_GROUP)), pre
+    # SECRET (§9): ya no hay ExecStartPre con privilegios ni copia a /run.
+    assert "\nExecStartPre=" not in t and "\nRuntimeDirectory" not in t
 
 
 def test_el_healthcheck_habla_con_el_endpoint_local_sin_systemctl_privilegiado():
@@ -119,13 +119,13 @@ def test_el_healthcheck_habla_con_el_endpoint_local_sin_systemctl_privilegiado()
         assert prohibido not in checks, "el healthcheck usa %s: eso necesita privilegios" % prohibido
 
 
-def test_las_tres_unidades_copian_su_secreto_a_un_directorio_de_runtime_propio():
-    for unidad, nombre in ((U_VISOR, "s9-knowledge-viewer"), (U_HEALTH, "s9-knowledge-healthcheck"),
-                           (U_WORKER, "s9-knowledge-worker")):
+def test_las_tres_unidades_leen_su_secreto_directamente_y_no_lo_copian():
+    for unidad in (U_VISOR, U_HEALTH, U_WORKER):
         t = unidad.read_text(encoding="utf-8")
-        assert _valor(t, "RuntimeDirectory") == nombre
-        assert _valor(t, "RuntimeDirectoryMode") == "0700"
-        assert "/run/%s/neo4j_password" % nombre in t
+        codigo = "\n".join(l for l in t.splitlines() if not l.lstrip().startswith("#"))
+        assert "ExecStartPre" not in codigo and "RuntimeDirectory" not in codigo, unidad.name
+        assert "neo4j_password" not in codigo and "/run/" not in codigo, unidad.name
+        assert _valor(t, "ExecStart").startswith("/opt/s9-knowledge/current/"), unidad.name
 
 
 def test_M12_ansible_declara_la_misma_identidad_una_sola_vez():
@@ -266,7 +266,6 @@ def test_las_unidades_reales_pasan_el_gate():
     ("Group=s9knowledge\n", "Group=www-data\n", "Group= es 'www-data'"),
     ("UMask=0077\n", "UMask=0022\n", "UMask= es '0022'"),
     ("UMask=0077\n", "", "UMask= es ''"),
-    ("Environment=S9K_STATE_ENFORCE=1\n", "", "S9K_STATE_ENFORCE"),
 ])
 def test_N8_el_gate_rechaza_un_visor_con_otra_identidad(tmp_path, viejo, nuevo, fragmento):
     u = _unidad_mutada(tmp_path, U_VISOR, viejo, nuevo)
@@ -297,7 +296,33 @@ def test_N9_el_gate_rechaza_un_healthcheck_privilegiado(tmp_path, viejo, nuevo, 
     assert rc != 0 and fragmento in out, out
 
 
-def test_el_secreto_de_la_unidad_del_visor_es_el_que_declara_viewer_env(tmp_path):
+@pytest.mark.parametrize("anadido,fragmento", [
+    ("Environment=S9K_STATE_VALIDATION=disabled-explicit-for-tests\n", "excepcion|obligatoria|VALIDATION"),
+    ("Environment=S9K_STATE_ENFORCE=1\n", "ENFORCE"),
+    ("ExecStartPre=+-/usr/bin/install -m 0600 /etc/s9-knowledge/secrets/x /run/x\n", "copia el secreto"),
+    ("RuntimeDirectory=s9-knowledge-viewer\n", "copia el secreto"),
+])
+def test_el_gate_rechaza_una_unidad_que_apaga_la_validacion_o_copia_el_secreto(tmp_path, anadido, fragmento):
+    t = U_VISOR.read_text(encoding="utf-8")
+    u = tmp_path / U_VISOR.name
+    u.write_text(t.replace("[Service]\n", "[Service]\n" + anadido, 1), encoding="utf-8")
+    rc, out = _bash("validate_viewer_unit", str(u), "/opt/s9-knowledge/current")
+    assert rc != 0 and re.search(fragmento, out), out
+
+
+@pytest.mark.parametrize("modo,ok", [(0o640, True), (0o600, True), (0o440, True), (0o660, False),
+                                      (0o644, False), (0o604, False), (0o620, False)])
+def test_validate_secret_file_politica_SECRET(tmp_path, modo, ok):
+    f = tmp_path / "secreto"
+    f.write_text("valor")
+    f.chmod(modo)
+    rc, out = _bash("validate_secret_file", str(f))
+    assert (rc == 0) is ok, (oct(modo), out)
+    if not ok:
+        assert "maximo 0640" in out
+
+
+def _SIN_USO_el_secreto_de_la_unidad_del_visor(tmp_path):
     env = tmp_path / "viewer.env"
     env.write_text("S9K_NEO4J_PASSWORD_FILE=/etc/s9-knowledge/secrets/otro\n", encoding="utf-8")
     rc, out = _bash("validate_viewer_unit", str(U_VISOR), "/opt/s9-knowledge/current", str(env))
@@ -346,13 +371,75 @@ def test_N5_N6_N18_validate_state_paths_rechaza_estado_fuera_del_contrato(tmp_pa
     assert rc != 0 and fragmento in out, out
 
 
-def test_N17_validate_state_paths_exige_state_root_declarado_y_coincidente(tmp_path):
+def test_N17_state_root_efectivo_canonico_o_override_coincidente(tmp_path):
+    """§6: S9K_STATE_ROOT es OPCIONAL (default del producto). Con un deploy de raiz no
+    canonica hace falta el override y tiene que COINCIDIR; si no, STOP por ambiguo."""
     raiz = tmp_path / "state"
+    # sin override y raiz no canonica -> ambiguo
     rc, out = _validar_paths(_env(tmp_path, raiz, quitar=("S9K_STATE_ROOT",)), raiz)
-    assert rc != 0 and "S9K_STATE_ROOT" in out and "no declarada" in out, out
+    assert rc != 0 and "NO canonico" in out, out
+    # override distinto del que usa el despliegue -> ambiguo
     otro = tmp_path / "otro"
     rc, out = _validar_paths(_env(tmp_path, otro), raiz)
-    assert rc != 0 and "el despliegue usa" in out, out
+    assert rc != 0 and "no se determina de forma inequivoca" in out, out
+    # raiz canonica sin override -> valido (ZERO-TERMINAL)
+    canon = Path(ss.DEFAULT_STATE_ROOT)
+    f = tmp_path / "canon.env"
+    f.write_text("".join("%s=%s\n" % kv for kv in {
+        "S9K_AUTH_DB_PATH": str(canon / "auth" / "auth.db"), "S9K_JOBS_DB": str(canon / "jobs" / "jobs.db"),
+        "S9K_V3_REVIEW_DATABASE_PATH": str(canon / "reviews-v3" / "review.sqlite3"),
+        "S9K_V3_REVIEW_PROPOSALS_DIR": str(canon / "reviews-v3" / "proposals")}.items()), encoding="utf-8")
+    assert _validar_paths(f, canon) == (0, "OK\n")
+
+
+def test_los_viewer_worker_env_de_ejemplo_ya_no_exigen_s9k_state_root():
+    for plantilla in ("viewer.env.example", "worker.env.example"):
+        lineas = (RAIZ / "deploy" / "config" / plantilla).read_text(encoding="utf-8").splitlines()
+        assert not [l for l in lineas if l.startswith("S9K_STATE_ROOT=")], plantilla
+    critica = subprocess.run(["bash", "-c", 'source "$1"; printf "%s" "${CRITICAL_ENV_VARS}"', "_", str(VALIDATE_SH)],
+                             capture_output=True, text=True).stdout.split()
+    assert "S9K_STATE_ROOT" not in critica
+
+
+def test_el_backup_no_puede_estar_dentro_del_state_root(tmp_path):
+    raiz = tmp_path / "state"
+    ok = _validar_paths(_env(tmp_path, raiz, "S9K_BACKUP_DIR=%s\n" % (tmp_path / "backups-fuera")), raiz)
+    assert ok == (0, "OK\n")
+    rc, out = _validar_paths(_env(tmp_path, raiz, "S9K_BACKUP_DIR=%s\n" % (raiz / "backups")), raiz)
+    assert rc != 0 and "DENTRO" in out, out
+    assert not ss.DEFAULT_BACKUP_ROOT.startswith(ss.DEFAULT_STATE_ROOT)
+    gv = yaml.safe_load((ANSIBLE / "group_vars" / "all.yml").read_text(encoding="utf-8"))
+    assert gv["s9k_backup_root"] == ss.DEFAULT_BACKUP_ROOT
+
+
+def test_la_validacion_de_estado_rechaza_la_excepcion_en_un_entorno_operativo(tmp_path):
+    raiz = tmp_path / "state"
+    rc, out = _validar_paths(_env(tmp_path, raiz, "S9K_STATE_VALIDATION=disabled-explicit-for-tests\n"), raiz)
+    assert rc != 0 and "excepcion de tests" in out, out
+
+
+def test_ansible_secretos_y_config_con_la_politica_SECRET():
+    tareas = yaml.safe_load((ANSIBLE / "roles" / "common" / "tasks" / "main.yml").read_text(encoding="utf-8"))
+    por = {t.get("name"): t["ansible.builtin.file"] for t in tareas if "ansible.builtin.file" in t}
+    cfg = por["Crear directorio de configuracion"]
+    assert (cfg["owner"], cfg["group"], cfg["mode"]) == ("root", "{{ s9k_service_group }}", "%04o" % ss.CONFIG_DIR_MODE)
+    sec = por["Crear directorio de secretos (root:servicio, el servicio lee y no escribe)"]
+    assert (sec["owner"], sec["group"], sec["mode"]) == ("root", "{{ s9k_service_group }}", "%04o" % ss.SECRET_DIR_MODE)
+    assert sec["path"] == "{{ s9k_config_root }}/secrets" and ss.SECRETS_DIR == "/etc/s9-knowledge/secrets"
+    bk = por["Crear raiz de backups (fuera del state root)"]
+    assert bk["path"] == "{{ s9k_backup_root }}" and bk["mode"] == "0750"
+
+
+def test_lib_prepara_los_secretos_y_la_verificacion_por_efecto_los_prueba():
+    t = LIB_SH.read_text(encoding="utf-8")
+    i = t.index("preparar_secretos_del_servicio() {")
+    cuerpo = t[i:t.index("\n}\n", i)]
+    for exigido in ('chown "root:${grupo}"', "secret_file_mode", "secret-check", "config_dir_mode", "secret_dir_mode"):
+        assert exigido in cuerpo, exigido
+    j = t.index("verificar_estado_por_efecto() {")
+    assert "secret-probe" in t[j:t.index("\n}\n", j)]
+    d = _deploy()
+    assert d.index("preparar_secretos_del_servicio") < d.index("verificar_estado_por_efecto ")
 
 
 @pytest.mark.parametrize("quitar", ["S9K_AUTH_DB_PATH", "S9K_V3_REVIEW_DATABASE_PATH"])

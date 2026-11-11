@@ -49,6 +49,8 @@ def umask_022():
 def _limpia_entorno(monkeypatch):
     for k in ("S9K_STATE_ENFORCE", "S9K_STATE_ROOT"):
         monkeypatch.delenv(k, raising=False)
+    # (la excepcion explicita de la suite, S9K_STATE_VALIDATION, la fija el conftest raiz;
+    # los tests que ejercen la validacion real la retiran a proposito.)
     try:
         from app.auth.config import get_auth_settings
         get_auth_settings.cache_clear()
@@ -226,15 +228,17 @@ def test_el_startup_del_visor_llama_a_la_comprobacion_antes_de_abrir_la_auth_db(
 
 
 def test_el_visor_no_arranca_si_la_comprobacion_falla(tmp_path, monkeypatch):
-    """N17: ENFORCE encendido y sin S9K_STATE_ROOT -> el startup ABORTA con el diagnostico."""
+    """§12: sin la excepcion explicita, la validacion es obligatoria. Sin ninguna ruta de estado
+    declarada (y el state root canonico inexistente en este host) el startup ABORTA con diagnostico."""
     from app import main as visor, service_identity
 
-    monkeypatch.setenv("S9K_STATE_ENFORCE", "1")
-    monkeypatch.delenv("S9K_STATE_ROOT", raising=False)
     ss = service_identity.service_state()
+    monkeypatch.delenv(ss.VALIDATION_EXCEPTION_ENV, raising=False)
+    for var in ("S9K_AUTH_DB_PATH", "S9K_JOBS_DB", "S9K_V3_REVIEW_DATABASE_PATH", "S9K_V3_REVIEW_PROPOSALS_DIR"):
+        monkeypatch.delenv(var, raising=False)
     with pytest.raises(ss.ServiceStateError) as exc:
         asyncio.run(visor._startup_auth())
-    assert "S9K_STATE_ROOT" in str(exc.value)
+    assert "STATE_CONTRACT_VIOLATION" in str(exc.value)
 
 
 @pytest.mark.skipif(EUID == 0, reason="un proceso root nunca es el usuario de servicio")
@@ -252,7 +256,8 @@ def test_N1_el_visor_no_arranca_con_auth_db_0644(tmp_path, monkeypatch):
         (raiz / rel).chmod(0o600)
     (raiz / "auth" / "auth.db").chmod(0o644)
     monkeypatch.setattr(ss, "expected_ids", lambda *a, **k: (os.getuid(), os.getgid()))
-    for k, v in {"S9K_STATE_ENFORCE": "1", "S9K_STATE_ROOT": str(raiz),
+    monkeypatch.delenv(ss.VALIDATION_EXCEPTION_ENV, raising=False)
+    for k, v in {"S9K_STATE_ROOT": str(raiz),
                  "S9K_AUTH_DB_PATH": str(raiz / "auth" / "auth.db"),
                  "S9K_JOBS_DB": str(raiz / "jobs" / "jobs.db"),
                  "S9K_V3_REVIEW_DATABASE_PATH": str(raiz / "reviews-v3" / "review.sqlite3"),
@@ -268,17 +273,18 @@ def test_N8_el_visor_root_se_niega_a_arrancar(tmp_path, monkeypatch):
     from app import main as visor, service_identity
 
     ss = service_identity.service_state()
+    monkeypatch.delenv(ss.VALIDATION_EXCEPTION_ENV, raising=False)
     monkeypatch.setattr(os, "geteuid", lambda: 0)
-    monkeypatch.setenv("S9K_STATE_ENFORCE", "1")
     monkeypatch.setenv("S9K_STATE_ROOT", str(tmp_path))
     with pytest.raises(ss.ServiceStateError) as exc:
         asyncio.run(visor._startup_auth())
     assert "corre como root" in str(exc.value)
 
 
-def test_sin_enforce_el_visor_arranca_como_siempre(tmp_path, monkeypatch):
-    """Desarrollo/CI (techo declarado): sin S9K_STATE_ENFORCE no hay comprobacion."""
+def test_con_la_excepcion_explicita_de_tests_el_visor_arranca_como_siempre(monkeypatch):
+    """Solo la excepcion DECLARADA omite la validacion (y lo anuncia); nada se infiere."""
     from app import service_identity
 
-    monkeypatch.delenv("S9K_STATE_ENFORCE", raising=False)
-    assert service_identity.service_state().enforce("viewer") is False
+    ss = service_identity.service_state()
+    monkeypatch.setenv(ss.VALIDATION_EXCEPTION_ENV, ss.VALIDATION_EXCEPTION_VALUE)
+    assert ss.enforce("viewer") is False

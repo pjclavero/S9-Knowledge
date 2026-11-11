@@ -1,8 +1,8 @@
 """SQLite store para el glosario de transcripción.
 
 Tabla: glossary_terms (ver esquema en el docstring de GlossaryStore).
-Ruta de la DB: env S9K_GLOSSARY_DB (default state/glossary.db relativo
-al repositorio, calculado desde la ubicación de este fichero).
+Ruta de la DB: env S9K_GLOSSARY_DB (default <state root>/glossary/glossary.db; H-06/H-08:
+el glosario es estado, nunca vive en la release).
 
 Funciones principales:
 - upsert_term(term): insert o update por (workspace, canonical_term, source_id)
@@ -98,7 +98,7 @@ class GlossaryStore:
     """Store SQLite para glossary_terms.
 
     Uso:
-        store = GlossaryStore()          # usa S9K_GLOSSARY_DB o state/glossary.db
+        store = GlossaryStore()          # usa S9K_GLOSSARY_DB o <state root>/glossary/glossary.db
         store = GlossaryStore(path)      # ruta explícita (útil en tests)
     """
 
@@ -108,7 +108,10 @@ class GlossaryStore:
             if env_path:
                 db_path = Path(env_path)
             else:
-                db_path = _REPO_ROOT / "state" / "glossary.db"
+                # H-06/H-08: el glosario mutable es ESTADO: bajo el state root efectivo, nunca
+                # en `<release>/state`.
+                from knowledge_v3 import service_state  # noqa: PLC0415
+                db_path = service_state.default_state_path("glossary", "glossary.db")
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn: sqlite3.Connection | None = None

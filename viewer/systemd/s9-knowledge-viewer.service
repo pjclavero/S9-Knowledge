@@ -13,17 +13,14 @@
 # esta unidad con ella (systemd no puede importar Python) y el calibrador
 # `mutaciones_h06_h08_servicio_y_estado.py` (M1, M12) lo vigila.
 #
-# Estado: todo el estado mutable vive bajo S9K_STATE_ROOT (0700, dueño
-# s9knowledge); la release es codigo y este usuario no puede escribirla.
-# S9K_STATE_ENFORCE=1 enciende la comprobacion de arranque fail-closed
-# (identidad, propietario, modos, symlinks, estado fuera de la release).
+# Estado: todo el estado mutable vive bajo el state root (0700, dueño
+# s9knowledge); la release es codigo y este usuario no puede escribirla. La
+# validacion de arranque (identidad, propietario, modos, symlinks, estado fuera
+# de la release) es OBLIGATORIA y no depende de nada que ponga esta unidad.
 #
-# El secreto de Neo4j (si el visor usa fichero) vive en /etc/s9-knowledge
-# (root, 0700), que este usuario no puede atravesar: `ExecStartPre=+` (como
-# root) lo copia 0600 a su RuntimeDirectory, en memoria (/run). Con `-`: si
-# falta, el visor arranca igual y el grafo queda NO configurado a la vista.
-# La ruta de ORIGEN tiene que ser la que declara S9K_NEO4J_PASSWORD_FILE en
-# viewer.env (lo comprueba `validate_viewer_unit`).
+# El secreto de Neo4j (si el visor usa fichero) se lee DIRECTAMENTE de
+# /etc/s9-knowledge/secrets (root:s9knowledge, 0640; el servicio lee y NO escribe):
+# ya no se copia a /run.
 [Unit]
 Description=S9 Knowledge Viewer
 After=network.target
@@ -38,13 +35,9 @@ User=s9knowledge
 Group=s9knowledge
 UMask=0077
 NoNewPrivileges=true
-Environment=S9K_STATE_ENFORCE=1
 WorkingDirectory=/opt/s9-knowledge/current/viewer
 EnvironmentFile=/etc/s9-knowledge/viewer.env
-RuntimeDirectory=s9-knowledge-viewer
-RuntimeDirectoryMode=0700
-ExecStartPre=+-/usr/bin/install -m 0600 -o s9knowledge -g s9knowledge /etc/s9-knowledge/secrets/neo4j_password /run/s9-knowledge-viewer/neo4j_password
-ExecStart=/usr/bin/env S9K_NEO4J_PASSWORD_FILE=/run/s9-knowledge-viewer/neo4j_password /opt/s9-knowledge/current/viewer/.venv/bin/uvicorn app.main:app --host ${S9K_VIEWER_HOST} --port ${S9K_VIEWER_PORT}
+ExecStart=/opt/s9-knowledge/current/viewer/.venv/bin/uvicorn app.main:app --host ${S9K_VIEWER_HOST} --port ${S9K_VIEWER_PORT}
 Restart=always
 RestartSec=5
 

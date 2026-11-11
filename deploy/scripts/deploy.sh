@@ -301,6 +301,12 @@ _release_activa="$(readlink -f "${S9K_ROOT}/current" 2>/dev/null || true)"
 python3 "${HERE}/migrar_estado.py" aplicar --state-root "${S9K_STATE_ROOT}" \
     --env-file "${VIEWER_ENV}" --release-id "${RELEASE_ID}" "${_migrar_args[@]}" \
     || die "migración del estado a ${SERVICE_USER} PARADA (causa arriba). Visor y worker siguen PARADOS, la release NO se activa y el estado original se conserva; ver deploy/README.md (recuperación)"
+# SECRET (§9) y BACKUP (§10): políticas propias, fuera del state root.
+preparar_secretos_del_servicio "${S9K_CONFIG_ROOT}" \
+    || die "los secretos de ${S9K_CONFIG_ROOT}/secrets no cumplen la política SECRET (root:${SERVICE_GROUP} 0640; causa arriba)"
+_backup_dir="$(_env_value "${VIEWER_ENV}" S9K_BACKUP_DIR)"
+[ -z "${_backup_dir}" ] || preparar_raiz_de_backups "${_backup_dir}" \
+    || die "raíz de backups inválida: ${_backup_dir}"
 verificar_estado_por_efecto "${S9K_STATE_ROOT}" "${VIEWER_ENV}" viewer \
     || die "verificación por efecto del estado FALLÓ (causa arriba): servicios parados, release NO activada"
 # --- fin del paso 5b ---

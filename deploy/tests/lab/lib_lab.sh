@@ -21,7 +21,23 @@ LAB_BASE="${S9K_LAB_BASE:-/srv/s9-test/h06h08}"
 LAB_HEAVY_LOCK="${S9K_LAB_HEAVY_LOCK:-/srv/s9-test/heavy.lock}"
 LAB_PROHIBIDOS="${S9K_LAB_PROHIBIDOS:-^(ia-server|ia02)$|prod|vm105|vm108}"
 LAB_REPO="${S9K_LAB_REPO:-${LAB_BASE}/repo}"
-LAB_LOGS="${LAB_BASE}/logs"
+LAB_LOGS="${S9K_LAB_LOGS:-/srv/s9-test/h06h08-logs}"
+LAB_CREADO="${LAB_LOGS}/CREADO.txt"
+
+# Registro de TODO lo que estos guiones crean fuera de su directorio de trabajo
+# (lo lee 99_limpiar.sh). Una linea por cosa: «<fecha> <tipo> <ruta-o-nombre>».
+lab_registrar() {
+    mkdir -p "${LAB_LOGS}"
+    printf '%s %s\n' "$(date -u +%FT%TZ)" "$*" >> "${LAB_CREADO}"
+}
+
+# Si se ejecuta como root SIN sudo instalado, `sudo` es una funcion transparente
+# (con `-u usuario` cambia de usuario con runuser). Con sudo real no cambia nada.
+if [ "$(id -u)" -eq 0 ] && ! command -v sudo >/dev/null 2>&1; then
+    sudo() {
+        if [ "${1:-}" = "-u" ]; then local u="$2"; shift 2; runuser -u "${u}" -- "$@"; else "$@"; fi
+    }
+fi
 
 lab_log()  { printf '[lab] %s\n' "$*"; }
 lab_fail() { printf '[lab] FALLO: %s\n' "$*" >&2; exit 1; }
@@ -50,8 +66,10 @@ lab_guard() {
     fi
     [ "${S9K_LAB_CONFIRMADO:-}" = "VM112" ] \
         || lab_stop "falta S9K_LAB_CONFIRMADO=VM112: confirme que esta maquina es el laboratorio"
-    command -v sudo >/dev/null 2>&1 || lab_stop "no hay sudo"
-    sudo -n true 2>/dev/null || lab_stop "sudo sin contrasena no disponible (los escenarios necesitan root: useradd, systemd, chown)"
+    if [ "$(id -u)" -ne 0 ]; then
+        command -v sudo >/dev/null 2>&1 || lab_stop "no eres root y no hay sudo"
+        sudo -n true 2>/dev/null || lab_stop "sudo sin contrasena no disponible (los escenarios necesitan root: useradd, systemd, chown)"
+    fi
     command -v systemctl >/dev/null 2>&1 || lab_stop "no hay systemctl"
     [ -d /run/systemd/system ] || lab_stop "systemd no es el init de esta maquina (/run/systemd/system ausente)"
     command -v runuser >/dev/null 2>&1 || lab_stop "falta runuser (util-linux)"
@@ -77,6 +95,7 @@ lab_sha() {
 # repo (solo cambia lo que cambiaria un operador: URL publica y, en lab, HTTP).
 lab_configurar() {
     local sha="$1" cfg=/etc/s9-knowledge
+    lab_registrar "dir /etc/s9-knowledge (config, secretos, deploy.env, viewer.env, worker.env)"
     sudo install -d -m 0700 "${cfg}" "${cfg}/secrets"
     sudo install -m 0600 "${LAB_REPO}/deploy/config/viewer.env.example" "${cfg}/viewer.env"
     sudo install -m 0600 "${LAB_REPO}/deploy/config/worker.env.example" "${cfg}/worker.env"
@@ -139,6 +158,7 @@ lab_convertir_en_legacy() {
     local base_sha="$1" state=/var/lib/s9-knowledge actual
     actual="$(readlink -f /opt/s9-knowledge/current)"
     RV3_REL="${actual}/viewer/output/reviews-v3"
+    lab_registrar "unit /etc/systemd/system/s9-knowledge-{viewer,worker}.service (fixture legacy)"
     sudo systemctl stop s9-knowledge-healthcheck.timer s9-knowledge-viewer.service s9-knowledge-worker.service 2>/dev/null || true
     sudo install -d -m 0755 "${RV3_REL}/glossary-candidates/ws" "${RV3_REL}/proposals"
     printf '{"decision_id":"legacy:1","h":"APPROVE"}\n{"decision_id":"legacy:2","h":"REJECT"}\n' | sudo tee "${RV3_REL}/decisions.jsonl" >/dev/null

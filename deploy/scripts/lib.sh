@@ -869,7 +869,7 @@ reanudar_timer_de_salud() {
 #   Exige root (runuser). rc!=0 con la causa.
 # ---------------------------------------------------------------------------
 verificar_estado_por_efecto() {
-    local raiz="${1:?state_root}" env_file="${2:?viewer.env}" role="${3:-viewer}" user
+    local raiz="${1:?state_root}" env_file="${2:?viewer.env}" role="${3:-viewer}" user f
     if [ "$(id -u)" -ne 0 ]; then
         err "verificar_estado_por_efecto necesita root (runuser): el despliegue real corre como root"
         return 1
@@ -887,8 +887,50 @@ verificar_estado_por_efecto() {
     printf '%s\n' "${rutas}" | runuser -u nobody -- python3 "${S9K_SERVICE_STATE_PY}" deny \
         --state-root "${raiz}" --paths-stdin \
         || { err "otro usuario local ACCEDE al estado privado (arriba, la ruta)"; return 1; }
-    log "    por efecto: ${user} lee/escribe su estado y 'nobody' no accede a nada"
+    # SECRET: el servicio LEE sus secretos y NO puede escribirlos (§9)
+    local secretos=()
+    while IFS= read -r -d '' f; do secretos+=("${f}"); done < <(find "${S9K_CONFIG_ROOT}/secrets" -type f -print0 2>/dev/null)
+    if [ "${#secretos[@]}" -gt 0 ]; then
+        runuser -u "${user}" -- python3 "${S9K_SERVICE_STATE_PY}" secret-probe "${secretos[@]}" \
+            || { err "${user} no lee sus secretos o puede escribirlos (arriba, la ruta)"; return 1; }
+    fi
+    log "    por efecto: ${user} lee/escribe su estado, lee (sin escribir) sus secretos y 'nobody' no accede a nada"
     return 0
+}
+
+# ---------------------------------------------------------------------------
+# preparar_secretos_del_servicio [<config_root>]
+#   H-06 + H-08 (fase 2, §9) · politica SECRET. Los secretos provisionados NO se mueven
+#   al state root: se quedan en <config_root>/secrets y se dejan root:<grupo de
+#   servicio>: config 0710 (el grupo atraviesa, no lista), secrets 0750, ficheros
+#   0640. El servicio LEE y NO escribe. Idempotente; los modos salen de la AUTORIDAD.
+# ---------------------------------------------------------------------------
+preparar_secretos_del_servicio() {
+    local cfg="${1:-${S9K_CONFIG_ROOT}}" grupo f
+    grupo="$(servicio_cifra service_group)" || return 1
+    [ -d "${cfg}" ] || { err "no existe ${cfg}"; return 1; }
+    chgrp "${grupo}" "${cfg}" && chmod "$(servicio_cifra config_dir_mode)" "${cfg}" || return 1
+    [ -d "${cfg}/secrets" ] || return 0
+    chgrp "${grupo}" "${cfg}/secrets" && chmod "$(servicio_cifra secret_dir_mode)" "${cfg}/secrets" || return 1
+    while IFS= read -r -d '' f; do
+        chown "root:${grupo}" "${f}" && chmod "$(servicio_cifra secret_file_mode)" "${f}" || return 1
+        python3 "${S9K_SERVICE_STATE_PY}" secret-check "${f}" || return 1
+    done < <(find "${cfg}/secrets" -type f -print0)
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# preparar_raiz_de_backups <ruta>
+#   §10 · BACKUP separado del state vivo: root:<grupo> 0750 (el healthcheck lee, no escribe).
+#   Rechaza una ruta dentro del state root. No toca el contenido.
+# ---------------------------------------------------------------------------
+preparar_raiz_de_backups() {
+    local ruta="${1:?ruta}" grupo
+    grupo="$(servicio_cifra service_group)" || return 1
+    case "$(realpath -m -- "${ruta}")/" in
+        "$(realpath -m -- "${S9K_STATE_ROOT}")"/*) err "la raíz de backups ${ruta} está DENTRO del state root"; return 1 ;;
+    esac
+    install -d -m 0750 -o root -g "${grupo}" "${ruta}"
 }
 
 # ---------------------------------------------------------------------------

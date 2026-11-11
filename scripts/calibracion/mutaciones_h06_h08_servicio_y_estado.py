@@ -20,7 +20,7 @@ paquetes `app` y no se mezclan):
   data-engine/app/tests/test_h06_h08_autoridad_y_worker.py
   viewer/tests/test_h06_h08_estado_privado.py
 
-Mutaciones (M1–M12 del contrato §17 + tres de refuerzo):
+Mutaciones (M1–M12 del contrato §17 + refuerzo M13–M15 + fase 2 M16–M18):
 
   M1  el visor vuelve a correr como root (unidad sin/otro `User=`)
   M2  el worker vuelve a `www-data`
@@ -47,7 +47,7 @@ ni de orden de texto.
 REGLAS DE USO (memoria del programa): NO en la máquina de orquestación (ia-server);
 EN SERIE (nunca dos calibradores a la vez sobre el mismo árbol); con el árbol
 COMMITEADO (la restauración escribe sobre el fichero). `--solo-aplicar` comprueba
-SOLO que las 15 anclas se aplican (sin ejecutar pytest): es lo único que se
+SOLO que las 18 anclas se aplican (sin ejecutar pytest): es lo único que se
 ejecuta en la máquina de orquestación.
 
 TECHO: no ejerce systemd ni root reales; muta por sustitución de texto exacto y no
@@ -248,6 +248,23 @@ def _m15_rollback_restaura_identidad_anterior(t):
         '    if [ -f "${respaldo}" ] && false; then\n')
 
 
+def _m16_validacion_opcional(t):
+    return mutar_en_funcion(t, "enforce", "    if exception_declared(env):\n",
+                            "    if exception_declared(env) or not env.get(STATE_ROOT_ENV):\n")
+
+
+def _m17_secreto_0644(t):
+    return mutar_en_funcion(t, "inspect_secret",
+                            "    if stat.S_IMODE(st.st_mode) & ~SECRET_FILE_MAX_MODE:\n",
+                            "    if stat.S_IMODE(st.st_mode) & ~0o644:\n")
+
+
+def _m18_backup_dentro_del_state(t):
+    return mutar_en_funcion(t, "inspect_backup_root",
+                            "    if br == sr or _bajo(br, sr) or _bajo(sr, br):\n",
+                            "    if False:\n")
+
+
 #: (nombre, fichero mutado, mutador, testigo, {prueba: fragmento de la causa})
 MUTACIONES = [
     ("M1 — el visor vuelve a correr como root (User=root)",
@@ -298,6 +315,15 @@ MUTACIONES = [
     ("M15 — el rollback vuelve a restaurar una unidad de identidad anterior a H-06",
      LIB_SH, _m15_rollback_restaura_identidad_anterior, T_DEPLOY,
      {"test_ROLLBACK_efecto_no_restaura_una_unidad_de_identidad_anterior[www-data]": "ROLLBACK RESTAURA IDENTIDAD ANTERIOR"}),
+    ("M16 — (fase 2 §12) la validacion de arranque vuelve a ser opcional (fail-open sin configuracion)",
+     SERVICE_STATE, _m16_validacion_opcional, T_DE,
+     {"test_enforce_N17_sin_state_root_declarado_usa_el_default_y_falla_si_no_es_el_del_estado": "DID NOT RAISE"}),
+    ("M17 — (fase 2 §9) la politica SECRET admite 0644",
+     SERVICE_STATE, _m17_secreto_0644, T_DE,
+     {"test_secret_modo_y_propietario": "0o644"}),
+    ("M18 — (fase 2 §10) el backup puede vivir dentro del state root",
+     SERVICE_STATE, _m18_backup_dentro_del_state, T_DE,
+     {"test_backup_root_separado_del_state": "IndexError"}),
 ]
 
 

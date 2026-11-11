@@ -170,6 +170,31 @@ def procesos_con_abiertos(prefijo: str, ignorar: Iterable[int] = ()) -> list:
     return hallados
 
 
+def _backups_legacy(state_root: str, res: Resultado) -> None:
+    """§10 · el BACKUP no vive dentro del estado vivo. ``<state>/backups`` (que creaba
+    Ansible, vacio) se retira si esta vacio; con contenido se PARA: moverlo es una
+    decision del operador (son copias, quizas root:root, y no se mezclan con el estado)."""
+    ruta = os.path.join(state_root, "backups")
+    if os.path.islink(ruta):
+        raise Parada("SYMLINK", "%s es un enlace simbolico" % ruta)
+    if not os.path.isdir(ruta):
+        return
+    try:
+        contenido = os.listdir(ruta)
+    except OSError as exc:
+        raise Parada("ILEGIBLE", "%s ilegible (%s)" % (ruta, _errno(exc)))
+    if contenido:
+        raise Parada("BACKUP_EN_STATE", "%s contiene %d elemento(s): los backups viven FUERA del "
+                     "state root (raiz de backups separada, root:%s 0750). Muevalos a mano a esa "
+                     "raiz y repita; el despliegue no mezcla copias con estado vivo"
+                     % (ruta, len(contenido), _ss().SERVICE_GROUP))
+    try:
+        os.rmdir(ruta)
+    except OSError as exc:
+        raise Parada("SIN_PERMISOS", "no se pudo retirar el directorio vacio %s (%s)" % (ruta, _errno(exc)))
+    res.decir("PASO 6", "directorio vacio %s retirado (el backup vive fuera del state root)" % ruta)
+
+
 # --------------------------------------------------------------------------
 # paso 6: inspeccion
 # --------------------------------------------------------------------------
@@ -475,7 +500,13 @@ def aplicar(state_root: str, env: dict, *, releases: Sequence[str] = (),
                          % (ss.SERVICE_USER, ss.SERVICE_GROUP))
         state_root = os.path.normpath(state_root)
         env = dict(env)
-        env.setdefault(ss.STATE_ROOT_ENV, state_root)
+        # El state root efectivo es UNO (config explicita o default de la autoridad); si el
+        # entorno declara otro distinto del que se migra, no se determina de forma inequivoca.
+        declarada = (env.get(ss.STATE_ROOT_ENV) or "").strip()
+        if declarada and os.path.normpath(declarada) != state_root:
+            raise Parada("STATE_ROOT_AMBIGUO", "el entorno declara S9K_STATE_ROOT=%s pero se migra %s"
+                         % (declarada, state_root))
+        env[ss.STATE_ROOT_ENV] = state_root
         rutas, faltan = ss.effective_paths(env, role=role)
         if faltan:
             raise Parada("RUTA_INCORRECTA", "; ".join(v.message() for v in faltan))
@@ -490,6 +521,7 @@ def aplicar(state_root: str, env: dict, *, releases: Sequence[str] = (),
                   % (state_root, ss.SERVICE_USER, ss.SERVICE_GROUP, uid, gid, len(rutas)))
         _precondiciones(state_root, crear_state_root, uid, gid, res)
         res.decir("PASO 2", "precondiciones: state root real, escribible, sistema de ficheros rw")
+        _backups_legacy(state_root, res)
         _inspeccionar(state_root, ss.ADMIN_SUBTREES, res, ignorar_pids)
         _mover_legacy(rutas, releases, legacy_root, uid, gid, release_id, res)
         tipos = {clave: tipo for (tipo, clave) in ss.STATE_PATH_VARS.values()}

@@ -16,16 +16,11 @@ AssertPathExists=/etc/s9-knowledge/viewer.env
 Type=oneshot
 User=s9knowledge
 Group=s9knowledge
-RuntimeDirectory=s9-knowledge-healthcheck
-RuntimeDirectoryMode=0700
-# Mismo mecanismo que el visor: el secreto de Neo4j (root, 0700 en /etc) se
-# copia 0600 a /run para este usuario; con `-`, si falta no rompe la unidad.
-ExecStartPre=+-/usr/bin/install -m 0600 -o s9knowledge -g s9knowledge /etc/s9-knowledge/secrets/neo4j_password /run/s9-knowledge-healthcheck/neo4j_password
 # Layout de releases, siempre a traves de `current`. La instalacion legacy se
 # conserva en disco pero ya no se ejecuta: ninguna ruta de esta unidad la toca.
 WorkingDirectory=/opt/s9-knowledge/current/viewer
 EnvironmentFile=/etc/s9-knowledge/viewer.env
-ExecStart=/usr/bin/env S9K_NEO4J_PASSWORD_FILE=/run/s9-knowledge-healthcheck/neo4j_password /opt/s9-knowledge/current/viewer/.venv/bin/python -m app.cli.health check
+ExecStart=/opt/s9-knowledge/current/viewer/.venv/bin/python -m app.cli.health check
 
 # El codigo de salida refleja el estado (0 healthy · 1 degraded · 2 unhealthy · 3 config).
 # Solo 0 y 1 cuentan como ejecucion correcta de la unidad.

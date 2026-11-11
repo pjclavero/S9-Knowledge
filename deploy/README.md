@@ -259,12 +259,11 @@ exige) y desaparecieron las cuatro copias de `s9k_service_user` de Ansible
 | `viewer/systemd/s9-knowledge-healthcheck.service` | `s9knowledge` | `0077` | antes root; `CapabilityBoundingSet=` vacío, `NoNewPrivileges=true`; HTTP local + bases `mode=ro` + `systemctl is-active` (consulta, sin privilegios); no se elevó ningún permiso |
 | `s9-knowledge-neo4j-restore-test.service.j2` | `root` | — | operación de Neo4j (restore de prueba); **no toca el state root**; un test lo vigila |
 
-Las unidades de servicio llevan `Environment=S9K_STATE_ENFORCE=1` (enciende el
-arranque fail-closed) y copian su secreto de Neo4j (root `0700` en `/etc`) a su
-`RuntimeDirectory` con `ExecStartPre=+-`. Para el visor y el healthcheck el
-origen es `/etc/s9-knowledge/secrets/neo4j_password`, y **es el que debe
-declarar `S9K_NEO4J_PASSWORD_FILE` en `viewer.env`** (lo comprueba
-`validate_viewer_unit`).
+Las unidades NO controlan la validación de arranque (es obligatoria, ver abajo) y
+**ya no copian el secreto** de Neo4j a `/run`: lo leen directamente de
+`/etc/s9-knowledge/secrets` (política SECRET, abajo). `validate_viewer_unit` /
+`validate_worker_unit` rechazan una unidad que declare `S9K_STATE_VALIDATION` o
+`S9K_STATE_ENFORCE`, o que reintroduzca `ExecStartPre`/`RuntimeDirectory`.
 
 El usuario se crea **idempotente** en `deploy.sh` (paso 3b,
 `lib.sh::asegurar_identidad_de_servicio`) y en el rol `common` de Ansible:
@@ -283,16 +282,28 @@ umask del proceso** (el código crea con `os.open(…, 0o600)` vía la autoridad
 declarada: `<state>/deploy/` (registros del instalador) es de `root` y el
 servicio no lo lee.
 
+**State root efectivo y canónico (fase 2, §6).** `S9K_STATE_ROOT` ya NO es obligatoria
+(ZERO-TERMINAL: nadie edita `.env` para esto): la raíz efectiva es la declarada si existe
+y, si no, el default del producto `/var/lib/s9-knowledge`
+(`service_state.effective_state_root`, UNA función para visor, worker y despliegue).
+Una raíz de despliegue NO canónica exige el override declarado y coincidente; si no se
+determina de forma inequívoca, el despliegue PARA (2b).
+
 `decisions.jsonl`, `audit.jsonl` y `glossary-candidates/` **ya no caen por
 defecto en la release**: `viewer.env.example` los declara y, si faltan, el visor
 los deriva junto a `review.sqlite3` (misma función que usa el despliegue).
 
 ### Arranque fail-closed (§13) y qué NO afirma (§14)
 
-Antes de abrir una sola base, visor (`main.py::_startup_auth`) y worker
+**La validación es OBLIGATORIA** (fase 2, §12): no depende de que la unidad ponga nada y
+la ausencia de configuración NO es «modo test». Solo una **excepción explícita**,
+`S9K_STATE_VALIDATION=disabled-explicit-for-tests` (valor exacto; la fija el `conftest.py`
+raíz de la suite y los guiones de laboratorio que lo declaren), la omite, y la omisión se
+anuncia en el log; en un `viewer.env`/`worker.env`/unidad operativa esa variable PARA el
+despliegue. Antes de abrir una sola base, visor (`main.py::_startup_auth`) y worker
 (`worker.py::main`) llaman a **la misma** `service_state.enforce`: el proceso
 corre como `s9knowledge` (root → se niega, “viewer root por ruta alternativa”),
-`S9K_STATE_ROOT` está declarada, toda ruta de estado está declarada y cuelga del
+toda ruta de estado está declarada y cuelga del
 state root (no de la release, sin symlinks), y todo el árbol cumple propietario,
 modo, tipo y acceso efectivo. Ejemplo de diagnóstico, no un “Permission denied”:
 
@@ -305,8 +316,8 @@ STATE_CONTRACT_VIOLATION (estado/identidad del servicio, H-06/H-08):
 **Techo declarado.** 0600 es el objetivo, no una prueba de aislamiento: se
 detecta la *presencia* de ACL POSIX extendidas (xattr) y se falla cerrado, pero
 no se interpretan; no se auditan capacidades, SELinux/AppArmor ni montajes. En
-desarrollo y CI no hay `S9K_STATE_ENFORCE` y el servicio arranca con los
-defectos de desarrollo.
+desarrollo y CI el servicio arranca con los defectos de desarrollo **solo si se
+declara la excepción explícita** (`S9K_STATE_VALIDATION`, arriba).
 
 ### Migración AUTOMÁTICA en `deploy.sh` (§8, §9)
 
@@ -344,10 +355,9 @@ verificación como usuario de servicio. Ya no hay receta manual de
 ```bash
 deploy/scripts/deploy.sh --environment production --release-ref <tag|sha> \
     --mode upgrade --confirm-production
-# Primer upgrade tras H-06/H-08: añadir a viewer.env S9K_STATE_ROOT (y revisar
-# S9K_NEO4J_PASSWORD_FILE si se usa fichero, que debe ser
-# /etc/s9-knowledge/secrets/neo4j_password) ANTES de desplegar; el despliegue
-# lo exige y PARA si falta, con el nombre de la variable.
+# No hay que editar nada para el state root (default canónico). Los secretos se
+# dejan root:s9knowledge 0640 solos (paso 5b); S9K_BACKUP_DIR, si se declara, tiene
+# que estar FUERA del state root.
 ```
 
 ### CLI de auth (§12): `runuser -u s9knowledge --`
@@ -368,6 +378,27 @@ runuser -u s9knowledge -- /opt/s9-knowledge/current/viewer/.venv/bin/python -m a
 El helper analiza `viewer.env` como root y **exporta** las variables (nunca en
 argv: los secretos no viajan por la línea de comandos). El rol Ansible `auth`
 ejecuta `status` con `become_user: s9k_service_user`.
+
+### Secretos (SECRET), backups (BACKUP) y clasificación (fase 2, §7, §9, §10)
+
+Cuatro clases, y todo lo persistente pertenece a UNA:
+
+| Clase | Qué | Dónde y política |
+|---|---|---|
+| **STATE** | `auth.db`(-wal,-shm), `review.sqlite3`(-wal,-shm), `jobs.db`, `decisions.jsonl`, `audit.jsonl`, `glossary-candidates`, `glossary.db`, cache de IA externa (`S9K_EXTERNAL_AI_CACHE_DIR`), `.csrf_secret` | bajo el state root, `s9knowledge:s9knowledge`, dirs `0700`, ficheros `0600` |
+| **SECRET** | password Neo4j (`/etc/s9-knowledge/secrets/*`), `viewer.env`/`worker.env` | NO se mueven al state root. `/etc/s9-knowledge` `root:s9knowledge 0710` (el grupo atraviesa, no lista), `secrets/` `0750`, ficheros `root:s9knowledge 0640` o más restrictivo: **el servicio lee y NO escribe** (lo fija `preparar_secretos_del_servicio` y lo verifica POR EFECTO `secret-probe` con `runuser`). `viewer.env`/`worker.env` siguen `root 0600` (los lee systemd) |
+| **RELEASE** | releases (código, venvs, templates) | `root`, inmutable para el servicio |
+| **BACKUP** | copias operativas | raíz SEPARADA (`/var/backups/s9-knowledge`, `root:s9knowledge 0750`; `S9K_BACKUP_DIR`), **nunca dentro del state root**: `validate-env` y `preparar_raiz_de_backups` lo rechazan; un `<state>/backups` con contenido PARA la migración (`BACKUP_EN_STATE`). Un restore vuelve a estado canónico re-ejecutando `migrar_estado.py` (owner/modos); no se rediseña el backup |
+
+Se **eliminó** la copia del secreto a `/run` (unidades más simples, una pieza menos).
+
+**Escritor de la bóveda (`vault_writer`, TD-H06-02) — NO CLASIFICADO, decisión del operador
+(STOP del §11).** Edita `perfil-operador.json` dentro del árbol de la bóveda del operador
+(`S9K_VAULT_ROOT`, montaje Nextcloud/rclone, contenido autoría del operador). No es STATE
+(no es estado de la aplicación y no puede vivir en el state root) ni SECRET (no es secreto
+provisionado): no encaja inequívocamente en ninguna de las tres clases y no se crea una
+tercera raíz mutable. Es opt-in (`S9K_VAULT_ROOT` no está en las plantillas); si se activa,
+`s9knowledge` necesita permiso de escritura en esa carpeta fuera de este carril.
 
 ### Rollback: qué pasa con la unidad y el dueño
 
@@ -406,16 +437,14 @@ reflexión, `subprocess` ni terceros.
 
 ### Deudas e hipótesis de esta entrega
 
-- **TD-H06-01** `deploy/propuestas/backup-automatico/` (NO instalada) corre como
-  root y escribiría ficheros `root:root` en `backups/`, estado del servicio: el
-  arranque fail-closed los rechazaría. Al adoptarla, su salida debe quedar a
-  nombre de `s9knowledge` (o ejecutarse como él).
-- **TD-H06-02** `vault_writer` escribe en la bóveda del operador (fuera del
-  state root): `s9knowledge` necesita permiso de escritura **allí**. Es una
-  decisión de despliegue (RC-E2E); no se abre ningún permiso del state root.
-- **TD-H06-03** `external_ai/cache.py` y `glossary_store.py` tienen por defecto
-  rutas dentro de la release; no están en la ruta del worker. Si se activaran
-  bajo el servicio fallarían (visible), no corromperían nada.
+- **TD-H06-01** (reducida) `deploy/propuestas/backup-automatico/` (NO instalada) ya apunta a
+  la raíz de backups separada (`/var/backups/s9-knowledge`); le queda ejecutar `sqlite3 .backup`
+  como `s9knowledge` (como root puede crear `-wal`/`-shm` `root:root` junto a una base viva) antes
+  de adoptarla.
+- **TD-H06-02** `vault_writer`: sin clasificar (ver «Secretos, backups y clasificación»): el
+  operador decide.
+- **TD-H06-03** (cerrada) la caché de IA externa y `glossary.db` ya no tienen default dentro de
+  la release: `<state root>/external_ai_cache` y `<state root>/glossary`.
 - **TD-H06-04** El reparto de ACL, capacidades y SELinux no se audita (techo).
 - No medido aquí (necesita laboratorio): `useradd`, `chown` a `s9knowledge`,
   `runuser` real, `systemd-analyze` con la unidad desplegada, `nobody` leyendo,

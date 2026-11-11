@@ -56,7 +56,10 @@ from typing import Iterable, Mapping, Optional, Sequence
 __all__ = [
     "SERVICE_USER", "SERVICE_GROUP", "DEFAULT_STATE_ROOT", "FILE_MODE",
     "DIR_MODE", "UNIT_UMASK", "UNIT_UMASK_INT", "ENFORCE_ENV", "STATE_ROOT_ENV",
-    "ADMIN_SUBTREES", "SERVICE_SUBDIRS", "STATE_PATH_VARS",
+    "ADMIN_SUBTREES", "SERVICE_SUBDIRS", "STATE_PATH_VARS", "effective_state_root", "default_state_path",
+    "inspect_secret", "probe_secret", "VALIDATION_EXCEPTION_ENV", "VALIDATION_EXCEPTION_VALUE",
+    "DEFAULT_BACKUP_ROOT", "SECRETS_DIR", "SECRET_DIR_MODE", "SECRET_FILE_MAX_MODE",
+    "CONFIG_DIR_MODE", "inspect_backup_root", "exception_declared",
     "REVIEW_DECISIONS_ENV", "GLOSSARY_DIR_ENV", "RUNUSER_PREFIX",
     "Violation", "ServiceStateError", "effective_paths", "inspect_state",
     "inspect_process_identity", "probe_effective", "probe_denied", "enforce", "canonical_cli_command",
@@ -76,14 +79,29 @@ DIR_MODE = 0o700
 UNIT_UMASK_INT = 0o777 & ~DIR_MODE
 UNIT_UMASK = "%04o" % UNIT_UMASK_INT
 
-#: Variable que ENCIENDE la comprobacion de arranque. La fijan las unidades
-#: systemd de produccion; en desarrollo y CI no esta y el servicio arranca con
-#: los defectos de desarrollo (TECHO DECLARADO: sin la variable no hay
-#: comprobacion; ``validate_deploy.sh`` la exige en la unidad).
+#: EXCEPCION EXPLICITA de tests/laboratorio (fase 2, §12). La comprobacion de
+#: arranque es SIEMPRE obligatoria y fail-closed: ausencia de configuracion NO
+#: significa "modo test". Solo este valor, declarado a proposito (los conftest de
+#: la suite lo fijan), la omite, y la omision se ANUNCIA en el log. Esta variable
+#: en un entorno/unidad operativa es un hallazgo que PARA el despliegue.
+VALIDATION_EXCEPTION_ENV = "S9K_STATE_VALIDATION"
+VALIDATION_EXCEPTION_VALUE = "disabled-explicit-for-tests"
+#: Nombre HISTORICO (H-06 corte 1) que ya no gobierna nada; si aparece en una
+#: unidad o env operativo se rechaza para que nadie crea que sigue siendo el interruptor.
 ENFORCE_ENV = "S9K_STATE_ENFORCE"
-#: Raiz del estado que ve el proceso. Es la MISMA raiz del despliegue
-#: (``S9K_STATE_ROOT`` de lib.sh); aqui solo se hace visible al runtime.
+#: Override OPCIONAL del state root. Si no se declara, el state root es
+#: ``DEFAULT_STATE_ROOT`` (``effective_state_root``): ZERO-TERMINAL, nadie edita
+#: .env para esto. Una sola funcion decide la raiz efectiva para todos.
 STATE_ROOT_ENV = "S9K_STATE_ROOT"
+#: Raiz de BACKUPS: SEPARADA del state vivo (nada root-owned dentro del state).
+#: root:s9knowledge 0750 -> el healthcheck (s9knowledge) lee, no escribe.
+DEFAULT_BACKUP_ROOT = "/var/backups/s9-knowledge"
+#: SECRETOS provisionados (no son estado): se quedan en /etc, root:s9knowledge,
+#: directorio 0750, fichero 0640 o mas restrictivo; el servicio los LEE, no los escribe.
+SECRETS_DIR = "/etc/s9-knowledge/secrets"
+SECRET_DIR_MODE = 0o750
+SECRET_FILE_MAX_MODE = 0o640
+CONFIG_DIR_MODE = 0o710
 
 #: Subarboles del state root que NO son del servicio sino de quien instala
 #: (``root:root``): el servicio no los lee ni los escribe.
@@ -92,7 +110,7 @@ ADMIN_SUBTREES = ("deploy",)
 #: Directorios del state root que pertenecen al servicio. Una sola lista para
 #: Ansible (rol ``common``), ``deploy.sh`` y los tests.
 SERVICE_SUBDIRS = (
-    "auth", "jobs", "state", "output", "staging", "backups",
+    "auth", "jobs", "state", "output", "staging",
     "reviews-v3", "reviews-v3/proposals", "health",
 )
 
@@ -115,7 +133,8 @@ STATE_PATH_VARS = {
     REVIEW_DECISIONS_ENV: ("file", "decisions"),
     GLOSSARY_DIR_ENV: ("dir", "glossary"),
     _HEALTH_ENV: ("file", "health_report"),
-    _BACKUP_ENV: ("dir", "backups"),
+    "S9K_GLOSSARY_DB": ("file", "glossary_db"),
+    "S9K_EXTERNAL_AI_CACHE_DIR": ("dir", "external_ai_cache"),
 }
 
 #: Prefijo canonico para ejecutar la CLI de auth u otra herramienta que ESCRIBE
@@ -557,28 +576,113 @@ def inspect_process_identity(user: str = SERVICE_USER, *,
     return []
 
 
-def enforce(role: str, env: Optional[Mapping[str, str]] = None, *,
-            uid: Optional[int] = None, gid: Optional[int] = None,
-            euid: Optional[int] = None, force: bool = False) -> bool:
-    """Comprobacion de ARRANQUE (viewer y worker). Fail-closed.
+def effective_state_root(env: Mapping[str, str]) -> str:
+    """El state root EFECTIVO y canonico: UNA sola funcion para visor, worker y despliegue.
 
-    Devuelve ``False`` sin hacer nada si no esta encendida (``S9K_STATE_ENFORCE``
-    ausente y ``force`` falso: desarrollo/CI, techo declarado). Si esta
-    encendida y algo no cumple, levanta ``ServiceStateError`` con el
-    diagnostico concreto (owner real vs esperado, modo real vs maximo...).
-    ``uid/gid/euid`` se inyectan en tests; en produccion salen del sistema.
+    Config explicita (``S9K_STATE_ROOT``) si existe; si no, el default seguro del
+    producto (``DEFAULT_STATE_ROOT``). El administrador no edita .env para esto.
+    """
+    return os.path.normpath((env.get(STATE_ROOT_ENV) or "").strip() or DEFAULT_STATE_ROOT)
+
+
+def default_state_path(*partes: str, env: Optional[Mapping[str, str]] = None) -> Path:
+    """Ruta por defecto de un artefacto mutable: SIEMPRE bajo el state root efectivo.
+
+    Para los escritores que antes caian en ``<release>/state/...`` (cache de IA
+    externa, ``glossary.db``): ningun default puede quedar dentro de la release.
     """
     env = os.environ if env is None else env
-    if not force and (env.get(ENFORCE_ENV) or "").strip().lower() not in ("1", "true", "yes"):
+    return Path(effective_state_root(env)).joinpath(*partes)
+
+
+def exception_declared(env: Mapping[str, str]) -> bool:
+    """¿Hay una excepcion EXPLICITA de tests/laboratorio? Solo el valor exacto cuenta."""
+    return (env.get(VALIDATION_EXCEPTION_ENV) or "") == VALIDATION_EXCEPTION_VALUE
+
+
+def inspect_backup_root(backup_root, state_root) -> list:
+    """El backup vive FUERA del state vivo (TD-H06-01): nada root-owned dentro de el."""
+    br, sr = Path(os.path.normpath(str(backup_root))), Path(os.path.normpath(str(state_root)))
+    if br == sr or _bajo(br, sr) or _bajo(sr, br):
+        return [Violation(OUTSIDE_STATE, str(br), "la raiz de backups esta DENTRO (o contiene) "
+                          "el state root %s: un backup como root dejaria ficheros root:root en el "
+                          "estado vivo" % sr)]
+    return []
+
+
+def inspect_secret(path, *, gid=None, group: str = SERVICE_GROUP) -> list:
+    """Politica SECRET: fichero root:<grupo de servicio>, modo <= 0640, no symlink.
+
+    El servicio LEE y no escribe: el grupo no tiene bit de escritura ni otros ningun bit.
+    Los directorios que lo contienen (config 0710, secrets 0750) son root:<grupo> y ningun
+    otro usuario los lista.
+    """
+    out: list = []
+    p = str(path)
+    try:
+        st = os.lstat(p)
+    except FileNotFoundError:
+        return [Violation(UNREADABLE, p, "el secreto no existe")]
+    except OSError as exc:
+        return [Violation(UNREADABLE, p, "no se puede inspeccionar: %s" % exc.strerror)]
+    if stat.S_ISLNK(st.st_mode) or not stat.S_ISREG(st.st_mode):
+        return [Violation(TYPE, p, "el secreto no es un fichero regular (symlink o tipo raro)")]
+    if gid is None:
+        _u, gid = expected_ids(SERVICE_USER, group)
+    if st.st_uid != 0 or (gid is not None and st.st_gid != gid):
+        out.append(Violation(OWNER, p, "tiene owner %s:%s; esperado root:%s" % (
+            _nombre_uid(st.st_uid), _nombre_gid(st.st_gid), group)))
+    if stat.S_IMODE(st.st_mode) & ~SECRET_FILE_MAX_MODE:
+        out.append(Violation(MODE, p, "tiene modo %04o; maximo permitido %04o (lectura para el "
+                             "grupo de servicio, nada para otros)" % (stat.S_IMODE(st.st_mode),
+                                                                       SECRET_FILE_MAX_MODE)))
+    if _acl_presente(p):
+        out.append(Violation(ACL, p, "tiene ACL POSIX extendida (no se auditan; techo declarado)"))
+    return out
+
+
+def probe_secret(path) -> list:
+    """POR EFECTO (como el usuario de servicio): lee el secreto y NO puede escribirlo."""
+    out: list = []
+    p = str(path)
+    if os.geteuid() == 0:
+        return [Violation(IDENTITY, "proceso", "la prueba del secreto se ejecuta como el usuario de servicio")]
+    try:
+        with open(p, "rb") as fh:
+            fh.read(1)
+    except OSError as exc:
+        out.append(Violation(NO_ACCESS, p, "el servicio NO puede leer su secreto (%s)" % exc.strerror))
+    try:
+        with open(p, "r+b"):
+            out.append(Violation(MODE, p, "el servicio PUEDE escribir su secreto (debe ser solo lectura)"))
+    except OSError:
+        pass
+    return out
+
+
+def enforce(role: str, env: Optional[Mapping[str, str]] = None, *,
+            uid: Optional[int] = None, gid: Optional[int] = None,
+            euid: Optional[int] = None) -> bool:
+    """Comprobacion de ARRANQUE (visor y worker): OBLIGATORIA y fail-closed.
+
+    No depende de ninguna variable que ponga la unidad. Solo una excepcion
+    EXPLICITA de tests/laboratorio (``VALIDATION_EXCEPTION_ENV``) la omite y devuelve
+    ``False`` dejando constancia en el log. Si no, comprueba identidad (proceso =
+    usuario de servicio, nunca root), rutas efectivas (declaradas, bajo el state root,
+    no en la release, sin symlinks), propietario/modo/tipo/ACL de todo el arbol y
+    acceso efectivo; cualquier hallazgo levanta ``ServiceStateError`` con el
+    diagnostico concreto. ``uid/gid/euid`` se inyectan en tests.
+    """
+    env = os.environ if env is None else env
+    if exception_declared(env):
+        import logging  # noqa: PLC0415
+        logging.getLogger("s9k.state").warning(
+            "COMPROBACION DE ESTADO OMITIDA por excepcion explicita de tests/laboratorio (%s)",
+            VALIDATION_EXCEPTION_ENV)
         return False
     violaciones: list = []
     violaciones += inspect_process_identity(euid=euid)
-    raiz = (env.get(STATE_ROOT_ENV) or "").strip()
-    if not raiz:
-        violaciones.append(Violation(
-            NO_STATE_ROOT, STATE_ROOT_ENV, "no declarada: el servicio no sabe "
-            "cual es su state root"))
-        raise ServiceStateError(violaciones)
+    raiz = effective_state_root(env)
     rutas, faltan = effective_paths(env, role=role)
     violaciones += faltan
     violaciones += inspect_state(raiz, uid=uid, gid=gid, declared=rutas)
@@ -614,6 +718,11 @@ _GETTERS = {
     "dir_mode": lambda: "%04o" % DIR_MODE,
     "umask": lambda: UNIT_UMASK,
     "subdirs": lambda: "\n".join(SERVICE_SUBDIRS),
+    "backup_root": lambda: DEFAULT_BACKUP_ROOT,
+    "secrets_dir": lambda: SECRETS_DIR,
+    "secret_dir_mode": lambda: "%04o" % SECRET_DIR_MODE,
+    "secret_file_mode": lambda: "%04o" % SECRET_FILE_MAX_MODE,
+    "config_dir_mode": lambda: "%04o" % CONFIG_DIR_MODE,
     "runuser_prefix": lambda: " ".join(RUNUSER_PREFIX),
 }
 
@@ -662,6 +771,11 @@ def main(argv: Optional[list] = None) -> int:
                        "ejecuta con runuser como nobody)")
     d.add_argument("--state-root", default=DEFAULT_STATE_ROOT)
     d.add_argument("--paths-stdin", action="store_true")
+    sc = sub.add_parser("secret-check", help="politica SECRET de uno o varios ficheros (root)")
+    sc.add_argument("ficheros", nargs="+")
+    sp = sub.add_parser("secret-probe", help="el usuario de servicio LEE y no ESCRIBE sus secretos "
+                        "(se ejecuta con runuser)")
+    sp.add_argument("ficheros", nargs="+")
     args = ap.parse_args(argv)
 
     if args.orden == "get":
@@ -676,17 +790,34 @@ def main(argv: Optional[list] = None) -> int:
         for clave, ruta in sorted(rutas.items()):
             _revisar_declarada(clave, ruta, Path(args.state_root), RELEASE_PREFIXES, viol)
         declarada = (env.get(STATE_ROOT_ENV) or "").strip()
-        if not declarada:
+        if declarada and os.path.normpath(declarada) != os.path.normpath(args.state_root):
             viol.append(Violation(NO_STATE_ROOT, STATE_ROOT_ENV,
-                        "no declarada: el arranque fail-closed del servicio no sabria cual "
-                        "es su state root (declarar %s=%s)" % (STATE_ROOT_ENV, args.state_root)))
-        elif os.path.normpath(declarada) != os.path.normpath(args.state_root):
+                        "vale %s pero el despliegue usa %s: el state root no se determina "
+                        "de forma inequivoca" % (declarada, args.state_root)))
+        elif not declarada and os.path.normpath(args.state_root) != os.path.normpath(DEFAULT_STATE_ROOT):
             viol.append(Violation(NO_STATE_ROOT, STATE_ROOT_ENV,
-                        "vale %s pero el despliegue usa %s" % (declarada, args.state_root)))
+                        "el despliegue usa el state root NO canonico %s y el entorno no declara "
+                        "S9K_STATE_ROOT: el servicio usaria %s. Declare el override o use el "
+                        "default" % (args.state_root, DEFAULT_STATE_ROOT)))
+        for var in (VALIDATION_EXCEPTION_ENV, ENFORCE_ENV):
+            if (env.get(var) or "").strip():
+                viol.append(Violation(IDENTITY, var, "esta variable es una excepcion de tests/"
+                            "laboratorio (o un interruptor retirado) y NO puede estar en una "
+                            "instalacion operativa"))
+        backup = (env.get(_BACKUP_ENV) or "").strip()
+        if backup:
+            if not os.path.isabs(backup):
+                viol.append(Violation(NOT_ABSOLUTE, _BACKUP_ENV, "no es absoluta"))
+            else:
+                viol += inspect_backup_root(backup, args.state_root)
     elif args.orden == "check":
         rutas, faltan = effective_paths(env, role=args.role) if env else ({}, [])
         viol = list(faltan) + inspect_state(args.state_root, uid=args.uid, gid=args.gid,
                                             declared=rutas)
+    elif args.orden in ("secret-check", "secret-probe"):
+        viol = []
+        for f in args.ficheros:
+            viol += inspect_secret(f) if args.orden == "secret-check" else probe_secret(f)
     elif args.orden == "paths":
         rutas, faltan = effective_paths(env_de(args.env_file), role=args.role)
         if faltan:

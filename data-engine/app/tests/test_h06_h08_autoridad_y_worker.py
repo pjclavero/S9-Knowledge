@@ -297,8 +297,42 @@ def test_ruta_relativa_es_un_hallazgo(estado):
 # enforce: la comprobacion de ARRANQUE (visor y worker)
 # ---------------------------------------------------------------------------
 
-def test_enforce_apagado_en_desarrollo_no_hace_nada(estado):
-    assert ss.enforce("viewer", {}) is False
+def test_la_validacion_es_obligatoria_sin_ninguna_variable_de_la_unidad(estado):
+    """§12: ausencia de configuracion NO es modo test. Sin la excepcion EXPLICITA, valida."""
+    (estado / "auth" / "auth.db").chmod(0o644)
+    with pytest.raises(ss.ServiceStateError):
+        ss.enforce("viewer", _rutas(estado), uid=UID, gid=GID, euid=UID)
+
+
+def test_solo_la_excepcion_explicita_omite_la_validacion_y_lo_anuncia(estado, caplog):
+    env = {**_rutas(estado), ss.VALIDATION_EXCEPTION_ENV: ss.VALIDATION_EXCEPTION_VALUE}
+    (estado / "auth" / "auth.db").chmod(0o666)
+    with caplog.at_level("WARNING", logger="s9k.state"):
+        assert ss.enforce("viewer", env, uid=UID, gid=GID, euid=UID) is False
+    assert "OMITIDA" in caplog.text
+
+
+@pytest.mark.parametrize("valor", ["1", "true", "yes", "disabled", "", "DISABLED-EXPLICIT-FOR-TESTS"])
+def test_un_valor_aproximado_de_la_excepcion_no_la_activa(estado, valor):
+    """La excepcion se DECLARA con el valor exacto; nada se infiere ni se aproxima."""
+    (estado / "auth" / "auth.db").chmod(0o644)
+    env = {**_rutas(estado), ss.VALIDATION_EXCEPTION_ENV: valor}
+    with pytest.raises(ss.ServiceStateError):
+        ss.enforce("viewer", env, uid=UID, gid=GID, euid=UID)
+
+
+def test_el_interruptor_historico_S9K_STATE_ENFORCE_ya_no_apaga_nada(estado):
+    (estado / "auth" / "auth.db").chmod(0o644)
+    env = {**_rutas(estado), ss.ENFORCE_ENV: "0"}
+    with pytest.raises(ss.ServiceStateError):
+        ss.enforce("viewer", env, uid=UID, gid=GID, euid=UID)
+
+
+def test_state_root_efectivo_default_y_override():
+    assert ss.effective_state_root({}) == ss.DEFAULT_STATE_ROOT
+    assert ss.effective_state_root({"S9K_STATE_ROOT": "  "}) == ss.DEFAULT_STATE_ROOT
+    assert ss.effective_state_root({"S9K_STATE_ROOT": "/srv/x/../y"}) == "/srv/y"
+    assert ss.default_state_path("glossary", "g.db", env={}) == Path(ss.DEFAULT_STATE_ROOT) / "glossary" / "g.db"
 
 
 @pytest.mark.skipif(EUID == 0, reason="un proceso root nunca es el usuario de servicio")
@@ -306,13 +340,13 @@ def test_enforce_encendido_con_estado_conforme_pasa(estado, monkeypatch):
     # El usuario `s9knowledge` real no existe en CI: el "usuario de servicio"
     # de esta prueba es el propio proceso (VM112 prueba el real).
     monkeypatch.setattr(ss, "expected_ids", lambda *a, **k: (UID, GID))
-    env = {**_rutas(estado), ss.ENFORCE_ENV: "1"}
+    env = _rutas(estado)
     assert ss.enforce("viewer", env, uid=UID, gid=GID, euid=UID) is True
 
 
 def test_enforce_N1_falla_cerrado_con_diagnostico_concreto(estado):
     (estado / "auth" / "auth.db").chmod(0o644)
-    env = {**_rutas(estado), ss.ENFORCE_ENV: "1"}
+    env = _rutas(estado)
     with pytest.raises(ss.ServiceStateError) as exc:
         ss.enforce("viewer", env, uid=UID, gid=GID, euid=UID)
     texto = str(exc.value)
@@ -321,7 +355,7 @@ def test_enforce_N1_falla_cerrado_con_diagnostico_concreto(estado):
 
 
 def test_enforce_N2_owner_incorrecto_dice_esperado_s9knowledge(estado):
-    env = {**_rutas(estado), ss.ENFORCE_ENV: "1"}
+    env = _rutas(estado)
     with pytest.raises(ss.ServiceStateError) as exc:
         ss.enforce("worker", env, uid=UID + 1, gid=GID + 1, euid=UID)
     assert "esperado s9knowledge:s9knowledge" in str(exc.value)
@@ -330,14 +364,14 @@ def test_enforce_N2_owner_incorrecto_dice_esperado_s9knowledge(estado):
 def test_enforce_N8_proceso_root_se_niega_a_arrancar(estado):
     """Viewer root por ruta alternativa (sin User=, docker, nohup): el propio
     proceso lo rechaza aunque el estado este perfecto."""
-    env = {**_rutas(estado), ss.ENFORCE_ENV: "1"}
+    env = _rutas(estado)
     with pytest.raises(ss.ServiceStateError) as exc:
         ss.enforce("viewer", env, uid=UID, gid=GID, euid=0)
     assert "corre como root" in str(exc.value)
 
 
 def test_enforce_proceso_con_otro_uid_se_niega(estado):
-    env = {**_rutas(estado), ss.ENFORCE_ENV: "1"}
+    env = _rutas(estado)
     if ss.expected_ids()[0] is None:
         # Sin el usuario real en este sistema (CI): el rechazo es por inexistente.
         v = ss.inspect_process_identity(euid=12345)
@@ -347,17 +381,18 @@ def test_enforce_proceso_con_otro_uid_se_niega(estado):
         assert v and "esperado s9knowledge" in v[0].detail
 
 
-def test_enforce_N17_sin_state_root_declarado_falla(estado):
+def test_enforce_N17_sin_state_root_declarado_usa_el_default_y_falla_si_no_es_el_del_estado(estado):
+    """Sin override, la raiz es el default del producto; si las rutas declaradas cuelgan de
+    otra raiz (o el default no existe) el arranque PARA, nombrando la causa."""
     env = {k: v for k, v in _rutas(estado).items() if k != "S9K_STATE_ROOT"}
-    env[ss.ENFORCE_ENV] = "1"
     with pytest.raises(ss.ServiceStateError) as exc:
         ss.enforce("viewer", env, uid=UID, gid=GID, euid=UID)
-    assert "S9K_STATE_ROOT" in str(exc.value)
+    texto = str(exc.value)
+    assert ss.DEFAULT_STATE_ROOT in texto and ("NO_STATE_ROOT" in texto or "OUTSIDE_STATE" in texto), texto
 
 
 def test_enforce_N18_estado_en_release_falla(estado):
-    env = {**_rutas(estado), ss.ENFORCE_ENV: "1",
-           "S9K_V3_REVIEW_DECISIONS_PATH": "/opt/s9-knowledge/current/viewer/output/d.jsonl"}
+    env = {**_rutas(estado), "S9K_V3_REVIEW_DECISIONS_PATH": "/opt/s9-knowledge/current/viewer/output/d.jsonl"}
     with pytest.raises(ss.ServiceStateError) as exc:
         ss.enforce("viewer", env, uid=UID, gid=GID, euid=UID)
     assert "dentro de la release" in str(exc.value)
@@ -410,7 +445,8 @@ def _worker_main():
 
 def test_el_worker_aborta_con_rc3_y_diagnostico_si_el_estado_es_inseguro(estado, monkeypatch, caplog):
     (estado / "jobs" / "jobs.db").chmod(0o666)
-    for k, v in {**_rutas(estado), ss.ENFORCE_ENV: "1"}.items():
+    monkeypatch.delenv(ss.VALIDATION_EXCEPTION_ENV, raising=False)   # la excepcion de la suite
+    for k, v in _rutas(estado).items():
         monkeypatch.setenv(k, v)
     # El esperado del esquema real (s9knowledge) no existe en CI: se inyecta el propio.
     monkeypatch.setattr(ss, "expected_ids", lambda *a, **k: (UID, GID))
@@ -421,8 +457,8 @@ def test_el_worker_aborta_con_rc3_y_diagnostico_si_el_estado_es_inseguro(estado,
     assert "jobs.db" in caplog.text and "STATE_CONTRACT_VIOLATION" in caplog.text
 
 
-def test_el_worker_sin_enforce_no_cambia_de_comportamiento(estado, monkeypatch):
-    monkeypatch.delenv(ss.ENFORCE_ENV, raising=False)
+def test_el_worker_con_la_excepcion_explicita_de_tests_no_valida(estado, monkeypatch):
+    monkeypatch.setenv(ss.VALIDATION_EXCEPTION_ENV, ss.VALIDATION_EXCEPTION_VALUE)
     assert ss.enforce("worker") is False
 
 
@@ -445,3 +481,88 @@ def test_jobs_db_nace_0600_en_directorio_0700_con_umask_022(tmp_path):
         extra = Path(str(db) + suf)
         if extra.exists():
             assert stat.S_IMODE(extra.stat().st_mode) == 0o600, extra
+
+
+# ---------------------------------------------------------------------------
+# SECRET (§9) y BACKUP (§10)
+# ---------------------------------------------------------------------------
+
+def test_secret_modo_y_propietario(tmp_path):
+    f = tmp_path / "neo4j_password"
+    f.write_text("x")
+    for modo, ok in ((0o640, True), (0o600, True), (0o440, True), (0o660, False), (0o644, False), (0o604, False)):
+        f.chmod(modo)
+        codigos = {v.code for v in ss.inspect_secret(f, gid=GID)}
+        assert ("MODE" not in codigos) is ok, oct(modo)
+    # el propietario esperado es root: un fichero de este usuario (no root) es un hallazgo OWNER
+    f.chmod(0o640)
+    if EUID != 0:
+        v = [x for x in ss.inspect_secret(f, gid=GID) if x.code == "OWNER"]
+        assert v and "esperado root:" in v[0].detail, v
+
+
+def test_secret_symlink_y_ausente(tmp_path):
+    real = tmp_path / "real"
+    real.write_text("x")
+    os.symlink(real, tmp_path / "enlace")
+    assert {v.code for v in ss.inspect_secret(tmp_path / "enlace", gid=GID)} == {"TYPE"}
+    assert {v.code for v in ss.inspect_secret(tmp_path / "no-existe", gid=GID)} == {"UNREADABLE"}
+
+
+@pytest.mark.skipif(EUID == 0, reason="la prueba por efecto se ejecuta sin root")
+def test_probe_secret_lee_y_no_escribe(tmp_path):
+    f = tmp_path / "s"
+    f.write_text("x")
+    f.chmod(0o440)
+    if os.access(f, os.W_OK):
+        pytest.skip("el FS deja escribir un 0440 (¿root efectivo?)")
+    assert ss.probe_secret(f) == []
+    f.chmod(0o640)   # el propietario SI escribe: el servicio podria escribir su secreto -> hallazgo
+    v = ss.probe_secret(f)
+    assert v and "PUEDE escribir" in v[0].detail, v
+    f.chmod(0o000)
+    v = ss.probe_secret(f)
+    assert v and v[0].code == "NO_ACCESS", v
+
+
+def test_backup_root_separado_del_state(tmp_path):
+    st = tmp_path / "state"
+    assert ss.inspect_backup_root(tmp_path / "backup", st) == []
+    assert ss.inspect_backup_root(st / "backups", st)[0].code == "OUTSIDE_STATE"
+    assert ss.inspect_backup_root(st, st)[0].code == "OUTSIDE_STATE"
+    assert ss.inspect_backup_root(tmp_path, st)[0].code == "OUTSIDE_STATE"   # contiene el state
+
+
+def test_backups_ya_no_son_un_subdirectorio_del_estado():
+    assert "backups" not in ss.SERVICE_SUBDIRS
+    assert ss.DEFAULT_BACKUP_ROOT == "/var/backups/s9-knowledge"
+    assert not ss.DEFAULT_BACKUP_ROOT.startswith(ss.DEFAULT_STATE_ROOT)
+
+
+def test_la_politica_secret_de_la_autoridad():
+    assert ss.SECRETS_DIR == "/etc/s9-knowledge/secrets"
+    assert (ss.SECRET_DIR_MODE, ss.SECRET_FILE_MAX_MODE, ss.CONFIG_DIR_MODE) == (0o750, 0o640, 0o710)
+
+
+def test_validate_env_rechaza_la_excepcion_de_tests_en_una_instalacion_operativa(estado, tmp_path):
+    for var in (ss.VALIDATION_EXCEPTION_ENV, ss.ENFORCE_ENV):
+        env = tmp_path / "viewer.env"
+        env.write_text("".join("%s=%s\n" % kv for kv in _rutas(estado).items()) + "%s=1\n" % var)
+        r = subprocess.run([sys.executable, str(_RUTA), "validate-env", "--env-file", str(env),
+                            "--state-root", str(estado)], capture_output=True, text=True)
+        assert r.returncode == 3 and var in r.stderr, (var, r.stderr)
+
+
+def test_validate_env_acepta_un_entorno_sin_s9k_state_root_con_la_raiz_canonica(estado, tmp_path):
+    """ZERO-TERMINAL: sin override, con el state root canonico, el entorno es valido."""
+    rutas = {k: v.replace(str(estado), ss.DEFAULT_STATE_ROOT) for k, v in _rutas(estado).items()
+             if k != "S9K_STATE_ROOT"}
+    env = tmp_path / "viewer.env"
+    env.write_text("".join("%s=%s\n" % kv for kv in rutas.items()))
+    r = subprocess.run([sys.executable, str(_RUTA), "validate-env", "--env-file", str(env)],
+                       capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    # y un deploy con raiz NO canonica sin override declarado es ambiguo -> STOP
+    r = subprocess.run([sys.executable, str(_RUTA), "validate-env", "--env-file", str(env),
+                        "--state-root", str(estado)], capture_output=True, text=True)
+    assert r.returncode == 3, r.stderr

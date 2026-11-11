@@ -25,7 +25,7 @@ IOSchedulingClass=idle
 ; destino. Nada mas.
 User=root
 ProtectSystem=strict
-ReadWritePaths=/var/lib/s9-knowledge/backups
+ReadWritePaths=/var/backups/s9-knowledge
 ProtectHome=yes
 PrivateTmp=yes
 NoNewPrivileges=yes

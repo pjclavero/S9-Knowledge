@@ -84,9 +84,10 @@ def _valor(texto: str, clave: str) -> str:
 def _exec_start(texto: str) -> tuple:
     """(asignaciones env, interprete, script, flags) de ExecStart."""
     tokens = shlex.split(_valor(texto, "ExecStart"))
-    assert tokens[0] == "/usr/bin/env", tokens
+    # H-06/H-08 fase 2: ya no hay `env VAR=...` (el secreto se lee directo de /etc); se admite
+    # igualmente la forma antigua para que un envoltorio reintroducido se vea como asignaciones.
     asignaciones = {}
-    i = 1
+    i = 1 if tokens[0] == "/usr/bin/env" else 0
     while "=" in tokens[i] and not tokens[i].startswith("/"):
         k, v = tokens[i].split("=", 1)
         asignaciones[k] = v
@@ -168,26 +169,23 @@ def test_cada_defecto_de_la_unidad_bloquea_con_su_causa(tmp_path, release, viejo
     assert rc == 1 and causa in err, "no bloqueo por %s:\n%s" % (causa, err)
 
 
-def test_el_secreto_de_worker_env_distinto_del_de_la_unidad_bloquea(tmp_path, release):
-    env = tmp_path / "worker.env"
-    env.write_text("S9K_NEO4J_PASSWORD_FILE=/etc/s9-knowledge/secrets/otro\n", encoding="utf-8")
-    rc, err = _validar_unidad(UNIDAD, release, env)
-    assert rc == 1 and "secreto" in err, err
-
-
 def test_systemd_analyze_verify_acepta_la_unidad_y_rechaza_un_binario_inexistente(tmp_path):
     """El paso 10 de deploy.sh, ejecutado. No se omite si falta la herramienta:
     un verify que no corre en CI seria un verde de papel."""
     assert shutil.which("systemd-analyze"), "systemd-analyze no disponible: el paso 10 no se mide"
     copia = tmp_path / UNIDAD.name
-    shutil.copy(UNIDAD, copia)
+    # el interprete del venv no existe en esta maquina: se sustituye por un binario real
+    copia.write_text(UNIDAD.read_text(encoding="utf-8").replace(
+        "ExecStart=/opt/s9-knowledge/current/data-engine/.venv/bin/python", "ExecStart=/usr/bin/env"),
+        encoding="utf-8")
     r = subprocess.run(["systemd-analyze", "verify", str(copia)], capture_output=True,
                        text=True, timeout=120)
     assert r.returncode == 0, r.stdout + r.stderr
     mala = tmp_path / "rota" / UNIDAD.name
     mala.parent.mkdir()
     mala.write_text(UNIDAD.read_text(encoding="utf-8").replace(
-        "ExecStart=/usr/bin/env ", "ExecStart=/usr/bin/no-existe-b3 "), encoding="utf-8")
+        "ExecStart=/opt/s9-knowledge/current/data-engine/.venv/bin/python", "ExecStart=/usr/bin/no-existe-b3"),
+        encoding="utf-8")
     r = subprocess.run(["systemd-analyze", "verify", str(mala)], capture_output=True,
                        text=True, timeout=120)
     assert r.returncode != 0, "verify no distingue un ExecStart inexistente: %s" % r.stderr
@@ -242,18 +240,17 @@ def test_el_usuario_de_la_unidad_es_el_usuario_del_servicio():
     assert user != "root" and user == comunes["s9k_service_user"], user
     assert group == comunes["s9k_service_group"], group
     assert _valor(texto, "UMask") == "0077"
-    previo = shlex.split(_valor(texto, "ExecStartPre").lstrip("+-"))
-    assert previo[previo.index("-o") + 1] == user and previo[previo.index("-g") + 1] == group, previo
 
 
-def test_el_secreto_que_copia_la_unidad_es_el_de_la_plantilla():
+def test_el_secreto_se_lee_directamente_de_la_politica_secret_y_no_se_copia():
+    """H-06/H-08 fase 2 §9: sin ExecStartPre/RuntimeDirectory; el origen es el de la plantilla,
+    bajo /etc/s9-knowledge/secrets (root:s9knowledge 0640)."""
     texto = UNIDAD.read_text(encoding="utf-8")
-    previo = shlex.split(_valor(texto, "ExecStartPre").lstrip("+-"))
-    origen, destino = previo[-2], previo[-1]
-    assert origen == _env_de(WORKER_ENV_EJEMPLO)["S9K_NEO4J_PASSWORD_FILE"], origen
+    assert "\nExecStartPre=" not in texto and "\nRuntimeDirectory" not in texto
     asignaciones, *_ = _exec_start(texto)
-    assert asignaciones["S9K_NEO4J_PASSWORD_FILE"] == destino
-    assert destino.startswith("/run/%s/" % _valor(texto, "RuntimeDirectory")), destino
+    assert "S9K_NEO4J_PASSWORD_FILE" not in asignaciones
+    origen = _env_de(WORKER_ENV_EJEMPLO)["S9K_NEO4J_PASSWORD_FILE"]
+    assert origen.startswith("/etc/s9-knowledge/secrets/"), origen
 
 
 # ===========================================================================

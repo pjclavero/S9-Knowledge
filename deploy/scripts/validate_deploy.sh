@@ -22,7 +22,7 @@ _VD_SS="${S9K_SERVICE_STATE_PY:-${_VD_DIR}/../../data-engine/app/knowledge_v3/se
 # calla, H-18). Su coherencia profunda (absolutas, fuera de la release, bajo el
 # state root, misma resolución en visor y motor) la mira
 # `preflight_ensayo_rc.py --grupo despliegue` en el paso 6 de deploy.sh.
-CRITICAL_ENV_VARS="S9K_VIEWER_HOST S9K_VIEWER_PORT S9K_GRAPH_PROVIDER S9K_NEO4J_URI S9K_NEO4J_USER S9K_AUTH_DB_PATH S9K_JOBS_DB S9K_AUTH_ENABLED S9K_V3_REVIEW_DATABASE_PATH S9K_V3_REVIEW_PROPOSALS_DIR S9K_STATE_ROOT"
+CRITICAL_ENV_VARS="S9K_VIEWER_HOST S9K_VIEWER_PORT S9K_GRAPH_PROVIDER S9K_NEO4J_URI S9K_NEO4J_USER S9K_AUTH_DB_PATH S9K_JOBS_DB S9K_AUTH_ENABLED S9K_V3_REVIEW_DATABASE_PATH S9K_V3_REVIEW_PROPOSALS_DIR"
 
 # Placeholders prohibidos para un secreto (case-insensitive, coincidencia exacta).
 CSRF_PLACEHOLDERS="change-me change-me-in-host changeme replace-me example default password secret s9k-csrf-change-me s9k-csrf-default"
@@ -156,9 +156,12 @@ validate_secret_file() {
     fi
     perms="$(stat -c '%a' "${path}" 2>/dev/null || printf '')"
     # rechaza cualquier bit de grupo/otros (perms de 3 dígitos con 2º/3er != 0)
+    # H-06 + H-08 (fase 2, §9): SECRET = root:s9knowledge, 0640 o mas restrictivo: el
+    # grupo de servicio LEE (bit r) y NO escribe, y otros no tienen nada. La propiedad
+    # (root:s9knowledge) la comprueba `service_state.py secret-check` en el despliegue.
     case "${perms}" in
-        [0-7]00) ;;  # solo dueño
-        *) printf 'BLOCK(secret-file): permisos inseguros (%s) en %s\n' "${perms}" "${path}" >&2; return 1 ;;
+        [0-7][04]0) ;;
+        *) printf 'BLOCK(secret-file): permisos inseguros (%s) en %s (maximo 0640: grupo solo lectura, otros nada)\n' "${perms}" "${path}" >&2; return 1 ;;
     esac
     return 0
 }
@@ -407,7 +410,6 @@ validate_viewer_env() {
 validate_viewer_unit() {
     local unit_file="${1}"
     local current_path="${2:-/opt/s9-knowledge/current}"
-    local viewer_env="${3:-}"
     if [ ! -f "${unit_file}" ]; then
         printf 'BLOCK: unit no existe: %s\n' "${unit_file}" >&2
         return 1
@@ -437,10 +439,7 @@ validate_viewer_unit() {
     fi
     # H-06 + H-08: identidad de servicio (autoridad), no root ni www-data.
     local e
-    while IFS= read -r e; do [ -n "${e}" ] && errs+=("${e}"); done < <(_identidad_de_unidad_errores "${unit_file}" enforce)
-    if [ -n "${viewer_env}" ]; then
-        while IFS= read -r e; do [ -n "${e}" ] && errs+=("${e}"); done < <(_secreto_de_unidad_errores "${unit_file}" "${viewer_env}")
-    fi
+    while IFS= read -r e; do [ -n "${e}" ] && errs+=("${e}"); done < <(_identidad_de_unidad_errores "${unit_file}")
     if [ "${#errs[@]}" -gt 0 ]; then
         for e in "${errs[@]}"; do printf 'BLOCK(unit): %s\n' "${e}" >&2; done
         return 1
@@ -456,7 +455,7 @@ validate_viewer_unit() {
 #   de arranque fail-closed). Sin salida = la unidad cumple.
 # ---------------------------------------------------------------------------
 _identidad_de_unidad_errores() {
-    local unit="${1}" enforce="${2:-}" u g um esp_u esp_g esp_um
+    local unit="${1}" u g um esp_u esp_g esp_um
     esp_u="$(python3 "${_VD_SS}" get service_user)" || { echo "la autoridad de identidad no responde"; return 0; }
     esp_g="$(python3 "${_VD_SS}" get service_group)"
     esp_um="$(python3 "${_VD_SS}" get umask)"
@@ -464,25 +463,14 @@ _identidad_de_unidad_errores() {
     [ "${u}" = "${esp_u}" ] || echo "User= es '${u}'; esperado '${esp_u}' (la autoridad); ni root ni otro nombre"
     [ "${g}" = "${esp_g}" ] || echo "Group= es '${g}'; esperado '${esp_g}' (la autoridad)"
     [ "${um}" = "${esp_um}" ] || echo "UMask= es '${um}'; esperado '${esp_um}' (la autoridad)"
-    if [ "${enforce}" = "enforce" ] && ! grep -qE '^Environment=S9K_STATE_ENFORCE=1$' "${unit}"; then
-        echo "falta Environment=S9K_STATE_ENFORCE=1: sin ella el servicio no comprueba su estado al arrancar"
+    # La validacion de arranque es OBLIGATORIA: una unidad operativa no puede declarar la
+    # excepcion de tests/laboratorio ni el interruptor retirado.
+    if grep -vE '^[[:space:]]*#' "${unit}" | grep -qE 'S9K_STATE_(VALIDATION|ENFORCE)'; then
+        echo "la unidad declara S9K_STATE_VALIDATION/ENFORCE: la comprobacion de estado es obligatoria y no se desactiva en una unidad operativa"
     fi
-    return 0
-}
-
-# ---------------------------------------------------------------------------
-# _secreto_de_unidad_errores <unit_file> <viewer.env>
-#   El ORIGEN que la unidad copia a /run (ExecStartPre=+) es el que declara
-#   S9K_NEO4J_PASSWORD_FILE en el env. Sin esa declaracion no hay nada que
-#   comprobar (el visor admite la contrasena en variable).
-# ---------------------------------------------------------------------------
-_secreto_de_unidad_errores() {
-    local unit="${1}" env_file="${2}" origen declarado
-    declarado="$(_env_value "${env_file}" S9K_NEO4J_PASSWORD_FILE)"
-    [ -n "${declarado}" ] || return 0
-    origen="$(grep -E '^ExecStartPre=' "${unit}" | head -1 | awk '{print $(NF-1)}' || true)"
-    if [ -z "${origen}" ] || [ "${origen}" != "${declarado}" ]; then
-        echo "el secreto que copia la unidad ('${origen}') no es el que declara el env ('${declarado}'): el usuario de servicio no puede leer /etc/s9-knowledge"
+    # El secreto se lee directamente de /etc (policy SECRET): nada de copiarlo a /run.
+    if grep -vE '^[[:space:]]*#' "${unit}" | grep -qE '^(ExecStartPre|RuntimeDirectory)='; then
+        echo "la unidad copia el secreto a /run (ExecStartPre/RuntimeDirectory): con la politica SECRET el servicio lo lee directamente de /etc/s9-knowledge/secrets"
     fi
     return 0
 }
@@ -554,7 +542,6 @@ validate_worker_unit() {
     local unit_file="${1}"
     local current_path="${2:-/opt/s9-knowledge/current}"
     local release_dir="${3:-${current_path}}"
-    local worker_env="${4:-}"
     if [ ! -f "${unit_file}" ]; then
         printf 'BLOCK(worker-unit): unit no existe: %s\n' "${unit_file}" >&2
         return 1
@@ -567,7 +554,7 @@ validate_worker_unit() {
     # H-06 + H-08: la identidad no es «cualquiera que no sea root»: es la de la
     # AUTORIDAD (s9knowledge). www-data u otro nombre -> BLOCK.
     local _e
-    while IFS= read -r _e; do [ -n "${_e}" ] && errs+=("${_e}"); done < <(_identidad_de_unidad_errores "${unit_file}" enforce)
+    while IFS= read -r _e; do [ -n "${_e}" ] && errs+=("${_e}"); done < <(_identidad_de_unidad_errores "${unit_file}")
     restart="$(_unit_value "${unit_file}" Restart)"
     [ "${restart}" = "always" ] || errs+=("Restart distinto de always: '${restart}'")
     grep -qE '^EnvironmentFile=/etc/s9-knowledge/worker\.env$' "${unit_file}" \
@@ -609,14 +596,6 @@ validate_worker_unit() {
     esac
     if ! printf '%s\n' "${exec_line}" | grep -qE -- '--release-stale-seconds[ =][1-9][0-9]*( |$)'; then
         errs+=("ExecStart sin --release-stale-seconds N>0: un job huerfano no se liberaria nunca")
-    fi
-    if [ -n "${worker_env}" ]; then
-        local origen declarado
-        origen="$(grep -E '^ExecStartPre=' "${unit_file}" | head -1 | awk '{print $(NF-1)}' || true)"
-        declarado="$(_env_value "${worker_env}" S9K_NEO4J_PASSWORD_FILE)"
-        if [ -z "${origen}" ] || [ "${origen}" != "${declarado}" ]; then
-            errs+=("el secreto que copia la unidad ('${origen}') no es el que declara worker.env ('${declarado}')")
-        fi
     fi
     if [ "${#errs[@]}" -gt 0 ]; then
         local e

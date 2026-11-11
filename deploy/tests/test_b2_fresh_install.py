@@ -358,6 +358,9 @@ def plantilla_productiva_en(tmp: Path, url: str, *, ca_file: str = None,
         assert (STATE_ROOT_DE_PLANTILLA in a or a.startswith("S9K_PUBLIC_BASE_URL=")
                 or a.startswith("#S9K_TLS_CA_FILE=") or quitar), (
             "la plantilla ejercida ya no es la literal: cambia %r" % a)
+    # H-06/H-08 fase 2: el state root del arnes NO es el canonico, asi que se declara el
+    # override OPCIONAL (el default del producto no se declara en la plantilla).
+    nuevo += "S9K_STATE_ROOT=%s\n" % state_root
     env = tmp / "viewer.env"
     env.write_text(nuevo, encoding="utf-8")
     env.chmod(0o600)
@@ -410,6 +413,7 @@ def worker_env_productivo_en(tmp: Path, state_root: Path) -> Path:
     nuevo = texto.replace(STATE_ROOT_DE_PLANTILLA, str(state_root)).replace(
         "/etc/s9-knowledge/secrets/neo4j_worker_password", str(secreto))
     worker_env = tmp / "worker.env"
+    nuevo += "S9K_STATE_ROOT=%s\n" % state_root
     worker_env.write_text(nuevo, encoding="utf-8")
     worker_env.chmod(0o600)
     return worker_env
