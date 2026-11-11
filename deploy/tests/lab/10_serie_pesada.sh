@@ -19,7 +19,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=deploy/tests/lab/lib_lab.sh
 source "${HERE}/lib_lab.sh"
 
-lab_guard
+lab_guard_basico
 lab_tomar_cerrojo
 cd "${LAB_REPO}"
 PY="${LAB_BASE}/venv/bin/python"
@@ -55,19 +55,34 @@ tanda especificos-worker      "${PY}" -m pytest data-engine/app/tests/test_h06_h
 # 2. calibrador H-06/H-08, EN SERIE, nada mas corriendo
 tanda calibrador-h06-h08      "${PY}" scripts/calibracion/mutaciones_h06_h08_servicio_y_estado.py
 
-# 3. calibradores anteriores que mi cambio puede mover (re-anclados por estructura)
-tanda calibrador-b3-worker    "${PY}" scripts/calibracion/mutaciones_b3_worker.py
-tanda calibrador-c1           "${PY}" scripts/calibracion/mutaciones_c1_persistencia_revision.py
-tanda calibrador-b2-fresh     "${PY}" scripts/calibracion/mutaciones_b2_fresh_install.py
-tanda calibrador-pr3-https    "${PY}" scripts/calibracion/mutaciones_pr3_instalacion_https.py
-tanda calibrador-pr4-completa "${PY}" scripts/calibracion/mutaciones_pr4_instalacion_completa.py
-tanda calibrador-p0-auth      "${PY}" scripts/calibracion/mutaciones_p0_auth.py
+# 3. calibradores anteriores que mi cambio puede mover (re-anclados por estructura) y los
+#    hermanos de CI: todos los que corre el job «Calibracion de gates», EN SERIE
+for c in b2_fresh_install b3_worker c1_persistencia_revision h05a_location h05b_trusted_host \
+         pr3_instalacion_https pr4_instalacion_completa bootstrap_primer_admin instalacion_fabrica \
+         corte4_revision corte5_signo_y_causa m1_ambito_boveda s1_resultado_sin_enlace_muerto \
+         s1_selector_misma_autoridad corte6a_seleccion_real corte6b1_etiquetas topologia_publicable \
+         p0_auth proveedor_no_configurado pr1_review_console_apagada b1_h03_aislamiento_workspace; do
+    tanda "calibrador-${c}" "${PY}" "scripts/calibracion/mutaciones_${c}.py"
+done
+for c in f2_autoridad_workspace veracidad_tarjeta_review calibra_topologia_publicable; do
+    tanda "calibrador-${c}" "${PY}" "scripts/calibracion/${c}.py"
+done
+for c in calibra_gate_integrity calibra_suite_inventory calibra_ejecucion_real calibra_registro_xfail \
+         calibra_base_materializada calibra_a2_linaje calibra_desarme; do
+    tanda "gate-${c}" "${PY}" ".github/scripts/${c}.py"
+done
+for c in calibrar_panel_sources calibrar_panel_operations calibrar_panel_review; do
+    tanda "panel-${c}" "${PY}" "scripts/${c}.py"
+done
+tanda panel-calibrar_panel_entities "${PY}" scripts/calibrar_panel_entities.py --sin-colaterales
 
 # 4. suites completas
 tanda suite-viewer            "${PY}" -m pytest viewer/tests -q -p no:cacheprovider
 tanda suite-data-engine       "${PY}" -m pytest data-engine/app/tests -q -p no:cacheprovider
 tanda suite-deploy            "${PY}" -m pytest deploy/tests -q -p no:cacheprovider
 tanda regresion-c1            "${PY}" -m pytest deploy/tests/test_c1_revision_deploy.py viewer/tests/test_v3_review_storage.py -q -p no:cacheprovider
+tanda check-ci-config         "${PY}" .github/scripts/check_ci_config.py
+tanda check-unicode           "${PY}" .github/scripts/check_unicode.py
 tanda regresion-h05           "${PY}" -m pytest deploy/tests/test_h05b_endpoint_publico_despliegue.py -q -p no:cacheprovider
 
 lab_log "SERIE COMPLETA: ${FALLOS} tanda(s) fallida(s). Resumen en ${RES}"

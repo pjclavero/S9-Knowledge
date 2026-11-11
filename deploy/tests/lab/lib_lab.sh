@@ -20,14 +20,28 @@ set -Eeuo pipefail
 LAB_BASE="${S9K_LAB_BASE:-/srv/s9-test/h06h08}"
 LAB_HEAVY_LOCK="${S9K_LAB_HEAVY_LOCK:-/srv/s9-test/heavy.lock}"
 LAB_PROHIBIDOS="${S9K_LAB_PROHIBIDOS:-^(ia-server|ia02)$|prod|vm105|vm108}"
-LAB_REPO="${LAB_BASE}/repo"
+LAB_REPO="${S9K_LAB_REPO:-${LAB_BASE}/repo}"
 LAB_LOGS="${LAB_BASE}/logs"
 
 lab_log()  { printf '[lab] %s\n' "$*"; }
 lab_fail() { printf '[lab] FALLO: %s\n' "$*" >&2; exit 1; }
 lab_stop() { printf '[lab] PARADA: %s\n' "$*" >&2; exit 2; }
 
-# Comprobacion previa: PARA si no hay sudo o systemd, o si no es el laboratorio.
+# Guarda MINIMA para las tandas SIN root (preparacion, serie pesada): solo exige que
+# no sea la maquina de orquestacion/produccion y la confirmacion explicita.
+lab_guard_basico() {
+    local host
+    host="$(hostname)"
+    if printf '%s' "${host}" | grep -Eq "${LAB_PROHIBIDOS}"; then
+        lab_stop "hostname '${host}' prohibido para estos guiones (maquina de orquestacion o produccion)"
+    fi
+    [ "${S9K_LAB_CONFIRMADO:-}" = "VM112" ] \
+        || lab_stop "falta S9K_LAB_CONFIRMADO=VM112: confirme que esta maquina es el laboratorio"
+    command -v flock >/dev/null 2>&1 || lab_stop "falta flock"
+    mkdir -p "${LAB_LOGS}"
+}
+
+# Guarda COMPLETA (escenarios A/B/C, que necesitan root): PARA si no hay sudo o systemd, o si no es el laboratorio.
 lab_guard() {
     local host
     host="$(hostname)"

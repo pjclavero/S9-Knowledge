@@ -14,17 +14,18 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=deploy/tests/lab/lib_lab.sh
 source "${HERE}/lib_lab.sh"
 
-lab_guard
+lab_guard_basico
 ORIGEN="${1:?uso: $0 <url-o-ruta-del-repo>   (con S9K_LAB_SHA=<sha>)}"
 SHA="${S9K_LAB_SHA:?falta S9K_LAB_SHA: se prueba un commit concreto, no una rama}"
 case "${SHA}" in *[!0-9a-f]*) lab_stop "S9K_LAB_SHA debe ser un SHA hex" ;; esac
 
 preparar() {
-    sudo install -d -m 0755 -o "$(id -un)" -g "$(id -gn)" "${LAB_BASE}" "${LAB_LOGS}"
+    mkdir -p "${LAB_BASE}" "${LAB_LOGS}"
     if [ ! -d "${LAB_REPO}/.git" ]; then
         git clone --no-checkout "${ORIGEN}" "${LAB_REPO}"
     fi
-    git -C "${LAB_REPO}" fetch --quiet origin "${SHA}" 2>/dev/null || git -C "${LAB_REPO}" fetch --quiet origin
+    git -C "${LAB_REPO}" cat-file -e "${SHA}^{commit}" 2>/dev/null \
+        || git -C "${LAB_REPO}" fetch --quiet origin "${SHA}" 2>/dev/null || git -C "${LAB_REPO}" fetch --quiet origin
     git -C "${LAB_REPO}" cat-file -e "${SHA}^{commit}" || lab_stop "el commit ${SHA} no esta en el clon"
     git -C "${LAB_REPO}" checkout --quiet --detach "${SHA}"
     [ -z "$(git -C "${LAB_REPO}" status --porcelain --untracked-files=no)" ] \
