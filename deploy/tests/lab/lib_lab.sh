@@ -126,10 +126,30 @@ lab_modo()  { sudo stat -c '%a' "$1"; }
 lab_owner() { sudo stat -c '%U:%G' "$1"; }
 lab_sha256() { sudo sha256sum "$1" | cut -d' ' -f1; }
 
+# Si `python3 -m venv` no puede crear un venv con pip (Debian sin python3-venv/ensurepip), deploy.sh
+# (que construye un venv por release) lo haria fallar. En el LABORATORIO se antepone al PATH un
+# `python3` que atiende `-m venv X` con `--without-pip` + get-pip.py y delega todo lo demas en
+# /usr/bin/python3. No instala paquetes del sistema ni toca nada de /usr.
+lab_shim_python() {
+    local shim="${LAB_BASE}/shim"
+    mkdir -p "${shim}"
+    [ -s "${LAB_BASE}/get-pip.py" ] || curl -fsS --max-time 60 -o "${LAB_BASE}/get-pip.py" https://bootstrap.pypa.io/get-pip.py
+    cat > "${shim}/python3" <<SHIM
+#!/usr/bin/env bash
+if [ "\${1:-}" = "-m" ] && [ "\${2:-}" = "venv" ] && [ -n "\${3:-}" ] && ! /usr/bin/python3 -c 'import ensurepip' 2>/dev/null; then
+    /usr/bin/python3 -m venv --without-pip "\$3" && "\$3/bin/python" "${LAB_BASE}/get-pip.py" -q
+else
+    exec /usr/bin/python3 "\$@"
+fi
+SHIM
+    chmod 0755 "${shim}/python3"
+}
+
 # deploy.sh del laboratorio (siempre --environment lab, nunca production).
 lab_deploy() {
     local modo="$1"; shift
-    sudo env S9K_ENVIRONMENT=lab "${LAB_REPO}/deploy/scripts/deploy.sh" \
+    lab_shim_python
+    sudo env "PATH=${LAB_BASE}/shim:${PATH}" S9K_ENVIRONMENT=lab "${LAB_REPO}/deploy/scripts/deploy.sh" \
         --environment lab --release-ref "$(lab_sha)" --mode "${modo}" --confirm "$@"
 }
 

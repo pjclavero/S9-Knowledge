@@ -571,7 +571,8 @@ def test_P12_el_segundo_despliegue_es_idempotente(esc):
 
 def test_P11_un_reinicio_con_modos_degradados_se_corrige(esc):
     """P11: lo que un proceso mal configurado deja mal vuelve a 0600 en el siguiente despliegue."""
-    assert esc.aplicar().rc == 0
+    r0 = esc.aplicar()
+    assert r0.rc == 0, _causa(r0)
     (esc.state / "auth" / "auth.db-wal").chmod(0o644)
     (esc.state / "auth").chmod(0o755)
     r = esc.aplicar()
@@ -893,6 +894,39 @@ def test_el_rollback_no_restaura_una_identidad_anterior():
     cuerpo = t[i:t.index("\n}\n", i)]
     assert "_unidad_con_identidad_vigente" in cuerpo
     assert "anterior a H-06" in cuerpo
+
+
+def _revertir_con_respaldo(tmp: Path, contenido_respaldo: str):
+    """`revertir_worker` REAL (bash) con una release previa que SI puede ejecutar el worker."""
+    prev = tmp / "previa"
+    (prev / "data-engine" / ".venv" / "bin").mkdir(parents=True)
+    os.symlink(sys.executable, prev / "data-engine" / ".venv" / "bin" / "python")
+    dest = tmp / "etc" / "s9-knowledge-worker.service"
+    dest.parent.mkdir(parents=True)
+    dest.write_text("unidad nueva\n", encoding="utf-8")
+    (tmp / "etc" / "s9-knowledge-worker.service.bak-rel1").write_text(contenido_respaldo, encoding="utf-8")
+    llamadas = tmp / "systemctl.log"
+    cuerpo = 'systemctl() { echo "$*" >> %s; }\nrevertir_worker "%s" s9-knowledge-worker.service "%s" rel1\n' % (
+        llamadas, prev, dest)
+    r = subprocess.run(["bash", "-c", "set -Eeuo pipefail\nsource %s\n%s" % (LIB_SH, cuerpo)],
+                       capture_output=True, text=True)
+    return r, dest
+
+
+@pytest.mark.parametrize("anterior", ["User=www-data\nGroup=www-data\n", "[Service]\n# sin User=: root\n"],
+                         ids=["www-data", "root"])
+def test_ROLLBACK_efecto_no_restaura_una_unidad_de_identidad_anterior(tmp_path, anterior):
+    r, dest = _revertir_con_respaldo(tmp_path, anterior)
+    assert r.returncode == 0, r.stderr
+    assert dest.read_text(encoding="utf-8") != anterior, "ROLLBACK RESTAURA IDENTIDAD ANTERIOR"
+    assert "anterior a H-06" in r.stderr, r.stderr
+
+
+def test_ROLLBACK_efecto_si_restaura_una_unidad_con_la_identidad_vigente(tmp_path):
+    vigente = "User=%s\n# previa\n" % ss.SERVICE_USER
+    r, dest = _revertir_con_respaldo(tmp_path, vigente)
+    assert r.returncode == 0, r.stderr
+    assert dest.read_text(encoding="utf-8") == vigente
 
 
 def test_ROLLBACK_el_rollback_de_release_exige_una_release_que_entienda_la_identidad():
