@@ -26,13 +26,13 @@ usuarios/permisos → material → ingestión → progreso → revisión → apr
 
 | Campo | Valor |
 |---|---|
-| CURRENT_MAIN | `2cf2361` (squash de #279 C1; #274 = `a401e45`, #277 = `d35f863` MAIN_CI_MIGRATED_SHA, #278 = `b137aa9`, #276 = `4eb442a`, #275 = `284758c`, #273 = `70b823a`; #272 = `7841f85`, #271 = `751995c`, #270 = `8d29a00`, #269 = `2dd6d47`, #268 = `8964c36`) |
+| CURRENT_MAIN | `4f186fd` (squash de #283 H-05 corte B; #281 = `11b67d1` H-05 corte A, #282 = `f06431d`, #279 = `2cf2361` C1; #274 = `a401e45`, #277 = `d35f863` MAIN_CI_MIGRATED_SHA, #278 = `b137aa9`, #276 = `4eb442a`, #275 = `284758c`, #273 = `70b823a`; #272 = `7841f85`, #271 = `751995c`, #270 = `8d29a00`, #269 = `2dd6d47`, #268 = `8964c36`) |
 | CURRENT_PHASE | **C** (integridad y seguridad rango 2); Fase B cerrada con #273 (R1 abiertos = 0 en el alcance demostrado; RC-E2E PENDING como techo independiente de B2/B3) |
-| CURRENT_HIT | **PRE-H05** (análisis read-only de H-05 · Host/Location antes de cualquier implementación) · C1 **CERRADO** (#279 → `2cf2361`): H-04/H-18 **VERIFIED (arnés local), RC-E2E PENDING** |
+| CURRENT_HIT | **PRE-H06/H08** (análisis read-only de H-06 + H-08 antes de cualquier implementación) · **H-05 CERRADO**: corte A (#281 → `11b67d1`) y corte B (#283 → `4f186fd`) **VERIFIED (arnés local), RC-E2E PENDING** · C1 CERRADO (#279) |
 | OPEN_R1 | **ninguno** · H-02 **VERIFIED (arnés local), RC-E2E PENDING** (#273 → `70b823a`) · H-01 (+H-43) **VERIFIED (arnés local), RC-E2E PENDING** (#271) · H-03 **VERIFIED** (#269) |
-| OPEN_R2_BLOQUEANTES | H-05, H-06, H-07, H-09, H-11/H-48, H-14, H-19, H-44 (código y arnés local en #271; RC-E2E PENDING), H-50 |
+| OPEN_R2_BLOQUEANTES | H-06, H-07, H-09, H-11/H-48, H-14, H-19, H-44 (código y arnés local en #271; RC-E2E PENDING), H-50 |
 | CURRENT_PR | ninguno de código (plan: este PR) |
-| NEXT_TASK | H-05 corte B (autoridad única de host público + TrustedHost 400, PR draft `feat/h05b-trusted-host`); después H-06+H-08 juntos |
+| NEXT_TASK | PRE-H06/H08 read-only (reconstruir H-06 `auth.db` 0644 / UMask y H-08 visor como root desde plan, auditoría, código, tests y calibradores); lanzar el carril solo con corte inequívoco |
 | BLOCKERS | ninguno técnico; ensayo RC exige autorización del operador para VM110/VM111 |
 | DEBT_PARKED | WORKTREE-HYGIENE (147 worktrees, 435 ramas, 3 stashes), DEPENDENCY-MAINTENANCE (7 Dependabot, #209 major), CI-CALIBRATION-PERFORMANCE (job de 77 min serial) |
 | E2E_PENDING | P4, P5, B2 completo (RC-E2E PENDING en #266/#267/#271), P15 |
@@ -258,8 +258,8 @@ cuando el criterio lo nombra.
   `chassis_operations.py`) + B (`TrustedHostMiddleware` derivado de `S9K_PUBLIC_BASE_URL` por la
   autoridad efectiva, sin variable nueva). Calibradores afectados: `calibrar_panel_operations` (B15),
   `f2_autoridad_workspace` (firma de `_fallo`). Carril propio.
-  **Corte A (Location relativo): IMPLEMENTED + TESTED + CI_GATED** (PR draft, rama
-  `feat/h05a-location-relativo`; `VERIFIED (arnés local)` solo al mergear). Los 3 `url_for` de
+  **Corte A (Location relativo): MERGED** (#281 → `11b67d1`) · **VERIFIED (arnés local), RC-E2E
+  PENDING**. Los 3 `url_for` de
   `chassis_operations.py` pasan a `request.app.url_path_for` (path + query); tests
   `test_h05a_location_relativo.py` (4 rutas × fallo/éxito × Host hostil con y sin puerto,
   seguimiento de la redirección, control positivo, censo AST); calibrador
@@ -273,9 +273,8 @@ cuando el criterio lo nombra.
   monta bajo prefijo). O3: query sin urlencode en `trabajo`/`job_id`/`codigo` (preexistente,
   rango 3). O4: el chequeo «MENSAJE contiene evil.example» del calibrador es poco discriminante y
   el censo AST no ve alias (deuda).
-  **Corte B (autoridad única de host público + frontera de host 400): IMPLEMENTED + TESTED +
-  CI_GATED** (local, sin publicar; rama `feat/h05b-trusted-host` sobre A; `VERIFIED (arnés local)`
-  solo al mergear). Cadena única `S9K_PUBLIC_BASE_URL` (leída por `effective_env_value`, **sin variable
+  **Corte B (autoridad única de host público + frontera de host 400): MERGED** (#283 →
+  `4f186fd`) · **VERIFIED (arnés local), RC-E2E PENDING**. Cadena única `S9K_PUBLIC_BASE_URL` (leída por `effective_env_value`, **sin variable
   nueva**) → hostname canónico → hosts de confianza, en `viewer/app/public_endpoint.py`
   (`interpretar_url_publica`, `resolve_public_endpoint`, `resolve_trusted_hosts`; sólo stdlib). El visor
   registra `PublicHostMiddleware` el último (= más externo, antes de Auth, rutas, almacenes y
@@ -324,6 +323,7 @@ cuando el criterio lo nombra.
 | 2026-10-27 | C1 abierto (draft): H-04 + H-18 como unidad; `review.sqlite3` lo crea el despliegue y el runtime lo consume y verifica; resolución única en `review_paths`; calibrador 18/18; RC-E2E PENDING | PR C1 (draft, rama `feat/c1-persistencia-decisiones-revision`) |
 | 2026-10-29 | C1 · cierre del P1-2 (URI sin escapar → el runtime creaba otro fichero): `sqlite_uri` única + N19 en despliegue y runtime; D9 cerrado (N3 estructural, 14 rutas, POST con CSRF válido; Apply nombra el almacén); README con la receta de inspección/propietario/modo del primer upgrade; calibrador 23/23; sigue draft, RC-E2E PENDING | PR #279 (draft) |
 | 2026-11-01 | **C1 CERRADO** (#279 → `2cf2361`): H-04/H-18 → VERIFIED (arnés local), RC-E2E PENDING; deploy única autoridad de creación (fresh crea y verifica; upgrade preserva; autorización explícita no sobrescribe), runtime nunca crea y falla cerrado con causa, `review_paths` + `sqlite_uri` únicas, N1–N19, calibrador 23/23, N3 estructural 14 rutas; revisión independiente: NO APTO (P1-1) → NO APTO (P1-2) → APTO CON OBSERVACIONES; deuda D1–D4, D6–D8, D10–D11; CURRENT_HIT → PRE-H05 | PR #279 (34/34, 17/17 required), `docs/PLAN_USABLE_V1.md` §5 C1 |
+| 2026-11-11 | **H-05 CERRADO**: corte A (#281 → `11b67d1`, `Location` relativo en `/panel/operations`) y corte B (#283 → `4f186fd`, autoridad única `S9K_PUBLIC_BASE_URL` → `PublicHostMiddleware` 400, arranque fail-closed, sin comodín ni autodetección, `testserver` solo en tests, N1–N19, calibrador 9/9); revisión independiente de B: NO APTO (H1: `casefold` plegaba `ß`→`ss`) → corregido → APTO CON OBSERVACIONES; VERIFIED (arnés local), RC-E2E PENDING. **Aviso de despliegue:** con B el visor no arranca sin `S9K_PUBLIC_BASE_URL` válida (tampoco en lab ni con el placeholder); receta en `deploy/README.md`. Infraestructura: el runner de COMMONS-CI se autoactualizó (2.338.0 → 2.338.2) y el hook lo trató como residuo; corregido fuera del repo. Flakies conocidos relanzados por firma: Authz id físico, Viewer «portal is not running», B3 MF por tiempos, `test_caso_de_fabrica_248…` (uvicorn). CURRENT_HIT → PRE-H06/H08 | PR #281, PR #283 (34/34, 17/17 required en el SHA final), PR #282 |
 | 2026-10-12 | B3 abierto (#273): H-02 VERIFIED (arnés local), H-37 VERIFIED (arnés local); unidad canónica del worker instalada por `deploy.sh`; calibrador 25/25 tras dos rondas de corrección (NO APTO → F1–F9; APTO CON OBSERVACIONES → ronda final); RC-E2E PENDING | PR #273 |
 | 2026-11-01 | H-05 corte A abierto (draft): `Location` relativo en las redirecciones de `/panel/operations` (3 sitios de `chassis_operations.py`); tests + calibrador 5/5; techo: 35 URLs absolutas de plantillas y TrustedHost (corte B) abiertos | PR draft `feat/h05a-location-relativo`; informe PRE-H05 |
 | 2026-11-01 | H-05 corte B implementado en local (sin publicar): autoridad única `S9K_PUBLIC_BASE_URL` → hostname → hosts de confianza, `PublicHostMiddleware` (400) más externo, arranque fail-closed, preflight/deploy con la misma interpretación; tests 190+19, calibrador 9/9, gate AST de unicidad; techo: aliasing dinámico, proxy que reescribe Host, `root_path`, 35 URLs de plantillas | rama `feat/h05b-trusted-host` (sobre `feat/h05a-location-relativo`) |
