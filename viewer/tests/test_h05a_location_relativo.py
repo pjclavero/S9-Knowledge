@@ -56,6 +56,17 @@ def _entorno_limpio(tmp_path, monkeypatch):
     from app.config import get_settings
 
     monkeypatch.setenv("S9K_HEALTH_REPORT_PATH", str(tmp_path / "health" / "last.json"))
+    # H-05 corte B: la frontera de host rechazaría estos Host hostiles con 400
+    # antes de llegar a la ruta (eso lo mide `test_h05b_trusted_host.py`). El
+    # corte A mide OTRA garantía —el Location sale relativo aunque el Host
+    # sea hostil—, así que aquí se DECLARAN esos hosts como permitidos, de
+    # forma explícita y sólo en este módulo: defensa en profundidad, A no
+    # depende de que B esté.
+    from app import public_host_middleware
+
+    monkeypatch.setattr(
+        public_host_middleware, "HOSTS_EXTRA_DE_PRUEBAS",
+        ("testserver",) + tuple(h.split(":")[0] for h in HOSTS_HOSTILES))
     get_auth_settings.cache_clear()
     get_settings.cache_clear()
     yield

@@ -1177,6 +1177,19 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/mutaciones_h05a_location.py
 
+      # H-05 corte B: el visor sólo atiende los `Host` declarados (hostname de
+      # `S9K_PUBLIC_BASE_URL` + loopback; `testserver` sólo en tests) y no
+      # arranca sin URL pública válida. Ocho mutaciones por AST: sin frontera,
+      # comodín, `testserver` en producción, placeholder aceptado, fallback
+      # «sin config, permitir todo», autodetección de IP local, segunda
+      # autoridad (la caza el gate de unicidad) y Host malo que llega al
+      # endpoint. Techo: aliasing dinámico y proxies que reescriben el Host.
+      - name: "El visor rechaza los Host no declarados: se pone ROJO ante cada defecto (H-05 corte B)"
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/calibracion/mutaciones_h05b_trusted_host.py
+
       # Y la calibracion del corte S-1 «el selector no ofrece lo que el
       # producto rechaza» (multipartida). Cubre cuatro formas de romper la
       # propiedad: el defecto original (el middleware vuelve a pintar el

@@ -277,7 +277,7 @@ validate_worker_env() {
 #   justo lo que el operador necesita leer para entender el bloqueo.
 # ---------------------------------------------------------------------------
 validate_https_contract() {
-    local env_file="${1}" ambiente="${2:-production}" url esquema secure rc=0
+    local env_file="${1}" ambiente="${2:-production}" url esquema secure rc=0 _h05b_out
     if [ ! -f "${env_file}" ]; then
         printf 'BLOCK(https): viewer.env no existe: %s\n' "${env_file}" >&2
         return 1
@@ -305,6 +305,19 @@ validate_https_contract() {
             printf '  produccion (ese opt-out es solo de laboratorio).\n' >&2
             ;;
         esac
+    fi
+
+    # H-05 corte B: la URL tiene que ser UTILIZABLE por el visor (placeholder
+    # de la plantilla, comodin, sin hostname, malformada). La interpretacion NO
+    # se reimplementa aqui: es la de `viewer/app/public_endpoint.py`, la misma
+    # que hace abortar el arranque del visor.
+    if [ -n "${url}" ]; then
+        if ! _h05b_out="$(python3 "$(dirname "${BASH_SOURCE[0]}")/preflight_https.py" \
+                --solo-endpoint-publico --url "${url}" 2>&1)"; then
+            printf '%s\n' "${_h05b_out}" >&2
+            printf 'HTTPS(URL_PUBLICA_NO_UTILIZABLE): el visor se negaria a arrancar con ella.\n' >&2
+            rc=1
+        fi
     fi
 
     if [ "${rc}" -ne 0 ] && [ "${ambiente}" = "lab" ]; then

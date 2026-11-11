@@ -288,11 +288,43 @@ evitarlo.
 
 | Mitad | Autoridad | Qué hace |
 |---|---|---|
-| Estática | `deploy/scripts/validate_deploy.sh::validate_https_contract` | presencia de `S9K_PUBLIC_BASE_URL`, esquema, y la **coherencia** con `S9K_SESSION_SECURE`. Bloquea en `production`, avisa en `lab`. |
+| Estática | `deploy/scripts/validate_deploy.sh::validate_https_contract` | presencia de `S9K_PUBLIC_BASE_URL`, esquema, y la **coherencia** con `S9K_SESSION_SECURE`. Bloquea en `production`, avisa en `lab` (ver «H-05 corte B» abajo: el visor, en cambio, NO arranca sin URL válida en ningún ambiente). |
 | **Por efecto** | `deploy/scripts/preflight_https.py` | abre el socket TLS, verifica **cadena**, verifica **nombre**, y exige que el endpoint **conteste**. |
 
 Las dos se invocan desde `deploy.sh` (pasos 6 y **16b**) y la segunda también
 desde el rol `tls`. Una sola implementación por mitad, dos invocantes.
+
+### H-05 corte B: URL pública obligatoria y Host aceptados
+
+`S9K_PUBLIC_BASE_URL` es la ÚNICA autoridad del host público. El visor acepta
+sólo `Host` = su hostname + `localhost`, `127.0.0.1`, `::1` (cualquier puerto);
+el resto recibe **400** antes de la sesión o de cualquier ruta. **El visor no
+arranca** sin URL válida —ausente, placeholder `cambiar.por.el.nombre.real`
+(también como subdominio), comodín, sin hostname, malformada, `0.0.0.0` o con
+caracteres no ASCII (IDN en punycode)— **ni siquiera en `lab`**.
+
+Receta del operador (instalación existente o upgrade), ANTES de desplegar:
+
+1. Inspecciona el `viewer.env` real (`/etc/s9-knowledge/viewer.env`): ¿tiene
+   `S9K_PUBLIC_BASE_URL=` con el nombre real? Una plantilla copiada sin editar
+   conserva el placeholder; instalaciones anteriores al PR-3 pueden no tenerla.
+2. Decláralo con el hostname por el que se llega desde fuera, p. ej.
+   `S9K_PUBLIC_BASE_URL=https://knowledge.seccionnueve.duckdns.org`.
+3. El proxy (VM104) debe reenviar `Host` = ese nombre (el vhost de este repo
+   usa `proxy_set_header Host $host`). Si reenvía otro nombre (IP interna, otro
+   alias), esas peticiones reciben 400: no se añade el nombre a la lista, se
+   corrige el proxy.
+4. Si falla: el servicio muere en el arranque y `journalctl -u
+   s9-knowledge-viewer` muestra `PublicEndpointError: PUBLIC_URL_...` con el
+   código (`MISSING`, `PLACEHOLDER`, `WILDCARD`, `NO_HOSTNAME`, `MALFORMED`,
+   `SCHEME`, `INVALID_HOSTNAME`). Un 400 `Invalid host header` en uso normal
+   indica un `Host` no declarado; un 503 `Public endpoint misconfigured`, una
+   configuración que dejó de ser válida con el proceso vivo.
+
+Deuda declarada: en `lab`, `validate_https_contract` solo AVISA mientras el
+visor luego se niega a arrancar (incoherencia consciente; endurecerla excede
+este corte). `verify-deployment.sh` clasifica el 400 de la frontera como
+«degraded» sin nombrar el `Host` (observación O5).
 
 Las causas que nombra el preflight son discriminantes, no un error genérico:
 `URL_PUBLICA_NO_DECLARADA`, `ESQUEMA_NO_HTTPS`, `COOKIE_SECURE_SOBRE_HTTP`,

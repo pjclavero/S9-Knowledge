@@ -32,7 +32,7 @@ usuarios/permisos → material → ingestión → progreso → revisión → apr
 | OPEN_R1 | **ninguno** · H-02 **VERIFIED (arnés local), RC-E2E PENDING** (#273 → `70b823a`) · H-01 (+H-43) **VERIFIED (arnés local), RC-E2E PENDING** (#271) · H-03 **VERIFIED** (#269) |
 | OPEN_R2_BLOQUEANTES | H-05, H-06, H-07, H-09, H-11/H-48, H-14, H-19, H-44 (código y arnés local en #271; RC-E2E PENDING), H-50 |
 | CURRENT_PR | ninguno de código (plan: este PR) |
-| NEXT_TASK | PRE-H05 read-only (reconstruir H-05 desde plan, auditoría, código, tests, calibradores y PRs); lanzar H-05 solo con corte inequívoco; después H-06+H-08 juntos |
+| NEXT_TASK | H-05 corte B (autoridad única de host público + TrustedHost 400, PR draft `feat/h05b-trusted-host`); después H-06+H-08 juntos |
 | BLOCKERS | ninguno técnico; ensayo RC exige autorización del operador para VM110/VM111 |
 | DEBT_PARKED | WORKTREE-HYGIENE (147 worktrees, 435 ramas, 3 stashes), DEPENDENCY-MAINTENANCE (7 Dependabot, #209 major), CI-CALIBRATION-PERFORMANCE (job de 77 min serial) |
 | E2E_PENDING | P4, P5, B2 completo (RC-E2E PENDING en #266/#267/#271), P15 |
@@ -273,6 +273,39 @@ cuando el criterio lo nombra.
   monta bajo prefijo). O3: query sin urlencode en `trabajo`/`job_id`/`codigo` (preexistente,
   rango 3). O4: el chequeo «MENSAJE contiene evil.example» del calibrador es poco discriminante y
   el censo AST no ve alias (deuda).
+  **Corte B (autoridad única de host público + frontera de host 400): IMPLEMENTED + TESTED +
+  CI_GATED** (local, sin publicar; rama `feat/h05b-trusted-host` sobre A; `VERIFIED (arnés local)`
+  solo al mergear). Cadena única `S9K_PUBLIC_BASE_URL` (leída por `effective_env_value`, **sin variable
+  nueva**) → hostname canónico → hosts de confianza, en `viewer/app/public_endpoint.py`
+  (`interpretar_url_publica`, `resolve_public_endpoint`, `resolve_trusted_hosts`; sólo stdlib). El visor
+  registra `PublicHostMiddleware` el último (= más externo, antes de Auth, rutas, almacenes y
+  `redirect_slashes`): Host no declarado → **400**; sin URL válida → el arranque aborta (y cada petición
+  da 503, nunca «permitir todo»). Lista = hostname público + `localhost` + `127.0.0.1` + `::1`; sin
+  comodín, sin autodetección; placeholder `cambiar.por.el.nombre.real` rechazado aunque sea URL válida.
+  `testserver` sólo por la costura de tests `HOSTS_EXTRA_DE_PRUEBAS` (vacía en producción). **No se usa
+  `TrustedHostMiddleware` de Starlette** (medido en 1.3.1 y 1.10.0: `[::1]:8088` → host `[` y punto final
+  rechazado; en 1.3.1 además distingue casing; `*` por defecto). Despliegue: `preflight_https`, `preflight_setup_admin` y
+  `validate_deploy.sh::validate_https_contract` cargan la MISMA interpretación (por ruta) y bloquean
+  antes de declarar la instalación completa. Cierra **O1** de la revisión de A (307 de `redirect_slashes`
+  con Host del cliente: ahora 400). Tests `test_h05b_trusted_host.py` (190) +
+  `deploy/tests/test_h05b_endpoint_publico_despliegue.py` (19); calibrador
+  `mutaciones_h05b_trusted_host.py` 9/9 (M9 = guarda ASCII, `ß`→`ss`) en «Calibracion de gates»; gate AST de unicidad.
+  **Techo B:** gate AST sólo sobre `viewer/app` (ciego a `Settings` pydantic paralelas con otro nombre
+  de campo, `URL(...).hostname` de Starlette, `split` manual, nombres concatenados,
+  `socket.gethostname()` e IP LAN hardcodeada, aliasing dinámico; `deploy/` y `scripts/` no
+  vigilados; lo cubren el comportamiento y el calibrador M1–M9); frontera sobre la cabecera `Host` (detrás de un proxy que la reescriba manda el valor
+  reescrito); `root_path` y las 35 URLs absolutas de plantillas siguen abiertos (con Host validado ya no
+  los gobierna el cliente); O3 (query sin urlencode) y O4 (precisión del calibrador A) = deuda.
+  **Deuda de despliegue:** una instalación existente sin `S9K_PUBLIC_BASE_URL` declarada (o con el
+  placeholder) deja de arrancar: declararla ANTES de desplegar B. Hosts adicionales = corte futuro.
+  Inventario de ejemplos de URL pública (clasificados): `deploy/config/viewer.env.example:109`
+  placeholder (rechazado) · `.env.example:15` vacío = ausente (rechazado, comentario añadido) ·
+  `viewer.env.example:117` y `lib.sh`/`runner.py` `http://127.0.0.1:8088` = loopback (permitido, otro
+  concepto) · Ansible `s9k_public_host` (`inventory.example`, `roles/tls`) = origen de
+  `s9k_public_base_url` (misma cadena, no segunda autoridad) · `deploy/README.md:309`
+  `knowledge.example.net` = ejemplo válido · `README.md:235` `knowledge.seccionnueve.duckdns.org` =
+  documentación del despliegue real (no tocada) · `.env.example:14` `S9K_LOCAL_BASE_URL` = obsoleta
+  (H-42, 0 usos) · tests: `public.example`, `knowledge.tests.example`, `perf-lab.example` = fixtures.
 - **H-06 (auth.db 0644):** reproducido (auth.db, lock, bak, `jobs.db*`, `review.sqlite3` en 0644;
   solo `.csrf_secret` 0600). Autoridad única: `UMask=0077` en las dos unidades del visor (como el
   healthcheck y el worker de B3) + `chmod` puntual en Ansible; `chmod` en código no cubre WAL/SHM.
@@ -293,3 +326,4 @@ cuando el criterio lo nombra.
 | 2026-11-01 | **C1 CERRADO** (#279 → `2cf2361`): H-04/H-18 → VERIFIED (arnés local), RC-E2E PENDING; deploy única autoridad de creación (fresh crea y verifica; upgrade preserva; autorización explícita no sobrescribe), runtime nunca crea y falla cerrado con causa, `review_paths` + `sqlite_uri` únicas, N1–N19, calibrador 23/23, N3 estructural 14 rutas; revisión independiente: NO APTO (P1-1) → NO APTO (P1-2) → APTO CON OBSERVACIONES; deuda D1–D4, D6–D8, D10–D11; CURRENT_HIT → PRE-H05 | PR #279 (34/34, 17/17 required), `docs/PLAN_USABLE_V1.md` §5 C1 |
 | 2026-10-12 | B3 abierto (#273): H-02 VERIFIED (arnés local), H-37 VERIFIED (arnés local); unidad canónica del worker instalada por `deploy.sh`; calibrador 25/25 tras dos rondas de corrección (NO APTO → F1–F9; APTO CON OBSERVACIONES → ronda final); RC-E2E PENDING | PR #273 |
 | 2026-11-01 | H-05 corte A abierto (draft): `Location` relativo en las redirecciones de `/panel/operations` (3 sitios de `chassis_operations.py`); tests + calibrador 5/5; techo: 35 URLs absolutas de plantillas y TrustedHost (corte B) abiertos | PR draft `feat/h05a-location-relativo`; informe PRE-H05 |
+| 2026-11-01 | H-05 corte B implementado en local (sin publicar): autoridad única `S9K_PUBLIC_BASE_URL` → hostname → hosts de confianza, `PublicHostMiddleware` (400) más externo, arranque fail-closed, preflight/deploy con la misma interpretación; tests 190+19, calibrador 9/9, gate AST de unicidad; techo: aliasing dinámico, proxy que reescribe Host, `root_path`, 35 URLs de plantillas | rama `feat/h05b-trusted-host` (sobre `feat/h05a-location-relativo`) |

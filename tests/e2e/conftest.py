@@ -151,10 +151,19 @@ def e2e(tmp_path) -> Iterator[E2EHarness]:
         # así que la enciende explícitamente -- igual que el resto de este
         # entorno enciende lo que necesita para ejercer rutas reales.
         "S9K_REVIEW_CONSOLE_ENABLED": "true",
+        # H-05 corte B: URL pública DECLARADA del entorno de laboratorio. La
+        # frontera de host del visor es fail-closed y exige una válida.
+        "S9K_PUBLIC_BASE_URL": "https://knowledge.tests.example",
     }
     previous = {k: os.environ.get(k) for k in env}
     os.environ.update(env)
     _clear_caches()
+
+    # ... y `testserver` (Host del TestClient) declarado como host EXTRA de
+    # tests por la costura explícita; producción no lo incluye.
+    from app import public_host_middleware
+    host_extra_previo = public_host_middleware.HOSTS_EXTRA_DE_PRUEBAS
+    public_host_middleware.HOSTS_EXTRA_DE_PRUEBAS = ("testserver",)
 
     from app.auth import db as auth_db_mod
     auth_db_mod.ensure_migrated(db_path)
@@ -172,6 +181,7 @@ def e2e(tmp_path) -> Iterator[E2EHarness]:
         yield harness
     finally:
         app.dependency_overrides.pop(get_provider, None)
+        public_host_middleware.HOSTS_EXTRA_DE_PRUEBAS = host_extra_previo
         for k, old in previous.items():
             if old is None:
                 os.environ.pop(k, None)

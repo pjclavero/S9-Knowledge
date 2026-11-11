@@ -97,6 +97,9 @@ def preparar(tmp: Path, sin_autoridad: bool) -> Path:
         f"S9K_AUTH_DB_PATH={tmp / 'auth.db'}",
         f"S9K_SAMPLE_GRAPH_PATH={grafo}",
         "S9K_SESSION_SECURE=false",
+        # H-05 corte B: la instalacion declara su URL publica (el visor es
+        # fail-closed sin ella); la plantilla la deja vacia.
+        "S9K_PUBLIC_BASE_URL=http://127.0.0.1",
     ]
     if sin_autoridad:
         # La forma DECLARADA de que el entorno deje de declarar workspace

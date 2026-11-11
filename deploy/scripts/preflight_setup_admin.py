@@ -127,6 +127,7 @@ if str(_AQUI) not in sys.path:
 from preflight_https import (  # noqa: E402
     Hallazgo,
     comprobar_cookie_secure_coherente,
+    comprobar_endpoint_publico,
     comprobar_esquema_https,
     comprobar_url_declarada,
     es_verdadero,
@@ -897,6 +898,7 @@ def _puerta_estatica(entrada: Entrada) -> list:
     url = (entrada.url or "").strip()
     hallazgos = [
         h for h in (
+            comprobar_endpoint_publico(url),
             comprobar_esquema_https(url),
             comprobar_cookie_secure_coherente(url, entrada.session_secure),
         ) if h is not None
