@@ -22,9 +22,9 @@ s9k_log_root=/var/log/s9-knowledge
 s9k_repo=https://github.com/pjclavero/S9-Knowledge.git
 s9k_branch=main
 
-# Usuario y grupo del servicio
-s9k_service_user=www-data
-s9k_service_group=www-data
+# Usuario y grupo del servicio: NO se declaran aqui (H-06 + H-08). Un valor de
+# inventario pisa group_vars/all.yml y reabriria dos identidades distintas.
+# La unica definicion esta en group_vars/all.yml (s9knowledge).
 
 # Auth (habilitar si el visor usa autenticacion)
 s9k_auth_enabled=false
