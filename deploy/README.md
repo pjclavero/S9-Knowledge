@@ -76,10 +76,9 @@ deploy/scripts/deploy.sh --environment production --release-ref <tag|sha> \
   la auth DB (#248) y `validate_deploy.sh` lo acepta si `S9K_AUTH_DB_PATH` es
   absoluta, está **bajo el state root** (ruta normalizada: un `..` no cuela)
   y su directorio se puede crear y escribir (comprobado por efecto). Un valor
-  explícito débil sigue bloqueando. **Límite:** esa escritura se comprueba
-  como el usuario que ejecuta `deploy.sh` (root), no como el usuario del
-  servicio; hoy coinciden porque la unidad del repositorio no lleva `User=`
-  (H-08), y dejarán de coincidir cuando H-08 se cierre.
+  explícito débil sigue bloqueando. Desde H-06/H-08 el paso 5b deja el state
+  root a nombre de `s9knowledge` y verifica POR EFECTO, con `runuser`, que ese
+  usuario escribe allí (ver «Usuario de servicio dedicado y estado privado»).
 - **Proveedor de fábrica `not_configured`** (#264): vacío honesto, nunca `mock`.
 - **Estado de revisión fuera de la release**: `S9K_V3_REVIEW_DATABASE_PATH` y
   `S9K_V3_REVIEW_PROPOSALS_DIR` son críticas y el paso 6 ejecuta
@@ -87,12 +86,12 @@ deploy/scripts/deploy.sh --environment production --release-ref <tag|sha> \
   state root, escribibles y resueltas igual por visor y motor).
 - **En `fresh` la unidad se habilita** (`systemctl enable`) además de
   arrancarse.
-- **El visor queda corriendo como `root`** en este camino: la unidad que
-  instala `deploy.sh` es la del repositorio (`viewer/systemd/…`, **sin
-  `User=`**), y ahora además queda habilitada. Es **H-08**, abierto: no se
-  corrige en B2.
-- **`auth.db` se crea con permisos `0644`** (umask del proceso): es **H-06**,
-  abierto. El secreto CSRF autogenerado sí queda `0600`.
+- **El visor y el worker corren como `s9knowledge`** (H-08 cerrado): la unidad
+  que instala `deploy.sh` y la que copia Ansible son el MISMO fichero
+  (`viewer/systemd/…`, `User=s9knowledge`). El usuario de sistema lo crea el
+  paso 3b (y el rol `common`).
+- **`auth.db` y todo su entorno nacen `0600`** en un state root `0700` (H-06
+  cerrado en código; fresh/upgrade reales en laboratorio: VM112 PENDING).
 
 ### Quién decide si se puede seguir: `decision`, y por estado del producto
 
@@ -214,10 +213,213 @@ estado.
 No medido: clon de la release y su venv (red/pip), pasos 7–13 (systemd),
 nginx, CA real, navegador, VM limpia, reinicio de **máquina**. El venv del
 **motor** lo crea `deploy.sh` desde B3 (paso 2), junto a la unidad del worker
-(ver «Worker de jobs como servicio»). **H-08**
-sigue abierto: `deploy.sh` instala la unidad del repositorio
-(`viewer/systemd/…`, sin `User=`) y el rol `systemd` la suya (`www-data`);
-no re-ejecutar el rol `systemd` tras la primera release hasta cerrarlo.
+(ver «Worker de jobs como servicio»). **H-08** se cerró en H-06/H-08: ya no hay
+dos unidades del visor (el rol `systemd` copia la de la release, como el
+worker) y las dos declaran `User=s9knowledge`.
+
+## Usuario de servicio dedicado y estado privado (H-06 + H-08 · USABLE-V1 · Fase C)
+
+### ESTADO DE ESTA SECCIÓN (leer antes de seguir)
+
+```
+CODE         PASS      autoridad service_state.py, unidades, Ansible, migrar_estado.py, arranque fail-closed (arnés local)
+CALIBRATION  PASS      scripts/calibracion/mutaciones_h06_h08_servicio_y_estado.py (M1–M12)
+LAB (VM112)  PENDING   fresh y upgrade reales con root, useradd, systemd y OTRO usuario local: deploy/tests/lab/
+RC-E2E       PENDING   no se ha tocado ninguna máquina de producción
+```
+
+**Contrato (una frase por línea).** Root instala y actualiza. nginx hace de
+proxy con su propio usuario. **`s9knowledge` es el visor, el worker, el
+healthcheck y el dueño exclusivo del estado privado.** La release es código.
+El state root es `0700`; los ficheros privados, `0600`. Un usuario local ajeno
+no lee `auth.db` ni `review.sqlite3`; ningún proceso normal necesita root; un
+upgrade migra de forma segura **o PARA**.
+
+### UNA autoridad (§22)
+
+`data-engine/app/knowledge_v3/service_state.py` fija, y **solo ella**, las
+cuatro cifras: usuario/grupo (`s9knowledge`), state root
+(`/var/lib/s9-knowledge`, la que ya existía), modo de fichero (`0600`) y modo
+de directorio (`0700`). De ahí beben por CLI (`service_state.py get …`) o por
+import: `deploy.sh`, `lib.sh`, `validate_deploy.sh`, `review_store.py`,
+`migrar_estado.py`, el arranque del visor y del worker. Las unidades systemd y
+`group_vars/all.yml` son ficheros estáticos (no pueden importarla): un test
+estructural los compara con ella (gate **M12**, `test_h06_h08_servicio_y_estado.py`).
+La identidad **ya no se escribe** en los guiones de despliegue (otro test lo
+exige) y desaparecieron las cuatro copias de `s9k_service_user` de Ansible
+(defaults de `common`, `systemd`, `viewer` e `inventory.example`): queda UNA, en
+`group_vars/all.yml`.
+
+### Unidades (§11): una sola política
+
+| Unidad | `User=` | `UMask=` | Notas |
+|---|---|---|---|
+| `viewer/systemd/s9-knowledge-viewer.service` | `s9knowledge` | `0077` | **única** unidad del visor: Ansible la **copia** de la release (se eliminó la plantilla Jinja que decía `www-data` mientras `deploy.sh` instalaba otra sin `User=`, es decir root: H-08) |
+| `data-engine/systemd/s9-knowledge-worker.service` | `s9knowledge` | `0077` | antes `www-data` |
+| `viewer/systemd/s9-knowledge-healthcheck.service` | `s9knowledge` | `0077` | antes root; `CapabilityBoundingSet=` vacío, `NoNewPrivileges=true`; HTTP local + bases `mode=ro` + `systemctl is-active` (consulta, sin privilegios); no se elevó ningún permiso |
+| `s9-knowledge-neo4j-restore-test.service.j2` | `root` | — | operación de Neo4j (restore de prueba); **no toca el state root**; un test lo vigila |
+
+Las unidades de servicio llevan `Environment=S9K_STATE_ENFORCE=1` (enciende el
+arranque fail-closed) y copian su secreto de Neo4j (root `0700` en `/etc`) a su
+`RuntimeDirectory` con `ExecStartPre=+-`. Para el visor y el healthcheck el
+origen es `/etc/s9-knowledge/secrets/neo4j_password`, y **es el que debe
+declarar `S9K_NEO4J_PASSWORD_FILE` en `viewer.env`** (lo comprueba
+`validate_viewer_unit`).
+
+El usuario se crea **idempotente** en `deploy.sh` (paso 3b,
+`lib.sh::asegurar_identidad_de_servicio`) y en el rol `common` de Ansible:
+usuario y grupo **de sistema**, shell `nologin`, sin home de login, sin
+pertenencia a `sudo`/`wheel`/`adm`/`docker`; se **comprueba el resultado**, no
+que `useradd` “dijera sí”.
+
+### Estado privado (§3–§5)
+
+Todo el estado mutable vive bajo el state root; `<state>` es `0700`,
+`s9knowledge:s9knowledge`; todo fichero, `0600`, **con independencia de la
+umask del proceso** (el código crea con `os.open(…, 0o600)` vía la autoridad:
+`auth.db`, su `.lock`, las copias `.bak.vN`, `jobs.db`, `decisions.jsonl`,
+`audit.jsonl`, candidatos de glosario, `health.json`; `review.sqlite3` pasa de
+`0660` a `0600`). Los `-wal`/`-shm` heredan el modo de su base. Excepción
+declarada: `<state>/deploy/` (registros del instalador) es de `root` y el
+servicio no lo lee.
+
+`decisions.jsonl`, `audit.jsonl` y `glossary-candidates/` **ya no caen por
+defecto en la release**: `viewer.env.example` los declara y, si faltan, el visor
+los deriva junto a `review.sqlite3` (misma función que usa el despliegue).
+
+### Arranque fail-closed (§13) y qué NO afirma (§14)
+
+Antes de abrir una sola base, visor (`main.py::_startup_auth`) y worker
+(`worker.py::main`) llaman a **la misma** `service_state.enforce`: el proceso
+corre como `s9knowledge` (root → se niega, “viewer root por ruta alternativa”),
+`S9K_STATE_ROOT` está declarada, toda ruta de estado está declarada y cuelga del
+state root (no de la release, sin symlinks), y todo el árbol cumple propietario,
+modo, tipo y acceso efectivo. Ejemplo de diagnóstico, no un “Permission denied”:
+
+```
+STATE_CONTRACT_VIOLATION (estado/identidad del servicio, H-06/H-08):
+  - /var/lib/s9-knowledge/auth/auth.db [OWNER]: tiene owner root:root; esperado s9knowledge:s9knowledge
+  - /var/lib/s9-knowledge/auth/auth.db [MODE]: tiene modo 0644; maximo permitido 0600 (fichero privado)
+```
+
+**Techo declarado.** 0600 es el objetivo, no una prueba de aislamiento: se
+detecta la *presencia* de ACL POSIX extendidas (xattr) y se falla cerrado, pero
+no se interpretan; no se auditan capacidades, SELinux/AppArmor ni montajes. En
+desarrollo y CI no hay `S9K_STATE_ENFORCE` y el servicio arranca con los
+defectos de desarrollo.
+
+### Migración AUTOMÁTICA en `deploy.sh` (§8, §9)
+
+| Contrato | Dónde | Qué |
+|---|---|---|
+| 1–2 estado real y precondiciones | **2b** (puras: `viewer.env`/`worker.env` con rutas de estado válidas, ANTES de parar nada) y 5b | state root real (no symlink), rw, con espacio |
+| 3–5 parar y comprobar | **3b**, `parar_y_verificar_servicios` | para timer de salud, healthcheck, worker y visor y **verifica** (estado + sin PID) antes de tocar nada |
+| 6 inspeccionar | **5b**, `migrar_estado.py` | STOP ante symlink, tipo raro, ilegible, `-journal` pendiente o **fichero abierto por un proceso** |
+| 7 mover estado legacy fuera de la release | 5b | copia a temporal `0600`, `fsync`, **hash SHA-256**, publica sin pisar y **solo entonces** renombra el original a `<nombre>.migrado-<release>` (no se borra) |
+| 8–9 propietario y modos | 5b | `lchown` y `chmod` de todo el árbol (sidecars, lock, bak, `.csrf_secret`, jobs, review, health, propuestas) |
+| 10 verificar | 5b | la **misma** `inspect_state` que usa el arranque, más `runuser -u s9knowledge` (lectura/escritura real) |
+| 11 otros usuarios no acceden | 5b | `runuser -u nobody` no lee ni lista nada |
+| 12–13 arrancar y salud | 13, 14a, 16 | además, los **procesos vivos** (`/proc/<PID>`) corren como `s9knowledge`; si no, rollback |
+| 14 funcionalidad mínima | 16, 16c | `verify-deployment.sh`, GATE A |
+
+Una precondición pura que falla (2b) no deja nada parado. Cualquier fallo posterior → `die` con el diagnóstico concreto, **la release no se activa,
+no se declara éxito y el estado original se conserva** (los servicios quedan
+parados: no se relanzan a ciegas). Casos que paran: fichero ilegible, directorio
+inaccesible, sistema de ficheros de solo lectura, owner/modo inesperados,
+symlink, ruta incorrecta o en la release, base abierta, servicio que no para,
+movimiento parcial, espacio insuficiente, sidecar de tipo inesperado, conflicto
+(origen y destino existen y difieren: se conservan los dos). **Idempotente**: un
+segundo despliegue no cambia nada. El arbol legacy
+(`/opt/knowledge-services/s9-knowledge-repo`) solo se **copia**, nunca se retira.
+
+Esto resuelve la incoherencia anterior (el paso 6 se paraba con
+`[SIN_PERMISOS]` ante un `review.sqlite3` `root:root` antes de que el paso 13
+pudiera corregirlo, y esta documentación decía que el guion no hacía `chown`):
+**una sola política**, y el cambio de dueño/modo ocurre ANTES de cualquier
+verificación como usuario de servicio. Ya no hay receta manual de
+`chown`/`chmod` (la de la sección de C1 queda como historia).
+
+**Receta de upgrade (automática).**
+
+```bash
+deploy/scripts/deploy.sh --environment production --release-ref <tag|sha> \
+    --mode upgrade --confirm-production
+# Primer upgrade tras H-06/H-08: añadir a viewer.env S9K_STATE_ROOT (y revisar
+# S9K_NEO4J_PASSWORD_FILE si se usa fichero, que debe ser
+# /etc/s9-knowledge/secrets/neo4j_password) ANTES de desplegar; el despliegue
+# lo exige y PARA si falta, con el nombre de la variable.
+```
+
+### CLI de auth (§12): `runuser -u s9knowledge --`
+
+La CLI abre `auth.db` en WAL: root crearía `-wal`/`-shm` como `root:root`. Por
+eso **rechaza a root** (rc 4, mostrando el comando) incluso para comandos de
+lectura. Elección: *rechazo claro*, no delegación automática (la CLI es
+interactiva y su configuración está en `/etc`, ilegible para el usuario de
+servicio; delegar en silencio esconde la identidad con la que se escribe).
+
+```bash
+sudo deploy/scripts/auth-cli.sh status            # forma canónica (helper de deploy)
+sudo deploy/scripts/auth-cli.sh create-admin
+# equivalente directo, con el entorno ya exportado:
+runuser -u s9knowledge -- /opt/s9-knowledge/current/viewer/.venv/bin/python -m app.cli.auth status
+```
+
+El helper analiza `viewer.env` como root y **exporta** las variables (nunca en
+argv: los secretos no viajan por la línea de comandos). El rol Ansible `auth`
+ejecuta `status` con `become_user: s9k_service_user`.
+
+### Rollback: qué pasa con la unidad y el dueño
+
+La **identidad no se revierte jamás**. `lib.sh::revertir_worker` solo restaura
+una unidad respaldada si declara la identidad vigente (si es anterior a H-06 —
+root o `www-data`— no la restaura: no podría leer el estado `0700`);
+`rollback-release.sh` no acepta como destino una release cuya unidad del visor
+no declare `s9knowledge`. El estado migrado se queda migrado: los originales
+retirados siguen en la release como `*.migrado-<release>` (renombrar de vuelta
+es manual y solo tiene sentido con la identidad anterior). Volver a un código
+anterior a H-06 requiere restaurar copia, no un rollback de `current`.
+
+### Inventario de escrituras persistentes (§3)
+
+Derivado del código por AST y **vigilado**: `deploy/tests/test_h06_h08_inventario_escrituras.py`
+cuenta los sitios de escritura de `viewer/app` y del cierre estático de
+`worker.py` y falla si aparece uno nuevo (o uno supera su techo) sin declarar.
+Techo declarado: cuenta *sitios de llamada*, no flujo de datos; no ve
+reflexión, `subprocess` ni terceros.
+
+| Módulo | Escribe | Gobierna | Clase |
+|---|---|---|---|
+| `viewer/app/auth/db.py` | `auth.db`, `-wal`, `-shm`, `.lock`, `.bak.vN` | `S9K_AUTH_DB_PATH` | STATE |
+| `viewer/app/auth/csrf_bootstrap.py` | `.csrf_secret` | junto a `S9K_AUTH_DB_PATH` | STATE |
+| `viewer/app/auth/bootstrap.py`, `routers/admin.py`, `main.py` | sello / `mkdir` del directorio de `auth.db` | `S9K_AUTH_DB_PATH` | STATE |
+| `viewer/app/services/v3_review.py` | `decisions.jsonl`, `audit.jsonl` | `S9K_V3_REVIEW_DECISIONS_PATH` (o junto a `review.sqlite3`) | STATE |
+| `viewer/app/services/v3_glossary_candidates.py` | candidatos de glosario | `S9K_V3_GLOSSARY_CANDIDATES_DIR` | STATE |
+| `viewer/app/services/v3_review_store.py` | `review.sqlite3` (la **crea el despliegue**) | `S9K_V3_REVIEW_DATABASE_PATH` | STATE |
+| `viewer/app/health/storage.py` | `health.json` | `S9K_HEALTH_REPORT_PATH` | STATE |
+| `data-engine/app/jobs/job_store.py` | `jobs.db`, `-wal`, `-shm` | `S9K_JOBS_DB` | STATE |
+| `data-engine/app/knowledge_v3/review_export.py`, `pipeline/*`, `ledger/store.py`, `writer/*` | propuestas, informes, ledger, auditoría del escritor | `S9K_V3_REVIEW_PROPOSALS_DIR` y rutas que se le pasan | STATE |
+| `viewer/app/services/review_console.py` | almacén de laboratorio | `S9K_REVIEW_LAB_DIR` / tempdir; consola apagada por defecto | TMP |
+| `viewer/app/vault_writer.py` | bóveda de Obsidian | `S9K_VAULT_ROOT` (fuera del state root, opt-in) | EXTERNO (TD-H06-02) |
+| `data-engine/app/external_ai/cache.py`, `glossary/glossary_store.py` | caché NVIDIA, `glossary.db` | `state/…` **dentro de la release** | REPO (TD-H06-03; fuera de la ruta del worker) |
+| `viewer/app/main.py::_reviews_dir` | solo **lectura** de `output/reviews` | — | — |
+
+### Deudas e hipótesis de esta entrega
+
+- **TD-H06-01** `deploy/propuestas/backup-automatico/` (NO instalada) corre como
+  root y escribiría ficheros `root:root` en `backups/`, estado del servicio: el
+  arranque fail-closed los rechazaría. Al adoptarla, su salida debe quedar a
+  nombre de `s9knowledge` (o ejecutarse como él).
+- **TD-H06-02** `vault_writer` escribe en la bóveda del operador (fuera del
+  state root): `s9knowledge` necesita permiso de escritura **allí**. Es una
+  decisión de despliegue (RC-E2E); no se abre ningún permiso del state root.
+- **TD-H06-03** `external_ai/cache.py` y `glossary_store.py` tienen por defecto
+  rutas dentro de la release; no están en la ruta del worker. Si se activaran
+  bajo el servicio fallarían (visible), no corromperían nada.
+- **TD-H06-04** El reparto de ACL, capacidades y SELinux no se audita (techo).
+- No medido aquí (necesita laboratorio): `useradd`, `chown` a `s9knowledge`,
+  `runuser` real, `systemd-analyze` con la unidad desplegada, `nobody` leyendo,
+  `become_user` de Ansible (puede exigir el paquete `acl`), reinicio de máquina.
 
 ## Vía HTTPS: sin ella la instalación NO está completa
 
@@ -649,7 +851,7 @@ enumeración del árbol.
 ```
 CODE         PASS      deploy/scripts/review_store.py + pasos 6 y 13 reales de deploy.sh en arnés; E2E local fresh -> decisión -> upgrade
 CALIBRATION  PASS      scripts/calibracion/mutaciones_c1_persistencia_revision.py (job «Calibracion de gates»)
-RC-E2E       PENDING   sin systemd, sin usuario de servicio real (www-data), sin VM limpia
+RC-E2E       PENDING   sin systemd, sin usuario de servicio real (s9knowledge), sin VM limpia
 ```
 
 Antes de C1 el estado de revisión vivía **por defecto dentro de la release** y,
@@ -664,7 +866,7 @@ quedaban huérfanas.
 
 | Situación | Qué hace el despliegue (paso 6 de `deploy.sh`, `review_store.py`) |
 |---|---|
-| `--mode fresh`, ruta libre | **crea** `review.sqlite3` con el schema del producto (`0660`, dueño = usuario del worker) y lo **verifica por efecto**: existe, abre, tiene `human_decisions`, lo escribe el usuario del servicio |
+| `--mode fresh`, ruta libre | **crea** `review.sqlite3` con el schema del producto (`0600` en directorio `0700`, dueño = `s9knowledge`; H-06/H-08, antes `0660`) y lo **verifica por efecto**: existe, abre, tiene `human_decisions`, lo escribe el usuario del servicio |
 | `--mode fresh`, ya hay un almacén **con decisiones** | **BLOQUEA**: con estado existente se usa `--mode upgrade` |
 | `--mode upgrade`, almacén válido (aunque vacío: *vacío ≠ ausente*) | lo **preserva**; no crea ni toca nada |
 | `--mode upgrade`, **sin almacén** | **STOP** por defecto: o la ruta cambió, o el estado se perdió |
@@ -679,25 +881,29 @@ decisiones: el despliegue se detendrá con «UPGRADE sin almacen…». Repetir c
 **había** decisiones en la release anterior, el STOP es correcto: hay que
 migrarlas antes (no lo hace este guion).
 
-**Primer upgrade tras C1 donde el visor (root) creó `review.sqlite3`.** Es el
-caso habitual: el visor de `deploy.sh` corre como root (H-08) y dejó
-`review.sqlite3` como `root:root 0644`. El paso 6 se detendrá con
+**Primer upgrade tras C1 donde el visor (root) creó `review.sqlite3`.** *(Superado
+por H-06/H-08: `deploy.sh` lo migra AUTOMÁTICAMENTE en el paso 5b —propietario
+`s9knowledge`, modo `0600`, directorio `0700`—, antes de que el paso 6 lo mire
+como usuario de servicio; ver «Usuario de servicio dedicado y estado privado».
+La receta manual de abajo queda como historia y con los modos nuevos.)* Era el
+caso habitual: el visor de `deploy.sh` corría como root y dejó
+`review.sqlite3` como `root:root 0644`. El paso 6 se detenía con
 `STOP … [SIN_PERMISOS]`, porque el usuario del servicio no puede escribirlo.
-Receta (sólo documentada; se ejecuta a mano, en el host, sabiendo lo que se toca):
+Receta histórica (se ejecutaba a mano, en el host, sabiendo lo que se toca):
 
 1. **Inspeccionar** sin modificar nada. `<dir>` es el directorio de
    `S9K_V3_REVIEW_DATABASE_PATH` en `viewer.env`:
    `ls -ld <dir>` · `ls -l <dir>/review.sqlite3*` ·
    `stat -c '%U:%G %a %n' <dir> <dir>/review.sqlite3*`.
-2. **Propietario esperado**: el usuario y grupo del servicio, los de
-   `User=`/`Group=` de la unidad del worker (`data-engine/systemd/s9-knowledge-worker.service`); es lo
-   que `deploy.sh` lee para el paso 6 (`REVIEW_USER`/`REVIEW_GROUP`) y el 13.
-3. **Modo esperado** (política actual de `review_store.py` y de
-   `preparar_estado_del_worker` en `lib.sh`): fichero `review.sqlite3` **`0660`**
-   y directorio que lo contiene **`0750`**, ambos a nombre del usuario del
-   servicio (SQLite crea ahí los `-wal`/`-shm`, que también son suyos).
-4. **Corregir**: `chown <usuario>:<grupo> <dir> <dir>/review.sqlite3*` ·
-   `chmod 0750 <dir>` · `chmod 0660 <dir>/review.sqlite3`.
+2. **Propietario esperado**: `s9knowledge:s9knowledge`, el que fija la autoridad
+   (`service_state.py get service_user`); es lo que `deploy.sh` usa para el
+   paso 6 (`REVIEW_USER`/`REVIEW_GROUP`) y el 13.
+3. **Modo esperado** (autoridad `service_state.py`, usada por `review_store.py`
+   y `preparar_estado_del_worker`): fichero `review.sqlite3` **`0600`** y
+   directorio que lo contiene **`0700`**, ambos a nombre del usuario del
+   servicio (SQLite crea ahí los `-wal`/`-shm`, que heredan el modo).
+4. **Corregir**: `chown s9knowledge:s9knowledge <dir> <dir>/review.sqlite3*` ·
+   `chmod 0700 <dir>` · `chmod 0600 <dir>/review.sqlite3*`.
 5. **Repetir** el despliegue (`deploy.sh --mode upgrade …`); el paso 6 vuelve
    a verificarlo por efecto (existe, abre, `human_decisions`, escribible por el
    servicio). Ni el `chown` ni el `chmod` lo hace el guion por su cuenta sobre
@@ -734,9 +940,10 @@ de modo, no para quien ejecuta).
 **Medido** (CI required): `deploy/tests/test_c1_revision_deploy.py` (P1–P3,
 N1, N4–N16, paso 6 y 13 reales, E2E local con dos releases exportadas) y
 `viewer/tests/test_c1_revision_runtime.py` (N2, N3, N7–N10, N13, N17, N18, P1,
-P2, techo). **No medido** (RC-E2E PENDING): `chown` a `www-data` de verdad, el
-reparto de propietarios de `-wal`/`-shm` entre el visor (root, H-08) y el
-worker, `systemctl` y el reinicio de máquina.
+P2, techo). **No medido** (RC-E2E PENDING): `chown` a `s9knowledge` de verdad,
+el reparto de propietarios de `-wal`/`-shm` entre visor y worker (ambos
+`s9knowledge` desde H-06/H-08; laboratorio VM112), `systemctl` y el reinicio de
+máquina.
 
 ### Deuda documentada C1 (sin carril abierto)
 
@@ -904,11 +1111,12 @@ reiniciar el visor (paso 13, en `fresh` y en `upgrade`: hasta B3 no existía,
 así que todo upgrade es también su primera instalación) y exige que esté
 `active` en tres lecturas (paso 14b; si no, rollback). El rol Ansible `systemd`
 **copia ese mismo fichero** desde la release activa y comprueba que su `User=`
-es `s9k_service_user`; no hay una segunda versión en Jinja (eso es H-08).
+es `s9k_service_user` (y desde H-06/H-08 el visor sigue el mismo patrón: ya no hay
+una segunda versión en Jinja de ninguna de las dos unidades).
 
 | Directiva | Valor | Por qué |
 |---|---|---|
-| `User=`/`Group=` | `www-data` (el usuario del servicio) | no corre como root; `deploy.sh` lee el usuario de AQUÍ |
+| `User=`/`Group=` | `s9knowledge` (la autoridad `service_state.py`) | no corre como root ni como `www-data`; un test cruza esta unidad con la autoridad (gate M12) y `deploy.sh` pide la identidad a la autoridad, no a esta unidad |
 | `UMask=` | `0077` | lo que escribe (propuestas, `jobs.db` si la crea él) nace `0600` |
 | `EnvironmentFile=` | `/etc/s9-knowledge/worker.env` | su configuración; obligatoria |
 | `ExecStartPre=+-` | copia el secreto `0600` a `/run/s9-knowledge-worker/` | el usuario del servicio no atraviesa `/etc/s9-knowledge` (`0700`); con `-`, si falta, la ingesta falla **cerrado** y visible (`GRAPH_OBSERVATION_UNCONFIGURED`) en vez de una unidad muerta |
@@ -962,14 +1170,14 @@ coincidan) y `knowledge_v3.review_paths` para las propuestas (visor y worker
 idénticos). `validate_worker_env` exige que `worker.env` y `viewer.env` digan
 lo mismo en las tres.
 
-El visor que arranca `deploy.sh` **sigue como root (H-08, abierto)**; el worker
-no. Por eso el paso 13 deja el directorio de la cola, `jobs.db` (y sus `-wal`
-/`-shm`) y el almacén de propuestas a nombre del usuario del servicio **antes**
-de arrancar el worker (`lib.sh::preparar_estado_del_worker`): un `jobs.db`
-creado por root `0644` dejaría al worker en «attempt to write a readonly
-database». Root sigue pudiendo leer y escribir. **No medido** (techo): que
-SQLite corriendo como root cree sus `-wal`/`-shm` con el dueño de la base en
-el host real.
+Visor y worker corren los dos como `s9knowledge` (H-06/H-08). El paso 5b
+migra y deja el estado compartido (cola, propuestas, decisiones) a su nombre
+con modos `0700`/`0600`, y el paso 13 lo **re-comprueba** de forma idempotente
+antes de arrancar (`lib.sh::preparar_estado_del_worker`): un `jobs.db` creado
+por otro usuario `0644` dejaría al worker en «attempt to write a readonly
+database». El caso antiguo (SQLite corriendo como root creando `-wal`/`-shm`
+con el dueño de la base) ya no puede darse: root no ejecuta el servicio, y la
+CLI de auth rechaza a root.
 
 ### Qué se midió de verdad, y qué no
 

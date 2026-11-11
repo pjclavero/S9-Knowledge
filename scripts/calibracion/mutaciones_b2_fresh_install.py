@@ -167,8 +167,9 @@ def _m3_plantilla_mock(texto: str):
 def _m4_criticas_sin_revision(texto: str):
     return mutar_unico(
         texto,
-        'S9K_AUTH_ENABLED S9K_V3_REVIEW_DATABASE_PATH S9K_V3_REVIEW_PROPOSALS_DIR"',
-        'S9K_AUTH_ENABLED"')
+        # H-06 + H-08 anade S9K_STATE_ROOT al final de la lista: se re-ancla y se conserva.
+        'S9K_AUTH_ENABLED S9K_V3_REVIEW_DATABASE_PATH S9K_V3_REVIEW_PROPOSALS_DIR S9K_STATE_ROOT"',
+        'S9K_AUTH_ENABLED S9K_STATE_ROOT"')
 
 
 def _m5_gate_a_status_distinto_de_403(texto: str):

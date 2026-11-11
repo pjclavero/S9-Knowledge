@@ -1471,6 +1471,29 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 scripts/calibracion/mutaciones_c1_persistencia_revision.py
 
+      # H-06 + H-08 (USABLE-V1) — el visor, el worker y el healthcheck corren como
+      # el usuario de servicio dedicado y su estado es PRIVADO (dueño s9knowledge,
+      # directorios 0700, ficheros 0600) y vive fuera de la release. UNA autoridad
+      # (service_state.py) para usuario, state root, modo de fichero y de
+      # directorio. Reintroduce de VERDAD, una a una, quince regresiones: visor
+      # root, worker www-data, auth.db 0644, review.sqlite3 0660, directorios
+      # 0755, healthcheck root, CLI de auth escribiendo como root, decisions.jsonl
+      # en la release, comprobacion de propietario eliminada, upgrade sin
+      # chown/chmod, deploy.sh que sigue tras un fallo de migracion, segunda
+      # autoridad en Ansible, escritura persistente sin declarar, visor sin
+      # comprobacion de arranque y rollback que restaura una identidad anterior.
+      # Cada rojo con su CAUSA; testigos en procesos separados; restauracion
+      # verificada. EN SERIE con el resto de calibradores (no modifica el arbol
+      # mientras otro corre).
+      #
+      # TECHO: no ejerce systemd, root ni un segundo usuario local reales: eso va a
+      # VM112 (deploy/tests/lab/). RC-E2E PENDING.
+      - name: "El servicio corre como s9knowledge con el estado privado: se pone ROJO ante cada defecto (H-06 + H-08)"
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          S9K_ALLOW_REAL_INGEST: ""
+        run: python3 scripts/calibracion/mutaciones_h06_h08_servicio_y_estado.py
+
       # MICROCARRIL DE SANEAMIENTO DE INSTRUMENTOS — los cuatro
       # `scripts/calibrar_panel_*.py`. Son los arneses de los cuatro paneles
       # del chasis (B operations, C review, F sources, G entities): cada uno

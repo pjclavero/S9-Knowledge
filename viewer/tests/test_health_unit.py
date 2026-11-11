@@ -47,6 +47,13 @@ def test_environment_file_es_el_productivo():
 def test_execstart_usa_el_venv_de_current():
     cp = _parse(SERVICE)
     exec_start = cp["Service"]["ExecStart"]
+    # H-06 + H-08: el secreto de Neo4j se redirige a /run con `env VAR=valor`
+    # (el usuario de servicio no puede leer /etc/s9-knowledge); el interprete
+    # sigue siendo el venv de `current`.
+    tokens = exec_start.split()
+    if tokens[0] == "/usr/bin/env":
+        tokens = [t for t in tokens[1:] if "=" not in t or t.startswith("/")]
+        exec_start = " ".join(tokens)
     assert exec_start.startswith(f"{CURRENT}/viewer/.venv/bin/python"), exec_start
     assert "app.cli.health" in exec_start
 

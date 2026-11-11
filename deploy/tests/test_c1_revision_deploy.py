@@ -183,7 +183,7 @@ def test_p1_fresh_el_paso_6_crea_el_almacen_con_schema_permisos_y_propietario(tm
     assert {"human_decisions", "decision_audit", "sealed_plans", "glossary_outbox"} <= tablas
     # permisos y propietario
     st = db.stat()
-    assert (st.st_mode & 0o777) == 0o660, oct(st.st_mode)
+    assert (st.st_mode & 0o777) == 0o600, oct(st.st_mode)
     assert st.st_uid == os.getuid()
     # preflight VERDE por efecto, en los dos modos (ya existe)
     for modo in ("fresh", "upgrade"):
@@ -205,7 +205,7 @@ def test_p1_fresh_crea_tambien_el_directorio_con_su_modo(tmp_path):
     db = tmp_path / "estado" / "reviews-v3" / "review.sqlite3"
     res = rs.preparar("fresh", str(db))
     assert res.rc == 0, res.lineas
-    assert (db.parent.stat().st_mode & 0o777) == 0o750
+    assert (db.parent.stat().st_mode & 0o777) == 0o700
 
 
 # ===========================================================================
@@ -632,7 +632,7 @@ preparar_estado_del_worker usr grp %(jobs)s %(props)s %(review)s
     r = subprocess.run(["bash", "-c", guion], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
     llamadas = log.read_text(encoding="utf-8")
-    assert "install -d -m 0750 -o usr -g grp %s\n" % review.parent in llamadas, (
+    assert "install -d -m 0700 -o usr -g grp %s\n" % review.parent in llamadas, (
         "N17 SIN INSTALL DE LA REVISION: " + llamadas)
     for f in (review, Path(str(review) + "-wal"), Path(str(review) + "-shm")):
         assert "chown usr:grp -- %s\n" % f in llamadas, "N17 SIN CHOWN DE LA REVISION: %s\n%s" % (f, llamadas)

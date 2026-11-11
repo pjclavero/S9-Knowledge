@@ -64,7 +64,9 @@ DEPLOY_SH = _SCRIPTS / "deploy.sh"
 WORKER_ENV_EJEMPLO = RAIZ / "deploy" / "config" / "worker.env.example"
 VIEWER_ENV_EJEMPLO = RAIZ / "deploy" / "config" / "viewer.env.example"
 ROL_SYSTEMD = RAIZ / "deploy" / "ansible" / "roles" / "systemd"
-ROL_COMMON_DEFAULTS = RAIZ / "deploy" / "ansible" / "roles" / "common" / "defaults" / "main.yml"
+# H-06 + H-08: la identidad se define UNA vez, en group_vars/all.yml (ya no en los defaults de los roles).
+ROL_COMMON_DEFAULTS = RAIZ / "deploy" / "ansible" / "group_vars" / "all.yml"
+UNIDAD_SALUD = RAIZ / "viewer" / "systemd" / "s9-knowledge-healthcheck.service"
 CURRENT = "/opt/s9-knowledge/current"
 STATE_ROOT = "/var/lib/s9-knowledge"
 
@@ -115,6 +117,7 @@ def release(tmp_path) -> Path:
     shutil.copy(UNIDAD, rel / "data-engine" / "systemd" / UNIDAD.name)
     (rel / "viewer" / "systemd").mkdir(parents=True)
     shutil.copy(UNIDAD_VISOR, rel / "viewer" / "systemd" / UNIDAD_VISOR.name)
+    shutil.copy(UNIDAD_SALUD, rel / "viewer" / "systemd" / UNIDAD_SALUD.name)
     return rel
 
 
@@ -144,7 +147,7 @@ def test_sin_venv_del_motor_la_unidad_bloquea(release):
 
 
 _DEFECTOS = [
-    ("\nUser=www-data\n", "\nUser=root\n", "User="),
+    ("\nUser=s9knowledge\n", "\nUser=root\n", "User="),
     ("\nUMask=0077\n", "\nUMask=0022\n", "UMask"),
     ("\nRestart=always\n", "\nRestart=on-failure\n", "Restart"),
     (" --loop ", " ", "--loop"),
@@ -284,7 +287,7 @@ echo "WORKER_USER=${WORKER_USER} WORKER_GROUP=${WORKER_GROUP}"
 def test_paso7_real_valida_la_unidad_y_lee_el_usuario_de_ella(release):
     rc, out = _paso7(release, WORKER_ENV_EJEMPLO)
     assert rc == 0 and "TRAMO_SUPERADO" in out, out
-    assert "WORKER_USER=www-data WORKER_GROUP=www-data" in out, out
+    assert "WORKER_USER=s9knowledge WORKER_GROUP=s9knowledge" in out, out
 
 
 def test_paso7_real_bloquea_sin_el_venv_del_motor(release):
@@ -350,7 +353,7 @@ def test_paso13_real_habilita_y_arranca_el_worker_antes_que_el_visor(tmp_path, m
     v_restart = llamadas.index("restart s9-knowledge-viewer.service")
     assert llamadas.index(w_restart) < v_restart, llamadas
     assert props.is_dir() and jobs_db.parent.is_dir()
-    assert (jobs_db.parent.stat().st_mode & 0o777) == 0o750
+    assert (jobs_db.parent.stat().st_mode & 0o777) == 0o700   # H-06: la autoridad (0700), no 0750
 
 
 def test_worker_activo_exige_active_en_todas_las_lecturas(tmp_path):
@@ -451,7 +454,7 @@ def _revertir(tmp: Path, prev: str, respaldo: bool):
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text("unidad nueva\n", encoding="utf-8")
     if respaldo:
-        (tmp / "etc" / (UNIDAD.name + ".bak-rel1")).write_text("unidad previa\n", encoding="utf-8")
+        (tmp / "etc" / (UNIDAD.name + ".bak-rel1")).write_text("User=s9knowledge\n# unidad previa\n", encoding="utf-8")
     llamadas = tmp / "systemctl.log"
     cuerpo = 'systemctl() { echo "$*" >> %s; }\nrevertir_worker "%s" %s "%s" rel1\n' % (
         llamadas, prev, UNIDAD.name, dest)
@@ -469,7 +472,7 @@ def test_rollback_a_una_release_sin_venv_deshabilita_el_worker(tmp_path, respald
         "ROLLBACK DEJA EL WORKER HABILITADO sobre una release sin venv: %s" % llamadas)
     assert "restart %s" % UNIDAD.name not in llamadas, llamadas
     if respaldo:
-        assert dest.read_text(encoding="utf-8") == "unidad previa\n"
+        assert dest.read_text(encoding="utf-8") == "User=s9knowledge\n# unidad previa\n"
     else:
         assert not dest.exists(), "la unidad nueva sigue instalada tras el rollback"
 
@@ -478,16 +481,17 @@ def test_rollback_a_una_release_con_venv_restaura_y_reinicia(tmp_path, release):
     r, llamadas, dest = _revertir(tmp_path, str(release), True)
     assert r.returncode == 0, r.stdout + r.stderr
     assert "restart %s" % UNIDAD.name in llamadas and not any("disable" in l for l in llamadas)
-    assert dest.read_text(encoding="utf-8") == "unidad previa\n"
+    assert dest.read_text(encoding="utf-8") == "User=s9knowledge\n# unidad previa\n"
 
 
 def test_todo_rollback_de_deploy_sh_revierte_el_worker():
-    """Sobre el TEXTO real: los tres rollbacks (14, 14b, 16) llaman a
+    """Sobre el TEXTO real: los cuatro rollbacks (14, 14a, 14b, 16) llaman a
     `revertir_worker`; ninguno se limita a reiniciar el worker."""
     texto = DEPLOY_SH.read_text(encoding="utf-8")
     bloques = re.findall(r"atomic_symlink \"\$\{PREV_RELEASE_DIR\}\" \"\$\{S9K_ROOT\}/current\"\n(.*?)\n\s*\}",
                          texto, re.S)
-    assert len(bloques) == 3, "DETECTOR ROTO: se esperaban 3 rollbacks, hay %d" % len(bloques)
+    # H-06 + H-08: a los de los pasos 14, 14b y 16 se suma el de la identidad (14a).
+    assert len(bloques) == 4, "DETECTOR ROTO: se esperaban 4 rollbacks, hay %d" % len(bloques)
     for b in bloques:
         assert 'revertir_worker "${PREV_RELEASE_DIR}"' in b, "ROLLBACK SIN REVERTIR EL WORKER: %r" % b
     assert texto.count('systemctl restart "${WORKER_UNIT_NAME}"') == 1, (

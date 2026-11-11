@@ -144,6 +144,12 @@ def _paso4(tmp: Path, modo: str, *, new_auth: Path, new_jobs: Path,
     cuerpo = """
 HERE=%(here)s
 MODE=%(modo)s
+# H-06 + H-08: el paso 3b (identidad y parada de servicios) es del laboratorio
+# (necesita root y systemd); aqui se sustituye por funciones vacias para ejercer
+# el paso 4 REAL sin crear usuarios ni parar nada en la maquina del test.
+SERVICE_USER=usuario-de-prueba
+asegurar_identidad_de_servicio() { :; }
+parar_y_verificar_servicios() { :; }
 LEGACY_AUTH_DB=%(la)s
 LEGACY_JOBS_DB=%(lj)s
 NEW_AUTH_DB=%(na)s
@@ -417,10 +423,18 @@ def _paso6(env: Path, state_root: Path, ambiente: str = "production", *,
     `modo`/`autorizar`/`actual`/`legacy_root` son las globales que `deploy.sh`
     ya tiene definidas cuando llega al paso 6.
     """
+    import grp  # noqa: PLC0415
+    import pwd  # noqa: PLC0415
+
     tmp = env.parent
     release = release_falsa_con_unidad(tmp)
     s9k_root = actual if actual is not None else tmp / "opt-s9k-vacio"
+    # H-06 + H-08: el paso 6 toma la identidad de la AUTORIDAD (SERVICE_USER, que
+    # deploy.sh fija al principio). Sin root no se puede dar un fichero a
+    # `s9knowledge`: en el arnes el usuario del servicio es quien ejecuta la prueba.
     cuerpo = """
+SERVICE_USER=%s
+SERVICE_GROUP=%s
 HERE=%s
 VIEWER_ENV=%s
 ENVIRONMENT=%s
@@ -433,7 +447,8 @@ S9K_ROOT=%s
 LEGACY_ROOT=%s
 AUTORIZAR_CREACION_REVIEW_DB=%d
 %s
-""" % (_SCRIPTS, env, ambiente, state_root, env.parent, modo, release, s9k_root,
+""" % (pwd.getpwuid(os.getuid()).pw_name, grp.getgrgid(os.getgid()).gr_name,
+       _SCRIPTS, env, ambiente, state_root, env.parent, modo, release, s9k_root,
        legacy_root or (tmp / "legacy-no-existe"), autorizar,
        _tramo_de_deploy("# Paso 6: validar viewer.env", "# --- fin del paso 6 ---"))
     r = _correr_bash(cuerpo, {})

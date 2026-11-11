@@ -224,7 +224,8 @@ def _m8_fresh_ignora_la_existente(texto: str):
 def _m9_worker_sin_revision(texto: str):
     return mutar_unico(
         texto,
-        '    install -d -m 0750 -o "${user}" -g "${group}" "$(dirname -- "${review_db}")"\n', "")
+        # H-06 + H-08: el modo sale de la AUTORIDAD (`${dir_mode}`), ya no es el literal 0750.
+        '    install -d -m "${dir_mode}" -o "${user}" -g "${group}" "$(dirname -- "${review_db}")"\n', "")
 
 
 def _m9b_worker_sin_wal_de_revision(texto: str):
