@@ -810,6 +810,13 @@ async def admin_partidas_label(
         raise HTTPException(status_code=409, detail=str(exc))
     except vault_writer.RutaNoSeguraError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    except OSError as exc:
+        # H-06/H-08 (TD-H06-02): la boveda es del operador, FUERA del state root; el usuario de
+        # servicio puede no poder escribirla. Error CONTROLADO y NOMBRADO, no un 500.
+        raise HTTPException(
+            status_code=409,
+            detail="La bóveda no es escribible por el servicio (%s): %s" % (
+                type(exc).__name__, exc.strerror or "error de E/S"))
     except vault_writer.EscrituraRechazadaError as exc:
         if exc.estado == vault_writer.EstadoPerfil.LEGIBLE_NO_CONFORME:
             detalle = f"legible pero NO editable: {exc.causa}"
@@ -935,6 +942,13 @@ async def admin_partidas_label_partida(
         raise HTTPException(status_code=409, detail=str(exc))
     except vault_writer.RutaNoSeguraError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    except OSError as exc:
+        # H-06/H-08 (TD-H06-02): la boveda es del operador, FUERA del state root; el usuario de
+        # servicio puede no poder escribirla. Error CONTROLADO y NOMBRADO, no un 500.
+        raise HTTPException(
+            status_code=409,
+            detail="La bóveda no es escribible por el servicio (%s): %s" % (
+                type(exc).__name__, exc.strerror or "error de E/S"))
     except vault_writer.EscrituraRechazadaError as exc:
         if exc.estado == vault_writer.EstadoPerfil.LEGIBLE_NO_CONFORME:
             detalle = f"legible pero NO editable: {exc.causa}"

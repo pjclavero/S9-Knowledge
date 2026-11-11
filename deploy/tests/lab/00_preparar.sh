@@ -33,8 +33,16 @@ preparar() {
     lab_log "clon en ${LAB_REPO} @ $(git -C "${LAB_REPO}" rev-parse HEAD)"
 
     # venv de PRUEBAS (distinto de los venv de las releases que construye deploy.sh)
-    if [ ! -x "${LAB_BASE}/venv/bin/python" ]; then
-        python3 -m venv "${LAB_BASE}/venv"
+    if [ ! -x "${LAB_BASE}/venv/bin/pip" ]; then
+        rm -rf "${LAB_BASE}/venv"
+        if ! python3 -m venv "${LAB_BASE}/venv" 2>/dev/null; then
+            # Debian sin python3-venv (falta ensurepip) y sin root: venv sin pip + get-pip.py
+            lab_log "ensurepip no disponible: venv --without-pip + get-pip.py"
+            rm -rf "${LAB_BASE}/venv"
+            python3 -m venv --without-pip "${LAB_BASE}/venv"
+            curl -fsS --max-time 60 -o "${LAB_BASE}/get-pip.py" https://bootstrap.pypa.io/get-pip.py
+            "${LAB_BASE}/venv/bin/python" "${LAB_BASE}/get-pip.py" -q
+        fi
     fi
     "${LAB_BASE}/venv/bin/pip" install --quiet --upgrade pip
     "${LAB_BASE}/venv/bin/pip" install --quiet -r "${LAB_REPO}/data-engine/requirements.lock"
