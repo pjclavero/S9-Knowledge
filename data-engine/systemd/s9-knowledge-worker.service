@@ -11,11 +11,15 @@
 # (`--release-stale-seconds`) y reintenta los fallos transitorios con
 # retroceso (`--retry-backoff-seconds`). `Restart=always` lo devuelve si muere.
 #
-# Usuario: el del servicio (`s9k_service_user` de Ansible, `www-data` por
-# defecto), NO root. `deploy.sh` lee `User=`/`Group=` de AQUI para dejar la
-# cola y el almacen de propuestas a su nombre; Ansible comprueba que coinciden
-# con `s9k_service_user`. `UMask=0077`: lo que escribe (propuestas, `jobs.db`
-# si la crea el) nace 0600.
+# Usuario: `s9knowledge` (H-06 + H-08: usuario de sistema dedicado, el MISMO
+# que el visor, el healthcheck y el dueño del estado privado), NO root y NO
+# www-data. Las cifras (usuario, grupo, UMask, state root) las fija UNA
+# autoridad, `data-engine/app/knowledge_v3/service_state.py`; `deploy.sh` lee
+# la identidad de ELLA (no de esta unidad) y un test estructural compara esta
+# unidad con ella; Ansible comprueba que coincide con `s9k_service_user`.
+# `UMask=0077`: lo que escribe (propuestas, `jobs.db` si la crea el) nace 0600.
+# `S9K_STATE_ENFORCE=1` enciende la comprobacion de arranque fail-closed
+# (identidad, propietario, modos, symlinks, estado fuera de la release).
 #
 # El secreto de Neo4j vive en /etc/s9-knowledge (root, 0700), que este usuario
 # no puede atravesar. `ExecStartPre=+` (como root) lo copia 0600 a su
@@ -36,15 +40,16 @@ AssertPathExists=/etc/s9-knowledge/worker.env
 
 [Service]
 Type=simple
-User=www-data
-Group=www-data
+User=s9knowledge
+Group=s9knowledge
 UMask=0077
 NoNewPrivileges=true
+Environment=S9K_STATE_ENFORCE=1
 WorkingDirectory=/opt/s9-knowledge/current/data-engine
 EnvironmentFile=/etc/s9-knowledge/worker.env
 RuntimeDirectory=s9-knowledge-worker
 RuntimeDirectoryMode=0700
-ExecStartPre=+-/usr/bin/install -m 0600 -o www-data -g www-data /etc/s9-knowledge/secrets/neo4j_worker_password /run/s9-knowledge-worker/neo4j_password
+ExecStartPre=+-/usr/bin/install -m 0600 -o s9knowledge -g s9knowledge /etc/s9-knowledge/secrets/neo4j_worker_password /run/s9-knowledge-worker/neo4j_password
 ExecStart=/usr/bin/env S9K_NEO4J_PASSWORD_FILE=/run/s9-knowledge-worker/neo4j_password /opt/s9-knowledge/current/data-engine/.venv/bin/python /opt/s9-knowledge/current/data-engine/app/jobs/worker.py --loop --sleep-seconds 5 --release-stale-seconds 600 --retry-backoff-seconds 30
 Restart=always
 RestartSec=5

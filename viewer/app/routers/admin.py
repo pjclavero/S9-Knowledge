@@ -17,6 +17,7 @@ from app.auth.dependencies import require_admin, require_edit_context_label, req
 from app.auth.models import ROLES, User
 from app.auth.passwords import hash_password, validate_password
 from app import chassis, presentacion_etiquetas, sources_catalog, vault_writer
+from app import service_identity
 from app.authz import autoridad_workspace, existencia
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -28,7 +29,7 @@ router = APIRouter(prefix="/admin")
 def _get_db_path() -> Path:
     cfg = get_auth_settings()
     p = Path(cfg.S9K_AUTH_DB_PATH)
-    p.parent.mkdir(parents=True, exist_ok=True)
+    p.parent.mkdir(parents=True, exist_ok=True, mode=service_identity.dir_mode())
     return p
 
 

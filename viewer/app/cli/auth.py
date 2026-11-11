@@ -20,8 +20,10 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import os
 import sys
 from pathlib import Path
+from typing import Optional
 
 # Ajustar PYTHONPATH para que funcione como módulo standalone
 _HERE = Path(__file__).resolve()
@@ -29,6 +31,7 @@ _VIEWER_ROOT = _HERE.parents[3]  # viewer/
 if str(_VIEWER_ROOT) not in sys.path:
     sys.path.insert(0, str(_VIEWER_ROOT))
 
+from app import service_identity
 from app.auth import bootstrap
 from app.auth import audit, db as auth_db
 from app.auth.config import get_auth_settings
@@ -39,7 +42,7 @@ from app.auth.passwords import hash_password, validate_password
 def _get_db_path() -> Path:
     cfg = get_auth_settings()
     p = Path(cfg.S9K_AUTH_DB_PATH)
-    p.parent.mkdir(parents=True, exist_ok=True)
+    p.parent.mkdir(parents=True, exist_ok=True, mode=service_identity.dir_mode())
     return p
 
 
@@ -359,7 +362,32 @@ COMMANDS = {
 }
 
 
+def rechazar_si_root() -> Optional[str]:
+    """H-06 §12 (N10): root NO usa esta CLI. Devuelve el mensaje de rechazo o None.
+
+    Cualquier comando (incluso de lectura) abre ``auth.db`` en modo WAL, y un
+    proceso root crea los ``-wal``/``-shm`` como ``root:root``: el estado queda
+    inutilizable para el usuario de servicio. En vez de «crear estado como root
+    y arreglarlo luego», se rechaza y se muestra el comando canonico.
+    """
+    if os.geteuid() != 0:
+        return None
+    ss = service_identity.service_state()
+    return (
+        "RECHAZADO: esta CLI escribe estado (auth.db y sus -wal/-shm) y no debe "
+        "ejecutarse como root: lo dejaria root:root e ilegible para %s.\n"
+        "Use el comando canonico:\n    %s\n"
+        "o, desde un despliegue, `deploy/scripts/auth-cli.sh <comando>`."
+        % (ss.SERVICE_USER,
+           ss.canonical_cli_command(sys.executable, "-m", "app.cli.auth", "<comando>"))
+    )
+
+
 def main() -> int:
+    rechazo = rechazar_si_root()
+    if rechazo is not None:
+        print(rechazo, file=sys.stderr)
+        return 4
     parser = argparse.ArgumentParser(
         description="CLI administrativa de autenticación S9 Knowledge"
     )

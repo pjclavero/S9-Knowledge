@@ -189,7 +189,39 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _autoridad_de_estado():
+    """La autoridad de modos (H-06 + H-08), cargada por ruta: este modulo es
+    stdlib y se ejecuta tambien suelto (`--ruta-despliegue`), asi que no
+    depende de `sys.path`. Una sola instancia (`_s9k_service_state`)."""
+    import importlib.util
+    import sys
+    nombre = "_s9k_service_state"
+    if nombre in sys.modules:
+        return sys.modules[nombre]
+    ruta = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "knowledge_v3", "service_state.py")
+    spec = importlib.util.spec_from_file_location(nombre, ruta)
+    modulo = importlib.util.module_from_spec(spec)
+    sys.modules[nombre] = modulo
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
+def _crear_privada_si_falta(db_path: str) -> None:
+    """`jobs.db` nace con el modo privado de la autoridad (0600), no con la
+    umask del proceso; sus -wal/-shm heredan el modo de la base."""
+    if db_path == ":memory:" or db_path.startswith("file:"):
+        return
+    try:
+        fd = os.open(db_path, os.O_RDWR | os.O_CREAT | os.O_EXCL,
+                     _autoridad_de_estado().FILE_MODE)
+    except FileExistsError:
+        return
+    os.close(fd)
+
+
 def _connect(db_path: str) -> sqlite3.Connection:
+    _crear_privada_si_falta(db_path)
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL;")
@@ -237,7 +269,8 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
     Operación idempotente: segura de llamar en cada arranque (CLI, worker,
     API del viewer).
     """
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    os.makedirs(os.path.dirname(db_path), exist_ok=True,
+                mode=_autoridad_de_estado().DIR_MODE)
     with _connect(db_path) as conn:
         conn.execute(CREATE_TABLE_SQL)
         _migrate_schema(conn)

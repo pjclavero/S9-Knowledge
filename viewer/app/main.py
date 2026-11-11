@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from app import service_identity
 from app.api import entities as api_entities
 from app.api import graph as api_graph
 from app.api import jobs as api_jobs
@@ -264,6 +265,14 @@ def _redoc(request: Request):
 
 @app.on_event("startup")
 async def _startup_auth() -> None:
+    # H-06 + H-08 (§13): ANTES de abrir una sola base, el proceso comprueba que
+    # corre como el usuario de servicio (nunca root) y que su estado es suyo y
+    # privado (propietario, modos, symlinks, ubicacion fuera de la release,
+    # acceso efectivo). Una violacion ABORTA el arranque con el diagnostico
+    # concreto («auth.db tiene owner root:root; esperado s9knowledge:s9knowledge»),
+    # no con un «Permission denied». La encienden las unidades systemd de
+    # produccion (S9K_STATE_ENFORCE=1); en desarrollo y CI no esta (techo).
+    service_identity.service_state().enforce("viewer")
     cfg = get_auth_settings()
     # Fail-closed: aborta el arranque si la configuración de auth es insegura
     # (secreto CSRF por defecto/débil, backend no apto, ruta de DB relativa o
@@ -282,7 +291,7 @@ async def _startup_auth() -> None:
         # AUSENCIA != ERROR: una base que existe pero no se puede leer, no es
         # SQLite o no dice su version NO pasa por aqui como «instalacion
         # nueva»: `ensure_migrated` levanta y el arranque sigue abortando.
-        p.parent.mkdir(parents=True, exist_ok=True)
+        p.parent.mkdir(parents=True, exist_ok=True, mode=service_identity.dir_mode())
         auth_db.ensure_migrated(p)
         # A partir de aqui la base EXISTE. Se anota, y lo que la haga
         # desaparecer con el proceso vivo deja de poder confundirse con una
