@@ -159,10 +159,14 @@ def test_una_edicion_del_operador_tras_el_corte_NO_se_pierde(perfil, punto, monk
         fh.write(json.dumps(editado, indent=2))
     contenido = perfil.read_bytes()
     monkeypatch.setattr(vw, "_es_del_proceso", lambda st: False)
-    with pytest.raises(vw.RespaldoPendienteError) as exc:
+    error = None
+    try:
         _siguiente(vw, perfil, vw.huella_de(perfil))
-    assert "respaldo pendiente" in str(exc.value) and vw.ruta_respaldo(perfil).name in str(exc.value)
-    assert perfil.read_bytes() == contenido, "EDICION DEL OPERADOR PERDIDA"
+    except Exception as exc:  # noqa: BLE001 - se mide el EFECTO en disco antes que el tipo
+        error = exc
+    assert perfil.read_bytes() == contenido, "EDICION DEL OPERADOR PERDIDA (%r)" % (error,)
+    assert isinstance(error, vw.RespaldoPendienteError), "se esperaba 409 respaldo pendiente: %r" % (error,)
+    assert "respaldo pendiente" in str(error) and vw.ruta_respaldo(perfil).name in str(error)
     assert vw.ruta_respaldo(perfil).exists(), "se borró el respaldo sin resolver"
 
 
@@ -256,9 +260,13 @@ def test_un_respaldo_no_fiable_NUNCA_se_restaura(perfil, plantado, monkeypatch, 
         monkeypatch.setattr(vw, "_respaldo_es_propio", lambda st: False)
     antes = (perfil.read_bytes(), _meta(perfil))
     monkeypatch.setattr(vw, "_es_del_proceso", lambda st: False)
-    with pytest.raises(vw.RespaldoPendienteError):
+    error = None
+    try:
         _siguiente(vw, perfil, vw.huella_de(perfil))
-    assert (perfil.read_bytes(), _meta(perfil)) == antes, "RESTAURACION A CIEGAS: el perfil cambió"
+    except Exception as exc:  # noqa: BLE001 - se mide el EFECTO en disco antes que el tipo
+        error = exc
+    assert (perfil.read_bytes(), _meta(perfil)) == antes, "RESTAURACION A CIEGAS: el perfil cambió (%r)" % (error,)
+    assert isinstance(error, vw.RespaldoPendienteError), "se esperaba 409 respaldo pendiente: %r" % (error,)
     assert os.path.lexists(respaldo), "se borró un respaldo que no era nuestro/fiable"
 
 
