@@ -129,6 +129,15 @@ sudo rm -f "${CARPETA}/.perfil-operador.json.s9k-respaldo"   # el operador revis
 R5B="$(sonda "${CARPETA}" "Nombre tras revisar")"
 lab_assert "H.5 tras retirar el respaldo el operador, la escritura vuelve a funcionar y conserva su edicion" bash -c "printf '%s' '${R5B}' | grep -q OK && sudo grep -q 'EDITADO A MANO' '${PERFIL}' && sudo grep -q 'Nombre tras revisar' '${PERFIL}'"
 
+lab_log "H.6 (ronda 2b, Y3) un efimero AJENO (del operador real) con PID muerto NO se borra"
+AJENO=".s9k-probe-999999-del-operador.tmp"
+sudo runuser -u "${TERCERO}" -- sh -c "echo mio > '${CARPETA}/${AJENO}'"
+sudo chmod 2775 "${CARPETA}"
+R6="$(sonda "${CARPETA}" "Nombre H6")"
+lab_assert "H.6 la escritura funciona" bash -c "printf '%s' '${R6}' | grep -q OK"
+lab_assert "H.6 el efimero del operador SIGUE ahi (la limpieza solo borra lo de s9knowledge)" sudo test -e "${CARPETA}/${AJENO}"
+sudo rm -f "${CARPETA}/${AJENO}"
+
 lab_log "H.3 el visor sigue ARRANCADO con una boveda opcional no escribible"
 sudo systemctl restart s9-knowledge-viewer.service
 sleep 5

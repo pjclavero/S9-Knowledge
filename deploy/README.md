@@ -224,7 +224,7 @@ worker) y las dos declaran `User=s9knowledge`.
 
 ```
 CODE         PASS      autoridad service_state.py, unidades, Ansible, migrar_estado.py, arranque fail-closed (arnés local)
-CALIBRATION  PASS      scripts/calibracion/mutaciones_h06_h08_servicio_y_estado.py (M1–M51; ronda 2: M19–M45; ronda 2b: M46–M51)
+CALIBRATION  PASS      scripts/calibracion/mutaciones_h06_h08_servicio_y_estado.py (M1–M55; ronda 2: M19–M45; ronda 2b: M46–M55)
 LAB (VM112)  PASS      deploy/tests/lab/: A fresh, B upgrade legacy, C negativos (incl. C-1…C-5), D otro usuario,
                        E healthcheck, F CLIs como root REAL, G secretos, H bóveda (3 casos)
 RC-E2E       PENDING   no se ha tocado ninguna máquina de producción (sin VERIFIED de producción)
@@ -490,7 +490,9 @@ minutos), y el catálogo de fuentes ignora el respaldo. **Techo:** entre un SIGK
 de escritura y la siguiente escritura el perfil puede quedar truncado; el respaldo publicado
 (original + nuevo, verificables por sha) permite a la siguiente escritura de S9-Knowledge
 devolverlo al original SOLO si sigue siendo un resto de esa operación, y en cualquier otro caso
-el operador decide (409). Un manifiesto de partida NUEVO nace `0600` (no hay original del que
+el operador decide (409). Un corte DURANTE esa restauración deja un prefijo estricto del
+ORIGINAL: también se reconoce como resto de S9K y la restauración se reintenta (verificando el
+sha al final), sin quedar en 409 permanente (H-R2b-1). Un manifiesto de partida NUEVO nace `0600` (no hay original del que
 heredar).
 
 ### Rollback: qué pasa con la unidad y el dueño
@@ -557,6 +559,14 @@ reflexión, `subprocess` ni terceros.
   el gate de unidad no lee drop-ins (lo para el paso 14a midiendo el proceso vivo en `/proc`);
   ficheros sueltos de versiones antiguas en el primer nivel del state root → STOP con receta
   (precondición 4 del primer upgrade).
+- **Deuda P3 de la bóveda (revisión acotada de la ronda 2b, documentada, no se arregla):** un
+  perfil que el operador VACÍA (o trunca a un prefijo del original) a propósito con un respaldo
+  pendiente se restaura al original (es indistinguible de un corte de S9K); el sobre del respaldo
+  guarda el original con el GRUPO de la carpeta (setgid) y el modo del perfil, que puede ser más
+  amplio que el del perfil si la carpeta tiene otro grupo; el sobre se abre por ruta sin
+  `O_NOFOLLOW`/`fstat` (TOCTOU sin escalada: el dueño y el tipo se comprueban con `lstat` justo
+  antes); en un sistema de ficheros sin hardlinks el caso (b) no puede publicar el respaldo y
+  responde 409 (inutilizable, nunca con cambio parcial).
 - **`lost+found` (ronda 2b, C-5):** un state root que es el punto de montaje de un FS dedicado
   trae `lost+found`. Se admite EXACTAMENTE esa entrada (directorio, `root:root`, `0700`, primer
   nivel) como del sistema de ficheros: la ignoran la comprobación de dedicado, la migración (ni

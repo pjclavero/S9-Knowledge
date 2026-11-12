@@ -499,8 +499,33 @@ def _m49_x4_release_sin_unidad(t):
 
 def _m50_restauracion_a_ciegas(t):
     return mutar_en_funcion(t, "resolver_respaldo_pendiente",
-                            '        elif _es_resto_de_esta_escritura(actual, sobre["nuevo"]):\n',
-                            "        elif True:\n")
+                            '        elif (_es_resto_de_esta_escritura(actual, sobre["nuevo"])\n',
+                            "        elif (True\n")
+
+
+def _m52_y1_sha_original_no_se_comprueba(t):
+    return mutar_en_funcion(
+        t, "_leer_sobre",
+        '    if _sha(original) != sobre.get("sha_original") or _sha(nuevo) != sobre.get("sha_nuevo"):\n',
+        '    if _sha(nuevo) != sobre.get("sha_nuevo"):\n')
+
+
+def _m53_y2_prefijo_degradado(t):
+    return mutar_en_funcion(t, "_es_resto_de_esta_escritura",
+                            "    return len(actual) < len(nuevo) and nuevo[:len(actual)] == actual\n",
+                            "    return len(actual) < len(nuevo)\n")
+
+
+def _m54_y3_limpieza_sin_dueno(t):
+    return mutar_en_funcion(t, "limpiar_efimeros_huerfanos",
+                            "        if st.st_uid != os.geteuid() or not stat.S_ISREG(st.st_mode):\n",
+                            "        if not stat.S_ISREG(st.st_mode):\n")
+
+
+def _m55_no_reintenta_la_restauracion(t):
+    return mutar_en_funcion(t, "resolver_respaldo_pendiente",
+                            '              or _es_resto_de_una_restauracion(actual, sobre["original"])):\n',
+                            "              or False):\n")
 
 
 def _m51_lost_found_cualquiera(t):
@@ -675,6 +700,19 @@ MUTACIONES = [
     ("M51 — (C-5 2b) cualquier `lost+found` (otro dueño/modo) pasa por entrada del FS",
      SERVICE_STATE, _m51_lost_found_cualquiera, T_R2,
      {"test_C5_lost_found_solo_con_sus_atributos_exactos[lost+found-st1-False]": "assert True is False"}),
+    # ---- ronda 2b (observaciones de la revision acotada) ------------------------
+    ("M52 — (Y1) se acepta un sobre cuyo sha_original no cuadra",
+     VAULT_WRITER, _m52_y1_sha_original_no_se_comprueba, T_RESP,
+     {"test_Y1_un_sobre_cuyo_sha_original_no_cuadra_no_se_restaura": "Y1: SE RESTAURO UN SOBRE CON SHA FALSO"}),
+    ("M53 — (Y2) «prefijo» degradado a «cualquier contenido mas corto»",
+     VAULT_WRITER, _m53_y2_prefijo_degradado, T_RESP,
+     {"test_Y2_una_edicion_del_operador_que_ACORTA_el_perfil_tras_un_corte_se_conserva": "Y2: EDICION CORTA DEL OPERADOR PERDIDA"}),
+    ("M54 — (Y3) la limpieza de efimeros no mira el dueño",
+     VAULT_WRITER, _m54_y3_limpieza_sin_dueno, T_RESP,
+     {"test_Y3_la_limpieza_no_borra_un_efimero_AJENO_aunque_su_PID_este_muerto": "Y3: SE BORRO UN EFIMERO AJENO"}),
+    ("M55 — (H-R2b-1) un corte DURANTE la restauracion deja la boveda en 409 permanente",
+     VAULT_WRITER, _m55_no_reintenta_la_restauracion, T_RESP,
+     {"test_H_R2b_1_un_SIGKILL_DURANTE_la_restauracion_no_deja_la_boveda_en_409_permanente": "H-R2b-1: 409 PERMANENTE"}),
 ]
 
 

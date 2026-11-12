@@ -718,6 +718,13 @@ def _es_resto_de_esta_escritura(actual: bytes, nuevo: bytes) -> bool:
     return len(actual) < len(nuevo) and nuevo[:len(actual)] == actual
 
 
+def _es_resto_de_una_restauracion(actual: bytes, original: bytes) -> bool:
+    """Ronda 2b (H-R2b-1): un corte DURANTE la restauración deja un prefijo estricto del
+    ORIGINAL (vacío incluido). Es un resto de S9K: se reintenta la restauración. Sin esto la
+    bóveda quedaba en 409 permanente."""
+    return len(actual) < len(original) and original[:len(actual)] == actual
+
+
 def resolver_respaldo_pendiente(ruta: Path) -> Optional[str]:
     """Al EMPEZAR una escritura: decide qué hacer con un respaldo de una interrumpida.
 
@@ -726,7 +733,8 @@ def resolver_respaldo_pendiente(ruta: Path) -> Optional[str]:
 
       (a) perfil == contenido NUEVO previsto  -> la escritura llegó a completarse: se borra el respaldo;
       (b) perfil == contenido ORIGINAL        -> no se llegó a escribir: se borra el respaldo;
-      (c) perfil == prefijo estricto del NUEVO (truncado/a medias por ESTA operación) ->
+      (c) perfil == prefijo estricto del NUEVO (truncado/a medias por ESTA operación), o del
+          ORIGINAL (una restauración de S9K cortada a su vez, H-R2b-1) ->
           se restaura el original EN EL SITIO verificando su sha, y se borra el respaldo;
       (d) cualquier otra cosa (edición del operador, contenido de un tercero, respaldo
           inválido/vacío/ajeno/symlink, perfil ausente) -> NO se toca nada: 409.
@@ -766,7 +774,10 @@ def resolver_respaldo_pendiente(ruta: Path) -> Optional[str]:
             decision = "completada"
         elif actual == sobre["original"]:
             decision = "no_escrita"
-        elif _es_resto_de_esta_escritura(actual, sobre["nuevo"]):
+        elif (_es_resto_de_esta_escritura(actual, sobre["nuevo"])
+              or _es_resto_de_una_restauracion(actual, sobre["original"])):
+            # (c) resto de ESTA escritura, o (c') resto de una RESTAURACIÓN de S9K cortada a
+            # su vez (volcar el original también trunca y escribe en orden): se reintenta.
             _volcar(fd, sobre["original"])
             if _sha(_leer_fd_entero(fd)) != _sha(sobre["original"]):
                 raise _pendiente("la restauración no verifica")

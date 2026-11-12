@@ -278,3 +278,117 @@ def test_respaldo_pendiente_es_un_conflicto_409_del_endpoint():
     assert issubclass(vw.RespaldoPendienteError, vw.ConflictoEscrituraError)
     fuente = (RAIZ / "viewer" / "app" / "routers" / "admin.py").read_text(encoding="utf-8")
     assert "except vault_writer.ConflictoEscrituraError as exc:\n        raise HTTPException(status_code=409" in fuente
+
+
+# ---------------------------------------------------------------------------
+# Ronda 2b · observaciones de la revisión acotada (H-R2b-1, Y1, Y2, Y3)
+# ---------------------------------------------------------------------------
+
+_HIJO_RESTAURACION = """
+import os, signal, sys
+sys.path.insert(0, sys.argv[2])
+sys.path.append(sys.argv[3])
+from pathlib import Path
+from app import vault_writer as vw
+corte = int(sys.argv[4])
+def _v(fd, c):
+    os.lseek(fd, 0, 0)
+    os.ftruncate(fd, 0)
+    os.write(fd, c[:corte])
+    os.kill(os.getpid(), signal.SIGKILL)
+vw._volcar = _v
+vw.resolver_respaldo_pendiente(Path(sys.argv[1]))
+"""
+
+
+def test_H_R2b_1_un_SIGKILL_DURANTE_la_restauracion_no_deja_la_boveda_en_409_permanente(perfil, monkeypatch):
+    """Primer corte a mitad de escritura (resto del NUEVO); la restauración de la siguiente pasada
+    se corta a su vez pasado el punto donde original y nuevo divergen (resto del ORIGINAL). La
+    pasada siguiente reconoce el resto de su restauración, la REINTENTA verificando el sha y escribe."""
+    from app import vault_writer as vw
+
+    original = perfil.read_bytes()
+    meta = _meta(perfil)
+    huella_original = vw.huella_de(perfil)
+    _matar(perfil, "mitad")
+    nuevo = vw._leer_sobre(vw.ruta_respaldo(perfil))["nuevo"]
+    diverge = next(i for i, (a, b) in enumerate(zip(original, nuevo)) if a != b)
+    corte = min(diverge + 10, len(original) - 1)
+    r = subprocess.run([sys.executable, "-c", _HIJO_RESTAURACION, str(perfil), str(RAIZ / "viewer"),
+                        str(RAIZ / "data-engine" / "app"), str(corte)],
+                       capture_output=True, text=True, timeout=60,
+                       env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
+    assert r.returncode == -9, (r.returncode, r.stderr[-400:])
+    actual = perfil.read_bytes()
+    assert actual == original[:corte] and nuevo[:len(actual)] != actual, "el corte no cayó tras la divergencia"
+    monkeypatch.setattr(vw, "_es_del_proceso", lambda st: False)
+    error = None
+    try:
+        _siguiente(vw, perfil, huella_original)
+    except Exception as exc:  # noqa: BLE001
+        error = exc
+    assert error is None, "H-R2b-1: 409 PERMANENTE tras cortar la restauración: %r" % (error,)
+    final = perfil.read_text(encoding="utf-8")
+    assert "Siguiente escritura" in final and json.loads(final)
+    assert _meta(perfil) == meta and not vw.ruta_respaldo(perfil).exists()
+
+
+def _sobre(original: bytes, nuevo: bytes, sha_original: str = None) -> str:
+    import base64
+    return json.dumps({"version": "s9k-respaldo-v2", "sha_original": sha_original or _sha(original),
+                       "sha_nuevo": _sha(nuevo), "original_b64": base64.b64encode(original).decode(),
+                       "nuevo_b64": base64.b64encode(nuevo).decode()})
+
+
+def test_Y1_un_sobre_cuyo_sha_original_no_cuadra_no_se_restaura(perfil, monkeypatch):
+    """Y1: el perfil es un resto aparente del «nuevo» del sobre, pero el sha del original no cuadra
+    con su contenido: el sobre no es fiable -> 409 y NADA se restaura."""
+    from app import vault_writer as vw
+
+    actual = perfil.read_bytes()
+    nuevo = actual + b"  "            # el perfil actual es prefijo estricto del «nuevo»
+    falso = b'{"original": "falsificado"}\n'
+    vw.ruta_respaldo(perfil).write_text(_sobre(falso, nuevo, sha_original="0" * 64))
+    antes = (perfil.read_bytes(), _meta(perfil))
+    monkeypatch.setattr(vw, "_es_del_proceso", lambda st: False)
+    error = None
+    try:
+        _siguiente(vw, perfil, vw.huella_de(perfil))
+    except Exception as exc:  # noqa: BLE001
+        error = exc
+    assert (perfil.read_bytes(), _meta(perfil)) == antes, "Y1: SE RESTAURO UN SOBRE CON SHA FALSO (%r)" % (error,)
+    assert isinstance(error, vw.RespaldoPendienteError), error
+
+
+def test_Y2_una_edicion_del_operador_que_ACORTA_el_perfil_tras_un_corte_se_conserva(perfil, monkeypatch):
+    """Y2: «resto de esta escritura» es PREFIJO del nuevo, no «cualquier contenido más corto»."""
+    from app import vault_writer as vw
+
+    _matar(perfil, "mitad")
+    corto = b'{"workspace": "editado-corto"}\n'
+    with open(perfil, "r+b") as fh:
+        fh.truncate(0)
+        fh.write(corto)
+    monkeypatch.setattr(vw, "_es_del_proceso", lambda st: False)
+    error = None
+    try:
+        _siguiente(vw, perfil, vw.huella_de(perfil))
+    except Exception as exc:  # noqa: BLE001
+        error = exc
+    assert perfil.read_bytes() == corto, "Y2: EDICION CORTA DEL OPERADOR PERDIDA (%r)" % (error,)
+    assert isinstance(error, vw.RespaldoPendienteError), error
+
+
+def test_Y3_la_limpieza_no_borra_un_efimero_AJENO_aunque_su_PID_este_muerto(perfil, monkeypatch):
+    """Y3: el prefijo y el PID muerto no bastan: un fichero de OTRO dueño no se borra. Sin otro
+    usuario en CI, el dueño ajeno se simula en el uid del proceso (el real, en VM112 escenario H)."""
+    from app import vault_writer as vw
+
+    p = subprocess.Popen([sys.executable, "-c", "pass"])
+    p.wait()
+    ajeno = perfil.parent / ("%s%d-ajeno.tmp" % (vw.PREFIJO_EFIMERO, p.pid))
+    ajeno.write_text("del operador")
+    real = os.geteuid()
+    monkeypatch.setattr(vw.os, "geteuid", lambda: real + 4242)
+    borrados = vw.limpiar_efimeros_huerfanos(perfil.parent)
+    assert ajeno.exists() and ajeno.name not in borrados, "Y3: SE BORRO UN EFIMERO AJENO"
