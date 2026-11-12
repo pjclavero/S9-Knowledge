@@ -35,7 +35,7 @@ from pathlib import Path
 
 import pytest
 
-_RAIZ = Path(__file__).resolve().parents[3]
+_RAIZ = Path(__file__).resolve().parents[2]
 _RUTA = _RAIZ / "data-engine" / "app" / "knowledge_v3" / "service_state.py"
 
 
@@ -358,7 +358,8 @@ def test_enforce_N2_owner_incorrecto_dice_esperado_s9knowledge(estado):
     env = _rutas(estado)
     with pytest.raises(ss.ServiceStateError) as exc:
         ss.enforce("worker", env, uid=UID + 1, gid=GID + 1, euid=UID)
-    assert "esperado s9knowledge:s9knowledge" in str(exc.value)
+    mensaje = str(exc.value)
+    assert "esperado s9knowledge:s9knowledge" in mensaje
 
 
 def test_enforce_N8_proceso_root_se_niega_a_arrancar(estado):
@@ -367,7 +368,8 @@ def test_enforce_N8_proceso_root_se_niega_a_arrancar(estado):
     env = _rutas(estado)
     with pytest.raises(ss.ServiceStateError) as exc:
         ss.enforce("viewer", env, uid=UID, gid=GID, euid=0)
-    assert "corre como root" in str(exc.value)
+    mensaje = str(exc.value)
+    assert "corre como root" in mensaje
 
 
 def test_enforce_proceso_con_otro_uid_se_niega(estado):
@@ -395,7 +397,8 @@ def test_enforce_N18_estado_en_release_falla(estado):
     env = {**_rutas(estado), "S9K_V3_REVIEW_DECISIONS_PATH": "/opt/s9-knowledge/current/viewer/output/d.jsonl"}
     with pytest.raises(ss.ServiceStateError) as exc:
         ss.enforce("viewer", env, uid=UID, gid=GID, euid=UID)
-    assert "dentro de la release" in str(exc.value)
+    mensaje = str(exc.value)
+    assert "dentro de la release" in mensaje
 
 
 # ---------------------------------------------------------------------------

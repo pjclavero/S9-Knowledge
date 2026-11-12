@@ -17,7 +17,7 @@ paquetes `app` y no se mezclan):
   deploy/tests/test_h06_h08_servicio_y_estado.py     (unidades, Ansible, migrar_estado, deploy.sh)
   deploy/tests/test_h06_h08_inventario_escrituras.py (inventario estructural de escrituras)
   deploy/tests/test_c1_revision_deploy.py            (regresión de C1)
-  data-engine/app/tests/test_h06_h08_autoridad_y_worker.py
+  deploy/tests/test_h06_h08_autoridad_y_worker.py
   viewer/tests/test_h06_h08_estado_privado.py
 
 Mutaciones (M1–M12 del contrato §17 + refuerzo M13–M15 + fase 2 M16–M18):
@@ -73,7 +73,7 @@ RAIZ = Path(__file__).resolve().parents[2]
 T_DEPLOY = "deploy/tests/test_h06_h08_servicio_y_estado.py"
 T_INV = "deploy/tests/test_h06_h08_inventario_escrituras.py"
 T_C1 = "deploy/tests/test_c1_revision_deploy.py"
-T_DE = "data-engine/app/tests/test_h06_h08_autoridad_y_worker.py"
+T_DE = "deploy/tests/test_h06_h08_autoridad_y_worker.py"
 T_VIEWER = "viewer/tests/test_h06_h08_estado_privado.py"
 TESTIGOS = [T_DEPLOY, T_INV, T_C1, T_DE, T_VIEWER]
 

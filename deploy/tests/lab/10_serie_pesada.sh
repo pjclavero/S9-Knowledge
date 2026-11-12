@@ -50,7 +50,7 @@ export PYTHONDONTWRITEBYTECODE=1 S9K_ALLOW_REAL_INGEST=""
 # 1. tests especificos
 tanda especificos-deploy      "${PY}" -m pytest deploy/tests/test_h06_h08_servicio_y_estado.py deploy/tests/test_h06_h08_inventario_escrituras.py -q -p no:cacheprovider
 tanda especificos-viewer      "${PY}" -m pytest viewer/tests/test_h06_h08_estado_privado.py -q -p no:cacheprovider
-tanda especificos-worker      "${PY}" -m pytest data-engine/app/tests/test_h06_h08_autoridad_y_worker.py -q -p no:cacheprovider
+tanda especificos-worker      "${PY}" -m pytest deploy/tests/test_h06_h08_autoridad_y_worker.py -q -p no:cacheprovider
 
 # 2. calibrador H-06/H-08, EN SERIE, nada mas corriendo
 tanda calibrador-h06-h08      "${PY}" scripts/calibracion/mutaciones_h06_h08_servicio_y_estado.py
