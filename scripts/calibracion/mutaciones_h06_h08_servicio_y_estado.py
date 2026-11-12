@@ -605,7 +605,7 @@ MUTACIONES = [
     # ---- ronda 2 · testigos de los mutantes supervivientes del revisor ---------
     ("M42 — (R2) la parada previa a migrar no para el worker",
      LIB_SH, _m42_r2_la_parada_no_para_el_worker, T_R2,
-     {"test_R2_la_parada_para_visor_worker_y_healthcheck_y_lo_verifica": "sigue activo"}),
+     {"test_R2_la_parada_para_visor_worker_y_healthcheck_y_lo_verifica": "PARADA NO VERIFICADA"}),
     ("M43 — (R3) la migracion aplica chmod pero no chown",
      MIGRAR, _m43_r3_chmod_sin_chown, T_R2,
      {"test_R3_la_migracion_hace_chown_de_cada_entrada_ajena_no_solo_chmod": "LCHOWN NO LLAMADO"}),

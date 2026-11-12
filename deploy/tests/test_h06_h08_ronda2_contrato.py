@@ -463,7 +463,7 @@ def test_R2_la_parada_para_visor_worker_y_healthcheck_y_lo_verifica(tmp_path):
                        capture_output=True, text=True,
                        env={k: v for k, v in os.environ.items() if not k.startswith("S9K_")})
     llamadas = log.read_text(encoding="utf-8").splitlines()
-    assert "RC=0" in r.stdout, (r.stdout, r.stderr[-600:])
+    assert "RC=0" in r.stdout, "R2: PARADA NO VERIFICADA: " + r.stderr[-300:].replace("\n", " | ")
     for u in ("s9-knowledge-worker.service", "s9-knowledge-viewer.service", "s9-knowledge-healthcheck.service"):
         assert "stop %s" % u in llamadas, "R2: NO PARA %s: %s" % (u, llamadas)
     assert list(estado.iterdir()) == []
