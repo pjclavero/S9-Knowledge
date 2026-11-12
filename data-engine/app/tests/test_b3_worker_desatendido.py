@@ -62,7 +62,7 @@ def db(tmp_path) -> str:
 
 
 def _entorno(db: str, contador: Path) -> dict:
-    env = {k: v for k, v in os.environ.items() if not k.startswith("S9K_")}
+    env = {k: v for k, v in os.environ.items() if not k.startswith("S9K_") or k == "S9K_STATE_VALIDATION"}
     env.update({
         "S9K_JOBS_DB": db,
         "PYTHONDONTWRITEBYTECODE": "1",
@@ -136,7 +136,7 @@ def test_loop_es_un_daemon_con_la_cola_vacia(db):
     Se mide con `timeout` REAL: si el worker sigue vivo al vencer el plazo,
     `timeout` devuelve 124. Un rc=0 aqui es exactamente el defecto.
     """
-    env = {k: v for k, v in os.environ.items() if not k.startswith("S9K_")}
+    env = {k: v for k, v in os.environ.items() if not k.startswith("S9K_") or k == "S9K_STATE_VALIDATION"}
     inicio = time.monotonic()
     r = subprocess.run(
         ["timeout", "6", sys.executable, str(WORKER_PY), "--loop", "--sleep-seconds", "1",
@@ -153,7 +153,7 @@ def test_loop_es_un_daemon_con_la_cola_vacia(db):
 
 def test_once_termina_con_rc0(db):
     """Control del control: `--once` SI termina (no se ha roto el modo manual)."""
-    env = {k: v for k, v in os.environ.items() if not k.startswith("S9K_")}
+    env = {k: v for k, v in os.environ.items() if not k.startswith("S9K_") or k == "S9K_STATE_VALIDATION"}
     job_id = job_store.create_job("leyenda", job_type="noop", db_path=db)
     r = subprocess.run(
         ["timeout", "30", sys.executable, str(WORKER_PY), "--once", "--db", db],
@@ -382,7 +382,7 @@ def test_el_latido_mantiene_vivo_un_job_largo(monkeypatch, db):
 # ===========================================================================
 
 def _correr_loop(db: str, *extra: str, segundos: int = 40) -> subprocess.CompletedProcess:
-    env = {k: v for k, v in os.environ.items() if not k.startswith("S9K_")}
+    env = {k: v for k, v in os.environ.items() if not k.startswith("S9K_") or k == "S9K_STATE_VALIDATION"}
     return subprocess.run(
         ["timeout", str(segundos), sys.executable, str(WORKER_PY), "--loop",
          "--sleep-seconds", "1", "--db", db, *extra],

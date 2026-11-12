@@ -195,13 +195,24 @@ fi
 # ---------------------------------------------------------------------------
 if [ -d "${S9K_STATE_ROOT}" ]; then
     ok "directorio de estado: ${S9K_STATE_ROOT}"
-    for subdir in auth jobs state output staging backups; do
+    # H-06 + H-08: los subdirectorios salen de la AUTORIDAD (service_state.py).
+    for subdir in $(servicio_cifra subdirs | grep -v '/'); do
         if [ -d "${S9K_STATE_ROOT}/${subdir}" ]; then
             ok "  ${subdir}/ presente"
         else
             avso "  ${subdir}/ no existe en ${S9K_STATE_ROOT} (se creará en el primer deploy)"
         fi
     done
+    # Solo lectura: ¿el estado ya cumple el contrato (dueño y modos privados)?
+    # Un estado anterior a H-06/H-08 NO es un bloqueo: `deploy.sh` lo migra o PARA.
+    if [ -f "${S9K_CONFIG_ROOT}/viewer.env" ]; then
+        if python3 "${S9K_SERVICE_STATE_PY}" check --state-root "${S9K_STATE_ROOT}" \
+                --env-file "${S9K_CONFIG_ROOT}/viewer.env" >/dev/null 2>&1; then
+            ok "  el estado cumple el contrato (dueño y modos privados)"
+        else
+            avso "  el estado NO cumple el contrato de H-06/H-08 (dueño/modos/ubicación): deploy.sh lo migra o PARA; detalle: service_state.py check --state-root ${S9K_STATE_ROOT} --env-file ${S9K_CONFIG_ROOT}/viewer.env"
+        fi
+    fi
 else
     if [ "${ENVIRONMENT}" = "production" ]; then
         bloq "directorio de estado no existe: ${S9K_STATE_ROOT}"

@@ -1,3 +1,26 @@
+# UNIDAD CANONICA del visor (H-06 + H-08 · USABLE-V1).
+#
+# UNA SOLA FUENTE. Este fichero es la unica plantilla de la unidad del visor:
+# lo instala `deploy/scripts/deploy.sh` (pasos 8-9) y lo instala el rol Ansible
+# `systemd` COPIANDO ESTE MISMO FICHERO desde la release activa. La plantilla
+# Jinja que existia (`roles/systemd/templates/s9-knowledge-viewer.service.j2`,
+# con `User=www-data`) divergia de esta (sin `User=`, es decir ROOT): H-08.
+#
+# Identidad: `s9knowledge` (usuario de sistema dedicado, sin login, sin sudo,
+# sin capabilities). NO root, NO www-data. Las cifras (usuario, grupo, UMask,
+# state root) las fija UNA autoridad,
+# `data-engine/app/knowledge_v3/service_state.py`; un test estructural compara
+# esta unidad con ella (systemd no puede importar Python) y el calibrador
+# `mutaciones_h06_h08_servicio_y_estado.py` (M1, M12) lo vigila.
+#
+# Estado: todo el estado mutable vive bajo el state root (0700, dueño
+# s9knowledge); la release es codigo y este usuario no puede escribirla. La
+# validacion de arranque (identidad, propietario, modos, symlinks, estado fuera
+# de la release) es OBLIGATORIA y no depende de nada que ponga esta unidad.
+#
+# El secreto de Neo4j (si el visor usa fichero) se lee DIRECTAMENTE de
+# /etc/s9-knowledge/secrets (root:s9knowledge, 0640; el servicio lee y NO escribe):
+# ya no se copia a /run.
 [Unit]
 Description=S9 Knowledge Viewer
 After=network.target
@@ -8,6 +31,13 @@ AssertPathExists=/etc/s9-knowledge/viewer.env
 
 [Service]
 Type=simple
+User=s9knowledge
+Group=s9knowledge
+UMask=0077
+NoNewPrivileges=true
+# C-7 (ronda 2): sin capabilities, DECLARADO (como el healthcheck); el gate de unidad
+# exige este valor vacio y NoNewPrivileges=yes|true con la semantica de ultimo valor.
+CapabilityBoundingSet=
 WorkingDirectory=/opt/s9-knowledge/current/viewer
 EnvironmentFile=/etc/s9-knowledge/viewer.env
 ExecStart=/opt/s9-knowledge/current/viewer/.venv/bin/uvicorn app.main:app --host ${S9K_VIEWER_HOST} --port ${S9K_VIEWER_PORT}

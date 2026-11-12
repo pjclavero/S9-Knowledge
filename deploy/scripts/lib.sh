@@ -5,13 +5,31 @@
 set -Eeuo pipefail
 
 # ---------------------------------------------------------------------------
+# H-06 + H-08 · UNA AUTORIDAD para usuario de servicio, state root, modo de
+# fichero y modo de directorio: `service_state.py`. Aquí NO se escribe ninguna
+# de esas cifras; se PIDEN (`servicio_cifra service_user`). Solo stdlib.
+# ---------------------------------------------------------------------------
+_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+S9K_SERVICE_STATE_PY="${S9K_SERVICE_STATE_PY:-${_LIB_DIR}/../../data-engine/app/knowledge_v3/service_state.py}"
+VIEWER_UNIT_NAME="s9-knowledge-viewer.service"
+WORKER_UNIT_NAME_LIB="s9-knowledge-worker.service"
+HEALTH_UNIT_NAME="s9-knowledge-healthcheck.service"
+HEALTH_TIMER_NAME="s9-knowledge-healthcheck.timer"
+
+# ---------------------------------------------------------------------------
 # Raíces configurables (sobreescribibles por variables de entorno)
+# El state root por defecto sale de la AUTORIDAD (no es un literal de aquí).
 # ---------------------------------------------------------------------------
 S9K_ROOT="${S9K_ROOT:-/opt/s9-knowledge}"
-S9K_STATE_ROOT="${S9K_STATE_ROOT:-/var/lib/s9-knowledge}"
+S9K_STATE_ROOT="${S9K_STATE_ROOT:-$(python3 "${S9K_SERVICE_STATE_PY}" get state_root)}"
 S9K_CONFIG_ROOT="${S9K_CONFIG_ROOT:-/etc/s9-knowledge}"
 S9K_LOG_ROOT="${S9K_LOG_ROOT:-/var/log/s9-knowledge}"
 S9K_VIEWER_URL="${S9K_VIEWER_URL:-http://127.0.0.1:8088}"
+if [ -z "${S9K_STATE_ROOT}" ]; then
+    echo "lib.sh: la autoridad de estado (${S9K_SERVICE_STATE_PY}) no respondió" >&2
+    # shellcheck disable=SC2317
+    return 1 2>/dev/null || exit 1
+fi
 
 # Número de releases a conservar (las más antiguas se eliminan automáticamente)
 S9K_RELEASES_TO_KEEP="${S9K_RELEASES_TO_KEEP:-3}"
@@ -732,12 +750,350 @@ paso4_migrar_o_validar_estado() {
 # ---------------------------------------------------------------------------
 preparar_estado_del_worker() {
     local user="${1:?usuario}" group="${2:?grupo}" jobs_db="${3:?jobs.db}" props="${4:?propuestas}" review_db="${5:?review.sqlite3}" f
-    install -d -m 0750 -o "${user}" -g "${group}" "$(dirname -- "${jobs_db}")" "${props}"
-    install -d -m 0750 -o "${user}" -g "${group}" "$(dirname -- "${review_db}")"
+    local dir_mode file_mode
+    # H-06: modos de la AUTORIDAD (0700/0600), no un 0750 propio de este guion.
+    dir_mode="$(servicio_cifra dir_mode)" || return 1
+    file_mode="$(servicio_cifra file_mode)" || return 1
+    install -d -m "${dir_mode}" -o "${user}" -g "${group}" "$(dirname -- "${jobs_db}")" "${props}"
+    install -d -m "${dir_mode}" -o "${user}" -g "${group}" "$(dirname -- "${review_db}")"
     for f in "${jobs_db}" "${jobs_db}-wal" "${jobs_db}-shm" "${review_db}" "${review_db}-wal" "${review_db}-shm"; do
-        if [ -e "${f}" ]; then chown "${user}:${group}" -- "${f}"; fi
+        if [ -e "${f}" ]; then
+            chown "${user}:${group}" -- "${f}"
+            chmod "${file_mode}" -- "${f}"
+        fi
     done
     return 0
+}
+
+# ---------------------------------------------------------------------------
+# servicio_cifra <clave>  -> imprime una cifra de la autoridad
+#   (service_user | service_group | state_root | file_mode | dir_mode | umask |
+#    subdirs | runuser_prefix). rc!=0 si la autoridad no responde.
+# ---------------------------------------------------------------------------
+servicio_cifra() {
+    python3 "${S9K_SERVICE_STATE_PY}" get "${1:?clave}"
+}
+
+# ---------------------------------------------------------------------------
+# asegurar_identidad_de_servicio
+#   H-06 §10. Crea, IDEMPOTENTE, el grupo y el usuario de SISTEMA del servicio
+#   (sin login: shell nologin, sin home de login, sin sudo) y COMPRUEBA el
+#   resultado (no que useradd "dijo que si"): existe, es de sistema (uid<1000),
+#   su shell no es utilizable y no pertenece a grupos de privilegio.
+#   rc!=0 con la causa si no se puede.
+# ---------------------------------------------------------------------------
+asegurar_identidad_de_servicio() {
+    local user group shell uid grupos g nologin
+    user="$(servicio_cifra service_user)" || { err "la autoridad de identidad no responde"; return 1; }
+    group="$(servicio_cifra service_group)" || return 1
+    nologin="$(command -v nologin 2>/dev/null || true)"; nologin="${nologin:-/usr/sbin/nologin}"
+    if ! getent group "${group}" >/dev/null 2>&1; then
+        groupadd --system "${group}" || { err "no se pudo crear el grupo ${group}"; return 1; }
+        log "    grupo de sistema ${group} creado"
+    fi
+    if ! getent passwd "${user}" >/dev/null 2>&1; then
+        useradd --system --gid "${group}" --no-create-home --home-dir /nonexistent \
+            --shell "${nologin}" --comment "S9 Knowledge service" "${user}" \
+            || { err "no se pudo crear el usuario ${user}"; return 1; }
+        log "    usuario de sistema ${user} creado"
+    fi
+    uid="$(id -u "${user}")"; shell="$(getent passwd "${user}" | cut -d: -f7)"
+    [ "${uid}" -lt 1000 ] || { err "el usuario ${user} existe pero NO es de sistema (uid ${uid})"; return 1; }
+    [ "${uid}" -ne 0 ] || { err "el usuario ${user} es root"; return 1; }
+    case "${shell}" in
+        */nologin|*/false) ;;
+        *) err "el usuario ${user} tiene un shell utilizable (${shell}): se espera nologin"; return 1 ;;
+    esac
+    grupos=" $(id -nG "${user}") "
+    for g in sudo wheel adm root docker; do
+        case "${grupos}" in *" ${g} "*) err "el usuario ${user} pertenece al grupo de privilegio ${g}"; return 1 ;; esac
+    done
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# parar_y_verificar_servicios
+#   H-06 §8 pasos 3-5. Para el timer de salud, el healthcheck, el worker y el
+#   visor y COMPRUEBA que estan parados (estado + sin PID principal): ningun
+#   fichero de estado se toca con un proceso vivo. Idempotente: unidades
+#   ausentes o ya paradas no fallan. Un servicio que no para -> rc!=0 (el
+#   llamador hace STOP). S9K_REANUDAR_TIMER=1 si el timer estaba activo.
+# ---------------------------------------------------------------------------
+S9K_REANUDAR_TIMER=0
+parar_y_verificar_servicios() {
+    local unit i main
+    if systemctl is-active --quiet "${HEALTH_TIMER_NAME}" 2>/dev/null; then
+        S9K_REANUDAR_TIMER=1
+        systemctl stop "${HEALTH_TIMER_NAME}" || { err "no se pudo parar ${HEALTH_TIMER_NAME}"; return 1; }
+    fi
+    for unit in "${HEALTH_UNIT_NAME}" "${WORKER_UNIT_NAME_LIB}" "${VIEWER_UNIT_NAME}"; do
+        if systemctl is-active --quiet "${unit}" 2>/dev/null; then
+            log "    parando ${unit}"
+            systemctl stop "${unit}" || { err "systemctl stop ${unit} falló"; return 1; }
+        fi
+    done
+    for unit in "${HEALTH_UNIT_NAME}" "${WORKER_UNIT_NAME_LIB}" "${VIEWER_UNIT_NAME}"; do
+        for i in 1 2 3 4 5; do
+            main="$(systemctl show -p MainPID --value "${unit}" 2>/dev/null || echo 0)"
+            if ! systemctl is-active --quiet "${unit}" 2>/dev/null && { [ -z "${main}" ] || [ "${main}" = "0" ]; }; then
+                break
+            fi
+            if [ "${i}" -eq 5 ]; then
+                err "${unit} sigue activo tras pararlo (PID ${main}): STOP, no se toca el estado"
+                return 1
+            fi
+            sleep 1
+        done
+    done
+    log "    visor, worker y healthcheck parados y verificados"
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# reanudar_timer_de_salud  -> reactiva el timer si estaba activo antes de parar.
+# ---------------------------------------------------------------------------
+reanudar_timer_de_salud() {
+    if [ "${S9K_REANUDAR_TIMER}" = "1" ]; then
+        systemctl start "${HEALTH_TIMER_NAME}" || warn "no se pudo reactivar ${HEALTH_TIMER_NAME}"
+    fi
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# verificar_estado_por_efecto <state_root> <viewer.env> [<role>]
+#   H-06 §8 pasos 10-11. POR EFECTO, no por bits:
+#     - como el usuario de servicio (`runuser -u`): lee y escribe de verdad lo
+#       que necesita (service_state.py access);
+#     - como OTRO usuario (`nobody`): no accede a las bases ni al state root
+#       (service_state.py deny).
+#   Exige root (runuser). rc!=0 con la causa.
+# ---------------------------------------------------------------------------
+verificar_estado_por_efecto() {
+    local raiz="${1:?state_root}" env_file="${2:?viewer.env}" role="${3:-viewer}" user f
+    if [ "$(id -u)" -ne 0 ]; then
+        err "verificar_estado_por_efecto necesita root (runuser): el despliegue real corre como root"
+        return 1
+    fi
+    command -v runuser >/dev/null 2>&1 || { err "falta runuser (util-linux)"; return 1; }
+    user="$(servicio_cifra service_user)" || return 1
+    # Las rutas las resuelve ROOT (viewer.env esta en /etc 0700, ilegible para
+    # el usuario de servicio) y viajan por stdin: no son secretos.
+    local rutas
+    rutas="$(python3 "${S9K_SERVICE_STATE_PY}" paths --env-file "${env_file}" --role "${role}")" \
+        || { err "no se pudieron resolver las rutas de estado de ${env_file}"; return 1; }
+    printf '%s\n' "${rutas}" | runuser -u "${user}" -- python3 "${S9K_SERVICE_STATE_PY}" access \
+        --state-root "${raiz}" --paths-stdin \
+        || { err "${user} NO puede leer/escribir el estado que necesita (arriba, la ruta)"; return 1; }
+    printf '%s\n' "${rutas}" | runuser -u nobody -- python3 "${S9K_SERVICE_STATE_PY}" deny \
+        --state-root "${raiz}" --paths-stdin \
+        || { err "otro usuario local ACCEDE al estado privado (arriba, la ruta)"; return 1; }
+    # SECRET: el servicio LEE sus secretos y NO puede escribirlos (§9)
+    local secretos=()
+    while IFS= read -r -d '' f; do secretos+=("${f}"); done < <(find "${S9K_CONFIG_ROOT}/secrets" -type f -print0 2>/dev/null)
+    if [ "${#secretos[@]}" -gt 0 ]; then
+        runuser -u "${user}" -- python3 "${S9K_SERVICE_STATE_PY}" secret-probe "${secretos[@]}" \
+            || { err "${user} no lee sus secretos o puede escribirlos (arriba, la ruta)"; return 1; }
+    fi
+    log "    por efecto: ${user} lee/escribe su estado, lee (sin escribir) sus secretos y 'nobody' no accede a nada"
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# preparar_secretos_del_servicio [<config_root>]
+#   H-06 + H-08 (fase 2, §9) · politica SECRET. Los secretos provisionados NO se mueven
+#   al state root: se quedan en <config_root>/secrets y se dejan root:<grupo de
+#   servicio>: config 0710 (el grupo atraviesa, no lista), secrets 0750, ficheros
+#   0640. El servicio LEE y NO escribe. Idempotente; los modos salen de la AUTORIDAD.
+# ---------------------------------------------------------------------------
+preparar_secretos_del_servicio() {
+    local cfg="${1:-${S9K_CONFIG_ROOT}}" grupo f
+    grupo="$(servicio_cifra service_group)" || return 1
+    [ -d "${cfg}" ] || { err "no existe ${cfg}"; return 1; }
+    chgrp "${grupo}" "${cfg}" && chmod "$(servicio_cifra config_dir_mode)" "${cfg}" || return 1
+    [ -d "${cfg}/secrets" ] || return 0
+    chgrp "${grupo}" "${cfg}/secrets" && chmod "$(servicio_cifra secret_dir_mode)" "${cfg}/secrets" || return 1
+    while IFS= read -r -d '' f; do
+        chown "root:${grupo}" "${f}" && chmod "$(servicio_cifra secret_file_mode)" "${f}" || return 1
+        python3 "${S9K_SERVICE_STATE_PY}" secret-check "${f}" || return 1
+    done < <(find "${cfg}/secrets" -type f -print0)
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# preparar_raiz_de_backups <ruta>
+#   §10 · BACKUP separado del state vivo: root:<grupo> 0750 (el healthcheck lee, no escribe).
+#   Rechaza una ruta dentro del state root. No toca el contenido.
+# ---------------------------------------------------------------------------
+preparar_raiz_de_backups() {
+    local ruta="${1:?ruta}" grupo
+    grupo="$(servicio_cifra service_group)" || return 1
+    case "$(realpath -m -- "${ruta}")/" in
+        "$(realpath -m -- "${S9K_STATE_ROOT}")"/*) err "la raíz de backups ${ruta} está DENTRO del state root"; return 1 ;;
+    esac
+    install -d -m 0750 -o root -g "${grupo}" "${ruta}"
+}
+
+# ---------------------------------------------------------------------------
+# verificar_procesos_no_root <unit>...
+#   H-06 §13 / N8. El proceso VIVO de cada unidad corre como el usuario de
+#   servicio: ni root ni otro. Lee /proc/<MainPID>/status (no la unidad).
+# ---------------------------------------------------------------------------
+verificar_procesos_no_root() {
+    local unit pid uid esperado
+    esperado="$(id -u "$(servicio_cifra service_user)")" || return 1
+    for unit in "$@"; do
+        pid="$(systemctl show -p MainPID --value "${unit}" 2>/dev/null || echo 0)"
+        if [ -z "${pid}" ] || [ "${pid}" = "0" ]; then
+            err "${unit}: sin proceso principal (¿no arrancó?)"; return 1
+        fi
+        uid="$(awk '/^Uid:/ {print $3}' "/proc/${pid}/status" 2>/dev/null || true)"
+        if [ "${uid}" != "${esperado}" ]; then
+            err "${unit}: el proceso ${pid} corre como uid ${uid:-?}; esperado ${esperado} ($(servicio_cifra service_user))"
+            return 1
+        fi
+        # C-7 (ronda 2): sin capabilities EFECTIVAS ni ambientales y con NoNewPrivs, medido en
+        # el proceso vivo (un drop-in con AmbientCapabilities= no pasaria por aqui).
+        local capeff capamb nnp
+        capeff="$(awk '/^CapEff:/ {print $2}' "/proc/${pid}/status" 2>/dev/null || true)"
+        capamb="$(awk '/^CapAmb:/ {print $2}' "/proc/${pid}/status" 2>/dev/null || true)"
+        nnp="$(awk '/^NoNewPrivs:/ {print $2}' "/proc/${pid}/status" 2>/dev/null || true)"
+        case "${capeff}" in ""|*[!0]*) err "${unit}: el proceso ${pid} tiene capabilities efectivas (CapEff=${capeff:-?})"; return 1 ;; esac
+        case "${capamb}" in ""|*[!0]*) err "${unit}: el proceso ${pid} tiene capabilities ambientales (CapAmb=${capamb:-?})"; return 1 ;; esac
+        [ "${nnp}" = "1" ] || { err "${unit}: el proceso ${pid} NO tiene NoNewPrivs (=${nnp:-?})"; return 1; }
+    done
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# verificar_entorno_efectivo <unit>...
+#   C-6 (ronda 2, §12 «sin fail-open silencioso»). La excepcion de tests
+#   (S9K_STATE_VALIDATION) o el interruptor retirado (S9K_STATE_ENFORCE) no
+#   pueden entrar por la puerta de atras: un drop-in con `Environment=`, un
+#   `EnvironmentFile=` extra o el entorno heredado. Se mira el entorno EFECTIVO
+#   de cada unidad (lo que systemd va a pasar: `systemctl show -p Environment,
+#   EnvironmentFiles,DropInPaths`) y el del proceso VIVO (/proc/<pid>/environ,
+#   como root). Cualquier aparicion -> rc!=0 con la fuente.
+# ---------------------------------------------------------------------------
+verificar_entorno_efectivo() {
+    local unit pid valor f patron='(^|[[:space:]])S9K_STATE_(VALIDATION|ENFORCE)='
+    local fallo=0
+    for unit in "$@"; do
+        valor="$(systemctl show -p Environment --value "${unit}" 2>/dev/null || true)"
+        if printf '%s\n' "${valor}" | grep -qE "${patron}"; then
+            err "${unit}: el entorno EFECTIVO (Environment=, incluidos drop-ins) declara S9K_STATE_VALIDATION/ENFORCE"
+            fallo=1
+        fi
+        # EnvironmentFiles: "ruta (ignore_errors=no)" por fichero.
+        while IFS= read -r f; do
+            f="${f%% (*}"; f="${f#-}"
+            [ -n "${f}" ] && [ -f "${f}" ] || continue
+            if grep -vE '^[[:space:]]*#' "${f}" | grep -qE '^[[:space:]]*(export[[:space:]]+)?S9K_STATE_(VALIDATION|ENFORCE)='; then
+                err "${unit}: el EnvironmentFile ${f} declara S9K_STATE_VALIDATION/ENFORCE"
+                fallo=1
+            fi
+        done < <(systemctl show -p EnvironmentFiles --value "${unit}" 2>/dev/null | tr ' ' '\n' | grep -E '^-?/' || true)
+        for f in $(systemctl show -p DropInPaths --value "${unit}" 2>/dev/null || true); do
+            [ -f "${f}" ] || continue
+            if grep -vE '^[[:space:]]*[#;]' "${f}" | grep -qE 'S9K_STATE_(VALIDATION|ENFORCE)'; then
+                err "${unit}: el drop-in ${f} declara S9K_STATE_VALIDATION/ENFORCE"
+                fallo=1
+            fi
+        done
+        pid="$(systemctl show -p MainPID --value "${unit}" 2>/dev/null || echo 0)"
+        if [ -n "${pid}" ] && [ "${pid}" != "0" ] && [ -r "/proc/${pid}/environ" ]; then
+            if tr '\0' '\n' < "/proc/${pid}/environ" | grep -qE '^S9K_STATE_(VALIDATION|ENFORCE)='; then
+                err "${unit}: el proceso VIVO ${pid} tiene S9K_STATE_VALIDATION/ENFORCE en su entorno"
+                fallo=1
+            fi
+        fi
+    done
+    [ "${fallo}" -eq 0 ] || return 1
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# _exportar_env_s9k <env_file>
+#   Lee un EnvironmentFile (lo lee ROOT: /etc/s9-knowledge es 0710 y el usuario de
+#   servicio no lo lista) y EXPORTA sus S9K_* (nunca en argv: los secretos no viajan
+#   por la linea de comandos).
+# ---------------------------------------------------------------------------
+_exportar_env_s9k() {
+    local env_file="${1:?env}" line k v
+    [ -f "${env_file}" ] || { err "no existe ${env_file}"; return 1; }
+    while IFS= read -r line || [ -n "${line}" ]; do
+        case "${line}" in ''|'#'*) continue ;; esac
+        case "${line}" in *=*) ;; *) continue ;; esac
+        k="${line%%=*}"; v="${line#*=}"
+        k="${k//[[:space:]]/}"
+        case "${k}" in S9K_*) ;; *) continue ;; esac
+        v="${v#"${v%%[![:space:]]*}"}"; v="${v%"${v##*[![:space:]]}"}"
+        v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"
+        export "${k}=${v}"
+    done < "${env_file}"
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# s9k_cli_destino <herramienta>  -> "componente|directorio|modo|objetivo"
+#   H-1 (ronda 2). UNA tabla: cada CLI que puede crear o escribir estado del
+#   servicio (las que llaman a `reject_root_cli("<herramienta>")`; un test cruza
+#   los dos lados) y como se ejecuta en la release activa. rc 1 = desconocida.
+# ---------------------------------------------------------------------------
+s9k_cli_destino() {
+    case "${1:-}" in
+        auth)                  echo "viewer|viewer|-m|app.cli.auth" ;;
+        health)                echo "viewer|viewer|-m|app.cli.health" ;;
+        jobs)                  echo "data-engine|data-engine|script|app/cli/jobs.py" ;;
+        media-jobs)            echo "data-engine|data-engine|script|app/cli/media_jobs.py" ;;
+        glossary)              echo "data-engine|data-engine|script|app/glossary/glossary_cli.py" ;;
+        external-ai)           echo "data-engine|data-engine|script|app/cli/external_ai.py" ;;
+        job-store)             echo "data-engine|data-engine|script|app/jobs/job_store.py" ;;
+        ingest)                echo "data-engine|data-engine/app|-m|knowledge_v3.pipeline.ingest_cli" ;;
+        pipeline-runner)       echo "data-engine|data-engine/app|-m|knowledge_v3.pipeline.runner" ;;
+        semantic-bench)        echo "data-engine|data-engine/app|-m|knowledge_v3.extraction.semantic_bench" ;;
+        writer)                echo "data-engine|data-engine/app|-m|knowledge_v3.writer.cli" ;;
+        writer-rollback)       echo "data-engine|data-engine/app|-m|knowledge_v3.writer.cli_rollback" ;;
+        writer-schema)         echo "data-engine|data-engine/app|-m|knowledge_v3.writer.schema_cli" ;;
+        relations)             echo "data-engine|data-engine/app|-m|relations.cli" ;;
+        relations-benchmark)   echo "data-engine|data-engine/app|-m|relations.benchmark.cli" ;;
+        relations-calibration) echo "data-engine|data-engine/app|-m|relations.calibration.cli" ;;
+        relations-nvidia)      echo "data-engine|data-engine/app|-m|relations.calibration.nvidia_cli" ;;
+        *) return 1 ;;
+    esac
+}
+
+# ---------------------------------------------------------------------------
+# s9k_cli <herramienta> [args]   (H-06 §12 + H-1: el comando CANONICO)
+#   Ejecuta la CLI como el usuario de servicio con `runuser -u`, con umask 0077
+#   (defensa: los modos ya los fija la autoridad), desde la release activa y con
+#   el entorno de viewer.env (y, para el motor, worker.env encima). Root NO puede
+#   escribir estado con ninguna de ellas (la propia CLI lo rechaza, rc 4).
+# ---------------------------------------------------------------------------
+s9k_cli() {
+    local herramienta="${1:-}" destino comp dir modo objetivo user
+    destino="$(s9k_cli_destino "${herramienta}")" \
+        || { err "herramienta desconocida '${herramienta}'. Conocidas: auth health jobs media-jobs glossary external-ai job-store ingest pipeline-runner semantic-bench writer writer-rollback writer-schema relations relations-benchmark relations-calibration relations-nvidia"; return 2; }
+    shift
+    IFS='|' read -r comp dir modo objetivo <<< "${destino}"
+    user="$(servicio_cifra service_user)" || return 1
+    _exportar_env_s9k "${S9K_CONFIG_ROOT}/viewer.env" || return 1
+    if [ "${comp}" = "data-engine" ] && [ -f "${S9K_WORKER_ENV:-${S9K_CONFIG_ROOT}/worker.env}" ]; then
+        _exportar_env_s9k "${S9K_WORKER_ENV:-${S9K_CONFIG_ROOT}/worker.env}" || return 1
+    fi
+    cd "${S9K_ROOT}/current/${dir}" || return 1
+    umask 0077
+    if [ "${modo}" = "-m" ]; then
+        exec runuser -u "${user}" -- "${S9K_ROOT}/current/${comp}/.venv/bin/python" -m "${objetivo}" "$@"
+    fi
+    exec runuser -u "${user}" -- "${S9K_ROOT}/current/${comp}/.venv/bin/python" "${S9K_ROOT}/current/${comp}/${objetivo}" "$@"
+}
+
+# ---------------------------------------------------------------------------
+# auth_cli <comando> [args]   (H-06 §12: el comando CANONICO de la CLI de auth)
+#   Alias historico de `s9k_cli auth` (lo usan deploy/scripts/auth-cli.sh y el README).
+# ---------------------------------------------------------------------------
+auth_cli() {
+    s9k_cli auth "$@"
 }
 
 # ---------------------------------------------------------------------------
@@ -769,9 +1125,23 @@ worker_activo() {
 #       restaura la unidad respaldada si la habia y, si no, se QUITA la nueva.
 #   rc=0 siempre que systemctl responda; los errores se avisan.
 # ---------------------------------------------------------------------------
+_unidad_con_identidad_vigente() {
+    local usuario
+    usuario="$(servicio_cifra service_user)" || return 1
+    grep -qE "^User=${usuario}$" "${1:?unidad}"
+}
+
 revertir_worker() {
     local prev="${1:-}" unit="${2:?unidad}" dest="${3:?destino}" release_id="${4:?release}"
     local respaldo="${dest}.bak-${release_id}"
+    # H-06 (decision de rollback): la IDENTIDAD no se revierte jamas. Una unidad
+    # respaldada de antes de H-06 (root o www-data) NO se restaura: el estado ya
+    # es de s9knowledge 0700 y esa unidad no podria leerlo. Se restaura solo si
+    # el respaldo declara la identidad vigente de la autoridad.
+    if [ -f "${respaldo}" ] && ! _unidad_con_identidad_vigente "${respaldo}"; then
+        warn "rollback: el respaldo ${respaldo} es de una identidad anterior a H-06; NO se restaura"
+        respaldo="/nonexistent-respaldo-descartado"
+    fi
     if [ -n "${prev}" ] && [ -x "${prev}/data-engine/.venv/bin/python" ]; then
         if [ -f "${respaldo}" ]; then cp -a "${respaldo}" "${dest}"; fi
         systemctl daemon-reload || warn "daemon-reload falló en el rollback del worker"
@@ -787,4 +1157,35 @@ revertir_worker() {
     fi
     systemctl daemon-reload || warn "daemon-reload falló en el rollback del worker"
     return 0
+}
+
+# ---------------------------------------------------------------------------
+# rollback_permitido <release_previa>
+#   C-4 (ronda 2, §15). Puerta del rollback AUTOMATICO de deploy.sh (pasos 14,
+#   14a, 14b, 16). Reactivar la release previa solo es seguro si ELLA entiende
+#   la identidad vigente: el estado ya es de s9knowledge 0700/0600 y una release
+#   anterior a H-06 no lo leeria (o lo escribiria en su release). Misma funcion
+#   que rollback-release.sh (`release_entiende_la_identidad`).
+#     rc 0 -> se puede reactivar; S9K_ROLLBACK_RESULTADO dice que se reactiva.
+#     rc 1 -> NO: se PARAN visor y worker (no se arranca a ciegas) y
+#             S9K_ROLLBACK_RESULTADO lleva el diagnostico para el `die`.
+#   Sin release previa no se llama (S9K_ROLLBACK_RESULTADO conserva su valor).
+#   Necesita validate_deploy.sh cargado (deploy.sh lo carga).
+# ---------------------------------------------------------------------------
+S9K_ROLLBACK_RESULTADO="sin release previa: no hay rollback posible"
+rollback_permitido() {
+    local prev="${1:-}"
+    if [ -z "${prev}" ] || [ ! -d "${prev}" ]; then
+        S9K_ROLLBACK_RESULTADO="sin release previa: no hay rollback posible"
+        return 1
+    fi
+    if release_entiende_la_identidad "${prev}"; then
+        S9K_ROLLBACK_RESULTADO="rollback ejecutado (release previa $(basename -- "${prev}") reactivada)"
+        return 0
+    fi
+    err "rollback: la release previa ${prev} NO declara la identidad vigente (anterior a H-06 o unidad inválida, arriba): NO se reactiva"
+    systemctl stop "${VIEWER_UNIT_NAME}" || warn "no se pudo parar ${VIEWER_UNIT_NAME}"
+    systemctl stop "${WORKER_UNIT_NAME_LIB}" || warn "no se pudo parar ${WORKER_UNIT_NAME_LIB}"
+    S9K_ROLLBACK_RESULTADO="rollback NO ejecutado: la release previa $(basename -- "${prev}") no entiende la identidad vigente; visor y worker PARADOS (diagnóstico arriba; ver deploy/README.md, recuperación)"
+    return 1
 }

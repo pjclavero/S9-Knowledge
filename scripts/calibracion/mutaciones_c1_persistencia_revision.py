@@ -161,7 +161,12 @@ def _m1_visor_deriva_su_ruta(texto: str):
     return mutar_en_funcion(
         texto, "default_database_path",
         "    return _engine_review_paths().default_review_db()",
-        '    return default_decisions_path().with_name("review.sqlite3")')
+        # H-06/H-08 fase 2: `default_decisions_path()` ya deriva de S9K_V3_REVIEW_DATABASE_PATH
+        # cuando esta declarada, asi que derivar de ELLA ya no diverge en el caso `declarada`. El
+        # defecto que se reintroduce es el ORIGINAL: derivar solo de S9K_V3_REVIEW_DECISIONS_PATH
+        # o del defecto de la release (ignorando la variable declarada del almacen).
+        '    return Path(os.environ.get("S9K_V3_REVIEW_DECISIONS_PATH") or Path(__file__).resolve().parents[2]'
+        ' / "output" / "reviews-v3" / "decisions.jsonl").with_name("review.sqlite3")')
 
 
 def _m2_vacio_si_no_existe(texto: str):
@@ -224,7 +229,8 @@ def _m8_fresh_ignora_la_existente(texto: str):
 def _m9_worker_sin_revision(texto: str):
     return mutar_unico(
         texto,
-        '    install -d -m 0750 -o "${user}" -g "${group}" "$(dirname -- "${review_db}")"\n', "")
+        # H-06 + H-08: el modo sale de la AUTORIDAD (`${dir_mode}`), ya no es el literal 0750.
+        '    install -d -m "${dir_mode}" -o "${user}" -g "${group}" "$(dirname -- "${review_db}")"\n', "")
 
 
 def _m9b_worker_sin_wal_de_revision(texto: str):

@@ -57,6 +57,14 @@ UNIT_DEST="/etc/systemd/system/s9-knowledge-viewer.service"
 # (data-engine/systemd/), la misma que instala el rol Ansible `systemd`.
 WORKER_UNIT_NAME="s9-knowledge-worker.service"
 WORKER_UNIT_DEST="/etc/systemd/system/${WORKER_UNIT_NAME}"
+# H-06 + H-08: el healthcheck también corre como el usuario de servicio. Su
+# unidad la instala el rol Ansible `healthchecks`; si YA está instalada, este
+# guion la mantiene alineada con la release (misma identidad) en los pasos 8-9.
+HEALTH_UNIT_DEST="/etc/systemd/system/${HEALTH_UNIT_NAME}"
+# H-06 + H-08: UNA autoridad de identidad (service_state.py). Ni www-data, ni
+# root, ni una cifra repetida aquí: se PIDE.
+SERVICE_USER="$(servicio_cifra service_user)" || die "la autoridad de identidad (service_state.py) no respondió"
+SERVICE_GROUP="$(servicio_cifra service_group)" || die "la autoridad de identidad (service_state.py) no respondió"
 
 usage() {
     cat <<USAGE
@@ -146,6 +154,18 @@ if [ "${DRY_RUN}" -eq 1 ]; then
     if [ "${detect_rc}" -eq 3 ]; then
         warn "  -> En APLICAR, el estado BLOQUEARÍA el despliegue (ver 'decision: BLOCK')."
     fi
+    # H-06 + H-08: lo que APLICAR haría con la identidad y el estado (SOLO LECTURA).
+    info "  3b/5b. Identidad de servicio ${SERVICE_USER}:${SERVICE_GROUP}; parada de visor y worker; estado a 0700/0600:"
+    if getent passwd "${SERVICE_USER}" >/dev/null 2>&1; then
+        info "         el usuario ${SERVICE_USER} ya existe"
+    else
+        info "         el usuario ${SERVICE_USER} NO existe: APLICAR lo crea (sistema, nologin, sin sudo)"
+    fi
+    if [ -d "${S9K_STATE_ROOT}" ] && [ -f "${VIEWER_ENV}" ]; then
+        if ! python3 "${S9K_SERVICE_STATE_PY}" check --state-root "${S9K_STATE_ROOT}" --env-file "${VIEWER_ENV}"; then
+            warn "  -> hallazgos de propietario/modos/ubicación (arriba): APLICAR los migra o PARA"
+        fi
+    fi
     # C1: el almacén de revisión, SOLO LECTURA (no se crea nada en dry-run).
     if [ -f "${VIEWER_ENV}" ]; then
         info "  6. Almacén de revisión (review.sqlite3), solo lectura:"
@@ -220,6 +240,25 @@ python3 -m venv "${RELEASE_DIR}/data-engine/.venv"
 create_manifest "${RELEASE_DIR}" "${RELEASE_ID}" "${RESOLVED_COMMIT}" "${ENVIRONMENT}"
 validate_manifest "${RELEASE_DIR}/manifest.json" || die "manifiesto inválido"
 
+# Paso 2b (H-06 + H-08): precondiciones PURAS del estado del servicio, ANTES de
+# parar nada. Un viewer.env sin S9K_STATE_ROOT, o con una ruta de estado en la
+# release, no puede dejar el servicio parado a mitad de despliegue: se rechaza
+# aquí, con los servicios todavía en marcha. (Solo lectura.)
+# Ronda 2: también las precondiciones del DISCO (`validate-env --role viewer`):
+#   C-1 `<state>/backups` con contenido o S9K_BACKUP_ROOT/S9K_BACKUP_DIR dentro del
+#       state root -> STOP con receta;
+#   C-5 state root NO dedicado (`/`, un directorio del sistema, sticky o escribible
+#       por otros, entradas de primer nivel ajenas al servicio) -> STOP.
+# Nada de eso puede descubrirse con visor y worker ya parados.
+log "--- 2b. precondiciones del estado del servicio (antes de parar nada)"
+validate_viewer_env "${VIEWER_ENV}" || die "viewer.env inválido/incompleto (nada se ha parado ni tocado)"
+validate_state_paths "${VIEWER_ENV}" viewer || die "rutas de estado de viewer.env fuera del contrato (nada se ha parado ni tocado)"
+if [ -f "${S9K_WORKER_ENV:-${S9K_CONFIG_ROOT}/worker.env}" ]; then
+    validate_state_paths "${S9K_WORKER_ENV:-${S9K_CONFIG_ROOT}/worker.env}" worker \
+        || die "rutas de estado de worker.env fuera del contrato (nada se ha parado ni tocado)"
+fi
+# --- fin del paso 2b ---
+
 # Paso 3: detectar layout/estado
 log "--- 3. detectar layout/estado"
 STATE_JSON="$(detect_layout_report || true)"
@@ -229,6 +268,15 @@ GLOBAL_STATE="$(_campo_json "${STATE_JSON}" global_state)"
 DECISION="$(_campo_json "${STATE_JSON}" decision)"
 PRIMER_ADMIN_PENDIENTE="$(_campo_json "${STATE_JSON}" primer_admin_pendiente)"
 log "    auth=$(_campo_json "${STATE_JSON}" per_kind auth state) jobs=$(_campo_json "${STATE_JSON}" per_kind jobs state) modo=${MODE} decision=${DECISION} (global informativo=${GLOBAL_STATE})"
+
+# Paso 3b (H-06 + H-08, §8 pasos 3-5 y §10): identidad de servicio y PARADA
+# REAL de visor y worker, verificada, ANTES de tocar un solo fichero de estado.
+# Si algo falla, el despliegue PARA con los servicios en el estado en que
+# estén (no se «arrancan de nuevo a ciegas»): ver deploy/README.md, rollback.
+log "--- 3b. identidad de servicio (${SERVICE_USER}) y parada verificada de visor y worker"
+asegurar_identidad_de_servicio || die "identidad de servicio no asegurada (causa arriba): STOP, no se toca el estado"
+parar_y_verificar_servicios || die "los servicios no pararon (causa arriba): STOP, no se toca el estado"
+# --- fin del paso 3b ---
 
 # Paso 4: migrar o validar estado. UNA autoridad: `decision` (lib.sh).
 log "--- 4. migrar o validar estado"
@@ -244,6 +292,33 @@ cont_rc=$?
 set -e
 [ "${cont_rc}" -eq 0 ] || die "validación de continuidad BLOQUEA (rc=${cont_rc})"
 
+# Paso 5b (H-06 + H-08, §8 pasos 6-11): estado del servicio. Con visor y worker
+# PARADOS: inspeccionar, sacar de la release el estado mutable legacy
+# (copia + hash + sólo entonces retirar el original), propietario s9knowledge,
+# modos 0700/0600 y verificación POR EFECTO. Va ANTES del paso 6 a propósito:
+# el paso 6 pregunta «¿lo escribe el usuario del servicio?» y la respuesta
+# tiene que ser verdad ya (una sola política, no «el paso 6 se queja y el 13
+# arregla»). Cualquier fallo -> STOP; la release NO se activa.
+log "--- 5b. estado del servicio: migrar, propietario, modos y verificación por efecto"
+_migrar_args=()
+_release_activa="$(readlink -f "${S9K_ROOT}/current" 2>/dev/null || true)"
+[ -n "${_release_activa}" ] && [ -d "${_release_activa}" ] && _migrar_args+=(--release-dir "${_release_activa}")
+[ -d "${LEGACY_ROOT}" ] && _migrar_args+=(--legacy-root "${LEGACY_ROOT}")
+python3 "${HERE}/migrar_estado.py" aplicar --state-root "${S9K_STATE_ROOT}" \
+    --env-file "${VIEWER_ENV}" --release-id "${RELEASE_ID}" "${_migrar_args[@]}" \
+    || die "migración del estado a ${SERVICE_USER} PARADA (causa arriba). Visor y worker siguen PARADOS, la release NO se activa y el estado original se conserva; ver deploy/README.md (recuperación)"
+# SECRET (§9) y BACKUP (§10): políticas propias, fuera del state root.
+preparar_secretos_del_servicio "${S9K_CONFIG_ROOT}" \
+    || die "los secretos de ${S9K_CONFIG_ROOT}/secrets no cumplen la política SECRET (root:${SERVICE_GROUP} 0640; causa arriba)"
+# C-1: la raiz de backups por cualquiera de sus dos nombres (el healthcheck acepta ambos).
+_backup_dir="$(_env_value "${VIEWER_ENV}" S9K_BACKUP_ROOT)"
+[ -n "${_backup_dir}" ] || _backup_dir="$(_env_value "${VIEWER_ENV}" S9K_BACKUP_DIR)"
+[ -z "${_backup_dir}" ] || preparar_raiz_de_backups "${_backup_dir}" \
+    || die "raíz de backups inválida: ${_backup_dir}"
+verificar_estado_por_efecto "${S9K_STATE_ROOT}" "${VIEWER_ENV}" viewer \
+    || die "verificación por efecto del estado FALLÓ (causa arriba): servicios parados, release NO activada"
+# --- fin del paso 5b ---
+
 # Paso 6: validar viewer.env (bloquea si faltan variables críticas o el secreto
 # CSRF / fichero de contraseña son inseguros; nunca se imprime el valor)
 log "--- 6. validar viewer.env"
@@ -256,11 +331,10 @@ validate_viewer_secrets "${VIEWER_ENV}" || die "viewer.env: secretos inválidos 
 # válido y lo preserva (UPGRADE SIN ALMACÉN -> STOP, salvo
 # --autorizar-creacion-review-db y sólo con ausencia real). Las candidatas
 # legacy se miran para no dejar huérfanas decisiones ya tomadas.
-WORKER_UNIT_PREVIA="${RELEASE_DIR}/data-engine/systemd/${WORKER_UNIT_NAME}"
-REVIEW_USER="$(_unit_value "${WORKER_UNIT_PREVIA}" User)"
-REVIEW_GROUP="$(_unit_value "${WORKER_UNIT_PREVIA}" Group)"
-[ -n "${REVIEW_USER}" ] && [ -n "${REVIEW_GROUP}" ] \
-    || die "la unidad del worker (${WORKER_UNIT_PREVIA}) no declara User/Group: no se sabe a quién dar el almacén de revisión"
+# H-06 + H-08: el dueño del almacén es el de la AUTORIDAD (s9knowledge), no el
+# que diga una unidad ni «quien ejecuta deploy.sh».
+REVIEW_USER="${SERVICE_USER}"
+REVIEW_GROUP="${SERVICE_GROUP}"
 REVIEW_ACTUAL="$(readlink -f "${S9K_ROOT}/current" 2>/dev/null || true)"
 REVIEW_AUTORIZAR=()
 [ "${AUTORIZAR_CREACION_REVIEW_DB}" -eq 1 ] && REVIEW_AUTORIZAR=(--autorizar-creacion-review-db)
@@ -285,6 +359,7 @@ python3 "${HERE}/preflight_ensayo_rc.py" --grupo despliegue \
 # que ser los MISMOS que los del visor.
 WORKER_ENV="${S9K_WORKER_ENV:-${S9K_CONFIG_ROOT}/worker.env}"
 validate_worker_env "${WORKER_ENV}" "${VIEWER_ENV}" || die "worker.env ausente o inválido (causa arriba)"
+validate_state_paths "${WORKER_ENV}" worker || die "rutas de estado de worker.env fuera del contrato (causa arriba)"
 # PR-3 · USABLE-V1: mitad ESTÁTICA del contrato de la vía HTTPS. En
 # `production` bloquea; en `lab` avisa. La mitad POR EFECTO va en el paso 16b,
 # cuando ya hay un servicio al que preguntar.
@@ -295,7 +370,10 @@ validate_https_contract "${VIEWER_ENV}" "${ENVIRONMENT}" \
 # Paso 7: validar unidad nueva (antes de instalarla)
 log "--- 7. validar unidad systemd nueva"
 UNIT_SRC="${RELEASE_DIR}/viewer/systemd/s9-knowledge-viewer.service"
-validate_viewer_unit "${UNIT_SRC}" "${S9K_ROOT}/current" || die "unit nueva inválida"
+validate_viewer_unit "${UNIT_SRC}" "${S9K_ROOT}/current" "${VIEWER_ENV:-}" || die "unit nueva inválida"
+# H-06 + H-08: el healthcheck, con la misma identidad y sin privilegios.
+HEALTH_UNIT_SRC="${RELEASE_DIR}/viewer/systemd/${HEALTH_UNIT_NAME}"
+validate_healthcheck_unit "${HEALTH_UNIT_SRC}" || die "unidad del healthcheck inválida (causa arriba)"
 # B3 · H-02: la unidad del worker, POR EFECTO: su intérprete y su script tienen
 # que existir en la release que se va a activar, y su secreto ser el de
 # worker.env. El usuario del servicio se lee de la unidad (una sola fuente).
@@ -308,7 +386,11 @@ WORKER_GROUP="$(_unit_value "${WORKER_UNIT_SRC}" Group)"
 
 # Paso 8-9: respaldar unidad instalada + instalar nueva (solo si difiere)
 UNIT_CHANGED=0
-for _par in "${UNIT_SRC}|${UNIT_DEST}" "${WORKER_UNIT_SRC}|${WORKER_UNIT_DEST}"; do
+_pares_unidades=("${UNIT_SRC}|${UNIT_DEST}" "${WORKER_UNIT_SRC}|${WORKER_UNIT_DEST}")
+# El healthcheck: solo si ya está instalado (lo instala el rol `healthchecks`);
+# así deja de correr como root en el mismo despliegue que migra el estado.
+[ -f "${HEALTH_UNIT_DEST}" ] && _pares_unidades+=("${HEALTH_UNIT_SRC}|${HEALTH_UNIT_DEST}")
+for _par in "${_pares_unidades[@]}"; do
     _src="${_par%%|*}"; _dst="${_par##*|}"
     if ! diff -q "${_src}" "${_dst}" >/dev/null 2>&1; then
         log "--- 8. respaldar unidad instalada ($(basename "${_dst}"))"
@@ -324,8 +406,18 @@ done
 # Paso 10: systemd-analyze verify
 log "--- 10. systemd-analyze verify"
 if command -v systemd-analyze >/dev/null 2>&1; then
-    systemd-analyze verify "${UNIT_DEST}" || die "systemd-analyze verify falló"
-    systemd-analyze verify "${WORKER_UNIT_DEST}" || die "systemd-analyze verify falló (worker)"
+    # Las unidades apuntan a `${S9K_ROOT}/current/...`, que en una instalación FRESH (y en un
+    # upgrade, a la release ANTERIOR) todavía no es la release nueva: `current` se activa en el
+    # paso 12. Se verifican copias con `current` sustituido por la release que SE VA A ACTIVAR,
+    # es decir, los binarios que de verdad ejecutará la unidad (hallado en VM112: sin esto un
+    # fresh real moría aquí con «uvicorn is not executable»).
+    _verif_dir="$(mktemp -d)"
+    for _u in "${UNIT_DEST}" "${WORKER_UNIT_DEST}"; do
+        sed "s#${S9K_ROOT}/current#${RELEASE_DIR}#g" "${_u}" > "${_verif_dir}/$(basename "${_u}")"
+        systemd-analyze verify "${_verif_dir}/$(basename "${_u}")" \
+            || { rm -rf "${_verif_dir}"; die "systemd-analyze verify falló ($(basename "${_u}"))"; }
+    done
+    rm -rf "${_verif_dir}"
 else
     warn "systemd-analyze no disponible; omitido"
 fi
@@ -365,11 +457,10 @@ write_deployment_state \
 
 # Paso 13: reiniciar solo servicios afectados
 log "--- 13. reiniciar servicios (worker y visor)"
-# B3 · H-02: el estado que COMPARTEN visor y worker (cola y almacén de
-# propuestas) pasa a ser del usuario del servicio del worker ANTES de
-# arrancarlo. El visor de `deploy.sh` sigue como root (H-08) y puede leer y
-# escribir igual; al revés no: un `jobs.db` creado por root (0644) deja al
-# worker en "attempt to write a readonly database".
+# H-06 + H-08: el estado que COMPARTEN visor y worker (cola, propuestas,
+# decisiones) es de s9knowledge 0700/0600 desde el paso 5b. Esta llamada es la
+# RE-COMPROBACIÓN idempotente justo antes de arrancar (cubre lo que el paso 6
+# haya creado: p. ej. `review.sqlite3` en fresh), con los modos de la AUTORIDAD.
 preparar_estado_del_worker "${WORKER_USER}" "${WORKER_GROUP}" "${NEW_JOBS_DB}" \
     "$(_env_value "${WORKER_ENV}" S9K_V3_REVIEW_PROPOSALS_DIR)" \
     "$(_env_value "${WORKER_ENV}" S9K_V3_REVIEW_DATABASE_PATH)" \
@@ -390,6 +481,7 @@ if [ "${MODE}" = "fresh" ]; then
     systemctl enable s9-knowledge-viewer.service || die "no se pudo habilitar el visor"
 fi
 systemctl restart s9-knowledge-viewer.service || die "no se pudo reiniciar el visor"
+reanudar_timer_de_salud
 sleep 3
 # --- fin del paso 13 ---
 
@@ -399,20 +491,43 @@ python3 "${HERE}/verify_release_identity.py" --root "${S9K_ROOT}" \
     --expected-release "${RELEASE_ID}" --expected-commit "${RESOLVED_COMMIT}" \
     --unit s9-knowledge-viewer.service || {
         err "el proceso vivo NO ejecuta la release autorizada — rollback"
-        [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && {
+        [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && rollback_permitido "${PREV_RELEASE_DIR}" && {
             atomic_symlink "${PREV_RELEASE_DIR}" "${S9K_ROOT}/current"
             revertir_worker "${PREV_RELEASE_DIR}" "${WORKER_UNIT_NAME}" "${WORKER_UNIT_DEST}" "${RELEASE_ID}" || true
             systemctl restart s9-knowledge-viewer.service || true
         }
-        die "activación no verificable; rollback ejecutado"
+        die "activación no verificable; ${S9K_ROLLBACK_RESULTADO}"
     }
+# Paso 14a (H-06 + H-08, N8): los procesos VIVOS corren como el usuario de
+# servicio, no como root (se lee /proc, no la unidad: una ruta alternativa de
+# arranque no pasaría).
+log "--- 14a. procesos del visor y del worker como ${SERVICE_USER}"
+if ! verificar_procesos_no_root "${VIEWER_UNIT_NAME}" "${WORKER_UNIT_NAME}"; then
+    err "algún proceso NO corre como ${SERVICE_USER} — rollback"
+    [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && rollback_permitido "${PREV_RELEASE_DIR}" && {
+        atomic_symlink "${PREV_RELEASE_DIR}" "${S9K_ROOT}/current"
+        revertir_worker "${PREV_RELEASE_DIR}" "${WORKER_UNIT_NAME}" "${WORKER_UNIT_DEST}" "${RELEASE_ID}" || true
+        systemctl restart s9-knowledge-viewer.service || true
+    }
+    die "identidad de los procesos no verificada; ${S9K_ROLLBACK_RESULTADO}"
+fi
+# C-6 (ronda 2, §12 «sin fail-open silencioso»): la excepción de tests no entra por
+# un drop-in, un EnvironmentFile extra ni el entorno heredado. Se mira el entorno
+# EFECTIVO de las tres unidades y el de los procesos VIVOS. Si aparece, se PARA
+# (no hay rollback que lo arregle: no es de la release, es de la configuración).
+if ! verificar_entorno_efectivo "${VIEWER_UNIT_NAME}" "${WORKER_UNIT_NAME}" "${HEALTH_UNIT_NAME}"; then
+    systemctl stop "${VIEWER_UNIT_NAME}" || true
+    systemctl stop "${WORKER_UNIT_NAME}" || true
+    die "la excepción de tests/laboratorio (S9K_STATE_VALIDATION/S9K_STATE_ENFORCE) está en el entorno EFECTIVO (causa arriba): visor y worker PARADOS. Quite el drop-in/EnvironmentFile/Environment= y repita el despliegue"
+fi
+
 # Paso 14b (B3 · H-02): el worker tiene que estar VIVO, no solo instalado. Con
 # `Restart=always` una unidad rota no se queda en `failed` de inmediato: entra
 # en bucle de reinicios, así que se exige `active` en varias lecturas.
 log "--- 14b. verificar que el worker está activo"
 if ! worker_activo "${WORKER_UNIT_NAME}"; then
     err "el worker no está activo tras el arranque — rollback"
-    [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && {
+    [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && rollback_permitido "${PREV_RELEASE_DIR}" && {
         atomic_symlink "${PREV_RELEASE_DIR}" "${S9K_ROOT}/current"
         revertir_worker "${PREV_RELEASE_DIR}" "${WORKER_UNIT_NAME}" "${WORKER_UNIT_DEST}" "${RELEASE_ID}" || true
         systemctl restart s9-knowledge-viewer.service || true
@@ -422,7 +537,7 @@ if ! worker_activo "${WORKER_UNIT_NAME}"; then
     # (un PREV_RELEASE_DIR con valor pero sin directorio cuenta como «sin previa»)
     { [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ]; } \
         || revertir_worker "" "${WORKER_UNIT_NAME}" "${WORKER_UNIT_DEST}" "${RELEASE_ID}" || true
-    die "worker no activo (journalctl -u ${WORKER_UNIT_NAME}); rollback ejecutado"
+    die "worker no activo (journalctl -u ${WORKER_UNIT_NAME}); ${S9K_ROLLBACK_RESULTADO}"
 fi
 
 # Paso 15: comprobar admin y jobs preservados
@@ -440,12 +555,12 @@ set -e
 # Antes solo se comprobaba verify_rc==1, dejando pasar BLOCKED (rc=2) como verde.
 if [ "${verify_rc}" -ne 0 ]; then
     err "healthcheck FALLIDO (rc=${verify_rc}) — rollback"
-    [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && {
+    [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && rollback_permitido "${PREV_RELEASE_DIR}" && {
         atomic_symlink "${PREV_RELEASE_DIR}" "${S9K_ROOT}/current"
         revertir_worker "${PREV_RELEASE_DIR}" "${WORKER_UNIT_NAME}" "${WORKER_UNIT_DEST}" "${RELEASE_ID}" || true
         systemctl restart s9-knowledge-viewer.service || true
     }
-    die "despliegue FALLIDO tras healthcheck (verify_rc=${verify_rc})"
+    die "despliegue FALLIDO tras healthcheck (verify_rc=${verify_rc}); ${S9K_ROLLBACK_RESULTADO}"
 fi
 
 # Paso 16b: vía HTTPS, VERIFICADA POR EFECTO. No que la configuración esté

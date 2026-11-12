@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Generator, Optional
 
 from app import config
+from app import service_identity
 from app.auth.models import AuditEvent, PartidaAccess, Session, User
 
 SCHEMA_VERSION = 4
@@ -41,7 +42,8 @@ def _db_path() -> Path:
     valor = config.effective_env_value("S9K_AUTH_DB_PATH")
     raw = valor if (valor is not None and valor.strip()) else _DB_PATH_DEFAULT
     p = Path(raw)
-    p.parent.mkdir(parents=True, exist_ok=True)
+    # Cada directorio que falte nace con el modo EXACTO de la autoridad (no la umask).
+    service_identity.ensure_private_dir(p.parent)
     return p
 
 
@@ -49,7 +51,25 @@ def _db_path() -> Path:
 # Conexión
 # ---------------------------------------------------------------------------
 
+def _crear_privado_si_falta(path: Path) -> None:
+    """La base NACE con el modo privado de la autoridad (0600), no con el que
+    deje la umask del proceso (H-06 + H-08, N1): el hash de las contraseñas y
+    las sesiones no pueden pasar ni un instante legibles por otro usuario. Los
+    ``-wal``/``-shm`` que SQLite crea después heredan el modo de ESTA base.
+    """
+    if str(path) == ":memory:" or str(path).startswith("file:"):
+        return
+    # Modo EXACTO (O_EXCL + fchmod en la autoridad); root no crea la base (H-1).
+    service_identity.create_private_file(path)
+
+
 def _connect(path: Path) -> sqlite3.Connection:
+    # H-1 (ronda 2): abrir la base en WAL como root crearia `-wal`/`-shm` root:root
+    # dentro del estado vivo. Root no llega aqui por la CLI (la rechaza), y si llega
+    # por otra puerta (`python -c`, herramienta nueva) este punto lo para.
+    if str(path) != ":memory:" and not str(path).startswith("file:"):
+        service_identity.refuse_root_state_write(path)
+    _crear_privado_si_falta(Path(path))
     conn = sqlite3.connect(str(path), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
@@ -259,7 +279,9 @@ def migrate(db_path: Optional[Path] = None) -> None:
     path = db_path or _db_path()
     lock_path = path.with_suffix(".lock")
 
-    with open(lock_path, "w") as lf:
+    # El lock también es privado (H-06): modo EXACTO de la autoridad, no la umask.
+    _lock_fd = service_identity.service_state().open_private_write(lock_path)
+    with os.fdopen(_lock_fd, "w") as lf:
         fcntl.flock(lf, fcntl.LOCK_EX)
         try:
             conn = _connect(path)
@@ -285,6 +307,7 @@ def migrate(db_path: Optional[Path] = None) -> None:
             if path.exists() and path.stat().st_size > 0:
                 backup = path.with_suffix(f".bak.v{current}")
                 shutil.copy2(str(path), str(backup))
+                os.chmod(str(backup), service_identity.file_mode())
 
             for stmt in _DDL:
                 conn.execute(stmt)

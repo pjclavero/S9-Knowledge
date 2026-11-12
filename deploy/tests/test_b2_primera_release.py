@@ -82,7 +82,7 @@ class VisorDesdeCurrent(VisorReal):
         super().__init__(db_path=None, cert=cert)
 
     def _entorno(self) -> dict:
-        env = {k: v for k, v in os.environ.items() if not k.startswith("S9K_")}
+        env = {k: v for k, v in os.environ.items() if not k.startswith("S9K_") or k == "S9K_STATE_VALIDATION"}
         env.update(self.entorno_fijo)
         env["PYTHONPATH"] = str(self.cwd)
         env["PYTHONDONTWRITEBYTECODE"] = "1"

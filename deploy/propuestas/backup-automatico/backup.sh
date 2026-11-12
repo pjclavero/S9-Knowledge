@@ -13,7 +13,10 @@
 # no escribe en Neo4j. Escribe unicamente dentro de $DEST.
 set -Eeuo pipefail
 
-DEST="${S9K_BACKUP_DIR:-/var/lib/s9-knowledge/backups}"
+# H-06/H-08 §10: la raiz de backups esta FUERA del state vivo (root:s9knowledge 0750).
+# PENDIENTE antes de adoptar esta propuesta (TD-H06-01): `sqlite3 <base> .backup` como root puede
+# crear -wal/-shm root:root junto a una base viva; hay que ejecutarlo como el usuario de servicio.
+DEST="${S9K_BACKUP_DIR:-/var/backups/s9-knowledge}"
 AUTH_DB="${S9K_AUTH_DB_PATH:-/var/lib/s9-knowledge/auth/auth.db}"
 JOBS_DB="${S9K_JOBS_DB:-/var/lib/s9-knowledge/jobs/jobs.db}"
 NEO4J_CONTAINER="${S9K_NEO4J_CONTAINER:-neo4j-knowledge}"

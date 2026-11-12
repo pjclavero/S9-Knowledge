@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from app import service_identity
 from app.health.models import HealthReport
 
 
@@ -17,12 +18,20 @@ def default_report_path() -> Path:
 
 def save_report(report: HealthReport, path: Optional[Path] = None) -> Path:
     path = Path(path) if path else default_report_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
+    # H-1 (ronda 2): root no escribe el informe dentro del estado vivo (un health.json
+    # root:root deja al healthcheck del servicio sin poder reemplazarlo), y cada
+    # directorio que falte nace con el modo EXACTO de la autoridad, no con la umask.
+    service_identity.refuse_root_state_write(path)
+    service_identity.ensure_private_dir(path.parent)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(report.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
+    # Privado desde el nacimiento (H-06): el temporal YA es 0600 (fchmod en la
+    # autoridad) antes de publicarse con `os.replace`; ninguna ventana 0644.
+    fd = service_identity.service_state().open_private_write(tmp)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
     os.replace(tmp, path)
     try:
-        os.chmod(path, 0o600)
+        os.chmod(path, service_identity.file_mode())
     except OSError:
         pass
     return path

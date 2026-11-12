@@ -189,7 +189,40 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _autoridad_de_estado():
+    """La autoridad de modos (H-06 + H-08), cargada por ruta: este modulo es
+    stdlib y se ejecuta tambien suelto (`--ruta-despliegue`), asi que no
+    depende de `sys.path`. Una sola instancia (`_s9k_service_state`)."""
+    import importlib.util
+    import sys
+    nombre = "_s9k_service_state"
+    if nombre in sys.modules:
+        return sys.modules[nombre]
+    ruta = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "knowledge_v3", "service_state.py")
+    spec = importlib.util.spec_from_file_location(nombre, ruta)
+    modulo = importlib.util.module_from_spec(spec)
+    sys.modules[nombre] = modulo
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
+def _crear_privada_si_falta(db_path: str) -> None:
+    """`jobs.db` nace con el modo privado de la autoridad (0600), no con la
+    umask del proceso; sus -wal/-shm heredan el modo de la base."""
+    if db_path == ":memory:" or db_path.startswith("file:"):
+        return
+    # Modo EXACTO (O_EXCL + fchmod en la autoridad), no la umask; root no la crea (H-1).
+    _autoridad_de_estado().create_private_file(db_path)
+
+
 def _connect(db_path: str) -> sqlite3.Connection:
+    # H-1 (ronda 2): root abriendo la cola en WAL dejaria `jobs.db`/-wal/-shm root:root
+    # dentro del estado vivo (el worker ya no arrancaria). Ni por la CLI (que lo rechaza)
+    # ni por otra puerta: este punto lo para si la ruta cuelga del state root.
+    if db_path != ":memory:" and not db_path.startswith("file:"):
+        _autoridad_de_estado().refuse_root_state_write(db_path)
+    _crear_privada_si_falta(db_path)
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL;")
@@ -237,7 +270,8 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
     Operación idempotente: segura de llamar en cada arranque (CLI, worker,
     API del viewer).
     """
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    # Cada directorio que falte nace con el modo EXACTO de la autoridad (no la umask).
+    _autoridad_de_estado().ensure_private_dir(os.path.dirname(db_path))
     with _connect(db_path) as conn:
         conn.execute(CREATE_TABLE_SQL)
         _migrate_schema(conn)
@@ -1036,6 +1070,11 @@ def main():
         a3 = p3.parse_args()
         print(ruta_de_despliegue(a3.state_root))
         return
+
+    # H-1 (ronda 2): `--init`/`--selftest` crean una base. `--ruta-despliegue` (arriba) es
+    # de solo lectura y lo usa deploy.sh como root; lo demas lo rechaza para root la MISMA
+    # guarda que las otras CLIs (rc 4 + comando canonico).
+    _autoridad_de_estado().reject_root_cli("job-store")
 
     parser = argparse.ArgumentParser(
         description="Cola de trabajos SQLite para el pipeline de fuentes externas."

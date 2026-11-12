@@ -14,7 +14,4 @@ s9k_system_packages:
   - python3-pip
   - curl
   - jq
-
-# Usuario y grupo del servicio (deben crearse fuera de Ansible o con user: módulo)
-s9k_service_user: www-data
-s9k_service_group: www-data
+# s9k_service_user / s9k_service_group: UNICA definicion en group_vars/all.yml (H-06 + H-08).

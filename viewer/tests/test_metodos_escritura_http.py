@@ -99,7 +99,7 @@ def informe() -> dict:
         pytest.fail(f"falta la especificación ejecutable: {WRITE_SPEC}")
     with tempfile.TemporaryDirectory(prefix="s9k-writespec-test-") as td:
         salida = Path(td) / "write_spec.json"
-        env = {k: v for k, v in os.environ.items() if not k.startswith("S9K_")}
+        env = {k: v for k, v in os.environ.items() if not k.startswith("S9K_") or k == "S9K_STATE_VALIDATION"}
         env["PYTHONDONTWRITEBYTECODE"] = "1"
         env["PYTHONPATH"] = str(REPO / "scripts")
         proc = subprocess.run(

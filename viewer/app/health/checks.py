@@ -570,3 +570,68 @@ def check_systemd(units: Optional[List[str]] = None) -> ComponentResult:
     return _result("systemd", status,
                    "todas activas" if not inactive else "inactivas: %s" % ",".join(inactive),
                    {"units": states}, latency_ms=t.ms)
+
+
+# ---------------------------------------------------------------------------
+# C-6 (H-06/H-08 ronda 2): la excepcion de tests NO esta en el entorno EFECTIVO
+# ---------------------------------------------------------------------------
+
+def _variables_de_excepcion() -> tuple:
+    """Los nombres los da la AUTORIDAD (service_state): aqui no se repiten."""
+    from app import service_identity  # noqa: PLC0415
+
+    ss = service_identity.service_state()
+    return (ss.VALIDATION_EXCEPTION_ENV, ss.ENFORCE_ENV)
+
+
+def check_state_validation(units: Optional[List[str]] = None) -> ComponentResult:
+    """§12 «sin fail-open silencioso»: ni el propio healthcheck ni los procesos VIVOS del
+    visor/worker llevan la excepcion de tests (``S9K_STATE_VALIDATION``) o el interruptor
+    retirado (``S9K_STATE_ENFORCE``) en su entorno EFECTIVO. Solo lectura y sin
+    privilegios: el entorno propio, ``systemctl show -p Environment`` y
+    ``/proc/<MainPID>/environ`` (legible por el mismo usuario de servicio). Si aparece:
+    UNHEALTHY. Si no se puede leer el entorno de un proceso: UNKNOWN (no es un verde)."""
+    units = units or ["s9-knowledge-viewer.service", "s9-knowledge-worker.service"]
+    variables = _variables_de_excepcion()
+    hallazgos: List[str] = []
+    no_medido: List[str] = []
+    with _Timer() as t:
+        for v in variables:
+            if os.environ.get(v):
+                hallazgos.append("el propio healthcheck tiene %s en su entorno" % v)
+        hay_systemctl = bool(shutil.which("systemctl"))
+        for u in units:
+            if not hay_systemctl:
+                no_medido.append(u)
+                continue
+            try:
+                env = subprocess.run(["systemctl", "show", "-p", "Environment", "--value", u],
+                                     capture_output=True, text=True, timeout=5).stdout
+                pid = subprocess.run(["systemctl", "show", "-p", "MainPID", "--value", u],
+                                     capture_output=True, text=True, timeout=5).stdout.strip()
+            except Exception:
+                no_medido.append(u)
+                continue
+            for v in variables:
+                if (v + "=") in env:
+                    hallazgos.append("%s declara %s (Environment efectivo)" % (u, v))
+            if pid and pid != "0":
+                try:
+                    vivas = Path("/proc/%s/environ" % pid).read_bytes().split(b"\0")
+                except OSError:
+                    no_medido.append(u)
+                    continue
+                for v in variables:
+                    if any(x.startswith(v.encode() + b"=") for x in vivas):
+                        hallazgos.append("%s: el proceso vivo %s tiene %s" % (u, pid, v))
+    if hallazgos:
+        return _result("state_validation", HealthStatus.UNHEALTHY,
+                       "excepcion de tests en el entorno EFECTIVO: %s" % "; ".join(hallazgos),
+                       {"hallazgos": hallazgos}, latency_ms=t.ms)
+    if no_medido:
+        return _result("state_validation", HealthStatus.UNKNOWN,
+                       "no se pudo leer el entorno efectivo de: %s" % ", ".join(no_medido),
+                       {"no_medido": no_medido}, latency_ms=t.ms)
+    return _result("state_validation", HealthStatus.HEALTHY,
+                   "sin excepcion de tests en el entorno efectivo", {"units": units},
+                   latency_ms=t.ms)

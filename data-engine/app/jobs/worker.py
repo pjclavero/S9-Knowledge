@@ -430,6 +430,20 @@ def main(argv: list[str] | None = None) -> int:
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
 
+    # H-06 + H-08 (§13): ANTES de abrir la cola, el proceso comprueba que corre
+    # como el usuario de servicio (nunca root ni otro) y que su estado es suyo
+    # y privado. Una violacion ABORTA con el diagnostico concreto (rc 3) en vez
+    # de un "attempt to write a readonly database" dentro del bucle. Es
+    # OBLIGATORIA: solo la omite la excepcion EXPLICITA de tests/laboratorio
+    # (S9K_STATE_VALIDATION=disabled-explicit-for-tests); una unidad o un entorno
+    # operativo que la declare PARA el despliegue y pone UNHEALTHY el healthcheck.
+    from knowledge_v3 import service_state  # noqa: PLC0415
+    try:
+        service_state.enforce("worker")
+    except service_state.ServiceStateError as exc:
+        log.error("%s", exc)
+        return 3
+
     worker_id = args.worker_id or f"worker-{uuid.uuid4().hex[:8]}"
     once = args.once or not args.loop  # por defecto: comportamiento --once
 

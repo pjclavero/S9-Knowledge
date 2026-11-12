@@ -71,8 +71,15 @@ python -m venv .venv
 .\.venv\Scripts\activate
 pip install -r requirements.txt
 copy .env.example .env
+# H-06/H-08: la comprobación de estado del arranque es OBLIGATORIA (exige el
+# usuario de servicio s9knowledge y un state root privado). En DESARROLLO local se
+# declara a propósito la EXCEPCIÓN EXPLÍCITA (valor exacto; nunca en un despliegue:
+# deploy.sh y el healthcheck la rechazan):
+$env:S9K_STATE_VALIDATION = "disabled-explicit-for-tests"
 uvicorn app.main:app --host 127.0.0.1 --port 8088 --reload
 ```
+
+En Linux/macOS: `S9K_STATE_VALIDATION=disabled-explicit-for-tests uvicorn app.main:app --reload`.
 
 Abrir en el navegador:
 

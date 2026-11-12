@@ -17,6 +17,7 @@ from app.auth.dependencies import require_admin, require_edit_context_label, req
 from app.auth.models import ROLES, User
 from app.auth.passwords import hash_password, validate_password
 from app import chassis, presentacion_etiquetas, sources_catalog, vault_writer
+from app import service_identity
 from app.authz import autoridad_workspace, existencia
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,10 +26,24 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 router = APIRouter(prefix="/admin")
 
 
+def _vault_no_escribible(exc: Exception) -> str:
+    """Mensaje CONTROLADO y ESPECIFICO cuando el servicio no puede escribir la boveda.
+
+    La boveda (``S9K_VAULT_ROOT``) es CONTENIDO DEL OPERADOR, fuera del state root: la aplicacion
+    escribe SOLO si el sistema de ficheros ya le concede permiso; nunca hace chown/chmod, nunca
+    cae a otro sitio ni copia el perfil bajo el state (H-06/H-08, fase 2b).
+    """
+    usuario = service_identity.service_state().SERVICE_USER
+    causa = (getattr(exc, "strerror", None) or str(exc) or type(exc).__name__)
+    return ("perfil-operador.json no es escribible por el usuario %s: %s. La bóveda es contenido "
+            "del operador: la aplicación no cambia sus permisos ni guarda el perfil en otro sitio."
+            % (usuario, causa))
+
+
 def _get_db_path() -> Path:
     cfg = get_auth_settings()
     p = Path(cfg.S9K_AUTH_DB_PATH)
-    p.parent.mkdir(parents=True, exist_ok=True)
+    service_identity.ensure_private_dir(p.parent)
     return p
 
 
@@ -806,9 +821,13 @@ async def admin_partidas_label(
     except vault_writer.ConflictoEscrituraError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     except vault_writer.DestinoNoSeguroError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
+        raise HTTPException(status_code=409, detail=_vault_no_escribible(exc))
     except vault_writer.RutaNoSeguraError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    except OSError as exc:
+        # H-06/H-08 (TD-H06-02): la boveda es del operador, FUERA del state root; el usuario de
+        # servicio puede no poder escribirla. Error CONTROLADO y NOMBRADO, no un 500.
+        raise HTTPException(status_code=409, detail=_vault_no_escribible(exc))
     except vault_writer.EscrituraRechazadaError as exc:
         if exc.estado == vault_writer.EstadoPerfil.LEGIBLE_NO_CONFORME:
             detalle = f"legible pero NO editable: {exc.causa}"
@@ -931,9 +950,13 @@ async def admin_partidas_label_partida(
     except vault_writer.ConflictoEscrituraError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     except vault_writer.DestinoNoSeguroError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
+        raise HTTPException(status_code=409, detail=_vault_no_escribible(exc))
     except vault_writer.RutaNoSeguraError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    except OSError as exc:
+        # H-06/H-08 (TD-H06-02): la boveda es del operador, FUERA del state root; el usuario de
+        # servicio puede no poder escribirla. Error CONTROLADO y NOMBRADO, no un 500.
+        raise HTTPException(status_code=409, detail=_vault_no_escribible(exc))
     except vault_writer.EscrituraRechazadaError as exc:
         if exc.estado == vault_writer.EstadoPerfil.LEGIBLE_NO_CONFORME:
             detalle = f"legible pero NO editable: {exc.causa}"

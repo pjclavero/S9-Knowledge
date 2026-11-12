@@ -10,6 +10,8 @@ s9k_root: /opt/s9-knowledge
 s9k_state_root: /var/lib/s9-knowledge
 s9k_config_root: /etc/s9-knowledge
 s9k_log_root: /var/log/s9-knowledge
+# Raiz de backups SEPARADA del state vivo (H-06/H-08 §10); la AUTORIDAD es service_state.DEFAULT_BACKUP_ROOT.
+s9k_backup_root: /var/backups/s9-knowledge
 
 # URL del repositorio (sin credenciales; usar deploy keys o HTTPS público)
 s9k_repo: https://github.com/pjclavero/S9-Knowledge.git
@@ -23,8 +25,14 @@ s9k_release_id: ""
 # ---------------------------------------------------------------------------
 s9k_viewer_service: s9-knowledge-viewer.service
 s9k_viewer_port: 8088
-s9k_service_user: www-data
-s9k_service_group: www-data
+# H-06 + H-08: UNICA copia de la identidad en Ansible (las que habia en los
+# defaults de los roles `common`, `systemd` y `viewer` y en inventory.example
+# se eliminaron: un inventario las pisaba sin avisar). La AUTORIDAD es
+# data-engine/app/knowledge_v3/service_state.py; el test
+# deploy/tests/test_h06_h08_servicio_y_estado.py cruza este valor con ella
+# (gate M12) y el rol `systemd` comprueba que la unidad de la release coincide.
+s9k_service_user: s9knowledge
+s9k_service_group: s9knowledge
 
 # ---------------------------------------------------------------------------
 # Paquetes de sistema requeridos

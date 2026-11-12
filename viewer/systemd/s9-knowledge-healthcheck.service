@@ -1,3 +1,9 @@
+# Identidad (H-06 + H-08): `s9knowledge`, la MISMA que el visor y el worker.
+# NO root, sin capabilities (CapabilityBoundingSet vacio), sin sudo. El check
+# habla con el endpoint local de salud, lee las bases con `mode=ro` y consulta
+# `systemctl is-active` (consulta de solo lectura, sin privilegios): nada de
+# eso necesita root. Las cifras las fija `service_state.py` (UNA autoridad) y
+# un test estructural compara esta unidad con ella.
 [Unit]
 Description=S9 Knowledge operational healthcheck (read-only)
 After=network.target
@@ -8,6 +14,8 @@ AssertPathExists=/etc/s9-knowledge/viewer.env
 
 [Service]
 Type=oneshot
+User=s9knowledge
+Group=s9knowledge
 # Layout de releases, siempre a traves de `current`. La instalacion legacy se
 # conserva en disco pero ya no se ejecuta: ninguna ruta de esta unidad la toca.
 WorkingDirectory=/opt/s9-knowledge/current/viewer
