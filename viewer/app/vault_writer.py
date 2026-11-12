@@ -447,6 +447,15 @@ def _probar_destino(directorio: Path) -> tuple[bool, str]:
                 pass
 
 
+def _exigir_perfil_escribible(ruta: Path) -> None:
+    """H-06/H-08 fase 2b · la boveda es CONTENIDO DEL OPERADOR. Si el fichero existe y el
+    usuario del servicio NO tiene permiso de escritura sobre el, no se "reemplaza por
+    rename" (que funcionaria con el directorio escribible y se apropiaria del fichero):
+    se rechaza ANTES de escribir, sin cambios, y la aplicacion no toca sus permisos."""
+    if ruta.exists() and not os.access(str(ruta), os.W_OK):
+        raise DestinoNoSeguroError("el fichero existe y el usuario del servicio no tiene permiso de escritura")
+
+
 def destino_admite_escritura_segura(directorio: Path, *, forzar: bool = False) -> tuple[bool, str]:
     """`(True, "")` si el destino soporta reemplazo atómico seguro, si no
     `(False, motivo)`. Cacheado por directorio tras el primer intento."""
@@ -625,6 +634,7 @@ def escribir_label_workspace(
         raise DestinoNoSeguroError(
             f"legible pero no admite edición segura de metadata desde S9-Knowledge: {motivo}"
         )
+    _exigir_perfil_escribible(ruta_perfil)
 
     # MUTA el dict original — nunca reconstruye desde el dataclass, nunca
     # `to_json()`. Esto llega hasta aquí porque ES un cambio real (el no-op
@@ -734,6 +744,7 @@ def escribir_label_partida(
         raise DestinoNoSeguroError(
             f"legible pero no admite edición segura de metadata desde S9-Knowledge: {motivo}"
         )
+    _exigir_perfil_escribible(ruta_manifiesto)
 
     # MUTA el dict (o el `{}` fresco de un manifiesto ausente) -- nunca
     # reconstruye desde el dataclass del contrato, nunca una serialización

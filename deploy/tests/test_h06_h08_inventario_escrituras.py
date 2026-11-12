@@ -196,7 +196,7 @@ INVENTARIO = {
     "viewer/app/services/v3_review_store.py": (3, "STATE", "S9K_V3_REVIEW_DATABASE_PATH: review.sqlite3 (la CREA el despliegue; el runtime solo abre)"),
     "viewer/app/service_identity.py": (3, "STATE", "open_private_append: JSONL de decisiones/auditoria/candidatos, 0600 en directorio 0700"),
     "viewer/app/services/review_console.py": (3, "TMP", "S9K_REVIEW_LAB_DIR o tempdir; consola de revision APAGADA por defecto (PR-1)"),
-    "viewer/app/vault_writer.py": (8, "EXTERNO_SIN_DECIDIR", "S9K_VAULT_ROOT: perfil-operador.json en la boveda del operador; NO es STATE ni SECRET sin ambiguedad -> decision del operador (TD-H06-02, STOP del §11)"),
+    "viewer/app/vault_writer.py": (8, "EXTERNAL_OPERATOR_CONTENT", "S9K_VAULT_ROOT: perfil-operador.json en la boveda del operador (fuera del state root; escribe solo si el FS ya concede permiso; sin chown/chmod, sin fallback ni copia bajo STATE)"),
     # ---- WORKER (cierre estatico de worker.py) ----------------------------
     "data-engine/app/jobs/job_store.py": (5, "STATE", "S9K_JOBS_DB: jobs.db(-wal,-shm) (nace 0600)"),
     "data-engine/app/knowledge_v3/review_decisions.py": (1, "STATE", "S9K_V3_REVIEW_DATABASE_PATH: lectura de decisiones (conexion sqlite)"),
@@ -274,7 +274,7 @@ def test_el_inventario_no_declara_modulos_que_ya_no_existen():
 
 
 def test_cada_entrada_del_inventario_tiene_clase_y_gobierno():
-    clases = {"STATE", "TMP", "EXTERNO_SIN_DECIDIR", "CLI"}
+    clases = {"STATE", "TMP", "EXTERNAL_OPERATOR_CONTENT", "CLI"}
     for ruta, (techo, clase, gobierno) in INVENTARIO.items():
         assert clase in clases and gobierno.strip() and techo >= 0, ruta
 
@@ -310,11 +310,12 @@ CLASIFICACION = {
     "password Neo4j (/etc/s9-knowledge/secrets)": "SECRET", "viewer.env": "SECRET",
     "releases (codigo, venvs, templates)": "RELEASE",
     "backups (raiz separada del state)": "BACKUP",
+    "bóveda del operador (S9K_VAULT_ROOT, perfil-operador.json)": "EXTERNAL_OPERATOR_CONTENT",
 }
 
 
-def test_la_clasificacion_usa_las_cuatro_clases_del_contrato():
-    assert set(CLASIFICACION.values()) == {"STATE", "SECRET", "RELEASE", "BACKUP"}
+def test_la_clasificacion_usa_las_cinco_clases_del_contrato():
+    assert set(CLASIFICACION.values()) == {"STATE", "SECRET", "RELEASE", "BACKUP", "EXTERNAL_OPERATOR_CONTENT"}
     readme = (RAIZ / "deploy" / "README.md").read_text(encoding="utf-8")
     for clave in CLASIFICACION:
         assert clave.split("(")[0].strip() in readme, "el README no clasifica %s" % clave

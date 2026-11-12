@@ -381,24 +381,29 @@ ejecuta `status` con `become_user: s9k_service_user`.
 
 ### Secretos (SECRET), backups (BACKUP) y clasificación (fase 2, §7, §9, §10)
 
-Cuatro clases, y todo lo persistente pertenece a UNA:
+Cinco categorías, y todo lo persistente pertenece a UNA:
 
 | Clase | Qué | Dónde y política |
 |---|---|---|
 | **STATE** | `auth.db`(-wal,-shm), `review.sqlite3`(-wal,-shm), `jobs.db`, `decisions.jsonl`, `audit.jsonl`, `glossary-candidates`, `glossary.db`, cache de IA externa (`S9K_EXTERNAL_AI_CACHE_DIR`), `.csrf_secret` | bajo el state root, `s9knowledge:s9knowledge`, dirs `0700`, ficheros `0600` |
 | **SECRET** | password Neo4j (`/etc/s9-knowledge/secrets/*`), `viewer.env`/`worker.env` | NO se mueven al state root. `/etc/s9-knowledge` `root:s9knowledge 0710` (el grupo atraviesa, no lista), `secrets/` `0750`, ficheros `root:s9knowledge 0640` o más restrictivo: **el servicio lee y NO escribe** (lo fija `preparar_secretos_del_servicio` y lo verifica POR EFECTO `secret-probe` con `runuser`). `viewer.env`/`worker.env` siguen `root 0600` (los lee systemd) |
 | **RELEASE** | releases (código, venvs, templates) | `root`, inmutable para el servicio |
+| **EXTERNAL OPERATOR CONTENT** | `S9K_VAULT_ROOT`, `perfil-operador.json`, contenido del operador | fuera del state root; escribe solo si el FS ya concede permiso; sin `chown`/`chmod`, sin fallback ni copia bajo STATE |
 | **BACKUP** | copias operativas | raíz SEPARADA (`/var/backups/s9-knowledge`, `root:s9knowledge 0750`; `S9K_BACKUP_DIR`), **nunca dentro del state root**: `validate-env` y `preparar_raiz_de_backups` lo rechazan; un `<state>/backups` con contenido PARA la migración (`BACKUP_EN_STATE`). Un restore vuelve a estado canónico re-ejecutando `migrar_estado.py` (owner/modos); no se rediseña el backup |
 
 Se **eliminó** la copia del secreto a `/run` (unidades más simples, una pieza menos).
 
-**Escritor de la bóveda (`vault_writer`, TD-H06-02) — NO CLASIFICADO, decisión del operador
-(STOP del §11).** Edita `perfil-operador.json` dentro del árbol de la bóveda del operador
-(`S9K_VAULT_ROOT`, montaje Nextcloud/rclone, contenido autoría del operador). No es STATE
-(no es estado de la aplicación y no puede vivir en el state root) ni SECRET (no es secreto
-provisionado): no encaja inequívocamente en ninguna de las tres clases y no se crea una
-tercera raíz mutable. Es opt-in (`S9K_VAULT_ROOT` no está en las plantillas); si se activa,
-`s9knowledge` necesita permiso de escritura en esa carpeta fuera de este carril.
+**Quinta categoría: EXTERNAL OPERATOR CONTENT (fase 2b).** `S9K_VAULT_ROOT` y
+`perfil-operador.json` son contenido del operador y NO forman parte del state root; no se fuerzan
+dentro de STATE/SECRET/RELEASE/BACKUP. Decisión del operador (TD-H06-02 cerrada): el perfil
+sigue en la bóveda; no se mueve a `/var/lib/s9-knowledge`, no se desactiva la funcionalidad.
+`vault_writer` escribe SOLO si el sistema de ficheros ya concede permiso efectivo al usuario de
+servicio. La aplicación NO hace `chown`/`chmod` de la bóveda (un test por AST lo vigila), no corre
+como root para escribirla, no guarda el perfil en otro sitio ni cae a STATE. Antes de escribir
+comprueba el destino (directorio y fichero escribibles) y la escritura es atómica; si no puede,
+responde **409** con «perfil-operador.json no es escribible por el usuario s9knowledge: …», sin
+cambios parciales (mismo contenido, inodo, modo y propietario). Una bóveda opcional no escribible
+NO impide arrancar (la validación de arranque solo mira el estado interno).
 
 ### Rollback: qué pasa con la unidad y el dueño
 
@@ -431,8 +436,8 @@ reflexión, `subprocess` ni terceros.
 | `data-engine/app/jobs/job_store.py` | `jobs.db`, `-wal`, `-shm` | `S9K_JOBS_DB` | STATE |
 | `data-engine/app/knowledge_v3/review_export.py`, `pipeline/*`, `ledger/store.py`, `writer/*` | propuestas, informes, ledger, auditoría del escritor | `S9K_V3_REVIEW_PROPOSALS_DIR` y rutas que se le pasan | STATE |
 | `viewer/app/services/review_console.py` | almacén de laboratorio | `S9K_REVIEW_LAB_DIR` / tempdir; consola apagada por defecto | TMP |
-| `viewer/app/vault_writer.py` | bóveda de Obsidian | `S9K_VAULT_ROOT` (fuera del state root, opt-in) | EXTERNO (TD-H06-02) |
-| `data-engine/app/external_ai/cache.py`, `glossary/glossary_store.py` | caché NVIDIA, `glossary.db` | `state/…` **dentro de la release** | REPO (TD-H06-03; fuera de la ruta del worker) |
+| `viewer/app/vault_writer.py` | `perfil-operador.json` en la bóveda del operador | `S9K_VAULT_ROOT` (fuera del state root, opt-in) | EXTERNAL OPERATOR CONTENT |
+| `data-engine/app/external_ai/cache.py`, `glossary/glossary_store.py` | caché NVIDIA, `glossary.db` | `S9K_EXTERNAL_AI_CACHE_DIR`, `S9K_GLOSSARY_DB`; por defecto bajo el state root | STATE |
 | `viewer/app/main.py::_reviews_dir` | solo **lectura** de `output/reviews` | — | — |
 
 ### Deudas e hipótesis de esta entrega
@@ -441,8 +446,7 @@ reflexión, `subprocess` ni terceros.
   la raíz de backups separada (`/var/backups/s9-knowledge`); le queda ejecutar `sqlite3 .backup`
   como `s9knowledge` (como root puede crear `-wal`/`-shm` `root:root` junto a una base viva) antes
   de adoptarla.
-- **TD-H06-02** `vault_writer`: sin clasificar (ver «Secretos, backups y clasificación»): el
-  operador decide.
+- **TD-H06-02** (cerrada) `vault_writer` = EXTERNAL OPERATOR CONTENT (ver «Quinta categoría»).
 - **TD-H06-03** (cerrada) la caché de IA externa y `glossary.db` ya no tienen default dentro de
   la release: `<state root>/external_ai_cache` y `<state root>/glossary`.
 - **TD-H06-04** El reparto de ACL, capacidades y SELinux no se audita (techo).
