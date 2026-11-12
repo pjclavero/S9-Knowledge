@@ -57,11 +57,12 @@ sin_sudo() { ! sudo -l -U s9knowledge 2>/dev/null | grep -q "may run\|NOPASSWD";
 # Evidencia real (ps/systemctl/stat/namei/getfacl) al log del escenario
 evidencia() {
     {
-        echo "== ps"; ps -o user:14,pid,cmd -p "$(systemctl show -p MainPID --value s9-knowledge-viewer.service),$(systemctl show -p MainPID --value s9-knowledge-worker.service)"
-        echo "== systemctl"; systemctl show -p User,Group,UMask,NoNewPrivileges s9-knowledge-viewer.service s9-knowledge-worker.service
-        echo "== stat"; sudo stat -c '%U:%G %a %n' "${STATE}" "${STATE}"/* "${STATE}"/auth/* "${STATE}"/reviews-v3/* "${STATE}"/jobs/* /etc/s9-knowledge /etc/s9-knowledge/secrets /etc/s9-knowledge/secrets/*
-        echo "== namei"; sudo namei -mo "${STATE}/auth/auth.db" /etc/s9-knowledge/secrets/neo4j_password
-        echo "== getfacl"; command -v getfacl >/dev/null && sudo getfacl -p "${STATE}/auth/auth.db" || echo "(getfacl no instalado)"
+        echo "== ps"; ps -o user:14,pid,cmd -p "$(systemctl show -p MainPID --value s9-knowledge-viewer.service),$(systemctl show -p MainPID --value s9-knowledge-worker.service)" || true
+        echo "== systemctl"; systemctl show -p User,Group,UMask,NoNewPrivileges s9-knowledge-viewer.service s9-knowledge-worker.service || true
+        # las globs se expanden como ROOT (el state root es 0700): dentro de `sudo bash -c`
+        echo "== stat"; sudo bash -c "stat -c '%U:%G %a %n' ${STATE} ${STATE}/* ${STATE}/auth/* ${STATE}/reviews-v3/* ${STATE}/jobs/* /etc/s9-knowledge /etc/s9-knowledge/secrets /etc/s9-knowledge/secrets/*" || true
+        echo "== namei"; sudo namei -mo "${STATE}/auth/auth.db" /etc/s9-knowledge/secrets/neo4j_password || true
+        echo "== getfacl"; if command -v getfacl >/dev/null; then sudo getfacl -p "${STATE}/auth/auth.db" || true; else echo "(getfacl no instalado: techo, ACL no auditadas)"; fi
         echo "== id"; id s9knowledge; getent passwd s9knowledge
     } >> "${SALIDA}.evidencia" 2>&1
 }
