@@ -881,6 +881,13 @@ def inspect_dedicated_state_root(state_root, declared: Optional[Mapping[str, Pat
                              "usuario puede dejar ahi ficheros que la migracion se apropiaria" % modo))
     try:
         entradas = os.listdir(raiz)
+    except PermissionError as exc:
+        # Un state root 0700 de s9knowledge NO es listable por otro usuario: para quien no
+        # es root eso es lo esperado (no un hallazgo). El despliegue lo comprueba como root,
+        # que si lo lista; si ni root puede, es un hallazgo.
+        if os.geteuid() == 0:
+            out.append(Violation(UNREADABLE, raiz, "no se puede listar: %s" % exc.strerror))
+        return out
     except OSError as exc:
         out.append(Violation(UNREADABLE, raiz, "no se puede listar: %s" % exc.strerror))
         return out
