@@ -731,7 +731,7 @@ print(json.dumps(out))
 
 
 def _en_release(release: Path, env_extra: dict, accion: str, trabajo: Path) -> dict:
-    entorno = {k: v for k, v in os.environ.items() if not k.startswith("S9K_")}
+    entorno = {k: v for k, v in os.environ.items() if not k.startswith("S9K_") or k == "S9K_STATE_VALIDATION"}
     entorno.update(env_extra)
     entorno["PYTHONDONTWRITEBYTECODE"] = "1"
     r = subprocess.run([sys.executable, "-I", "-c", _GUION_RELEASE, str(release), accion, str(trabajo)],

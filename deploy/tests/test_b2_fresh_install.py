@@ -133,7 +133,7 @@ def _tramo_de_deploy(inicio: str, fin: str) -> str:
 def _correr_bash(cuerpo: str, env_extra: dict) -> subprocess.CompletedProcess:
     guion = "set -Eeuo pipefail\nsource %s\nsource %s\n%s\necho TRAMO_SUPERADO\n" % (
         LIB_SH, VALIDATE_SH, cuerpo)
-    env = {k: v for k, v in os.environ.items() if not k.startswith("S9K_")}
+    env = {k: v for k, v in os.environ.items() if not k.startswith("S9K_") or k == "S9K_STATE_VALIDATION"}
     env.update(env_extra)
     return subprocess.run(["bash", "-c", guion], capture_output=True, text=True,
                           env=env, timeout=120)

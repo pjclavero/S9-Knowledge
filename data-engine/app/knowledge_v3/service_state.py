@@ -114,10 +114,25 @@ SERVICE_SUBDIRS = (
     "reviews-v3", "reviews-v3/proposals", "health",
 )
 
-REVIEW_DECISIONS_ENV = "S9K_V3_REVIEW_DECISIONS_PATH"
+def _review_paths():
+    """`review_paths` por ruta (misma instancia `_s9k_review_paths` que usan los guiones): el
+    nombre de las variables de revision se LEE de su autoridad, no se repite aqui (N18 de C1)."""
+    import importlib.util  # noqa: PLC0415
+    nombre = "_s9k_review_paths"
+    if nombre in sys.modules:
+        return sys.modules[nombre]
+    spec = importlib.util.spec_from_file_location(nombre, Path(__file__).with_name("review_paths.py"))
+    modulo = importlib.util.module_from_spec(spec)
+    sys.modules[nombre] = modulo
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
+_RP = _review_paths()
+REVIEW_DECISIONS_ENV = _RP.REVIEW_DECISIONS_ENV
 GLOSSARY_DIR_ENV = "S9K_V3_GLOSSARY_CANDIDATES_DIR"
-_REVIEW_DB_ENV = "S9K_V3_REVIEW_DATABASE_PATH"
-_PROPOSALS_ENV = "S9K_V3_REVIEW_PROPOSALS_DIR"
+_REVIEW_DB_ENV = _RP.REVIEW_DB_ENV
+_PROPOSALS_ENV = _RP.PROPOSALS_DIR_ENV
 _AUTH_DB_ENV = "S9K_AUTH_DB_PATH"
 _JOBS_DB_ENV = "S9K_JOBS_DB"
 _HEALTH_ENV = "S9K_HEALTH_REPORT_PATH"

@@ -169,6 +169,20 @@ def test_cada_defecto_de_la_unidad_bloquea_con_su_causa(tmp_path, release, viejo
     assert rc == 1 and causa in err, "no bloqueo por %s:\n%s" % (causa, err)
 
 
+def test_el_secreto_de_worker_env_sigue_la_politica_SECRET(tmp_path):
+    """H-06/H-08 fase 2 §9 (sustituye al antiguo «secreto de la unidad != worker.env»: la unidad ya no
+    copia el secreto). El secreto declarado en worker.env tiene que cumplir la politica SECRET:
+    grupo solo lectura (<= 0640) y nada para otros; con 0660 o 0644, BLOQUEA."""
+    secreto = tmp_path / "secreto"
+    secreto.write_text("valor\n", encoding="utf-8")
+    env = tmp_path / "worker.env"
+    env.write_text("S9K_NEO4J_PASSWORD_FILE=%s\n" % secreto, encoding="utf-8")
+    for modo, ok in ((0o640, True), (0o600, True), (0o660, False), (0o644, False)):
+        secreto.chmod(modo)
+        r = subprocess.run(["bash", VALIDATE_SH, "secret-file", str(secreto)], capture_output=True, text=True)
+        assert (r.returncode == 0) is ok, (oct(modo), r.stderr)
+
+
 def test_systemd_analyze_verify_acepta_la_unidad_y_rechaza_un_binario_inexistente(tmp_path):
     """El paso 10 de deploy.sh, ejecutado. No se omite si falta la herramienta:
     un verify que no corre en CI seria un verde de papel."""

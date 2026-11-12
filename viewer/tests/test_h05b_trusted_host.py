@@ -513,7 +513,7 @@ def test_testserver_en_un_interprete_limpio_sin_la_fixture_da_400():
         "print('TESTSERVER', c.get('/api/status').status_code)\n"
         "print('PUBLICO', c.get('/api/status', headers={'host': 'public.example'}).status_code)\n"
     )
-    entorno = {k: v for k, v in os.environ.items() if not k.startswith("S9K_")}
+    entorno = {k: v for k, v in os.environ.items() if not k.startswith("S9K_") or k == "S9K_STATE_VALIDATION"}
     entorno.update({
         "PYTHONPATH": str(VIEWER), "PYTHONDONTWRITEBYTECODE": "1",
         "S9K_PUBLIC_BASE_URL": URL_PUBLICA, "S9K_AUTH_ENABLED": "false",
