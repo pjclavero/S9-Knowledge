@@ -104,6 +104,7 @@ con una fuente.
 """
 from __future__ import annotations
 
+import base64
 import fcntl
 import hashlib
 import json
@@ -616,50 +617,177 @@ def _volcar(fd: int, contenido: bytes) -> None:
     os.fsync(fd)
 
 
-def restaurar_respaldo_pendiente(ruta: Path) -> bool:
-    """Si quedó el respaldo de una escritura en el sitio interrumpida, lo restaura.
+class RespaldoPendienteError(ConflictoEscrituraError):
+    """Hay un respaldo de una escritura interrumpida y NO se puede decidir con certeza que
+    el perfil sea un resto de ESA escritura: no se toca nada (409)."""
 
-    Se llama al EMPEZAR cada escritura. Restaurar = volver a poner, EN EL SITIO (mismo
-    inodo/dueño/modo), el contenido original guardado; después se borra el respaldo.
-    Bajo ``flock`` del perfil: si otra escritura lo tiene, es un conflicto (409), no
-    un huérfano. Devuelve True si restauró. Un respaldo que no es un fichero regular
-    propio no se toca (``RutaNoSeguraError``).
+
+#: Versión del sobre del respaldo (JSON). El sobre lleva la IDENTIDAD de la operación:
+#: el contenido original y el nuevo previsto, con sus sha256. Sin identidad completa y
+#: coherente, el respaldo no se restaura jamás.
+_RESPALDO_VERSION = "s9k-respaldo-v2"
+
+
+def _sha(b: bytes) -> str:
+    return hashlib.sha256(b).hexdigest()
+
+
+def _escribir_todo(fd: int, contenido: bytes) -> None:
+    """Escribe ``contenido`` entero en ``fd`` (sin truncar) y hace fsync."""
+    vista = memoryview(contenido)
+    while vista:
+        n = os.write(fd, vista)
+        vista = vista[n:]
+    os.fsync(fd)
+
+
+def _publicar(tmp: Path, respaldo: Path) -> None:
+    """Publica el respaldo ÍNTEGRO con su nombre definitivo (``link``: no pisa uno existente)."""
+    os.link(str(tmp), str(respaldo))
+
+
+def _borrar_respaldo(respaldo: Path) -> None:
+    os.unlink(str(respaldo))
+    _fsync_directorio(respaldo.parent)
+
+
+def _crear_respaldo(ruta: Path, original: bytes, nuevo: bytes, modo: int) -> Path:
+    """Publicación ATÓMICA del respaldo: temporal propio en la carpeta (prefijo efímero, PID
+    en el nombre) -> sobre completo + fsync -> modo del original -> ``link`` al nombre
+    definitivo. Nunca existe un respaldo a medias con el nombre definitivo; ante cualquier
+    fallo el temporal se borra y el perfil NO se ha tocado (``RespaldoNoPosibleError``)."""
+    respaldo = ruta_respaldo(ruta)
+    sobre = json.dumps({
+        "version": _RESPALDO_VERSION,
+        "sha_original": _sha(original),
+        "sha_nuevo": _sha(nuevo),
+        "original_b64": base64.b64encode(original).decode("ascii"),
+        "nuevo_b64": base64.b64encode(nuevo).decode("ascii"),
+    }).encode("utf-8")
+    tmp = None
+    try:
+        fd, nombre = tempfile.mkstemp(prefix=PREFIJO_EFIMERO + _token_efimero() + "-respaldo-",
+                                      suffix=".tmp", dir=str(ruta.parent))
+        tmp = Path(nombre)
+        try:
+            # el temporal es NUESTRO (recién creado): recibe el MISMO modo que el original.
+            os.fchmod(fd, modo)
+            _escribir_todo(fd, sobre)
+        finally:
+            os.close(fd)
+        _publicar(tmp, respaldo)
+        _fsync_directorio(ruta.parent)
+    except OSError as exc:
+        raise RespaldoNoPosibleError(
+            "no se puede crear el respaldo previo %s (%s): sin respaldo no se garantiza "
+            "«sin cambio parcial» y el perfil NO se ha tocado"
+            % (respaldo.name, exc.strerror or type(exc).__name__)) from exc
+    finally:
+        if tmp is not None:
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+    return respaldo
+
+
+def _respaldo_es_propio(st: os.stat_result) -> bool:
+    return st.st_uid == os.geteuid()
+
+
+def _leer_sobre(respaldo: Path) -> Optional[dict]:
+    """El sobre del respaldo, VALIDADO (versión, campos, sha del contenido), o None."""
+    try:
+        with open(respaldo, "rb") as fh:
+            sobre = json.loads(fh.read().decode("utf-8"))
+        if not isinstance(sobre, dict) or sobre.get("version") != _RESPALDO_VERSION:
+            return None
+        original = base64.b64decode(sobre["original_b64"], validate=True)
+        nuevo = base64.b64decode(sobre["nuevo_b64"], validate=True)
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    if _sha(original) != sobre.get("sha_original") or _sha(nuevo) != sobre.get("sha_nuevo"):
+        return None
+    return {"original": original, "nuevo": nuevo}
+
+
+def _es_resto_de_esta_escritura(actual: bytes, nuevo: bytes) -> bool:
+    """¿``actual`` es lo que deja ESTA escritura cortada a mitad? ``_volcar`` trunca a 0 y
+    escribe ``nuevo`` en orden, así que un corte deja un PREFIJO ESTRICTO de ``nuevo``
+    (vacío incluido). Criterio conservador: cualquier otra cosa no es nuestra."""
+    return len(actual) < len(nuevo) and nuevo[:len(actual)] == actual
+
+
+def resolver_respaldo_pendiente(ruta: Path) -> Optional[str]:
+    """Al EMPEZAR una escritura: decide qué hacer con un respaldo de una interrumpida.
+
+    El respaldo NUNCA destruye ni hace retroceder contenido que no sea una escritura
+    inacabada de S9-Knowledge:
+
+      (a) perfil == contenido NUEVO previsto  -> la escritura llegó a completarse: se borra el respaldo;
+      (b) perfil == contenido ORIGINAL        -> no se llegó a escribir: se borra el respaldo;
+      (c) perfil == prefijo estricto del NUEVO (truncado/a medias por ESTA operación) ->
+          se restaura el original EN EL SITIO verificando su sha, y se borra el respaldo;
+      (d) cualquier otra cosa (edición del operador, contenido de un tercero, respaldo
+          inválido/vacío/ajeno/symlink, perfil ausente) -> NO se toca nada: 409.
+
+    Devuelve ``None`` (no había respaldo) o ``"completada"``/``"no_escrita"``/``"restaurada"``.
     """
     respaldo = ruta_respaldo(ruta)
     try:
         st_r = os.lstat(respaldo)
     except FileNotFoundError:
-        return False
-    if not stat.S_ISREG(st_r.st_mode) or st_r.st_uid != os.geteuid():
-        raise RutaNoSeguraError("el respaldo %s no es un fichero regular del servicio" % respaldo.name)
-    with open(respaldo, "rb") as fh:
-        original = fh.read()
+        return None
+
+    def _pendiente(motivo: str) -> RespaldoPendienteError:
+        return RespaldoPendienteError(
+            "hay un respaldo pendiente de una escritura interrumpida (%s) y el perfil (%s) ha "
+            "cambiado desde entonces o el respaldo no es fiable (%s): no se toca nada; revíselo "
+            "el operador" % (respaldo.name, ruta.name, motivo))
+
+    if not stat.S_ISREG(st_r.st_mode):
+        raise _pendiente("el respaldo no es un fichero regular")
+    if not _respaldo_es_propio(st_r):
+        raise _pendiente("el respaldo no es del usuario del servicio")
+    sobre = _leer_sobre(respaldo)
+    if sobre is None:
+        raise _pendiente("el respaldo está vacío, incompleto o su sha no cuadra")
     try:
         fd = os.open(str(ruta), os.O_RDWR | os.O_NOFOLLOW)
-    except FileNotFoundError:
-        raise DestinoNoSeguroError(
-            "hay un respaldo de una escritura interrumpida (%s) pero el perfil ya no existe: "
-            "no se recrea; revíselo el operador" % respaldo.name)
+    except OSError:
+        raise _pendiente("el perfil no existe o no se puede abrir")
     try:
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise ConflictoEscrituraError("otra escritura del perfil está en curso")
-        if _leer_fd_entero(fd) != original:
-            _volcar(fd, original)
-            if _leer_fd_entero(fd) != original:
-                raise DestinoNoSeguroError("la restauración del respaldo no verifica")
-        os.unlink(respaldo)
-        _fsync_directorio(ruta.parent)
+        actual = _leer_fd_entero(fd)
+        if actual == sobre["nuevo"]:
+            decision = "completada"
+        elif actual == sobre["original"]:
+            decision = "no_escrita"
+        elif _es_resto_de_esta_escritura(actual, sobre["nuevo"]):
+            _volcar(fd, sobre["original"])
+            if _sha(_leer_fd_entero(fd)) != _sha(sobre["original"]):
+                raise _pendiente("la restauración no verifica")
+            decision = "restaurada"
+        else:
+            raise _pendiente("el perfil no es ni el original, ni el nuevo, ni un resto de esta escritura")
+        _borrar_respaldo(respaldo)
     finally:
         os.close(fd)
-    return True
+    return decision
+
+
+def restaurar_respaldo_pendiente(ruta: Path) -> bool:
+    """Compatibilidad: True si había un respaldo pendiente y se resolvió (ver arriba)."""
+    return resolver_respaldo_pendiente(ruta) is not None
 
 
 def _escribir_en_el_sitio(ruta: Path, contenido: bytes) -> None:
     """Caso (b): perfil de OTRO dueño escribible por permiso. Conserva inodo, dueño,
-    grupo y modo; respaldo previo + verificación; restaura ante cualquier error."""
-    respaldo = ruta_respaldo(ruta)
+    grupo y modo; respaldo previo PUBLICADO atómicamente y con la identidad de la
+    operación; verificación; restaura ante cualquier error."""
     fd = os.open(str(ruta), os.O_RDWR | os.O_NOFOLLOW)
     try:
         try:
@@ -668,21 +796,7 @@ def _escribir_en_el_sitio(ruta: Path, contenido: bytes) -> None:
             raise ConflictoEscrituraError("otra escritura del perfil está en curso")
         st = os.fstat(fd)
         original = _leer_fd_entero(fd)
-        try:
-            fdr = os.open(str(respaldo), os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
-        except OSError as exc:
-            raise RespaldoNoPosibleError(
-                "no se puede crear el respaldo previo %s (%s): sin respaldo no se garantiza "
-                "«sin cambio parcial» y el perfil NO se ha tocado"
-                % (respaldo.name, exc.strerror or type(exc).__name__)) from exc
-        try:
-            # el respaldo es NUESTRO (recien creado): recibe el MISMO modo que el original
-            # (la umask del servicio no decide); el original no se toca.
-            os.fchmod(fdr, stat.S_IMODE(st.st_mode) & 0o666)
-            _volcar(fdr, original)
-        finally:
-            os.close(fdr)
-        _fsync_directorio(ruta.parent)
+        respaldo = _crear_respaldo(ruta, original, contenido, stat.S_IMODE(st.st_mode) & 0o666)
         try:
             _volcar(fd, contenido)
             if _leer_fd_entero(fd) != contenido:
@@ -692,13 +806,11 @@ def _escribir_en_el_sitio(ruta: Path, contenido: bytes) -> None:
             try:
                 _volcar(fd, original)
                 if _leer_fd_entero(fd) == original:
-                    os.unlink(respaldo)
-                    _fsync_directorio(ruta.parent)
+                    _borrar_respaldo(respaldo)
             except OSError:
-                pass   # el respaldo SE QUEDA: la siguiente escritura lo restaura primero
+                pass   # el respaldo SE QUEDA: la siguiente escritura lo resuelve (caso c)
             raise
-        os.unlink(respaldo)
-        _fsync_directorio(ruta.parent)
+        _borrar_respaldo(respaldo)
     finally:
         os.close(fd)
 
@@ -758,7 +870,7 @@ def _preparar_escritura(ruta: Path) -> None:
     """Al EMPEZAR una escritura: limpia efímeros huérfanos propios y restaura el
     respaldo de una escritura en el sitio interrumpida (antes de leer la huella)."""
     limpiar_efimeros_huerfanos(ruta.parent)
-    restaurar_respaldo_pendiente(ruta)
+    resolver_respaldo_pendiente(ruta)
 
 
 # ---------------------------------------------------------------------------

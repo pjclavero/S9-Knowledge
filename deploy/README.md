@@ -224,7 +224,7 @@ worker) y las dos declaran `User=s9knowledge`.
 
 ```
 CODE         PASS      autoridad service_state.py, unidades, Ansible, migrar_estado.py, arranque fail-closed (arnés local)
-CALIBRATION  PASS      scripts/calibracion/mutaciones_h06_h08_servicio_y_estado.py (M1–M45; ronda 2: M19–M45)
+CALIBRATION  PASS      scripts/calibracion/mutaciones_h06_h08_servicio_y_estado.py (M1–M51; ronda 2: M19–M45; ronda 2b: M46–M51)
 LAB (VM112)  PASS      deploy/tests/lab/: A fresh, B upgrade legacy, C negativos (incl. C-1…C-5), D otro usuario,
                        E healthcheck, F CLIs como root REAL, G secretos, H bóveda (3 casos)
 RC-E2E       PENDING   no se ha tocado ninguna máquina de producción (sin VERIFIED de producción)
@@ -479,16 +479,19 @@ reemplazo atómico (`mkstemp` 0600 + `os.replace`) dejaba un perfil `otro:s9know
 | Perfil | Qué hace | Garantía |
 |---|---|---|
 | (a) del usuario del proceso | reemplazo atómico; el TEMPORAL recibe el modo exacto del original (`fchmod`) y, si se puede sin privilegios, su grupo (`fchown(-1, gid)`) | ni se endurece ni se ablanda el modo del operador; el grupo, si el proceso no pertenece a él, queda el que dé el FS (**techo**) |
-| (b) de OTRO dueño pero escribible por permiso | escritura EN EL SITIO bajo `flock`: respaldo previo `.<nombre>.s9k-respaldo` (mismo modo) → escritura + `fsync` → verificación → solo entonces se borra el respaldo; ante cualquier error se restaura | mismo inodo, dueño, grupo y modo. Si al empezar hay un respaldo de una escritura interrumpida (SIGKILL), se **restaura primero**. Sin respaldo posible (carpeta no escribible) → **409** «…no se puede crear el respaldo previo…» sin tocar el perfil |
+| (b) de OTRO dueño pero escribible por permiso | escritura EN EL SITIO bajo `flock`: respaldo previo PUBLICADO ATÓMICAMENTE (temporal propio → sobre completo + `fsync` → `link` a `.<nombre>.s9k-respaldo`, mismo modo; nunca existe un respaldo a medias con el nombre definitivo). El sobre lleva la IDENTIDAD de la operación: contenido original y nuevo previsto con su sha256 → escritura + `fsync` → verificación → solo entonces se borra el respaldo; ante un error normal se restaura en el acto | mismo inodo, dueño, grupo y modo. Si al empezar hay un respaldo de una escritura interrumpida (SIGKILL): perfil == nuevo → se borra (la escritura se completó); == original → se borra (no se llegó a escribir); prefijo estricto del nuevo (resto de ESA escritura) → se restaura verificando el sha; **cualquier otra cosa** (edición del operador, respaldo vacío/inválido/ajeno/symlink) → **409** «hay un respaldo pendiente… revíselo el operador» SIN tocar nada. Sin respaldo posible (carpeta no escribible, disco lleno) → **409** sin tocar el perfil |
 | (c) no escribible | **409** específico | sin cambios |
 
 Nunca `chown`/`chmod` de lo preexistente (un test por AST: `fchmod`/`fchown` solo sobre el
 temporal y el respaldo recién creados), ni copia bajo STATE, ni temporales huérfanos: los
 `.s9k-probe-<pid>-*` que deja un SIGKILL (el `finally` no corre) se borran al empezar la
 siguiente escritura si su PID ya no existe (los de formato antiguo, sin PID, con más de 5
-minutos), y el catálogo de fuentes ignora el respaldo. **Techo:** entre el SIGKILL y la
-siguiente escritura el perfil puede quedar a medias (el respaldo íntegro está al lado); un
-manifiesto de partida NUEVO nace `0600` (no hay original del que heredar).
+minutos), y el catálogo de fuentes ignora el respaldo. **Techo:** entre un SIGKILL a mitad
+de escritura y la siguiente escritura el perfil puede quedar truncado; el respaldo publicado
+(original + nuevo, verificables por sha) permite a la siguiente escritura de S9-Knowledge
+devolverlo al original SOLO si sigue siendo un resto de esa operación, y en cualquier otro caso
+el operador decide (409). Un manifiesto de partida NUEVO nace `0600` (no hay original del que
+heredar).
 
 ### Rollback: qué pasa con la unidad y el dueño
 
@@ -548,6 +551,16 @@ reflexión, `subprocess` ni terceros.
   el paquete `acl`); los E2E que lanzan subprocesos HEREDAN la excepción de tests de la suite;
   y las cuatro deudas preexistentes (`AUTH_ORDER_FLAKY`, handwritten 19/19b, 3 `test_f2`
   desde el cwd `viewer/`, B3 M1 por tiempos), que fallan igual sobre la base `4916e90`.
+- **Deuda declarada en la ronda 2b (no se arregla):** `refuse_root_state_write` es defensa
+  en profundidad (P3): un root que cambie `S9K_STATE_ROOT`, entre por un symlink o abra la base
+  con `sqlite3` crudo lo esquiva (la barrera principal es la guarda de cada CLI y la migración);
+  el gate de unidad no lee drop-ins (lo para el paso 14a midiendo el proceso vivo en `/proc`);
+  ficheros sueltos de versiones antiguas en el primer nivel del state root → STOP con receta
+  (precondición 4 del primer upgrade).
+- **`lost+found` (ronda 2b, C-5):** un state root que es el punto de montaje de un FS dedicado
+  trae `lost+found`. Se admite EXACTAMENTE esa entrada (directorio, `root:root`, `0700`, primer
+  nivel) como del sistema de ficheros: la ignoran la comprobación de dedicado, la migración (ni
+  `chown` ni `chmod`) y el arranque. Cualquier otro atributo o nombre sigue siendo ajeno.
 - No medido aquí (necesita laboratorio): `useradd`, `chown` a `s9knowledge`,
   `runuser` real, `systemd-analyze` con la unidad desplegada, `nobody` leyendo,
   `become_user` de Ansible (puede exigir el paquete `acl`), reinicio de máquina.

@@ -69,7 +69,7 @@ __all__ = [
     "CLI_ROOT_RC", "CLI_WRAPPER", "RootStateWriteError", "cli_root_rejection", "reject_root_cli",
     "refuse_root_state_write", "ensure_private_dir", "create_private_file", "open_private_write",
     "BACKUP_ENVS", "SYSTEM_DIRS", "KNOWN_TOP_LEVEL", "inspect_dedicated_state_root",
-    "inspect_legacy_backups", "parse_unit", "inspect_unit_identity", "PRIVILEGED_GROUPS",
+    "inspect_legacy_backups", "parse_unit", "LOST_FOUND", "es_lost_found_del_fs", "inspect_unit_identity", "PRIVILEGED_GROUPS",
 ]
 
 # --------------------------------------------------------------------------
@@ -458,6 +458,18 @@ def _bajo(ruta: Path, raiz: Path) -> bool:
 # --------------------------------------------------------------------------
 # Inspeccion
 # --------------------------------------------------------------------------
+#: Ronda 2b (C-5): un state root que es el punto de montaje de un sistema de ficheros
+#: DEDICADO trae `lost+found` (root:root 0700, de mkfs). Es del sistema de ficheros, no del
+#: servicio ni ajeno: se ignora EXACTAMENTE esa entrada, en el primer nivel, y solo con
+#: esos atributos. Cualquier otra cosa con ese nombre se inspecciona como siempre.
+LOST_FOUND = "lost+found"
+
+
+def es_lost_found_del_fs(nombre: str, st: os.stat_result) -> bool:
+    return (nombre == LOST_FOUND and stat.S_ISDIR(st.st_mode) and not stat.S_ISLNK(st.st_mode)
+            and st.st_uid == 0 and st.st_gid == 0 and stat.S_IMODE(st.st_mode) == 0o700)
+
+
 def _acl_presente(path: str) -> bool:
     try:
         nombres = os.listxattr(path, follow_symlinks=False)
@@ -555,6 +567,12 @@ def inspect_state(state_root, *, uid: Optional[int] = None, gid: Optional[int] =
         for e in entradas:
             if e.path in skip_abs:
                 continue
+            if actual == str(raiz):
+                try:
+                    if es_lost_found_del_fs(e.name, e.stat(follow_symlinks=False)):
+                        continue
+                except OSError:
+                    pass
             visto += 1
             if visto > max_entries:
                 out.append(Violation(TYPE, str(raiz), "el arbol supera %d entradas; "
@@ -897,7 +915,14 @@ def inspect_dedicated_state_root(state_root, declared: Optional[Mapping[str, Pat
             conocidas.add(Path(ruta).relative_to(raiz).parts[0])
         except (ValueError, IndexError):
             continue
-    ajenas = sorted(e for e in entradas if e not in conocidas and not e.startswith(_PREFIJO_SONDA))
+    def _del_fs(nombre: str) -> bool:
+        try:
+            return es_lost_found_del_fs(nombre, os.lstat(os.path.join(raiz, nombre)))
+        except OSError:
+            return False
+
+    ajenas = sorted(e for e in entradas if e not in conocidas and not e.startswith(_PREFIJO_SONDA)
+                    and not _del_fs(e))
     if ajenas:
         out.append(Violation(FOREIGN, raiz, "contiene %d entrada(s) de primer nivel AJENAS al "
                              "servicio (%s%s); conocidas: %s. No se migra un directorio que no es "

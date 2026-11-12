@@ -238,6 +238,8 @@ def _inspeccionar(raiz: str, skip: Sequence[str], res: Resultado,
         for e in entradas:
             if e.path in saltar:
                 continue
+            if actual == raiz and _ss().es_lost_found_del_fs(e.name, e.stat(follow_symlinks=False)):
+                continue   # C-5 ronda 2b: lost+found del FS dedicado (root 0700), no se toca
             n += 1
             try:
                 st = e.stat(follow_symlinks=False)
@@ -552,6 +554,8 @@ def _corregir(raiz: str, skip: Sequence[str], dirs_requeridos: Iterable[str],
         for e in entradas:
             if e.path in saltar:
                 continue
+            if actual == raiz and _ss().es_lost_found_del_fs(e.name, e.stat(follow_symlinks=False)):
+                continue   # C-5 ronda 2b: ni chown ni chmod sobre lost+found del FS
             es_dir = e.is_dir(follow_symlinks=False)
             arreglar(e.path, es_dir)
             if es_dir:

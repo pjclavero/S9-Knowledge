@@ -95,6 +95,40 @@ lab_log "caso 3b -> ${R3B}"
 lab_assert "H.2c caso 3b: error CONTROLADO" resultado_es "${R3B}" CONTROLADO
 lab_assert "H.2c caso 3b: perfil INTACTO (inodo, dueño, grupo, modo, hash)" igual "$(meta "${PERFIL}") $(lab_sha256 "${PERFIL}")" "${ANTES3B}"
 
+lab_log "H.4 (ronda 2b, H-R2-1) caso (i): SIGKILL con el temporal del respaldo creado y sin publicar"
+sonda_matar() { sudo runuser -u s9knowledge -- env "S9K_LAB_MATAR=$3" "${PY}" "${HERE}/h_vault_probe.py" "${LAB_REPO}" "$1" "$2" || true; }
+sin_restos() { [ -z "$(sudo find "${CARPETA}" -maxdepth 1 \( -name '.*s9k-respaldo' -o -name '.s9k-probe-*' \))" ]; }
+json_valido() { sudo "${PY}" -c "import json,sys; json.load(open(sys.argv[1]))" "${PERFIL}"; }
+sudo chown -R "${TERCERO}:s9knowledge" "${VAULT}"; sudo chmod 2775 "${CARPETA}"; sudo chmod 0664 "${PERFIL}"
+META4="$(meta "${PERFIL}")"; HASH4="$(lab_sha256 "${PERFIL}")"
+sonda_matar "${CARPETA}" "Nombre H4" tmp_respaldo
+lab_assert "H.4 tras el corte: perfil INTACTO (hash, inodo, dueño, grupo, modo)" igual "$(meta "${PERFIL}") $(lab_sha256 "${PERFIL}")" "${META4} ${HASH4}"
+lab_assert "H.4 tras el corte: NO hay respaldo con el nombre definitivo" bash -c "! sudo test -e '${CARPETA}/.perfil-operador.json.s9k-respaldo'"
+R4="$(sonda "${CARPETA}" "Nombre tras H4")"
+lab_assert "H.4 la siguiente escritura funciona (OK)" resultado_es "${R4}" OK
+lab_assert "H.4 perfil JSON valido con el nombre, mismo inodo/dueño/grupo/modo" bash -c "sudo grep -q 'Nombre tras H4' '${PERFIL}' && [ \"\$(sudo stat -c '%i %U:%G %a' '${PERFIL}')\" = '${META4}' ]"
+lab_assert "H.4 sin restos (el temporal huerfano del proceso muerto se limpio)" sin_restos
+lab_assert "H.4 json valido" json_valido
+
+lab_log "H.5 (ronda 2b, H-R2-1) caso (iii): SIGKILL tras escribir y antes de borrar el respaldo + el OPERADOR edita a mano"
+META5="$(meta "${PERFIL}")"
+sonda_matar "${CARPETA}" "Nombre H5" escrito
+lab_assert "H.5 tras el corte: respaldo publicado y perfil con lo escrito" bash -c "sudo test -s '${CARPETA}/.perfil-operador.json.s9k-respaldo' && sudo grep -q 'Nombre H5' '${PERFIL}'"
+sudo runuser -u "${TERCERO}" -- "${PY}" -c "
+import json, sys
+p = sys.argv[1]; d = json.load(open(p)); d.setdefault('metadata', {})['nota_del_operador'] = 'EDITADO A MANO'
+with open(p, 'r+') as fh:
+    fh.truncate(0); fh.write(json.dumps(d, indent=2))" "${PERFIL}"
+EDITADO="$(lab_sha256 "${PERFIL}")"
+R5="$(sonda "${CARPETA}" "Nombre tras H5")"
+lab_log "caso (iii) -> ${R5}"
+lab_assert "H.5 la siguiente escritura de S9K NO restaura a ciegas: error CONTROLADO (respaldo pendiente)" bash -c "printf '%s' '${R5}' | grep -q 'RespaldoPendienteError'"
+lab_assert "H.5 la edicion del operador SE CONSERVA (mismo hash) y mismo inodo/dueño/grupo/modo" igual "$(lab_sha256 "${PERFIL}") $(meta "${PERFIL}")" "${EDITADO} ${META5}"
+lab_assert "H.5 el respaldo sigue ahi para que decida el operador" sudo test -e "${CARPETA}/.perfil-operador.json.s9k-respaldo"
+sudo rm -f "${CARPETA}/.perfil-operador.json.s9k-respaldo"   # el operador revisa y lo retira
+R5B="$(sonda "${CARPETA}" "Nombre tras revisar")"
+lab_assert "H.5 tras retirar el respaldo el operador, la escritura vuelve a funcionar y conserva su edicion" bash -c "printf '%s' '${R5B}' | grep -q OK && sudo grep -q 'EDITADO A MANO' '${PERFIL}' && sudo grep -q 'Nombre tras revisar' '${PERFIL}'"
+
 lab_log "H.3 el visor sigue ARRANCADO con una boveda opcional no escribible"
 sudo systemctl restart s9-knowledge-viewer.service
 sleep 5

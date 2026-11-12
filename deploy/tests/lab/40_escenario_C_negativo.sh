@@ -228,6 +228,27 @@ c10_caso() {
     sudo rm -rf "${previa}"
 }
 
+# C11 · C-5 ronda 2b (POSITIVO): `lost+found` de un FS dedicado (root:root 0700) en el state
+# root NO para el despliegue ni se toca; un `lost+found` con otro modo SI para (ajeno).
+c11_caso() {
+    local salida="${LAB_LOGS}/escenario-C-C11-lost-found-$(lab_sha | cut -c1-12).log" rc
+    lab_log "=== caso C11-lost-found: lost+found root:root 0700 en el state root"
+    lab_registrar "dir ${STATE}/lost+found (caso C11; se retira en el caso)"
+    sudo install -d -m 0700 -o root -g root "${STATE}/lost+found"
+    printf 'bloque' | sudo tee "${STATE}/lost+found/#123" >/dev/null
+    lab_deploy upgrade > "${salida}" 2>&1 || true
+    lab_assert "C11: el despliegue TERMINA con lost+found root 0700 presente" grep -q 'DEPLOY terminado' "${salida}"
+    lab_assert "C11: lost+found intacto (root:root 0700)" bash -c "[ \"\$(sudo stat -c '%U:%G %a' '${STATE}/lost+found')\" = 'root:root 700' ]"
+    lab_assert "C11: estado conforme (el arranque ignora lost+found)" lab_estado_conforme
+    lab_assert "C11: procesos vivos como s9knowledge" lab_procesos_como_servicio
+    sudo chmod 0755 "${STATE}/lost+found"
+    set +e; lab_deploy upgrade >> "${salida}" 2>&1; rc=$?; set -e
+    lab_assert "C11: un lost+found 0755 (no el del FS) SI para en 2b (AJENAS)" bash -c "[ ${rc} -ne 0 ] && grep -q 'AJENAS' '${salida}'"
+    sudo rm -rf "${STATE}/lost+found"
+    lab_deploy upgrade >> "${salida}" 2>&1
+    lab_assert "C11: sin lost+found vuelve a converger" lab_estado_conforme
+}
+
 lab_guard
 lab_tomar_cerrojo
 BASE_SHA="${S9K_LAB_BASE_SHA:-4916e90}"
@@ -236,6 +257,11 @@ git -C "${LAB_REPO}" cat-file -e "${BASE_SHA}^{commit}" || lab_stop "el commit b
 command -v chattr >/dev/null 2>&1 || lab_stop "falta chattr (e2fsprogs): el caso C3 necesita un atributo inmutable"
 RV3_REL=""   # lo fija lab_convertir_en_legacy
 
+if [ "${S9K_LAB_C_SOLO_LF:-}" = "1" ]; then
+    c11_caso
+    lab_log "ESCENARIO C (solo C11): PASS"
+    exit 0
+fi
 # S9K_LAB_C_SOLO_R2=1 salta C1-C4 (ya PASS en la ronda 1 y repetidos aparte) y corre solo los de la ronda 2.
 if [ "${S9K_LAB_C_SOLO_R2:-}" != "1" ]; then
     caso C1-chown-chmod-imposible c1_preparar c1_deshacer
@@ -250,5 +276,6 @@ caso_pre C7-state-root-no-dedicado    c7_preparar c7_deshacer 'AJENAS'
 caso_5b_sin_mover C8-symlink-legacy   c8_preparar c8_deshacer 'STOP\[SYMLINK\]'
 caso_5b_sin_mover C9-legacy-duplicado c9_preparar c9_deshacer 'STOP\[ESTADO_LEGACY_DUPLICADO\]'
 c10_caso
+c11_caso
 
 lab_log "ESCENARIO C: PASS (logs en ${LAB_LOGS}/escenario-C-*)"

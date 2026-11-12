@@ -89,7 +89,8 @@ T_VIEWER = "viewer/tests/test_h06_h08_estado_privado.py"
 T_CLI = "deploy/tests/test_h06_h08_cli_root.py"
 T_R2 = "deploy/tests/test_h06_h08_ronda2_contrato.py"
 T_VAULT = "viewer/tests/test_h06_h08_vault_no_escribible.py"
-TESTIGOS = [T_DEPLOY, T_INV, T_C1, T_DE, T_VIEWER, T_CLI, T_R2, T_VAULT]
+T_RESP = "viewer/tests/test_h06_h08_vault_respaldo.py"
+TESTIGOS = [T_DEPLOY, T_INV, T_C1, T_DE, T_VIEWER, T_CLI, T_R2, T_VAULT, T_RESP]
 
 U_VISOR = "viewer/systemd/s9-knowledge-viewer.service"
 U_WORKER = "data-engine/systemd/s9-knowledge-worker.service"
@@ -371,7 +372,7 @@ def _m26_se_apropia_del_perfil_ajeno(t):
 
 
 def _m27_no_restaura_el_respaldo(t):
-    return mutar_en_funcion(t, "_preparar_escritura", "    restaurar_respaldo_pendiente(ruta)\n",
+    return mutar_en_funcion(t, "_preparar_escritura", "    resolver_respaldo_pendiente(ruta)\n",
                             "    pass\n")
 
 
@@ -470,6 +471,45 @@ def _m45_r12_acl_ignorada(t):
     return mutar_en_funcion(t, "_revisar_entrada", "    if _acl_presente(path):\n", "    if False:\n")
 
 
+# --- ronda 2b: respaldo de la boveda (H-R2-1) y mutantes X* del revisor --------
+
+def _m46_x2_no_restaura_tras_error(t):
+    return mutar_en_funcion(t, "_escribir_en_el_sitio", "                _volcar(fd, original)\n",
+                            "                pass\n")
+
+
+def _m47_x6_respaldo_de_otro_usuario(t):
+    return mutar_en_funcion(t, "resolver_respaldo_pendiente", "    if not _respaldo_es_propio(st_r):\n",
+                            "    if False:\n")
+
+
+def _m48_x3_preescaneo_primer_nivel(t):
+    return mutar_en_funcion(
+        t, "_contenido_legacy",
+        "    for carpeta, subdirs, ficheros in os.walk(origen, followlinks=False, onerror=_ilegible):\n",
+        "    for carpeta, subdirs, ficheros in [next(os.walk(origen, followlinks=False, onerror=_ilegible))]:\n")
+
+
+def _m49_x4_release_sin_unidad(t):
+    return mutar_unico(
+        t, '    validate_viewer_unit "${dir}/viewer/systemd/s9-knowledge-viewer.service" "${current}" || return 1\n',
+        '    [ -f "${dir}/viewer/systemd/s9-knowledge-viewer.service" ] || return 0\n'
+        '    validate_viewer_unit "${dir}/viewer/systemd/s9-knowledge-viewer.service" "${current}" || return 1\n')
+
+
+def _m50_restauracion_a_ciegas(t):
+    return mutar_en_funcion(t, "resolver_respaldo_pendiente",
+                            '        elif _es_resto_de_esta_escritura(actual, sobre["nuevo"]):\n',
+                            "        elif True:\n")
+
+
+def _m51_lost_found_cualquiera(t):
+    return mutar_en_funcion(
+        t, "es_lost_found_del_fs",
+        "            and st.st_uid == 0 and st.st_gid == 0 and stat.S_IMODE(st.st_mode) == 0o700)\n",
+        "            )\n")
+
+
 #: (nombre, fichero mutado, mutador, testigo, {prueba: fragmento de la causa})
 MUTACIONES = [
     ("M1 — el visor vuelve a correr como root (User=root)",
@@ -557,8 +597,8 @@ MUTACIONES = [
      VAULT_WRITER, _m26_se_apropia_del_perfil_ajeno, T_VAULT,
      {"test_H2b_perfil_de_otro_dueno_escribible_se_escribe_en_el_sitio": "inodo/dueño/grupo/modo cambiaron"}),
     ("M27 — (H-2b) la siguiente escritura no restaura el respaldo de un SIGKILL",
-     VAULT_WRITER, _m27_no_restaura_el_respaldo, T_VAULT,
-     {"test_H2b_SIGKILL_a_mitad_deja_respaldo_y_la_siguiente_escritura_restaura_primero": "EscrituraRechazadaError"}),
+     VAULT_WRITER, _m27_no_restaura_el_respaldo, T_RESP,
+     {"test_SIGKILL_en_cada_punto_y_la_siguiente_escritura_converge[mitad]": "EscrituraRechazadaError"}),
     ("M28 — (H-2) los efimeros huerfanos de un SIGKILL no se limpian",
      VAULT_WRITER, _m28_no_limpia_huerfanos, T_VAULT,
      {"test_H2_los_efimeros_huerfanos_de_un_SIGKILL_se_limpian_en_la_siguiente_escritura": ".s9k-probe-"}),
@@ -615,6 +655,26 @@ MUTACIONES = [
     ("M45 — (R12) una ACL POSIX presente deja de ser un hallazgo",
      SERVICE_STATE, _m45_r12_acl_ignorada, T_DE,
      {"test_R12_una_ACL_presente_es_un_hallazgo_aunque_el_modo_sea_0600": "R12: ACL no detectada"}),
+    # ---- ronda 2b · respaldo de la boveda (H-R2-1) y X* del revisor ------------
+    ("M46 — (X2) el caso (b) no restaura el original tras un error a mitad",
+     VAULT_WRITER, _m46_x2_no_restaura_tras_error, T_RESP,
+     {"test_X2_un_error_a_mitad_de_escribir_restaura_el_original_en_el_sitio": "X2: EL ORIGINAL NO SE RESTAURO"}),
+    ("M47 — (X6) se acepta un respaldo pendiente de OTRO usuario",
+     VAULT_WRITER, _m47_x6_respaldo_de_otro_usuario, T_RESP,
+     {"test_un_respaldo_no_fiable_NUNCA_se_restaura[de_otro_usuario]": "DID NOT RAISE"}),
+    ("M48 — (X3) el pre-escaneo de la migracion solo mira el primer nivel",
+     MIGRAR, _m48_x3_preescaneo_primer_nivel, T_R2,
+     {"test_X3_un_symlink_PROFUNDO_dentro_de_un_directorio_legacy_PARA_sin_mover_nada": "X3: MOVIO ANTES"}),
+    ("M49 — (X4) release_entiende_la_identidad acepta una release sin unidad",
+     "deploy/scripts/validate_deploy.sh", _m49_x4_release_sin_unidad, T_R2,
+     {"test_X4_rollback_a_una_release_SIN_unidad_del_visor_NO_se_reactiva": "X4: SE REACTIVA"}),
+    ("M50 — (H-R2-1) restauracion A CIEGAS: un perfil editado por el operador vuelve al respaldo",
+     VAULT_WRITER, _m50_restauracion_a_ciegas, T_RESP,
+     {"test_una_edicion_del_operador_tras_el_corte_NO_se_pierde[escrito]": "DID NOT RAISE",
+      "test_un_respaldo_no_fiable_NUNCA_se_restaura[obsoleto_propio]": "DID NOT RAISE"}),
+    ("M51 — (C-5 2b) cualquier `lost+found` (otro dueño/modo) pasa por entrada del FS",
+     SERVICE_STATE, _m51_lost_found_cualquiera, T_R2,
+     {"test_C5_lost_found_solo_con_sus_atributos_exactos[lost+found-st1-False]": "assert True is False"}),
 ]
 
 

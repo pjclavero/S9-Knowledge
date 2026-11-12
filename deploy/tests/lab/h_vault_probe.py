@@ -11,6 +11,7 @@ uso: h_vault_probe.py <raiz-del-repo> <carpeta-de-juego> <label>
 from __future__ import annotations
 
 import json
+import os
 import sys
 
 raiz, carpeta, label = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -22,6 +23,23 @@ from app import sources_catalog, vault_writer  # noqa: E402
 
 carpeta = Path(carpeta)
 perfil = carpeta / sources_catalog.NOMBRE_PERFIL
+
+# Ronda 2b (solo laboratorio): S9K_LAB_MATAR=<punto> mata ESTE proceso con SIGKILL en un punto
+# del caso (b): tmp_respaldo (temporal del respaldo creado, sin publicar), publicado (respaldo
+# publicado, antes de escribir), escrito (perfil escrito, antes de borrar el respaldo).
+_punto = os.environ.get("S9K_LAB_MATAR", "")
+if _punto:
+    import signal
+
+    def _matar(*_a, **_k):
+        os.kill(os.getpid(), signal.SIGKILL)
+
+    if _punto == "tmp_respaldo":
+        vault_writer._publicar = _matar
+    elif _punto == "publicado":
+        vault_writer._volcar = _matar
+    elif _punto == "escrito":
+        vault_writer._borrar_respaldo = _matar
 try:
     lectura = vault_writer.leer_estado_perfil(perfil)
     vault_writer.escribir_label_workspace(carpeta, label, lectura.huella)

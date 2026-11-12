@@ -190,7 +190,7 @@ def test_la_boveda_no_forma_parte_del_state_ni_del_arranque():
                 elif n.func.attr in {"fchmod", "fchown"}:
                     por_fd.append((fn.name, n.func.attr, ast.unparse(n.args[0])))
     assert por_ruta == [], por_ruta
-    permitidos = {("_reemplazo_atomico_propio", "fd"), ("_escribir_en_el_sitio", "fdr")}
+    permitidos = {("_reemplazo_atomico_propio", "fd"), ("_crear_respaldo", "fd")}
     assert por_fd and {(f, d) for f, _a, d in por_fd} <= permitidos, por_fd
     # el escritor jamas importa la autoridad de estado: no hay fallback hacia el state root
     fuente = (RAIZ / "viewer" / "app" / "vault_writer.py").read_text(encoding="utf-8")
@@ -273,74 +273,7 @@ def test_H2b_sin_respaldo_posible_es_409_y_el_perfil_no_se_toca(entorno, monkeyp
     assert despues == antes
 
 
-_SIGKILL_A_MITAD = """
-import json, os, signal, sys
-sys.path.insert(0, sys.argv[2])
-sys.path.append(sys.argv[3])
-from pathlib import Path
-from app import vault_writer as vw
-vw._es_del_proceso = lambda st: False
-n = {"v": 0}
-real = vw._volcar
-def volcar(fd, contenido):
-    n["v"] += 1
-    if n["v"] == 2:          # 1 = el respaldo; 2 = el perfil EN EL SITIO: SIGKILL a medias
-        os.lseek(fd, 0, 0)
-        os.ftruncate(fd, 0)
-        os.write(fd, contenido[: len(contenido) // 3])
-        os.kill(os.getpid(), signal.SIGKILL)
-    return real(fd, contenido)
-vw._volcar = volcar
-ruta = Path(sys.argv[1])
-datos = json.loads(ruta.read_text(encoding="utf-8"))
-datos.setdefault("metadata", {})["label"] = "A medias"
-vw._escribir_atomico(ruta, datos)
-"""
-
-
-def _matar_a_mitad(perfil: Path):
-    import subprocess
-    import sys
-    return subprocess.run([sys.executable, "-c", _SIGKILL_A_MITAD, str(perfil), str(RAIZ / "viewer"),
-                           str(RAIZ / "data-engine" / "app")], capture_output=True, text=True, timeout=60,
-                          env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
-
-
-def test_H2b_SIGKILL_a_mitad_deja_respaldo_y_la_siguiente_escritura_restaura_primero(entorno, monkeypatch):  # noqa: F811
-    from app import vault_writer
-
-    _db, _a, _app, boveda = entorno
-    perfil = _perfil_path(boveda)
-    perfil.chmod(0o664)
-    original = perfil.read_bytes()
-    antes = _todo(perfil)
-    huella_original = vault_writer.huella_de(perfil)
-    r = _matar_a_mitad(perfil)
-    assert r.returncode == -9, (r.returncode, r.stderr[-600:])
-    respaldo = vault_writer.ruta_respaldo(perfil)
-    assert respaldo.exists() and respaldo.read_bytes() == original, "sin respaldo tras el SIGKILL"
-    assert perfil.read_bytes() != original, "el SIGKILL no llego a mitad: el test no mide nada"
-    # la SIGUIENTE escritura restaura PRIMERO y luego escribe (con la huella del original)
-    monkeypatch.setattr(vault_writer, "_es_del_proceso", lambda st: False)
-    vault_writer.escribir_label_workspace(perfil.parent, "Tras el SIGKILL", huella_original)
-    despues = _todo(perfil)
-    assert despues[1:] == antes[1:], (antes, despues)
-    assert "Tras el SIGKILL" in perfil.read_text(encoding="utf-8")
-    assert not respaldo.exists()
-
-
-def test_H2b_restaurar_respaldo_pendiente_vuelve_al_original_en_el_sitio(entorno):  # noqa: F811
-    from app import vault_writer
-
-    _db, _a, _app, boveda = entorno
-    perfil = _perfil_path(boveda)
-    original = perfil.read_bytes()
-    antes = _todo(perfil)
-    assert _matar_a_mitad(perfil).returncode == -9
-    assert vault_writer.restaurar_respaldo_pendiente(perfil) is True
-    assert perfil.read_bytes() == original and _todo(perfil) == antes
-    assert not vault_writer.ruta_respaldo(perfil).exists()
-    assert vault_writer.restaurar_respaldo_pendiente(perfil) is False
+# (Los cortes por SIGKILL del caso (b) viven en test_h06_h08_vault_respaldo.py: ronda 2b.)
 
 
 def _pid_muerto() -> int:

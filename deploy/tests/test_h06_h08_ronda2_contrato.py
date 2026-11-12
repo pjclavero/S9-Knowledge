@@ -481,3 +481,76 @@ def test_R3_la_migracion_hace_chown_de_cada_entrada_ajena_no_solo_chmod(esc, mon
                  str(esc.rv3 / "decisions.jsonl")}
     assert esperadas <= rutas, "LCHOWN NO LLAMADO para %s" % sorted(esperadas - rutas)
     assert all((u, g) == (UID + 4242, GID + 4242) for _r, u, g in vistos)
+
+
+# ===========================================================================
+# Ronda 2b · C-5: `lost+found` de un FS DEDICADO (root:root 0700) no es contenido ajeno
+# ===========================================================================
+
+def _st(modo, uid=0, gid=0):
+    return os.stat_result((modo, 1, 1, 2, uid, gid, 4096, 0, 0, 0))
+
+
+@pytest.mark.parametrize("nombre,st,esperado", [
+    ("lost+found", _st(stat.S_IFDIR | 0o700), True),
+    ("lost+found", _st(stat.S_IFDIR | 0o755), False),          # modo distinto
+    ("lost+found", _st(stat.S_IFDIR | 0o700, uid=1000), False),  # dueño distinto
+    ("lost+found", _st(stat.S_IFDIR | 0o700, gid=4), False),     # grupo distinto
+    ("lost+found", _st(stat.S_IFREG | 0o700), False),            # no es directorio
+    ("lost+found", _st(stat.S_IFLNK | 0o777), False),            # symlink
+    ("lost+found2", _st(stat.S_IFDIR | 0o700), False),           # otro nombre
+])
+def test_C5_lost_found_solo_con_sus_atributos_exactos(nombre, st, esperado):
+    assert ss.es_lost_found_del_fs(nombre, st) is esperado
+
+
+def test_C5_lost_found_del_fs_no_bloquea_ni_se_toca_y_nada_mas_se_admite(esc, monkeypatch):
+    """Sin root no se puede crear un `lost+found` de root: se planta uno 0700 propio y la
+    decisión «es del FS» se acota a ESE directorio (el predicado exacto se prueba arriba; el
+    real, root:root, en VM112). Validate-env, migración y arranque lo ignoran y NO lo tocan;
+    un `lost+found` con otro modo sigue siendo ajeno."""
+    lf = esc.state / "lost+found"
+    lf.mkdir()
+    lf.chmod(0o700)
+    (lf / "#123").write_text("bloque huerfano de fsck")
+    (lf / "#123").chmod(0o644)
+    real = ss.es_lost_found_del_fs
+    monkeypatch.setattr(ss, "es_lost_found_del_fs",
+                        lambda nombre, st: nombre == "lost+found" and stat.S_ISDIR(st.st_mode)
+                        and stat.S_IMODE(st.st_mode) == 0o700)
+    monkeypatch.setattr(mg, "_ss", lambda: ss)
+    assert ss.inspect_dedicated_state_root(esc.state, {}) == []
+    r = esc.aplicar()
+    assert r.rc == 0, _causa(r)
+    assert stat.S_IMODE(lf.stat().st_mode) == 0o700 and stat.S_IMODE((lf / "#123").stat().st_mode) == 0o644, (
+        "la migracion toco lost+found")
+    assert ss.inspect_state(esc.state, uid=UID, gid=GID) == []
+    lf.chmod(0o755)
+    monkeypatch.setattr(ss, "es_lost_found_del_fs", real)
+    assert any(v.code == "FOREIGN" for v in ss.inspect_dedicated_state_root(esc.state, {}))
+
+
+# ===========================================================================
+# Ronda 2b · testigos de los mutantes X3 y X4 del revisor
+# ===========================================================================
+
+def test_X3_un_symlink_PROFUNDO_dentro_de_un_directorio_legacy_PARA_sin_mover_nada(esc):
+    """X3: un pre-escaneo que solo mira el primer nivel no ve el symlink de un subdirectorio."""
+    sub = esc.rv3_rel / "proposals" / "lote" / "dentro"
+    sub.mkdir(parents=True)
+    (esc.tmp / "fuera.json").write_text("{}")
+    os.symlink(esc.tmp / "fuera.json", sub / "enlace.json")
+    antes_rel = _foto(esc.release)
+    r = esc.aplicar()
+    assert r.rc == 3 and "STOP[SYMLINK]" in r.lineas[-1], _causa(r)
+    assert _foto(esc.release) == antes_rel and not (esc.rv3 / "decisions.jsonl").exists(), (
+        "X3: MOVIO ANTES DE VER EL SYMLINK PROFUNDO")
+
+
+def test_X4_rollback_a_una_release_SIN_unidad_del_visor_NO_se_reactiva(tmp_path):
+    prev = _release(tmp_path, "previa-sin-unidad", U_VISOR.read_text(encoding="utf-8"),
+                    U_WORKER.read_text(encoding="utf-8"))
+    (prev / "viewer" / "systemd" / "s9-knowledge-viewer.service").unlink()
+    r, llamadas = _rollback_permitido(tmp_path, prev)
+    assert "RC=1" in r.stdout, "X4: SE REACTIVA UNA RELEASE SIN UNIDAD: " + r.stdout[-200:]
+    assert "stop s9-knowledge-viewer.service" in llamadas
