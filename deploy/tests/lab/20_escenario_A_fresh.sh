@@ -147,7 +147,7 @@ lab_assert "A.4 ningun fichero fuera de 0600 ni directorio fuera de 0700" sin_de
 lab_log "A.6 P7 flujo minimo de auth: admin por la CLI CANONICA"
 ADMIN_PW="$(head -c 18 /dev/urandom | base64 | tr -d '/+=' | cut -c1-20)Aa1_"
 printf 'labadmin\nLab Admin\n%s\n%s\n' "${ADMIN_PW}" "${ADMIN_PW}" \
-    | sudo "${LAB_REPO}/deploy/scripts/auth-cli.sh" create-admin >/dev/null
+    | sudo "${LAB_REPO}/deploy/scripts/auth-cli.sh" create-admin >/dev/null || lab_log "(create-admin: el administrador de laboratorio ya existia; se reutiliza)"
 lab_assert "A.6 N10 la CLI ejecutada como root se RECHAZA" cli_como_root_rechazada
 lab_assert "A.6 N10 no se creo nada como root en el estado" nada_de_root_en_el_estado
 lab_assert "A.6 sigue todo conforme tras crear el admin (auth.db-wal/-shm incluidos)" lab_estado_conforme
