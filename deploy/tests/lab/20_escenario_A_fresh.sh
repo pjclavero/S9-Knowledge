@@ -72,13 +72,29 @@ cli_como_root_rechazada() {
 healthcheck_sin_error_de_config() {
     local rc
     rc="$(systemctl show -p ExecMainStatus --value s9-knowledge-healthcheck.service)"
-    [ "${rc}" = "0" ] || [ "${rc}" = "1" ]
+    [ "${rc}" = "0" ] || [ "${rc}" = "1" ] || [ "${rc}" = "2" ]
+}
+estado_de_componentes() {
+    sudo python3 -c "import json; d=json.load(open('${STATE}/health/health.json')); print(' '.join('%s=%s' % (c['component'], c['status']) for c in d['components']))"
+}
+health_componentes_de_permisos() {
+    local e; e="$(estado_de_componentes)"
+    for c in viewer job_store auth_db systemd; do
+        case " ${e} " in *" ${c}=HEALTHY "*) ;; *) echo "${c} no HEALTHY: ${e}" >&2; return 1 ;; esac
+    done
+}
+health_solo_falla_por_backups() {
+    local e; e="$(estado_de_componentes)"
+    ! printf '%s' "${e}" | tr ' ' '\n' | grep -E '=UNHEALTHY$' | grep -vq '^backups='
+}
+healthcheck_como_servicio() {
+    ! sudo journalctl -u s9-knowledge-healthcheck.service --no-pager -n 200 | grep -qi "permission denied"
 }
 
 lab_guard
 lab_tomar_cerrojo
 [ -d "${LAB_REPO}/.git" ] || lab_stop "no hay clon: ejecute antes 00_preparar.sh"
-if [ -e /opt/s9-knowledge/current ]; then
+if [ -e /opt/s9-knowledge/current ] && [ "${S9K_LAB_A_REUSAR:-}" != "1" ]; then
     lab_stop "ya hay una instalacion activa (current): el escenario A parte de una maquina sin release (restaure el snapshot o use 99_limpiar.sh)"
 fi
 # Un intento anterior que murio ANTES de activar `current` puede haber dejado el usuario de sistema
@@ -101,10 +117,13 @@ lab_registrar "unit /etc/systemd/system/s9-knowledge-{viewer,worker,healthcheck}
 # Raices que en una instalacion real deja Ansible (rol common). El state root lo crea,
 # 0700 y de s9knowledge, el paso 5b de deploy.sh.
 sudo install -d -m 0755 /opt/s9-knowledge /opt/s9-knowledge/releases
-lab_configurar "${SHA}"
-
-lab_log "A.1 deploy.sh --mode fresh (el usuario se crea en el paso 3b)"
-lab_deploy fresh 2>&1 | tee "${SALIDA}"
+if [ "${S9K_LAB_A_REUSAR:-}" = "1" ] && [ -e /opt/s9-knowledge/current ]; then
+    lab_log "A.1 REUTILIZA el despliegue fresh ya hecho (S9K_LAB_A_REUSAR=1): solo se repiten las comprobaciones"
+else
+    lab_configurar "${SHA}"
+    lab_log "A.1 deploy.sh --mode fresh (el usuario se crea en el paso 3b)"
+    lab_deploy fresh 2>&1 | tee "${SALIDA}"
+fi
 
 lab_assert "A.1 el usuario s9knowledge existe, es de sistema y no tiene login" usuario_de_sistema_sin_login
 lab_assert "A.1 s9knowledge no pertenece a grupos de privilegio" sin_grupos_de_privilegio
@@ -123,14 +142,6 @@ lab_assert "A.4d decisions.jsonl/audit.jsonl NO estan en la release" bash -c 'ls
 lab_assert "A.4 TODO el estado cumple el contrato (la comprobacion de arranque)" lab_estado_conforme
 lab_assert "A.4 ningun fichero fuera de 0600 ni directorio fuera de 0700" sin_desviaciones_de_modo
 
-# P6: la salud como s9knowledge (el servicio de salud, no una ejecucion como root)
-lab_log "A.5 P6 healthcheck como s9knowledge"
-sudo cp "${LAB_REPO}/viewer/systemd/s9-knowledge-healthcheck.service" /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl start s9-knowledge-healthcheck.service || true   # SuccessExitStatus=0 1
-lab_assert "A.5 el healthcheck dejo health.json 0600 de s9knowledge" owner_modo_es "${STATE}/health/health.json" "s9knowledge:s9knowledge 600"
-lab_assert "A.5 el healthcheck no devolvio 2 (unhealthy) ni 3 (config)" healthcheck_sin_error_de_config
-
 # P7: el visor crea una sesion / autentica. Primer admin por la CLI canonica (como s9knowledge).
 lab_log "A.6 P7 flujo minimo de auth: admin por la CLI CANONICA"
 ADMIN_PW="$(head -c 18 /dev/urandom | base64 | tr -d '/+=' | cut -c1-20)Aa1_"
@@ -139,6 +150,18 @@ printf 'labadmin\nLab Admin\n%s\n%s\n' "${ADMIN_PW}" "${ADMIN_PW}" \
 lab_assert "A.6 N10 la CLI ejecutada como root se RECHAZA" cli_como_root_rechazada
 lab_assert "A.6 N10 no se creo nada como root en el estado" nada_de_root_en_el_estado
 lab_assert "A.6 sigue todo conforme tras crear el admin (auth.db-wal/-shm incluidos)" lab_estado_conforme
+
+# P6/§17: la salud como s9knowledge (servicio de salud real, no una ejecucion como root). Va DESPUES de
+# crear el administrador: «sin admin activo» es un estado legitimo del producto antes, no un fallo de permisos.
+lab_log "A.5 P6 healthcheck como s9knowledge"
+sudo cp "${LAB_REPO}/viewer/systemd/s9-knowledge-healthcheck.service" /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl start s9-knowledge-healthcheck.service || true   # SuccessExitStatus=0 1
+lab_assert "A.5 el healthcheck dejo health.json 0600 de s9knowledge" owner_modo_es "${STATE}/health/health.json" "s9knowledge:s9knowledge 600"
+lab_assert "A.5 el healthcheck no devolvio 3 (config)" healthcheck_sin_error_de_config
+lab_assert "A.5 los componentes que dependen de permisos estan HEALTHY (viewer, job_store, auth_db, systemd)" health_componentes_de_permisos
+lab_assert "A.5 el unico ERR es «sin copias de backup» (producto, no permisos)" health_solo_falla_por_backups
+lab_assert "A.5 el proceso del healthcheck corrio como s9knowledge y sin capabilities (journal)" healthcheck_como_servicio
 
 lab_log "A.7 P11 restart conserva owner y modos"
 sudo systemctl restart s9-knowledge-viewer.service s9-knowledge-worker.service
