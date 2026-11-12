@@ -398,8 +398,18 @@ done
 # Paso 10: systemd-analyze verify
 log "--- 10. systemd-analyze verify"
 if command -v systemd-analyze >/dev/null 2>&1; then
-    systemd-analyze verify "${UNIT_DEST}" || die "systemd-analyze verify falló"
-    systemd-analyze verify "${WORKER_UNIT_DEST}" || die "systemd-analyze verify falló (worker)"
+    # Las unidades apuntan a `${S9K_ROOT}/current/...`, que en una instalación FRESH (y en un
+    # upgrade, a la release ANTERIOR) todavía no es la release nueva: `current` se activa en el
+    # paso 12. Se verifican copias con `current` sustituido por la release que SE VA A ACTIVAR,
+    # es decir, los binarios que de verdad ejecutará la unidad (hallado en VM112: sin esto un
+    # fresh real moría aquí con «uvicorn is not executable»).
+    _verif_dir="$(mktemp -d)"
+    for _u in "${UNIT_DEST}" "${WORKER_UNIT_DEST}"; do
+        sed "s#${S9K_ROOT}/current#${RELEASE_DIR}#g" "${_u}" > "${_verif_dir}/$(basename "${_u}")"
+        systemd-analyze verify "${_verif_dir}/$(basename "${_u}")" \
+            || { rm -rf "${_verif_dir}"; die "systemd-analyze verify falló ($(basename "${_u}"))"; }
+    done
+    rm -rf "${_verif_dir}"
 else
     warn "systemd-analyze no disponible; omitido"
 fi

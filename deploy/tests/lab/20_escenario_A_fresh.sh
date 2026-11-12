@@ -78,8 +78,14 @@ healthcheck_sin_error_de_config() {
 lab_guard
 lab_tomar_cerrojo
 [ -d "${LAB_REPO}/.git" ] || lab_stop "no hay clon: ejecute antes 00_preparar.sh"
-if [ -e /opt/s9-knowledge/current ] || getent passwd s9knowledge >/dev/null 2>&1; then
-    lab_stop "ya hay una instalacion o el usuario s9knowledge existe: el escenario A parte de una maquina limpia (restaure el snapshot)"
+if [ -e /opt/s9-knowledge/current ]; then
+    lab_stop "ya hay una instalacion activa (current): el escenario A parte de una maquina sin release (restaure el snapshot o use 99_limpiar.sh)"
+fi
+# Un intento anterior que murio ANTES de activar `current` puede haber dejado el usuario de sistema
+# (el despliegue lo crea en el paso 3b): se REUTILIZA (el contrato admite «creado/reutilizado») y
+# el despliegue lo vuelve a comprobar.
+if getent passwd s9knowledge >/dev/null 2>&1; then
+    lab_log "A.0 el usuario s9knowledge ya existe (intento previo sin release activada): se reutiliza"
 fi
 SHA="$(lab_sha)"
 SALIDA="${LAB_LOGS}/escenario-A-${SHA:0:12}.log"
