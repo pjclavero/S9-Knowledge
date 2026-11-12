@@ -15,6 +15,7 @@ import sys
 
 raiz, carpeta, label = sys.argv[1], sys.argv[2], sys.argv[3]
 sys.path.insert(0, raiz + "/viewer")
+sys.path.append(raiz + "/data-engine/app")   # knowledge_v3, jobs... (puente visor -> motor)
 from pathlib import Path  # noqa: E402
 
 from app import sources_catalog, vault_writer  # noqa: E402
