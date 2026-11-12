@@ -16,6 +16,8 @@
 #   S9K_LAB_PROHIBIDOS   regex de hostnames en los que NO se ejecuta
 # shellcheck shell=bash
 set -Eeuo pipefail
+# runuser/useradd/nologin viven en /usr/sbin, que un usuario normal no lleva en el PATH.
+export PATH="${PATH}:/usr/sbin:/sbin"
 
 LAB_BASE="${S9K_LAB_BASE:-/srv/s9-test/h06h08}"
 LAB_HEAVY_LOCK="${S9K_LAB_HEAVY_LOCK:-/srv/s9-test/heavy.lock}"
