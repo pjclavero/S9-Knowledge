@@ -391,22 +391,91 @@ def _mover_directorio(origen: str, destino: str, uid: int, gid: int, release_id:
         res.decir("COPIADO", "%s -> %s (%d fichero(s); origen legacy intacto)" % (origen, destino, n))
 
 
-def _mover_legacy(rutas: dict, releases: Sequence[str], legacy_root: Optional[str],
-                  uid: int, gid: int, release_id: str, res: Resultado) -> None:
-    fuentes = [(r, True) for r in releases]
-    if legacy_root:
-        fuentes.append((legacy_root, False))
-    movidos = 0
+def _contenido_legacy(origen: str) -> dict:
+    """``{ruta_relativa: sha256}`` de un origen legacy (fichero -> clave ``""``).
+
+    PRE-ESCANEO (C-2): recorre TODO sin mover nada y PARA ante un symlink (en el origen o
+    dentro), un tipo raro o un directorio ilegible. Lo que devuelve sirve para comparar
+    dos origenes (C-3) y el destino (conflictos) ANTES de copiar el primer byte.
+    """
+    if os.path.islink(origen):
+        raise Parada("SYMLINK", "el origen legacy %s es un enlace simbolico" % origen)
+    if os.path.isfile(origen):
+        return {"": _sha256(origen)}
+    if not os.path.isdir(origen):
+        raise Parada("TIPO", "el origen legacy %s no es fichero ni directorio" % origen)
+    out: dict = {}
+
+    def _ilegible(exc: OSError):
+        raise Parada("ILEGIBLE", "directorio legacy ilegible %s (%s)" % (exc.filename, _errno(exc)))
+
+    for carpeta, subdirs, ficheros in os.walk(origen, followlinks=False, onerror=_ilegible):
+        for d in subdirs:
+            p = os.path.join(carpeta, d)
+            if os.path.islink(p):
+                raise Parada("SYMLINK", "enlace simbolico dentro del origen legacy: %s" % p)
+        for f in ficheros:
+            p = os.path.join(carpeta, f)
+            if os.path.islink(p) or not os.path.isfile(p):
+                raise Parada("SYMLINK" if os.path.islink(p) else "TIPO",
+                             "entrada no regular dentro del origen legacy: %s" % p)
+            out[os.path.relpath(p, origen)] = _sha256(p)
+    return out
+
+
+def _preescanear_legacy(rutas: dict, fuentes: list, res: Resultado) -> None:
+    """C-2 + C-3 · TODO lo legacy se valida ANTES de mover el primer fichero.
+
+    * symlinks, tipos raros e ilegibles en cualquier origen (``_contenido_legacy``);
+    * destino declarado, distinto del origen y, si ya existe, regular y compatible
+      (un origen de RELEASE que difiere del destino es CONFLICTO, como al copiar);
+    * el mismo estado legacy en DOS sitios (release y arbol legacy): con el MISMO
+      contenido (hash) se acepta y se anota; con contenido DISTINTO es STOP, porque
+      elegir uno en silencio perderia decisiones del otro;
+    * espacio libre para las copias.
+    """
+    vistos: dict = {}
     total = 0
-    for base, _retirar_ in fuentes:
-        for rel, _clave, _tipo in LEGACY_EN_RELEASE:
+    for base, retirar in fuentes:
+        for rel, clave, _tipo in LEGACY_EN_RELEASE:
             origen = os.path.join(base, rel)
-            if os.path.isfile(origen):
-                total += os.path.getsize(origen)
-            elif os.path.isdir(origen):
-                for carpeta, _d, ficheros in os.walk(origen):
-                    total += sum(os.path.getsize(os.path.join(carpeta, f))
-                                 for f in ficheros if os.path.isfile(os.path.join(carpeta, f)))
+            if not os.path.lexists(origen):
+                continue
+            destino = rutas.get(clave)
+            if destino is None:
+                raise Parada("RUTA_INCORRECTA", "hay estado legacy en %s pero el entorno no "
+                             "declara dónde va (%s)" % (origen, clave))
+            destino = str(destino)
+            if os.path.normpath(destino) == os.path.normpath(origen):
+                raise Parada("RUTA_INCORRECTA", "el destino %s es el propio origen: el estado "
+                             "sigue DENTRO de la release" % destino)
+            contenido = _contenido_legacy(origen)
+            total += sum(os.path.getsize(os.path.join(origen, r) if r else origen) for r in contenido)
+            if clave in vistos:
+                otro, contenido_otro = vistos[clave]
+                if contenido_otro != contenido:
+                    raise Parada("ESTADO_LEGACY_DUPLICADO", "%s existe en DOS sitios con contenido "
+                                 "DISTINTO (%s y %s): no se elige uno en silencio; se conservan los "
+                                 "dos y nada se ha movido. Decida el operador cual es el bueno"
+                                 % (clave, otro, origen))
+                res.decir("PASO 7", "%s aparece en dos sitios (%s y %s) con el MISMO contenido "
+                          "(hash): se acepta" % (clave, otro, origen))
+            else:
+                vistos[clave] = (origen, contenido)
+            # el destino: si existe tiene que ser del tipo correcto y, para un origen de
+            # RELEASE (que se retira), coincidir con el (si no, CONFLICTO, nada movido)
+            for relativa, sha in contenido.items():
+                dest = os.path.join(destino, relativa) if relativa else destino
+                if not os.path.lexists(dest):
+                    continue
+                if os.path.islink(dest) or not os.path.isfile(dest):
+                    raise Parada("SYMLINK" if os.path.islink(dest) else "TIPO",
+                                 "el destino %s existe y no es un fichero regular" % dest)
+                if retirar and _sha256(dest) != sha:
+                    raise Parada("CONFLICTO_DE_ESTADO",
+                                 "%s y %s existen y DIFIEREN; se conservan los dos y no se elige "
+                                 "en silencio (decision del operador)"
+                                 % (os.path.join(origen, relativa) if relativa else origen, dest))
     if total:
         destino_fs = next(iter(rutas.values()), None)
         if destino_fs is not None:
@@ -416,6 +485,18 @@ def _mover_legacy(rutas: dict, releases: Sequence[str], legacy_root: Optional[st
             if libre < total * 2 + (1 << 20):
                 raise Parada("ESPACIO_INSUFICIENTE", "se necesitan ~%d bytes para copiar el "
                              "estado legacy y hay %d libres" % (total * 2, libre))
+    res.decir("PASO 7", "pre-escaneo completo del estado legacy: %d origen(es), sin symlinks, "
+              "tipos raros ni conflictos; espacio suficiente" % len(vistos))
+
+
+def _mover_legacy(rutas: dict, releases: Sequence[str], legacy_root: Optional[str],
+                  uid: int, gid: int, release_id: str, res: Resultado) -> None:
+    fuentes = [(r, True) for r in releases]
+    if legacy_root:
+        fuentes.append((legacy_root, False))
+    movidos = 0
+    # C-2: nada se mueve hasta que TODO lo legacy ha pasado el pre-escaneo.
+    _preescanear_legacy(rutas, fuentes, res)
     for base, retirar in fuentes:
         for rel, clave, tipo in LEGACY_EN_RELEASE:
             origen = os.path.join(base, rel)
@@ -519,6 +600,12 @@ def aplicar(state_root: str, env: dict, *, releases: Sequence[str] = (),
             raise Parada("RUTA_INCORRECTA", "; ".join(v.message() for v in declaradas))
         res.decir("PASO 1", "estado real: state_root=%s servicio=%s:%s (uid %d gid %d) rutas=%d"
                   % (state_root, ss.SERVICE_USER, ss.SERVICE_GROUP, uid, gid, len(rutas)))
+        # C-5: el state root es DEDICADO. Antes de crear, chown-ear o chmod-ear nada: una
+        # raiz del sistema, compartida (sticky/escribible por otros) o con contenido ajeno
+        # se PARA; la migracion se apropiaria de lo que no es del servicio.
+        no_dedicado = ss.inspect_dedicated_state_root(state_root, rutas)
+        if no_dedicado:
+            raise Parada("STATE_ROOT_NO_DEDICADO", "; ".join(v.message() for v in no_dedicado))
         _precondiciones(state_root, crear_state_root, uid, gid, res)
         res.decir("PASO 2", "precondiciones: state root real, escribible, sistema de ficheros rw")
         _backups_legacy(state_root, res)

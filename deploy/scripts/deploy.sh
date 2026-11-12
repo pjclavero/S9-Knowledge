@@ -244,6 +244,12 @@ validate_manifest "${RELEASE_DIR}/manifest.json" || die "manifiesto inválido"
 # parar nada. Un viewer.env sin S9K_STATE_ROOT, o con una ruta de estado en la
 # release, no puede dejar el servicio parado a mitad de despliegue: se rechaza
 # aquí, con los servicios todavía en marcha. (Solo lectura.)
+# Ronda 2: también las precondiciones del DISCO (`validate-env --role viewer`):
+#   C-1 `<state>/backups` con contenido o S9K_BACKUP_ROOT/S9K_BACKUP_DIR dentro del
+#       state root -> STOP con receta;
+#   C-5 state root NO dedicado (`/`, un directorio del sistema, sticky o escribible
+#       por otros, entradas de primer nivel ajenas al servicio) -> STOP.
+# Nada de eso puede descubrirse con visor y worker ya parados.
 log "--- 2b. precondiciones del estado del servicio (antes de parar nada)"
 validate_viewer_env "${VIEWER_ENV}" || die "viewer.env inválido/incompleto (nada se ha parado ni tocado)"
 validate_state_paths "${VIEWER_ENV}" viewer || die "rutas de estado de viewer.env fuera del contrato (nada se ha parado ni tocado)"
@@ -304,7 +310,9 @@ python3 "${HERE}/migrar_estado.py" aplicar --state-root "${S9K_STATE_ROOT}" \
 # SECRET (§9) y BACKUP (§10): políticas propias, fuera del state root.
 preparar_secretos_del_servicio "${S9K_CONFIG_ROOT}" \
     || die "los secretos de ${S9K_CONFIG_ROOT}/secrets no cumplen la política SECRET (root:${SERVICE_GROUP} 0640; causa arriba)"
-_backup_dir="$(_env_value "${VIEWER_ENV}" S9K_BACKUP_DIR)"
+# C-1: la raiz de backups por cualquiera de sus dos nombres (el healthcheck acepta ambos).
+_backup_dir="$(_env_value "${VIEWER_ENV}" S9K_BACKUP_ROOT)"
+[ -n "${_backup_dir}" ] || _backup_dir="$(_env_value "${VIEWER_ENV}" S9K_BACKUP_DIR)"
 [ -z "${_backup_dir}" ] || preparar_raiz_de_backups "${_backup_dir}" \
     || die "raíz de backups inválida: ${_backup_dir}"
 verificar_estado_por_efecto "${S9K_STATE_ROOT}" "${VIEWER_ENV}" viewer \
@@ -483,12 +491,12 @@ python3 "${HERE}/verify_release_identity.py" --root "${S9K_ROOT}" \
     --expected-release "${RELEASE_ID}" --expected-commit "${RESOLVED_COMMIT}" \
     --unit s9-knowledge-viewer.service || {
         err "el proceso vivo NO ejecuta la release autorizada — rollback"
-        [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && {
+        [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && rollback_permitido "${PREV_RELEASE_DIR}" && {
             atomic_symlink "${PREV_RELEASE_DIR}" "${S9K_ROOT}/current"
             revertir_worker "${PREV_RELEASE_DIR}" "${WORKER_UNIT_NAME}" "${WORKER_UNIT_DEST}" "${RELEASE_ID}" || true
             systemctl restart s9-knowledge-viewer.service || true
         }
-        die "activación no verificable; rollback ejecutado"
+        die "activación no verificable; ${S9K_ROLLBACK_RESULTADO}"
     }
 # Paso 14a (H-06 + H-08, N8): los procesos VIVOS corren como el usuario de
 # servicio, no como root (se lee /proc, no la unidad: una ruta alternativa de
@@ -496,12 +504,21 @@ python3 "${HERE}/verify_release_identity.py" --root "${S9K_ROOT}" \
 log "--- 14a. procesos del visor y del worker como ${SERVICE_USER}"
 if ! verificar_procesos_no_root "${VIEWER_UNIT_NAME}" "${WORKER_UNIT_NAME}"; then
     err "algún proceso NO corre como ${SERVICE_USER} — rollback"
-    [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && {
+    [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && rollback_permitido "${PREV_RELEASE_DIR}" && {
         atomic_symlink "${PREV_RELEASE_DIR}" "${S9K_ROOT}/current"
         revertir_worker "${PREV_RELEASE_DIR}" "${WORKER_UNIT_NAME}" "${WORKER_UNIT_DEST}" "${RELEASE_ID}" || true
         systemctl restart s9-knowledge-viewer.service || true
     }
-    die "identidad de los procesos no verificada; rollback ejecutado"
+    die "identidad de los procesos no verificada; ${S9K_ROLLBACK_RESULTADO}"
+fi
+# C-6 (ronda 2, §12 «sin fail-open silencioso»): la excepción de tests no entra por
+# un drop-in, un EnvironmentFile extra ni el entorno heredado. Se mira el entorno
+# EFECTIVO de las tres unidades y el de los procesos VIVOS. Si aparece, se PARA
+# (no hay rollback que lo arregle: no es de la release, es de la configuración).
+if ! verificar_entorno_efectivo "${VIEWER_UNIT_NAME}" "${WORKER_UNIT_NAME}" "${HEALTH_UNIT_NAME}"; then
+    systemctl stop "${VIEWER_UNIT_NAME}" || true
+    systemctl stop "${WORKER_UNIT_NAME}" || true
+    die "la excepción de tests/laboratorio (S9K_STATE_VALIDATION/S9K_STATE_ENFORCE) está en el entorno EFECTIVO (causa arriba): visor y worker PARADOS. Quite el drop-in/EnvironmentFile/Environment= y repita el despliegue"
 fi
 
 # Paso 14b (B3 · H-02): el worker tiene que estar VIVO, no solo instalado. Con
@@ -510,7 +527,7 @@ fi
 log "--- 14b. verificar que el worker está activo"
 if ! worker_activo "${WORKER_UNIT_NAME}"; then
     err "el worker no está activo tras el arranque — rollback"
-    [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && {
+    [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && rollback_permitido "${PREV_RELEASE_DIR}" && {
         atomic_symlink "${PREV_RELEASE_DIR}" "${S9K_ROOT}/current"
         revertir_worker "${PREV_RELEASE_DIR}" "${WORKER_UNIT_NAME}" "${WORKER_UNIT_DEST}" "${RELEASE_ID}" || true
         systemctl restart s9-knowledge-viewer.service || true
@@ -520,7 +537,7 @@ if ! worker_activo "${WORKER_UNIT_NAME}"; then
     # (un PREV_RELEASE_DIR con valor pero sin directorio cuenta como «sin previa»)
     { [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ]; } \
         || revertir_worker "" "${WORKER_UNIT_NAME}" "${WORKER_UNIT_DEST}" "${RELEASE_ID}" || true
-    die "worker no activo (journalctl -u ${WORKER_UNIT_NAME}); rollback ejecutado"
+    die "worker no activo (journalctl -u ${WORKER_UNIT_NAME}); ${S9K_ROLLBACK_RESULTADO}"
 fi
 
 # Paso 15: comprobar admin y jobs preservados
@@ -538,12 +555,12 @@ set -e
 # Antes solo se comprobaba verify_rc==1, dejando pasar BLOCKED (rc=2) como verde.
 if [ "${verify_rc}" -ne 0 ]; then
     err "healthcheck FALLIDO (rc=${verify_rc}) — rollback"
-    [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && {
+    [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && rollback_permitido "${PREV_RELEASE_DIR}" && {
         atomic_symlink "${PREV_RELEASE_DIR}" "${S9K_ROOT}/current"
         revertir_worker "${PREV_RELEASE_DIR}" "${WORKER_UNIT_NAME}" "${WORKER_UNIT_DEST}" "${RELEASE_ID}" || true
         systemctl restart s9-knowledge-viewer.service || true
     }
-    die "despliegue FALLIDO tras healthcheck (verify_rc=${verify_rc})"
+    die "despliegue FALLIDO tras healthcheck (verify_rc=${verify_rc}); ${S9K_ROLLBACK_RESULTADO}"
 fi
 
 # Paso 16b: vía HTTPS, VERIFICADA POR EFECTO. No que la configuración esté

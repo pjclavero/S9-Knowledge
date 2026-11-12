@@ -44,14 +44,30 @@ def dir_mode() -> int:
     return service_state().DIR_MODE
 
 
+def ensure_private_dir(path) -> Path:
+    """Directorio de estado (y padres que falten) con el modo EXACTO de la autoridad."""
+    return service_state().ensure_private_dir(path)
+
+
+def create_private_file(path) -> bool:
+    """Fichero de estado vacio con el modo EXACTO de la autoridad si no existe."""
+    return service_state().create_private_file(path)
+
+
+def refuse_root_state_write(path) -> None:
+    """H-1: un proceso root no crea ni escribe estado del servicio (ver la autoridad)."""
+    service_state().refuse_root_state_write(path)
+
+
 def open_private_append(path, *, encoding: str = "utf-8", newline=None):
     """Abre ``path`` para anadir, creandolo 0600 en un directorio 0700.
 
-    El modo sale de la autoridad y NO depende de la umask del proceso: los
-    JSONL de decisiones/auditoria/candidatos nacen privados aunque el servicio
-    arranque por una ruta sin ``UMask=0077`` (H-06 + H-08, N5/N6).
+    El modo sale de la autoridad y NO depende de la umask del proceso (cada
+    directorio que falte y el fichero se crean con su modo EXACTO): los JSONL de
+    decisiones/auditoria/candidatos nacen privados aunque el servicio arranque
+    por una ruta sin ``UMask=0077`` (H-06 + H-08, N5/N6). Root no escribe aqui (H-1).
     """
     p = Path(path)
-    p.parent.mkdir(parents=True, exist_ok=True, mode=dir_mode())
-    fd = os.open(str(p), os.O_WRONLY | os.O_APPEND | os.O_CREAT, file_mode())
+    ensure_private_dir(p.parent)
+    fd = service_state().open_private_write(p, append=True)
     return os.fdopen(fd, "a", encoding=encoding, newline=newline)

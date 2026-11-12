@@ -102,6 +102,9 @@ def build_default_config() -> Dict[str, Any]:
         },
         "systemd": {"units": [u for u in os.environ.get(
             "S9K_HEALTH_UNITS", "s9-knowledge-viewer.service").split(",") if u]},
+        "state_validation": {"units": [u for u in os.environ.get(
+            "S9K_HEALTH_STATE_UNITS",
+            "s9-knowledge-viewer.service,s9-knowledge-worker.service").split(",") if u]},
     }
 
 
@@ -118,6 +121,8 @@ _REGISTRY: Dict[str, Callable[[Dict[str, Any]], ComponentResult]] = {
     "filesystem": lambda c: checks.check_filesystem(**c),
     "backups": lambda c: checks.check_backups(**c),
     "systemd": lambda c: checks.check_systemd(**c),
+    # C-6 (H-06/H-08 ronda 2): la excepcion de tests no entra en el entorno efectivo.
+    "state_validation": lambda c: checks.check_state_validation(**c),
 }
 
 COMPONENT_NAMES: List[str] = list(_REGISTRY.keys())

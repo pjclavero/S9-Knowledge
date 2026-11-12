@@ -455,17 +455,26 @@ validate_viewer_unit() {
 #   de arranque fail-closed). Sin salida = la unidad cumple.
 # ---------------------------------------------------------------------------
 _identidad_de_unidad_errores() {
-    local unit="${1}" u g um esp_u esp_g esp_um
-    esp_u="$(python3 "${_VD_SS}" get service_user)" || { echo "la autoridad de identidad no responde"; return 0; }
-    esp_g="$(python3 "${_VD_SS}" get service_group)"
-    esp_um="$(python3 "${_VD_SS}" get umask)"
-    u="$(_unit_value "${unit}" User)"; g="$(_unit_value "${unit}" Group)"; um="$(_unit_value "${unit}" UMask)"
-    [ "${u}" = "${esp_u}" ] || echo "User= es '${u}'; esperado '${esp_u}' (la autoridad); ni root ni otro nombre"
-    [ "${g}" = "${esp_g}" ] || echo "Group= es '${g}'; esperado '${esp_g}' (la autoridad)"
-    [ "${um}" = "${esp_um}" ] || echo "UMask= es '${um}'; esperado '${esp_um}' (la autoridad)"
+    local unit="${1}" salida
+    # C-7 (ronda 2): UNA implementacion con la semantica de systemd (ULTIMO valor de cada
+    # clave, espacios alrededor de `=`, continuaciones), en la autoridad: User/Group/UMask
+    # de la autoridad, claves de identidad sin duplicar, NoNewPrivileges=yes|true,
+    # CapabilityBoundingSet= vacio, sin AmbientCapabilities/DynamicUser/PermissionsStartOnly,
+    # sin grupos privilegiados y sin ExecStart* con prefijo `+`/`!` ni lanzado por sudo/su.
+    # Leer la PRIMERA linea `User=` (como hacia `_unit_value`) dejaba pasar `User=root`
+    # duplicado debajo: systemd usa la ultima.
+    local rc=0
+    if salida="$(python3 "${_VD_SS}" unit-check "${unit}")"; then rc=0; else rc=$?; fi
+    [ -z "${salida}" ] || printf '%s\n' "${salida}"
+    # rc 0 = cumple, 3 = hallazgos (ya impresos); cualquier otro = la autoridad no pudo
+    # inspeccionar: eso NO es un "cumple" (sin fail-open).
+    case "${rc}" in
+        0|3) ;;
+        *) echo "la autoridad no pudo inspeccionar la unidad ${unit} (rc=${rc}): no se da por buena" ;;
+    esac
     # La validacion de arranque es OBLIGATORIA: una unidad operativa no puede declarar la
-    # excepcion de tests/laboratorio ni el interruptor retirado.
-    if grep -vE '^[[:space:]]*#' "${unit}" | grep -qE 'S9K_STATE_(VALIDATION|ENFORCE)'; then
+    # excepcion de tests/laboratorio ni el interruptor retirado (tambien fuera de [Service]).
+    if grep -vE '^[[:space:]]*[#;]' "${unit}" | grep -qE 'S9K_STATE_(VALIDATION|ENFORCE)'; then
         echo "la unidad declara S9K_STATE_VALIDATION/ENFORCE: la comprobacion de estado es obligatoria y no se desactiva en una unidad operativa"
     fi
     # El secreto se lee directamente de /etc (policy SECRET): nada de copiarlo a /run.
@@ -481,16 +490,11 @@ _identidad_de_unidad_errores() {
 #   capabilities (CapabilityBoundingSet vacio), sin sudo/setuid.
 # ---------------------------------------------------------------------------
 validate_healthcheck_unit() {
-    local unit_file="${1}" errs=() e caps
+    local unit_file="${1}" errs=() e
     [ -f "${unit_file}" ] || { printf 'BLOCK(health-unit): unit no existe: %s\n' "${unit_file}" >&2; return 1; }
+    # Capabilities, NoNewPrivileges, AmbientCapabilities y PermissionsStartOnly: los mira la
+    # MISMA funcion que a visor y worker (C-7, semantica de ultimo valor).
     while IFS= read -r e; do [ -n "${e}" ] && errs+=("${e}"); done < <(_identidad_de_unidad_errores "${unit_file}")
-    caps="$(grep -E '^CapabilityBoundingSet=' "${unit_file}" | head -1 | cut -d= -f2- || true)"
-    [ -z "${caps}" ] && grep -qE '^CapabilityBoundingSet=$' "${unit_file}" \
-        || errs+=("CapabilityBoundingSet no esta vacio ('${caps}') o no se declara: el healthcheck no lleva capabilities")
-    grep -qE '^NoNewPrivileges=true$' "${unit_file}" || errs+=("falta NoNewPrivileges=true")
-    if grep -qE '^(PermissionsStartOnly|AmbientCapabilities)=' "${unit_file}"; then
-        errs+=("el healthcheck declara PermissionsStartOnly/AmbientCapabilities: no se elevan privilegios")
-    fi
     if [ "${#errs[@]}" -gt 0 ]; then
         for e in "${errs[@]}"; do printf 'BLOCK(health-unit): %s\n' "${e}" >&2; done
         return 1
@@ -602,6 +606,26 @@ validate_worker_unit() {
         for e in "${errs[@]}"; do printf 'BLOCK(worker-unit): %s\n' "${e}" >&2; done
         return 1
     fi
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# release_entiende_la_identidad <release_dir>
+#   C-4 (ronda 2, §15). ¿Se puede REACTIVAR esta release con el estado actual
+#   (s9knowledge 0700/0600)? Solo si SUS PROPIAS unidades (las que trae en la
+#   release) declaran la identidad vigente y pasan el gate: visor
+#   (validate_viewer_unit) y worker (validate_worker_unit, con su interprete y su
+#   script en ESA release). Una release anterior a H-06 (visor root, worker
+#   www-data, o sin unidad de worker) no puede leer el estado migrado: NO se
+#   reactiva. La usan el rollback AUTOMATICO de deploy.sh y rollback-release.sh
+#   (una sola comprobacion). Los BLOCK(...) salen por stderr: son el diagnostico.
+# ---------------------------------------------------------------------------
+release_entiende_la_identidad() {
+    local dir="${1:?release}"
+    local current="${S9K_ROOT:-/opt/s9-knowledge}/current"
+    [ -d "${dir}" ] || { printf 'BLOCK(rollback): la release %s no existe\n' "${dir}" >&2; return 1; }
+    validate_viewer_unit "${dir}/viewer/systemd/s9-knowledge-viewer.service" "${current}" || return 1
+    validate_worker_unit "${dir}/data-engine/systemd/s9-knowledge-worker.service" "${current}" "${dir}" || return 1
     return 0
 }
 

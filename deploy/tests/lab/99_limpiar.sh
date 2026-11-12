@@ -23,7 +23,7 @@ for u in s9-knowledge-healthcheck.timer s9-knowledge-healthcheck.service s9-know
 done
 sudo rm -f /etc/systemd/system/s9-knowledge-viewer.service* /etc/systemd/system/s9-knowledge-worker.service* \
     /etc/systemd/system/s9-knowledge-healthcheck.service* /etc/systemd/system/s9-knowledge-healthcheck.timer*
-sudo rm -rf /etc/systemd/system/s9-knowledge-viewer.service.d
+sudo rm -rf /etc/systemd/system/s9-knowledge-viewer.service.d /etc/systemd/system/s9-knowledge-worker.service.d
 sudo systemctl daemon-reload
 sudo systemctl reset-failed 's9-knowledge-*' 2>/dev/null || true
 
@@ -40,5 +40,8 @@ done < <(grep -E ' usuario-prueba ' "${LAB_CREADO}" 2>/dev/null | awk '{print $N
 
 lab_log "99.4 clon, venv, bundle y trabajo (el registro CREADO.txt se conserva)"
 rm -rf "${LAB_BASE}" "${LAB_REPO}" /srv/s9-test/h06h08.bundle /srv/s9-test/prep.log /srv/s9-test/pip.log
+# ronda 2: trabajo (repro, copias de estado, boveda r2), boveda de H y arbol legacy del caso C9
+sudo rm -rf /srv/s9-test/h06h08-r2 /srv/s9-test/h06h08-vault /srv/s9-test/h06h08-r2.bundle
+if grep -q ' dir /opt/knowledge-services ' "${LAB_CREADO}" 2>/dev/null; then sudo rm -rf /opt/knowledge-services; fi
 lab_registrar "LIMPIEZA ejecutada (99_limpiar.sh)"
 lab_log "limpieza completa. Quedan: ${LAB_LOGS} (logs y CREADO.txt)"

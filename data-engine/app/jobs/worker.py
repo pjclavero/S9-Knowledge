@@ -433,8 +433,10 @@ def main(argv: list[str] | None = None) -> int:
     # H-06 + H-08 (§13): ANTES de abrir la cola, el proceso comprueba que corre
     # como el usuario de servicio (nunca root ni otro) y que su estado es suyo
     # y privado. Una violacion ABORTA con el diagnostico concreto (rc 3) en vez
-    # de un "attempt to write a readonly database" dentro del bucle. La enciende
-    # la unidad systemd (S9K_STATE_ENFORCE=1); en desarrollo y CI no esta (techo).
+    # de un "attempt to write a readonly database" dentro del bucle. Es
+    # OBLIGATORIA: solo la omite la excepcion EXPLICITA de tests/laboratorio
+    # (S9K_STATE_VALIDATION=disabled-explicit-for-tests); una unidad o un entorno
+    # operativo que la declare PARA el despliegue y pone UNHEALTHY el healthcheck.
     from knowledge_v3 import service_state  # noqa: PLC0415
     try:
         service_state.enforce("worker")

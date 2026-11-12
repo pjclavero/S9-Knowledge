@@ -91,7 +91,8 @@ deploy/scripts/deploy.sh --environment production --release-ref <tag|sha> \
   (`viewer/systemd/…`, `User=s9knowledge`). El usuario de sistema lo crea el
   paso 3b (y el rol `common`).
 - **`auth.db` y todo su entorno nacen `0600`** en un state root `0700` (H-06
-  cerrado en código; fresh/upgrade reales en laboratorio: VM112 PENDING).
+  cerrado en código; fresh/upgrade/negativos reales en laboratorio VM112: ver
+  «Usuario de servicio dedicado y estado privado»; RC-E2E PENDING).
 
 ### Quién decide si se puede seguir: `decision`, y por estado del producto
 
@@ -223,9 +224,10 @@ worker) y las dos declaran `User=s9knowledge`.
 
 ```
 CODE         PASS      autoridad service_state.py, unidades, Ansible, migrar_estado.py, arranque fail-closed (arnés local)
-CALIBRATION  PASS      scripts/calibracion/mutaciones_h06_h08_servicio_y_estado.py (M1–M12)
-LAB (VM112)  PENDING   fresh y upgrade reales con root, useradd, systemd y OTRO usuario local: deploy/tests/lab/
-RC-E2E       PENDING   no se ha tocado ninguna máquina de producción
+CALIBRATION  PASS      scripts/calibracion/mutaciones_h06_h08_servicio_y_estado.py (M1–M45; ronda 2: M19–M45)
+LAB (VM112)  PASS      deploy/tests/lab/: A fresh, B upgrade legacy, C negativos (incl. C-1…C-5), D otro usuario,
+                       E healthcheck, F CLIs como root REAL, G secretos, H bóveda (3 casos)
+RC-E2E       PENDING   no se ha tocado ninguna máquina de producción (sin VERIFIED de producción)
 ```
 
 **Contrato (una frase por línea).** Root instala y actualiza. nginx hace de
@@ -254,8 +256,8 @@ exige) y desaparecieron las cuatro copias de `s9k_service_user` de Ansible
 
 | Unidad | `User=` | `UMask=` | Notas |
 |---|---|---|---|
-| `viewer/systemd/s9-knowledge-viewer.service` | `s9knowledge` | `0077` | **única** unidad del visor: Ansible la **copia** de la release (se eliminó la plantilla Jinja que decía `www-data` mientras `deploy.sh` instalaba otra sin `User=`, es decir root: H-08) |
-| `data-engine/systemd/s9-knowledge-worker.service` | `s9knowledge` | `0077` | antes `www-data` |
+| `viewer/systemd/s9-knowledge-viewer.service` | `s9knowledge` | `0077` | **única** unidad del visor: Ansible la **copia** de la release (se eliminó la plantilla Jinja que decía `www-data` mientras `deploy.sh` instalaba otra sin `User=`, es decir root: H-08); `CapabilityBoundingSet=` vacío y `NoNewPrivileges=true` (ronda 2) |
+| `data-engine/systemd/s9-knowledge-worker.service` | `s9knowledge` | `0077` | antes `www-data`; `CapabilityBoundingSet=` vacío y `NoNewPrivileges=true` (ronda 2) |
 | `viewer/systemd/s9-knowledge-healthcheck.service` | `s9knowledge` | `0077` | antes root; `CapabilityBoundingSet=` vacío, `NoNewPrivileges=true`; HTTP local + bases `mode=ro` + `systemctl is-active` (consulta, sin privilegios); no se elevó ningún permiso |
 | `s9-knowledge-neo4j-restore-test.service.j2` | `root` | — | operación de Neo4j (restore de prueba); **no toca el state root**; un test lo vigila |
 
@@ -264,6 +266,19 @@ Las unidades NO controlan la validación de arranque (es obligatoria, ver abajo)
 `/etc/s9-knowledge/secrets` (política SECRET, abajo). `validate_viewer_unit` /
 `validate_worker_unit` rechazan una unidad que declare `S9K_STATE_VALIDATION` o
 `S9K_STATE_ENFORCE`, o que reintroduzca `ExecStartPre`/`RuntimeDirectory`.
+
+**Gate de unidad con la semántica de systemd (ronda 2, C-7).** UNA función,
+`service_state.inspect_unit_identity` (`service_state.py unit-check <unidad>`), para visor,
+worker y healthcheck: vale el **último** valor de cada clave (como systemd; leer la primera
+línea `User=` dejaba pasar un `User=root` duplicado debajo), con espacios alrededor de `=`;
+una clave de identidad **duplicada** (`User`, `Group`, `UMask`, `NoNewPrivileges`,
+`CapabilityBoundingSet`, `AmbientCapabilities`, `DynamicUser`, `SupplementaryGroups`,
+`PermissionsStartOnly`) es ya un hallazgo; exige `NoNewPrivileges=yes|true` y
+`CapabilityBoundingSet=` declarado vacío; rechaza `AmbientCapabilities` no vacío,
+`DynamicUser`, `PermissionsStartOnly`, grupos privilegiados y `ExecStart*` con prefijo
+`+`/`!` o lanzado por `sudo`/`su`/`runuser`. Si la autoridad no responde, la unidad **no**
+se da por buena. Lo que una unidad no dice (un drop-in con `AmbientCapabilities=`) lo mide el
+paso 14a en el proceso VIVO: `CapEff`/`CapAmb` a cero y `NoNewPrivs: 1`.
 
 El usuario se crea **idempotente** en `deploy.sh` (paso 3b,
 `lib.sh::asegurar_identidad_de_servicio`) y en el rol `common` de Ansible:
@@ -275,12 +290,27 @@ que `useradd` “dijera sí”.
 
 Todo el estado mutable vive bajo el state root; `<state>` es `0700`,
 `s9knowledge:s9knowledge`; todo fichero, `0600`, **con independencia de la
-umask del proceso** (el código crea con `os.open(…, 0o600)` vía la autoridad:
-`auth.db`, su `.lock`, las copias `.bak.vN`, `jobs.db`, `decisions.jsonl`,
-`audit.jsonl`, candidatos de glosario, `health.json`; `review.sqlite3` pasa de
-`0660` a `0600`). Los `-wal`/`-shm` heredan el modo de su base. Excepción
-declarada: `<state>/deploy/` (registros del instalador) es de `root` y el
+umask del proceso**: TODA creación de estado pasa por los creadores de la autoridad
+(`ensure_private_dir` crea CADA directorio que falte con `0700` exacto —`mkdir(parents=True,
+mode=…)` dejaba los intermedios con la umask—; `create_private_file`/`open_private_write`
+crean con `0600` y lo fijan con `fchmod`): `auth.db`, su `.lock`, las copias `.bak.vN`,
+`.csrf_secret`, `jobs.db`, `glossary.db`, la caché de IA externa, `decisions.jsonl`,
+`audit.jsonl`, candidatos de glosario y `health.json` (cuyo temporal ya es `0600` ANTES del
+`os.replace`); `review.sqlite3` pasa de `0660` a `0600`. Los `-wal`/`-shm` heredan el modo de
+su base. Excepción declarada: `<state>/deploy/` (registros del instalador) es de `root` y el
 servicio no lo lee.
+
+**Root no crea estado (ronda 2, H-1).** Ninguna CLI ni escritor deja un fichero `root:root`
+en el estado vivo: (1) toda CLI cuyo cierre de importaciones llega a un escritor de estado
+llama a la guarda canónica `service_state.reject_root_cli("<herramienta>")` —rc **4** y el
+comando canónico, ANTES de tocar nada— (gate estructural
+`deploy/tests/test_h06_h08_cli_root.py`: una CLI nueva sin guarda lo pone rojo); (2) los
+escritores (`job_store`, `GlossaryStore`, caché de IA, `auth/db.py`, `health/storage.py`,
+`.csrf_secret`, JSONL de decisiones) rechazan a root bajo el state root
+(`refuse_root_state_write`) aunque se entre por otra puerta (`python -c`). El único
+`__main__` que llega al estado sin la guarda es el worker (servicio: `enforce` lo rechaza,
+rc 3). Los `__main__` de `deploy/scripts` son instaladores (root por diseño) y están
+clasificados uno a uno en ese mismo test.
 
 **State root efectivo y canónico (fase 2, §6).** `S9K_STATE_ROOT` ya NO es obligatoria
 (ZERO-TERMINAL: nadie edita `.env` para esto): la raíz efectiva es la declarada si existe
@@ -323,14 +353,14 @@ declara la excepción explícita** (`S9K_STATE_VALIDATION`, arriba).
 
 | Contrato | Dónde | Qué |
 |---|---|---|
-| 1–2 estado real y precondiciones | **2b** (puras: `viewer.env`/`worker.env` con rutas de estado válidas, ANTES de parar nada) y 5b | state root real (no symlink), rw, con espacio |
+| 1–2 estado real y precondiciones | **2b** (ANTES de parar nada: `viewer.env`/`worker.env` con rutas de estado válidas y, ronda 2, las del DISCO: `<state>/backups` con contenido o `S9K_BACKUP_ROOT`/`S9K_BACKUP_DIR` dentro del state root → STOP con receta (C-1); state root NO dedicado —`/`, un directorio del sistema, sticky o escribible por otros, entradas de primer nivel ajenas a las del servicio— → STOP (C-5)) y 5b | state root real (no symlink), rw, con espacio; la migración repite C-5 antes de su primer `chown` |
 | 3–5 parar y comprobar | **3b**, `parar_y_verificar_servicios` | para timer de salud, healthcheck, worker y visor y **verifica** (estado + sin PID) antes de tocar nada |
 | 6 inspeccionar | **5b**, `migrar_estado.py` | STOP ante symlink, tipo raro, ilegible, `-journal` pendiente o **fichero abierto por un proceso** |
-| 7 mover estado legacy fuera de la release | 5b | copia a temporal `0600`, `fsync`, **hash SHA-256**, publica sin pisar y **solo entonces** renombra el original a `<nombre>.migrado-<release>` (no se borra) |
+| 7 mover estado legacy fuera de la release | 5b | **pre-escaneo COMPLETO primero** (C-2: symlinks, tipos raros, ilegibles, conflictos con el destino y espacio de TODO lo legacy; un symlink legacy PARA sin haber movido nada); el mismo estado legacy en DOS sitios (release y árbol legacy) con contenido distinto → STOP `ESTADO_LEGACY_DUPLICADO`, idéntico por hash → se acepta y se anota (C-3); después, copia a temporal `0600`, `fsync`, **hash SHA-256**, publica sin pisar y **solo entonces** renombra el original a `<nombre>.migrado-<release>` (no se borra) |
 | 8–9 propietario y modos | 5b | `lchown` y `chmod` de todo el árbol (sidecars, lock, bak, `.csrf_secret`, jobs, review, health, propuestas) |
 | 10 verificar | 5b | la **misma** `inspect_state` que usa el arranque, más `runuser -u s9knowledge` (lectura/escritura real) |
 | 11 otros usuarios no acceden | 5b | `runuser -u nobody` no lee ni lista nada |
-| 12–13 arrancar y salud | 13, 14a, 16 | además, los **procesos vivos** (`/proc/<PID>`) corren como `s9knowledge`; si no, rollback |
+| 12–13 arrancar y salud | 13, 14a, 16 | además, los **procesos vivos** (`/proc/<PID>`) corren como `s9knowledge`, sin capabilities y con `NoNewPrivs`; si no, rollback. **C-6**: el entorno EFECTIVO de visor, worker y healthcheck (`systemctl show -p Environment,EnvironmentFiles,DropInPaths` y `/proc/<pid>/environ`) no lleva `S9K_STATE_VALIDATION`/`S9K_STATE_ENFORCE`: si aparece (drop-in, EnvironmentFile extra), se PARAN visor y worker y `die`; el healthcheck lo reporta UNHEALTHY (`state_validation`) |
 | 14 funcionalidad mínima | 16, 16c | `verify-deployment.sh`, GATE A |
 
 Una precondición pura que falla (2b) no deja nada parado. Cualquier fallo posterior → `die` con el diagnóstico concreto, **la release no se activa,
@@ -356,28 +386,65 @@ verificación como usuario de servicio. Ya no hay receta manual de
 deploy/scripts/deploy.sh --environment production --release-ref <tag|sha> \
     --mode upgrade --confirm-production
 # No hay que editar nada para el state root (default canónico). Los secretos se
-# dejan root:s9knowledge 0640 solos (paso 5b); S9K_BACKUP_DIR, si se declara, tiene
-# que estar FUERA del state root.
+# dejan root:s9knowledge 0640 solos (paso 5b).
 ```
 
-### CLI de auth (§12): `runuser -u s9knowledge --`
+**PRECONDICIONES del PRIMER upgrade de producción a H-06/H-08** (las comprueba el paso 2b,
+con los servicios todavía EN MARCHA; si una falla, `deploy.sh` PARA con la receta y no ha
+parado ni tocado nada):
 
-La CLI abre `auth.db` en WAL: root crearía `-wal`/`-shm` como `root:root`. Por
-eso **rechaza a root** (rc 4, mostrando el comando) incluso para comandos de
-lectura. Elección: *rechazo claro*, no delegación automática (la CLI es
-interactiva y su configuración está en `/etc`, ilegible para el usuario de
-servicio; delegar en silencio esconde la identidad con la que se escribe).
+1. **Backups fuera del state.** Si existe `/var/lib/s9-knowledge/backups` con contenido,
+   STOP (`backups viven FUERA … RECETA`): muévalo a la raíz separada (`/var/backups/s9-knowledge`,
+   como root) y repita. Vacío, lo retira la migración.
+2. **`S9K_BACKUP_ROOT` / `S9K_BACKUP_DIR`** (cualquiera de los dos nombres) en `viewer.env`,
+   si se declaran, apuntan FUERA del state root (p. ej. `/var/backups/s9-knowledge`); dentro → STOP.
+3. **`/etc/s9-knowledge` pasa a `root:s9knowledge 0710`** (y `secrets/` `0750`, ficheros
+   `0640`): lo hace el paso 5b; `viewer.env`/`worker.env` siguen `root 0600`. Nada que hacer a
+   mano, pero quien tenga scripts propios que lean `/etc/s9-knowledge` debe saberlo.
+4. **State root dedicado.** `/var/lib/s9-knowledge` solo contiene las entradas del servicio
+   (`auth jobs state output staging reviews-v3 health glossary external_ai_cache deploy
+   backups` y las que declare `viewer.env`). Una entrada ajena → STOP (`AJENAS`): muévala fuera
+   y repita. Ni sticky ni escribible por otros.
+5. **Estado legacy en un solo sitio.** Si `decisions.jsonl`/`audit.jsonl`/candidatos/propuestas
+   existen a la vez en la release activa y en el árbol legacy con contenido distinto → STOP
+   (`ESTADO_LEGACY_DUPLICADO`): decida el operador cuál vale.
+6. **Sin la excepción de tests** en `viewer.env`/`worker.env`/unidades/drop-ins
+   (`S9K_STATE_VALIDATION`, `S9K_STATE_ENFORCE`) → STOP.
+
+Qué hace el despliegue si algo falla DESPUÉS de parar (3b–5b): `die` con la causa, la release
+nueva NO se activa, el estado original se conserva y los servicios quedan PARADOS (no se
+relanzan a ciegas). Tras activar (14–16), el rollback automático solo reactiva la release
+previa si ELLA entiende la identidad vigente (C-4, abajo); si no, visor y worker quedan
+PARADOS con el diagnóstico.
+
+### CLIs que escriben estado (§12, H-1): `s9k-cli.sh` = `runuser -u s9knowledge --`
+
+La CLI de auth abre `auth.db` en WAL: root crearía `-wal`/`-shm` como `root:root`; la de salud
+dejaría `health.json` de root; `jobs`/`glossary` crearían `jobs.db`/`glossary.db` de root. Por
+eso **todas** rechazan a root (rc **4**, mostrando el comando canónico) incluso para comandos de
+lectura, con la MISMA función de la autoridad. Elección: *rechazo claro*, no delegación
+automática (su configuración está en `/etc`, ilegible para el usuario de servicio; delegar en
+silencio esconde la identidad con la que se escribe).
 
 ```bash
-sudo deploy/scripts/auth-cli.sh status            # forma canónica (helper de deploy)
-sudo deploy/scripts/auth-cli.sh create-admin
+sudo deploy/scripts/s9k-cli.sh auth status          # UN envoltorio canónico para todas
+sudo deploy/scripts/s9k-cli.sh auth create-admin
+sudo deploy/scripts/s9k-cli.sh health check
+sudo deploy/scripts/s9k-cli.sh jobs counts
+sudo deploy/scripts/s9k-cli.sh glossary stats --workspace <ws>
+sudo deploy/scripts/auth-cli.sh status              # alias histórico de `s9k-cli.sh auth`
 # equivalente directo, con el entorno ya exportado:
 runuser -u s9knowledge -- /opt/s9-knowledge/current/viewer/.venv/bin/python -m app.cli.auth status
 ```
 
-El helper analiza `viewer.env` como root y **exporta** las variables (nunca en
-argv: los secretos no viajan por la línea de comandos). El rol Ansible `auth`
-ejecuta `status` con `become_user: s9k_service_user`.
+Herramientas (`lib.sh::s9k_cli_destino`, cruzada por test con cada `reject_root_cli`):
+`auth health jobs media-jobs glossary external-ai job-store ingest pipeline-runner
+semantic-bench writer writer-rollback writer-schema relations relations-benchmark
+relations-calibration relations-nvidia`. El envoltorio analiza `viewer.env` (y `worker.env`
+para las del motor) como root y **exporta** las variables (nunca en argv), cambia con
+`runuser`, con umask `0077`, desde la release activa. El rol Ansible `auth` ejecuta `status`
+con `become_user: s9k_service_user`. `job_store.py --ruta-despliegue` (solo lectura) sigue
+disponible para root: lo usa `deploy.sh`.
 
 ### Secretos (SECRET), backups (BACKUP) y clasificación (fase 2, §7, §9, §10)
 
@@ -405,13 +472,35 @@ responde **409** con «perfil-operador.json no es escribible por el usuario s9kn
 cambios parciales (mismo contenido, inodo, modo y propietario). Una bóveda opcional no escribible
 NO impide arrancar (la validación de arranque solo mira el estado interno).
 
+**Escribir NO es apropiarse (ronda 2, H-2).** Antes, con la carpeta escribible, el
+reemplazo atómico (`mkstemp` 0600 + `os.replace`) dejaba un perfil `otro:s9knowledge 0664` como
+`s9knowledge:s9knowledge 0600` con OTRO inodo. Ahora decide el sistema de ficheros, en tres casos:
+
+| Perfil | Qué hace | Garantía |
+|---|---|---|
+| (a) del usuario del proceso | reemplazo atómico; el TEMPORAL recibe el modo exacto del original (`fchmod`) y, si se puede sin privilegios, su grupo (`fchown(-1, gid)`) | ni se endurece ni se ablanda el modo del operador; el grupo, si el proceso no pertenece a él, queda el que dé el FS (**techo**) |
+| (b) de OTRO dueño pero escribible por permiso | escritura EN EL SITIO bajo `flock`: respaldo previo `.<nombre>.s9k-respaldo` (mismo modo) → escritura + `fsync` → verificación → solo entonces se borra el respaldo; ante cualquier error se restaura | mismo inodo, dueño, grupo y modo. Si al empezar hay un respaldo de una escritura interrumpida (SIGKILL), se **restaura primero**. Sin respaldo posible (carpeta no escribible) → **409** «…no se puede crear el respaldo previo…» sin tocar el perfil |
+| (c) no escribible | **409** específico | sin cambios |
+
+Nunca `chown`/`chmod` de lo preexistente (un test por AST: `fchmod`/`fchown` solo sobre el
+temporal y el respaldo recién creados), ni copia bajo STATE, ni temporales huérfanos: los
+`.s9k-probe-<pid>-*` que deja un SIGKILL (el `finally` no corre) se borran al empezar la
+siguiente escritura si su PID ya no existe (los de formato antiguo, sin PID, con más de 5
+minutos), y el catálogo de fuentes ignora el respaldo. **Techo:** entre el SIGKILL y la
+siguiente escritura el perfil puede quedar a medias (el respaldo íntegro está al lado); un
+manifiesto de partida NUEVO nace `0600` (no hay original del que heredar).
+
 ### Rollback: qué pasa con la unidad y el dueño
 
 La **identidad no se revierte jamás**. `lib.sh::revertir_worker` solo restaura
 una unidad respaldada si declara la identidad vigente (si es anterior a H-06 —
 root o `www-data`— no la restaura: no podría leer el estado `0700`);
 `rollback-release.sh` no acepta como destino una release cuya unidad del visor
-no declare `s9knowledge`. El estado migrado se queda migrado: los originales
+no declare `s9knowledge`. **Ronda 2 (C-4):** el rollback AUTOMÁTICO de `deploy.sh` (pasos 14,
+14a, 14b y 16) pasa por la MISMA comprobación (`validate_deploy.sh::release_entiende_la_identidad`:
+las unidades de visor Y worker de la release previa pasan el gate con la identidad vigente);
+si la previa es anterior a H-06, NO se reactiva: visor y worker quedan PARADOS y el `die` dice
+«rollback NO ejecutado» (nunca un «rollback ejecutado» que no ocurrió). El estado migrado se queda migrado: los originales
 retirados siguen en la release como `*.migrado-<release>` (renombrar de vuelta
 es manual y solo tiene sentido con la identidad anterior). Volver a un código
 anterior a H-06 requiere restaurar copia, no un rollback de `current`.
@@ -449,7 +538,16 @@ reflexión, `subprocess` ni terceros.
 - **TD-H06-02** (cerrada) `vault_writer` = EXTERNAL OPERATOR CONTENT (ver «Quinta categoría»).
 - **TD-H06-03** (cerrada) la caché de IA externa y `glossary.db` ya no tienen default dentro de
   la release: `<state root>/external_ai_cache` y `<state root>/glossary`.
-- **TD-H06-04** El reparto de ACL, capacidades y SELinux no se audita (techo).
+- **TD-H06-04** El reparto de ACL, capacidades y SELinux no se audita (techo; la PRESENCIA
+  de ACL se detecta y se atestigua en CI simulando el xattr; la ACL real, en VM112).
+- **Deuda declarada en la ronda 2 (no se arregla en este carril):** los secretos no se
+  validan al ARRANCAR el servicio (solo en el despliegue; P3); un `.migrando-*` huérfano tras
+  un SIGKILL justo al crear el temporal de la migración (inocuo: la reejecución converge;
+  no se limpia solo); el restore de un backup no tiene guion (re-ejecutar `migrar_estado.py`
+  devuelve owner/modos canónicos); ACL no interpretadas; Ansible `become_user` (puede exigir
+  el paquete `acl`); los E2E que lanzan subprocesos HEREDAN la excepción de tests de la suite;
+  y las cuatro deudas preexistentes (`AUTH_ORDER_FLAKY`, handwritten 19/19b, 3 `test_f2`
+  desde el cwd `viewer/`, B3 M1 por tiempos), que fallan igual sobre la base `4916e90`.
 - No medido aquí (necesita laboratorio): `useradd`, `chown` a `s9knowledge`,
   `runuser` real, `systemd-analyze` con la unidad desplegada, `nobody` leyendo,
   `become_user` de Ansible (puede exigir el paquete `acl`), reinicio de máquina.

@@ -49,7 +49,9 @@ class ResponseCache:
             self.root = service_state.default_state_path(_CACHE_SUBDIR)
         self.enabled = _enabled() if enabled is None else enabled
         if self.enabled:
-            self.root.mkdir(parents=True, exist_ok=True)
+            # H-1 (ronda 2): estado privado con el modo EXACTO de la autoridad; root no lo crea.
+            from knowledge_v3 import service_state  # noqa: PLC0415
+            service_state.ensure_private_dir(self.root)
 
     def _path(self, key: str) -> Path:
         return self.root / f"{key}.json"
@@ -75,4 +77,7 @@ class ResponseCache:
             "raw_response": raw_response,
             "normalized": normalized,
         }
-        self._path(key).write_text(json.dumps(entry, ensure_ascii=False, indent=2), encoding="utf-8")
+        from knowledge_v3 import service_state  # noqa: PLC0415
+        fd = service_state.open_private_write(self._path(key))
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(entry, ensure_ascii=False, indent=2))

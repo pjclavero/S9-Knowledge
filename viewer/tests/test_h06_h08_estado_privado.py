@@ -7,7 +7,8 @@ ESTADO
 
     CODE         PASS      auth.db REAL del producto + sidecars, lock, bak, CSRF, JSONL
     CALIBRATION  PASS      scripts/calibracion/mutaciones_h06_h08_servicio_y_estado.py
-    LAB (VM112)  PENDING   usuario `s9knowledge` real, otro usuario real leyendo, systemd
+    LAB (VM112)  PASS      usuario `s9knowledge` real, otro usuario real leyendo, systemd
+                           (escenarios A-H; root REAL de las CLIs en el escenario F, ronda 2)
 
 QUE SE EJECUTA DE VERDAD
 ------------------------
@@ -185,7 +186,7 @@ def test_N10_la_cli_rechaza_root_y_muestra_el_comando_canonico(monkeypatch, caps
     mensaje = cli.rechazar_si_root()
     assert mensaje is not None
     assert "runuser -u s9knowledge --" in mensaje, mensaje
-    assert "auth-cli.sh" in mensaje
+    assert "s9k-cli.sh auth" in mensaje, mensaje
     monkeypatch.setattr(sys, "argv", ["auth", "status"])
     assert cli.main() == 4
     assert "RECHAZADO" in capsys.readouterr().err
@@ -288,3 +289,136 @@ def test_con_la_excepcion_explicita_de_tests_el_visor_arranca_como_siempre(monke
     ss = service_identity.service_state()
     monkeypatch.setenv(ss.VALIDATION_EXCEPTION_ENV, ss.VALIDATION_EXCEPTION_VALUE)
     assert ss.enforce("viewer") is False
+
+
+# ---------------------------------------------------------------------------
+# H-1 (ronda 2): la CLI de SALUD tampoco escribe estado como root; y los modos son los
+# de la autoridad aunque falten varios directorios (umask 022)
+# ---------------------------------------------------------------------------
+
+def test_N10_la_cli_de_salud_rechaza_root_sin_crear_health_json(tmp_path, monkeypatch, capsys):
+    from app.cli import health as cli
+
+    informe = tmp_path / "st" / "health" / "health.json"
+    monkeypatch.setenv("S9K_HEALTH_REPORT_PATH", str(informe))
+    monkeypatch.setattr(os, "geteuid", lambda: 0)
+    for orden in (["check"], ["json"], ["report"]):
+        assert cli.main(orden) == 4, orden
+    err = capsys.readouterr().err
+    assert "RECHAZADO" in err and "s9k-cli.sh health" in err, err
+    assert not informe.exists() and not informe.parent.exists()
+
+
+def test_R14_health_json_es_0600_ANTES_de_publicarse_con_umask_022(tmp_path, monkeypatch, umask_022):
+    """R14 (mutante del revisor): el temporal del informe nace con la umask (0644) y el
+    `chmod` posterior lo tapaba. Se mide el modo del temporal EN el `os.replace`."""
+    from app.health import storage
+    from app.health.models import HealthReport
+
+    vistos = []
+    real = os.replace
+
+    def espia(src, dst):
+        vistos.append(_modo(src))
+        return real(src, dst)
+
+    monkeypatch.setattr(storage.os, "replace", espia)
+    destino = tmp_path / "st" / "n1" / "health" / "health.json"
+    storage.save_report(HealthReport(components=[]), destino)
+    assert vistos == [0o600], [oct(m) for m in vistos]
+    assert _modo(destino) == 0o600
+    for d in (tmp_path / "st", tmp_path / "st" / "n1", destino.parent):
+        assert _modo(d) == 0o700, (d, oct(_modo(d)))
+
+
+def test_auth_db_en_directorio_nuevo_de_varios_niveles_nace_0700_0600(tmp_path, monkeypatch, umask_022):
+    """El defecto del revisor (H1.g en VM112): `mkdir(parents=True, mode=0700)` deja los
+    directorios INTERMEDIOS con la umask (0755). Ahora cada componente nace 0700."""
+    from app.auth import db as auth_db
+
+    db = tmp_path / "authnuevo" / "n2" / "auth.db"
+    monkeypatch.setenv("S9K_AUTH_DB_PATH", str(db))
+    p = auth_db._db_path()
+    auth_db.ensure_migrated(p)
+    for d in (tmp_path / "authnuevo", tmp_path / "authnuevo" / "n2"):
+        assert _modo(d) == 0o700, (d, oct(_modo(d)))
+    assert _modo(db) == 0o600
+
+
+def test_root_no_abre_auth_db_bajo_el_state_root_aunque_no_pase_por_la_cli(tmp_path, monkeypatch):
+    """Punto de estrangulamiento: `python -c` como root sobre la auth.db del estado vivo
+    crearia -wal/-shm root:root. `_connect` lo para ANTES de que SQLite toque nada."""
+    from app import service_identity
+    from app.auth import db as auth_db
+
+    ss = service_identity.service_state()
+    st = tmp_path / "st"
+    (st / "auth").mkdir(parents=True)
+    monkeypatch.setenv("S9K_STATE_ROOT", str(st))
+    monkeypatch.setattr(os, "geteuid", lambda: 0)
+    with pytest.raises(ss.RootStateWriteError):
+        auth_db._connect(st / "auth" / "auth.db")
+    assert list((st / "auth").iterdir()) == []
+
+
+# ---------------------------------------------------------------------------
+# C-6 (ronda 2): el healthcheck reporta UNHEALTHY si la excepcion de tests esta en el entorno
+# EFECTIVO (propio, `systemctl show -p Environment` o /proc/<pid>/environ del proceso vivo)
+# ---------------------------------------------------------------------------
+
+def _systemctl_falso(monkeypatch, env_unidad: str, pid: str = "0"):
+    import subprocess as sp
+
+    from app.health import checks
+
+    class R:
+        def __init__(self, out):
+            self.stdout, self.returncode = out, 0
+
+    def run(cmd, *a, **k):
+        if cmd[:2] == ["systemctl", "show"] and "Environment" in cmd:
+            return R(env_unidad)
+        if cmd[:2] == ["systemctl", "show"] and "MainPID" in cmd:
+            return R(pid)
+        return sp.run(cmd, *a, **k)
+
+    monkeypatch.setattr(checks.shutil, "which", lambda n: "/usr/bin/" + n)
+    monkeypatch.setattr(checks.subprocess, "run", run)
+    return checks
+
+
+def test_C6_el_healthcheck_es_UNHEALTHY_si_la_excepcion_esta_en_el_entorno_de_una_unidad(monkeypatch):
+    from app.health.models import HealthStatus
+
+    monkeypatch.delenv("S9K_STATE_VALIDATION", raising=False)
+    checks = _systemctl_falso(monkeypatch, "A=1 S9K_STATE_VALIDATION=disabled-explicit-for-tests\n")
+    r = checks.check_state_validation(["s9-knowledge-viewer.service"])
+    assert r.status == HealthStatus.UNHEALTHY and "S9K_STATE_VALIDATION" in r.message, (r.status, r.message)
+
+
+def test_C6_el_healthcheck_es_UNHEALTHY_si_el_proceso_vivo_la_tiene(monkeypatch):
+    import subprocess as sp
+
+    from app.health.models import HealthStatus
+
+    monkeypatch.delenv("S9K_STATE_VALIDATION", raising=False)
+    hijo = sp.Popen([sys.executable, "-c", "import time; time.sleep(30)"],
+                    env={**os.environ, "S9K_STATE_ENFORCE": "0"})
+    try:
+        checks = _systemctl_falso(monkeypatch, "A=1\n", str(hijo.pid))
+        r = checks.check_state_validation(["s9-knowledge-worker.service"])
+    finally:
+        hijo.kill()
+        hijo.wait()
+    assert r.status == HealthStatus.UNHEALTHY and "proceso vivo" in r.message, (r.status, r.message)
+
+
+def test_C6_el_healthcheck_esta_sano_sin_la_excepcion_y_UNHEALTHY_si_el_propio_la_tiene(monkeypatch):
+    from app.health.models import HealthStatus
+
+    monkeypatch.delenv("S9K_STATE_VALIDATION", raising=False)
+    checks = _systemctl_falso(monkeypatch, "A=1\n")
+    assert checks.check_state_validation(["s9-knowledge-viewer.service"]).status == HealthStatus.HEALTHY
+    monkeypatch.setenv("S9K_STATE_VALIDATION", "disabled-explicit-for-tests")
+    r = checks.check_state_validation(["s9-knowledge-viewer.service"])
+    assert r.status == HealthStatus.UNHEALTHY and "propio healthcheck" in r.message, r.message

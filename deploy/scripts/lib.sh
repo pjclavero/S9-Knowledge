@@ -951,21 +951,74 @@ verificar_procesos_no_root() {
             err "${unit}: el proceso ${pid} corre como uid ${uid:-?}; esperado ${esperado} ($(servicio_cifra service_user))"
             return 1
         fi
+        # C-7 (ronda 2): sin capabilities EFECTIVAS ni ambientales y con NoNewPrivs, medido en
+        # el proceso vivo (un drop-in con AmbientCapabilities= no pasaria por aqui).
+        local capeff capamb nnp
+        capeff="$(awk '/^CapEff:/ {print $2}' "/proc/${pid}/status" 2>/dev/null || true)"
+        capamb="$(awk '/^CapAmb:/ {print $2}' "/proc/${pid}/status" 2>/dev/null || true)"
+        nnp="$(awk '/^NoNewPrivs:/ {print $2}' "/proc/${pid}/status" 2>/dev/null || true)"
+        case "${capeff}" in ""|*[!0]*) err "${unit}: el proceso ${pid} tiene capabilities efectivas (CapEff=${capeff:-?})"; return 1 ;; esac
+        case "${capamb}" in ""|*[!0]*) err "${unit}: el proceso ${pid} tiene capabilities ambientales (CapAmb=${capamb:-?})"; return 1 ;; esac
+        [ "${nnp}" = "1" ] || { err "${unit}: el proceso ${pid} NO tiene NoNewPrivs (=${nnp:-?})"; return 1; }
     done
     return 0
 }
 
 # ---------------------------------------------------------------------------
-# auth_cli <comando> [args]   (H-06 §12: el comando CANONICO)
-#   Ejecuta la CLI de auth como el usuario de servicio con `runuser -u`. Root
-#   NO puede escribir estado con ella (la CLI lo rechaza): un auth.db/-wal/-shm
-#   creado por root es el defecto N10/N14. El entorno sale de viewer.env (que
-#   el usuario de servicio no puede leer, esta en /etc 0700): lo analiza ROOT y
-#   lo exporta (nunca en argv: los secretos no viajan por la linea de comandos).
+# verificar_entorno_efectivo <unit>...
+#   C-6 (ronda 2, §12 «sin fail-open silencioso»). La excepcion de tests
+#   (S9K_STATE_VALIDATION) o el interruptor retirado (S9K_STATE_ENFORCE) no
+#   pueden entrar por la puerta de atras: un drop-in con `Environment=`, un
+#   `EnvironmentFile=` extra o el entorno heredado. Se mira el entorno EFECTIVO
+#   de cada unidad (lo que systemd va a pasar: `systemctl show -p Environment,
+#   EnvironmentFiles,DropInPaths`) y el del proceso VIVO (/proc/<pid>/environ,
+#   como root). Cualquier aparicion -> rc!=0 con la fuente.
 # ---------------------------------------------------------------------------
-auth_cli() {
-    local env_file="${S9K_CONFIG_ROOT}/viewer.env" user line k v
-    user="$(servicio_cifra service_user)" || return 1
+verificar_entorno_efectivo() {
+    local unit pid valor f patron='(^|[[:space:]])S9K_STATE_(VALIDATION|ENFORCE)='
+    local fallo=0
+    for unit in "$@"; do
+        valor="$(systemctl show -p Environment --value "${unit}" 2>/dev/null || true)"
+        if printf '%s\n' "${valor}" | grep -qE "${patron}"; then
+            err "${unit}: el entorno EFECTIVO (Environment=, incluidos drop-ins) declara S9K_STATE_VALIDATION/ENFORCE"
+            fallo=1
+        fi
+        # EnvironmentFiles: "ruta (ignore_errors=no)" por fichero.
+        while IFS= read -r f; do
+            f="${f%% (*}"; f="${f#-}"
+            [ -n "${f}" ] && [ -f "${f}" ] || continue
+            if grep -vE '^[[:space:]]*#' "${f}" | grep -qE '^[[:space:]]*(export[[:space:]]+)?S9K_STATE_(VALIDATION|ENFORCE)='; then
+                err "${unit}: el EnvironmentFile ${f} declara S9K_STATE_VALIDATION/ENFORCE"
+                fallo=1
+            fi
+        done < <(systemctl show -p EnvironmentFiles --value "${unit}" 2>/dev/null | tr ' ' '\n' | grep -E '^-?/' || true)
+        for f in $(systemctl show -p DropInPaths --value "${unit}" 2>/dev/null || true); do
+            [ -f "${f}" ] || continue
+            if grep -vE '^[[:space:]]*[#;]' "${f}" | grep -qE 'S9K_STATE_(VALIDATION|ENFORCE)'; then
+                err "${unit}: el drop-in ${f} declara S9K_STATE_VALIDATION/ENFORCE"
+                fallo=1
+            fi
+        done
+        pid="$(systemctl show -p MainPID --value "${unit}" 2>/dev/null || echo 0)"
+        if [ -n "${pid}" ] && [ "${pid}" != "0" ] && [ -r "/proc/${pid}/environ" ]; then
+            if tr '\0' '\n' < "/proc/${pid}/environ" | grep -qE '^S9K_STATE_(VALIDATION|ENFORCE)='; then
+                err "${unit}: el proceso VIVO ${pid} tiene S9K_STATE_VALIDATION/ENFORCE en su entorno"
+                fallo=1
+            fi
+        fi
+    done
+    [ "${fallo}" -eq 0 ] || return 1
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# _exportar_env_s9k <env_file>
+#   Lee un EnvironmentFile (lo lee ROOT: /etc/s9-knowledge es 0710 y el usuario de
+#   servicio no lo lista) y EXPORTA sus S9K_* (nunca en argv: los secretos no viajan
+#   por la linea de comandos).
+# ---------------------------------------------------------------------------
+_exportar_env_s9k() {
+    local env_file="${1:?env}" line k v
     [ -f "${env_file}" ] || { err "no existe ${env_file}"; return 1; }
     while IFS= read -r line || [ -n "${line}" ]; do
         case "${line}" in ''|'#'*) continue ;; esac
@@ -977,8 +1030,70 @@ auth_cli() {
         v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"
         export "${k}=${v}"
     done < "${env_file}"
-    cd "${S9K_ROOT}/current/viewer" || return 1
-    exec runuser -u "${user}" -- "${S9K_ROOT}/current/viewer/.venv/bin/python" -m app.cli.auth "$@"
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# s9k_cli_destino <herramienta>  -> "componente|directorio|modo|objetivo"
+#   H-1 (ronda 2). UNA tabla: cada CLI que puede crear o escribir estado del
+#   servicio (las que llaman a `reject_root_cli("<herramienta>")`; un test cruza
+#   los dos lados) y como se ejecuta en la release activa. rc 1 = desconocida.
+# ---------------------------------------------------------------------------
+s9k_cli_destino() {
+    case "${1:-}" in
+        auth)                  echo "viewer|viewer|-m|app.cli.auth" ;;
+        health)                echo "viewer|viewer|-m|app.cli.health" ;;
+        jobs)                  echo "data-engine|data-engine|script|app/cli/jobs.py" ;;
+        media-jobs)            echo "data-engine|data-engine|script|app/cli/media_jobs.py" ;;
+        glossary)              echo "data-engine|data-engine|script|app/glossary/glossary_cli.py" ;;
+        external-ai)           echo "data-engine|data-engine|script|app/cli/external_ai.py" ;;
+        job-store)             echo "data-engine|data-engine|script|app/jobs/job_store.py" ;;
+        ingest)                echo "data-engine|data-engine/app|-m|knowledge_v3.pipeline.ingest_cli" ;;
+        pipeline-runner)       echo "data-engine|data-engine/app|-m|knowledge_v3.pipeline.runner" ;;
+        semantic-bench)        echo "data-engine|data-engine/app|-m|knowledge_v3.extraction.semantic_bench" ;;
+        writer)                echo "data-engine|data-engine/app|-m|knowledge_v3.writer.cli" ;;
+        writer-rollback)       echo "data-engine|data-engine/app|-m|knowledge_v3.writer.cli_rollback" ;;
+        writer-schema)         echo "data-engine|data-engine/app|-m|knowledge_v3.writer.schema_cli" ;;
+        relations)             echo "data-engine|data-engine/app|-m|relations.cli" ;;
+        relations-benchmark)   echo "data-engine|data-engine/app|-m|relations.benchmark.cli" ;;
+        relations-calibration) echo "data-engine|data-engine/app|-m|relations.calibration.cli" ;;
+        relations-nvidia)      echo "data-engine|data-engine/app|-m|relations.calibration.nvidia_cli" ;;
+        *) return 1 ;;
+    esac
+}
+
+# ---------------------------------------------------------------------------
+# s9k_cli <herramienta> [args]   (H-06 §12 + H-1: el comando CANONICO)
+#   Ejecuta la CLI como el usuario de servicio con `runuser -u`, con umask 0077
+#   (defensa: los modos ya los fija la autoridad), desde la release activa y con
+#   el entorno de viewer.env (y, para el motor, worker.env encima). Root NO puede
+#   escribir estado con ninguna de ellas (la propia CLI lo rechaza, rc 4).
+# ---------------------------------------------------------------------------
+s9k_cli() {
+    local herramienta="${1:-}" destino comp dir modo objetivo user
+    destino="$(s9k_cli_destino "${herramienta}")" \
+        || { err "herramienta desconocida '${herramienta}'. Conocidas: auth health jobs media-jobs glossary external-ai job-store ingest pipeline-runner semantic-bench writer writer-rollback writer-schema relations relations-benchmark relations-calibration relations-nvidia"; return 2; }
+    shift
+    IFS='|' read -r comp dir modo objetivo <<< "${destino}"
+    user="$(servicio_cifra service_user)" || return 1
+    _exportar_env_s9k "${S9K_CONFIG_ROOT}/viewer.env" || return 1
+    if [ "${comp}" = "data-engine" ] && [ -f "${S9K_WORKER_ENV:-${S9K_CONFIG_ROOT}/worker.env}" ]; then
+        _exportar_env_s9k "${S9K_WORKER_ENV:-${S9K_CONFIG_ROOT}/worker.env}" || return 1
+    fi
+    cd "${S9K_ROOT}/current/${dir}" || return 1
+    umask 0077
+    if [ "${modo}" = "-m" ]; then
+        exec runuser -u "${user}" -- "${S9K_ROOT}/current/${comp}/.venv/bin/python" -m "${objetivo}" "$@"
+    fi
+    exec runuser -u "${user}" -- "${S9K_ROOT}/current/${comp}/.venv/bin/python" "${S9K_ROOT}/current/${comp}/${objetivo}" "$@"
+}
+
+# ---------------------------------------------------------------------------
+# auth_cli <comando> [args]   (H-06 §12: el comando CANONICO de la CLI de auth)
+#   Alias historico de `s9k_cli auth` (lo usan deploy/scripts/auth-cli.sh y el README).
+# ---------------------------------------------------------------------------
+auth_cli() {
+    s9k_cli auth "$@"
 }
 
 # ---------------------------------------------------------------------------
@@ -1042,4 +1157,35 @@ revertir_worker() {
     fi
     systemctl daemon-reload || warn "daemon-reload falló en el rollback del worker"
     return 0
+}
+
+# ---------------------------------------------------------------------------
+# rollback_permitido <release_previa>
+#   C-4 (ronda 2, §15). Puerta del rollback AUTOMATICO de deploy.sh (pasos 14,
+#   14a, 14b, 16). Reactivar la release previa solo es seguro si ELLA entiende
+#   la identidad vigente: el estado ya es de s9knowledge 0700/0600 y una release
+#   anterior a H-06 no lo leeria (o lo escribiria en su release). Misma funcion
+#   que rollback-release.sh (`release_entiende_la_identidad`).
+#     rc 0 -> se puede reactivar; S9K_ROLLBACK_RESULTADO dice que se reactiva.
+#     rc 1 -> NO: se PARAN visor y worker (no se arranca a ciegas) y
+#             S9K_ROLLBACK_RESULTADO lleva el diagnostico para el `die`.
+#   Sin release previa no se llama (S9K_ROLLBACK_RESULTADO conserva su valor).
+#   Necesita validate_deploy.sh cargado (deploy.sh lo carga).
+# ---------------------------------------------------------------------------
+S9K_ROLLBACK_RESULTADO="sin release previa: no hay rollback posible"
+rollback_permitido() {
+    local prev="${1:-}"
+    if [ -z "${prev}" ] || [ ! -d "${prev}" ]; then
+        S9K_ROLLBACK_RESULTADO="sin release previa: no hay rollback posible"
+        return 1
+    fi
+    if release_entiende_la_identidad "${prev}"; then
+        S9K_ROLLBACK_RESULTADO="rollback ejecutado (release previa $(basename -- "${prev}") reactivada)"
+        return 0
+    fi
+    err "rollback: la release previa ${prev} NO declara la identidad vigente (anterior a H-06 o unidad inválida, arriba): NO se reactiva"
+    systemctl stop "${VIEWER_UNIT_NAME}" || warn "no se pudo parar ${VIEWER_UNIT_NAME}"
+    systemctl stop "${WORKER_UNIT_NAME_LIB}" || warn "no se pudo parar ${WORKER_UNIT_NAME_LIB}"
+    S9K_ROLLBACK_RESULTADO="rollback NO ejecutado: la release previa $(basename -- "${prev}") no entiende la identidad vigente; visor y worker PARADOS (diagnóstico arriba; ver deploy/README.md, recuperación)"
+    return 1
 }

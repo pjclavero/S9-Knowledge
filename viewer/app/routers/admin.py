@@ -43,7 +43,7 @@ def _vault_no_escribible(exc: Exception) -> str:
 def _get_db_path() -> Path:
     cfg = get_auth_settings()
     p = Path(cfg.S9K_AUTH_DB_PATH)
-    p.parent.mkdir(parents=True, exist_ok=True, mode=service_identity.dir_mode())
+    service_identity.ensure_private_dir(p.parent)
     return p
 
 

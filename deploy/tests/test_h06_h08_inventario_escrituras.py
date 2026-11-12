@@ -184,21 +184,21 @@ def ficheros_worker():
 # ---------------------------------------------------------------------------
 INVENTARIO = {
     # ---- VISOR ------------------------------------------------------------
-    "viewer/app/auth/db.py": (7, "STATE", "S9K_AUTH_DB_PATH: auth.db(-wal,-shm), .lock, .bak.vN (nacen 0600)"),
+    "viewer/app/auth/db.py": (4, "STATE", "S9K_AUTH_DB_PATH: auth.db(-wal,-shm), .lock, .bak.vN (nacen 0600; creacion via la autoridad: ensure_private_dir/create_private_file/open_private_write; root rechazado, H-1)"),
     "viewer/app/auth/bootstrap.py": (1, "STATE", "S9K_AUTH_DB_PATH: sello del primer admin"),
-    "viewer/app/auth/csrf_bootstrap.py": (7, "STATE", "S9K_AUTH_DB_PATH (junto a ella): .csrf_secret 0600"),
-    "viewer/app/cli/auth.py": (1, "CLI", "mkdir del directorio de auth.db; solo como s9knowledge (rechazo de root)"),
-    "viewer/app/routers/admin.py": (1, "STATE", "S9K_AUTH_DB_PATH: mkdir del directorio de auth.db"),
-    "viewer/app/main.py": (1, "STATE", "S9K_AUTH_DB_PATH: mkdir del directorio de auth.db al arrancar"),
-    "viewer/app/health/storage.py": (5, "STATE", "S9K_HEALTH_REPORT_PATH: health.json 0600 (lo escribe el healthcheck)"),
+    "viewer/app/auth/csrf_bootstrap.py": (6, "STATE", "S9K_AUTH_DB_PATH (junto a ella): .csrf_secret 0600"),
+    "viewer/app/cli/auth.py": (0, "CLI", "directorio de auth.db via ensure_private_dir; solo como s9knowledge (rechazo de root, rc 4)"),
+    "viewer/app/routers/admin.py": (0, "STATE", "S9K_AUTH_DB_PATH: directorio de auth.db via ensure_private_dir"),
+    "viewer/app/main.py": (0, "STATE", "S9K_AUTH_DB_PATH: directorio de auth.db via ensure_private_dir al arrancar"),
+    "viewer/app/health/storage.py": (3, "STATE", "S9K_HEALTH_REPORT_PATH: health.json 0600 (temporal via open_private_write ya 0600 antes del replace; root rechazado, H-1)"),
     "viewer/app/services/v3_review.py": (0, "STATE", "S9K_V3_REVIEW_DECISIONS_PATH / junto a S9K_V3_REVIEW_DATABASE_PATH: decisions.jsonl, audit.jsonl (via open_private_append)"),
     "viewer/app/services/v3_glossary_candidates.py": (0, "STATE", "S9K_V3_GLOSSARY_CANDIDATES_DIR / junto a decisions (via open_private_append)"),
     "viewer/app/services/v3_review_store.py": (3, "STATE", "S9K_V3_REVIEW_DATABASE_PATH: review.sqlite3 (la CREA el despliegue; el runtime solo abre)"),
-    "viewer/app/service_identity.py": (3, "STATE", "open_private_append: JSONL de decisiones/auditoria/candidatos, 0600 en directorio 0700"),
+    "viewer/app/service_identity.py": (1, "STATE", "open_private_append: JSONL de decisiones/auditoria/candidatos, 0600 en directorio 0700"),
     "viewer/app/services/review_console.py": (3, "TMP", "S9K_REVIEW_LAB_DIR o tempdir; consola de revision APAGADA por defecto (PR-1)"),
-    "viewer/app/vault_writer.py": (8, "EXTERNAL_OPERATOR_CONTENT", "S9K_VAULT_ROOT: perfil-operador.json en la boveda del operador (fuera del state root; escribe solo si el FS ya concede permiso; sin chown/chmod, sin fallback ni copia bajo STATE)"),
+    "viewer/app/vault_writer.py": (15, "EXTERNAL_OPERATOR_CONTENT", "S9K_VAULT_ROOT: perfil-operador.json en la boveda del operador (fuera del state root; escribe solo si el FS ya concede permiso; sin chown/chmod de lo preexistente, sin fallback ni copia bajo STATE). Ronda 2 (H-2): perfil propio -> reemplazo atomico conservando modo/grupo (fchmod/fchown del TEMPORAL); perfil ajeno escribible -> en el sitio con respaldo .<nombre>.s9k-respaldo; limpieza de efimeros huerfanos propios"),
     # ---- WORKER (cierre estatico de worker.py) ----------------------------
-    "data-engine/app/jobs/job_store.py": (5, "STATE", "S9K_JOBS_DB: jobs.db(-wal,-shm) (nace 0600)"),
+    "data-engine/app/jobs/job_store.py": (3, "STATE", "S9K_JOBS_DB: jobs.db(-wal,-shm) (nace 0600)"),
     "data-engine/app/knowledge_v3/review_decisions.py": (1, "STATE", "S9K_V3_REVIEW_DATABASE_PATH: lectura de decisiones (conexion sqlite)"),
     "data-engine/app/knowledge_v3/review_paths.py": (1, "STATE", "S9K_V3_REVIEW_DATABASE_PATH: inspeccion (conexion sqlite)"),
     "data-engine/app/knowledge_v3/review_export.py": (5, "STATE", "S9K_V3_REVIEW_PROPOSALS_DIR: propuestas (UMask=0077 de la unidad)"),
@@ -206,11 +206,11 @@ INVENTARIO = {
     "data-engine/app/knowledge_v3/ledger/store.py": (2, "STATE", "ledger de la ingesta"),
     "data-engine/app/knowledge_v3/writer/audit.py": (3, "STATE", "auditoria del escritor (ruta que se le pasa)"),
     "data-engine/app/knowledge_v3/writer/idempotency.py": (4, "STATE", "indice de idempotencia del escritor"),
-    "data-engine/app/knowledge_v3/service_state.py": (4, "STATE", "sondas efimeras de acceso (se borran)"),
+    "data-engine/app/knowledge_v3/service_state.py": (7, "STATE", "sondas efimeras de acceso (se borran) + los creadores canonicos de estado privado (ensure_private_dir, create_private_file, open_private_write: modo EXACTO de la autoridad y rechazo de root bajo el state root)"),
     # Alcanzables por importacion estatica pero NO ejecutados en la ruta del
     # worker (modulos de herramientas): sus escrituras estan DECLARADAS, no ocultas.
-    "data-engine/app/external_ai/cache.py": (2, "STATE", "S9K_EXTERNAL_AI_CACHE_DIR: cache de IA externa, por defecto <state root>/external_ai_cache (ya no en la release)"),
-    "data-engine/app/glossary/glossary_store.py": (2, "STATE", "S9K_GLOSSARY_DB: glossary.db, por defecto <state root>/glossary (ya no en la release)"),
+    "data-engine/app/external_ai/cache.py": (1, "STATE", "S9K_EXTERNAL_AI_CACHE_DIR: cache de IA externa, por defecto <state root>/external_ai_cache (ya no en la release)"),
+    "data-engine/app/glossary/glossary_store.py": (1, "STATE", "S9K_GLOSSARY_DB: glossary.db, por defecto <state root>/glossary (ya no en la release)"),
     "data-engine/app/review/export_import.py": (4, "CLI", "export/import offline de revision (herramienta de operador)"),
 }
 #: Modulos del cierre del worker que son HERRAMIENTAS de operador/offline o datos de
@@ -238,7 +238,9 @@ def test_el_detector_no_esta_roto():
     viewer, worker = _conteos()
     assert sum(viewer.values()) >= 25, ("el escaner del visor ve %d sitios" % sum(viewer.values()))
     assert sum(worker.values()) >= 20, ("el escaner del worker ve %d sitios" % sum(worker.values()))
-    assert viewer["viewer/app/auth/db.py"] >= 5
+    assert viewer["viewer/app/auth/db.py"] >= 3
+    assert viewer["viewer/app/vault_writer.py"] >= 10
+    assert worker["data-engine/app/knowledge_v3/service_state.py"] >= 5
     assert "data-engine/app/jobs/job_store.py" in worker and len(worker) > 20, len(worker)
     assert contar_escrituras("open('x','w')") == 1
     assert contar_escrituras("open('x')") == 0

@@ -532,7 +532,8 @@ def default_decisions_path() -> Path:
     declara el almacen de revision. Precedencia: ``S9K_V3_REVIEW_DECISIONS_PATH``
     > junto a ``review.sqlite3`` (``S9K_V3_REVIEW_DATABASE_PATH``, bajo el state
     root) > defecto de DESARROLLO bajo el arbol del visor (techo declarado: un
-    servicio de produccion lo rechaza al arrancar, ``S9K_STATE_ENFORCE=1``).
+    servicio de produccion lo rechaza al arrancar, porque la comprobacion de
+    arranque es obligatoria y ese defecto cae dentro de la release).
     La derivacion es la de la AUTORIDAD (``service_state.effective_paths``): el
     visor, el worker y el preflight de despliegue ven la misma ruta.
     """

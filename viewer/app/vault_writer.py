@@ -104,11 +104,14 @@ con una fuente.
 """
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import os
 import secrets
+import stat
 import tempfile
+import time
 import unicodedata
 from dataclasses import dataclass
 from enum import Enum
@@ -403,8 +406,14 @@ def _fsync_directorio(directorio: Path) -> None:
         os.close(dirfd)
 
 
+def _token_efimero() -> str:
+    """``<pid>-<aleatorio>``: el PID permite reconocer, en la siguiente escritura, el
+    residuo de un proceso que ya no existe (SIGKILL a mitad de sonda o de escritura)."""
+    return "%d-%s" % (os.getpid(), secrets.token_hex(8))
+
+
 def _probar_destino(directorio: Path) -> tuple[bool, str]:
-    token = secrets.token_hex(8)
+    token = _token_efimero()
     canario = directorio / f"{PREFIJO_EFIMERO}{token}"
     temporal = directorio / f"{PREFIJO_EFIMERO}{token}.tmp"
     try:
@@ -498,24 +507,258 @@ def _asegurar_ruta_segura(ruta_perfil: Path, *, permitir_ausente: bool = False) 
 # Escritura atómica — nunca `to_json()`, muta el dict original
 # ---------------------------------------------------------------------------
 
-def _escribir_atomico(ruta: Path, datos: dict) -> None:
+# ---------------------------------------------------------------------------
+# H-06/H-08 ronda 2 (H-2) · la bóveda es CONTENIDO DEL OPERADOR: escribir NUNCA
+# es apropiarse. Tres casos, decididos por el sistema de ficheros (no por un
+# chown/chmod de la aplicación):
+#
+#   (a) el perfil es del usuario del proceso -> reemplazo atómico (temporal en la
+#       MISMA carpeta + ``os.replace``) CONSERVANDO el modo del original
+#       (``fchmod`` del TEMPORAL, nunca del original) y, si se puede sin
+#       privilegios, su grupo (``fchown(-1, gid)`` del temporal; si el proceso no
+#       pertenece al grupo, queda el que dé el FS: techo declarado);
+#   (b) el perfil es de OTRO dueño pero el FS concede escritura (p. ej. 0664 con
+#       el grupo del servicio) -> escritura EN EL SITIO: mismo inodo, dueño, grupo
+#       y modo. Salvaguarda: copia previa del contenido original a un hermano
+#       ``.<nombre>.s9k-respaldo`` (mismo modo), escritura + fsync, verificación
+#       del contenido y SOLO entonces se borra el respaldo; ante cualquier error
+#       se restaura desde el respaldo. Si al empezar la siguiente escritura hay un
+#       respaldo de una interrumpida (SIGKILL), se restaura PRIMERO. Sin respaldo
+#       posible (carpeta no escribible) -> 409 controlado SIN tocar el perfil;
+#   (c) no escribible -> 409 específico (``_exigir_perfil_escribible``).
+#
+# En ningún caso: chown/chmod de lo preexistente, copia bajo el STATE, ni
+# temporales huérfanos (los ``.s9k-probe-<pid>-*`` de un proceso muerto se
+# limpian al empezar la siguiente escritura).
+# ---------------------------------------------------------------------------
+
+#: Sufijo del respaldo de una escritura EN EL SITIO (caso b). Mismo valor que
+#: excluye ``sources_catalog`` (no es una fuente).
+SUFIJO_RESPALDO = sources_catalog.SUFIJO_RESPALDO_ESCRITOR
+#: Antigüedad a partir de la cual un efímero SIN pid reconocible (formato previo
+#: a la ronda 2) se considera huérfano.
+_EFIMERO_LEGADO_SEGUNDOS = 300
+
+
+class RespaldoNoPosibleError(DestinoNoSeguroError):
+    """Caso (b) sin respaldo posible: no se puede garantizar «sin cambio parcial»."""
+
+
+def ruta_respaldo(ruta: Path) -> Path:
+    return ruta.with_name("." + ruta.name + SUFIJO_RESPALDO)
+
+
+def _pid_vivo(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def limpiar_efimeros_huerfanos(directorio: Path) -> list:
+    """Borra los ``.s9k-probe-*`` PROPIOS (mismo uid) de procesos que ya no existen.
+
+    Un SIGKILL a mitad de sonda o de reemplazo atómico deja el canario/temporal: el
+    ``finally`` no corre. Se reconoce por el PID del nombre (``_token_efimero``); los
+    de formato antiguo, sin PID, solo si tienen más de ``_EFIMERO_LEGADO_SEGUNDOS``.
+    Nunca toca un fichero de otro usuario ni del proceso vivo. Devuelve los borrados.
+    """
+    borrados = []
+    try:
+        entradas = list(os.scandir(directorio))
+    except OSError:
+        return borrados
+    for e in entradas:
+        if not e.name.startswith(PREFIJO_EFIMERO):
+            continue
+        try:
+            st = e.stat(follow_symlinks=False)
+        except OSError:
+            continue
+        if st.st_uid != os.geteuid() or not stat.S_ISREG(st.st_mode):
+            continue
+        cabeza = e.name[len(PREFIJO_EFIMERO):].split("-", 1)[0].split(".", 1)[0]
+        if cabeza.isdigit() and len(e.name[len(PREFIJO_EFIMERO):].split("-", 1)) == 2:
+            pid = int(cabeza)
+            if pid == os.getpid() or _pid_vivo(pid):
+                continue
+        elif time.time() - st.st_mtime < _EFIMERO_LEGADO_SEGUNDOS:
+            continue
+        try:
+            os.unlink(e.path)
+            borrados.append(e.name)
+        except OSError:
+            continue
+    return borrados
+
+
+def _leer_fd_entero(fd: int) -> bytes:
+    os.lseek(fd, 0, os.SEEK_SET)
+    trozos = []
+    while True:
+        b = os.read(fd, 1 << 16)
+        if not b:
+            return b"".join(trozos)
+        trozos.append(b)
+
+
+def _volcar(fd: int, contenido: bytes) -> None:
+    """Sustituye TODO el contenido de ``fd`` por ``contenido`` y hace fsync (en el sitio)."""
+    os.lseek(fd, 0, os.SEEK_SET)
+    os.ftruncate(fd, 0)
+    vista = memoryview(contenido)
+    while vista:
+        n = os.write(fd, vista)
+        vista = vista[n:]
+    os.fsync(fd)
+
+
+def restaurar_respaldo_pendiente(ruta: Path) -> bool:
+    """Si quedó el respaldo de una escritura en el sitio interrumpida, lo restaura.
+
+    Se llama al EMPEZAR cada escritura. Restaurar = volver a poner, EN EL SITIO (mismo
+    inodo/dueño/modo), el contenido original guardado; después se borra el respaldo.
+    Bajo ``flock`` del perfil: si otra escritura lo tiene, es un conflicto (409), no
+    un huérfano. Devuelve True si restauró. Un respaldo que no es un fichero regular
+    propio no se toca (``RutaNoSeguraError``).
+    """
+    respaldo = ruta_respaldo(ruta)
+    try:
+        st_r = os.lstat(respaldo)
+    except FileNotFoundError:
+        return False
+    if not stat.S_ISREG(st_r.st_mode) or st_r.st_uid != os.geteuid():
+        raise RutaNoSeguraError("el respaldo %s no es un fichero regular del servicio" % respaldo.name)
+    with open(respaldo, "rb") as fh:
+        original = fh.read()
+    try:
+        fd = os.open(str(ruta), os.O_RDWR | os.O_NOFOLLOW)
+    except FileNotFoundError:
+        raise DestinoNoSeguroError(
+            "hay un respaldo de una escritura interrumpida (%s) pero el perfil ya no existe: "
+            "no se recrea; revíselo el operador" % respaldo.name)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise ConflictoEscrituraError("otra escritura del perfil está en curso")
+        if _leer_fd_entero(fd) != original:
+            _volcar(fd, original)
+            if _leer_fd_entero(fd) != original:
+                raise DestinoNoSeguroError("la restauración del respaldo no verifica")
+        os.unlink(respaldo)
+        _fsync_directorio(ruta.parent)
+    finally:
+        os.close(fd)
+    return True
+
+
+def _escribir_en_el_sitio(ruta: Path, contenido: bytes) -> None:
+    """Caso (b): perfil de OTRO dueño escribible por permiso. Conserva inodo, dueño,
+    grupo y modo; respaldo previo + verificación; restaura ante cualquier error."""
+    respaldo = ruta_respaldo(ruta)
+    fd = os.open(str(ruta), os.O_RDWR | os.O_NOFOLLOW)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise ConflictoEscrituraError("otra escritura del perfil está en curso")
+        st = os.fstat(fd)
+        original = _leer_fd_entero(fd)
+        try:
+            fdr = os.open(str(respaldo), os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        except OSError as exc:
+            raise RespaldoNoPosibleError(
+                "no se puede crear el respaldo previo %s (%s): sin respaldo no se garantiza "
+                "«sin cambio parcial» y el perfil NO se ha tocado"
+                % (respaldo.name, exc.strerror or type(exc).__name__)) from exc
+        try:
+            # el respaldo es NUESTRO (recien creado): recibe el MISMO modo que el original
+            # (la umask del servicio no decide); el original no se toca.
+            os.fchmod(fdr, stat.S_IMODE(st.st_mode) & 0o666)
+            _volcar(fdr, original)
+        finally:
+            os.close(fdr)
+        _fsync_directorio(ruta.parent)
+        try:
+            _volcar(fd, contenido)
+            if _leer_fd_entero(fd) != contenido:
+                raise OSError("el contenido escrito no verifica")
+        except BaseException:
+            # cualquier fallo (incluida una interrupción) -> el original vuelve EN EL SITIO
+            try:
+                _volcar(fd, original)
+                if _leer_fd_entero(fd) == original:
+                    os.unlink(respaldo)
+                    _fsync_directorio(ruta.parent)
+            except OSError:
+                pass   # el respaldo SE QUEDA: la siguiente escritura lo restaura primero
+            raise
+        os.unlink(respaldo)
+        _fsync_directorio(ruta.parent)
+    finally:
+        os.close(fd)
+
+
+def _reemplazo_atomico_propio(ruta: Path, contenido: bytes, st_previo: Optional[os.stat_result]) -> None:
+    """Caso (a) y fichero nuevo: temporal en la MISMA carpeta + ``os.replace``.
+
+    Si había original (es del usuario del proceso), el TEMPORAL recibe su modo exacto
+    y, si se puede sin privilegios, su grupo, antes de publicarse: el operador no ve
+    su perfil endurecido a 0600 ni ablandado. Sin original (manifiesto nuevo) queda
+    el modo de ``mkstemp`` (0600): techo declarado."""
     directorio = ruta.parent
-    contenido = json.dumps(datos, indent=2, ensure_ascii=False) + "\n"
-    fd, tmp_name = tempfile.mkstemp(prefix=PREFIJO_EFIMERO, suffix=".tmp", dir=str(directorio))
+    fd, tmp_name = tempfile.mkstemp(prefix=PREFIJO_EFIMERO + _token_efimero() + "-",
+                                    suffix=".tmp", dir=str(directorio))
     tmp_path = Path(tmp_name)
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
+        if st_previo is not None:
+            os.fchmod(fd, stat.S_IMODE(st_previo.st_mode))
+            if os.fstat(fd).st_gid != st_previo.st_gid:
+                try:
+                    os.fchown(fd, -1, st_previo.st_gid)
+                except OSError:
+                    pass   # sin privilegios: el grupo que dé el FS (techo declarado)
+        with os.fdopen(fd, "wb") as f:
             f.write(contenido)
             f.flush()
             os.fsync(f.fileno())
         os.replace(str(tmp_path), str(ruta))
         _fsync_directorio(directorio)
-    except Exception:
+    except BaseException:
         try:
             tmp_path.unlink()
         except OSError:
             pass
         raise
+
+
+def _es_del_proceso(st: os.stat_result) -> bool:
+    """¿El fichero es del usuario del proceso? (decide reemplazo atómico vs. en el sitio)."""
+    return st.st_uid == os.geteuid()
+
+
+def _escribir_atomico(ruta: Path, datos: dict) -> None:
+    """Escribe ``datos`` en ``ruta`` SIN apropiarse del fichero del operador (H-2)."""
+    contenido = (json.dumps(datos, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+    try:
+        st = os.lstat(ruta)
+    except FileNotFoundError:
+        st = None
+    if st is not None and not _es_del_proceso(st):
+        _escribir_en_el_sitio(ruta, contenido)
+    else:
+        _reemplazo_atomico_propio(ruta, contenido, st)
+
+
+def _preparar_escritura(ruta: Path) -> None:
+    """Al EMPEZAR una escritura: limpia efímeros huérfanos propios y restaura el
+    respaldo de una escritura en el sitio interrumpida (antes de leer la huella)."""
+    limpiar_efimeros_huerfanos(ruta.parent)
+    restaurar_respaldo_pendiente(ruta)
 
 
 # ---------------------------------------------------------------------------
@@ -602,6 +845,9 @@ def escribir_label_workspace(
     """
     ruta_perfil = carpeta_juego / sources_catalog.NOMBRE_PERFIL
     _asegurar_ruta_segura(ruta_perfil)
+    # H-2: residuos de un SIGKILL previo (efímeros propios, respaldo pendiente) ANTES
+    # de leer la huella: lo que se compara es el perfil íntegro.
+    _preparar_escritura(ruta_perfil)
 
     valor_normalizado = nuevo_label.strip()
     if valor_normalizado:
@@ -716,6 +962,7 @@ def escribir_label_partida(
     """
     ruta_manifiesto = carpeta_partida / sources_catalog.NOMBRE_MANIFIESTO_PARTIDA
     _asegurar_ruta_segura(ruta_manifiesto, permitir_ausente=True)
+    _preparar_escritura(ruta_manifiesto)
 
     valor_normalizado = nuevo_label.strip()
     if valor_normalizado:

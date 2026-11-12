@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # auth-cli.sh — la forma CANONICA de ejecutar la CLI de auth (H-06 + H-08, §12).
+# Ronda 2: es el alias historico de `deploy/scripts/s9k-cli.sh auth` (UN envoltorio
+# para todas las CLIs que pueden crear estado; ver s9k-cli.sh).
 #
 # Uso (como root o con sudo, en el host):
 #     deploy/scripts/auth-cli.sh status

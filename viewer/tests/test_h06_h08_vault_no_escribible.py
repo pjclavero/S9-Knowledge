@@ -169,15 +169,225 @@ def test_un_oserror_inesperado_del_escritor_es_409_nombrado(entorno, monkeypatch
 
 def test_la_boveda_no_forma_parte_del_state_ni_del_arranque():
     """La boveda opcional no escribible NO impide arrancar: ninguna ruta de la boveda participa en
-    la validacion de arranque (rutas de estado) y la app jamas llama a chown/chmod sobre ella."""
+    la validacion de arranque (rutas de estado) y la app jamas cambia permisos de lo PREEXISTENTE.
+
+    Ronda 2 (H-2): ``fchmod``/``fchown`` existen, pero SOLO sobre descriptores de ficheros que
+    el escritor acaba de CREAR (el temporal del reemplazo atomico y el respaldo), para que
+    hereden el modo/grupo del original; nunca sobre el original ni por ruta (chmod/chown)."""
     from app import service_identity
 
     ss = service_identity.service_state()
     assert not [v for v in ss.STATE_PATH_VARS if "VAULT" in v]
-    codigo = ast.parse((RAIZ / "viewer" / "app" / "vault_writer.py").read_text(encoding="utf-8"))
-    llamadas = {n.func.attr for n in ast.walk(codigo)
-                if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)}
-    assert not (llamadas & {"chown", "lchown", "chmod", "lchmod", "fchown", "fchmod"}), llamadas
+    arbol = ast.parse((RAIZ / "viewer" / "app" / "vault_writer.py").read_text(encoding="utf-8"))
+    por_ruta, por_fd = [], []
+    for fn in ast.walk(arbol):
+        if not isinstance(fn, ast.FunctionDef):
+            continue
+        for n in ast.walk(fn):
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute):
+                if n.func.attr in {"chown", "lchown", "chmod", "lchmod"}:
+                    por_ruta.append((fn.name, n.func.attr))
+                elif n.func.attr in {"fchmod", "fchown"}:
+                    por_fd.append((fn.name, n.func.attr, ast.unparse(n.args[0])))
+    assert por_ruta == [], por_ruta
+    permitidos = {("_reemplazo_atomico_propio", "fd"), ("_escribir_en_el_sitio", "fdr")}
+    assert por_fd and {(f, d) for f, _a, d in por_fd} <= permitidos, por_fd
     # el escritor jamas importa la autoridad de estado: no hay fallback hacia el state root
     fuente = (RAIZ / "viewer" / "app" / "vault_writer.py").read_text(encoding="utf-8")
     assert "service_state" not in fuente and "service_identity" not in fuente
+
+
+# ---------------------------------------------------------------------------
+# H-2 (ronda 2): escribir NO es apropiarse del perfil del operador
+# ---------------------------------------------------------------------------
+
+def _todo(p: Path):
+    st = p.stat()
+    return (hashlib.sha256(p.read_bytes()).hexdigest(), st.st_ino, st.st_uid, st.st_gid,
+            stat.S_IMODE(st.st_mode))
+
+
+def test_H2a_perfil_propio_conserva_su_modo_y_grupo(entorno):  # noqa: F811
+    """(a) perfil del usuario del proceso en 0664 / carpeta 0775: tras escribir sigue 0664 y con
+    su grupo (antes: mkstemp 0600 + os.replace lo dejaba 0600)."""
+    db_path, auth_db, app, boveda = entorno
+    c = _cliente(auth_db, db_path, app)
+    tok, fp = _csrf(c)
+    perfil = _perfil_path(boveda)
+    perfil.parent.chmod(0o775)
+    perfil.chmod(0o664)
+    _h, _ino, uid, gid, _m = _todo(perfil)
+    r = _post(c, tok, fp, "Nombre conservando el modo")
+    assert r.status_code == 302, (r.status_code, r.text[:300])
+    _h2, _ino2, uid2, gid2, modo2 = _todo(perfil)
+    assert (uid2, gid2, modo2) == (uid, gid, 0o664), (uid2, gid2, oct(modo2))
+    assert "Nombre conservando el modo" in perfil.read_text(encoding="utf-8")
+    assert _sin_temporales(perfil.parent) == []
+
+
+def test_H2b_perfil_de_otro_dueno_escribible_se_escribe_en_el_sitio(entorno, monkeypatch):  # noqa: F811
+    """(b) perfil de OTRO dueño escribible por permiso (0664, grupo del servicio): escritura EN EL
+    SITIO -> mismo inodo, dueño, grupo y modo; contenido nuevo; sin respaldo ni temporales.
+    El "otro dueño" se simula en la decision (`_es_del_proceso`); el real va a VM112 (H, caso 3)."""
+    from app import vault_writer
+
+    db_path, auth_db, app, boveda = entorno
+    monkeypatch.setattr(vault_writer, "_es_del_proceso", lambda st: False)
+    c = _cliente(auth_db, db_path, app)
+    tok, fp = _csrf(c)
+    perfil = _perfil_path(boveda)
+    perfil.chmod(0o664)
+    antes = _todo(perfil)
+    r = _post(c, tok, fp, "Nombre en el sitio")
+    assert r.status_code == 302, (r.status_code, r.text[:300])
+    despues = _todo(perfil)
+    assert despues[1:] == antes[1:], "inodo/dueño/grupo/modo cambiaron: %s -> %s" % (antes, despues)
+    assert despues[0] != antes[0] and "Nombre en el sitio" in perfil.read_text(encoding="utf-8")
+    assert not vault_writer.ruta_respaldo(perfil).exists()
+    assert _sin_temporales(perfil.parent) == []
+
+
+@pytest.mark.skipif(EUID == 0, reason="root escribe en cualquier carpeta: el caso real va a VM112 (H)")
+def test_H2b_sin_respaldo_posible_es_409_y_el_perfil_no_se_toca(entorno, monkeypatch):  # noqa: F811
+    """(b) carpeta NO escribible (no cabe el respaldo) con el perfil escribible: 409 controlado y
+    especifico SIN tocar el perfil (no se puede garantizar «sin cambio parcial»)."""
+    from app import vault_writer
+
+    db_path, auth_db, app, boveda = entorno
+    monkeypatch.setattr(vault_writer, "_es_del_proceso", lambda st: False)
+    monkeypatch.setattr(vault_writer, "destino_admite_escritura_segura", lambda d, **k: (True, ""))
+    c = _cliente(auth_db, db_path, app)
+    tok, fp = _csrf(c)
+    perfil = _perfil_path(boveda)
+    perfil.chmod(0o666)
+    carpeta = perfil.parent
+    modo = stat.S_IMODE(carpeta.stat().st_mode)
+    antes = _todo(perfil)
+    carpeta.chmod(0o555)
+    try:
+        r = _post(c, tok, fp)
+        despues = _todo(perfil)
+    finally:
+        carpeta.chmod(modo)
+    assert r.status_code == 409 and MENSAJE in r.text and "respaldo" in r.text, (r.status_code, r.text[:400])
+    assert despues == antes
+
+
+_SIGKILL_A_MITAD = """
+import json, os, signal, sys
+sys.path.insert(0, sys.argv[2])
+sys.path.append(sys.argv[3])
+from pathlib import Path
+from app import vault_writer as vw
+vw._es_del_proceso = lambda st: False
+n = {"v": 0}
+real = vw._volcar
+def volcar(fd, contenido):
+    n["v"] += 1
+    if n["v"] == 2:          # 1 = el respaldo; 2 = el perfil EN EL SITIO: SIGKILL a medias
+        os.lseek(fd, 0, 0)
+        os.ftruncate(fd, 0)
+        os.write(fd, contenido[: len(contenido) // 3])
+        os.kill(os.getpid(), signal.SIGKILL)
+    return real(fd, contenido)
+vw._volcar = volcar
+ruta = Path(sys.argv[1])
+datos = json.loads(ruta.read_text(encoding="utf-8"))
+datos.setdefault("metadata", {})["label"] = "A medias"
+vw._escribir_atomico(ruta, datos)
+"""
+
+
+def _matar_a_mitad(perfil: Path):
+    import subprocess
+    import sys
+    return subprocess.run([sys.executable, "-c", _SIGKILL_A_MITAD, str(perfil), str(RAIZ / "viewer"),
+                           str(RAIZ / "data-engine" / "app")], capture_output=True, text=True, timeout=60,
+                          env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
+
+
+def test_H2b_SIGKILL_a_mitad_deja_respaldo_y_la_siguiente_escritura_restaura_primero(entorno, monkeypatch):  # noqa: F811
+    from app import vault_writer
+
+    _db, _a, _app, boveda = entorno
+    perfil = _perfil_path(boveda)
+    perfil.chmod(0o664)
+    original = perfil.read_bytes()
+    antes = _todo(perfil)
+    huella_original = vault_writer.huella_de(perfil)
+    r = _matar_a_mitad(perfil)
+    assert r.returncode == -9, (r.returncode, r.stderr[-600:])
+    respaldo = vault_writer.ruta_respaldo(perfil)
+    assert respaldo.exists() and respaldo.read_bytes() == original, "sin respaldo tras el SIGKILL"
+    assert perfil.read_bytes() != original, "el SIGKILL no llego a mitad: el test no mide nada"
+    # la SIGUIENTE escritura restaura PRIMERO y luego escribe (con la huella del original)
+    monkeypatch.setattr(vault_writer, "_es_del_proceso", lambda st: False)
+    vault_writer.escribir_label_workspace(perfil.parent, "Tras el SIGKILL", huella_original)
+    despues = _todo(perfil)
+    assert despues[1:] == antes[1:], (antes, despues)
+    assert "Tras el SIGKILL" in perfil.read_text(encoding="utf-8")
+    assert not respaldo.exists()
+
+
+def test_H2b_restaurar_respaldo_pendiente_vuelve_al_original_en_el_sitio(entorno):  # noqa: F811
+    from app import vault_writer
+
+    _db, _a, _app, boveda = entorno
+    perfil = _perfil_path(boveda)
+    original = perfil.read_bytes()
+    antes = _todo(perfil)
+    assert _matar_a_mitad(perfil).returncode == -9
+    assert vault_writer.restaurar_respaldo_pendiente(perfil) is True
+    assert perfil.read_bytes() == original and _todo(perfil) == antes
+    assert not vault_writer.ruta_respaldo(perfil).exists()
+    assert vault_writer.restaurar_respaldo_pendiente(perfil) is False
+
+
+def _pid_muerto() -> int:
+    import subprocess
+    import sys
+    p = subprocess.Popen([sys.executable, "-c", "pass"])
+    p.wait()
+    return p.pid
+
+
+def test_H2_los_efimeros_huerfanos_de_un_SIGKILL_se_limpian_en_la_siguiente_escritura(entorno):  # noqa: F811
+    """El `.s9k-probe-*.tmp` que deja un SIGKILL (el `finally` no corre) se borra al empezar la
+    siguiente escritura; el de un proceso VIVO y uno de formato antiguo reciente se respetan."""
+    import time
+
+    from app import vault_writer
+
+    db_path, auth_db, app, boveda = entorno
+    carpeta = _perfil_path(boveda).parent
+    pref = vault_writer.PREFIJO_EFIMERO
+    muerto = _pid_muerto()
+    huerfanos = [carpeta / ("%s%d-aaaa.tmp" % (pref, muerto)), carpeta / ("%s%d-bbbb" % (pref, muerto))]
+    viejo = carpeta / ("%sdeadbeefdeadbeef.tmp" % pref)
+    vivo = carpeta / ("%s%d-cccc.tmp" % (pref, os.getppid()))
+    reciente = carpeta / ("%sfeedfacefeedface.tmp" % pref)
+    for f in [*huerfanos, viejo, vivo, reciente]:
+        f.write_text("residuo")
+    hace_una_hora = time.time() - 3600
+    os.utime(viejo, (hace_una_hora, hace_una_hora))
+    assert vault_writer._token_efimero().startswith("%d-" % os.getpid())
+    c = _cliente(auth_db, db_path, app)
+    tok, fp = _csrf(c)
+    r = _post(c, tok, fp, "Limpieza de huerfanos")
+    assert r.status_code == 302, (r.status_code, r.text[:300])
+    quedan = {p.name for p in carpeta.iterdir() if p.name.startswith(pref)}
+    assert quedan == {vivo.name, reciente.name}, quedan
+
+
+def test_H2_el_respaldo_no_es_una_fuente_del_catalogo(tmp_path):
+    from app import sources_catalog, vault_writer
+    from test_vault_writer_6b2 import _PERFIL_CONFORME, _escribir_perfil
+
+    raiz = tmp_path / "boveda"
+    juego = raiz / "l5r"
+    _escribir_perfil(juego, _PERFIL_CONFORME)
+    vault_writer.ruta_respaldo(juego / sources_catalog.NOMBRE_PERFIL).write_text("{}", encoding="utf-8")
+    fuentes, rechazos = sources_catalog.listar_fuentes_boveda(
+        {"S9K_VAULT_ROOT": str(raiz), "S9K_VAULT_REQUIRE_MOUNT": "0"})
+    nombres = {f.titulo for f in fuentes} | {r["ruta"] for r in rechazos}
+    assert not any("s9k-respaldo" in n for n in nombres), nombres

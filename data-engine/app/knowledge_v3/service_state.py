@@ -47,6 +47,7 @@ import argparse
 import grp
 import os
 import pwd
+import re
 import stat
 import sys
 from dataclasses import dataclass
@@ -64,6 +65,11 @@ __all__ = [
     "Violation", "ServiceStateError", "effective_paths", "inspect_state",
     "inspect_process_identity", "probe_effective", "probe_denied", "enforce", "canonical_cli_command",
     "mode_is_private", "expected_ids", "format_violations",
+    # ronda 2: H-1 (CLIs/escritores), C-1, C-5 y C-7
+    "CLI_ROOT_RC", "CLI_WRAPPER", "RootStateWriteError", "cli_root_rejection", "reject_root_cli",
+    "refuse_root_state_write", "ensure_private_dir", "create_private_file", "open_private_write",
+    "BACKUP_ENVS", "SYSTEM_DIRS", "KNOWN_TOP_LEVEL", "inspect_dedicated_state_root",
+    "inspect_legacy_backups", "parse_unit", "inspect_unit_identity", "PRIVILEGED_GROUPS",
 ]
 
 # --------------------------------------------------------------------------
@@ -137,6 +143,10 @@ _AUTH_DB_ENV = "S9K_AUTH_DB_PATH"
 _JOBS_DB_ENV = "S9K_JOBS_DB"
 _HEALTH_ENV = "S9K_HEALTH_REPORT_PATH"
 _BACKUP_ENV = "S9K_BACKUP_DIR"
+#: Las DOS variables que declaran la raiz de backups (el healthcheck acepta ambas:
+#: ``S9K_BACKUP_ROOT`` y el nombre antiguo ``S9K_BACKUP_DIR``). Ninguna puede caer
+#: dentro del state root (C-1, ronda 2).
+BACKUP_ENVS = ("S9K_BACKUP_ROOT", _BACKUP_ENV)
 
 #: Variable -> (tipo, clave logica). Inventario de rutas de estado que se
 #: declaran por entorno (el resto del inventario esta en deploy/README.md).
@@ -174,6 +184,135 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 def canonical_cli_command(*args: str) -> str:
     """El comando canonico para una herramienta que escribe estado (§12)."""
     return " ".join(RUNUSER_PREFIX + tuple(args))
+
+
+# --------------------------------------------------------------------------
+# H-1 (ronda 2) · CLIs y escritores: root NUNCA crea estado del servicio
+# --------------------------------------------------------------------------
+#: rc ESTABLE de toda CLI que rechaza a root (el que ya usaba la CLI de auth).
+CLI_ROOT_RC = 4
+#: Envoltorio canonico: lo ejecuta root (o sudo) y cambia al usuario de servicio
+#: con ``runuser``; el entorno lo lee root de /etc/s9-knowledge y lo exporta.
+CLI_WRAPPER = "deploy/scripts/s9k-cli.sh"
+
+
+class RootStateWriteError(PermissionError):
+    """Un proceso root iba a crear o escribir estado del servicio (N10/N14)."""
+
+
+def cli_root_rejection(tool: str, *, euid: Optional[int] = None) -> Optional[str]:
+    """Mensaje canonico de rechazo si el proceso es root; ``None`` si no lo es.
+
+    UNA funcion para todas las CLIs que pueden crear o escribir estado: la de auth,
+    la de salud, ``jobs``, ``glossary``... Ninguna "crea como root y arregla luego"
+    (§12): un ``auth.db-wal``/``health.json``/``glossary.db`` de ``root:root`` deja al
+    servicio sin arrancar. El mensaje da el comando canonico.
+    """
+    euid = os.geteuid() if euid is None else euid
+    if euid != 0:
+        return None
+    return ("RECHAZADO: «%s» puede crear o escribir estado del servicio y no se ejecuta como "
+            "root: lo dejaria root:root e inutilizable para %s.\n"
+            "Use el envoltorio canonico (como root; cambia a %s con runuser):\n"
+            "    %s %s <argumentos>\n"
+            "o, a mano: %s"
+            % (tool, SERVICE_USER, SERVICE_USER, CLI_WRAPPER, tool,
+               canonical_cli_command("<python>", "<cli>", "<argumentos>")))
+
+
+def reject_root_cli(tool: str, *, euid: Optional[int] = None) -> None:
+    """Guarda canonica de CLI: si es root, explica el comando canonico y sale con
+    ``CLI_ROOT_RC`` ANTES de tocar nada (ni ``mkdir``, ni ``sqlite3.connect``)."""
+    mensaje = cli_root_rejection(tool, euid=euid)
+    if mensaje is not None:
+        sys.stderr.write(mensaje + "\n")
+        sys.stderr.flush()
+        raise SystemExit(CLI_ROOT_RC)
+
+
+def _bajo_state_root(ruta, env: Optional[Mapping[str, str]] = None) -> bool:
+    env = os.environ if env is None else env
+    raiz = Path(effective_state_root(env))
+    try:
+        p = Path(os.path.abspath(str(ruta)))
+    except (TypeError, ValueError):
+        return False
+    return p == raiz or _bajo(p, raiz)
+
+
+def refuse_root_state_write(ruta, *, env: Optional[Mapping[str, str]] = None,
+                            euid: Optional[int] = None) -> None:
+    """Punto de estrangulamiento de los ESCRITORES (defensa en profundidad de H-1).
+
+    Si el proceso es root y ``ruta`` cuelga del state root efectivo, levanta
+    ``RootStateWriteError`` en vez de crear un fichero o directorio de root dentro
+    del estado vivo. Cubre la entrada que no pase por una CLI con guarda (un
+    ``python -c``, una herramienta nueva). Fuera del state root (tests, desarrollo)
+    no actua. El despliegue (root) no usa estos escritores: crea con ``chown``
+    explicito y corrige con ``migrar_estado.py``.
+    """
+    euid = os.geteuid() if euid is None else euid
+    if euid == 0 and _bajo_state_root(ruta, env):
+        raise RootStateWriteError(
+            13, "un proceso root iba a crear/escribir estado del servicio (%s); %s"
+            % (ruta, "ejecute como %s: %s" % (SERVICE_USER, CLI_WRAPPER)), str(ruta))
+
+
+def ensure_private_dir(ruta) -> Path:
+    """Crea ``ruta`` y los padres que falten con ``DIR_MODE`` EXACTO (no la umask).
+
+    ``Path.mkdir(parents=True, mode=...)`` solo aplica el modo al ultimo componente:
+    los intermedios nacen con ``0777 & ~umask`` (0755 con umask 022). Aqui cada
+    componente que se crea recibe ``DIR_MODE``; los que ya existian NO se tocan.
+    """
+    p = Path(ruta)
+    faltan = []
+    q = p
+    while not os.path.lexists(q):
+        faltan.append(q)
+        if q.parent == q:
+            break
+        q = q.parent
+    for d in reversed(faltan):
+        refuse_root_state_write(d)
+        try:
+            os.mkdir(d, DIR_MODE)
+        except FileExistsError:
+            continue
+        os.chmod(d, DIR_MODE)
+    return p
+
+
+def create_private_file(ruta) -> bool:
+    """Crea ``ruta`` vacio con ``FILE_MODE`` EXACTO si no existe (``O_EXCL``, sin seguir
+    symlinks). Devuelve True si lo creo. Los ``-wal``/``-shm`` de SQLite heredan el modo
+    de la base, asi que una base creada aqui los arrastra a 0600."""
+    refuse_root_state_write(ruta)
+    try:
+        fd = os.open(str(ruta), os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, FILE_MODE)
+    except FileExistsError:
+        return False
+    try:
+        os.fchmod(fd, FILE_MODE)
+    finally:
+        os.close(fd)
+    return True
+
+
+def open_private_write(ruta, *, append: bool = False):
+    """Descriptor de escritura de un fichero de estado con ``FILE_MODE`` EXACTO.
+
+    Crea con ``FILE_MODE`` y lo FIJA con ``fchmod`` (la umask no decide); trunca salvo
+    ``append``. Devuelve el descriptor crudo (el llamador lo envuelve con ``os.fdopen``)."""
+    refuse_root_state_write(ruta)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW | (os.O_APPEND if append else os.O_TRUNC)
+    fd = os.open(str(ruta), flags, FILE_MODE)
+    try:
+        os.fchmod(fd, FILE_MODE)
+    except OSError:
+        os.close(fd)
+        raise
+    return fd
 
 
 def mode_is_private(mode: int, *, directory: bool) -> bool:
@@ -675,6 +814,218 @@ def probe_secret(path) -> list:
     return out
 
 
+# --------------------------------------------------------------------------
+# C-5 (ronda 2) · el state root es un directorio DEDICADO al servicio
+# --------------------------------------------------------------------------
+NOT_DEDICATED = "NOT_DEDICATED"
+FOREIGN = "FOREIGN"
+
+#: Directorios del sistema que NUNCA pueden ser el state root: la migracion haria
+#: ``chown -R``/``chmod 0700`` sobre ellos (o sobre lo ajeno que contienen).
+SYSTEM_DIRS = frozenset({
+    "/", "/bin", "/boot", "/dev", "/etc", "/home", "/lib", "/lib32", "/lib64", "/libx32",
+    "/media", "/mnt", "/opt", "/proc", "/root", "/run", "/sbin", "/srv", "/sys", "/tmp",
+    "/usr", "/usr/bin", "/usr/lib", "/usr/local", "/usr/sbin", "/usr/share",
+    "/var", "/var/lib", "/var/tmp", "/var/log", "/var/cache", "/var/backups", "/var/opt",
+    "/var/spool", "/var/mail", "/var/run", "/var/local",
+    "/opt/s9-knowledge", "/etc/s9-knowledge",
+})
+
+#: Entradas de PRIMER NIVEL que puede contener el state root. Una sola lista: los
+#: subdirectorios del servicio, los del instalador, los defaults de los escritores
+#: que cuelgan del state root (``glossary``, ``external_ai_cache``) y ``backups``
+#: (legado: solo vacio, lo retira la migracion; con contenido es C-1). Las rutas que
+#: declare el entorno se suman a esta lista en cada comprobacion.
+KNOWN_TOP_LEVEL = tuple(sorted(
+    {s.split("/")[0] for s in SERVICE_SUBDIRS} | set(ADMIN_SUBTREES)
+    | {"glossary", "external_ai_cache", "backups"}))
+#: Residuos efimeros de las sondas de acceso (``_probar_directorio``) que un proceso
+#: matado puede dejar en la raiz: no son "contenido ajeno".
+_PREFIJO_SONDA = ".s9k-probe-"
+
+
+def inspect_dedicated_state_root(state_root, declared: Optional[Mapping[str, Path]] = None) -> list:
+    """El state root es DEDICADO (C-5): ni del sistema, ni compartido, ni con contenido ajeno.
+
+    Se llama ANTES de cualquier ``chown``/``chmod`` (validate-env en el paso 2b, y la
+    migracion antes de su paso 2): una raiz equivocada (``/``, ``/var/lib``, un
+    directorio 1777 con ficheros de otros) no se "corrige", se PARA. Una raiz ausente
+    (instalacion fresh) no es un hallazgo: la crea la migracion.
+    """
+    out: list = []
+    raiz = os.path.normpath(str(state_root))
+    if not os.path.isabs(raiz):
+        return [Violation(NOT_ABSOLUTE, raiz, "el state root no es absoluto")]
+    if raiz in SYSTEM_DIRS:
+        return [Violation(NOT_DEDICATED, raiz, "es un directorio del SISTEMA: el state root tiene "
+                          "que ser un directorio dedicado al servicio (p. ej. %s); la migracion "
+                          "haria chown/chmod sobre el" % DEFAULT_STATE_ROOT)]
+    for critico in RELEASE_PREFIXES + (os.path.dirname(SECRETS_DIR),):
+        if _bajo(Path(critico), Path(raiz)):
+            return [Violation(NOT_DEDICATED, raiz, "contiene %s (release o configuracion): no es "
+                              "un directorio dedicado al estado" % critico)]
+    try:
+        st = os.lstat(raiz)
+    except FileNotFoundError:
+        return out
+    except OSError as exc:
+        return [Violation(UNREADABLE, raiz, "no se puede inspeccionar: %s" % exc.strerror)]
+    if not stat.S_ISDIR(st.st_mode):
+        return out      # symlink / tipo: lo dice inspect_state y la migracion (SYMLINK/TIPO)
+    modo = stat.S_IMODE(st.st_mode)
+    if modo & stat.S_ISVTX:
+        out.append(Violation(NOT_DEDICATED, raiz, "tiene el bit sticky (%04o): es un directorio "
+                             "compartido, no dedicado al servicio" % modo))
+    if modo & 0o002:
+        out.append(Violation(NOT_DEDICATED, raiz, "es escribible por OTROS (%04o): cualquier "
+                             "usuario puede dejar ahi ficheros que la migracion se apropiaria" % modo))
+    try:
+        entradas = os.listdir(raiz)
+    except OSError as exc:
+        out.append(Violation(UNREADABLE, raiz, "no se puede listar: %s" % exc.strerror))
+        return out
+    conocidas = set(KNOWN_TOP_LEVEL)
+    for ruta in (declared or {}).values():
+        try:
+            conocidas.add(Path(ruta).relative_to(raiz).parts[0])
+        except (ValueError, IndexError):
+            continue
+    ajenas = sorted(e for e in entradas if e not in conocidas and not e.startswith(_PREFIJO_SONDA))
+    if ajenas:
+        out.append(Violation(FOREIGN, raiz, "contiene %d entrada(s) de primer nivel AJENAS al "
+                             "servicio (%s%s); conocidas: %s. No se migra un directorio que no es "
+                             "solo del servicio" % (len(ajenas), ", ".join(ajenas[:10]),
+                                                    ", ..." if len(ajenas) > 10 else "",
+                                                    ", ".join(sorted(conocidas)))))
+    return out
+
+
+def inspect_legacy_backups(state_root) -> list:
+    """C-1 · ``<state>/backups`` con contenido es una precondicion que el operador resuelve
+    ANTES de parar nada (los backups viven fuera del state vivo; moverlos es decision suya)."""
+    ruta = os.path.join(os.path.normpath(str(state_root)), "backups")
+    if os.path.islink(ruta):
+        return [Violation(SYMLINK, ruta, "es un enlace simbolico")]
+    if not os.path.isdir(ruta):
+        return []
+    try:
+        contenido = os.listdir(ruta)
+    except OSError as exc:
+        return [Violation(UNREADABLE, ruta, "ilegible: %s" % exc.strerror)]
+    if contenido:
+        return [Violation(OUTSIDE_STATE, ruta, "contiene %d elemento(s): los backups viven FUERA "
+                          "del state root (raiz separada, p. ej. %s, root:%s 0750). RECETA: "
+                          "`mkdir -p %s && mv %s/* %s/` (como root) y repita el despliegue; "
+                          "nada se ha parado ni tocado" % (len(contenido), DEFAULT_BACKUP_ROOT,
+                                                         SERVICE_GROUP, DEFAULT_BACKUP_ROOT, ruta,
+                                                         DEFAULT_BACKUP_ROOT))]
+    return []
+
+
+# --------------------------------------------------------------------------
+# C-7 (ronda 2) · gate de unidad con la semantica de systemd (ULTIMO valor)
+# --------------------------------------------------------------------------
+#: Grupos que dan privilegios por pertenencia: una unidad del servicio no los pide.
+PRIVILEGED_GROUPS = ("root", "sudo", "wheel", "adm", "docker", "shadow", "disk", "lxd",
+                     "libvirt", "systemd-journal", "kvm")
+#: Claves que fijan la IDENTIDAD o los privilegios: cada una UNA vez como mucho.
+IDENTITY_KEYS = ("User", "Group", "UMask", "DynamicUser", "NoNewPrivileges",
+                 "CapabilityBoundingSet", "AmbientCapabilities", "SupplementaryGroups",
+                 "PermissionsStartOnly")
+_EXEC_KEYS = ("ExecStart", "ExecStartPre", "ExecStartPost", "ExecStop", "ExecStopPost",
+              "ExecReload", "ExecCondition")
+_VERDADERO = ("1", "yes", "true", "on")
+_ELEVADORES = ("sudo", "su", "pkexec", "doas", "runuser", "setpriv", "capsh", "chroot")
+
+
+def parse_unit(texto: str) -> dict:
+    """``{seccion: [(clave, valor), ...]}`` en ORDEN, como lo lee systemd: comentarios
+    ``#``/``;``, espacios alrededor de ``=`` y lineas continuadas con ``\\``."""
+    secciones: dict = {}
+    actual = None
+    pendiente = ""
+    for cruda in texto.splitlines():
+        linea = pendiente + cruda.strip() if pendiente else cruda.strip()
+        if linea.endswith("\\"):
+            pendiente = linea[:-1] + " "
+            continue
+        pendiente = ""
+        if not linea or linea[0] in "#;":
+            continue
+        if linea.startswith("[") and linea.endswith("]"):
+            actual = linea[1:-1].strip()
+            secciones.setdefault(actual, [])
+            continue
+        if "=" not in linea or actual is None:
+            continue
+        k, v = linea.split("=", 1)
+        secciones[actual].append((k.strip(), v.strip()))
+    return secciones
+
+
+def inspect_unit_identity(texto: str) -> list:
+    """Errores de IDENTIDAD/PRIVILEGIOS de una unidad (una cadena por hallazgo).
+
+    Semantica de systemd: vale el ULTIMO valor de cada clave, asi que una clave de
+    identidad repetida es en si misma un hallazgo (la linea que se lee no es la que
+    se ve). Exige ``User``/``Group``/``UMask`` de la autoridad, ``NoNewPrivileges``
+    verdadero, ``CapabilityBoundingSet=`` declarado VACIO y sin ``AmbientCapabilities``,
+    sin ``DynamicUser``, sin ``PermissionsStartOnly``, sin grupos privilegiados y sin
+    ``ExecStart*`` con prefijo ``+``/``!`` o lanzado por sudo/su/runuser...
+    """
+    errores: list = []
+    servicio = parse_unit(texto).get("Service", [])
+    valores: dict = {}
+    for k, v in servicio:
+        valores.setdefault(k, []).append(v)
+
+    def ultimo(clave: str) -> str:
+        return valores.get(clave, [""])[-1]
+
+    for clave in IDENTITY_KEYS:
+        n = len(valores.get(clave, []))
+        if n > 1:
+            errores.append("clave de identidad duplicada: %s= aparece %d veces (systemd usa la "
+                           "ULTIMA: %r); una sola declaracion" % (clave, n, ultimo(clave)))
+    if ultimo("User") != SERVICE_USER:
+        errores.append("User= es '%s'; esperado '%s' (la autoridad); ni root ni otro nombre"
+                       % (ultimo("User"), SERVICE_USER))
+    if ultimo("Group") != SERVICE_GROUP:
+        errores.append("Group= es '%s'; esperado '%s' (la autoridad)" % (ultimo("Group"), SERVICE_GROUP))
+    if ultimo("UMask") != UNIT_UMASK:
+        errores.append("UMask= es '%s'; esperado '%s' (la autoridad)" % (ultimo("UMask"), UNIT_UMASK))
+    if ultimo("DynamicUser").lower() in _VERDADERO:
+        errores.append("DynamicUser= activo: systemd asignaria otro uid y el estado no seria suyo")
+    if ultimo("NoNewPrivileges").lower() not in ("yes", "true"):
+        errores.append("NoNewPrivileges= es '%s'; esperado yes/true (sin elevacion)" % ultimo("NoNewPrivileges"))
+    if "CapabilityBoundingSet" not in valores or ultimo("CapabilityBoundingSet") != "":
+        errores.append("CapabilityBoundingSet no esta vacio ('%s') o no se declara: el servicio "
+                       "no lleva capabilities (CapabilityBoundingSet= vacio)" % ultimo("CapabilityBoundingSet"))
+    if any(v for v in valores.get("AmbientCapabilities", [])):
+        errores.append("AmbientCapabilities= no vacio (%s): el servicio no lleva capabilities"
+                       % ultimo("AmbientCapabilities"))
+    if ultimo("PermissionsStartOnly").lower() in _VERDADERO:
+        errores.append("PermissionsStartOnly= activo: partes de la unidad correrian como root")
+    grupos = set(" ".join(valores.get("SupplementaryGroups", [])).split())
+    if grupos & set(PRIVILEGED_GROUPS):
+        errores.append("SupplementaryGroups= incluye un grupo privilegiado: %s"
+                       % ", ".join(sorted(grupos & set(PRIVILEGED_GROUPS))))
+    for clave in _EXEC_KEYS:
+        for v in valores.get(clave, []):
+            prefijo = re.match(r"^[@\-:+!|]*", v).group(0)
+            if "+" in prefijo or "!" in prefijo:
+                errores.append("%s= con prefijo '%s': se ejecutaria con privilegios completos "
+                               "(+) o sin cambiar de usuario (!)" % (clave, prefijo))
+            argv0 = v[len(prefijo):].split(" ", 1)[0]
+            if os.path.basename(argv0) in _ELEVADORES:
+                errores.append("%s= lanza %s: el servicio no cambia de identidad ni eleva"
+                               % (clave, os.path.basename(argv0)))
+    # (S9K_STATE_VALIDATION/ENFORCE en la unidad lo rechaza validate_deploy.sh en TODO el
+    # fichero; en el entorno EFECTIVO -drop-ins, EnvironmentFile, /proc- lo mira el paso
+    # 14a del despliegue y el healthcheck: C-6.)
+    return errores
+
+
 def enforce(role: str, env: Optional[Mapping[str, str]] = None, *,
             uid: Optional[int] = None, gid: Optional[int] = None,
             euid: Optional[int] = None) -> bool:
@@ -791,11 +1142,22 @@ def main(argv: Optional[list] = None) -> int:
     sp = sub.add_parser("secret-probe", help="el usuario de servicio LEE y no ESCRIBE sus secretos "
                         "(se ejecuta con runuser)")
     sp.add_argument("ficheros", nargs="+")
+    uc = sub.add_parser("unit-check", help="identidad y privilegios de una unidad systemd con la "
+                        "semantica de systemd (ultimo valor; C-7). Una linea por hallazgo.")
+    uc.add_argument("unidad")
     args = ap.parse_args(argv)
 
     if args.orden == "get":
         print(_GETTERS[args.clave]())
         return 0
+    if args.orden == "unit-check":
+        try:
+            errores = inspect_unit_identity(Path(args.unidad).read_text(encoding="utf-8"))
+        except OSError as exc:
+            errores = ["no se puede leer la unidad %s: %s" % (args.unidad, exc.strerror)]
+        for e in errores:
+            print(e)
+        return 3 if errores else 0
     env = {}
     if args.orden in ("validate-env", "check") and getattr(args, "env_file", None):
         env = _leer_env_file(args.env_file)
@@ -819,12 +1181,21 @@ def main(argv: Optional[list] = None) -> int:
                 viol.append(Violation(IDENTITY, var, "esta variable es una excepcion de tests/"
                             "laboratorio (o un interruptor retirado) y NO puede estar en una "
                             "instalacion operativa"))
-        backup = (env.get(_BACKUP_ENV) or "").strip()
-        if backup:
+        # C-1: la raiz de backups, por CUALQUIERA de sus dos nombres, fuera del state root.
+        for var_backup in BACKUP_ENVS:
+            backup = (env.get(var_backup) or "").strip()
+            if not backup:
+                continue
             if not os.path.isabs(backup):
-                viol.append(Violation(NOT_ABSOLUTE, _BACKUP_ENV, "no es absoluta"))
+                viol.append(Violation(NOT_ABSOLUTE, var_backup, "no es absoluta"))
             else:
-                viol += inspect_backup_root(backup, args.state_root)
+                viol += [Violation(v.code, "%s=%s" % (var_backup, v.path), v.detail)
+                         for v in inspect_backup_root(backup, args.state_root)]
+        if args.role == "viewer":
+            # C-1 y C-5: precondiciones del DISCO, aun en solo lectura y ANTES de parar nada
+            # (viewer.env declara el superconjunto de rutas; worker.env se cruza con el).
+            viol += inspect_legacy_backups(args.state_root)
+            viol += inspect_dedicated_state_root(args.state_root, rutas)
     elif args.orden == "check":
         rutas, faltan = effective_paths(env, role=args.role) if env else ({}, [])
         viol = list(faltan) + inspect_state(args.state_root, uid=args.uid, gid=args.gid,

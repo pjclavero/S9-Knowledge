@@ -7,7 +7,8 @@ ESTADO
 
     CODE         PASS      migracion real (migrar_estado.py), unidades, Ansible, deploy.sh
     CALIBRATION  PASS      scripts/calibracion/mutaciones_h06_h08_servicio_y_estado.py
-    LAB (VM112)  PENDING   fresh/upgrade con root, useradd, systemd y OTRO usuario real
+    LAB (VM112)  PASS      fresh/upgrade con root, useradd, systemd y OTRO usuario real
+                           (escenarios A-H en VM112; ronda 2: C-1..C-5, F y H caso 3)
 
 QUE SE EJECUTA DE VERDAD
 ------------------------
@@ -790,12 +791,13 @@ def test_destino_no_regular_PARA(esc):
 
 def test_la_copia_que_no_verifica_PARA_y_no_retira_el_original(esc, monkeypatch):
     real = mg._sha256
-    n = {"i": 0}
 
     def sha_inestable(ruta):
-        n["i"] += 1
+        # la verificacion de la COPIA (el temporal `.migrando-*`) 'falla'; el resto, real.
+        # (Ronda 2: localizada por el fichero, no por el orden de las llamadas: el
+        # pre-escaneo de C-2 tambien calcula hashes.)
         h = real(ruta)
-        return h if n["i"] != 2 else "0" * 64   # la verificacion de la copia 'falla'
+        return "0" * 64 if os.path.basename(str(ruta)).startswith(".migrando-") else h
 
     monkeypatch.setattr(mg, "_sha256", sha_inestable)
     r = esc.aplicar()
@@ -933,7 +935,13 @@ def test_ROLLBACK_el_rollback_de_release_exige_una_release_que_entienda_la_ident
     t = (_SCRIPTS / "rollback-release.sh").read_text(encoding="utf-8")
     i = t.index("target_understands_external_state() {")
     cuerpo = t[i:t.index("\n}\n", i)]
-    assert "validate_viewer_unit" in cuerpo
+    # Ronda 2 (C-4): la MISMA comprobacion que el rollback automatico de deploy.sh, que valida
+    # las unidades de visor Y worker de la release destino (validate_deploy.sh).
+    assert "release_entiende_la_identidad" in cuerpo
+    v = (_SCRIPTS / "validate_deploy.sh").read_text(encoding="utf-8")
+    j = v.index("release_entiende_la_identidad() {")
+    funcion = v[j:v.index("\n}\n", j)]
+    assert "validate_viewer_unit" in funcion and "validate_worker_unit" in funcion
 
 
 def test_la_identidad_creada_es_de_sistema_sin_login_ni_sudo():
@@ -956,10 +964,16 @@ def test_la_verificacion_por_efecto_usa_runuser_como_servicio_y_como_otro_usuari
 def test_N10_el_helper_canonico_de_la_cli_usa_runuser():
     t = LIB_SH.read_text(encoding="utf-8")
     i = t.index("auth_cli() {")
+    assert "s9k_cli auth" in t[i:t.index("\n}\n", i)]
+    # Ronda 2 (H-1): UN envoltorio para todas las CLIs que pueden crear estado
+    i = t.index("s9k_cli() {")
     cuerpo = t[i:t.index("\n}\n", i)]
-    assert 'exec runuser -u "${user}" --' in cuerpo and "app.cli.auth" in cuerpo
+    assert 'exec runuser -u "${user}" --' in cuerpo and "_exportar_env_s9k" in cuerpo
+    i = t.index("s9k_cli_destino() {")
+    assert "app.cli.auth" in t[i:t.index("\n}\n", i)]
     # los secretos no viajan en argv: se exportan, no se pasan como `VAR=valor` a runuser
-    assert 'export "${k}=${v}"' in cuerpo
+    i = t.index("_exportar_env_s9k() {")
+    assert 'export "${k}=${v}"' in t[i:t.index("\n}\n", i)]
 
 
 def test_el_script_auth_cli_existe_y_delega_en_el_helper():

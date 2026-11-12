@@ -18,10 +18,15 @@ def default_report_path() -> Path:
 
 def save_report(report: HealthReport, path: Optional[Path] = None) -> Path:
     path = Path(path) if path else default_report_path()
-    path.parent.mkdir(parents=True, exist_ok=True, mode=service_identity.dir_mode())
+    # H-1 (ronda 2): root no escribe el informe dentro del estado vivo (un health.json
+    # root:root deja al healthcheck del servicio sin poder reemplazarlo), y cada
+    # directorio que falte nace con el modo EXACTO de la autoridad, no con la umask.
+    service_identity.refuse_root_state_write(path)
+    service_identity.ensure_private_dir(path.parent)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    # Privado desde el nacimiento (H-06): modo de la autoridad, sin ventana.
-    fd = os.open(str(tmp), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, service_identity.file_mode())
+    # Privado desde el nacimiento (H-06): el temporal YA es 0600 (fchmod en la
+    # autoridad) antes de publicarse con `os.replace`; ninguna ventana 0644.
+    fd = service_identity.service_state().open_private_write(tmp)
     with os.fdopen(fd, "w", encoding="utf-8") as fh:
         fh.write(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
     os.replace(tmp, path)

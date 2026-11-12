@@ -42,7 +42,7 @@ from app.auth.passwords import hash_password, validate_password
 def _get_db_path() -> Path:
     cfg = get_auth_settings()
     p = Path(cfg.S9K_AUTH_DB_PATH)
-    p.parent.mkdir(parents=True, exist_ok=True, mode=service_identity.dir_mode())
+    service_identity.ensure_private_dir(p.parent)
     return p
 
 
@@ -368,26 +368,18 @@ def rechazar_si_root() -> Optional[str]:
     Cualquier comando (incluso de lectura) abre ``auth.db`` en modo WAL, y un
     proceso root crea los ``-wal``/``-shm`` como ``root:root``: el estado queda
     inutilizable para el usuario de servicio. En vez de «crear estado como root
-    y arreglarlo luego», se rechaza y se muestra el comando canonico.
+    y arreglarlo luego», se rechaza y se muestra el comando canonico. H-1
+    (ronda 2): el mensaje y el rc los da la MISMA funcion de la autoridad que usan
+    todas las CLIs que pueden crear estado (``cli_root_rejection``).
     """
-    if os.geteuid() != 0:
-        return None
-    ss = service_identity.service_state()
-    return (
-        "RECHAZADO: esta CLI escribe estado (auth.db y sus -wal/-shm) y no debe "
-        "ejecutarse como root: lo dejaria root:root e ilegible para %s.\n"
-        "Use el comando canonico:\n    %s\n"
-        "o, desde un despliegue, `deploy/scripts/auth-cli.sh <comando>`."
-        % (ss.SERVICE_USER,
-           ss.canonical_cli_command(sys.executable, "-m", "app.cli.auth", "<comando>"))
-    )
+    return service_identity.service_state().cli_root_rejection("auth")
 
 
 def main() -> int:
     rechazo = rechazar_si_root()
     if rechazo is not None:
         print(rechazo, file=sys.stderr)
-        return 4
+        return service_identity.service_state().CLI_ROOT_RC
     parser = argparse.ArgumentParser(
         description="CLI administrativa de autenticación S9 Knowledge"
     )

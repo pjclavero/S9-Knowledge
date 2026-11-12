@@ -53,6 +53,8 @@ lab_assert "H.1 caso escribible: resultado OK" resultado_es "${R1}" OK
 lab_assert "H.1 el perfil cambio (hash distinto) y contiene el nombre" bash -c "sudo grep -q 'Nombre desde H caso 1' '${PERFIL}'"
 DESPUES1="$(huella "${PERFIL}")"
 lab_assert "H.1 el hash cambia con la actualizacion" test "${ANTES}" != "${DESPUES1}"
+lab_assert "H.1 (ronda 2, H-2a) el perfil PROPIO conserva su modo y su grupo (no se endurece a 0600)" \
+    igual "$(printf '%s' "${DESPUES1}" | awk '{print $3, $4}')" "$(printf '%s' "${ANTES}" | awk '{print $3, $4}')"
 
 lab_log "H.2 CASO 2: el FS NO concede (carpeta y perfil root:root; perfil 0600)"
 sudo chown -R root:root "${VAULT}"
@@ -67,6 +69,31 @@ lab_assert "H.2 perfil INTACTO (hash, inodo, modo, propietario)" igual "$(huella
 lab_assert "H.2 la aplicacion no cambio el modo/propietario de la carpeta (sin chmod/chown)" igual "$(sudo stat -c '%a %U:%G' "${CARPETA}")" "${MODO_CARPETA}"
 lab_assert "H.2 sin copia silenciosa bajo el state root (sin fallback)" sin_copias_bajo_state
 lab_assert "H.2 sin temporales en la carpeta de la boveda" bash -c "[ -z \"\$(sudo find '${CARPETA}' -name '.*' -o -name '*.tmp')\" ]"
+
+lab_log "H.2b CASO 3 (ronda 2, H-2): perfil de OTRO dueño REAL (s9test), grupo s9knowledge 0664, carpeta 2775"
+TERCERO="${S9K_LAB_TERCERO:-s9test}"
+getent passwd "${TERCERO}" >/dev/null || lab_stop "falta el usuario de laboratorio ${TERCERO}"
+sudo chown -R "${TERCERO}:s9knowledge" "${VAULT}"
+sudo find "${VAULT}" -type d -exec chmod 0755 {} +
+sudo chmod 2775 "${CARPETA}"
+sudo chmod 0664 "${PERFIL}"
+meta() { sudo stat -c '%i %U:%G %a' "$1"; }
+ANTES3="$(meta "${PERFIL}")"
+HASH3="$(lab_sha256 "${PERFIL}")"
+R3="$(sonda "${CARPETA}" "Nombre desde H caso 3")"
+lab_log "caso 3 -> ${R3}"
+lab_assert "H.2b caso 3: resultado OK (el FS concede escritura por el grupo)" resultado_es "${R3}" OK
+lab_assert "H.2b caso 3: MISMO inodo, dueño (${TERCERO}), grupo y modo 0664 (no se apropia)" igual "$(meta "${PERFIL}")" "${ANTES3}"
+lab_assert "H.2b caso 3: el contenido cambio y contiene el nombre" bash -c "[ \"\$(sudo sha256sum '${PERFIL}' | cut -d' ' -f1)\" != '${HASH3}' ] && sudo grep -q 'Nombre desde H caso 3' '${PERFIL}'"
+lab_assert "H.2b caso 3: sin respaldo ni temporales en la carpeta" bash -c "[ -z \"\$(sudo find '${CARPETA}' -maxdepth 1 \( -name '.*s9k-respaldo' -o -name '.s9k-probe-*' \))\" ]"
+lab_assert "H.2b caso 3: sin copia silenciosa bajo el state root" sin_copias_bajo_state
+lab_log "H.2c CASO 3b: perfil ajeno escribible pero carpeta NO escribible (no cabe el respaldo) -> 409 sin tocar"
+sudo chmod 0755 "${CARPETA}"
+ANTES3B="$(meta "${PERFIL}") $(lab_sha256 "${PERFIL}")"
+R3B="$(sonda "${CARPETA}" "Nombre desde H caso 3b")"
+lab_log "caso 3b -> ${R3B}"
+lab_assert "H.2c caso 3b: error CONTROLADO" resultado_es "${R3B}" CONTROLADO
+lab_assert "H.2c caso 3b: perfil INTACTO (inodo, dueño, grupo, modo, hash)" igual "$(meta "${PERFIL}") $(lab_sha256 "${PERFIL}")" "${ANTES3B}"
 
 lab_log "H.3 el visor sigue ARRANCADO con una boveda opcional no escribible"
 sudo systemctl restart s9-knowledge-viewer.service

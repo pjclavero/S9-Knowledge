@@ -174,4 +174,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    # H-1 (ronda 2): CLI que puede crear/escribir estado del servicio -> root se rechaza
+    # (rc 4 + comando canonico) ANTES de tocar nada. Gate: test_h06_h08_cli_root.py.
+    from knowledge_v3.service_state import reject_root_cli  # noqa: E402
+    reject_root_cli('glossary')
     sys.exit(main())

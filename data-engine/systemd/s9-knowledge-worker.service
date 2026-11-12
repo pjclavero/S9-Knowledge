@@ -44,6 +44,9 @@ User=s9knowledge
 Group=s9knowledge
 UMask=0077
 NoNewPrivileges=true
+# C-7 (ronda 2): sin capabilities, DECLARADO (como el healthcheck); el gate de unidad
+# exige este valor vacio y NoNewPrivileges=yes|true con la semantica de ultimo valor.
+CapabilityBoundingSet=
 WorkingDirectory=/opt/s9-knowledge/current/data-engine
 EnvironmentFile=/etc/s9-knowledge/worker.env
 ExecStart=/opt/s9-knowledge/current/data-engine/.venv/bin/python /opt/s9-knowledge/current/data-engine/app/jobs/worker.py --loop --sleep-seconds 5 --release-stale-seconds 600 --retry-backoff-seconds 30

@@ -113,7 +113,13 @@ class GlossaryStore:
                 from knowledge_v3 import service_state  # noqa: PLC0415
                 db_path = service_state.default_state_path("glossary", "glossary.db")
         self.db_path = Path(db_path)
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        # H-06/H-08 ronda 2 (H-1): el glosario es ESTADO. Su directorio y la base nacen con
+        # el modo EXACTO de la autoridad (0700/0600), no con la umask (los -wal/-shm
+        # heredan el modo de la base), y root no los crea dentro del estado vivo.
+        from knowledge_v3 import service_state  # noqa: PLC0415
+        service_state.refuse_root_state_write(self.db_path)
+        service_state.ensure_private_dir(self.db_path.parent)
+        service_state.create_private_file(self.db_path)
         self._conn: sqlite3.Connection | None = None
         self._init_db()
 

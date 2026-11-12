@@ -569,3 +569,48 @@ def test_validate_env_acepta_un_entorno_sin_s9k_state_root_con_la_raiz_canonica(
     r = subprocess.run([sys.executable, str(_RUTA), "validate-env", "--env-file", str(env),
                         "--state-root", str(estado)], capture_output=True, text=True)
     assert r.returncode == 3, r.stderr
+
+
+# ---------------------------------------------------------------------------
+# Ronda 2 · testigos de los mutantes del revisor R10 y R12 (atestiguables sin otro usuario)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.skipif(EUID == 0, reason="la denegacion se ejecuta sin root")
+def test_R10_probe_denied_nombra_CADA_fichero_legible_no_solo_la_raiz(estado):
+    """R10 (sobrevivio): si `probe_denied` deja de anotar los ficheros legibles, el test anterior
+    seguia verde por la violacion de la RAIZ listable. Aqui se exige la RUTA de cada fichero y de
+    sus sidecars. (El otro usuario REAL, `nobody`, va a VM112: escenario D.)"""
+    db = estado / "auth" / "auth.db"
+    for suf in ("-wal", "-shm"):
+        Path(str(db) + suf).write_bytes(b"x")
+    v = ss.probe_denied(estado, {"auth_db": db})
+    rutas = {x.path for x in v}
+    for esperada in (str(db), str(db) + "-wal", str(db) + "-shm"):
+        assert esperada in rutas, "R10: probe_denied no nombra %s (vio %s)" % (esperada, sorted(rutas))
+
+
+def test_R12_una_ACL_presente_es_un_hallazgo_aunque_el_modo_sea_0600(estado, monkeypatch):
+    """R12 (sobrevivio porque setfacl no estaba): la DETECCION de ACL se atestigua sin setfacl
+    simulando el xattr POSIX que el kernel expone. La ACL REAL (setfacl) va a VM112 (escenario D)."""
+    f = str(estado / "auth" / "auth.db")
+    real = os.listxattr
+
+    def listxattr(ruta, *a, **k):
+        if str(ruta) == f:
+            return ["system.posix_acl_access"]
+        return real(ruta, *a, **k)
+
+    monkeypatch.setattr(ss.os, "listxattr", listxattr)
+    v = ss.inspect_state(estado, uid=UID, gid=GID)
+    assert any(x.code == "ACL" and x.path == f for x in v), "R12: ACL no detectada: %s" % v
+
+
+def test_C5_inspect_dedicated_state_root_sticky_y_otros(tmp_path):
+    raiz = tmp_path / "st"
+    raiz.mkdir()
+    raiz.chmod(0o1700)
+    assert any("sticky" in x.detail for x in ss.inspect_dedicated_state_root(raiz)), "C5: sticky no visto"
+    raiz.chmod(0o702)
+    assert any("OTROS" in x.detail for x in ss.inspect_dedicated_state_root(raiz)), "C5: o+w no visto"
+    raiz.chmod(0o700)
+    assert ss.inspect_dedicated_state_root(raiz) == []
