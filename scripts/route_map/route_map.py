@@ -98,6 +98,26 @@ def bootstrap(repo: Path) -> None:
     from app import public_host_middleware
 
     public_host_middleware.HOSTS_EXTRA_DE_PRUEBAS = ("testserver",)
+    declarar_excepcion_de_estado()
+
+
+def declarar_excepcion_de_estado() -> None:
+    """H-06 + H-08: el censo NO corre como `s9knowledge` sobre un state root real.
+
+    El arranque del visor ejecuta la comprobacion de estado OBLIGATORIA
+    (`service_state.enforce("viewer")`), que es fail-closed: sin esta declaracion
+    la sonda aborta en el `startup` del `TestClient` con `ServiceStateError` y el
+    censo sale rc=3 (`sonda-fallida`) por un motivo AJENO a las rutas. Se declara
+    aqui, A PROPOSITO y de forma visible, la MISMA excepcion explicita de
+    tests/laboratorio que declara el `conftest.py` raiz; nombre y valor salen de
+    la autoridad (no se repiten literales). `setdefault`: un entorno que ya la
+    declare, o que la retire a proposito, manda. El producto no se relaja: la
+    excepcion solo existe en el proceso del instrumento.
+    """
+    from app import service_identity
+
+    ss = service_identity.service_state()
+    os.environ.setdefault(ss.VALIDATION_EXCEPTION_ENV, ss.VALIDATION_EXCEPTION_VALUE)
 
 
 def load_real_app(repo: Path):

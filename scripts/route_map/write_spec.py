@@ -158,6 +158,15 @@ def bootstrap(repo: Path) -> None:
     # aunque el árbol auditado sea una copia. Un instrumento que escribe en lo
     # que mide invalida su propia medida. Se apunta a un temporal.
     os.environ.setdefault("S9K_HEALTH_REPORT_PATH", str(tmp / "health_report.json"))
+    # H-06 + H-08: la espec no corre como `s9knowledge` sobre un state root real.
+    # Sin la excepcion EXPLICITA de tests/laboratorio, el `startup` del visor
+    # (`service_state.enforce("viewer")`, fail-closed) aborta con
+    # `ServiceStateError` y la espec no llega a inspeccionar nada. Nombre y valor
+    # salen de la autoridad, igual que en el `conftest.py` raiz y en el censo.
+    from app import service_identity
+
+    ss = service_identity.service_state()
+    os.environ.setdefault(ss.VALIDATION_EXCEPTION_ENV, ss.VALIDATION_EXCEPTION_VALUE)
 
 
 def cargar_app(repo: Path):

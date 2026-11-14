@@ -1173,6 +1173,12 @@ revertir_worker() {
 #   Necesita validate_deploy.sh cargado (deploy.sh lo carga).
 # ---------------------------------------------------------------------------
 S9K_ROLLBACK_RESULTADO="sin release previa: no hay rollback posible"
+# SC2034 (shellcheck 0.11.0, CI): S9K_ROLLBACK_RESULTADO es una SALIDA de esta
+# biblioteca; la lee quien hace `source` (deploy.sh, en los cuatro
+# `die "...; ${S9K_ROLLBACK_RESULTADO}"`) y shellcheck no sigue ese uso entre
+# ficheros. No se `export`a: no tiene por que llegar al entorno de systemctl ni
+# de ningun hijo. La directiva cubre solo esta funcion.
+# shellcheck disable=SC2034
 rollback_permitido() {
     local prev="${1:-}"
     if [ -z "${prev}" ] || [ ! -d "${prev}" ]; then
