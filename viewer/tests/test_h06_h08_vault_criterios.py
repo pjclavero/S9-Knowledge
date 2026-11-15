@@ -27,7 +27,6 @@ from test_admin_label_6b2 import WS, _cliente, _csrf, _perfil_path, entorno  # n
 
 EUID = os.geteuid()
 RAIZ = Path(__file__).resolve().parents[2]
-NO_ROOT = pytest.mark.skipif(EUID == 0, reason="root ignora los permisos: el caso real va a VM112 (H)")
 
 
 def _post(c, tok, fp, label="Nombre nuevo"):
@@ -120,7 +119,7 @@ def test_V7_AVAILABLE_carpeta_de_juego_sin_perfil_aun_pero_escribible(boveda):
     assert _vault(boveda).details["vault"] == checks.VAULT_AVAILABLE
 
 
-@NO_ROOT
+@pytest.mark.skipif(EUID == 0, reason="root ignora los permisos: el caso real va a VM112 (H)")
 @pytest.mark.parametrize("que", ["perfil", "carpeta"])
 def test_V7_READ_ONLY_existe_y_legible_pero_no_escribible(boveda, que):
     from app.health import checks
@@ -137,7 +136,7 @@ def test_V7_READ_ONLY_existe_y_legible_pero_no_escribible(boveda, que):
     assert r.status == HealthStatus.DEGRADED and "no es escribible" in r.message, r.message
 
 
-@NO_ROOT
+@pytest.mark.skipif(EUID == 0, reason="root ignora los permisos: el caso real va a VM112 (H)")
 def test_V7_UNAVAILABLE_raiz_ilegible(boveda):
     from app.health import checks
 
@@ -165,7 +164,7 @@ def test_V7_UNAVAILABLE_sin_montaje_exigido(boveda):
     assert r.details["vault"] == checks.VAULT_UNAVAILABLE and "MOUNT_MISSING" in r.message, r.message
 
 
-@NO_ROOT
+@pytest.mark.skipif(EUID == 0, reason="root ignora los permisos: el caso real va a VM112 (H)")
 @pytest.mark.parametrize("caso", ["no_configurada", "inexistente", "read_only"])
 def test_V7_la_boveda_no_pone_UNHEALTHY_la_salud_global(boveda, caso, tmp_path):
     """Dependencia OPCIONAL: READ_ONLY/UNAVAILABLE nunca hacen UNHEALTHY el informe global."""
@@ -208,7 +207,7 @@ def _estado_ok_o_fail(monkeypatch, fail: bool):
     return checks.check_state_validation(["s9-knowledge-viewer.service"])
 
 
-@NO_ROOT
+@pytest.mark.skipif(EUID == 0, reason="root ignora los permisos: el caso real va a VM112 (H)")
 @pytest.mark.parametrize("state_fail,vault_ro", [(True, False), (False, True), (True, True), (False, False)])
 def test_V7_STATE_y_VAULT_son_independientes(monkeypatch, boveda, state_fail, vault_ro):
     from app.health import checks
@@ -257,7 +256,7 @@ def test_V7_la_comprobacion_de_la_boveda_es_de_solo_lectura(boveda):
 # Criterio 8 · control negativo POR EFECTO de chmod/chown/root
 # ---------------------------------------------------------------------------
 
-@NO_ROOT
+@pytest.mark.skipif(EUID == 0, reason="root ignora los permisos: el caso real va a VM112 (H)")
 @pytest.mark.parametrize("caso", ["escribible", "perfil_0444", "carpeta_0555", "perfil_0400"])
 def test_V8_tras_cada_caso_la_boveda_conserva_dueno_grupo_modo_e_inodo(entorno, caso):  # noqa: F811
     """La aplicacion jamas hace chmod/chown de la boveda (ni de la raiz, ni de la carpeta, ni del

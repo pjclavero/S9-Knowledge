@@ -159,8 +159,20 @@ sudo find "${HERMANA}" -type d -exec chmod 2775 {} +
 sudo find "${HERMANA}" -type f -exec chmod 0664 {} +
 FOTO7="$(foto_boveda "${HERMANA}")"
 sudo cp -a "${ENVF}" "${ENVF}.h7-orig"
+# Si algo falla a partir de aqui, el viewer.env del laboratorio vuelve a su contenido y los
+# servicios se arrancan (no se deja la instalacion con la boveda hermana declarada ni parada).
+h7_restaurar() {
+    sudo test -e "${ENVF}.h7-orig" && sudo cp -a "${ENVF}.h7-orig" "${ENVF}" && sudo rm -f "${ENVF}.h7-orig"
+    sudo test -d "${STATE}" || { sudo test -d "${COPIA7}" && sudo cp -a "${COPIA7}" "${STATE}"; }
+    sudo systemctl start s9-knowledge-viewer.service s9-knowledge-worker.service || true
+}
+trap h7_restaurar EXIT   # tambien cubre lab_fail (exit 1), no solo errores
 printf 'S9K_VAULT_ROOT=%s\nS9K_VAULT_REQUIRE_MOUNT=0\n' "${HERMANA}" | sudo tee -a "${ENVF}" >/dev/null
-sudo systemctl stop s9-knowledge-healthcheck.timer s9-knowledge-viewer.service s9-knowledge-worker.service
+# el timer del healthcheck solo existe si lo instalo el rol Ansible: se para si esta cargado
+sudo systemctl stop s9-knowledge-healthcheck.timer 2>/dev/null || true
+sudo systemctl stop s9-knowledge-viewer.service s9-knowledge-worker.service
+lab_assert "H.7 visor y worker PARADOS antes de borrar el state root" bash -c \
+    "! systemctl is-active --quiet s9-knowledge-viewer.service && ! systemctl is-active --quiet s9-knowledge-worker.service"
 sudo rm -rf "${COPIA7}"
 sudo cp -a "${STATE}" "${COPIA7}"
 sudo rm -rf "${STATE}"
@@ -169,7 +181,6 @@ lab_assert "H.7 borrar el state root no altero la boveda hermana" igual "$(foto_
 sudo cp -a "${COPIA7}" "${STATE}"
 if ! lab_deploy upgrade > "${LAB_BASE}/h7-deploy.log" 2>&1; then
     tail -40 "${LAB_BASE}/h7-deploy.log" >&2
-    sudo cp -a "${ENVF}.h7-orig" "${ENVF}"
     lab_fail "H.7 el despliegue sobre el state root RESTAURADO fallo (con la boveda hermana declarada)"
 fi
 lab_assert "H.7 tras restaurar + desplegar: visor y worker como s9knowledge" lab_procesos_como_servicio
@@ -201,6 +212,7 @@ S4="$(salud "${HERMANA}-no-existe")"; lab_log "H.8 inexistente -> ${S4}"
 lab_assert "H.8 S9K_VAULT_ROOT inexistente: VAULT UNAVAILABLE y no se crea" bash -c "printf '%s' '${S4}' | grep -q UNAVAILABLE && ! sudo test -e '${HERMANA}-no-existe'"
 lab_assert "H.8 con la boveda ilegible el visor sigue activo (dependencia opcional)" bash -c \
     "sudo systemctl restart s9-knowledge-viewer.service && sleep 5 && systemctl is-active --quiet s9-knowledge-viewer.service"
+trap - EXIT
 sudo cp -a "${ENVF}.h7-orig" "${ENVF}"
 sudo rm -f "${ENVF}.h7-orig"
 sudo rm -rf "${HERMANA}" "${COPIA7}"
