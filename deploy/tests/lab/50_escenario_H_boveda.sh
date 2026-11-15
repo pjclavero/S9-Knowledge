@@ -6,6 +6,10 @@
 # (directorio root:root 0755 y perfil root:root 0600) -> error CONTROLADO, perfil INTACTO por
 # hash/inodo/modo/propietario, sin chmod/chown de la aplicacion, sin copia bajo el state root, y el
 # visor sigue ARRANCADO (la boveda opcional no impide arrancar).
+# H.7 (criterio 5 del operador): con una boveda HERMANA del state root declarada en viewer.env, se
+# BORRA el state root, se RESTAURA de una copia y se re-despliega: la boveda queda identica (hash,
+# inodo, dueño, grupo y modo). H.8 (criterio 7): el componente de salud `vault` como s9knowledge dice
+# AVAILABLE / READ_ONLY / UNAVAILABLE sin tocar la boveda y sin poner UNHEALTHY la salud.
 #
 # Pre: instalacion funcional (escenario A). Usa el escritor REAL (`h_vault_probe.py`) como el
 # usuario de servicio con `runuser`.
@@ -137,6 +141,69 @@ R6="$(sonda "${CARPETA}" "Nombre H6")"
 lab_assert "H.6 la escritura funciona" bash -c "printf '%s' '${R6}' | grep -q OK"
 lab_assert "H.6 el efimero del operador SIGUE ahi (la limpieza solo borra lo de s9knowledge)" sudo test -e "${CARPETA}/${AJENO}"
 sudo rm -f "${CARPETA}/${AJENO}"
+
+lab_log "H.7 (criterio 5) BORRAR y RESTAURAR el STATE ROOT con una boveda HERMANA declarada: la boveda no cambia"
+HERMANA=/var/lib/s9-knowledge-boveda-h7
+COPIA7="${LAB_BASE}/state-h7-copia"
+ENVF=/etc/s9-knowledge/viewer.env
+lab_registrar "dir ${HERMANA} (boveda HERMANA del state root, H.7/H.8; se retira al final)"
+lab_registrar "dir ${COPIA7} (copia del state root para el restore de H.7; se retira al final)"
+foto_boveda() {
+    sudo find "$1" -printf '%P %i %U:%G %m %y\n' | sort
+    sudo find "$1" -type f -exec sha256sum {} + | sed "s|$1||" | sort
+}
+sudo rm -rf "${HERMANA}"
+sudo cp -a "${VAULT}" "${HERMANA}"
+sudo chown -R "${TERCERO}:s9knowledge" "${HERMANA}"
+sudo find "${HERMANA}" -type d -exec chmod 2775 {} +
+sudo find "${HERMANA}" -type f -exec chmod 0664 {} +
+FOTO7="$(foto_boveda "${HERMANA}")"
+sudo cp -a "${ENVF}" "${ENVF}.h7-orig"
+printf 'S9K_VAULT_ROOT=%s\nS9K_VAULT_REQUIRE_MOUNT=0\n' "${HERMANA}" | sudo tee -a "${ENVF}" >/dev/null
+sudo systemctl stop s9-knowledge-healthcheck.timer s9-knowledge-viewer.service s9-knowledge-worker.service
+sudo rm -rf "${COPIA7}"
+sudo cp -a "${STATE}" "${COPIA7}"
+sudo rm -rf "${STATE}"
+lab_assert "H.7 el state root se borro de verdad" bash -c "! sudo test -e '${STATE}'"
+lab_assert "H.7 borrar el state root no altero la boveda hermana" igual "$(foto_boveda "${HERMANA}")" "${FOTO7}"
+sudo cp -a "${COPIA7}" "${STATE}"
+if ! lab_deploy upgrade > "${LAB_BASE}/h7-deploy.log" 2>&1; then
+    tail -40 "${LAB_BASE}/h7-deploy.log" >&2
+    sudo cp -a "${ENVF}.h7-orig" "${ENVF}"
+    lab_fail "H.7 el despliegue sobre el state root RESTAURADO fallo (con la boveda hermana declarada)"
+fi
+lab_assert "H.7 tras restaurar + desplegar: visor y worker como s9knowledge" lab_procesos_como_servicio
+lab_assert "H.7 tras restaurar + desplegar: estado interno conforme" lab_estado_conforme
+lab_assert "H.7 la boveda hermana IDENTICA tras restaurar el state root y migrar (hash, inodo, dueño, grupo, modo)" \
+    igual "$(foto_boveda "${HERMANA}")" "${FOTO7}"
+lab_assert "H.7 nada de la boveda bajo el state root" sin_copias_bajo_state
+
+lab_log "H.8 (criterio 7) salud de la boveda como s9knowledge: AVAILABLE / READ_ONLY / UNAVAILABLE, de solo lectura"
+salud() { sudo runuser -u s9knowledge -- "${PY}" "${HERE}/h_vault_health.py" "${LAB_REPO}" "$1" 0; }
+vault_es() { [ "$(printf '%s' "$1" | "${PY}" -c 'import json,sys; print(json.load(sys.stdin)["vault"])')" = "$2" ]; }
+nunca_unhealthy() { ! printf '%s' "$1" | grep -q '"status": "UNHEALTHY"'; }
+S1="$(salud "${HERMANA}")"; lab_log "H.8 escribible -> ${S1}"
+lab_assert "H.8 grupo s9knowledge 2775/0664: VAULT AVAILABLE" vault_es "${S1}" AVAILABLE
+lab_assert "H.8 la sonda no creo nada (foto identica)" igual "$(foto_boveda "${HERMANA}")" "${FOTO7}"
+sudo chown -R root:root "${HERMANA}"
+sudo find "${HERMANA}" -type d -exec chmod 0755 {} +
+sudo find "${HERMANA}" -type f -exec chmod 0644 {} +
+FOTO8="$(foto_boveda "${HERMANA}")"
+S2="$(salud "${HERMANA}")"; lab_log "H.8 root:root 0755/0644 -> ${S2}"
+lab_assert "H.8 root:root legible y no escribible: VAULT READ_ONLY" vault_es "${S2}" READ_ONLY
+lab_assert "H.8 READ_ONLY no es UNHEALTHY" nunca_unhealthy "${S2}"
+lab_assert "H.8 la sonda no repara permisos (foto identica)" igual "$(foto_boveda "${HERMANA}")" "${FOTO8}"
+sudo chmod 0700 "${HERMANA}"
+S3="$(salud "${HERMANA}")"; lab_log "H.8 raiz root 0700 -> ${S3}"
+lab_assert "H.8 raiz ilegible para s9knowledge: VAULT UNAVAILABLE" vault_es "${S3}" UNAVAILABLE
+lab_assert "H.8 UNAVAILABLE no es UNHEALTHY" nunca_unhealthy "${S3}"
+S4="$(salud "${HERMANA}-no-existe")"; lab_log "H.8 inexistente -> ${S4}"
+lab_assert "H.8 S9K_VAULT_ROOT inexistente: VAULT UNAVAILABLE y no se crea" bash -c "printf '%s' '${S4}' | grep -q UNAVAILABLE && ! sudo test -e '${HERMANA}-no-existe'"
+lab_assert "H.8 con la boveda ilegible el visor sigue activo (dependencia opcional)" bash -c \
+    "sudo systemctl restart s9-knowledge-viewer.service && sleep 5 && systemctl is-active --quiet s9-knowledge-viewer.service"
+sudo cp -a "${ENVF}.h7-orig" "${ENVF}"
+sudo rm -f "${ENVF}.h7-orig"
+sudo rm -rf "${HERMANA}" "${COPIA7}"
 
 lab_log "H.3 el visor sigue ARRANCADO con una boveda opcional no escribible"
 sudo systemctl restart s9-knowledge-viewer.service

@@ -60,6 +60,9 @@ COMMITEADO (la restauración escribe sobre el fichero). `--solo-aplicar` comprue
 SOLO que las anclas (45) se aplican (sin ejecutar pytest): es lo único que se
 ejecuta en la máquina de orquestación.
 
+CRITERIOS DEL OPERADOR (bóveda externa, 2026-11-15): M56–M60, testigos
+viewer/tests/test_h06_h08_vault_criterios.py y deploy/tests/test_h06_h08_vault_state.py.
+
 TECHO: no ejerce systemd ni root reales; muta por sustitución de texto exacto y no
 ve una segunda copia de la lógica fuera del fichero mutado.
 
@@ -90,7 +93,9 @@ T_CLI = "deploy/tests/test_h06_h08_cli_root.py"
 T_R2 = "deploy/tests/test_h06_h08_ronda2_contrato.py"
 T_VAULT = "viewer/tests/test_h06_h08_vault_no_escribible.py"
 T_RESP = "viewer/tests/test_h06_h08_vault_respaldo.py"
-TESTIGOS = [T_DEPLOY, T_INV, T_C1, T_DE, T_VIEWER, T_CLI, T_R2, T_VAULT, T_RESP]
+T_CRIT = "viewer/tests/test_h06_h08_vault_criterios.py"
+T_VSTATE = "deploy/tests/test_h06_h08_vault_state.py"
+TESTIGOS = [T_DEPLOY, T_INV, T_C1, T_DE, T_VIEWER, T_CLI, T_R2, T_VAULT, T_RESP, T_CRIT, T_VSTATE]
 
 U_VISOR = "viewer/systemd/s9-knowledge-viewer.service"
 U_WORKER = "data-engine/systemd/s9-knowledge-worker.service"
@@ -528,6 +533,44 @@ def _m55_no_reintenta_la_restauracion(t):
                             "              or False):\n")
 
 
+# ---- criterios del operador para la boveda externa (2026-11-15) -------------
+def _m56_read_only_como_available(t):
+    return mutar_en_funcion(
+        t, "_estado_carpeta_de_juego",
+        '        return VAULT_READ_ONLY, "%s no es escribible por el usuario del proceso" % nombre_perfil\n',
+        '        return VAULT_AVAILABLE, "%s no es escribible por el usuario del proceso" % nombre_perfil\n')
+
+
+def _m57_unavailable_tumba_la_salud(t):
+    return mutar_en_funcion(t, "check_vault", "        status = HealthStatus.DEGRADED\n",
+                            "        status = HealthStatus.UNHEALTHY\n")
+
+
+def _m58_boveda_como_ruta_de_estado(t):
+    return mutar_unico(t, '    "S9K_EXTERNAL_AI_CACHE_DIR": ("dir", "external_ai_cache"),\n}\n',
+                       '    "S9K_EXTERNAL_AI_CACHE_DIR": ("dir", "external_ai_cache"),\n'
+                       '    "S9K_VAULT_ROOT": ("dir", "vault"),\n}\n')
+
+
+def _m59_backup_no_declara_la_boveda(t):
+    return mutar_en_funcion_bash(t, "copiar",
+                                 '        echo "boveda_externa=NO_INCLUIDA (S9K_VAULT_ROOT es contenido del '
+                                 'operador; su copia es del administrador)"\n', "")
+
+
+def _m60_la_aplicacion_repara_la_carpeta(t):
+    return mutar_en_funcion(t, "_preparar_escritura", "    limpiar_efimeros_huerfanos(ruta.parent)\n",
+                            "    os.chmod(str(ruta.parent), 0o777)\n    limpiar_efimeros_huerfanos(ruta.parent)\n")
+
+
+def mutar_en_funcion_bash(texto: str, nombre: str, viejo: str, nuevo: str):
+    """Como `mutar_unico`, pero el ancla tiene que ser UNICA y estar DENTRO de `nombre() {...}`."""
+    m = re.search(r"^%s\(\) \{\n.*?^\}\n" % re.escape(nombre), texto, re.S | re.M)
+    if not m or texto.count(viejo) != 1 or m.group(0).count(viejo) != 1:
+        return None
+    return texto[:m.start()] + m.group(0).replace(viejo, nuevo) + texto[m.end():]
+
+
 def _m51_lost_found_cualquiera(t):
     return mutar_en_funcion(
         t, "es_lost_found_del_fs",
@@ -713,6 +756,26 @@ MUTACIONES = [
     ("M55 — (H-R2b-1) un corte DURANTE la restauracion deja la boveda en 409 permanente",
      VAULT_WRITER, _m55_no_reintenta_la_restauracion, T_RESP,
      {"test_H_R2b_1_un_SIGKILL_DURANTE_la_restauracion_no_deja_la_boveda_en_409_permanente": "H-R2b-1: 409 PERMANENTE"}),
+    # ---- criterios del operador para la boveda externa (2026-11-15) -------------
+    ("M56 — (criterio 7) VAULT READ_ONLY se reporta como AVAILABLE",
+     HEALTH_CHECKS, _m56_read_only_como_available, T_CRIT,
+     {"test_V7_READ_ONLY_existe_y_legible_pero_no_escribible[perfil]": "V7: READ_ONLY REPORTADO COMO AVAILABLE",
+      "test_V7_STATE_y_VAULT_son_independientes[False-True]": "AVAILABLE"}),
+    ("M57 — (criterio 7) VAULT UNAVAILABLE/READ_ONLY tumba la salud global (UNHEALTHY)",
+     HEALTH_CHECKS, _m57_unavailable_tumba_la_salud, T_CRIT,
+     {"test_V7_la_boveda_no_pone_UNHEALTHY_la_salud_global[inexistente]": "V7: LA BOVEDA TUMBA LA SALUD GLOBAL",
+      "test_V7_la_boveda_no_pone_UNHEALTHY_la_salud_global[read_only]": "V7: LA BOVEDA TUMBA LA SALUD GLOBAL"}),
+    ("M58 — (criterio 5) la boveda pasa a ser una ruta de estado de la autoridad",
+     SERVICE_STATE, _m58_boveda_como_ruta_de_estado, T_VSTATE,
+     {"test_V5_la_boveda_no_es_una_ruta_de_estado_de_la_autoridad": "V5: LA BOVEDA ES RUTA DE ESTADO"}),
+    ("M59 — (criterio 6) la copia deja de declarar que NO incluye la boveda",
+     "deploy/propuestas/backup-automatico/backup.sh", _m59_backup_no_declara_la_boveda, T_VSTATE,
+     {"test_V6_la_propuesta_de_backup_lo_declara_y_no_lee_la_boveda": "V6: LOS METADATOS DE LA COPIA NO LO DICEN"}),
+    ("M60 — (criterio 8) la aplicacion «repara» la carpeta de la boveda (chmod)",
+     VAULT_WRITER, _m60_la_aplicacion_repara_la_carpeta, T_CRIT,
+     {"test_V8_tras_cada_caso_la_boveda_conserva_dueno_grupo_modo_e_inodo[escribible]":
+      "V8: LA APLICACION CAMBIO PERMISOS",
+      "test_V8_el_escritor_de_la_boveda_no_tiene_camino_hacia_root": "chmod"}),
 ]
 
 

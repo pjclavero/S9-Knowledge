@@ -456,7 +456,7 @@ Cinco categorías, y todo lo persistente pertenece a UNA:
 | **SECRET** | password Neo4j (`/etc/s9-knowledge/secrets/*`), `viewer.env`/`worker.env` | NO se mueven al state root. `/etc/s9-knowledge` `root:s9knowledge 0710` (el grupo atraviesa, no lista), `secrets/` `0750`, ficheros `root:s9knowledge 0640` o más restrictivo: **el servicio lee y NO escribe** (lo fija `preparar_secretos_del_servicio` y lo verifica POR EFECTO `secret-probe` con `runuser`). `viewer.env`/`worker.env` siguen `root 0600` (los lee systemd) |
 | **RELEASE** | releases (código, venvs, templates) | `root`, inmutable para el servicio |
 | **EXTERNAL OPERATOR CONTENT** | `S9K_VAULT_ROOT`, `perfil-operador.json`, contenido del operador | fuera del state root; escribe solo si el FS ya concede permiso; sin `chown`/`chmod`, sin fallback ni copia bajo STATE |
-| **BACKUP** | copias operativas | raíz SEPARADA (`/var/backups/s9-knowledge`, `root:s9knowledge 0750`; `S9K_BACKUP_DIR`), **nunca dentro del state root**: `validate-env` y `preparar_raiz_de_backups` lo rechazan; un `<state>/backups` con contenido PARA la migración (`BACKUP_EN_STATE`). Un restore vuelve a estado canónico re-ejecutando `migrar_estado.py` (owner/modos); no se rediseña el backup |
+| **BACKUP** | copias operativas | raíz SEPARADA (`/var/backups/s9-knowledge`, `root:s9knowledge 0750`; `S9K_BACKUP_DIR`), **nunca dentro del state root**: `validate-env` y `preparar_raiz_de_backups` lo rechazan; un `<state>/backups` con contenido PARA la migración (`BACKUP_EN_STATE`). Un restore vuelve a estado canónico re-ejecutando `migrar_estado.py` (owner/modos); no se rediseña el backup. El backup/restore del STATE ROOT NO contiene la bóveda externa (`S9K_VAULT_ROOT`): es contenido del operador y respaldarla es responsabilidad del administrador |
 
 Se **eliminó** la copia del secreto a `/run` (unidades más simples, una pieza menos).
 
@@ -494,6 +494,39 @@ el operador decide (409). Un corte DURANTE esa restauración deja un prefijo est
 ORIGINAL: también se reconoce como resto de S9K y la restauración se reintenta (verificando el
 sha al final), sin quedar en 409 permanente (H-R2b-1). Un manifiesto de partida NUEVO nace `0600` (no hay original del que
 heredar).
+
+### Bóveda externa: responsabilidad del administrador
+
+La bóveda (`S9K_VAULT_ROOT`) y su `perfil-operador.json` son **contenido del operador**
+(EXTERNAL OPERATOR CONTENT, decisión cerrada). S9-Knowledge la usa, **no la administra**:
+
+- **Quién prepara los permisos: el ADMINISTRADOR**, antes de que el servicio la use. Para que el
+  visor pueda guardar el nombre humano de una partida, `s9knowledge` necesita permiso EFECTIVO de
+  escritura sobre `perfil-operador.json` **y** sobre su carpeta (el reemplazo atómico del perfil
+  propio y el respaldo del perfil ajeno se crean en esa carpeta). Dos formas válidas, a elegir:
+  dueño `s9knowledge` (p. ej. `s9knowledge:s9knowledge`, carpeta `0755`, perfil `0644`), o dueño
+  del operador con el grupo del servicio (`operador:s9knowledge`, carpeta `2775`, perfil `0664`).
+  Una bóveda que solo se lee necesita lectura y travesía (`r-x` en directorios, `r--` en ficheros).
+- **Qué ocurre si no:** la edición responde **409** «perfil-operador.json no es escribible por el
+  usuario s9knowledge: …» sin cambios parciales (mismo contenido, inodo, dueño y modo); el
+  componente de salud `vault` dice **VAULT READ_ONLY** (existe y se lee, no se puede escribir) o
+  **VAULT UNAVAILABLE** con el motivo (no configurada, inexistente —`S9K_VAULT_ROOT` declarada y
+  ausente: 404 «No se encontró la bóveda…», el catálogo la declara ausente y **no se crea ningún
+  árbol**—, sin montaje exigido o ilegible). Es una dependencia **opcional**: READ_ONLY o
+  UNAVAILABLE dejan `vault` en DEGRADED (o HEALTHY informativo si no está configurada), **nunca**
+  UNHEALTHY, y **no impiden arrancar** (la comprobación de arranque solo mira el STATE ROOT, que
+  se informa aparte en `state_validation`: STATE OK / FAIL).
+- **S9-Knowledge NUNCA repara permisos de la bóveda**: no hace `chown`/`chmod`, no corre como root
+  ni usa `sudo` para escribirla, no la mueve, no la crea si falta, no guarda el perfil en otro
+  sitio ni cae al STATE ROOT. La comprobación de salud es de solo lectura (`stat`/`os.access`, sin
+  ficheros de sonda).
+- **Fuera del STATE ROOT, también para el despliegue:** la migración, la comprobación de arranque
+  e `inspect_state` no recorren ni tocan `S9K_VAULT_ROOT` aunque sea una ruta hermana del state
+  root; borrar, restaurar o recrear el STATE ROOT no la altera. El backup/restore del STATE ROOT NO
+  contiene la bóveda externa (`S9K_VAULT_ROOT`): su copia es responsabilidad del administrador.
+
+Lo fijan `viewer/tests/test_h06_h08_vault_criterios.py`, `deploy/tests/test_h06_h08_vault_state.py`
+y el escenario H de VM112 (H.7 y H.8).
 
 ### Rollback: qué pasa con la unidad y el dueño
 

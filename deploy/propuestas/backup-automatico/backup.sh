@@ -9,6 +9,10 @@
 #   - publicacion ATOMICA: se construye en .tmp-<id> y se renombra al final
 #   - retencion aplicada SOLO despues de publicar y verificar la copia nueva
 #
+# NO incluye la bóveda externa (S9K_VAULT_ROOT): es contenido del operador, fuera del
+# state root, y su copia es responsabilidad del administrador. Cada copia lo declara en
+# meta/despliegue.txt (boveda_externa=NO_INCLUIDA).
+#
 # No para servicios, no migra, no compacta, no cambia flags, no rota secretos y
 # no escribe en Neo4j. Escribe unicamente dentro de $DEST.
 set -Eeuo pipefail
@@ -103,6 +107,7 @@ copiar() {
         echo "neo4j=$(docker exec "${NEO4J_CONTAINER}" /var/lib/neo4j/bin/neo4j --version)"
         echo "sqlite=$(sqlite3 --version | cut -d' ' -f1)"
         echo "host=$(hostname)"
+        echo "boveda_externa=NO_INCLUIDA (S9K_VAULT_ROOT es contenido del operador; su copia es del administrador)"
     } > "${TMP}/meta/despliegue.txt"
 
     sqlite3 "${TMP}/sqlite/auth.db" '.schema' > "${TMP}/meta/auth-schema.sql"

@@ -552,6 +552,114 @@ def check_backups(backup_root: Optional[str] = None,
 # systemd: servicios activos (no reinicia)
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Boveda externa (H-06/H-08, criterio 7 del operador): EXTERNAL OPERATOR CONTENT
+# ---------------------------------------------------------------------------
+#: Estados de la boveda. Es una dependencia OPCIONAL: READ_ONLY y UNAVAILABLE se
+#: informan (DEGRADED como mucho) y NUNCA ponen UNHEALTHY la salud global ni
+#: bloquean el arranque (la comprobacion de arranque solo mira el STATE ROOT).
+VAULT_AVAILABLE = "AVAILABLE"
+VAULT_READ_ONLY = "READ_ONLY"
+VAULT_UNAVAILABLE = "UNAVAILABLE"
+_VAULT_ORDEN = {VAULT_AVAILABLE: 0, VAULT_READ_ONLY: 1, VAULT_UNAVAILABLE: 2}
+
+
+def _acceso(p: Path, modo: int) -> bool:
+    """Permiso EFECTIVO por `os.access` (sin abrir ni crear nada en la boveda)."""
+    try:
+        if os.access in os.supports_effective_ids:
+            return os.access(str(p), modo, effective_ids=True)
+        return os.access(str(p), modo)
+    except OSError:
+        return False
+
+
+def _estado_carpeta_de_juego(carpeta: Path, nombre_perfil: str) -> tuple:
+    """(estado, motivo) de UNA carpeta de juego: el perfil si existe; si no, la carpeta.
+
+    Escribir el perfil exige la carpeta escribible (reemplazo atomico del perfil propio o
+    respaldo del ajeno) Y el perfil escribible si ya existe: es la misma precondicion que
+    `vault_writer` comprueba antes de escribir.
+    """
+    perfil = carpeta / nombre_perfil
+    if os.path.islink(str(perfil)):
+        return VAULT_READ_ONLY, "el perfil es un enlace simbolico (el escritor lo rechaza)"
+    hay_perfil = os.path.lexists(str(perfil))
+    if not _acceso(carpeta, os.R_OK | os.X_OK) or (hay_perfil and not _acceso(perfil, os.R_OK)):
+        return VAULT_UNAVAILABLE, "ilegible por el usuario del proceso"
+    if not _acceso(carpeta, os.W_OK | os.X_OK):
+        return VAULT_READ_ONLY, "la carpeta no es escribible por el usuario del proceso"
+    if hay_perfil and not _acceso(perfil, os.W_OK):
+        return VAULT_READ_ONLY, "%s no es escribible por el usuario del proceso" % nombre_perfil
+    return VAULT_AVAILABLE, "escribible" if hay_perfil else "sin perfil aun; carpeta escribible"
+
+
+def check_vault(vault_root: Optional[str] = None,
+                require_mount: Optional[str] = None) -> ComponentResult:
+    """VAULT AVAILABLE / READ_ONLY / UNAVAILABLE (criterio 7). SOLO LECTURA.
+
+    - AVAILABLE: configurada, existe y cada perfil (o su carpeta si aun no hay perfil) es
+      escribible por permiso EFECTIVO. -> HEALTHY.
+    - READ_ONLY: existe y es legible, pero algun perfil/carpeta no es escribible. -> DEGRADED.
+    - UNAVAILABLE: no configurada, inexistente, sin montaje exigido o ilegible (con el
+      motivo). Sin configurar -> HEALTHY informativo (la boveda es opcional); el resto ->
+      DEGRADED. Nunca UNHEALTHY: la boveda no participa en la salud del servicio.
+
+    No crea ficheros de sonda en la boveda (solo `stat`/`os.access`/`listdir` a traves de
+    `vault_mount.inspeccionar`, la misma frontera que usa el catalogo) y no repara nada:
+    S9-Knowledge NUNCA cambia permisos de la boveda; prepararlos es del administrador.
+    """
+    from app import sources_catalog, vault_mount  # noqa: PLC0415
+
+    nombre_perfil = sources_catalog.NOMBRE_PERFIL
+    raiz_txt = (vault_root or "").strip()
+    with _Timer() as t:
+        if not raiz_txt:
+            estado, motivo, carpetas, configurada = (
+                VAULT_UNAVAILABLE, "no configurada (%s sin declarar): dependencia opcional"
+                % sources_catalog.ENV_RAIZ_BOVEDAS, {}, False)
+        else:
+            configurada = True
+            carpetas: Dict[str, str] = {}
+            crudo = str(require_mount if require_mount is not None else "1").strip().lower()
+            exigir = crudo not in {"0", "false", "no", ""}
+            raiz = Path(raiz_txt)
+            montaje = vault_mount.inspeccionar(raiz, exigir_montaje=exigir)
+            if not montaje.utilizable:
+                estado, motivo = VAULT_UNAVAILABLE, "%s: %s" % (montaje.estado.value, montaje.detalle)
+            else:
+                juegos = []
+                for nombre in montaje.entradas or []:
+                    p = raiz / nombre
+                    if nombre.startswith(".") or os.path.islink(str(p)) or not p.is_dir():
+                        continue
+                    juegos.append(nombre)
+                if not juegos:
+                    if _acceso(raiz, os.W_OK | os.X_OK):
+                        estado, motivo = VAULT_AVAILABLE, "sin carpetas de juego; raiz escribible"
+                    else:
+                        estado, motivo = VAULT_READ_ONLY, "sin carpetas de juego; la raiz no es escribible"
+                else:
+                    estado, motivo = VAULT_AVAILABLE, "todos los perfiles escribibles"
+                    peores = []
+                    for nombre in juegos:
+                        e, m = _estado_carpeta_de_juego(raiz / nombre, nombre_perfil)
+                        carpetas[nombre] = "%s (%s)" % (e, m)
+                        if _VAULT_ORDEN[e] > _VAULT_ORDEN[estado]:
+                            estado, peores = e, []
+                        if e == estado and e != VAULT_AVAILABLE:
+                            peores.append("%s: %s" % (nombre, m))
+                    if peores:
+                        motivo = "; ".join(peores)
+    if estado == VAULT_AVAILABLE or not configurada:
+        status = HealthStatus.HEALTHY
+    else:
+        status = HealthStatus.DEGRADED
+    return _result("vault", status, "VAULT %s: %s" % (estado, motivo),
+                   {"vault": estado, "motivo": motivo, "configurada": configurada,
+                    "opcional": True, "carpetas": carpetas}, latency_ms=t.ms)
+
+
 def check_systemd(units: Optional[List[str]] = None) -> ComponentResult:
     units = units or ["s9-knowledge-viewer.service"]
     if not shutil.which("systemctl"):
@@ -626,12 +734,12 @@ def check_state_validation(units: Optional[List[str]] = None) -> ComponentResult
                         hallazgos.append("%s: el proceso vivo %s tiene %s" % (u, pid, v))
     if hallazgos:
         return _result("state_validation", HealthStatus.UNHEALTHY,
-                       "excepcion de tests en el entorno EFECTIVO: %s" % "; ".join(hallazgos),
-                       {"hallazgos": hallazgos}, latency_ms=t.ms)
+                       "STATE FAIL: excepcion de tests en el entorno EFECTIVO: %s" % "; ".join(hallazgos),
+                       {"state": "FAIL", "hallazgos": hallazgos}, latency_ms=t.ms)
     if no_medido:
         return _result("state_validation", HealthStatus.UNKNOWN,
-                       "no se pudo leer el entorno efectivo de: %s" % ", ".join(no_medido),
-                       {"no_medido": no_medido}, latency_ms=t.ms)
+                       "STATE UNKNOWN: no se pudo leer el entorno efectivo de: %s" % ", ".join(no_medido),
+                       {"state": "UNKNOWN", "no_medido": no_medido}, latency_ms=t.ms)
     return _result("state_validation", HealthStatus.HEALTHY,
-                   "sin excepcion de tests en el entorno efectivo", {"units": units},
-                   latency_ms=t.ms)
+                   "STATE OK: sin excepcion de tests en el entorno efectivo",
+                   {"state": "OK", "units": units}, latency_ms=t.ms)
