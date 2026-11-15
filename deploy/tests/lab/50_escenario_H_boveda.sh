@@ -217,6 +217,36 @@ sudo cp -a "${ENVF}.h7-orig" "${ENVF}"
 sudo rm -f "${ENVF}.h7-orig"
 sudo rm -rf "${HERMANA}" "${COPIA7}"
 
+lab_log "H.9 (B-1) la salud de la boveda DENTRO del sandbox real de la unidad del healthcheck"
+UNIDAD_SALUD="${LAB_REPO}/viewer/systemd/s9-knowledge-healthcheck.service"
+SANA=/srv/s9-test/h06h08-r2/boveda-b1
+lab_registrar "dir ${SANA} (boveda SANA s9knowledge 0700/0600 para H.9; se retira al final)"
+sudo rm -rf "${SANA}"
+sudo cp -a "${VAULT}" "${SANA}"
+sudo chown -R s9knowledge:s9knowledge "${SANA}"
+sudo find "${SANA}" -type d -exec chmod 0700 {} +
+sudo find "${SANA}" -type f -exec chmod 0600 {} +
+# Las propiedades de contencion se LEEN de la unidad canonica (no se copian a mano): las
+# que cambian lo que el proceso ve del FS y, aparte, su declaracion Environment=.
+mapfile -t SANDBOX < <(sed -n '/^\[Service\]/,/^\[/{s/^\(ProtectSystem\|ReadWritePaths\|ReadOnlyPaths\|ProtectHome\|PrivateTmp\|InaccessiblePaths\)=\(.*\)$/-p\n\1=\2/p}' "${UNIDAD_SALUD}")
+mapfile -t DECLARA < <(sed -n '/^\[Service\]/,/^\[/{s/^Environment=\(.*\)$/-p\nEnvironment=\1/p}' "${UNIDAD_SALUD}")
+lab_assert "H.9 la unidad canonica tiene sandbox de ficheros (ProtectSystem=strict leido)" \
+    bash -c "printf '%s\n' \"\$@\" | grep -qx 'ProtectSystem=strict'" _ "${SANDBOX[@]}"
+en_sandbox() {
+    sudo systemd-run --quiet --wait --pipe --collect --uid=s9knowledge --gid=s9knowledge \
+        "${SANDBOX[@]}" "$@" "${PY}" "${HERE}/h_vault_health.py" "${LAB_REPO}" "${SANA}" 0
+}
+FOTO9="$(foto_boveda "${SANA}")"
+S9FUERA="$(salud "${SANA}")"; lab_log "H.9 fuera del sandbox (runuser) -> ${S9FUERA}"
+lab_assert "H.9 fuera del sandbox la boveda sana es AVAILABLE" vault_es "${S9FUERA}" AVAILABLE
+S9ANTES="$(en_sandbox)"; lab_log "H.9 ANTES (sandbox real SIN la declaracion) -> ${S9ANTES}"
+lab_assert "H.9 sin la declaracion el sandbox reproduce el diagnostico FALSO (READ_ONLY)" vault_es "${S9ANTES}" READ_ONLY
+S9DESPUES="$(en_sandbox "${DECLARA[@]}")"; lab_log "H.9 DESPUES (sandbox real CON la declaracion de la unidad) -> ${S9DESPUES}"
+lab_assert "H.9 dentro del sandbox real la boveda sana NO es READ_ONLY ni UNAVAILABLE (NO_MEDIBLE)" vault_es "${S9DESPUES}" NO_MEDIBLE
+lab_assert "H.9 NO_MEDIBLE no degrada (HEALTHY)" bash -c "printf '%s' '${S9DESPUES}' | grep -q '\"status\": \"HEALTHY\"'"
+lab_assert "H.9 la sonda no toco la boveda (foto identica)" igual "$(foto_boveda "${SANA}")" "${FOTO9}"
+sudo rm -rf "${SANA}"
+
 lab_log "H.3 el visor sigue ARRANCADO con una boveda opcional no escribible"
 sudo systemctl restart s9-knowledge-viewer.service
 sleep 5

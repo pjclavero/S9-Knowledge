@@ -60,7 +60,7 @@ COMMITEADO (la restauración escribe sobre el fichero). `--solo-aplicar` comprue
 SOLO que las anclas (45) se aplican (sin ejecutar pytest): es lo único que se
 ejecuta en la máquina de orquestación.
 
-CRITERIOS DEL OPERADOR (bóveda externa, 2026-11-15): M56–M60, testigos
+CRITERIOS DEL OPERADOR (bóveda externa, 2026-11-15): M56–M62 (M61/M62 = B-1, sandbox del healthcheck), testigos
 viewer/tests/test_h06_h08_vault_criterios.py y deploy/tests/test_h06_h08_vault_state.py.
 
 TECHO: no ejerce systemd ni root reales; muta por sustitución de texto exacto y no
@@ -563,6 +563,16 @@ def _m60_la_aplicacion_repara_la_carpeta(t):
                             "    os.chmod(str(ruta.parent), 0o777)\n    limpiar_efimeros_huerfanos(ruta.parent)\n")
 
 
+def _m61_el_check_ignora_el_sandbox(t):
+    return mutar_en_funcion(t, "check_vault",
+                            "    if os.environ.get(VAULT_MEDICION_ENV) == VAULT_MEDICION_SANDBOX:\n",
+                            "    if False:\n")
+
+
+def _m62_la_unidad_no_declara_el_sandbox(t):
+    return mutar_unico(t, "Environment=S9K_HEALTH_VAULT_MEDICION=no-medible-sandbox\n", "")
+
+
 def mutar_en_funcion_bash(texto: str, nombre: str, viejo: str, nuevo: str):
     """Como `mutar_unico`, pero el ancla tiene que ser UNICA y estar DENTRO de `nombre() {...}`."""
     m = re.search(r"^%s\(\) \{\n.*?^\}\n" % re.escape(nombre), texto, re.S | re.M)
@@ -776,6 +786,17 @@ MUTACIONES = [
      {"test_V8_tras_cada_caso_la_boveda_conserva_dueno_grupo_modo_e_inodo[escribible]":
       "V8: LA APLICACION CAMBIO PERMISOS",
       "test_V8_el_escritor_de_la_boveda_no_tiene_camino_hacia_root": "chmod"}),
+    # ---- B-1 (revision acotada n.º 3): el healthcheck mide desde un sandbox ------
+    ("M61 — (B-1) el check de la boveda ignora la declaracion del sandbox (falso READ_ONLY)",
+     HEALTH_CHECKS, _m61_el_check_ignora_el_sandbox, T_CRIT,
+     {"test_B1_con_la_declaracion_del_sandbox_NUNCA_afirma_READ_ONLY_ni_UNAVAILABLE[perfil_0444]":
+      "B-1: FALSO READ_ONLY DESDE EL SANDBOX",
+      "test_B1_con_la_declaracion_del_sandbox_NUNCA_afirma_READ_ONLY_ni_UNAVAILABLE[inexistente]":
+      "B-1: FALSO UNAVAILABLE DESDE EL SANDBOX"}),
+    ("M62 — (B-1) la unidad del healthcheck tiene sandbox pero no lo declara",
+     U_HEALTH, _m62_la_unidad_no_declara_el_sandbox, T_CRIT,
+     {"test_B1_la_declaracion_va_atada_al_sandbox_de_la_unidad_canonica_y_el_visor_no_la_hereda":
+      "B-1: SANDBOX"}),
 ]
 
 

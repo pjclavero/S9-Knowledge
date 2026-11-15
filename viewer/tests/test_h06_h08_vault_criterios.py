@@ -314,3 +314,99 @@ def test_V8_el_escritor_de_la_boveda_no_tiene_camino_hacia_root():
     assert not (llamadas & identidad), llamadas & identidad
     for palabra in ("sudo", "runuser", "pkexec"):
         assert palabra not in fuente, palabra
+
+
+# ---------------------------------------------------------------------------
+# B-1 (revision acotada n.º 3): el healthcheck periodico mide desde un SANDBOX
+# ---------------------------------------------------------------------------
+UNIDADES = RAIZ / "viewer" / "systemd"
+U_SALUD = UNIDADES / "s9-knowledge-healthcheck.service"
+U_VISOR = UNIDADES / "s9-knowledge-viewer.service"
+
+
+def _servicio(unidad: Path) -> list:
+    """Pares (clave, valor) de la seccion [Service], en orden y con repeticiones."""
+    pares, en_servicio = [], False
+    for linea in unidad.read_text(encoding="utf-8").splitlines():
+        s = linea.strip()
+        if s.startswith("["):
+            en_servicio = s == "[Service]"
+            continue
+        if en_servicio and s and not s.startswith(("#", ";")) and "=" in s:
+            k, v = s.split("=", 1)
+            pares.append((k.strip(), v.strip()))
+    return pares
+
+
+def _con_sandbox_de_ficheros(pares) -> list:
+    """Directivas que cambian lo que el proceso VE del sistema de ficheros."""
+    vistas = []
+    for k, v in pares:
+        if k == "ProtectSystem" and v.lower() not in ("", "no", "false", "0"):
+            vistas.append("%s=%s" % (k, v))
+        elif k == "ProtectHome" and v.lower() not in ("", "no", "false", "0"):
+            vistas.append("%s=%s" % (k, v))
+        elif k in ("ReadOnlyPaths", "InaccessiblePaths", "TemporaryFileSystem", "BindReadOnlyPaths") and v:
+            vistas.append("%s=%s" % (k, v))
+    return vistas
+
+
+@pytest.mark.parametrize("como", ["perfil_0444", "inexistente", "sana"])
+def test_B1_con_la_declaracion_del_sandbox_NUNCA_afirma_READ_ONLY_ni_UNAVAILABLE(boveda, monkeypatch, tmp_path, como):
+    """Dentro del sandbox del healthcheck la boveda se ve read-only aunque el visor la escriba:
+    con la declaracion de la unidad el check NO mide, lo dice y no degrada."""
+    from app.health import checks
+    from app.health.models import HealthStatus
+
+    monkeypatch.setenv(checks.VAULT_MEDICION_ENV, checks.VAULT_MEDICION_SANDBOX)
+    perfil = boveda / "l5r" / "perfil-operador.json"
+    raiz = str(tmp_path / "no-existe") if como == "inexistente" else str(boveda)
+    if como == "perfil_0444":
+        perfil.chmod(0o444)
+    antes = _arbol(boveda)
+    try:
+        r = checks.check_vault(raiz, "0")
+        despues = _arbol(boveda)
+    finally:
+        perfil.chmod(0o644)
+    assert r.details["vault"] == checks.VAULT_NO_MEDIBLE, "B-1: FALSO %s DESDE EL SANDBOX" % r.details["vault"]
+    assert r.status == HealthStatus.HEALTHY and "/admin/health" in r.message, r.message
+    assert despues == antes
+
+
+@pytest.mark.skipif(EUID == 0, reason="root ignora los permisos")
+def test_B1_sin_la_declaracion_un_READ_ONLY_real_sigue_siendo_READ_ONLY(boveda, monkeypatch):
+    """El visor (panel admin) NO lleva la declaracion: ahi un READ_ONLY legitimo se informa."""
+    from app.health import checks
+
+    monkeypatch.delenv(checks.VAULT_MEDICION_ENV, raising=False)
+    perfil = boveda / "l5r" / "perfil-operador.json"
+    perfil.chmod(0o444)
+    try:
+        r = checks.check_vault(str(boveda), "0")
+    finally:
+        perfil.chmod(0o644)
+    assert r.details["vault"] == checks.VAULT_READ_ONLY, r.message
+
+
+def test_B1_la_declaracion_va_atada_al_sandbox_de_la_unidad_canonica_y_el_visor_no_la_hereda():
+    """Gate: si la unidad del healthcheck cambia lo que ve del FS, DEBE declarar que la boveda no
+    es medible; y si no lo cambia, no debe declararlo. El visor no tiene ese sandbox (asi el
+    panel admin mide de verdad) ni la declaracion; ninguna plantilla de .env la lleva."""
+    from app.health import checks
+
+    declaracion = "%s=%s" % (checks.VAULT_MEDICION_ENV, checks.VAULT_MEDICION_SANDBOX)
+    salud = _servicio(U_SALUD)
+    sandbox = _con_sandbox_de_ficheros(salud)
+    declarada = [v for k, v in salud if k == "Environment" and checks.VAULT_MEDICION_ENV in v]
+    if sandbox:
+        assert declarada == [declaracion], "B-1: SANDBOX %s SIN DECLARAR (%s)" % (sandbox, declarada)
+    else:
+        assert declarada == [], "B-1: DECLARADO SIN SANDBOX"
+    visor = _servicio(U_VISOR)
+    assert _con_sandbox_de_ficheros(visor) == [], "el visor no puede medir la boveda con sandbox"
+    assert checks.VAULT_MEDICION_ENV not in U_VISOR.read_text(encoding="utf-8")
+    for plantilla in (RAIZ / "viewer" / ".env.example", RAIZ / "deploy" / "config" / "viewer.env.example",
+                      RAIZ / "deploy" / "config" / "worker.env.example"):
+        if plantilla.exists():
+            assert checks.VAULT_MEDICION_ENV not in plantilla.read_text(encoding="utf-8"), plantilla

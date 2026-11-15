@@ -562,6 +562,16 @@ VAULT_AVAILABLE = "AVAILABLE"
 VAULT_READ_ONLY = "READ_ONLY"
 VAULT_UNAVAILABLE = "UNAVAILABLE"
 _VAULT_ORDEN = {VAULT_AVAILABLE: 0, VAULT_READ_ONLY: 1, VAULT_UNAVAILABLE: 2}
+#: B-1 (revision acotada n.º 3): el proceso que mide NO ve la boveda como el visor. La unidad
+#: del healthcheck periodico corre con `ProtectSystem=strict` + `ReadWritePaths` solo del state
+#: + `ProtectHome=true`: dentro de ese sandbox toda boveda fuera del state es de solo lectura o
+#: invisible AUNQUE el visor la escriba, y `os.access` diria READ_ONLY/UNAVAILABLE en falso.
+#: La unidad lo DECLARA con esta variable (un gate la ata a la presencia del sandbox en la
+#: unidad canonica; no va en viewer.env, asi que el visor no la hereda): el check no mide, lo
+#: dice y no degrada. El estado real lo da el visor (/admin/health), que no tiene ese sandbox.
+VAULT_NO_MEDIBLE = "NO_MEDIBLE"
+VAULT_MEDICION_ENV = "S9K_HEALTH_VAULT_MEDICION"
+VAULT_MEDICION_SANDBOX = "no-medible-sandbox"
 
 
 def _acceso(p: Path, modo: int) -> bool:
@@ -613,6 +623,15 @@ def check_vault(vault_root: Optional[str] = None,
 
     nombre_perfil = sources_catalog.NOMBRE_PERFIL
     raiz_txt = (vault_root or "").strip()
+    if os.environ.get(VAULT_MEDICION_ENV) == VAULT_MEDICION_SANDBOX:
+        # Declarado por la unidad del healthcheck: desde su sandbox el permiso efectivo NO es
+        # el del visor. No se mide (ni se toca la boveda) y no se degrada.
+        motivo = ("no medible desde el sandbox del healthcheck periodico (ProtectSystem/"
+                  "ProtectHome): el permiso que ve no es el del visor; consulte el panel "
+                  "admin (/admin/health), que mide desde el visor")
+        return _result("vault", HealthStatus.HEALTHY, "VAULT %s: %s" % (VAULT_NO_MEDIBLE, motivo),
+                       {"vault": VAULT_NO_MEDIBLE, "motivo": motivo, "configurada": bool(raiz_txt),
+                        "opcional": True, "carpetas": {}})
     with _Timer() as t:
         if not raiz_txt:
             estado, motivo, carpetas, configurada = (

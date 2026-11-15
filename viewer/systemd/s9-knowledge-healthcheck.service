@@ -20,6 +20,11 @@ Group=s9knowledge
 # conserva en disco pero ya no se ejecuta: ninguna ruta de esta unidad la toca.
 WorkingDirectory=/opt/s9-knowledge/current/viewer
 EnvironmentFile=/etc/s9-knowledge/viewer.env
+# B-1: con el sandbox de abajo (ProtectSystem=strict, ReadWritePaths solo del state,
+# ProtectHome) la boveda externa se ve de solo lectura o no se ve aunque el visor la
+# escriba: el check de la boveda NO mide desde aqui y lo dice (el estado real, en el
+# panel admin /admin/health). Un gate ata esta linea a la presencia del sandbox.
+Environment=S9K_HEALTH_VAULT_MEDICION=no-medible-sandbox
 ExecStart=/opt/s9-knowledge/current/viewer/.venv/bin/python -m app.cli.health check
 
 # El codigo de salida refleja el estado (0 healthy · 1 degraded · 2 unhealthy · 3 config).

@@ -516,6 +516,11 @@ La bóveda (`S9K_VAULT_ROOT`) y su `perfil-operador.json` son **contenido del op
   UNAVAILABLE dejan `vault` en DEGRADED (o HEALTHY informativo si no está configurada), **nunca**
   UNHEALTHY, y **no impiden arrancar** (la comprobación de arranque solo mira el STATE ROOT, que
   se informa aparte en `state_validation`: STATE OK / FAIL).
+- **Qué informa el healthcheck periódico:** el timer (`s9-knowledge-healthcheck.service`) corre en un
+  sandbox (`ProtectSystem=strict`, `ReadWritePaths` solo del STATE ROOT, `ProtectHome`) desde el que
+  la bóveda se ve de solo lectura o no se ve aunque el visor la escriba; por eso su componente `vault`
+  dice **VAULT NO_MEDIBLE** (HEALTHY) y no READ_ONLY/UNAVAILABLE. **El estado real de la bóveda se ve en
+  el panel admin (`/admin/health`)**, que mide desde el visor. Un NO_MEDIBLE no pide tocar permisos.
 - **S9-Knowledge NUNCA repara permisos de la bóveda**: no hace `chown`/`chmod`, no corre como root
   ni usa `sudo` para escribirla, no la mueve, no la crea si falta, no guarda el perfil en otro
   sitio ni cae al STATE ROOT. La comprobación de salud es de solo lectura (`stat`/`os.access`, sin
