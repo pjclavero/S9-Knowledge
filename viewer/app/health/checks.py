@@ -553,6 +553,52 @@ def check_backups(backup_root: Optional[str] = None,
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
+# STATE_RUNTIME (contrato del operador B-1): lo OBSERVADO en ejecucion, no la validacion
+# ---------------------------------------------------------------------------
+
+def check_state_runtime() -> ComponentResult:
+    """STATE_RUNTIME: inspeccion REAL del state root en ejecucion. SOLO LECTURA.
+
+    Distinta de ``state_validation`` (que solo dice si la validacion de arranque esta activa).
+    Usa la MISMA inspeccion que el arranque (``inspect_state`` + ``inspect_effective_access``
+    de la autoridad: existencia, tipo, dueño, modo, ACL y acceso efectivo de lo declarado)
+    sobre el state root y las rutas EFECTIVAS del entorno de este proceso. Solo es medible
+    como el usuario de servicio (el dueño esperado y el acceso efectivo son los suyos): con
+    otra identidad, o si algo no se puede leer, es UNKNOWN (no medido), nunca OK por defecto.
+    Hallazgos reales -> UNHEALTHY (el servicio no volveria a arrancar).
+    """
+    from app import service_identity  # noqa: PLC0415
+
+    ss = service_identity.service_state()
+    with _Timer() as t:
+        try:
+            uid, gid = ss.expected_ids()
+            if uid is None or os.geteuid() != uid:
+                return _result("state_runtime", HealthStatus.UNKNOWN,
+                               "STATE_RUNTIME UNKNOWN: no medido: este proceso no corre como %s "
+                               "(el dueño y el acceso efectivo que se miden son los suyos)"
+                               % ss.SERVICE_USER, {"state_runtime": "UNKNOWN"}, latency_ms=t.ms)
+            raiz = ss.effective_state_root(os.environ)
+            rutas, faltan = ss.effective_paths(os.environ, role="viewer")
+            viol = list(faltan) + list(ss.inspect_state(raiz, uid=uid, gid=gid, declared=rutas))
+            viol += list(ss.inspect_effective_access(raiz, rutas))
+        except Exception as exc:  # noqa: BLE001 - no medido, nunca OK
+            return _result("state_runtime", HealthStatus.UNKNOWN,
+                           "STATE_RUNTIME UNKNOWN: no medido (%s)" % type(exc).__name__,
+                           {"state_runtime": "UNKNOWN"}, latency_ms=t.ms)
+    if viol:
+        textos = [v.message() for v in viol]
+        return _result("state_runtime", HealthStatus.UNHEALTHY,
+                       "STATE_RUNTIME FAIL: %d hallazgo(s) en el state root: %s"
+                       % (len(textos), "; ".join(textos[:5])),
+                       {"state_runtime": "FAIL", "hallazgos": textos}, latency_ms=t.ms)
+    return _result("state_runtime", HealthStatus.HEALTHY,
+                   "STATE_RUNTIME OK: state root inspeccionado como %s (tipo, dueño, modo, ACL y "
+                   "acceso efectivo de %d ruta(s) declarada(s))" % (ss.SERVICE_USER, len(rutas)),
+                   {"state_runtime": "OK", "rutas": len(rutas)}, latency_ms=t.ms)
+
+
+# ---------------------------------------------------------------------------
 # Boveda externa (H-06/H-08, criterio 7 del operador): EXTERNAL OPERATOR CONTENT
 # ---------------------------------------------------------------------------
 #: Estados de la boveda. Es una dependencia OPCIONAL: READ_ONLY y UNAVAILABLE se
@@ -568,8 +614,9 @@ _VAULT_ORDEN = {VAULT_AVAILABLE: 0, VAULT_READ_ONLY: 1, VAULT_UNAVAILABLE: 2}
 #: invisible AUNQUE el visor la escriba, y `os.access` diria READ_ONLY/UNAVAILABLE en falso.
 #: La unidad lo DECLARA con esta variable (un gate la ata a la presencia del sandbox en la
 #: unidad canonica; no va en viewer.env, asi que el visor no la hereda): el check no mide, lo
-#: dice y no degrada. El estado real lo da el visor (/admin/health), que no tiene ese sandbox.
-VAULT_NO_MEDIBLE = "NO_MEDIBLE"
+#: dice (UNMEASURABLE) y no degrada. El estado real lo da el visor (/admin/health), sin sandbox.
+#: Contrato del operador (B-1): VAULT_HEALTH = AVAILABLE | READ_ONLY | UNAVAILABLE | UNMEASURABLE.
+VAULT_UNMEASURABLE = "UNMEASURABLE"
 VAULT_MEDICION_ENV = "S9K_HEALTH_VAULT_MEDICION"
 VAULT_MEDICION_SANDBOX = "no-medible-sandbox"
 
@@ -629,8 +676,8 @@ def check_vault(vault_root: Optional[str] = None,
         motivo = ("no medible desde el sandbox del healthcheck periodico (ProtectSystem/"
                   "ProtectHome): el permiso que ve no es el del visor; consulte el panel "
                   "admin (/admin/health), que mide desde el visor")
-        return _result("vault", HealthStatus.HEALTHY, "VAULT %s: %s" % (VAULT_NO_MEDIBLE, motivo),
-                       {"vault": VAULT_NO_MEDIBLE, "motivo": motivo, "configurada": bool(raiz_txt),
+        return _result("vault", HealthStatus.HEALTHY, "VAULT %s: %s" % (VAULT_UNMEASURABLE, motivo),
+                       {"vault": VAULT_UNMEASURABLE, "motivo": motivo, "configurada": bool(raiz_txt),
                         "opcional": True, "carpetas": {}})
     with _Timer() as t:
         if not raiz_txt:
@@ -753,12 +800,16 @@ def check_state_validation(units: Optional[List[str]] = None) -> ComponentResult
                         hallazgos.append("%s: el proceso vivo %s tiene %s" % (u, pid, v))
     if hallazgos:
         return _result("state_validation", HealthStatus.UNHEALTHY,
-                       "STATE FAIL: excepcion de tests en el entorno EFECTIVO: %s" % "; ".join(hallazgos),
-                       {"state": "FAIL", "hallazgos": hallazgos}, latency_ms=t.ms)
+                       "STATE_VALIDATION FAIL: la validacion de arranque del state root esta "
+                       "DESACTIVADA en el entorno efectivo: %s" % "; ".join(hallazgos),
+                       {"state_validation": "FAIL", "hallazgos": hallazgos}, latency_ms=t.ms)
     if no_medido:
         return _result("state_validation", HealthStatus.UNKNOWN,
-                       "STATE UNKNOWN: no se pudo leer el entorno efectivo de: %s" % ", ".join(no_medido),
-                       {"state": "UNKNOWN", "no_medido": no_medido}, latency_ms=t.ms)
+                       "STATE_VALIDATION UNKNOWN: no se pudo leer el entorno efectivo de: %s"
+                       % ", ".join(no_medido),
+                       {"state_validation": "UNKNOWN", "no_medido": no_medido}, latency_ms=t.ms)
     return _result("state_validation", HealthStatus.HEALTHY,
-                   "STATE OK: sin excepcion de tests en el entorno efectivo",
-                   {"state": "OK", "units": units}, latency_ms=t.ms)
+                   "STATE_VALIDATION OK: la validacion de arranque del state root esta activa "
+                   "(sin excepcion de tests en el entorno efectivo); NO es una inspeccion del "
+                   "estado: eso es STATE_RUNTIME",
+                   {"state_validation": "OK", "units": units}, latency_ms=t.ms)

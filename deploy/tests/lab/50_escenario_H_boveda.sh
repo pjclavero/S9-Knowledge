@@ -189,6 +189,32 @@ lab_assert "H.7 la boveda hermana IDENTICA tras restaurar el state root y migrar
     igual "$(foto_boveda "${HERMANA}")" "${FOTO7}"
 lab_assert "H.7 nada de la boveda bajo el state root" sin_copias_bajo_state
 
+lab_log "H.10 (B-1) la unidad REAL del healthcheck (instalada por el despliegue) con la boveda hermana declarada"
+UNIDAD_INST=/etc/systemd/system/s9-knowledge-healthcheck.service
+INFORME="${STATE}/health/health.json"
+componente() {
+    sudo "${PY}" -c 'import json,sys; d=json.load(open(sys.argv[1])); c=[x for x in d["components"] if x["component"]==sys.argv[2]][0]; print(c["status"], c["details"].get(sys.argv[3], "-"), "|", c["message"][:160])' "${INFORME}" "$1" "$2"
+}
+if sudo test -f "${UNIDAD_INST}"; then
+    lab_assert "H.10 la unidad instalada es la canonica de la release (con su declaracion)" \
+        bash -c "sudo cmp -s '${UNIDAD_INST}' '/opt/s9-knowledge/current/viewer/systemd/s9-knowledge-healthcheck.service' && sudo grep -qx 'Environment=S9K_HEALTH_VAULT_MEDICION=no-medible-sandbox' '${UNIDAD_INST}'"
+    sudo systemctl start s9-knowledge-healthcheck.service || true
+    C_VAULT="$(componente vault vault)"; C_RUNTIME="$(componente state_runtime state_runtime)"
+    C_VALID="$(componente state_validation state_validation)"
+    lab_log "H.10 vault         -> ${C_VAULT}"
+    lab_log "H.10 state_runtime -> ${C_RUNTIME}"
+    lab_log "H.10 state_valid.  -> ${C_VALID}"
+    empieza() { case "$1" in "$2"*) return 0 ;; *) return 1 ;; esac; }
+    lab_assert "H.10 el timer REAL dice VAULT UNMEASURABLE (no READ_ONLY/UNAVAILABLE) y HEALTHY" \
+        empieza "${C_VAULT}" "HEALTHY UNMEASURABLE "
+    lab_assert "H.10 STATE_RUNTIME medido de verdad como s9knowledge dentro del sandbox: OK" \
+        empieza "${C_RUNTIME}" "HEALTHY OK "
+    lab_assert "H.10 STATE_VALIDATION se etiqueta como validacion (no como inspeccion)" \
+        empieza "${C_VALID}" "HEALTHY OK | STATE_VALIDATION OK"
+else
+    lab_fail "H.10 la unidad del healthcheck no esta instalada en el laboratorio: no se puede medir el sandbox real"
+fi
+
 lab_log "H.8 (criterio 7) salud de la boveda como s9knowledge: AVAILABLE / READ_ONLY / UNAVAILABLE, de solo lectura"
 salud() { sudo runuser -u s9knowledge -- "${PY}" "${HERE}/h_vault_health.py" "${LAB_REPO}" "$1" 0; }
 vault_es() { [ "$(printf '%s' "$1" | "${PY}" -c 'import json,sys; print(json.load(sys.stdin)["vault"])')" = "$2" ]; }
@@ -242,8 +268,8 @@ lab_assert "H.9 fuera del sandbox la boveda sana es AVAILABLE" vault_es "${S9FUE
 S9ANTES="$(en_sandbox)"; lab_log "H.9 ANTES (sandbox real SIN la declaracion) -> ${S9ANTES}"
 lab_assert "H.9 sin la declaracion el sandbox reproduce el diagnostico FALSO (READ_ONLY)" vault_es "${S9ANTES}" READ_ONLY
 S9DESPUES="$(en_sandbox "${DECLARA[@]}")"; lab_log "H.9 DESPUES (sandbox real CON la declaracion de la unidad) -> ${S9DESPUES}"
-lab_assert "H.9 dentro del sandbox real la boveda sana NO es READ_ONLY ni UNAVAILABLE (NO_MEDIBLE)" vault_es "${S9DESPUES}" NO_MEDIBLE
-lab_assert "H.9 NO_MEDIBLE no degrada (HEALTHY)" bash -c "printf '%s' '${S9DESPUES}' | grep -q '\"status\": \"HEALTHY\"'"
+lab_assert "H.9 dentro del sandbox real la boveda sana NO es READ_ONLY ni UNAVAILABLE (UNMEASURABLE)" vault_es "${S9DESPUES}" UNMEASURABLE
+lab_assert "H.9 UNMEASURABLE no degrada (HEALTHY)" bash -c "printf '%s' '${S9DESPUES}' | grep -q '\"status\": \"HEALTHY\"'"
 lab_assert "H.9 la sonda no toco la boveda (foto identica)" igual "$(foto_boveda "${SANA}")" "${FOTO9}"
 sudo rm -rf "${SANA}"
 

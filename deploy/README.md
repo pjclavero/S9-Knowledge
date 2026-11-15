@@ -515,12 +515,12 @@ La bóveda (`S9K_VAULT_ROOT`) y su `perfil-operador.json` son **contenido del op
   árbol**—, sin montaje exigido o ilegible). Es una dependencia **opcional**: READ_ONLY o
   UNAVAILABLE dejan `vault` en DEGRADED (o HEALTHY informativo si no está configurada), **nunca**
   UNHEALTHY, y **no impiden arrancar** (la comprobación de arranque solo mira el STATE ROOT, que
-  se informa aparte en `state_validation`: STATE OK / FAIL).
+  se informa aparte: ver «Tres diagnósticos distintos» abajo).
 - **Qué informa el healthcheck periódico:** el timer (`s9-knowledge-healthcheck.service`) corre en un
   sandbox (`ProtectSystem=strict`, `ReadWritePaths` solo del STATE ROOT, `ProtectHome`) desde el que
   la bóveda se ve de solo lectura o no se ve aunque el visor la escriba; por eso su componente `vault`
-  dice **VAULT NO_MEDIBLE** (HEALTHY) y no READ_ONLY/UNAVAILABLE. **El estado real de la bóveda se ve en
-  el panel admin (`/admin/health`)**, que mide desde el visor. Un NO_MEDIBLE no pide tocar permisos.
+  dice **VAULT UNMEASURABLE** (HEALTHY) y no READ_ONLY/UNAVAILABLE. **El estado real de la bóveda se ve en
+  el panel admin (`/admin/health`)**, que mide desde el visor. Un UNMEASURABLE no pide tocar permisos.
 - **S9-Knowledge NUNCA repara permisos de la bóveda**: no hace `chown`/`chmod`, no corre como root
   ni usa `sudo` para escribirla, no la mueve, no la crea si falta, no guarda el perfil en otro
   sitio ni cae al STATE ROOT. La comprobación de salud es de solo lectura (`stat`/`os.access`, sin
@@ -532,6 +532,20 @@ La bóveda (`S9K_VAULT_ROOT`) y su `perfil-operador.json` son **contenido del op
 
 Lo fijan `viewer/tests/test_h06_h08_vault_criterios.py`, `deploy/tests/test_h06_h08_vault_state.py`
 y el escenario H de VM112 (H.7 y H.8).
+
+### Tres diagnósticos distintos: validación del STATE, estado real del STATE y salud de la bóveda
+
+No dicen lo mismo y ninguno afirma más de lo que mide (contrato del operador, B-1):
+
+| Componente | Qué mide | Valores | Efecto en la salud global |
+|---|---|---|---|
+| `state_validation` (**STATE_VALIDATION**) | que la **validación de arranque** del STATE ROOT está **activa**: sin la excepción de tests en el entorno efectivo del healthcheck ni de los procesos vivos. NO inspecciona el estado | OK / FAIL / UNKNOWN | FAIL → UNHEALTHY |
+| `state_runtime` (**STATE_RUNTIME**) | el STATE ROOT **observado en ejecución**: la misma inspección del arranque (tipo, dueño, modo, ACL y acceso efectivo de las rutas declaradas), solo cuando el proceso corre como `s9knowledge`; si no, o si algo no se puede leer, **UNKNOWN (no medido)**, nunca OK por defecto | OK / FAIL / UNKNOWN | FAIL → UNHEALTHY |
+| `vault` (**VAULT_HEALTH**) | la bóveda externa con el permiso efectivo del proceso que mide | AVAILABLE / READ_ONLY / UNAVAILABLE / **UNMEASURABLE** | dependencia opcional: READ_ONLY/UNAVAILABLE → DEGRADED; AVAILABLE, «no configurada» y UNMEASURABLE → HEALTHY (nunca UNHEALTHY) |
+
+La **salud global** del servicio es el peor de los componentes. Desde el timer, `vault` es
+**UNMEASURABLE** (su sandbox no ve la bóveda como el visor) y eso no la degrada ni cambia el rc;
+el estado real de la bóveda se ve en `/admin/health`, que mide desde el visor.
 
 ### Rollback: qué pasa con la unidad y el dueño
 

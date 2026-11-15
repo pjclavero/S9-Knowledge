@@ -6,7 +6,9 @@ Decision CERRADA: EXTERNAL OPERATOR CONTENT. Este modulo fija lo que faltaba de 
   4  `S9K_VAULT_ROOT` declarada pero INEXISTENTE -> comportamiento explicito (404 nombrado del
      endpoint, catalogo sin fuentes de boveda, salud VAULT UNAVAILABLE) y NO se crea ningun arbol.
   7  diagnostico: componente de salud `vault` (AVAILABLE / READ_ONLY / UNAVAILABLE) independiente
-     de `state_validation` (STATE OK / FAIL); dependencia OPCIONAL: nunca UNHEALTHY; solo lectura.
+     de `state_validation` (STATE_VALIDATION OK / FAIL); dependencia OPCIONAL: nunca UNHEALTHY.
+     Contrato B-1: VAULT_HEALTH = AVAILABLE | READ_ONLY | UNAVAILABLE | UNMEASURABLE y
+     STATE_RUNTIME (lo observado en ejecucion) separado de STATE_VALIDATION.
   8  control negativo POR EFECTO de chmod/chown/root: tras cada caso (escribible, perfil de solo
      lectura, carpeta de solo lectura, perfil 0400) dueño/grupo/modo/inodo de la boveda identicos,
      y el escritor no tiene camino hacia root (AST).
@@ -221,8 +223,8 @@ def test_V7_STATE_y_VAULT_son_independientes(monkeypatch, boveda, state_fail, va
         v = checks.check_vault(str(boveda), "0")
     finally:
         perfil.chmod(0o644)
-    assert s.details["state"] == ("FAIL" if state_fail else "OK"), s.message
-    assert s.message.startswith("STATE FAIL" if state_fail else "STATE OK"), s.message
+    assert s.details["state_validation"] == ("FAIL" if state_fail else "OK"), s.message
+    assert s.message.startswith("STATE_VALIDATION FAIL" if state_fail else "STATE_VALIDATION OK"), s.message
     assert s.status == (HealthStatus.UNHEALTHY if state_fail else HealthStatus.HEALTHY)
     assert v.details["vault"] == ("READ_ONLY" if vault_ro else "AVAILABLE"), v.message
 
@@ -369,7 +371,7 @@ def test_B1_con_la_declaracion_del_sandbox_NUNCA_afirma_READ_ONLY_ni_UNAVAILABLE
         despues = _arbol(boveda)
     finally:
         perfil.chmod(0o644)
-    assert r.details["vault"] == checks.VAULT_NO_MEDIBLE, "B-1: FALSO %s DESDE EL SANDBOX" % r.details["vault"]
+    assert r.details["vault"] == checks.VAULT_UNMEASURABLE, "B-1: FALSO %s DESDE EL SANDBOX" % r.details["vault"]
     assert r.status == HealthStatus.HEALTHY and "/admin/health" in r.message, r.message
     assert despues == antes
 
@@ -410,3 +412,106 @@ def test_B1_la_declaracion_va_atada_al_sandbox_de_la_unidad_canonica_y_el_visor_
                       RAIZ / "deploy" / "config" / "worker.env.example"):
         if plantilla.exists():
             assert checks.VAULT_MEDICION_ENV not in plantilla.read_text(encoding="utf-8"), plantilla
+
+
+
+# ---------------------------------------------------------------------------
+# Contrato del operador B-1: los CUATRO estados y STATE_VALIDATION != STATE_RUNTIME
+# ---------------------------------------------------------------------------
+
+@pytest.mark.skipif(EUID == 0, reason="root ignora los permisos")
+@pytest.mark.parametrize("estado", ["AVAILABLE", "READ_ONLY", "UNAVAILABLE", "UNMEASURABLE"])
+def test_B1_los_cuatro_estados_de_VAULT_HEALTH(boveda, monkeypatch, tmp_path, estado):
+    """Cada estado sale de su causa y UNMEASURABLE no se confunde con READ_ONLY/UNAVAILABLE."""
+    from app.health import checks
+    from app.health.models import HealthStatus
+
+    monkeypatch.delenv(checks.VAULT_MEDICION_ENV, raising=False)
+    perfil = boveda / "l5r" / "perfil-operador.json"
+    raiz = str(boveda)
+    if estado == "READ_ONLY":
+        perfil.chmod(0o444)
+    elif estado == "UNAVAILABLE":
+        raiz = str(tmp_path / "no-existe")
+    elif estado == "UNMEASURABLE":
+        perfil.chmod(0o444)          # aunque se vea de solo lectura: desde el sandbox NO se mide
+        monkeypatch.setenv(checks.VAULT_MEDICION_ENV, checks.VAULT_MEDICION_SANDBOX)
+    try:
+        r = checks.check_vault(raiz, "0")
+    finally:
+        perfil.chmod(0o644)
+    assert r.details["vault"] == estado, "B-1: %s REPORTADO COMO %s" % (estado, r.details["vault"])
+    assert r.message.startswith("VAULT %s" % estado), r.message
+    esperado = HealthStatus.HEALTHY if estado in ("AVAILABLE", "UNMEASURABLE") else HealthStatus.DEGRADED
+    assert r.status == esperado, (estado, r.status)
+
+
+def test_B1_UNMEASURABLE_no_vuelve_no_sana_la_salud_global_ni_cambia_el_rc(boveda, monkeypatch):
+    from app.health import checks, runner
+    from app.health.models import HealthStatus
+
+    monkeypatch.setenv(checks.VAULT_MEDICION_ENV, checks.VAULT_MEDICION_SANDBOX)
+    cfg = {"vault": {"vault_root": str(boveda), "require_mount": "0"}, "external_ai": {"enabled": False}}
+    rep = runner.run_report(config=cfg, only=["vault", "external_ai"])
+    assert rep.overall == HealthStatus.HEALTHY and rep.exit_code() == 0, "B-1: UNMEASURABLE DEGRADA LA SALUD"
+
+
+def _state_conforme(tmp_path):
+    from app import service_identity
+
+    ss = service_identity.service_state()
+    st = tmp_path / "state"
+    env = {"S9K_STATE_ROOT": str(st), "S9K_AUTH_DB_PATH": str(st / "auth" / "auth.db"),
+           "S9K_JOBS_DB": str(st / "jobs" / "jobs.db"),
+           "S9K_V3_REVIEW_DATABASE_PATH": str(st / "reviews-v3" / "review.sqlite3"),
+           "S9K_V3_REVIEW_PROPOSALS_DIR": str(st / "reviews-v3" / "proposals")}
+    ss.ensure_private_dir(st)
+    for k in ("S9K_AUTH_DB_PATH", "S9K_JOBS_DB", "S9K_V3_REVIEW_DATABASE_PATH"):
+        ss.ensure_private_dir(Path(env[k]).parent)
+        ss.create_private_file(env[k])
+    ss.ensure_private_dir(env["S9K_V3_REVIEW_PROPOSALS_DIR"])
+    return ss, st, env
+
+
+def test_B1_STATE_RUNTIME_sin_la_identidad_del_servicio_es_UNKNOWN_nunca_OK(tmp_path, monkeypatch):
+    """La suite no corre como s9knowledge: no se puede medir y se DICE (no OK por defecto)."""
+    from app.health import checks
+    from app.health.models import HealthStatus
+
+    ss, st, env = _state_conforme(tmp_path)
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.setattr(ss, "expected_ids", lambda *a, **k: (os.geteuid() + 4242, os.getegid()))
+    r = checks.check_state_runtime()
+    assert r.details["state_runtime"] == "UNKNOWN" and r.status == HealthStatus.UNKNOWN, \
+        "B-1: STATE_RUNTIME NO MEDIDO PRESENTADO COMO %s" % r.details["state_runtime"]
+    assert "no medido" in r.message and "OK" not in r.message, r.message
+
+
+@pytest.mark.skipif(EUID == 0, reason="como root el dueño esperado no es el del proceso")
+def test_B1_STATE_RUNTIME_inspecciona_de_verdad_OK_y_FAIL(tmp_path, monkeypatch):
+    """Como «el usuario de servicio» (simulado: expected_ids = el proceso), un state conforme da
+    OK y un fichero 0644 da FAIL (UNHEALTHY): es la inspeccion real, no la validacion activa."""
+    from app.health import checks
+    from app.health.models import HealthStatus
+
+    ss, st, env = _state_conforme(tmp_path)
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.setattr(ss, "expected_ids", lambda *a, **k: (os.geteuid(), os.getegid()))
+    ok = checks.check_state_runtime()
+    assert ok.details["state_runtime"] == "OK" and ok.status == HealthStatus.HEALTHY, ok.message
+    Path(env["S9K_AUTH_DB_PATH"]).chmod(0o644)
+    mal = checks.check_state_runtime()
+    assert mal.details["state_runtime"] == "FAIL" and mal.status == HealthStatus.UNHEALTHY, mal.message
+    assert "auth.db" in mal.message, mal.message
+
+
+def test_B1_STATE_VALIDATION_no_se_presenta_como_inspeccion_completa(monkeypatch):
+    """`state_validation` solo dice si la validacion de arranque esta ACTIVA: su mensaje no puede
+    decir «STATE OK» a secas ni sonar a inspeccion; remite a STATE_RUNTIME."""
+    s = _estado_ok_o_fail(monkeypatch, False)
+    assert s.message.startswith("STATE_VALIDATION OK"), s.message
+    assert "validacion de arranque" in s.message and "STATE_RUNTIME" in s.message, \
+        "B-1: STATE_VALIDATION PRESENTADA COMO INSPECCION: %s" % s.message
+    assert "state" not in s.details, s.details

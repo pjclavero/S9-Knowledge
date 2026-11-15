@@ -60,7 +60,7 @@ COMMITEADO (la restauración escribe sobre el fichero). `--solo-aplicar` comprue
 SOLO que las anclas (45) se aplican (sin ejecutar pytest): es lo único que se
 ejecuta en la máquina de orquestación.
 
-CRITERIOS DEL OPERADOR (bóveda externa, 2026-11-15): M56–M62 (M61/M62 = B-1, sandbox del healthcheck), testigos
+CRITERIOS DEL OPERADOR (bóveda externa, 2026-11-15): M56–M64 (M61–M64 = B-1: sandbox del healthcheck, UNMEASURABLE, STATE_RUNTIME/VALIDATION), testigos
 viewer/tests/test_h06_h08_vault_criterios.py y deploy/tests/test_h06_h08_vault_state.py.
 
 TECHO: no ejerce systemd ni root reales; muta por sustitución de texto exacto y no
@@ -573,6 +573,18 @@ def _m62_la_unidad_no_declara_el_sandbox(t):
     return mutar_unico(t, "Environment=S9K_HEALTH_VAULT_MEDICION=no-medible-sandbox\n", "")
 
 
+def _m63_state_runtime_no_medido_como_ok(t):
+    return mutar_en_funcion(t, "check_state_runtime",
+                            "            if uid is None or os.geteuid() != uid:\n",
+                            "            if False:\n")
+
+
+def _m64_state_validation_como_inspeccion(t):
+    return mutar_en_funcion(t, "check_state_validation",
+                            '                   "STATE_VALIDATION OK: la validacion de arranque del state root esta activa "\n',
+                            '                   "STATE OK: estado inspeccionado "\n')
+
+
 def mutar_en_funcion_bash(texto: str, nombre: str, viejo: str, nuevo: str):
     """Como `mutar_unico`, pero el ancla tiene que ser UNICA y estar DENTRO de `nombre() {...}`."""
     m = re.search(r"^%s\(\) \{\n.*?^\}\n" % re.escape(nombre), texto, re.S | re.M)
@@ -792,11 +804,19 @@ MUTACIONES = [
      {"test_B1_con_la_declaracion_del_sandbox_NUNCA_afirma_READ_ONLY_ni_UNAVAILABLE[perfil_0444]":
       "B-1: FALSO READ_ONLY DESDE EL SANDBOX",
       "test_B1_con_la_declaracion_del_sandbox_NUNCA_afirma_READ_ONLY_ni_UNAVAILABLE[inexistente]":
-      "B-1: FALSO UNAVAILABLE DESDE EL SANDBOX"}),
+      "B-1: FALSO UNAVAILABLE DESDE EL SANDBOX",
+      "test_B1_los_cuatro_estados_de_VAULT_HEALTH[UNMEASURABLE]": "B-1: UNMEASURABLE REPORTADO COMO READ_ONLY"}),
     ("M62 — (B-1) la unidad del healthcheck tiene sandbox pero no lo declara",
      U_HEALTH, _m62_la_unidad_no_declara_el_sandbox, T_CRIT,
      {"test_B1_la_declaracion_va_atada_al_sandbox_de_la_unidad_canonica_y_el_visor_no_la_hereda":
       "B-1: SANDBOX"}),
+    ("M63 — (B-1) STATE_RUNTIME no medido (otra identidad) se presenta como medido",
+     HEALTH_CHECKS, _m63_state_runtime_no_medido_como_ok, T_CRIT,
+     {"test_B1_STATE_RUNTIME_sin_la_identidad_del_servicio_es_UNKNOWN_nunca_OK":
+      "B-1: STATE_RUNTIME NO MEDIDO PRESENTADO COMO"}),
+    ("M64 — (B-1) STATE_VALIDATION vuelve a presentarse como «STATE OK» (inspeccion)",
+     HEALTH_CHECKS, _m64_state_validation_como_inspeccion, T_CRIT,
+     {"test_B1_STATE_VALIDATION_no_se_presenta_como_inspeccion_completa": "STATE OK: estado inspeccionado"}),
 ]
 
 

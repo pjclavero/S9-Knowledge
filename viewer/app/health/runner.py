@@ -127,7 +127,9 @@ _REGISTRY: Dict[str, Callable[[Dict[str, Any]], ComponentResult]] = {
     "systemd": lambda c: checks.check_systemd(**c),
     # C-6 (H-06/H-08 ronda 2): la excepcion de tests no entra en el entorno efectivo.
     "state_validation": lambda c: checks.check_state_validation(**c),
-    # Criterio 7 (H-06/H-08): VAULT AVAILABLE / READ_ONLY / UNAVAILABLE (dependencia opcional).
+    # Contrato B-1: STATE_RUNTIME = lo observado del state root en ejecucion (UNKNOWN si no medible).
+    "state_runtime": lambda c: checks.check_state_runtime(**c),
+    # Criterio 7 (H-06/H-08): VAULT AVAILABLE / READ_ONLY / UNAVAILABLE / UNMEASURABLE (opcional).
     "vault": lambda c: checks.check_vault(**c),
 }
 
