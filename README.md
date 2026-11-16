@@ -211,7 +211,8 @@ Este repo es una **instantánea de lo ya hecho en el servidor VM105**. No incluy
 datos SQLite de runtime, `.env` con secretos ni archivos fuente pesados (PDF/audio).
 
 1. Copia `.env.example` a `.env` y rellena los valores reales.
-2. El motor de datos (`data-engine/`) requiere Python 3.11+, Neo4j y Ollama.
+2. El motor de datos (`data-engine/`) requiere Python 3.11.5+ (lo exige su lock: soupsieve 4.0;
+   `deploy/scripts/preflight.sh` lo comprueba), Neo4j y Ollama.
    Instalación legacy en
    [`docs/08-deployment-vm105.md`](docs/archivados/08-deployment-vm105.md).
 3. El visor (`viewer/`) requiere Python 3.11+ y se sirve con uvicorn.
