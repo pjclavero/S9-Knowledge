@@ -473,14 +473,23 @@ def _state_conforme(tmp_path):
     return ss, st, env
 
 
+def _fija_entorno_de_estado(monkeypatch, ss, env):
+    """Hermetico: retira TODAS las variables de ruta de estado de la autoridad (y la del state
+    root) antes de fijar las del caso; una variable ajena heredada del proceso (otro test, otro
+    modulo) no puede colar rutas fuera del state temporal."""
+    for var in list(ss.STATE_PATH_VARS) + [ss.STATE_ROOT_ENV]:
+        monkeypatch.delenv(var, raising=False)
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+
+
 def test_B1_STATE_RUNTIME_sin_la_identidad_del_servicio_es_UNKNOWN_nunca_OK(tmp_path, monkeypatch):
     """La suite no corre como s9knowledge: no se puede medir y se DICE (no OK por defecto)."""
     from app.health import checks
     from app.health.models import HealthStatus
 
     ss, st, env = _state_conforme(tmp_path)
-    for k, v in env.items():
-        monkeypatch.setenv(k, v)
+    _fija_entorno_de_estado(monkeypatch, ss, env)
     monkeypatch.setattr(ss, "expected_ids", lambda *a, **k: (os.geteuid() + 4242, os.getegid()))
     r = checks.check_state_runtime()
     assert r.details["state_runtime"] == "UNKNOWN" and r.status == HealthStatus.UNKNOWN, \
@@ -496,8 +505,7 @@ def test_B1_STATE_RUNTIME_inspecciona_de_verdad_OK_y_FAIL(tmp_path, monkeypatch)
     from app.health.models import HealthStatus
 
     ss, st, env = _state_conforme(tmp_path)
-    for k, v in env.items():
-        monkeypatch.setenv(k, v)
+    _fija_entorno_de_estado(monkeypatch, ss, env)
     monkeypatch.setattr(ss, "expected_ids", lambda *a, **k: (os.geteuid(), os.getegid()))
     ok = checks.check_state_runtime()
     assert ok.details["state_runtime"] == "OK" and ok.status == HealthStatus.HEALTHY, ok.message
