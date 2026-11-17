@@ -832,6 +832,60 @@ def inspect_secret(path, *, gid=None, group: str = SERVICE_GROUP) -> list:
     return out
 
 
+def secret_read_violations(mode: int, uid: int, gid: int, size: int, *, euid: int,
+                           service_gid: Optional[int], is_regular: bool = True) -> list:
+    """POLITICA UNICA de LECTURA de un secreto (valores de ``stat``; sin tocar el disco).
+
+    Acepta EXACTAMENTE (a) un fichero del propio usuario con modo ``0600`` o mas restrictivo
+    (uso manual/CLI/tests) o (b) ``root:<grupo de servicio>`` con modo ``SECRET_FILE_MAX_MODE``
+    (0640) o mas restrictivo, que es lo que deja el despliegue (``preparar_secretos_del_servicio``).
+    Rechaza: no regular o symlink, vacio, cualquier bit de «otros», escritura de grupo, bits por
+    encima de 0640 y bits de grupo en un fichero que no sea ``root:<grupo de servicio>``.
+    Devuelve ``Violation`` SIN contenido ni longitud del secreto (el ``size`` solo se compara con 0).
+    """
+    out: list = []
+    m = stat.S_IMODE(mode)
+    if not is_regular:
+        return [Violation(TYPE, "secreto", "no es un fichero regular (symlink o tipo raro)")]
+    if size == 0:
+        out.append(Violation(UNREADABLE, "secreto", "esta vacio"))
+    if m & 0o007:
+        out.append(Violation(MODE, "secreto", "tiene modo %04o: algun bit para OTROS; un secreto "
+                             "legible por la maquina entera no es un secreto" % m))
+    if m & 0o020:
+        out.append(Violation(MODE, "secreto", "tiene modo %04o: el grupo puede ESCRIBIRLO "
+                             "(el servicio lee y no escribe)" % m))
+    if m & ~SECRET_FILE_MAX_MODE & ~0o007 & ~0o020:
+        out.append(Violation(MODE, "secreto", "tiene modo %04o; maximo permitido %04o"
+                             % (m, SECRET_FILE_MAX_MODE)))
+    if m & 0o070:
+        if uid != 0 or service_gid is None or gid != service_gid:
+            out.append(Violation(OWNER, "secreto", "es legible por grupo y su propietario no es "
+                                 "root:%s; solo se admite root:%s 0640 (o el propio usuario 0600)"
+                                 % (SERVICE_GROUP, SERVICE_GROUP)))
+    elif uid != euid:
+        out.append(Violation(OWNER, "secreto", "un fichero 0600 tiene que ser del propio usuario "
+                             "del proceso (o root:%s 0640)" % SERVICE_GROUP))
+    return out
+
+
+def inspect_secret_for_reading(path, *, euid: Optional[int] = None,
+                               service_gid: Optional[int] = None) -> list:
+    """``secret_read_violations`` sobre un fichero real (``lstat``: un symlink se rechaza)."""
+    p = str(path)
+    try:
+        st = os.lstat(p)
+    except OSError as exc:
+        return [Violation(UNREADABLE, p, "no se pudo inspeccionar el secreto: %s" % exc.strerror)]
+    if service_gid is None:
+        _u, service_gid = expected_ids(SERVICE_USER, SERVICE_GROUP)
+    viol = secret_read_violations(st.st_mode, st.st_uid, st.st_gid, st.st_size,
+                                  euid=os.geteuid() if euid is None else euid,
+                                  service_gid=service_gid,
+                                  is_regular=stat.S_ISREG(st.st_mode) and not stat.S_ISLNK(st.st_mode))
+    return [Violation(v.code, p, v.detail) for v in viol]
+
+
 def probe_secret(path) -> list:
     """POR EFECTO (como el usuario de servicio): lee el secreto y NO puede escribirlo."""
     out: list = []

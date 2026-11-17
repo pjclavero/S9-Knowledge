@@ -57,8 +57,9 @@ install -m 0600 deploy/config/viewer.env.example /etc/s9-knowledge/viewer.env
 # 3. Configuración del WORKER (B3 · H-02: obligatoria, el paso 6 bloquea sin ella).
 #    La plantilla TAL CUAL: cola, propuestas y decisiones iguales a viewer.env.
 install -m 0600 deploy/config/worker.env.example /etc/s9-knowledge/worker.env
-#    y el secreto de la cuenta de SÓLO LECTURA del grafo, 0600, en ESA ruta
-#    (es el origen que copia la unidad del worker). Sin el valor en argv:
+#    y el secreto de la cuenta de SÓLO LECTURA del grafo en ESA ruta (el servicio lo lee
+#    directamente de ahí; el paso 5b del despliegue lo deja root:s9knowledge 0640).
+#    Sin el valor en argv:
 install -d -m 0700 /etc/s9-knowledge/secrets
 install -m 0600 /dev/null /etc/s9-knowledge/secrets/neo4j_worker_password
 #    ESCRIBIR LA CONTRASEÑA en el fichero ANTES de desplegar (vacío BLOQUEA el
@@ -1242,7 +1243,7 @@ escritura.
 |---|---|---|
 | Conectividad al servidor | `S9K_NEO4J_URI` (`bolt://…`), sin valor por defecto | `GRAPH_OBSERVATION_UNCONFIGURED` |
 | Usuario **de sólo lectura** (ver arriba) | `S9K_NEO4J_USER` | `GRAPH_OBSERVATION_UNCONFIGURED` |
-| Credencial: **el camino de un fichero `0600`**, nunca la contraseña en una variable ni en `argv` | `S9K_NEO4J_PASSWORD_FILE` | `GRAPH_OBSERVATION_UNCONFIGURED` |
+| Credencial: **el camino de un fichero** que cumple la política SECRET (propio usuario `0600` o `root:s9knowledge` `0640`), nunca la contraseña en una variable ni en `argv` | `S9K_NEO4J_PASSWORD_FILE` | `GRAPH_OBSERVATION_UNCONFIGURED` |
 | Base/contexto correcto, si el despliegue no usa la de por defecto | `S9K_NEO4J_DATABASE` | consulta contra la base equivocada: catálogo vacío y plan sin proyección |
 | Workspace del perfil de la fuente coherente con el del grafo | perfil de ingesta | catálogo vacío; ninguna ancla observada |
 | CA/TLS, si la URI es `bolt+s`/`neo4j+s` | truststore del sistema en la imagen del worker | `GRAPH_OBSERVATION_UNAVAILABLE` |
@@ -1260,7 +1261,7 @@ escritura.
 los dos códigos. Se distinguen por si tiene sentido reintentar:
 
 * `GRAPH_OBSERVATION_UNCONFIGURED` — **permanente**. Cubre la conexión sin
-  declarar, el fichero de credencial ausente/vacío/legible por el grupo, una
+  declarar, el fichero de credencial ausente/vacío/que incumple la política SECRET (bits de otros, escritura de grupo, grupo ajeno), una
   URI con un esquema no soportado, y una credencial que el servidor rechaza
   (el grafo responde bien; lo que está mal es lo declarado).
 * `GRAPH_OBSERVATION_UNAVAILABLE` — **reintentable**. El grafo no responde
@@ -1280,7 +1281,7 @@ apuntaba al layout *legacy* y buscaba un venv que nadie creaba, y un
 |---|---|---|
 | 1. Directorio | Ansible (`roles/common`) | `/etc/s9-knowledge`, `root:root`, `0700` |
 | 2. Subdirectorio | **el operador, a mano** | `/etc/s9-knowledge/secrets`, `root:root`, `0700` |
-| 3. Fichero del secreto | **el operador, a mano** | `/etc/s9-knowledge/secrets/neo4j_worker_password`, `root:root`, **`0600`**, fuera de la release (nunca bajo `/opt/s9-knowledge/current`, que `validate_deploy.sh` rechaza). **Tiene que ser esa ruta**: es el origen que copia la unidad |
+| 3. Fichero del secreto | **el operador, a mano** | `/etc/s9-knowledge/secrets/neo4j_worker_password`, `root:root` `0600` al crearlo; el paso 5b lo deja `root:s9knowledge` **`0640`** (política SECRET), fuera de la release (nunca bajo `/opt/s9-knowledge/current`, que `validate_deploy.sh` rechaza). El servicio lo lee **directamente** de esa ruta (ya no se copia a `/run`) |
 | 4. Entorno del worker | **el operador, a mano** | `/etc/s9-knowledge/worker.env`, `root:root`, `0600`, desde `deploy/config/worker.env.example`: `S9K_NEO4J_URI`, `S9K_NEO4J_USER`, `S9K_NEO4J_PASSWORD_FILE`, `S9K_JOBS_DB`, `S9K_V3_REVIEW_PROPOSALS_DIR` y `S9K_V3_REVIEW_DATABASE_PATH` (las tres últimas, **iguales** a las de `viewer.env`) — **y sin `S9K_NEO4J_PASSWORD`** |
 | 5. Venv del motor | `deploy.sh` (paso 2) | `<release>/data-engine/.venv` con `data-engine/requirements.lock` |
 | 6. Unidad del worker | `deploy.sh` (pasos 7–13) y el rol `systemd` | la MISMA `data-engine/systemd/s9-knowledge-worker.service`; ver «Worker de jobs como servicio» |
@@ -1294,7 +1295,7 @@ en el host y ninguna herramienta lo genera.
 arranca), si le falta cualquiera de las seis variables, si `S9K_JOBS_DB`,
 `S9K_V3_REVIEW_PROPOSALS_DIR` o `S9K_V3_REVIEW_DATABASE_PATH` difieren de las
 de `viewer.env`, si el fichero
-del secreto no es `0600` o no existe, o si alguien ha puesto
+del secreto incumple la política SECRET (máximo `0640`) o no existe, o si alguien ha puesto
 `S9K_NEO4J_PASSWORD`. Su tabla de calibración está en
 `deploy/tests/test_worker_env_validacion.py`: cada fila rompe una cosa y exige
 rojo.
@@ -1335,7 +1336,7 @@ una segunda versión en Jinja de ninguna de las dos unidades).
 | `User=`/`Group=` | `s9knowledge` (la autoridad `service_state.py`) | no corre como root ni como `www-data`; un test cruza esta unidad con la autoridad (gate M12) y `deploy.sh` pide la identidad a la autoridad, no a esta unidad |
 | `UMask=` | `0077` | lo que escribe (propuestas, `jobs.db` si la crea él) nace `0600` |
 | `EnvironmentFile=` | `/etc/s9-knowledge/worker.env` | su configuración; obligatoria |
-| `ExecStartPre=+-` | copia el secreto `0600` a `/run/s9-knowledge-worker/` | el usuario del servicio no atraviesa `/etc/s9-knowledge` (`0700`); con `-`, si falta, la ingesta falla **cerrado** y visible (`GRAPH_OBSERVATION_UNCONFIGURED`) en vez de una unidad muerta |
+| (sin `ExecStartPre`) | el secreto se lee directamente de `/etc/s9-knowledge/secrets` | política SECRET: `root:s9knowledge` 0640, `/etc/s9-knowledge` 0710 (el grupo atraviesa); si falta o incumple, la ingesta falla **cerrado** y visible (`GRAPH_OBSERVATION_UNCONFIGURED`) en vez de una unidad muerta |
 | `ExecStart=` | `…/data-engine/.venv/bin/python …/worker.py --loop --sleep-seconds 5 --release-stale-seconds 600 --retry-backoff-seconds 30` | daemon (sin `--limit`); huérfanos liberados gastando un intento; reintentos con retroceso |
 | `Restart=` | `always` | vuelve si muere |
 | `TimeoutStopSec=` | `120` | al parar, termina el trabajo en curso; si no le da tiempo, el huérfano lo libera el siguiente arranque |
