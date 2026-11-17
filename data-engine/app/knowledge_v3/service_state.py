@@ -44,6 +44,7 @@ LO QUE ESTE MODULO NO AFIRMA (TECHO DECLARADO, §14)
 from __future__ import annotations
 
 import argparse
+import ast
 import grp
 import os
 import pwd
@@ -1076,6 +1077,99 @@ def inspect_unit_identity(texto: str) -> list:
     return errores
 
 
+# --------------------------------------------------------------------------
+# D-2 · la declaracion `S9K_HEALTH_VAULT_MEDICION=no-medible-sandbox` solo es legitima en la
+#       unidad del healthcheck (con sandbox). En el entorno del visor o del worker taparia un
+#       READ_ONLY/UNAVAILABLE real con UNMEASURABLE.
+# --------------------------------------------------------------------------
+#: El NOMBRE y el VALOR los define el check que los consume (``viewer/app/health/checks.py``,
+#: constantes ``VAULT_MEDICION_ENV`` / ``VAULT_MEDICION_SANDBOX``); aqui NO se copian: se LEEN
+#: de ese fichero por AST (sin importar el visor, que este modulo no puede importar).
+HEALTH_VAULT_AUTHORITY = "viewer/app/health/checks.py"
+_HEALTH_VAULT_CONSTANTS = ("VAULT_MEDICION_ENV", "VAULT_MEDICION_SANDBOX")
+HEALTH_UNIT = "s9-knowledge-healthcheck.service"
+VAULT_DECLARATION = "VAULT_DECLARATION"
+#: Directivas que cambian lo que el proceso VE del sistema de ficheros (sandbox de ficheros).
+_SANDBOX_DIRECTIVAS_LISTA = ("ReadOnlyPaths", "InaccessiblePaths", "TemporaryFileSystem",
+                             "BindReadOnlyPaths")
+_SANDBOX_VALORES_NEGATIVOS = ("", "no", "false", "0")
+
+
+def health_vault_declaration(raiz=None) -> tuple:
+    """``(NOMBRE, VALOR)`` de la declaracion del sandbox, leidos de su autoridad.
+
+    Levanta ``RuntimeError`` si la autoridad no se puede leer o no define las dos constantes:
+    quien llama debe tratarlo como fallo (sin fail-open: no se valida contra un nombre inventado).
+    """
+    ruta = Path(raiz if raiz is not None else _REPO_ROOT) / HEALTH_VAULT_AUTHORITY
+    try:
+        arbol = ast.parse(ruta.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError, ValueError) as exc:
+        raise RuntimeError("no se puede leer la autoridad de la declaracion del sandbox "
+                           "%s: %s" % (HEALTH_VAULT_AUTHORITY, exc))
+    valores: dict = {}
+    for nodo in arbol.body:
+        if (isinstance(nodo, ast.Assign) and len(nodo.targets) == 1
+                and isinstance(nodo.targets[0], ast.Name)
+                and nodo.targets[0].id in _HEALTH_VAULT_CONSTANTS
+                and isinstance(nodo.value, ast.Constant) and isinstance(nodo.value.value, str)
+                and nodo.value.value):
+            valores[nodo.targets[0].id] = nodo.value.value
+    if set(valores) != set(_HEALTH_VAULT_CONSTANTS):
+        raise RuntimeError("%s no define %s como cadenas literales"
+                           % (HEALTH_VAULT_AUTHORITY, " y ".join(_HEALTH_VAULT_CONSTANTS)))
+    return tuple(valores[c] for c in _HEALTH_VAULT_CONSTANTS)
+
+
+def sandbox_de_ficheros(pares: Iterable) -> list:
+    """Directivas ``(clave, valor)`` que cambian lo que el proceso ve del sistema de ficheros."""
+    vistas = []
+    for k, v in pares:
+        v = (v or "").strip()
+        if k in ("ProtectSystem", "ProtectHome") and v.lower() not in _SANDBOX_VALORES_NEGATIVOS:
+            vistas.append("%s=%s" % (k, v))
+        elif k in _SANDBOX_DIRECTIVAS_LISTA and v:
+            vistas.append("%s=%s" % (k, v))
+    return vistas
+
+
+def _mensaje_declaracion_fuera_de_salud(var: str, donde: str) -> str:
+    return ("%s declara %s: esa declaracion solo es legitima en la unidad del healthcheck (%s), "
+            "la unica con sandbox, donde el check de la boveda no puede medir; en el visor o el "
+            "worker taparia un READ_ONLY/UNAVAILABLE real con UNMEASURABLE. Quitela de ahi"
+            % (donde, var, HEALTH_UNIT))
+
+
+def inspect_vault_declaration_env(env: Mapping[str, str], donde: str, raiz=None) -> list:
+    """El entorno del visor/worker (``viewer.env``, ``worker.env``, ``Environment=``, el entorno
+    del proceso) NO declara el sandbox del healthcheck. Devuelve ``Violation``."""
+    var, _valor = health_vault_declaration(raiz)
+    if (env.get(var) or "").strip():
+        return [Violation(VAULT_DECLARATION, var, _mensaje_declaracion_fuera_de_salud(var, donde))]
+    return []
+
+
+def inspect_unit_vault_declaration(texto: str, rol: str, raiz=None) -> list:
+    """Errores (una cadena por hallazgo) de la declaracion del sandbox en el TEXTO de una unidad.
+
+    ``rol`` = ``viewer``/``worker`` (no puede declararla) o ``health`` (puede declararla solo si
+    la unidad tiene sandbox de ficheros: una declaracion sin sandbox oculta un fallo real).
+    """
+    var, _valor = health_vault_declaration(raiz)
+    efectivo = [l for l in texto.splitlines() if l.strip() and l.strip()[0] not in "#;"]
+    declarada = any(var in l for l in efectivo)
+    if not declarada:
+        return []
+    if rol in ("viewer", "worker"):
+        return [_mensaje_declaracion_fuera_de_salud(var, "la unidad del %s" % rol)]
+    sandbox = sandbox_de_ficheros(parse_unit(texto).get("Service", []))
+    if not sandbox:
+        return ["la unidad del healthcheck declara %s pero NO tiene sandbox de ficheros "
+                "(ProtectSystem/ProtectHome/ReadOnlyPaths/...): el check de la boveda saldria "
+                "UNMEASURABLE y ocultaria un READ_ONLY/UNAVAILABLE real" % var]
+    return []
+
+
 def enforce(role: str, env: Optional[Mapping[str, str]] = None, *,
             uid: Optional[int] = None, gid: Optional[int] = None,
             euid: Optional[int] = None) -> bool:
@@ -1127,6 +1221,8 @@ def _leer_env_file(ruta: str) -> dict:
 
 
 _GETTERS = {
+    "health_vault_env": lambda: health_vault_declaration()[0],
+    "health_vault_value": lambda: health_vault_declaration()[1],
     "service_user": lambda: SERVICE_USER,
     "service_group": lambda: SERVICE_GROUP,
     "state_root": lambda: DEFAULT_STATE_ROOT,
@@ -1195,15 +1291,33 @@ def main(argv: Optional[list] = None) -> int:
     uc = sub.add_parser("unit-check", help="identidad y privilegios de una unidad systemd con la "
                         "semantica de systemd (ultimo valor; C-7). Una linea por hallazgo.")
     uc.add_argument("unidad")
+    uc.add_argument("--rol", choices=("viewer", "worker", "health"), default=None,
+                    help="rol de la unidad: ademas se valida la declaracion del sandbox del "
+                    "healthcheck (D-2)")
+    sb = sub.add_parser("sandbox-check", help="lee `systemctl show` por stdin (clave=valor): "
+                        "rc 0 si la unidad tiene sandbox de ficheros, 1 si no (D-2)")
     args = ap.parse_args(argv)
 
     if args.orden == "get":
-        print(_GETTERS[args.clave]())
+        try:
+            print(_GETTERS[args.clave]())
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            return 3
         return 0
+    if args.orden == "sandbox-check":
+        pares = [tuple(l.split("=", 1)) for l in sys.stdin.read().splitlines() if "=" in l]
+        return 0 if sandbox_de_ficheros(pares) else 1
     if args.orden == "unit-check":
         try:
-            errores = inspect_unit_identity(Path(args.unidad).read_text(encoding="utf-8"))
-        except OSError as exc:
+            texto_unidad = Path(args.unidad).read_text(encoding="utf-8")
+            errores = inspect_unit_identity(texto_unidad)
+            if args.rol:
+                errores += inspect_unit_vault_declaration(texto_unidad, args.rol)
+        except (OSError, RuntimeError) as exc:
+            if isinstance(exc, RuntimeError):
+                print(str(exc))
+                return 3
             errores = ["no se puede leer la unidad %s: %s" % (args.unidad, exc.strerror)]
         for e in errores:
             print(e)
@@ -1231,6 +1345,12 @@ def main(argv: Optional[list] = None) -> int:
                 viol.append(Violation(IDENTITY, var, "esta variable es una excepcion de tests/"
                             "laboratorio (o un interruptor retirado) y NO puede estar en una "
                             "instalacion operativa"))
+        # D-2: la declaracion del sandbox del healthcheck no entra por viewer.env/worker.env.
+        try:
+            viol += inspect_vault_declaration_env(
+                env, "el env-file %s (rol %s)" % (os.path.basename(args.env_file), args.role))
+        except RuntimeError as exc:
+            viol.append(Violation(VAULT_DECLARATION, HEALTH_VAULT_AUTHORITY, str(exc)))
         # C-1: la raiz de backups, por CUALQUIERA de sus dos nombres, fuera del state root.
         for var_backup in BACKUP_ENVS:
             backup = (env.get(var_backup) or "").strip()

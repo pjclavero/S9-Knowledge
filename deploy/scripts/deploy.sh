@@ -518,7 +518,7 @@ fi
 if ! verificar_entorno_efectivo "${VIEWER_UNIT_NAME}" "${WORKER_UNIT_NAME}" "${HEALTH_UNIT_NAME}"; then
     systemctl stop "${VIEWER_UNIT_NAME}" || true
     systemctl stop "${WORKER_UNIT_NAME}" || true
-    die "la excepción de tests/laboratorio (S9K_STATE_VALIDATION/S9K_STATE_ENFORCE) está en el entorno EFECTIVO (causa arriba): visor y worker PARADOS. Quite el drop-in/EnvironmentFile/Environment= y repita el despliegue"
+    die "el entorno EFECTIVO es inválido (causa arriba): la excepción de tests/laboratorio (S9K_STATE_VALIDATION/S9K_STATE_ENFORCE) o la declaración del sandbox del healthcheck fuera de su unidad (o sin sandbox): visor y worker PARADOS. Quite el drop-in/EnvironmentFile/Environment= y repita el despliegue"
 fi
 
 # Paso 14b (B3 · H-02): el worker tiene que estar VIVO, no solo instalado. Con

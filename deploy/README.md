@@ -599,12 +599,22 @@ reflexión, `subprocess` ni terceros.
   de ACL se detecta y se atestigua en CI simulando el xattr; la ACL real, en VM112).
 - **Deuda declarada en la ronda 2 (no se arregla en este carril):** los secretos no se
   validan al ARRANCAR el servicio (solo en el despliegue; P3); un `.migrando-*` huérfano tras
-  un SIGKILL justo al crear el temporal de la migración (inocuo: la reejecución converge;
-  no se limpia solo); el restore de un backup no tiene guion (re-ejecutar `migrar_estado.py`
+  un SIGKILL justo al crear el temporal de la migración (**D-8, cerrada**: la siguiente
+  ejecución de `migrar_estado.py` lo retira y lo dice (`RESTO:`) SOLO si demuestra que es un
+  resto propio y redundante —regular, dueño root o servicio, su PID ya no es una migración
+  viva, y está vacío o es prefijo del destino o del original que sigue intacto—; si no puede
+  demostrarlo PARA con `STOP[RESTO_DE_MIGRACION]` y la receta, sin tocar nada; el diagnóstico de
+  arranque lo nombra); el restore de un backup no tiene guion (re-ejecutar `migrar_estado.py`
   devuelve owner/modos canónicos); ACL no interpretadas; Ansible `become_user` (puede exigir
   el paquete `acl`); los E2E que lanzan subprocesos HEREDAN la excepción de tests de la suite;
   y las cuatro deudas preexistentes (`AUTH_ORDER_FLAKY`, handwritten 19/19b, 3 `test_f2`
   desde el cwd `viewer/`, B3 M1 por tiempos), que fallan igual sobre la base `4916e90`.
+- **D-2 (cerrada):** `S9K_HEALTH_VAULT_MEDICION=no-medible-sandbox` (nombre y valor, de su
+  autoridad: las constantes del check) solo es legítima en la unidad del healthcheck y solo con
+  sandbox de ficheros. `validate-env` (`viewer.env` y `worker.env`), `unit-check --rol` (texto de
+  las unidades, vía `validate_deploy.sh`) y `verificar_entorno_efectivo` (Environment efectivo,
+  EnvironmentFiles —compartidos—, drop-ins y `/proc/<pid>/environ`) la rechazan fuera de ella, y
+  rechazan la del healthcheck si su sandbox efectivo (con drop-ins) no existe.
 - **Deuda declarada en la ronda 2b (no se arregla):** `refuse_root_state_write` es defensa
   en profundidad (P3): un root que cambie `S9K_STATE_ROOT`, entre por un symlink o abra la base
   con `sqlite3` crudo lo esquiva (la barrera principal es la guarda de cada CLI y la migración);

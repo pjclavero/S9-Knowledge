@@ -976,12 +976,26 @@ verificar_procesos_no_root() {
 # ---------------------------------------------------------------------------
 verificar_entorno_efectivo() {
     local unit pid valor f patron='(^|[[:space:]])S9K_STATE_(VALIDATION|ENFORCE)='
-    local fallo=0
+    local fallo=0 decl_var es_salud declarada
+    # D-2: la declaracion del sandbox del healthcheck (nombre de la AUTORIDAD, no copiado aqui)
+    # solo es legitima en la unidad del healthcheck y solo con sandbox. Sin poder leer la
+    # autoridad no se da nada por bueno.
+    decl_var="$(servicio_cifra health_vault_env)" \
+        || { err "no se pudo leer de la autoridad el nombre de la declaracion del sandbox del healthcheck"; return 1; }
     for unit in "$@"; do
+        es_salud=0; [ "${unit}" = "${HEALTH_UNIT_NAME}" ] && es_salud=1
+        declarada=0
         valor="$(systemctl show -p Environment --value "${unit}" 2>/dev/null || true)"
         if printf '%s\n' "${valor}" | grep -qE "${patron}"; then
             err "${unit}: el entorno EFECTIVO (Environment=, incluidos drop-ins) declara S9K_STATE_VALIDATION/ENFORCE"
             fallo=1
+        fi
+        if printf '%s\n' "${valor}" | grep -qE "(^|[[:space:]])${decl_var}="; then
+            if [ "${es_salud}" -eq 1 ]; then declarada=1
+            else
+                err "${unit}: el entorno EFECTIVO (Environment=, incluidos drop-ins) declara ${decl_var}: solo es legitima en ${HEALTH_UNIT_NAME} (con sandbox); aqui taparia un READ_ONLY/UNAVAILABLE real de la boveda con UNMEASURABLE"
+                fallo=1
+            fi
         fi
         # EnvironmentFiles: "ruta (ignore_errors=no)" por fichero.
         while IFS= read -r f; do
@@ -991,6 +1005,11 @@ verificar_entorno_efectivo() {
                 err "${unit}: el EnvironmentFile ${f} declara S9K_STATE_VALIDATION/ENFORCE"
                 fallo=1
             fi
+            # un EnvironmentFile se COMPARTE (viewer.env lo leen visor y healthcheck): nunca la lleva
+            if grep -vE '^[[:space:]]*#' "${f}" | grep -qE "^[[:space:]]*(export[[:space:]]+)?${decl_var}="; then
+                err "${unit}: el EnvironmentFile ${f} declara ${decl_var}: solo se admite como Environment= de ${HEALTH_UNIT_NAME}; en un fichero compartido taparia un READ_ONLY/UNAVAILABLE real de la boveda"
+                fallo=1
+            fi
         done < <(systemctl show -p EnvironmentFiles --value "${unit}" 2>/dev/null | tr ' ' '\n' | grep -E '^-?/' || true)
         for f in $(systemctl show -p DropInPaths --value "${unit}" 2>/dev/null || true); do
             [ -f "${f}" ] || continue
@@ -998,11 +1017,32 @@ verificar_entorno_efectivo() {
                 err "${unit}: el drop-in ${f} declara S9K_STATE_VALIDATION/ENFORCE"
                 fallo=1
             fi
+            if grep -vE '^[[:space:]]*[#;]' "${f}" | grep -qE "${decl_var}"; then
+                if [ "${es_salud}" -eq 1 ]; then declarada=1
+                else
+                    err "${unit}: el drop-in ${f} declara ${decl_var}: solo es legitima en ${HEALTH_UNIT_NAME} (con sandbox)"
+                    fallo=1
+                fi
+            fi
         done
         pid="$(systemctl show -p MainPID --value "${unit}" 2>/dev/null || echo 0)"
         if [ -n "${pid}" ] && [ "${pid}" != "0" ] && [ -r "/proc/${pid}/environ" ]; then
             if tr '\0' '\n' < "/proc/${pid}/environ" | grep -qE '^S9K_STATE_(VALIDATION|ENFORCE)='; then
                 err "${unit}: el proceso VIVO ${pid} tiene S9K_STATE_VALIDATION/ENFORCE en su entorno"
+                fallo=1
+            fi
+            if [ "${es_salud}" -eq 0 ] && tr '\0' '\n' < "/proc/${pid}/environ" | grep -qE "^${decl_var}="; then
+                err "${unit}: el proceso VIVO ${pid} tiene ${decl_var} en su entorno: solo es legitima en ${HEALTH_UNIT_NAME} (con sandbox)"
+                fallo=1
+            fi
+        fi
+        # La declaracion en la unidad del healthcheck exige SANDBOX EFECTIVO (con sus drop-ins):
+        # un drop-in que lo quite conservando la declaracion ocultaria un fallo real.
+        if [ "${es_salud}" -eq 1 ] && [ "${declarada}" -eq 1 ]; then
+            if ! systemctl show -p ProtectSystem -p ProtectHome -p ReadOnlyPaths -p InaccessiblePaths \
+                    -p TemporaryFileSystem -p BindReadOnlyPaths "${unit}" 2>/dev/null \
+                    | python3 "${S9K_SERVICE_STATE_PY}" sandbox-check; then
+                err "${unit}: declara ${decl_var} pero su sandbox de ficheros EFECTIVO (ProtectSystem/ProtectHome/ReadOnlyPaths/..., con drop-ins) no existe: el check de la boveda saldria UNMEASURABLE y ocultaria un READ_ONLY/UNAVAILABLE real. Restaure el sandbox o quite la declaracion"
                 fallo=1
             fi
         fi
