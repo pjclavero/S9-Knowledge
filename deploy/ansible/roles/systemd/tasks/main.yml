@@ -39,10 +39,37 @@
   tags:
     - systemd
 
-- name: Instalar unit del visor en systemd
-  ansible.builtin.template:
-    src: s9-knowledge-viewer.service.j2
+# H-06 + H-08 — UNA unidad del visor. Antes habia dos: esta plantilla Jinja
+# (con otro usuario) y viewer/systemd/*.service (sin User=, es decir ROOT), la que
+# instalaba deploy.sh; se pisaban mutuamente. Ahora NO hay plantilla: se COPIA la
+# unidad canonica de la release activa (la misma que instala deploy.sh), igual
+# que el worker, y se comprueba que declara la identidad de servicio.
+- name: Leer la unidad canonica del visor de la release activa
+  ansible.builtin.slurp:
+    src: "{{ s9k_root }}/current/viewer/systemd/{{ s9k_viewer_service }}"
+  register: _viewer_unit_src
+  when: _unit_stat.stat.exists
+  tags:
+    - systemd
+
+- name: La unidad del visor declara la identidad de servicio
+  ansible.builtin.assert:
+    that:
+      - (_viewer_unit_src.content | b64decode) is search('(?m)^User=' ~ s9k_service_user ~ '$')
+      - (_viewer_unit_src.content | b64decode) is search('(?m)^Group=' ~ s9k_service_group ~ '$')
+    fail_msg: >-
+      La unidad canonica del visor no declara User={{ s9k_service_user }} /
+      Group={{ s9k_service_group }}: correria como root o como otro usuario.
+      Cambia la unidad en el repositorio, no una copia en el host.
+  when: _unit_stat.stat.exists
+  tags:
+    - systemd
+
+- name: Instalar la unidad canonica del visor (copia literal de la release)
+  ansible.builtin.copy:
+    src: "{{ s9k_root }}/current/viewer/systemd/{{ s9k_viewer_service }}"
     dest: "/etc/systemd/system/{{ s9k_viewer_service }}"
+    remote_src: true
     owner: root
     group: root
     mode: "0644"

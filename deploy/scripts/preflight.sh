@@ -56,16 +56,18 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 2. Python 3.11+
+# 2. Python >= 3.11.5
 # ---------------------------------------------------------------------------
+# El lock del motor (data-engine/requirements.lock) fija soupsieve 4.0, que exige
+# Python >= 3.11.5: con 3.11.0-3.11.4 el preflight pasaria y `pip install` fallaria
+# despues. Se compara la TUPLA (major, minor, micro), no solo major.minor.
+PY_MINIMO="3.11.5"
 if command -v python3 >/dev/null 2>&1; then
-    py_ver="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
-    py_major="$(python3 -c 'import sys; print(sys.version_info.major)')"
-    py_minor="$(python3 -c 'import sys; print(sys.version_info.minor)')"
-    if [ "${py_major}" -ge 3 ] && [ "${py_minor}" -ge 11 ]; then
-        ok "Python ${py_ver}"
+    py_ver="$(python3 -c 'import sys; print("%d.%d.%d" % tuple(sys.version_info[:3]))')"
+    if python3 -c 'import sys; m = tuple(int(x) for x in sys.argv[1].split(".")); sys.exit(0 if tuple(sys.version_info[:3]) >= m else 1)' "${PY_MINIMO}"; then
+        ok "Python ${py_ver} (>= ${PY_MINIMO})"
     else
-        bloq "Python ${py_ver} demasiado antiguo; se requiere 3.11+"
+        bloq "Python ${py_ver} demasiado antiguo: se exige >= ${PY_MINIMO} porque el lock del motor (data-engine/requirements.lock) fija soupsieve 4.0, que requiere Python >= 3.11.5"
     fi
 else
     bloq "python3 no encontrado"
@@ -195,13 +197,24 @@ fi
 # ---------------------------------------------------------------------------
 if [ -d "${S9K_STATE_ROOT}" ]; then
     ok "directorio de estado: ${S9K_STATE_ROOT}"
-    for subdir in auth jobs state output staging backups; do
+    # H-06 + H-08: los subdirectorios salen de la AUTORIDAD (service_state.py).
+    for subdir in $(servicio_cifra subdirs | grep -v '/'); do
         if [ -d "${S9K_STATE_ROOT}/${subdir}" ]; then
             ok "  ${subdir}/ presente"
         else
             avso "  ${subdir}/ no existe en ${S9K_STATE_ROOT} (se creará en el primer deploy)"
         fi
     done
+    # Solo lectura: ¿el estado ya cumple el contrato (dueño y modos privados)?
+    # Un estado anterior a H-06/H-08 NO es un bloqueo: `deploy.sh` lo migra o PARA.
+    if [ -f "${S9K_CONFIG_ROOT}/viewer.env" ]; then
+        if python3 "${S9K_SERVICE_STATE_PY}" check --state-root "${S9K_STATE_ROOT}" \
+                --env-file "${S9K_CONFIG_ROOT}/viewer.env" >/dev/null 2>&1; then
+            ok "  el estado cumple el contrato (dueño y modos privados)"
+        else
+            avso "  el estado NO cumple el contrato de H-06/H-08 (dueño/modos/ubicación): deploy.sh lo migra o PARA; detalle: service_state.py check --state-root ${S9K_STATE_ROOT} --env-file ${S9K_CONFIG_ROOT}/viewer.env"
+        fi
+    fi
 else
     if [ "${ENVIRONMENT}" = "production" ]; then
         bloq "directorio de estado no existe: ${S9K_STATE_ROOT}"

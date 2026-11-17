@@ -200,7 +200,7 @@ def test_conflict_and_adjudication():
 
 # ── 17/18. caché + invalidación por prompt version ────────────────────────────
 def test_cache_put_get(tmp_path):
-    c = cache.ResponseCache(tmp_path, enabled=True)
+    c = cache.ResponseCache(enabled=True, root=tmp_path)
     k = cache.cache_key("nvidia", "m-a", "1.0", "leyenda", "c1", "segh", "1.0", "gh")
     c.put(k, "raw", {"ok": True}, 12)
     assert c.get(k)["normalized"]["ok"] is True

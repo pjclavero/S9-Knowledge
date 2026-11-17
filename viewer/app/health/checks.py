@@ -552,6 +552,180 @@ def check_backups(backup_root: Optional[str] = None,
 # systemd: servicios activos (no reinicia)
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# STATE_RUNTIME (contrato del operador B-1): lo OBSERVADO en ejecucion, no la validacion
+# ---------------------------------------------------------------------------
+
+def check_state_runtime() -> ComponentResult:
+    """STATE_RUNTIME: inspeccion REAL del state root en ejecucion. SOLO LECTURA.
+
+    Distinta de ``state_validation`` (que solo dice si la validacion de arranque esta activa).
+    Usa la MISMA inspeccion que el arranque (``inspect_state`` + ``inspect_effective_access``
+    de la autoridad: existencia, tipo, dueño, modo, ACL y acceso efectivo de lo declarado)
+    sobre el state root y las rutas EFECTIVAS del entorno de este proceso. Solo es medible
+    como el usuario de servicio (el dueño esperado y el acceso efectivo son los suyos): con
+    otra identidad, o si algo no se puede leer, es UNKNOWN (no medido), nunca OK por defecto.
+    Hallazgos reales -> UNHEALTHY (el servicio no volveria a arrancar).
+    """
+    from app import service_identity  # noqa: PLC0415
+
+    ss = service_identity.service_state()
+    with _Timer() as t:
+        try:
+            uid, gid = ss.expected_ids()
+            if uid is None or os.geteuid() != uid:
+                return _result("state_runtime", HealthStatus.UNKNOWN,
+                               "STATE_RUNTIME UNKNOWN: no medido: este proceso no corre como %s "
+                               "(el dueño y el acceso efectivo que se miden son los suyos)"
+                               % ss.SERVICE_USER, {"state_runtime": "UNKNOWN"}, latency_ms=t.ms)
+            raiz = ss.effective_state_root(os.environ)
+            rutas, faltan = ss.effective_paths(os.environ, role="viewer")
+            viol = list(faltan) + list(ss.inspect_state(raiz, uid=uid, gid=gid, declared=rutas))
+            viol += list(ss.inspect_effective_access(raiz, rutas))
+        except Exception as exc:  # noqa: BLE001 - no medido, nunca OK
+            return _result("state_runtime", HealthStatus.UNKNOWN,
+                           "STATE_RUNTIME UNKNOWN: no medido (%s)" % type(exc).__name__,
+                           {"state_runtime": "UNKNOWN"}, latency_ms=t.ms)
+    if viol:
+        textos = [v.message() for v in viol]
+        return _result("state_runtime", HealthStatus.UNHEALTHY,
+                       "STATE_RUNTIME FAIL: %d hallazgo(s) en el state root: %s"
+                       % (len(textos), "; ".join(textos[:5])),
+                       {"state_runtime": "FAIL", "hallazgos": textos}, latency_ms=t.ms)
+    return _result("state_runtime", HealthStatus.HEALTHY,
+                   "STATE_RUNTIME OK: state root inspeccionado como %s (tipo, dueño, modo, ACL y "
+                   "acceso efectivo de %d ruta(s) declarada(s))" % (ss.SERVICE_USER, len(rutas)),
+                   {"state_runtime": "OK", "rutas": len(rutas)}, latency_ms=t.ms)
+
+
+# ---------------------------------------------------------------------------
+# Boveda externa (H-06/H-08, criterio 7 del operador): EXTERNAL OPERATOR CONTENT
+# ---------------------------------------------------------------------------
+#: Estados de la boveda. Es una dependencia OPCIONAL: READ_ONLY y UNAVAILABLE se
+#: informan (DEGRADED como mucho) y NUNCA ponen UNHEALTHY la salud global ni
+#: bloquean el arranque (la comprobacion de arranque solo mira el STATE ROOT).
+VAULT_AVAILABLE = "AVAILABLE"
+VAULT_READ_ONLY = "READ_ONLY"
+VAULT_UNAVAILABLE = "UNAVAILABLE"
+_VAULT_ORDEN = {VAULT_AVAILABLE: 0, VAULT_READ_ONLY: 1, VAULT_UNAVAILABLE: 2}
+#: B-1 (revision acotada n.º 3): el proceso que mide NO ve la boveda como el visor. La unidad
+#: del healthcheck periodico corre con `ProtectSystem=strict` + `ReadWritePaths` solo del state
+#: + `ProtectHome=true`: dentro de ese sandbox toda boveda fuera del state es de solo lectura o
+#: invisible AUNQUE el visor la escriba, y `os.access` diria READ_ONLY/UNAVAILABLE en falso.
+#: La unidad lo DECLARA con esta variable (un gate la ata a la presencia del sandbox en la
+#: unidad canonica; no va en viewer.env, asi que el visor no la hereda): el check no mide, lo
+#: dice (UNMEASURABLE) y no degrada. El estado real lo da el visor (/admin/health), sin sandbox.
+#: Contrato del operador (B-1): VAULT_HEALTH = AVAILABLE | READ_ONLY | UNAVAILABLE | UNMEASURABLE.
+VAULT_UNMEASURABLE = "UNMEASURABLE"
+VAULT_MEDICION_ENV = "S9K_HEALTH_VAULT_MEDICION"
+VAULT_MEDICION_SANDBOX = "no-medible-sandbox"
+
+
+def _acceso(p: Path, modo: int) -> bool:
+    """Permiso EFECTIVO por `os.access` (sin abrir ni crear nada en la boveda)."""
+    try:
+        if os.access in os.supports_effective_ids:
+            return os.access(str(p), modo, effective_ids=True)
+        return os.access(str(p), modo)
+    except OSError:
+        return False
+
+
+def _estado_carpeta_de_juego(carpeta: Path, nombre_perfil: str) -> tuple:
+    """(estado, motivo) de UNA carpeta de juego: el perfil si existe; si no, la carpeta.
+
+    Escribir el perfil exige la carpeta escribible (reemplazo atomico del perfil propio o
+    respaldo del ajeno) Y el perfil escribible si ya existe: es la misma precondicion que
+    `vault_writer` comprueba antes de escribir.
+    """
+    perfil = carpeta / nombre_perfil
+    if os.path.islink(str(perfil)):
+        return VAULT_READ_ONLY, "el perfil es un enlace simbolico (el escritor lo rechaza)"
+    hay_perfil = os.path.lexists(str(perfil))
+    if not _acceso(carpeta, os.R_OK | os.X_OK) or (hay_perfil and not _acceso(perfil, os.R_OK)):
+        return VAULT_UNAVAILABLE, "ilegible por el usuario del proceso"
+    if not _acceso(carpeta, os.W_OK | os.X_OK):
+        return VAULT_READ_ONLY, "la carpeta no es escribible por el usuario del proceso"
+    if hay_perfil and not _acceso(perfil, os.W_OK):
+        return VAULT_READ_ONLY, "%s no es escribible por el usuario del proceso" % nombre_perfil
+    return VAULT_AVAILABLE, "escribible" if hay_perfil else "sin perfil aun; carpeta escribible"
+
+
+def check_vault(vault_root: Optional[str] = None,
+                require_mount: Optional[str] = None) -> ComponentResult:
+    """VAULT AVAILABLE / READ_ONLY / UNAVAILABLE (criterio 7). SOLO LECTURA.
+
+    - AVAILABLE: configurada, existe y cada perfil (o su carpeta si aun no hay perfil) es
+      escribible por permiso EFECTIVO. -> HEALTHY.
+    - READ_ONLY: existe y es legible, pero algun perfil/carpeta no es escribible. -> DEGRADED.
+    - UNAVAILABLE: no configurada, inexistente, sin montaje exigido o ilegible (con el
+      motivo). Sin configurar -> HEALTHY informativo (la boveda es opcional); el resto ->
+      DEGRADED. Nunca UNHEALTHY: la boveda no participa en la salud del servicio.
+
+    No crea ficheros de sonda en la boveda (solo `stat`/`os.access`/`listdir` a traves de
+    `vault_mount.inspeccionar`, la misma frontera que usa el catalogo) y no repara nada:
+    S9-Knowledge NUNCA cambia permisos de la boveda; prepararlos es del administrador.
+    """
+    from app import sources_catalog, vault_mount  # noqa: PLC0415
+
+    nombre_perfil = sources_catalog.NOMBRE_PERFIL
+    raiz_txt = (vault_root or "").strip()
+    if os.environ.get(VAULT_MEDICION_ENV) == VAULT_MEDICION_SANDBOX:
+        # Declarado por la unidad del healthcheck: desde su sandbox el permiso efectivo NO es
+        # el del visor. No se mide (ni se toca la boveda) y no se degrada.
+        motivo = ("no medible desde el sandbox del healthcheck periodico (ProtectSystem/"
+                  "ProtectHome): el permiso que ve no es el del visor; consulte el panel "
+                  "admin (/admin/health), que mide desde el visor")
+        return _result("vault", HealthStatus.HEALTHY, "VAULT %s: %s" % (VAULT_UNMEASURABLE, motivo),
+                       {"vault": VAULT_UNMEASURABLE, "motivo": motivo, "configurada": bool(raiz_txt),
+                        "opcional": True, "carpetas": {}})
+    with _Timer() as t:
+        if not raiz_txt:
+            estado, motivo, carpetas, configurada = (
+                VAULT_UNAVAILABLE, "no configurada (%s sin declarar): dependencia opcional"
+                % sources_catalog.ENV_RAIZ_BOVEDAS, {}, False)
+        else:
+            configurada = True
+            carpetas: Dict[str, str] = {}
+            crudo = str(require_mount if require_mount is not None else "1").strip().lower()
+            exigir = crudo not in {"0", "false", "no", ""}
+            raiz = Path(raiz_txt)
+            montaje = vault_mount.inspeccionar(raiz, exigir_montaje=exigir)
+            if not montaje.utilizable:
+                estado, motivo = VAULT_UNAVAILABLE, "%s: %s" % (montaje.estado.value, montaje.detalle)
+            else:
+                juegos = []
+                for nombre in montaje.entradas or []:
+                    p = raiz / nombre
+                    if nombre.startswith(".") or os.path.islink(str(p)) or not p.is_dir():
+                        continue
+                    juegos.append(nombre)
+                if not juegos:
+                    if _acceso(raiz, os.W_OK | os.X_OK):
+                        estado, motivo = VAULT_AVAILABLE, "sin carpetas de juego; raiz escribible"
+                    else:
+                        estado, motivo = VAULT_READ_ONLY, "sin carpetas de juego; la raiz no es escribible"
+                else:
+                    estado, motivo = VAULT_AVAILABLE, "todos los perfiles escribibles"
+                    peores = []
+                    for nombre in juegos:
+                        e, m = _estado_carpeta_de_juego(raiz / nombre, nombre_perfil)
+                        carpetas[nombre] = "%s (%s)" % (e, m)
+                        if _VAULT_ORDEN[e] > _VAULT_ORDEN[estado]:
+                            estado, peores = e, []
+                        if e == estado and e != VAULT_AVAILABLE:
+                            peores.append("%s: %s" % (nombre, m))
+                    if peores:
+                        motivo = "; ".join(peores)
+    if estado == VAULT_AVAILABLE or not configurada:
+        status = HealthStatus.HEALTHY
+    else:
+        status = HealthStatus.DEGRADED
+    return _result("vault", status, "VAULT %s: %s" % (estado, motivo),
+                   {"vault": estado, "motivo": motivo, "configurada": configurada,
+                    "opcional": True, "carpetas": carpetas}, latency_ms=t.ms)
+
+
 def check_systemd(units: Optional[List[str]] = None) -> ComponentResult:
     units = units or ["s9-knowledge-viewer.service"]
     if not shutil.which("systemctl"):
@@ -570,3 +744,72 @@ def check_systemd(units: Optional[List[str]] = None) -> ComponentResult:
     return _result("systemd", status,
                    "todas activas" if not inactive else "inactivas: %s" % ",".join(inactive),
                    {"units": states}, latency_ms=t.ms)
+
+
+# ---------------------------------------------------------------------------
+# C-6 (H-06/H-08 ronda 2): la excepcion de tests NO esta en el entorno EFECTIVO
+# ---------------------------------------------------------------------------
+
+def _variables_de_excepcion() -> tuple:
+    """Los nombres los da la AUTORIDAD (service_state): aqui no se repiten."""
+    from app import service_identity  # noqa: PLC0415
+
+    ss = service_identity.service_state()
+    return (ss.VALIDATION_EXCEPTION_ENV, ss.ENFORCE_ENV)
+
+
+def check_state_validation(units: Optional[List[str]] = None) -> ComponentResult:
+    """§12 «sin fail-open silencioso»: ni el propio healthcheck ni los procesos VIVOS del
+    visor/worker llevan la excepcion de tests (``S9K_STATE_VALIDATION``) o el interruptor
+    retirado (``S9K_STATE_ENFORCE``) en su entorno EFECTIVO. Solo lectura y sin
+    privilegios: el entorno propio, ``systemctl show -p Environment`` y
+    ``/proc/<MainPID>/environ`` (legible por el mismo usuario de servicio). Si aparece:
+    UNHEALTHY. Si no se puede leer el entorno de un proceso: UNKNOWN (no es un verde)."""
+    units = units or ["s9-knowledge-viewer.service", "s9-knowledge-worker.service"]
+    variables = _variables_de_excepcion()
+    hallazgos: List[str] = []
+    no_medido: List[str] = []
+    with _Timer() as t:
+        for v in variables:
+            if os.environ.get(v):
+                hallazgos.append("el propio healthcheck tiene %s en su entorno" % v)
+        hay_systemctl = bool(shutil.which("systemctl"))
+        for u in units:
+            if not hay_systemctl:
+                no_medido.append(u)
+                continue
+            try:
+                env = subprocess.run(["systemctl", "show", "-p", "Environment", "--value", u],
+                                     capture_output=True, text=True, timeout=5).stdout
+                pid = subprocess.run(["systemctl", "show", "-p", "MainPID", "--value", u],
+                                     capture_output=True, text=True, timeout=5).stdout.strip()
+            except Exception:
+                no_medido.append(u)
+                continue
+            for v in variables:
+                if (v + "=") in env:
+                    hallazgos.append("%s declara %s (Environment efectivo)" % (u, v))
+            if pid and pid != "0":
+                try:
+                    vivas = Path("/proc/%s/environ" % pid).read_bytes().split(b"\0")
+                except OSError:
+                    no_medido.append(u)
+                    continue
+                for v in variables:
+                    if any(x.startswith(v.encode() + b"=") for x in vivas):
+                        hallazgos.append("%s: el proceso vivo %s tiene %s" % (u, pid, v))
+    if hallazgos:
+        return _result("state_validation", HealthStatus.UNHEALTHY,
+                       "STATE_VALIDATION FAIL: la validacion de arranque del state root esta "
+                       "DESACTIVADA en el entorno efectivo: %s" % "; ".join(hallazgos),
+                       {"state_validation": "FAIL", "hallazgos": hallazgos}, latency_ms=t.ms)
+    if no_medido:
+        return _result("state_validation", HealthStatus.UNKNOWN,
+                       "STATE_VALIDATION UNKNOWN: no se pudo leer el entorno efectivo de: %s"
+                       % ", ".join(no_medido),
+                       {"state_validation": "UNKNOWN", "no_medido": no_medido}, latency_ms=t.ms)
+    return _result("state_validation", HealthStatus.HEALTHY,
+                   "STATE_VALIDATION OK: la validacion de arranque del state root esta activa "
+                   "(sin excepcion de tests en el entorno efectivo); NO es una inspeccion del "
+                   "estado: eso es STATE_RUNTIME",
+                   {"state_validation": "OK", "units": units}, latency_ms=t.ms)

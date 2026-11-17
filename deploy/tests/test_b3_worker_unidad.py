@@ -64,7 +64,9 @@ DEPLOY_SH = _SCRIPTS / "deploy.sh"
 WORKER_ENV_EJEMPLO = RAIZ / "deploy" / "config" / "worker.env.example"
 VIEWER_ENV_EJEMPLO = RAIZ / "deploy" / "config" / "viewer.env.example"
 ROL_SYSTEMD = RAIZ / "deploy" / "ansible" / "roles" / "systemd"
-ROL_COMMON_DEFAULTS = RAIZ / "deploy" / "ansible" / "roles" / "common" / "defaults" / "main.yml"
+# H-06 + H-08: la identidad se define UNA vez, en group_vars/all.yml (ya no en los defaults de los roles).
+ROL_COMMON_DEFAULTS = RAIZ / "deploy" / "ansible" / "group_vars" / "all.yml"
+UNIDAD_SALUD = RAIZ / "viewer" / "systemd" / "s9-knowledge-healthcheck.service"
 CURRENT = "/opt/s9-knowledge/current"
 STATE_ROOT = "/var/lib/s9-knowledge"
 
@@ -82,9 +84,10 @@ def _valor(texto: str, clave: str) -> str:
 def _exec_start(texto: str) -> tuple:
     """(asignaciones env, interprete, script, flags) de ExecStart."""
     tokens = shlex.split(_valor(texto, "ExecStart"))
-    assert tokens[0] == "/usr/bin/env", tokens
+    # H-06/H-08 fase 2: ya no hay `env VAR=...` (el secreto se lee directo de /etc); se admite
+    # igualmente la forma antigua para que un envoltorio reintroducido se vea como asignaciones.
     asignaciones = {}
-    i = 1
+    i = 1 if tokens[0] == "/usr/bin/env" else 0
     while "=" in tokens[i] and not tokens[i].startswith("/"):
         k, v = tokens[i].split("=", 1)
         asignaciones[k] = v
@@ -115,6 +118,7 @@ def release(tmp_path) -> Path:
     shutil.copy(UNIDAD, rel / "data-engine" / "systemd" / UNIDAD.name)
     (rel / "viewer" / "systemd").mkdir(parents=True)
     shutil.copy(UNIDAD_VISOR, rel / "viewer" / "systemd" / UNIDAD_VISOR.name)
+    shutil.copy(UNIDAD_SALUD, rel / "viewer" / "systemd" / UNIDAD_SALUD.name)
     return rel
 
 
@@ -144,7 +148,7 @@ def test_sin_venv_del_motor_la_unidad_bloquea(release):
 
 
 _DEFECTOS = [
-    ("\nUser=www-data\n", "\nUser=root\n", "User="),
+    ("\nUser=s9knowledge\n", "\nUser=root\n", "User="),
     ("\nUMask=0077\n", "\nUMask=0022\n", "UMask"),
     ("\nRestart=always\n", "\nRestart=on-failure\n", "Restart"),
     (" --loop ", " ", "--loop"),
@@ -165,11 +169,18 @@ def test_cada_defecto_de_la_unidad_bloquea_con_su_causa(tmp_path, release, viejo
     assert rc == 1 and causa in err, "no bloqueo por %s:\n%s" % (causa, err)
 
 
-def test_el_secreto_de_worker_env_distinto_del_de_la_unidad_bloquea(tmp_path, release):
+def test_el_secreto_de_worker_env_sigue_la_politica_SECRET(tmp_path):
+    """H-06/H-08 fase 2 §9 (sustituye al antiguo «secreto de la unidad != worker.env»: la unidad ya no
+    copia el secreto). El secreto declarado en worker.env tiene que cumplir la politica SECRET:
+    grupo solo lectura (<= 0640) y nada para otros; con 0660 o 0644, BLOQUEA."""
+    secreto = tmp_path / "secreto"
+    secreto.write_text("valor\n", encoding="utf-8")
     env = tmp_path / "worker.env"
-    env.write_text("S9K_NEO4J_PASSWORD_FILE=/etc/s9-knowledge/secrets/otro\n", encoding="utf-8")
-    rc, err = _validar_unidad(UNIDAD, release, env)
-    assert rc == 1 and "secreto" in err, err
+    env.write_text("S9K_NEO4J_PASSWORD_FILE=%s\n" % secreto, encoding="utf-8")
+    for modo, ok in ((0o640, True), (0o600, True), (0o660, False), (0o644, False)):
+        secreto.chmod(modo)
+        r = subprocess.run(["bash", VALIDATE_SH, "secret-file", str(secreto)], capture_output=True, text=True)
+        assert (r.returncode == 0) is ok, (oct(modo), r.stderr)
 
 
 def test_systemd_analyze_verify_acepta_la_unidad_y_rechaza_un_binario_inexistente(tmp_path):
@@ -177,14 +188,18 @@ def test_systemd_analyze_verify_acepta_la_unidad_y_rechaza_un_binario_inexistent
     un verify que no corre en CI seria un verde de papel."""
     assert shutil.which("systemd-analyze"), "systemd-analyze no disponible: el paso 10 no se mide"
     copia = tmp_path / UNIDAD.name
-    shutil.copy(UNIDAD, copia)
+    # el interprete del venv no existe en esta maquina: se sustituye por un binario real
+    copia.write_text(UNIDAD.read_text(encoding="utf-8").replace(
+        "ExecStart=/opt/s9-knowledge/current/data-engine/.venv/bin/python", "ExecStart=/usr/bin/env"),
+        encoding="utf-8")
     r = subprocess.run(["systemd-analyze", "verify", str(copia)], capture_output=True,
                        text=True, timeout=120)
     assert r.returncode == 0, r.stdout + r.stderr
     mala = tmp_path / "rota" / UNIDAD.name
     mala.parent.mkdir()
     mala.write_text(UNIDAD.read_text(encoding="utf-8").replace(
-        "ExecStart=/usr/bin/env ", "ExecStart=/usr/bin/no-existe-b3 "), encoding="utf-8")
+        "ExecStart=/opt/s9-knowledge/current/data-engine/.venv/bin/python", "ExecStart=/usr/bin/no-existe-b3"),
+        encoding="utf-8")
     r = subprocess.run(["systemd-analyze", "verify", str(mala)], capture_output=True,
                        text=True, timeout=120)
     assert r.returncode != 0, "verify no distingue un ExecStart inexistente: %s" % r.stderr
@@ -239,18 +254,17 @@ def test_el_usuario_de_la_unidad_es_el_usuario_del_servicio():
     assert user != "root" and user == comunes["s9k_service_user"], user
     assert group == comunes["s9k_service_group"], group
     assert _valor(texto, "UMask") == "0077"
-    previo = shlex.split(_valor(texto, "ExecStartPre").lstrip("+-"))
-    assert previo[previo.index("-o") + 1] == user and previo[previo.index("-g") + 1] == group, previo
 
 
-def test_el_secreto_que_copia_la_unidad_es_el_de_la_plantilla():
+def test_el_secreto_se_lee_directamente_de_la_politica_secret_y_no_se_copia():
+    """H-06/H-08 fase 2 §9: sin ExecStartPre/RuntimeDirectory; el origen es el de la plantilla,
+    bajo /etc/s9-knowledge/secrets (root:s9knowledge 0640)."""
     texto = UNIDAD.read_text(encoding="utf-8")
-    previo = shlex.split(_valor(texto, "ExecStartPre").lstrip("+-"))
-    origen, destino = previo[-2], previo[-1]
-    assert origen == _env_de(WORKER_ENV_EJEMPLO)["S9K_NEO4J_PASSWORD_FILE"], origen
+    assert "\nExecStartPre=" not in texto and "\nRuntimeDirectory" not in texto
     asignaciones, *_ = _exec_start(texto)
-    assert asignaciones["S9K_NEO4J_PASSWORD_FILE"] == destino
-    assert destino.startswith("/run/%s/" % _valor(texto, "RuntimeDirectory")), destino
+    assert "S9K_NEO4J_PASSWORD_FILE" not in asignaciones
+    origen = _env_de(WORKER_ENV_EJEMPLO)["S9K_NEO4J_PASSWORD_FILE"]
+    assert origen.startswith("/etc/s9-knowledge/secrets/"), origen
 
 
 # ===========================================================================
@@ -284,7 +298,7 @@ echo "WORKER_USER=${WORKER_USER} WORKER_GROUP=${WORKER_GROUP}"
 def test_paso7_real_valida_la_unidad_y_lee_el_usuario_de_ella(release):
     rc, out = _paso7(release, WORKER_ENV_EJEMPLO)
     assert rc == 0 and "TRAMO_SUPERADO" in out, out
-    assert "WORKER_USER=www-data WORKER_GROUP=www-data" in out, out
+    assert "WORKER_USER=s9knowledge WORKER_GROUP=s9knowledge" in out, out
 
 
 def test_paso7_real_bloquea_sin_el_venv_del_motor(release):
@@ -350,7 +364,7 @@ def test_paso13_real_habilita_y_arranca_el_worker_antes_que_el_visor(tmp_path, m
     v_restart = llamadas.index("restart s9-knowledge-viewer.service")
     assert llamadas.index(w_restart) < v_restart, llamadas
     assert props.is_dir() and jobs_db.parent.is_dir()
-    assert (jobs_db.parent.stat().st_mode & 0o777) == 0o750
+    assert (jobs_db.parent.stat().st_mode & 0o777) == 0o700   # H-06: la autoridad (0700), no 0750
 
 
 def test_worker_activo_exige_active_en_todas_las_lecturas(tmp_path):
@@ -451,7 +465,7 @@ def _revertir(tmp: Path, prev: str, respaldo: bool):
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text("unidad nueva\n", encoding="utf-8")
     if respaldo:
-        (tmp / "etc" / (UNIDAD.name + ".bak-rel1")).write_text("unidad previa\n", encoding="utf-8")
+        (tmp / "etc" / (UNIDAD.name + ".bak-rel1")).write_text("User=s9knowledge\n# unidad previa\n", encoding="utf-8")
     llamadas = tmp / "systemctl.log"
     cuerpo = 'systemctl() { echo "$*" >> %s; }\nrevertir_worker "%s" %s "%s" rel1\n' % (
         llamadas, prev, UNIDAD.name, dest)
@@ -469,7 +483,7 @@ def test_rollback_a_una_release_sin_venv_deshabilita_el_worker(tmp_path, respald
         "ROLLBACK DEJA EL WORKER HABILITADO sobre una release sin venv: %s" % llamadas)
     assert "restart %s" % UNIDAD.name not in llamadas, llamadas
     if respaldo:
-        assert dest.read_text(encoding="utf-8") == "unidad previa\n"
+        assert dest.read_text(encoding="utf-8") == "User=s9knowledge\n# unidad previa\n"
     else:
         assert not dest.exists(), "la unidad nueva sigue instalada tras el rollback"
 
@@ -478,16 +492,17 @@ def test_rollback_a_una_release_con_venv_restaura_y_reinicia(tmp_path, release):
     r, llamadas, dest = _revertir(tmp_path, str(release), True)
     assert r.returncode == 0, r.stdout + r.stderr
     assert "restart %s" % UNIDAD.name in llamadas and not any("disable" in l for l in llamadas)
-    assert dest.read_text(encoding="utf-8") == "unidad previa\n"
+    assert dest.read_text(encoding="utf-8") == "User=s9knowledge\n# unidad previa\n"
 
 
 def test_todo_rollback_de_deploy_sh_revierte_el_worker():
-    """Sobre el TEXTO real: los tres rollbacks (14, 14b, 16) llaman a
+    """Sobre el TEXTO real: los cuatro rollbacks (14, 14a, 14b, 16) llaman a
     `revertir_worker`; ninguno se limita a reiniciar el worker."""
     texto = DEPLOY_SH.read_text(encoding="utf-8")
     bloques = re.findall(r"atomic_symlink \"\$\{PREV_RELEASE_DIR\}\" \"\$\{S9K_ROOT\}/current\"\n(.*?)\n\s*\}",
                          texto, re.S)
-    assert len(bloques) == 3, "DETECTOR ROTO: se esperaban 3 rollbacks, hay %d" % len(bloques)
+    # H-06 + H-08: a los de los pasos 14, 14b y 16 se suma el de la identidad (14a).
+    assert len(bloques) == 4, "DETECTOR ROTO: se esperaban 4 rollbacks, hay %d" % len(bloques)
     for b in bloques:
         assert 'revertir_worker "${PREV_RELEASE_DIR}"' in b, "ROLLBACK SIN REVERTIR EL WORKER: %r" % b
     assert texto.count('systemctl restart "${WORKER_UNIT_NAME}"') == 1, (

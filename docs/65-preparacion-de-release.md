@@ -329,7 +329,7 @@ carril:
 | D3 | CI instala `viewer/requirements.txt` sin pines (`ci.yml` y `test-graph-js.yml`). | El CI no es reproducible en el lado del visor: un verde de ayer no garantiza el de hoy. |
 | D4 | `python-multipart>=0.0.9` sin cota superior (único caso del fichero). | Una major nueva entra sola. |
 | D5 | `data-engine/requirements.in` no declara `pytest`/`pytest-asyncio`, pero el `.lock` los fija. | El `.lock` no es reconstruible desde el `.in`; nada lo comprueba en CI. |
-| D6 | `preflight.sh` acepta **Python 3.11+**; todo el CI corre **sólo 3.13**. | Se despliega sobre un intérprete que nunca se ha probado. |
+| D6 | `preflight.sh` acepta **Python 3.11.5+** (desde 2026-11-16: lo exige el lock del motor); todo el CI corre **sólo 3.13**. | Se despliega sobre un intérprete que nunca se ha probado. |
 | D7 | `docs/v3/02-multimodal.md` afirma `pypdf==6.14.2`; el lock dice `pypdf==6.15.0`. | Deriva de documentación (fichero fuera de mi alcance: no se ha corregido). |
 
 Sugerencia para el carril M, sin implementarla: D2 se cierra haciendo que el

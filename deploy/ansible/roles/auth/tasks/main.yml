@@ -7,6 +7,12 @@
     cmd: >-
       {{ s9k_root }}/current/viewer/.venv/bin/python -m app.cli.auth status
     chdir: "{{ s9k_root }}/current/viewer"
+  # H-06 + H-08 (§12): la CLI abre auth.db en WAL; como root crearia
+  # -wal/-shm de root:root. Se ejecuta como el usuario de servicio (la CLI
+  # rechaza root). Con `become_user` el modulo es el equivalente de
+  # `runuser -u <usuario> --` que usan deploy/helpers.
+  become: true
+  become_user: "{{ s9k_service_user }}"
   register: _auth_status
   changed_when: false
   failed_when: false

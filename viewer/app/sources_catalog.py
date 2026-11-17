@@ -170,6 +170,10 @@ _NO_SON_FUENTES = {NOMBRE_PERFIL, NOMBRE_CATALOGO, NOMBRE_MANIFIESTO_PARTIDA, "R
 #: silencio, a diferencia de `_NO_SON_FUENTES` (que sí se declara): esto no es
 #: configuración del workspace, es basura de un escritor que falló.
 PREFIJO_EFIMERO_ESCRITOR = ".s9k-probe-"
+#: H-06/H-08 ronda 2 (H-2): respaldo de una escritura EN EL SITIO de un perfil de
+#: otro dueño (``.<nombre>.s9k-respaldo``). Existe solo durante la escritura o tras un
+#: SIGKILL (la siguiente escritura lo restaura y lo borra): mismo trato que un efímero.
+SUFIJO_RESPALDO_ESCRITOR = ".s9k-respaldo"
 
 #: Motivo con el que se DECLARA un fichero auxiliar (perfil, catalogo, README)
 #: encontrado durante el recorrido de una boveda. Existe para que no haya
@@ -453,7 +457,7 @@ def listar_fuentes_boveda(
     for dirpath, dirnames, filenames in os.walk(raiz):
         dirnames.sort()
         for nombre in sorted(filenames):
-            if nombre.startswith(PREFIJO_EFIMERO_ESCRITOR):
+            if nombre.startswith(PREFIJO_EFIMERO_ESCRITOR) or nombre.endswith(SUFIJO_RESPALDO_ESCRITOR):
                 # Residuo del escritor (canario de sonda o temporal de
                 # escritura atómica): ni fuente ni rechazo, se ignora.
                 continue

@@ -115,7 +115,11 @@ def resolve_csrf_secret(configured_secret: str, auth_db_path: str) -> str:
         if existente:
             return existente
 
-        secret_path.parent.mkdir(parents=True, exist_ok=True)
+        # H-06/H-08 ronda 2: el directorio (si falta) nace con el modo EXACTO de la
+        # autoridad, no con la umask; y root no crea el secreto en el estado vivo (H-1).
+        from app import service_identity  # noqa: PLC0415
+        service_identity.refuse_root_state_write(secret_path)
+        service_identity.ensure_private_dir(secret_path.parent)
 
         # `mkstemp`, no `f".tmp-{os.getpid()}"`: el PID identifica un
         # PROCESO, no un HILO. Varios hilos del MISMO proceso (un servidor

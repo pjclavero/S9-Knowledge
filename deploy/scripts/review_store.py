@@ -65,6 +65,13 @@ def _review_paths(raiz: Path = REPO_ROOT):
                    raiz / "data-engine" / "app" / "knowledge_v3" / "review_paths.py")
 
 
+def _service_state(raiz: Path = REPO_ROOT):
+    """La AUTORIDAD de modos y propietario (H-06 + H-08). Mismo nombre de modulo
+    que ``migrar_estado``: una sola instancia."""
+    return _cargar("_s9k_service_state",
+                   raiz / "data-engine" / "app" / "knowledge_v3" / "service_state.py")
+
+
 def _store_del_visor(raiz: Path = REPO_ROOT):
     """El almacen canonico del visor (solo stdlib), cargado por ruta."""
     return _cargar("_s9k_v3_review_store",
@@ -135,8 +142,9 @@ def _candidata_con_decisiones(rp, candidatas) -> Optional[str]:
 
 def _crear(rp, db: Path, usuario, grupo, res: Resultado) -> bool:
     """Crea directorio y almacen con el schema del PRODUCTO. Verifica por efecto."""
+    ss = _service_state()
     try:
-        db.parent.mkdir(parents=True, exist_ok=True, mode=0o750)
+        db.parent.mkdir(parents=True, exist_ok=True, mode=ss.DIR_MODE)
     except OSError as exc:
         res.parar("no se pudo crear el directorio del almacen (%s)" % exc.strerror)
         return False
@@ -150,15 +158,16 @@ def _crear(rp, db: Path, usuario, grupo, res: Resultado) -> bool:
             res.parar("usuario/grupo del servicio inexistente: %s" % exc)
             return False
     # El directorio TAMBIEN pasa al usuario del servicio: SQLite necesita crear
-    # los ficheros -wal/-shm junto a la base.
+    # los ficheros -wal/-shm junto a la base. H-06: 0700 (autoridad), no 0750.
     try:
         if uid != -1 or gid != -1:
             os.chown(db.parent, uid, gid)
+        os.chmod(db.parent, ss.DIR_MODE)
     except OSError as exc:
         res.parar("no se pudo dar el directorio al usuario del servicio (%s)"
                   % exc.strerror)
         return False
-    previo = os.umask(0o007)
+    previo = os.umask(ss.UNIT_UMASK_INT)  # H-06: privado desde el nacimiento
     try:
         almacen = _store_del_visor().SQLiteReviewStore(db, crear=True)
         del almacen
@@ -168,12 +177,14 @@ def _crear(rp, db: Path, usuario, grupo, res: Resultado) -> bool:
     finally:
         os.umask(previo)
     try:
-        os.chmod(db, 0o660)
+        os.chmod(db, ss.FILE_MODE)
         if uid != -1 or gid != -1:
             os.chown(db, uid, gid)
-            for sufijo in ("-wal", "-shm"):
-                extra = Path(str(db) + sufijo)
-                if extra.exists():
+        for sufijo in ("-wal", "-shm"):
+            extra = Path(str(db) + sufijo)
+            if extra.exists():
+                os.chmod(extra, ss.FILE_MODE)
+                if uid != -1 or gid != -1:
                     os.chown(extra, uid, gid)
     except OSError as exc:
         res.parar("no se pudo fijar propietario/permisos del almacen (%s)"

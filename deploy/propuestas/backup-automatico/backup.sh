@@ -9,11 +9,18 @@
 #   - publicacion ATOMICA: se construye en .tmp-<id> y se renombra al final
 #   - retencion aplicada SOLO despues de publicar y verificar la copia nueva
 #
+# NO incluye la bóveda externa (S9K_VAULT_ROOT): es contenido del operador, fuera del
+# state root, y su copia es responsabilidad del administrador. Cada copia lo declara en
+# meta/despliegue.txt (boveda_externa=NO_INCLUIDA).
+#
 # No para servicios, no migra, no compacta, no cambia flags, no rota secretos y
 # no escribe en Neo4j. Escribe unicamente dentro de $DEST.
 set -Eeuo pipefail
 
-DEST="${S9K_BACKUP_DIR:-/var/lib/s9-knowledge/backups}"
+# H-06/H-08 §10: la raiz de backups esta FUERA del state vivo (root:s9knowledge 0750).
+# PENDIENTE antes de adoptar esta propuesta (TD-H06-01): `sqlite3 <base> .backup` como root puede
+# crear -wal/-shm root:root junto a una base viva; hay que ejecutarlo como el usuario de servicio.
+DEST="${S9K_BACKUP_DIR:-/var/backups/s9-knowledge}"
 AUTH_DB="${S9K_AUTH_DB_PATH:-/var/lib/s9-knowledge/auth/auth.db}"
 JOBS_DB="${S9K_JOBS_DB:-/var/lib/s9-knowledge/jobs/jobs.db}"
 NEO4J_CONTAINER="${S9K_NEO4J_CONTAINER:-neo4j-knowledge}"
@@ -100,6 +107,7 @@ copiar() {
         echo "neo4j=$(docker exec "${NEO4J_CONTAINER}" /var/lib/neo4j/bin/neo4j --version)"
         echo "sqlite=$(sqlite3 --version | cut -d' ' -f1)"
         echo "host=$(hostname)"
+        echo "boveda_externa=NO_INCLUIDA (S9K_VAULT_ROOT es contenido del operador; su copia es del administrador)"
     } > "${TMP}/meta/despliegue.txt"
 
     sqlite3 "${TMP}/sqlite/auth.db" '.schema' > "${TMP}/meta/auth-schema.sql"

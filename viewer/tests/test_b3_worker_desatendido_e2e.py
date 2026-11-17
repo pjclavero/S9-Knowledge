@@ -83,8 +83,8 @@ def _valor_unidad(clave: str) -> str:
 
 def _execstart() -> tuple[dict, list]:
     tokens = shlex.split(_valor_unidad("ExecStart"))
-    assert tokens[0] == "/usr/bin/env", tokens
-    asignaciones, i = {}, 1
+    # H-06/H-08 fase 2: ya no hay `env VAR=...` (el secreto se lee directo de /etc); se admite la forma antigua.
+    asignaciones, i = {}, (1 if tokens[0] == "/usr/bin/env" else 0)
     while "=" in tokens[i] and not tokens[i].startswith("/"):
         k, v = tokens[i].split("=", 1)
         asignaciones[k] = v
@@ -110,7 +110,7 @@ class _Servicio:
                  flags_extra: tuple = (), nombre: str = "servicio"):
         asignaciones, flags = _execstart()
         self.flags = [*flags, *flags_extra]
-        env = {k: v for k, v in os.environ.items() if not k.startswith("S9K_")}
+        env = {k: v for k, v in os.environ.items() if not k.startswith("S9K_") or k == "S9K_STATE_VALIDATION"}
         env.update(worker_env)
         env.update(asignaciones)
         env.update({"S9K_B3_GRAFO": grafo, "PYTHONDONTWRITEBYTECODE": "1"})

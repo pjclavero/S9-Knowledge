@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from app import service_identity
 from app.authz.scope import UNRESTRICTED, VisibilityScope
 from app.labels import negation_code, negation_label
 from app.services.v3_glossary_candidates import GlossaryCandidateStore
@@ -525,9 +526,23 @@ def default_proposals_dir() -> Path:
 
 
 def default_decisions_path() -> Path:
+    """Ruta de ``decisions.jsonl`` (export de compatibilidad/auditoria).
+
+    H-06 + H-08: ya NO cae por defecto dentro de la release cuando el despliegue
+    declara el almacen de revision. Precedencia: ``S9K_V3_REVIEW_DECISIONS_PATH``
+    > junto a ``review.sqlite3`` (``S9K_V3_REVIEW_DATABASE_PATH``, bajo el state
+    root) > defecto de DESARROLLO bajo el arbol del visor (techo declarado: un
+    servicio de produccion lo rechaza al arrancar, porque la comprobacion de
+    arranque es obligatoria y ese defecto cae dentro de la release).
+    La derivacion es la de la AUTORIDAD (``service_state.effective_paths``): el
+    visor, el worker y el preflight de despliegue ven la misma ruta.
+    """
     configured = os.environ.get("S9K_V3_REVIEW_DECISIONS_PATH")
     if configured:
         return Path(configured)
+    derivada = service_identity.service_state().derived_decisions_path(os.environ)
+    if derivada is not None:
+        return derivada
     return Path(__file__).resolve().parents[2] / "output" / "reviews-v3" / "decisions.jsonl"
 
 
@@ -1208,8 +1223,7 @@ class ReviewService:
                     raise ReviewError("request_id reutilizado con otra decisión", REQUEST_ID_REUSED)
                 return stored
             # JSONL remains a compatibility/audit export, never the authority.
-            self.decisions_path.parent.mkdir(parents=True, exist_ok=True)
-            with self.decisions_path.open("a", encoding="utf-8", newline="\n") as handle:
+            with service_identity.open_private_append(self.decisions_path, newline="\n") as handle:
                 handle.write(_canonical(record) + "\n")
                 handle.flush()
                 os.fsync(handle.fileno())
@@ -1230,8 +1244,7 @@ class ReviewService:
             "human_decision": human_decision,
         }
         self.store.audit_stale(event)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8", newline="\n") as handle:
+        with service_identity.open_private_append(path, newline="\n") as handle:
             handle.write(_canonical(event) + "\n")
             handle.flush()
             os.fsync(handle.fileno())

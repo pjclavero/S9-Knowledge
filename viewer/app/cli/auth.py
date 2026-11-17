@@ -20,8 +20,10 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import os
 import sys
 from pathlib import Path
+from typing import Optional
 
 # Ajustar PYTHONPATH para que funcione como módulo standalone
 _HERE = Path(__file__).resolve()
@@ -29,6 +31,7 @@ _VIEWER_ROOT = _HERE.parents[3]  # viewer/
 if str(_VIEWER_ROOT) not in sys.path:
     sys.path.insert(0, str(_VIEWER_ROOT))
 
+from app import service_identity
 from app.auth import bootstrap
 from app.auth import audit, db as auth_db
 from app.auth.config import get_auth_settings
@@ -39,7 +42,7 @@ from app.auth.passwords import hash_password, validate_password
 def _get_db_path() -> Path:
     cfg = get_auth_settings()
     p = Path(cfg.S9K_AUTH_DB_PATH)
-    p.parent.mkdir(parents=True, exist_ok=True)
+    service_identity.ensure_private_dir(p.parent)
     return p
 
 
@@ -359,7 +362,24 @@ COMMANDS = {
 }
 
 
+def rechazar_si_root() -> Optional[str]:
+    """H-06 §12 (N10): root NO usa esta CLI. Devuelve el mensaje de rechazo o None.
+
+    Cualquier comando (incluso de lectura) abre ``auth.db`` en modo WAL, y un
+    proceso root crea los ``-wal``/``-shm`` como ``root:root``: el estado queda
+    inutilizable para el usuario de servicio. En vez de «crear estado como root
+    y arreglarlo luego», se rechaza y se muestra el comando canonico. H-1
+    (ronda 2): el mensaje y el rc los da la MISMA funcion de la autoridad que usan
+    todas las CLIs que pueden crear estado (``cli_root_rejection``).
+    """
+    return service_identity.service_state().cli_root_rejection("auth")
+
+
 def main() -> int:
+    rechazo = rechazar_si_root()
+    if rechazo is not None:
+        print(rechazo, file=sys.stderr)
+        return service_identity.service_state().CLI_ROOT_RC
     parser = argparse.ArgumentParser(
         description="CLI administrativa de autenticación S9 Knowledge"
     )

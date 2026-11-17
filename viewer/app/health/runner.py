@@ -102,6 +102,13 @@ def build_default_config() -> Dict[str, Any]:
         },
         "systemd": {"units": [u for u in os.environ.get(
             "S9K_HEALTH_UNITS", "s9-knowledge-viewer.service").split(",") if u]},
+        "state_validation": {"units": [u for u in os.environ.get(
+            "S9K_HEALTH_STATE_UNITS",
+            "s9-knowledge-viewer.service,s9-knowledge-worker.service").split(",") if u]},
+        # Criterio 7 (H-06/H-08): la boveda externa, por la MISMA lectura gobernada que el
+        # catalogo de fuentes (entorno > .env). Opcional: nunca UNHEALTHY.
+        "vault": {"vault_root": _gob("S9K_VAULT_ROOT"),
+                  "require_mount": _gob("S9K_VAULT_REQUIRE_MOUNT")},
     }
 
 
@@ -118,6 +125,12 @@ _REGISTRY: Dict[str, Callable[[Dict[str, Any]], ComponentResult]] = {
     "filesystem": lambda c: checks.check_filesystem(**c),
     "backups": lambda c: checks.check_backups(**c),
     "systemd": lambda c: checks.check_systemd(**c),
+    # C-6 (H-06/H-08 ronda 2): la excepcion de tests no entra en el entorno efectivo.
+    "state_validation": lambda c: checks.check_state_validation(**c),
+    # Contrato B-1: STATE_RUNTIME = lo observado del state root en ejecucion (UNKNOWN si no medible).
+    "state_runtime": lambda c: checks.check_state_runtime(**c),
+    # Criterio 7 (H-06/H-08): VAULT AVAILABLE / READ_ONLY / UNAVAILABLE / UNMEASURABLE (opcional).
+    "vault": lambda c: checks.check_vault(**c),
 }
 
 COMPONENT_NAMES: List[str] = list(_REGISTRY.keys())

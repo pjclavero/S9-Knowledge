@@ -19,6 +19,7 @@ _VIEWER_ROOT = _HERE.parents[2]  # viewer/
 if str(_VIEWER_ROOT) not in sys.path:
     sys.path.insert(0, str(_VIEWER_ROOT))
 
+from app import service_identity
 from app.health import runner, storage
 from app.health.models import EXIT_CONFIG_ERROR, HealthReport, HealthStatus
 
@@ -34,6 +35,13 @@ def _print_report(report: HealthReport) -> None:
 
 
 def main(argv=None) -> int:
+    # H-1 (ronda 2): como root, `check`/`json` dejarian health.json root:root dentro del
+    # estado vivo y el healthcheck del servicio ya no podria reemplazarlo. La MISMA guarda
+    # que la CLI de auth (rc estable y comando canonico): se rechaza ANTES de tocar nada.
+    rechazo = service_identity.service_state().cli_root_rejection("health")
+    if rechazo is not None:
+        print(rechazo, file=sys.stderr)
+        return service_identity.service_state().CLI_ROOT_RC
     p = argparse.ArgumentParser(prog="s9k-health")
     sub = p.add_subparsers(dest="cmd")
     c = sub.add_parser("check", help="Ejecuta checks y muestra resumen")

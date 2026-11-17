@@ -7,6 +7,11 @@ set -Eeuo pipefail
 
 LEGACY_LAYOUT="/opt/knowledge-services/s9-knowledge-repo"
 
+# H-06 + H-08 · la identidad y el state root los fija UNA autoridad
+# (`service_state.py`); este guion las PIDE, no las repite.
+_VD_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_VD_SS="${S9K_SERVICE_STATE_PY:-${_VD_DIR}/../../data-engine/app/knowledge_v3/service_state.py}"
+
 # Variables cuya ausencia BLOQUEA el despliegue (nombres verbatim del código).
 # S9K_CSRF_SECRET NO va aquí: tiene su propia validación profunda (validate_csrf_secret);
 # desde B2 (#248) su AUSENCIA es legítima: el visor lo autogenera 0600 junto a
@@ -151,9 +156,12 @@ validate_secret_file() {
     fi
     perms="$(stat -c '%a' "${path}" 2>/dev/null || printf '')"
     # rechaza cualquier bit de grupo/otros (perms de 3 dígitos con 2º/3er != 0)
+    # H-06 + H-08 (fase 2, §9): SECRET = root:s9knowledge, 0640 o mas restrictivo: el
+    # grupo de servicio LEE (bit r) y NO escribe, y otros no tienen nada. La propiedad
+    # (root:s9knowledge) la comprueba `service_state.py secret-check` en el despliegue.
     case "${perms}" in
-        [0-7]00) ;;  # solo dueño
-        *) printf 'BLOCK(secret-file): permisos inseguros (%s) en %s\n' "${perms}" "${path}" >&2; return 1 ;;
+        [0-7][04]0) ;;
+        *) printf 'BLOCK(secret-file): permisos inseguros (%s) en %s (maximo 0640: grupo solo lectura, otros nada)\n' "${perms}" "${path}" >&2; return 1 ;;
     esac
     return 0
 }
@@ -429,12 +437,83 @@ validate_viewer_unit() {
     if ! grep -qE '^EnvironmentFile=/etc/s9-knowledge/viewer\.env' "${unit_file}"; then
         errs+=("falta EnvironmentFile=/etc/s9-knowledge/viewer.env")
     fi
+    # H-06 + H-08: identidad de servicio (autoridad), no root ni www-data.
+    local e
+    while IFS= read -r e; do [ -n "${e}" ] && errs+=("${e}"); done < <(_identidad_de_unidad_errores "${unit_file}")
     if [ "${#errs[@]}" -gt 0 ]; then
-        local e
         for e in "${errs[@]}"; do printf 'BLOCK(unit): %s\n' "${e}" >&2; done
         return 1
     fi
     return 0
+}
+
+# ---------------------------------------------------------------------------
+# _identidad_de_unidad_errores <unit_file> [enforce]
+#   H-06 + H-08 (§11, N7-N9, M12). Imprime UNA linea por incumplimiento de la
+#   identidad que fija la AUTORIDAD: User=/Group= (ni root, ni www-data, ni
+#   otro nombre), UMask= y, con `enforce`, S9K_STATE_ENFORCE=1 (la comprobacion
+#   de arranque fail-closed). Sin salida = la unidad cumple.
+# ---------------------------------------------------------------------------
+_identidad_de_unidad_errores() {
+    local unit="${1}" salida
+    # C-7 (ronda 2): UNA implementacion con la semantica de systemd (ULTIMO valor de cada
+    # clave, espacios alrededor de `=`, continuaciones), en la autoridad: User/Group/UMask
+    # de la autoridad, claves de identidad sin duplicar, NoNewPrivileges=yes|true,
+    # CapabilityBoundingSet= vacio, sin AmbientCapabilities/DynamicUser/PermissionsStartOnly,
+    # sin grupos privilegiados y sin ExecStart* con prefijo `+`/`!` ni lanzado por sudo/su.
+    # Leer la PRIMERA linea `User=` (como hacia `_unit_value`) dejaba pasar `User=root`
+    # duplicado debajo: systemd usa la ultima.
+    local rc=0
+    if salida="$(python3 "${_VD_SS}" unit-check "${unit}")"; then rc=0; else rc=$?; fi
+    [ -z "${salida}" ] || printf '%s\n' "${salida}"
+    # rc 0 = cumple, 3 = hallazgos (ya impresos); cualquier otro = la autoridad no pudo
+    # inspeccionar: eso NO es un "cumple" (sin fail-open).
+    case "${rc}" in
+        0|3) ;;
+        *) echo "la autoridad no pudo inspeccionar la unidad ${unit} (rc=${rc}): no se da por buena" ;;
+    esac
+    # La validacion de arranque es OBLIGATORIA: una unidad operativa no puede declarar la
+    # excepcion de tests/laboratorio ni el interruptor retirado (tambien fuera de [Service]).
+    if grep -vE '^[[:space:]]*[#;]' "${unit}" | grep -qE 'S9K_STATE_(VALIDATION|ENFORCE)'; then
+        echo "la unidad declara S9K_STATE_VALIDATION/ENFORCE: la comprobacion de estado es obligatoria y no se desactiva en una unidad operativa"
+    fi
+    # El secreto se lee directamente de /etc (policy SECRET): nada de copiarlo a /run.
+    if grep -vE '^[[:space:]]*#' "${unit}" | grep -qE '^(ExecStartPre|RuntimeDirectory)='; then
+        echo "la unidad copia el secreto a /run (ExecStartPre/RuntimeDirectory): con la politica SECRET el servicio lo lee directamente de /etc/s9-knowledge/secrets"
+    fi
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# validate_healthcheck_unit <unit_file>
+#   H-06 §2/N9. El healthcheck corre con la MISMA identidad (s9knowledge), sin
+#   capabilities (CapabilityBoundingSet vacio), sin sudo/setuid.
+# ---------------------------------------------------------------------------
+validate_healthcheck_unit() {
+    local unit_file="${1}" errs=() e
+    [ -f "${unit_file}" ] || { printf 'BLOCK(health-unit): unit no existe: %s\n' "${unit_file}" >&2; return 1; }
+    # Capabilities, NoNewPrivileges, AmbientCapabilities y PermissionsStartOnly: los mira la
+    # MISMA funcion que a visor y worker (C-7, semantica de ultimo valor).
+    while IFS= read -r e; do [ -n "${e}" ] && errs+=("${e}"); done < <(_identidad_de_unidad_errores "${unit_file}")
+    if [ "${#errs[@]}" -gt 0 ]; then
+        for e in "${errs[@]}"; do printf 'BLOCK(health-unit): %s\n' "${e}" >&2; done
+        return 1
+    fi
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# validate_state_paths <env_file> [<role>]
+#   H-06 §3/§4/§13 (N5, N6, N17, N18). Las rutas de estado EFECTIVAS (las que
+#   el servicio usara, incluidas decisions.jsonl, audit.jsonl y los candidatos
+#   de glosario aunque no se declaren) estan declaradas, son absolutas y
+#   cuelgan del state root; nada vive en la release. Es la MISMA funcion que
+#   usa el arranque del visor y del worker (`service_state.effective_paths`).
+# ---------------------------------------------------------------------------
+validate_state_paths() {
+    python3 "${_VD_SS}" validate-env --env-file "${1:?env}" \
+        --state-root "${S9K_STATE_ROOT:-$(python3 "${_VD_SS}" get state_root)}" \
+        --role "${2:-viewer}"
 }
 
 # ---------------------------------------------------------------------------
@@ -467,18 +546,19 @@ validate_worker_unit() {
     local unit_file="${1}"
     local current_path="${2:-/opt/s9-knowledge/current}"
     local release_dir="${3:-${current_path}}"
-    local worker_env="${4:-}"
     if [ ! -f "${unit_file}" ]; then
         printf 'BLOCK(worker-unit): unit no existe: %s\n' "${unit_file}" >&2
         return 1
     fi
-    local errs=() user group wd exec_line umask restart tok interprete script
+    local errs=() user group wd exec_line restart tok interprete script
     user="$(_unit_value "${unit_file}" User)"
     group="$(_unit_value "${unit_file}" Group)"
     case "${user}" in ""|root|0) errs+=("User= ausente o root ('${user}'): el worker no corre como root") ;; esac
     case "${group}" in ""|root|0) errs+=("Group= ausente o root ('${group}')") ;; esac
-    umask="$(_unit_value "${unit_file}" UMask)"
-    [ "${umask}" = "0077" ] || errs+=("UMask distinto de 0077: '${umask}'")
+    # H-06 + H-08: la identidad no es «cualquiera que no sea root»: es la de la
+    # AUTORIDAD (s9knowledge). www-data u otro nombre -> BLOCK.
+    local _e
+    while IFS= read -r _e; do [ -n "${_e}" ] && errs+=("${_e}"); done < <(_identidad_de_unidad_errores "${unit_file}")
     restart="$(_unit_value "${unit_file}" Restart)"
     [ "${restart}" = "always" ] || errs+=("Restart distinto de always: '${restart}'")
     grep -qE '^EnvironmentFile=/etc/s9-knowledge/worker\.env$' "${unit_file}" \
@@ -521,14 +601,6 @@ validate_worker_unit() {
     if ! printf '%s\n' "${exec_line}" | grep -qE -- '--release-stale-seconds[ =][1-9][0-9]*( |$)'; then
         errs+=("ExecStart sin --release-stale-seconds N>0: un job huerfano no se liberaria nunca")
     fi
-    if [ -n "${worker_env}" ]; then
-        local origen declarado
-        origen="$(grep -E '^ExecStartPre=' "${unit_file}" | head -1 | awk '{print $(NF-1)}' || true)"
-        declarado="$(_env_value "${worker_env}" S9K_NEO4J_PASSWORD_FILE)"
-        if [ -z "${origen}" ] || [ "${origen}" != "${declarado}" ]; then
-            errs+=("el secreto que copia la unidad ('${origen}') no es el que declara worker.env ('${declarado}')")
-        fi
-    fi
     if [ "${#errs[@]}" -gt 0 ]; then
         local e
         for e in "${errs[@]}"; do printf 'BLOCK(worker-unit): %s\n' "${e}" >&2; done
@@ -537,12 +609,34 @@ validate_worker_unit() {
     return 0
 }
 
+# ---------------------------------------------------------------------------
+# release_entiende_la_identidad <release_dir>
+#   C-4 (ronda 2, §15). ¿Se puede REACTIVAR esta release con el estado actual
+#   (s9knowledge 0700/0600)? Solo si SUS PROPIAS unidades (las que trae en la
+#   release) declaran la identidad vigente y pasan el gate: visor
+#   (validate_viewer_unit) y worker (validate_worker_unit, con su interprete y su
+#   script en ESA release). Una release anterior a H-06 (visor root, worker
+#   www-data, o sin unidad de worker) no puede leer el estado migrado: NO se
+#   reactiva. La usan el rollback AUTOMATICO de deploy.sh y rollback-release.sh
+#   (una sola comprobacion). Los BLOCK(...) salen por stderr: son el diagnostico.
+# ---------------------------------------------------------------------------
+release_entiende_la_identidad() {
+    local dir="${1:?release}"
+    local current="${S9K_ROOT:-/opt/s9-knowledge}/current"
+    [ -d "${dir}" ] || { printf 'BLOCK(rollback): la release %s no existe\n' "${dir}" >&2; return 1; }
+    validate_viewer_unit "${dir}/viewer/systemd/s9-knowledge-viewer.service" "${current}" || return 1
+    validate_worker_unit "${dir}/data-engine/systemd/s9-knowledge-worker.service" "${current}" "${dir}" || return 1
+    return 0
+}
+
 # Permite ejecutar como CLI: validate_deploy.sh env <file> | unit <file> [current]
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     case "${1:-}" in
         env)     validate_viewer_env "${2:?falta ruta viewer.env}" ;;
         https)   validate_https_contract "${2:?falta ruta viewer.env}" "${3:-production}" ;;
-        unit)    validate_viewer_unit "${2:?falta ruta unit}" "${3:-/opt/s9-knowledge/current}" ;;
+        unit)    validate_viewer_unit "${2:?falta ruta unit}" "${3:-/opt/s9-knowledge/current}" "${4:-}" ;;
+        health-unit) validate_healthcheck_unit "${2:?falta ruta unit}" ;;
+        state-paths) validate_state_paths "${2:?falta ruta env}" "${3:-viewer}" ;;
         worker-env)  validate_worker_env "${2:?falta ruta worker.env}" "${3:-}" ;;
         worker-unit) validate_worker_unit "${2:?falta ruta unit}" "${3:-/opt/s9-knowledge/current}" "${4:-}" "${5:-}" ;;
         csrf)    validate_csrf_secret "${2:?falta ruta viewer.env}" ;;

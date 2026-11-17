@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from app import service_identity
+
 
 TYPES = frozenset({
     "CANONICAL_TERM_CANDIDATE", "ALIAS_CANDIDATE", "SPOKEN_FORM_CANDIDATE",
@@ -107,17 +109,16 @@ class GlossaryCandidateStore:
                 k: v for k, v in item.items() if k not in {"created_at", "candidate_hash"}
             }
             item["candidate_hash"] = _hash(hash_body)
-            candidates_path.parent.mkdir(parents=True, exist_ok=True)
             # Full canonical snapshots are appended. Older versions remain
             # immutable; list() folds by deterministic candidate_id on restart.
-            with candidates_path.open("a", encoding="utf-8") as handle:
+            with service_identity.open_private_append(candidates_path) as handle:
                 handle.write(_canonical(item) + "\n")
                 handle.flush()
                 os.fsync(handle.fileno())
             audit = {"timestamp": _now(), "event": "CANDIDATE_PROPOSED",
                      "candidate_id": candidate_id, "candidate_hash": item["candidate_hash"],
                      "decision_id": decision_id}
-            with audit_path.open("a", encoding="utf-8") as handle:
+            with service_identity.open_private_append(audit_path) as handle:
                 handle.write(_canonical(audit) + "\n")
                 handle.flush()
                 os.fsync(handle.fileno())

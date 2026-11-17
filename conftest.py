@@ -18,6 +18,7 @@ colisión de módulos: 'app' siempre resuelve a viewer/app/.
 La limpieza de sys.modules en viewer/tests/conftest.py actúa como salvaguarda
 extra para sesiones con conftest cargados en orden no determinista.
 """
+import os
 import sys
 from pathlib import Path
 
@@ -110,3 +111,11 @@ def _almacen_de_decisiones_declarado_y_fresco(tmp_path_factory, monkeypatch):
 def almacen_fresh():
     """La función `crear_almacen_fresh` como fixture (los tests no importan conftest)."""
     return crear_almacen_fresh
+
+
+# H-06 + H-08 (fase 2, §12): la comprobacion de estado de arranque del visor y del
+# worker es OBLIGATORIA en una instalacion operativa; la suite NO corre como
+# `s9knowledge` sobre un state root real, asi que declara aqui, A PROPOSITO, la
+# EXCEPCION EXPLICITA de tests/laboratorio (el valor exacto lo fija la autoridad).
+# Los tests de la propia comprobacion la desactivan/ejercen con `enforce(...)` directo.
+os.environ.setdefault("S9K_STATE_VALIDATION", "disabled-explicit-for-tests")

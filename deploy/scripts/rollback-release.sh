@@ -30,9 +30,11 @@ state_externalized() {
 # Una release ENTIENDE el estado externo si su unit systemd está basada en
 # `current` + EnvironmentFile (la validación de la corrección RC1).
 target_understands_external_state() {
+    # C-4 (ronda 2): la MISMA comprobacion que el rollback automatico de deploy.sh
+    # (validate_deploy.sh::release_entiende_la_identidad): sus unidades de visor y
+    # worker declaran la identidad vigente (H-06) y pasan el gate.
     local target_dir="${1}"
-    local unit="${target_dir}/viewer/systemd/s9-knowledge-viewer.service"
-    validate_viewer_unit "${unit}" "${S9K_ROOT}/current" >/dev/null 2>&1
+    release_entiende_la_identidad "${target_dir}" >/dev/null 2>&1
 }
 
 # ---------------------------------------------------------------------------

@@ -67,6 +67,16 @@ def copia(destino: Path) -> Path:
 
     for sub in ("viewer", "scripts", "contracts"):
         shutil.copytree(REPO / sub, destino / sub, ignore=ignorar, symlinks=True)
+    # H-06 + H-08: `viewer/app/service_identity.py` carga POR RUTA la autoridad de
+    # identidad y estado (`data-engine/app/knowledge_v3/service_state.py`) en el
+    # `startup` del visor. Sin ella la app no arranca (`FileNotFoundError` al
+    # cargar el modulo) y el arbol limpio saldria rojo por el motivo equivocado.
+    # Se copian SOLO la autoridad y lo que ella misma carga por ruta
+    # (`review_paths.py`, solo stdlib), no todo el motor.
+    for nombre in ("service_state.py", "review_paths.py"):
+        autoridad = Path("data-engine") / "app" / "knowledge_v3" / nombre
+        (destino / autoridad).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(REPO / autoridad, destino / autoridad)
     for pyc in destino.rglob("*.pyc"):
         pyc.unlink()
     for d in list(destino.rglob("__pycache__")):

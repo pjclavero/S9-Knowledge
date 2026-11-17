@@ -10,6 +10,44 @@
     - common
     - packages
 
+# H-06 + H-08: la identidad de servicio es de SISTEMA (sin login, sin home, sin
+# sudo) y se crea ANTES que cualquier directorio que le pertenezca. Idempotente.
+- name: Comprobar que la identidad de servicio viene de group_vars/all.yml
+  ansible.builtin.assert:
+    that:
+      - s9k_service_user is defined
+      - s9k_service_group is defined
+      - s9k_service_user != 'root'
+    fail_msg: >-
+      s9k_service_user/s9k_service_group no estan definidos (o es root).
+      Se definen UNA vez en group_vars/all.yml; no en el inventario ni en roles.
+  tags:
+    - common
+    - service_user
+
+- name: Crear el grupo de sistema del servicio
+  ansible.builtin.group:
+    name: "{{ s9k_service_group }}"
+    system: true
+    state: present
+  tags:
+    - common
+    - service_user
+
+- name: Crear el usuario de sistema del servicio (sin login, sin home, sin sudo)
+  ansible.builtin.user:
+    name: "{{ s9k_service_user }}"
+    group: "{{ s9k_service_group }}"
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+    home: /nonexistent
+    comment: "S9 Knowledge service"
+    state: present
+  tags:
+    - common
+    - service_user
+
 - name: Crear directorio raíz del despliegue
   ansible.builtin.file:
     path: "{{ s9k_root }}"
@@ -38,7 +76,7 @@
     state: directory
     owner: "{{ s9k_service_user }}"
     group: "{{ s9k_service_group }}"
-    mode: "0750"
+    mode: "0700"
   tags:
     - common
     - directories
@@ -49,31 +87,59 @@
     state: directory
     owner: "{{ s9k_service_user }}"
     group: "{{ s9k_service_group }}"
-    mode: "0750"
+    mode: "0700"
   loop:
     - auth
     - jobs
     - state
     - output
     - staging
-    - backups
     # B2 (USABLE-V1) · H-04, lado deploy: el estado de revision V3 vive FUERA
     # de la release. Mismas rutas que `deploy/config/viewer.env.example`
     # (S9K_V3_REVIEW_DATABASE_PATH / S9K_V3_REVIEW_PROPOSALS_DIR); el testigo
     # de B2 cruza esta lista contra la plantilla.
     - reviews-v3
     - reviews-v3/proposals
+    # H-06: el informe de salud (S9K_HEALTH_REPORT_PATH) vive aqui y lo escribe
+    # el healthcheck como s9knowledge; antes no lo creaba nadie.
+    - health
   tags:
     - common
     - directories
 
-- name: Crear directorio de configuracion y secretos
+# H-06 + H-08 (fase 2, §9) · politica SECRET: la configuracion es root:<servicio> 0710 (el
+# grupo atraviesa, no lista: viewer.env y worker.env siguen siendo root 0600) y los
+# secretos provisionados, root:<servicio> 0750 / ficheros 0640 (los fija deploy.sh).
+- name: Crear directorio de configuracion
   ansible.builtin.file:
     path: "{{ s9k_config_root }}"
     state: directory
     owner: root
-    group: root
-    mode: "0700"
+    group: "{{ s9k_service_group }}"
+    mode: "0710"
+  tags:
+    - common
+    - directories
+
+- name: Crear directorio de secretos (root:servicio, el servicio lee y no escribe)
+  ansible.builtin.file:
+    path: "{{ s9k_config_root }}/secrets"
+    state: directory
+    owner: root
+    group: "{{ s9k_service_group }}"
+    mode: "0750"
+  tags:
+    - common
+    - directories
+
+# §10 · BACKUP separado del estado vivo: nada root-owned dentro del state root.
+- name: Crear raiz de backups (fuera del state root)
+  ansible.builtin.file:
+    path: "{{ s9k_backup_root }}"
+    state: directory
+    owner: root
+    group: "{{ s9k_service_group }}"
+    mode: "0750"
   tags:
     - common
     - directories

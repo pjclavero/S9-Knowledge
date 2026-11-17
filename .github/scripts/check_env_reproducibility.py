@@ -521,10 +521,16 @@ def check_interprete() -> list[str]:
     preflight = REPO / "deploy" / "scripts" / "preflight.sh"
     if not (preflight.exists() and CI.exists()):
         return avisos
-    m = re.search(r"py_minor[^\n]*-ge\s+\"?(\d+)", preflight.read_text(encoding="utf-8"))
-    if not m:
-        return avisos
-    minimo = (3, int(m.group(1)))
+    texto = preflight.read_text(encoding="utf-8")
+    # Forma actual: `PY_MINIMO="3.11.5"` (tupla completa); forma antigua: `py_minor ... -ge N`.
+    m = re.search(r'^PY_MINIMO="?(\d+)\.(\d+)', texto, re.M)
+    if m:
+        minimo = (int(m.group(1)), int(m.group(2)))
+    else:
+        m = re.search(r"py_minor[^\n]*-ge\s+\"?(\d+)", texto)
+        if not m:
+            return avisos
+        minimo = (3, int(m.group(1)))
     probadas = {
         tuple(int(x) for x in v.split("."))
         for v in re.findall(r"python-version:\s*'?(\d+\.\d+)'?", CI.read_text(encoding="utf-8"))

@@ -21,6 +21,13 @@ sección de alertas.
 | `s9-knowledge-backup.timer` | Disparo diario con `Persistent=true` |
 | `backup.sh` | El script: preflight, copia, manifiesto, publicación atómica, retención |
 
+## Qué NO incluye
+
+El backup/restore del STATE ROOT NO contiene la bóveda externa (`S9K_VAULT_ROOT`): la bóveda
+y su `perfil-operador.json` son contenido del operador (fuera del state root) y su copia es
+responsabilidad del administrador. Cada copia lo declara en `meta/despliegue.txt`
+(`boveda_externa=NO_INCLUIDA`), para que un restore no la dé por recuperada.
+
 ## Decisiones de diseño
 
 **Independiente de Nextcloud.** El backup automático nunca debe depender de que
