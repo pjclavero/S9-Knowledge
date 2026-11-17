@@ -129,7 +129,8 @@ def test_D8_SIGKILL_real_deja_un_resto_y_la_siguiente_ejecucion_lo_retira_y_lo_d
     assert (mundo.rv3_rel / "decisions.jsonl").read_bytes() == CONTENIDO  # el original, intacto
     r = mundo.aplicar()
     assert r.rc == 0, r.lineas
-    assert any(l.startswith("RESTO:") and restos[0].name in l and "vacio" in l for l in r.lineas), r.lineas
+    assert any(l.startswith("RESTO:") and restos[0].name in l and "vacio" in l for l in r.lineas), \
+        "SIN LINEA RESTO: %s" % r.lineas
     assert not list(mundo.rv3.glob(".migrando-*")), "el resto sigue ahi"
     # y la migracion hizo su trabajo sin perder nada
     assert (mundo.rv3 / "decisions.jsonl").read_bytes() == CONTENIDO
@@ -161,7 +162,7 @@ def test_D8_resto_con_contenido_que_no_se_demuestra_redundante_PARA_y_no_se_toca
     resto = mundo.resto(_pid_muerto(), b"datos que no estan en ningun otro sitio\n")
     antes = resto.read_bytes()
     r = mundo.aplicar()
-    assert r.rc == 3 and "STOP[RESTO_DE_MIGRACION]" in r.lineas[-1], r.lineas
+    assert r.rc == 3 and "STOP[RESTO_DE_MIGRACION]" in r.lineas[-1], "NO PARO: rc=%s %s" % (r.rc, r.lineas)
     ultima = r.lineas[-1]
     assert str(resto) in ultima and "Receta" in ultima and "unico ejemplar" in ultima, ultima
     assert resto.read_bytes() == antes, "el resto se toco (o se perdio)"
@@ -173,7 +174,7 @@ def test_D8_resto_con_contenido_que_no_se_demuestra_redundante_PARA_y_no_se_toca
 def test_D8_el_stop_no_revela_contenido_del_resto(mundo):
     resto = mundo.resto(_pid_muerto(), b"CONTENIDO-SENSIBLE-123\n")
     r = mundo.aplicar()
-    assert r.rc == 3 and "CONTENIDO-SENSIBLE-123" not in "\n".join(r.lineas)
+    assert r.rc == 3 and "CONTENIDO-SENSIBLE-123" not in "\n".join(r.lineas), "NO PARO: rc=%s" % r.rc
     assert resto.exists()
 
 
@@ -182,7 +183,8 @@ def test_D8_resto_de_dueno_ajeno_PARA(mundo):
     resto = mundo.resto(_pid_muerto(), b"")
     # simula "ni root ni el servicio": el servicio es otro uid distinto del dueno real del fichero
     r = mundo.aplicar(uid=UID + 1, gid=GID)
-    assert r.rc == 3 and "STOP[RESTO_DE_MIGRACION]" in r.lineas[-1] and "dueno" in r.lineas[-1], r.lineas
+    assert r.rc == 3 and "STOP[RESTO_DE_MIGRACION]" in r.lineas[-1] and "dueno" in r.lineas[-1], \
+        "NO PARO: rc=%s %s" % (r.rc, r.lineas)
     assert resto.exists()
 
 
@@ -192,7 +194,8 @@ def test_D8_otra_migracion_viva_dueña_del_resto_PARA(mundo):
     try:
         resto = mundo.resto(vivo.pid, b"")
         r = mundo.aplicar()
-        assert r.rc == 3 and "STOP[RESTO_DE_MIGRACION]" in r.lineas[-1] and "en curso" in r.lineas[-1], r.lineas
+        assert r.rc == 3 and "STOP[RESTO_DE_MIGRACION]" in r.lineas[-1] and "en curso" in r.lineas[-1], \
+            "NO PARO: rc=%s %s" % (r.rc, r.lineas)
         assert resto.exists()
     finally:
         vivo.kill()

@@ -55,7 +55,8 @@ def _v(mode, uid, gid, size=10, *, regular=True):
     (0o400, YO, SVC_GID),
 ])
 def test_politica_acepta(mode, uid, gid):
-    assert _v(mode, uid, gid) == []
+    v = _v(mode, uid, gid)
+    assert v == [], "RECHAZA %s: %s" % (oct(mode), [x.detail for x in v])
 
 
 @pytest.mark.parametrize("mode,uid,gid,causa", [
@@ -71,11 +72,11 @@ def test_politica_acepta(mode, uid, gid):
 ])
 def test_politica_rechaza(mode, uid, gid, causa):
     det = " ".join(v.detail for v in _v(mode, uid, gid))
-    assert causa in det, (oct(mode), det)
+    assert causa in det, "no detecta %s en modo %s: %r" % (causa, oct(mode), det)
 
 
 def test_politica_rechaza_vacio_y_no_regular():
-    assert any("vacio" in v.detail for v in _v(0o600, YO, 5555, size=0))
+    assert any("vacio" in v.detail for v in _v(0o600, YO, 5555, size=0)), "no detecta vacio"
     assert any("no es un fichero regular" in v.detail for v in _v(0o600, YO, 5555, regular=False))
 
 
@@ -175,7 +176,8 @@ def test_COSTURA_el_modo_y_el_dueno_que_deja_preparar_secretos_los_acepta_el_lec
     modo = stat.S_IMODE(f.stat().st_mode)
     assert modo == ss.SECRET_FILE_MAX_MODE, oct(modo)
     # con ESE dueno (root), ESE grupo y ESE modo, la politica del lector acepta
-    assert ss.secret_read_violations(modo, 0, SVC_GID, 4, euid=YO, service_gid=SVC_GID) == []
+    v = ss.secret_read_violations(modo, 0, SVC_GID, 4, euid=YO, service_gid=SVC_GID)
+    assert v == [], "EL LECTOR RECHAZA LO QUE DEJA EL DESPLIEGUE: %s" % [x.detail for x in v]
     # y la misma cifra que consume bash es la que usa el lector
     cifra = subprocess.run([sys.executable, str(SS_PY), "get", "secret_file_mode"],
                            capture_output=True, text=True).stdout.strip()

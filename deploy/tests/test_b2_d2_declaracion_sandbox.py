@@ -94,7 +94,7 @@ def _validate_env(tmp: Path, rol: str, extra: str):
 @pytest.mark.parametrize("rol", ["viewer", "worker"])
 def test_D2_validate_env_rechaza_la_declaracion_y_nombra_variable_y_donde_se_permite(tmp_path, rol):
     rc, out = _validate_env(tmp_path, rol, DECLARACION + "\n")
-    assert rc == 3, out
+    assert rc == 3, "NO RECHAZA la declaracion: rc=%s salida=%r" % (rc, out)
     assert VAR in out and "healthcheck" in out and "s9-knowledge-healthcheck.service" in out, out
     assert "UNMEASURABLE" in out and ("%s.env" % rol) in out, out
 
@@ -102,7 +102,7 @@ def test_D2_validate_env_rechaza_la_declaracion_y_nombra_variable_y_donde_se_per
 @pytest.mark.parametrize("rol", ["viewer", "worker"])
 def test_D2_validate_env_acepta_el_entorno_sin_la_declaracion(tmp_path, rol):
     rc, out = _validate_env(tmp_path, rol, "")
-    assert (rc, out) == (0, "OK\n"), out
+    assert (rc, out) == (0, "OK\n"), "RECHAZA UN ENTORNO LIMPIO: %r" % out
 
 
 def test_D2_validate_env_rechaza_la_variable_con_cualquier_valor_no_vacio(tmp_path):
@@ -115,14 +115,16 @@ def test_D2_validate_env_rechaza_la_variable_con_cualquier_valor_no_vacio(tmp_pa
 # ---------------------------------------------------------------------------
 def test_D2_las_unidades_canonicas_cumplen():
     for rol, u in (("viewer", U_VISOR), ("worker", U_WORKER), ("health", U_HEALTH)):
-        assert ss.inspect_unit_vault_declaration(u.read_text(encoding="utf-8"), rol) == [], rol
+        errs = ss.inspect_unit_vault_declaration(u.read_text(encoding="utf-8"), rol)
+        assert errs == [], "UNIDAD %s INCUMPLE: %s" % (rol, errs)
 
 
 @pytest.mark.parametrize("rol,unidad", [("viewer", U_VISOR), ("worker", U_WORKER)])
 def test_D2_una_unidad_de_visor_o_worker_con_la_declaracion_se_rechaza(rol, unidad):
     t = unidad.read_text(encoding="utf-8").replace("[Service]\n", "[Service]\nEnvironment=%s\n" % DECLARACION, 1)
     errores = ss.inspect_unit_vault_declaration(t, rol)
-    assert errores and VAR in errores[0] and "healthcheck" in errores[0], errores
+    assert errores and VAR in errores[0] and "solo es legitima en la unidad del healthcheck" in errores[0], \
+        "NO dice que solo es legitima en el healthcheck: %s" % errores
 
 
 def test_D2_la_unidad_del_healthcheck_sin_sandbox_pero_con_declaracion_se_rechaza():
