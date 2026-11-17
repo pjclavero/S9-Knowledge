@@ -366,9 +366,27 @@ class ServiceStateError(RuntimeError):
         super().__init__(format_violations(self.violations))
 
 
+# Temporal de la migracion (``deploy/scripts/migrar_estado.py``, D-8): AUTORIDAD del nombre.
+MIGRATION_TEMP_TEMPLATE = ".migrando-%d-%s"
+MIGRATION_TEMP_RE = re.compile(r"^\.migrando-(\d+)-(.+)$")
+
+
+def migration_leftover_hint(path) -> str:
+    """Si ``path`` lleva el nombre de un temporal de migracion, que es y como se resuelve."""
+    if not MIGRATION_TEMP_RE.match(os.path.basename(str(path))):
+        return ""
+    return ("resto de una migracion interrumpida (temporal `.migrando-*`), no un dato del "
+            "servicio; el despliegue lo retira si demuestra que es una copia redundante, o "
+            "se detiene con la receta")
+
+
 def format_violations(violations: Iterable[Violation]) -> str:
     lineas = ["STATE_CONTRACT_VIOLATION (estado/identidad del servicio, H-06/H-08):"]
-    lineas += ["  - " + v.message() for v in violations]
+    for v in violations:
+        lineas.append("  - " + v.message())
+        pista = migration_leftover_hint(v.path)
+        if pista:
+            lineas.append("      ^ " + pista)
     lineas.append("  El servicio no arranca (fail-closed). Reparacion: ejecutar el "
                   "despliegue (deploy.sh migra y corrige propietario y modos); "
                   "no abrir permisos a mano.")
