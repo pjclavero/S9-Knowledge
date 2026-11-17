@@ -95,7 +95,8 @@ T_VAULT = "viewer/tests/test_h06_h08_vault_no_escribible.py"
 T_RESP = "viewer/tests/test_h06_h08_vault_respaldo.py"
 T_CRIT = "viewer/tests/test_h06_h08_vault_criterios.py"
 T_VSTATE = "deploy/tests/test_h06_h08_vault_state.py"
-TESTIGOS = [T_DEPLOY, T_INV, T_C1, T_DE, T_VIEWER, T_CLI, T_R2, T_VAULT, T_RESP, T_CRIT, T_VSTATE]
+T_D1 = "viewer/tests/test_salud_d1_carrera_state_runtime.py"
+TESTIGOS = [T_DEPLOY, T_INV, T_C1, T_DE, T_VIEWER, T_CLI, T_R2, T_VAULT, T_RESP, T_CRIT, T_VSTATE, T_D1]
 
 U_VISOR = "viewer/systemd/s9-knowledge-viewer.service"
 U_WORKER = "data-engine/systemd/s9-knowledge-worker.service"
@@ -585,6 +586,18 @@ def _m64_state_validation_como_inspeccion(t):
                             '                   "STATE OK: estado inspeccionado "\n')
 
 
+def _m65_d1_enoent_del_stat_es_hallazgo(t):
+    return mutar_en_funcion(t, "inspect_state",
+                            "            except FileNotFoundError:\n                # D-1 (TOCTOU): entrada ya listada",
+                            "            except ZeroDivisionError:\n                # D-1 (TOCTOU): entrada ya listada")
+
+
+def _m66_d1_subdirectorio_desaparecido_es_hallazgo(t):
+    return mutar_en_funcion(t, "inspect_state",
+                            "        except FileNotFoundError as exc:\n            # D-1: un subdirectorio",
+                            "        except ZeroDivisionError as exc:\n            # D-1: un subdirectorio")
+
+
 def mutar_en_funcion_bash(texto: str, nombre: str, viejo: str, nuevo: str):
     """Como `mutar_unico`, pero el ancla tiene que ser UNICA y estar DENTRO de `nombre() {...}`."""
     m = re.search(r"^%s\(\) \{\n.*?^\}\n" % re.escape(nombre), texto, re.S | re.M)
@@ -817,6 +830,15 @@ MUTACIONES = [
     ("M64 — (B-1) STATE_VALIDATION vuelve a presentarse como «STATE OK» (inspeccion)",
      HEALTH_CHECKS, _m64_state_validation_como_inspeccion, T_CRIT,
      {"test_B1_STATE_VALIDATION_no_se_presenta_como_inspeccion_completa": "STATE OK: estado inspeccionado"}),
+    # ---- deudas de salud (carril b1-salud) ----------------------------------------
+    ("M65 — (D-1) ENOENT al inspeccionar una entrada ya listada vuelve a ser hallazgo (falso UNHEALTHY)",
+     SERVICE_STATE, _m65_d1_enoent_del_stat_es_hallazgo, T_D1,
+     {"test_D1_sidecar_desaparecido_entre_scandir_y_stat_no_es_hallazgo": "D-1: FALSO HALLAZGO POR FICHERO EFIMERO",
+      "test_D1_check_state_runtime_con_carrera_es_HEALTHY_y_con_modo_malo_sigue_UNHEALTHY":
+      "D-1: STATE_RUNTIME FALSO UNHEALTHY"}),
+    ("M66 — (D-1) un subdirectorio que desaparece antes de abrirlo vuelve a ser hallazgo",
+     SERVICE_STATE, _m66_d1_subdirectorio_desaparecido_es_hallazgo, T_D1,
+     {"test_D1_subdirectorio_desaparecido_antes_de_abrirlo_no_es_hallazgo": "D-1: FALSO HALLAZGO POR SUBDIRECTORIO"}),
 ]
 
 
