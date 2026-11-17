@@ -87,6 +87,27 @@ def mundo(tmp_path):
     return Mundo(tmp_path)
 
 
+def _espera_cmdline(pid: int, fragmento: str, limite_s: float = 10.0) -> None:
+    """Espera a que /proc/<pid>/cmdline contenga `fragmento`.
+
+    `Popen` vuelve antes de que el hijo termine su `exec`: durante ese instante
+    su linea de comandos es todavia la del padre, y la migracion no lo reconoceria
+    como «otra migrar_estado viva». Sin esta espera el test es una carrera.
+    """
+    import time
+
+    fin = time.monotonic() + limite_s
+    ruta = Path("/proc/%d/cmdline" % pid)
+    while time.monotonic() < fin:
+        try:
+            if fragmento.encode() in ruta.read_bytes():
+                return
+        except OSError:
+            pass
+        time.sleep(0.02)
+    raise AssertionError("el proceso %d no llego a mostrar %r en su cmdline" % (pid, fragmento))
+
+
 def _pid_muerto() -> int:
     """Un PID que ya no existe (hijo terminado y recogido)."""
     p = subprocess.Popen([sys.executable, "-c", "pass"])
@@ -192,6 +213,7 @@ def test_D8_otra_migracion_viva_dueña_del_resto_PARA(mundo):
     # un proceso VIVO cuya linea de comandos es migrar_estado: hay otra migracion en curso
     vivo = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", "migrar_estado"])
     try:
+        _espera_cmdline(vivo.pid, "migrar_estado")
         resto = mundo.resto(vivo.pid, b"")
         r = mundo.aplicar()
         assert r.rc == 3 and "STOP[RESTO_DE_MIGRACION]" in r.lineas[-1] and "en curso" in r.lineas[-1], \
