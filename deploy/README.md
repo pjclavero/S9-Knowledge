@@ -525,6 +525,16 @@ La bóveda (`S9K_VAULT_ROOT`) y su `perfil-operador.json` son **contenido del op
   ni usa `sudo` para escribirla, no la mueve, no la crea si falta, no guarda el perfil en otro
   sitio ni cae al STATE ROOT. La comprobación de salud es de solo lectura (`stat`/`os.access`, sin
   ficheros de sonda).
+- **Límites del diagnóstico `vault` (no afirma más de lo medido):** (1) AVAILABLE significa
+  «escribible **según permisos** (`os.access`)»; **no se ha probado una escritura real**, porque una
+  sonda de escritura en la bóveda está prohibida por contrato. Un atributo inmutable (`chattr +i`),
+  un sistema de ficheros FUSE/de red con reglas propias o una cuota pueden hacer fallar al escritor
+  real aunque salga AVAILABLE; el 409 de la edición es la señal definitiva. (2) El sondeo tiene
+  un tiempo máximo (5 s): si el montaje no responde (p. ej. NFS caído) se informa **VAULT
+  UNAVAILABLE «sin respuesta en N s»** (DEGRADED, nunca UNHEALTHY) en vez de colgar el panel. El
+  hilo de sondeo bloqueado en la llamada al kernel no se puede cancelar: queda como máximo UNO vivo
+  hasta que el montaje responda; mientras tanto las consultas responden «sondeo anterior sin
+  respuesta» al instante.
 - **Fuera del STATE ROOT, también para el despliegue:** la migración, la comprobación de arranque
   e `inspect_state` no recorren ni tocan `S9K_VAULT_ROOT` aunque sea una ruta hermana del state
   root; borrar, restaurar o recrear el STATE ROOT no la altera. El backup/restore del STATE ROOT NO
