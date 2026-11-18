@@ -56,18 +56,19 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 2. Python >= 3.11.5
+# 2. Python >= 3.12.0
 # ---------------------------------------------------------------------------
-# El lock del motor (data-engine/requirements.lock) fija soupsieve 4.0, que exige
-# Python >= 3.11.5: con 3.11.0-3.11.4 el preflight pasaria y `pip install` fallaria
-# despues. Se compara la TUPLA (major, minor, micro), no solo major.minor.
-PY_MINIMO="3.11.5"
+# El lock del motor (data-engine/requirements.lock) fija numpy 2.5.1, que exige
+# Python >= 3.12 (soupsieve 4.0 exige >= 3.11.5): con un 3.11.x el preflight pasaria
+# y `pip install` fallaria despues. El gate D6 (check_env_reproducibility.py) compara
+# este minimo con el mayor Requires-Python de los locks. Se compara la TUPLA (major, minor, micro), no solo major.minor.
+PY_MINIMO="3.12.0"
 if command -v python3 >/dev/null 2>&1; then
     py_ver="$(python3 -c 'import sys; print("%d.%d.%d" % tuple(sys.version_info[:3]))')"
     if python3 -c 'import sys; m = tuple(int(x) for x in sys.argv[1].split(".")); sys.exit(0 if tuple(sys.version_info[:3]) >= m else 1)' "${PY_MINIMO}"; then
         ok "Python ${py_ver} (>= ${PY_MINIMO})"
     else
-        bloq "Python ${py_ver} demasiado antiguo: se exige >= ${PY_MINIMO} porque el lock del motor (data-engine/requirements.lock) fija soupsieve 4.0, que requiere Python >= 3.11.5"
+        bloq "Python ${py_ver} demasiado antiguo: se exige >= ${PY_MINIMO} porque el lock del motor (data-engine/requirements.lock) fija numpy 2.5.1, que requiere Python >= 3.12"
     fi
 else
     bloq "python3 no encontrado"
