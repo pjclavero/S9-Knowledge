@@ -76,6 +76,8 @@
     "viewer/tests/test_s1_camino_sin_enlace_muerto.py",
     "viewer/tests/test_s3_env_gobierna_paneles.py",
     "viewer/tests/test_s3b_env_gobierna_boveda.py",
+    "viewer/tests/test_salud_d1_carrera_state_runtime.py",
+    "viewer/tests/test_salud_d4_boveda_limite.py",
     "viewer/tests/test_serializers.py",
     "viewer/tests/test_v3_review_almacen_no_disponible.py",
     "viewer/tests/test_vault_descubrimiento_ambito.py",
