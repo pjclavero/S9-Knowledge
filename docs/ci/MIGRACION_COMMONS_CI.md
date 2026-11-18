@@ -579,3 +579,41 @@ registrar el runner.
 
 La revisión independiente de #277 numeró su propia lista D1–D10; esta tabla recoge la deuda tal como
 consta en las evidencias del carril (el texto de esa lista no está en el repositorio).
+
+## 12. Vuelta a runners de GitHub (2026-11-18)
+
+**Motivo (decision del operador).** Se migro a un runner propio por falta de cuota de CI. Hoy el
+repositorio es publico y el runner propio es el cuello de botella: un solo runner, un job a la vez
+(D-LAT, ~17 h por commit) y, ademas, carga un hipervisor corto de memoria.
+
+**Que se cambio** (simetrico a la migracion, sin tocar semantica):
+
+- `runs-on: ubuntu-latest` en los 16 jobs que usaban `[self-hosted, linux, x64, commons, ci, s9-knowledge]`
+  (15 en `ci.yml`, 1 en `supply-chain.yml`) y en los dos fragmentos de `.github/ci-fragments/`.
+  `Data Engine Tests` ya estaba en `ubuntu-latest`.
+- `test-login-browser`: se recupera `playwright install --with-deps chromium` (el runner de GitHub tiene
+  sudo y la imagen no trae las librerias de sistema del navegador de forma garantizada).
+- `deployment-validation`: el paso `command -v shellcheck || sudo apt-get ...` se deja tal cual; en
+  GitHub encuentra el shellcheck de la imagen. Se reescribe solo el comentario.
+- Se retiran los comentarios `MIGRACION-CI-S9K` de los jobs (ya no describen la realidad).
+- Sin cambios: `name:` de los jobs (los 17 contextos requeridos), `on:`, `permissions`, `timeout-minutes`
+  (el maximo es 360 min, el de la calibracion de gates; el limite de un job de GitHub tambien es 360),
+  tests, asserts, excepciones y proteccion de rama. Sin `pull_request_target`, `workflow_run` ni
+  `continue-on-error`.
+- Calibradores: `calibra_gate_integrity.py` y `calibra_suite_inventory.py` ya localizan el job por id +
+  `name:` con `yaml.compose` (§9.2) y no dependen del runner; no se tocaron y se demostro que siguen
+  poniendose rojos con `ubuntu-latest`.
+
+**Diferencias de entorno.** Node viene preinstalado en la imagen: los 3 tests de
+`viewer/tests/test_graph_ux_v2.py` con `skipif(shutil.which("node") is None)` vuelven a ejecutarse en
+Combined y Viewer (cambia el recuento de *skipped*, no el inventario, que se deriva por AST). shellcheck,
+Python (`setup-python`) y OpenSSL son los de la imagen de GitHub, como antes de la migracion. Los jobs
+con Neo4j efimero usan el Docker de la imagen.
+
+**Runner propio.** `commons-ci-s9k-01` sigue registrado como respaldo; volver a el es revertir este PR
+(los workflows no lo usan mientras tanto). Cierra D-LAT, D-COLA, D-SC, D-NODE, D-PY y D-DE (OOM de Data Engine
+Tests, que ya corria en GitHub), y la deuda D-LOG hacia adelante (los runs nuevos no muestran datos del runner
+propio). Abre/mantiene: dependencia de la cuota de CI de GitHub (el motivo original de la migracion) y,
+mientras `push` y `pull_request` disparen ambos, cada commit de un PR ejecuta los jobs dos veces
+(propuesta de `concurrency` en la entrega del carril, no implementada).
+
