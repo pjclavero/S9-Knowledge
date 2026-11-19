@@ -18,8 +18,13 @@ import pytest
 from jobs import job_store, worker
 from jobs.handlers import ingest_v3
 from jobs.handlers.ingest_v3 import IngestV3Error
+from knowledge_v3 import service_state
+from knowledge_v3.driver_neo4j import DriverConfigError, read_secret
 
-SECRETO = "S3CRETO-QUE-NO-DEBE-SALIR-9f3a"
+#: Longitud deliberadamente distinta de cualquier modo octal de los mensajes de
+#: la politica (0600, 0640, 0644...): se comprueba que tampoco sale la longitud.
+SECRETO = "S3CRETO-QUE-NO-DEBE-SALIR-9f3a-relleno-hasta-53-carac"
+assert len(SECRETO) == 53
 
 
 @pytest.fixture
@@ -38,7 +43,23 @@ def _fallo() -> IngestV3Error:
     return info.value
 
 
-def _comprobar_credencial(exc: IngestV3Error, ruta, motivo: str) -> None:
+def _motivo_del_lector(ruta) -> str:
+    """Lo que dice el LECTOR REAL (`driver_neo4j.read_secret`) de este fichero.
+
+    Los tests no copian su frase: si #288 u otro cambio reescribe el texto o
+    la politica, lo que se exige es que el job repita lo que diga el lector,
+    no una cadena de hoy.
+    """
+    try:
+        read_secret(str(ruta))
+    except DriverConfigError as exc:
+        return str(exc)
+    except OSError as exc:  # fallo de LECTURA tras pasar la politica
+        return exc.strerror
+    raise AssertionError(f"el lector ACEPTA {ruta}: este caso no es un fallo")
+
+
+def _comprobar_credencial(exc: IngestV3Error, ruta) -> str:
     assert exc.code == "GRAPH_CREDENTIAL_UNUSABLE", str(exc)
     assert exc.error_code == "GRAPH_CREDENTIAL_UNUSABLE"
     texto = str(exc)
@@ -46,38 +67,69 @@ def _comprobar_credencial(exc: IngestV3Error, ruta, motivo: str) -> None:
     # NO se acusa a la conexion: esta declarada.
     assert "no tiene declarada" not in texto, texto
     assert "GRAPH_OBSERVATION_UNCONFIGURED" not in texto, texto
-    # La causa: ruta del fichero y motivo.
+    # DECISION FIJADA (RC1-G02): el mensaje nombra la RUTA y el motivo...
     assert str(ruta) in texto, texto
-    assert motivo in texto, texto
+    assert _motivo_del_lector(ruta) in texto, texto
+    # ...y nunca el contenido ni la longitud del secreto.
+    assert SECRETO not in texto
+    assert str(len(SECRETO)) not in texto.replace(str(ruta), ""), texto
     # Permanente: un fichero mal puesto no se arregla reintentando.
     assert exc.retryable is False
-    assert SECRETO not in texto
+    return texto
+
+
+def _comprobar_politica(texto: str, ruta) -> None:
+    """Cada incumplimiento que la AUTORIDAD encuentra en el fichero sale en el
+    mensaje: la causa es la de la politica real, no una frase propia."""
+    incumplimientos = service_state.inspect_secret_for_reading(ruta)
+    assert incumplimientos, f"la politica ACEPTA {ruta}: el caso esta mal montado"
+    for v in incumplimientos:
+        assert v.detail in texto, (v.detail, texto)
 
 
 def test_fichero_ausente_dice_credencial_y_la_ruta(conexion):
-    _comprobar_credencial(_fallo(), conexion, "No such file")
+    _comprobar_credencial(_fallo(), conexion)
 
 
-def test_modo_accesible_por_grupo_u_otros_dice_credencial_y_el_motivo(conexion):
+def test_modo_con_bits_de_otros_se_rechaza_con_el_motivo_de_la_politica(conexion):
     conexion.write_text(SECRETO, encoding="utf-8")
     conexion.chmod(0o644)
-    _comprobar_credencial(_fallo(), conexion, "accesible por grupo u otros")
+    _comprobar_politica(_comprobar_credencial(_fallo(), conexion), conexion)
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root es el dueño admitido con bits de grupo")
+def test_propio_0640_se_rechaza_porque_solo_root_del_grupo_de_servicio_puede(conexion):
+    """Con la politica unica (#288), un 0640 PROPIO se rechaza por su DUEÑO
+    (solo `root:<grupo de servicio>` admite bits de grupo), no por «accesible
+    por grupo»."""
+    conexion.write_text(SECRETO, encoding="utf-8")
+    conexion.chmod(0o640)
+    _comprobar_politica(_comprobar_credencial(_fallo(), conexion), conexion)
 
 
 def test_fichero_vacio_dice_credencial_y_el_motivo(conexion):
     conexion.write_text("", encoding="utf-8")
     conexion.chmod(0o600)
-    _comprobar_credencial(_fallo(), conexion, "vacio")
+    _comprobar_politica(_comprobar_credencial(_fallo(), conexion), conexion)
+
+
+def test_enlace_simbolico_se_rechaza_aunque_el_destino_sea_valido(conexion, tmp_path):
+    destino = tmp_path / "destino-real"
+    destino.write_text(SECRETO, encoding="utf-8")
+    destino.chmod(0o600)
+    conexion.symlink_to(destino)
+    _comprobar_politica(_comprobar_credencial(_fallo(), conexion), conexion)
 
 
 @pytest.mark.skipif(os.geteuid() == 0, reason="root lee cualquier fichero")
 def test_fichero_ilegible_para_el_worker_dice_credencial_no_grafo_caido(conexion):
-    """Pasa el `stat` y el modo, y falla la LECTURA: antes salia como
+    """Pasa la politica (0200 propio) y falla la LECTURA: antes salia como
     `GRAPH_OBSERVATION_UNAVAILABLE` (reintentable, «el grafo no responde»)."""
     conexion.write_text(SECRETO, encoding="utf-8")
     conexion.chmod(0o200)
+    assert service_state.inspect_secret_for_reading(conexion) == []
     exc = _fallo()
-    _comprobar_credencial(exc, conexion, "Permission denied")
+    _comprobar_credencial(exc, conexion)
     assert exc.code != "GRAPH_OBSERVATION_UNAVAILABLE"
 
 
@@ -86,8 +138,26 @@ def test_contenido_no_utf8_no_vuelca_los_bytes(conexion):
     conexion.chmod(0o600)
     exc = _fallo()
     assert exc.code == "GRAPH_CREDENTIAL_UNUSABLE", str(exc)
+    assert exc.retryable is False
     assert str(conexion) in str(exc)
     assert SECRETO not in str(exc) and "\\xff" not in str(exc)
+
+
+def test_la_politica_acepta_root_del_grupo_de_servicio_0640():
+    """Control positivo del caso que deja el despliegue (`root:<grupo> 0640`).
+
+    TECHO: sin root no se puede crear un fichero de root, asi que se ejerce la
+    politica PURA de la autoridad con los valores de `stat`; el camino entero
+    (fichero real -> ingesta) para este caso queda para el laboratorio.
+    """
+    gid = 4242
+    assert service_state.secret_read_violations(
+        0o100640, 0, gid, 10, euid=1000, service_gid=gid) == []
+    # Contraste: el mismo modo con otro dueño o con otro grupo SI se rechaza.
+    assert service_state.secret_read_violations(
+        0o100640, 1000, gid, 10, euid=1000, service_gid=gid)
+    assert service_state.secret_read_violations(
+        0o100640, 0, gid + 1, 10, euid=1000, service_gid=gid)
 
 
 def test_conexion_no_declarada_sigue_siendo_la_de_siempre(monkeypatch):
@@ -124,6 +194,7 @@ def test_el_job_guarda_error_code_coherente_con_el_mensaje(conexion, monkeypatch
     reintento y sin fuga del secreto."""
     conexion.write_text(SECRETO, encoding="utf-8")
     conexion.chmod(0o644)
+    motivo = _motivo_del_lector(conexion)
 
     def _handler(payload):
         ingest_v3._driver_de_observacion()
@@ -142,6 +213,7 @@ def test_el_job_guarda_error_code_coherente_con_el_mensaje(conexion, monkeypatch
     assert job["error_code"] == "GRAPH_CREDENTIAL_UNUSABLE", job
     assert job["error_message"].startswith("GRAPH_CREDENTIAL_UNUSABLE:"), job
     assert str(conexion) in job["error_message"]
+    assert motivo in job["error_message"]
     assert SECRETO not in str(job)
 
 

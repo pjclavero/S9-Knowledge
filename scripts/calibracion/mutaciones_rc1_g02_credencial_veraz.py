@@ -54,7 +54,7 @@ MUTACIONES = [
         log.error("credencial del grafo inutilizable: %s", exc)
         raise IngestV3Error("GRAPH_OBSERVATION_UNCONFIGURED") from exc
     except UnicodeDecodeError""",
-        prueba=f"{SUITE}::test_modo_accesible_por_grupo_u_otros_dice_credencial_y_el_motivo",
+        prueba=f"{SUITE}::test_modo_con_bits_de_otros_se_rechaza_con_el_motivo_de_la_politica",
         esperado="AssertionError: GRAPH_OBSERVATION_UNCONFIGURED",
     ),
     Mutacion(
