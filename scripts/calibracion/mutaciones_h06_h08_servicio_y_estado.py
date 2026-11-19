@@ -1015,13 +1015,13 @@ MUTACIONES = [
     # ---- RC1 (B3): parar siempre / validar antes de parar ------------------------
     ("RC1-M1 — (RC1-06) el stop vuelve a depender de is-active",
      LIB_SH, _rc1_m1_stop_solo_si_is_active, T_RC106,
-     {"test_RC106_B1_unidad_en_bucle_se_para_aunque_no_este_is_active": "stop s9-knowledge-viewer.service"}),
+     {"test_RC106_B1_unidad_en_bucle_se_para_aunque_no_este_is_active": "RC1-06: NO SE EMITIO STOP"}),
     ("RC1-M2 — (RC1-05) el BLOCK de detect_state no se aplica antes de parar",
      DEPLOY_SH, _rc1_m2_sin_gate_de_decision_antes_de_parar, T_RC105,
-     {"test_RC105_B1_block_de_fresh_sobre_instalacion_con_usuarios_no_para_nada": "el BLOCK se aplico DESPUES"}),
+     {"test_RC105_B1_block_de_fresh_sobre_instalacion_con_usuarios_no_para_nada": "RC1-05: LA PARADA OCURRIO ANTES DEL BLOCK"}),
     ("RC1-M3 — (RC1-03/04) el bloque 2c se ejecuta despues de parar (3b)",
      DEPLOY_SH, _rc1_m3_2c_despues_de_3b, T_RC10304,
-     {"test_RC103_O1_el_orden_global_de_deploy_sh": "_orden_global_ok"}),
+     {"test_RC103_O1_el_orden_global_de_deploy_sh": "RC1-03/04: ORDEN GLOBAL ROTO"}),
 ]
 
 
