@@ -154,6 +154,12 @@ validate_secret_file() {
     if [ ! -s "${path}" ]; then
         printf 'BLOCK(secret-file): esta vacio (escribe el secreto en el fichero antes de desplegar): %s\n' "${path}" >&2; return 1
     fi
+    # RC1-03: `deploy.sh` valida la configuracion ANTES de parar nada
+    # (S9K_VALIDACION_PREVIA=1) y entonces el MODO aun no esta normalizado: lo
+    # normaliza el paso 5b (`preparar_secretos_del_servicio`: root:grupo 0640) y el
+    # paso 6 lo vuelve a exigir sin esta excepcion. El resto (existe, no symlink,
+    # no vacio, fuera de una release) se exige en las dos fases.
+    if [ "${S9K_VALIDACION_PREVIA:-0}" = "1" ]; then return 0; fi
     perms="$(stat -c '%a' "${path}" 2>/dev/null || printf '')"
     # rechaza cualquier bit de grupo/otros (perms de 3 dígitos con 2º/3er != 0)
     # H-06 + H-08 (fase 2, §9): SECRET = root:s9knowledge, 0640 o mas restrictivo: el
@@ -333,6 +339,28 @@ validate_https_contract() {
         printf '  instalacion productiva con esto NO se considera completada.\n' >&2
         return 0
     fi
+    return "${rc}"
+}
+
+# ---------------------------------------------------------------------------
+# validar_configuracion_antes_de_parar <viewer.env> <worker.env> <lab|production>
+#   RC1-03. La parte del paso 6 de deploy.sh que se puede decidir SIN tocar el
+#   sistema, ejecutada ANTES de parar visor y worker (paso 2c). No reimplementa
+#   nada: llama a las MISMAS funciones que el paso 6 (viewer secrets, worker.env,
+#   rutas de estado del worker, contrato HTTPS). Acumula todas las causas (rc=1 si
+#   alguna falla) para que el operador las vea juntas. El paso 6 sigue llamandolas
+#   despues (segunda barrera, ya con los secretos normalizados por el paso 5b).
+#   `validate_viewer_env` y las rutas de estado del visor ya las exige el paso 2b.
+# ---------------------------------------------------------------------------
+validar_configuracion_antes_de_parar() {
+    local viewer_env="${1:?viewer.env}" worker_env="${2:?worker.env}" ambiente="${3:-production}" rc=0
+    S9K_VALIDACION_PREVIA=1 validate_viewer_secrets "${viewer_env}" || rc=1
+    if S9K_VALIDACION_PREVIA=1 validate_worker_env "${worker_env}" "${viewer_env}"; then
+        validate_state_paths "${worker_env}" worker || rc=1
+    else
+        rc=1
+    fi
+    validate_https_contract "${viewer_env}" "${ambiente}" || rc=1
     return "${rc}"
 }
 
