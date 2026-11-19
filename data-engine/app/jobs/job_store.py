@@ -618,9 +618,14 @@ def mark_failed(
     db_path: str = DEFAULT_DB_PATH,
     retry_delay_seconds: float = 0,
     locked_by: str = None,
+    error_code: str = None,
 ) -> bool:
     """
     Marca un fallo, incrementa `attempts` y libera el lock.
+
+    `error_code` (opcional) rellena la columna homonima con el codigo estable
+    del fallo, coherente con el que encabeza `error_message`. Sin el, la
+    columna no se toca (comportamiento anterior).
 
     Si `retry=True` y attempts (tras incrementar) < max_attempts, el job
     vuelve a 'pending' para que un worker lo reintente más tarde. Si no,
@@ -655,6 +660,8 @@ def mark_failed(
             "locked_by": None,
             "locked_at": None,
         }
+        if error_code:
+            fields["error_code"] = error_code
         if not will_retry:
             fields["finished_at"] = now
             fields["next_retry_at"] = None

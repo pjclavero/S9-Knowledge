@@ -1257,12 +1257,15 @@ escritura.
 
 **Fail closed, y sin ruta de repuesto.** Si algo de lo anterior falta, el job
 **no** se completa con una corrida sin observar: termina en ERROR con uno de
-los dos códigos. Se distinguen por si tiene sentido reintentar:
+estos códigos. Se distinguen por si tiene sentido reintentar:
 
 * `GRAPH_OBSERVATION_UNCONFIGURED` — **permanente**. Cubre la conexión sin
-  declarar, el fichero de credencial ausente/vacío/legible por el grupo, una
-  URI con un esquema no soportado, y una credencial que el servidor rechaza
-  (el grafo responde bien; lo que está mal es lo declarado).
+  declarar, una URI con un esquema no soportado, y una credencial que el
+  servidor rechaza (el grafo responde bien; lo que está mal es lo declarado).
+* `GRAPH_CREDENTIAL_UNUSABLE` — **permanente**. La conexión está declarada
+  pero el fichero de credencial no se puede usar (ausente, ilegible, vacío,
+  enlace simbólico o modo no admitido). El mensaje del job nombra la ruta del
+  fichero y el motivo, nunca su contenido, y `error_code` lleva el mismo código.
 * `GRAPH_OBSERVATION_UNAVAILABLE` — **reintentable**. El grafo no responde
   ahora y puede responder luego.
 

@@ -65,8 +65,12 @@ job queda en ERROR. Degradar a `driver=None` seria exactamente la ruta de
 repuesto silenciosa que este corte viene a cerrar: produciria una corrida que
 parece exitosa y cuyo plan no puede proyectar nada, sin decirselo a nadie.
 
-ERRORES: CODIGO ESTABLE, NUNCA UNA RUTA
----------------------------------------
+ERRORES: CODIGO ESTABLE, NUNCA UNA RUTA (salvo la de la credencial)
+-------------------------------------------------------------------
+Excepcion deliberada, RC1-G02: `GRAPH_CREDENTIAL_UNUSABLE` anade la ruta del
+fichero del secreto y el motivo, porque sin ellos el operador no puede
+arreglarlo. Nunca el contenido ni la longitud del secreto.
+
 `worker.process_one` guarda `str(exc)` como `error_message` del job. Por eso
 todo lo que sale de aqui hacia arriba es un `IngestV3Error`, cuyo `str()` es
 `CODIGO: frase accionable` y NADA MAS. La ruta concreta, el mensaje original y
@@ -92,8 +96,10 @@ from knowledge_v3.pipeline.ingest_cli import run_ingest
 # variable con el secreto dentro), no hay URI por defecto, y la fabrica no
 # conecta al construirse.
 from knowledge_v3.driver_neo4j import (
+    STDIN_SENTINEL,
     DriverConfigError,
     build_driver_factory,
+    read_secret,
     resolve_config,
 )
 
@@ -136,6 +142,17 @@ CODIGOS = {
         "comprobar contra el que existe lo que va a proponer. No se ha "
         "ingerido nada; puedes volver a intentarlo cuando el grafo responda."
     ),
+    # La conexion SI esta declarada; lo que no sirve es el fichero de la
+    # credencial (ausente, ilegible, vacio, enlace, modo no admitido). Es otra
+    # causa y otro arreglo que `..._UNCONFIGURED`: quien lea «no esta declarada»
+    # revisaria una configuracion que esta bien. La causa concreta (ruta del
+    # fichero y motivo, nunca el contenido) va detras de esta frase.
+    "GRAPH_CREDENTIAL_UNUSABLE": (
+        "La conexion al grafo esta declarada, pero el fichero con su "
+        "credencial no se puede usar, asi que la ingesta no puede comprobar "
+        "contra el grafo lo que va a proponer. No se ha ingerido nada. Avisa "
+        "a quien administra el servicio."
+    ),
     # --- almacen de decisiones humanas (C1 · H-18) ---
     #
     # Sin saber que decidio el humano, el motor volveria a proponer lo ya
@@ -172,6 +189,8 @@ CODIGOS = {
 PERMANENTES = frozenset({
     "SOURCE_PACKAGE_INVALID",
     "GRAPH_OBSERVATION_UNCONFIGURED",
+    # Un fichero de credencial ausente o con mal modo no se arregla solo.
+    "GRAPH_CREDENTIAL_UNUSABLE",
     "PARTIDA_SIN_SESION_DECLARADA",
     # Una ruta mal declarada o un permiso mal puesto no se arreglan solos entre
     # dos intentos.
@@ -206,11 +225,19 @@ class IngestV3Error(RuntimeError):
     handler diciendo lo unico que el worker no puede saber.
     """
 
-    def __init__(self, code: str):
+    def __init__(self, code: str, detail: Optional[str] = None):
         self.code = code
+        #: Lo que el worker vuelca en la columna `error_code` del job.
+        self.error_code = code
         self.message = CODIGOS[code]
         self.retryable = code not in PERMANENTES
-        super().__init__(f"{code}: {self.message}")
+        #: Causa concreta, SOLO para los codigos que la necesitan (hoy, la
+        #: credencial). Nunca lleva el contenido del secreto ni su longitud.
+        self.detail = detail
+        texto = f"{code}: {self.message}"
+        if detail:
+            texto += f" Causa: {detail}"
+        super().__init__(texto)
 
 
 def _ruta(valor: Any, *, campo: str) -> Path:
@@ -256,6 +283,43 @@ def _clasificar(exc: BaseException) -> str:
     return "GRAPH_OBSERVATION_UNAVAILABLE"
 
 
+def _exigir_credencial_utilizable(config: Any) -> None:
+    """Comprueba el fichero del secreto ANTES de abrir el driver, con su causa.
+
+    Sin esto, un fallo de LECTURA (`PermissionError` tras pasar el `stat`, o un
+    contenido que no es UTF-8) saldria de la fabrica como excepcion generica y
+    `_clasificar` lo tomaria por «el grafo no responde»: reintentable y con un
+    consejo falso. El secreto se lee para comprobar que sirve y se descarta; no
+    se registra, no se guarda y no entra en ningun mensaje.
+
+    El texto de `DriverConfigError` es el del lector (ruta y motivo, nunca el
+    secreto), asi que si el lector cambia de criterio el mensaje sigue siendo
+    veraz sin que este modulo reimplemente sus reglas.
+    """
+    ruta = config.password_file
+    if ruta == STDIN_SENTINEL:  # stdin no se puede leer dos veces
+        return
+    try:
+        read_secret(ruta)
+    except DriverConfigError as exc:
+        log.error("credencial del grafo inutilizable: %s", exc)
+        raise IngestV3Error("GRAPH_CREDENTIAL_UNUSABLE", str(exc)) from exc
+    except UnicodeDecodeError as exc:
+        # NO se usa `str(exc)`: un UnicodeDecodeError cita los bytes del fichero.
+        log.error("credencial del grafo inutilizable: no es texto UTF-8")
+        raise IngestV3Error(
+            "GRAPH_CREDENTIAL_UNUSABLE",
+            f"el fichero de contrasena {ruta!r} no es texto UTF-8 legible",
+        ) from exc
+    except OSError as exc:
+        log.error("credencial del grafo inutilizable: %s", exc)
+        raise IngestV3Error(
+            "GRAPH_CREDENTIAL_UNUSABLE",
+            f"no se pudo leer el fichero de contrasena {ruta!r}: "
+            f"{exc.strerror or type(exc).__name__}",
+        ) from exc
+
+
 def _driver_de_observacion() -> Any:
     """Abre la conexion de SOLO LECTURA con la que la corrida observa el grafo.
 
@@ -281,14 +345,15 @@ def _driver_de_observacion() -> Any:
     except DriverConfigError as exc:
         log.error("conexion al grafo no declarada para la observacion: %s", exc)
         raise IngestV3Error("GRAPH_OBSERVATION_UNCONFIGURED") from exc
+    _exigir_credencial_utilizable(config)
     try:
         driver = build_driver_factory(config)()
     except DriverConfigError as exc:
         # El secreto se resuelve al invocar la fabrica, no al construirla: un
-        # fichero ausente o con permisos flojos aparece AQUI y sigue siendo un
-        # defecto de declaracion, no una indisponibilidad.
+        # fichero ausente o con permisos flojos aparece AQUI. La conexion SI
+        # esta declarada, asi que NO es `..._UNCONFIGURED`: es la credencial.
         log.error("credencial del grafo inutilizable: %s", exc)
-        raise IngestV3Error("GRAPH_OBSERVATION_UNCONFIGURED") from exc
+        raise IngestV3Error("GRAPH_CREDENTIAL_UNUSABLE", str(exc)) from exc
     except Exception as exc:  # noqa: BLE001 - controlador ausente o caido
         log.exception("no se pudo abrir la conexion de observacion al grafo")
         raise IngestV3Error(_clasificar(exc)) from exc

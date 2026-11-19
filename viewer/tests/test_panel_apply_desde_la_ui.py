@@ -2431,6 +2431,7 @@ def test_el_codigo_de_grafo_ausente_NO_se_reintenta(monkeypatch):
 
     assert IngestV3Error("GRAPH_OBSERVATION_UNCONFIGURED").retryable is False
     assert IngestV3Error("GRAPH_OBSERVATION_UNAVAILABLE").retryable is True
+    assert IngestV3Error("GRAPH_CREDENTIAL_UNUSABLE").retryable is False
 
 
 def test_una_credencial_legible_por_todos_no_se_usa(
@@ -2454,10 +2455,12 @@ def test_una_credencial_legible_por_todos_no_se_usa(
     job = _ingesta_fallida(operador, cola, monkeypatch)
 
     assert job["status"] == "failed", job
-    assert job["error_message"].startswith("GRAPH_OBSERVATION_UNCONFIGURED:"), (
+    # RC1-G02: la conexión SÍ está declarada; lo inutilizable es la credencial.
+    assert job["error_message"].startswith("GRAPH_CREDENTIAL_UNUSABLE:"), (
         f"un fichero de credencial abierto se está tratando como otra cosa: "
         f"{job['error_message']!r}"
     )
+    assert job["error_code"] == "GRAPH_CREDENTIAL_UNUSABLE", job
 
 
 def test_un_grafo_que_no_responde_se_distingue_de_uno_no_declarado(
@@ -2505,7 +2508,8 @@ def test_los_codigos_nuevos_los_sabe_pintar_el_panel():
     from app import panel_errors
     from jobs.handlers.ingest_v3 import CODIGOS
 
-    for codigo in ("GRAPH_OBSERVATION_UNCONFIGURED", "GRAPH_OBSERVATION_UNAVAILABLE"):
+    for codigo in ("GRAPH_OBSERVATION_UNCONFIGURED", "GRAPH_OBSERVATION_UNAVAILABLE",
+                   "GRAPH_CREDENTIAL_UNUSABLE"):
         assert codigo in CODIGOS, codigo
         assert codigo in panel_errors.CATALOGO, (
             f"{codigo} sale del worker y el panel no tiene frase para él"

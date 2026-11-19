@@ -267,7 +267,8 @@ def process_one(worker_id: str, job_types: list | None, workspace: str | None,
         espera = retroceso(retry_backoff_seconds, job.get("attempts") or 0) if reintentar else 0
         if not job_store.mark_failed(job_id, error_message=str(exc), retry=reintentar,
                                      db_path=db_path, retry_delay_seconds=espera,
-                                     locked_by=worker_id):
+                                     locked_by=worker_id,
+                                     error_code=getattr(exc, "error_code", None)):
             log.warning("Job %s ya no es de este worker; su fallo no se escribe", job_id)
         log.exception("Job fallido (%s, reintentable=%s, espera=%ss)", job_id, reintentar, espera)
         return True
