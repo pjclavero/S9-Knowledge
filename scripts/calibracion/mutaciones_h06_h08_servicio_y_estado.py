@@ -95,7 +95,9 @@ T_VAULT = "viewer/tests/test_h06_h08_vault_no_escribible.py"
 T_RESP = "viewer/tests/test_h06_h08_vault_respaldo.py"
 T_CRIT = "viewer/tests/test_h06_h08_vault_criterios.py"
 T_VSTATE = "deploy/tests/test_h06_h08_vault_state.py"
-TESTIGOS = [T_DEPLOY, T_INV, T_C1, T_DE, T_VIEWER, T_CLI, T_R2, T_VAULT, T_RESP, T_CRIT, T_VSTATE]
+T_D1 = "viewer/tests/test_salud_d1_carrera_state_runtime.py"
+T_D4 = "viewer/tests/test_salud_d4_boveda_limite.py"
+TESTIGOS = [T_DEPLOY, T_INV, T_C1, T_DE, T_VIEWER, T_CLI, T_R2, T_VAULT, T_RESP, T_CRIT, T_VSTATE, T_D1, T_D4]
 
 U_VISOR = "viewer/systemd/s9-knowledge-viewer.service"
 U_WORKER = "data-engine/systemd/s9-knowledge-worker.service"
@@ -585,6 +587,35 @@ def _m64_state_validation_como_inspeccion(t):
                             '                   "STATE OK: estado inspeccionado "\n')
 
 
+def _m65_d1_enoent_del_stat_es_hallazgo(t):
+    return mutar_en_funcion(t, "inspect_state",
+                            "            except FileNotFoundError:\n                # D-1 (TOCTOU): entrada ya listada",
+                            "            except ZeroDivisionError:\n                # D-1 (TOCTOU): entrada ya listada")
+
+
+def _m66_d1_subdirectorio_desaparecido_es_hallazgo(t):
+    return mutar_en_funcion(t, "inspect_state",
+                            "        except FileNotFoundError as exc:\n            # D-1: un subdirectorio",
+                            "        except ZeroDivisionError as exc:\n            # D-1: un subdirectorio")
+
+
+def _m67_d4_sin_tiempo_maximo(t):
+    return mutar_en_funcion(t, "_sondear_con_limite", "    hilo.join(timeout)\n", "    hilo.join()\n")
+
+
+def _m68_d4_un_sondeo_por_peticion(t):
+    return mutar_en_funcion(t, "_sondear_con_limite",
+                            "        if previo is not None and previo.is_alive():\n",
+                            "        if False:\n")
+
+
+def _m69_d4_available_afirma_escritura(t):
+    return mutar_en_funcion(
+        t, "_sondear_boveda",
+        '                estado, motivo = VAULT_AVAILABLE, "todos los perfiles escribibles segun permisos (os.access); no se ha probado una escritura real"\n',
+        '                estado, motivo = VAULT_AVAILABLE, "todos los perfiles escribibles"\n')
+
+
 def mutar_en_funcion_bash(texto: str, nombre: str, viejo: str, nuevo: str):
     """Como `mutar_unico`, pero el ancla tiene que ser UNICA y estar DENTRO de `nombre() {...}`."""
     m = re.search(r"^%s\(\) \{\n.*?^\}\n" % re.escape(nombre), texto, re.S | re.M)
@@ -817,6 +848,24 @@ MUTACIONES = [
     ("M64 — (B-1) STATE_VALIDATION vuelve a presentarse como «STATE OK» (inspeccion)",
      HEALTH_CHECKS, _m64_state_validation_como_inspeccion, T_CRIT,
      {"test_B1_STATE_VALIDATION_no_se_presenta_como_inspeccion_completa": "STATE OK: estado inspeccionado"}),
+    # ---- deudas de salud (carril b1-salud) ----------------------------------------
+    ("M65 — (D-1) ENOENT al inspeccionar una entrada ya listada vuelve a ser hallazgo (falso UNHEALTHY)",
+     SERVICE_STATE, _m65_d1_enoent_del_stat_es_hallazgo, T_D1,
+     {"test_D1_sidecar_desaparecido_entre_scandir_y_stat_no_es_hallazgo": "D-1: FALSO HALLAZGO POR FICHERO EFIMERO",
+      "test_D1_check_state_runtime_con_carrera_es_HEALTHY_y_con_modo_malo_sigue_UNHEALTHY":
+      "D-1: STATE_RUNTIME FALSO UNHEALTHY"}),
+    ("M66 — (D-1) un subdirectorio que desaparece antes de abrirlo vuelve a ser hallazgo",
+     SERVICE_STATE, _m66_d1_subdirectorio_desaparecido_es_hallazgo, T_D1,
+     {"test_D1_subdirectorio_desaparecido_antes_de_abrirlo_no_es_hallazgo": "D-1: FALSO HALLAZGO POR SUBDIRECTORIO"}),
+    ("M67 — (D-4a) el sondeo de la boveda pierde su tiempo maximo (un NFS caido cuelga el health)",
+     HEALTH_CHECKS, _m67_d4_sin_tiempo_maximo, T_D4,
+     {"test_D4a_un_montaje_colgado_no_cuelga_el_health_y_dice_sin_respuesta": "D-4: EL SONDEO DE LA BOVEDA COLGO"}),
+    ("M68 — (D-4a) cada peticion lanza su propio sondeo aunque el anterior siga colgado (fuga de hilos)",
+     HEALTH_CHECKS, _m68_d4_un_sondeo_por_peticion, T_D4,
+     {"test_D4a_no_se_acumulan_hilos_mientras_el_montaje_sigue_colgado": "D-4: SE LANZO OTRO SONDEO"}),
+    ("M69 — (D-4b) AVAILABLE vuelve a afirmar escritura sin decir que solo son permisos",
+     HEALTH_CHECKS, _m69_d4_available_afirma_escritura, T_D4,
+     {"test_D4b_AVAILABLE_no_afirma_una_escritura_que_no_se_ha_probado": "D-4: AVAILABLE AFIRMA MAS DE LO MEDIDO"}),
 ]
 
 

@@ -12,6 +12,7 @@ import os
 import shutil
 import sqlite3
 import subprocess
+import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -648,11 +649,102 @@ def _estado_carpeta_de_juego(carpeta: Path, nombre_perfil: str) -> tuple:
         return VAULT_READ_ONLY, "la carpeta no es escribible por el usuario del proceso"
     if hay_perfil and not _acceso(perfil, os.W_OK):
         return VAULT_READ_ONLY, "%s no es escribible por el usuario del proceso" % nombre_perfil
-    return VAULT_AVAILABLE, "escribible" if hay_perfil else "sin perfil aun; carpeta escribible"
+    return VAULT_AVAILABLE, "escribible segun permisos" if hay_perfil else "sin perfil aun; carpeta escribible segun permisos"
+
+
+def _sondear_boveda(raiz_txt: str, require_mount: Optional[str]) -> tuple:
+    """Sondeo de SOLO LECTURA (puede bloquearse en un montaje de red caido): (estado, motivo,
+    carpetas, configurada). Lo llama `_sondear_con_limite`, nunca el hilo del visor directamente."""
+    from app import sources_catalog, vault_mount  # noqa: PLC0415
+
+    nombre_perfil = sources_catalog.NOMBRE_PERFIL
+    if not raiz_txt:
+        estado, motivo, carpetas, configurada = (
+            VAULT_UNAVAILABLE, "no configurada (%s sin declarar): dependencia opcional"
+            % sources_catalog.ENV_RAIZ_BOVEDAS, {}, False)
+    else:
+        configurada = True
+        carpetas: Dict[str, str] = {}
+        crudo = str(require_mount if require_mount is not None else "1").strip().lower()
+        exigir = crudo not in {"0", "false", "no", ""}
+        raiz = Path(raiz_txt)
+        montaje = vault_mount.inspeccionar(raiz, exigir_montaje=exigir)
+        if not montaje.utilizable:
+            estado, motivo = VAULT_UNAVAILABLE, "%s: %s" % (montaje.estado.value, montaje.detalle)
+        else:
+            juegos = []
+            for nombre in montaje.entradas or []:
+                p = raiz / nombre
+                if nombre.startswith(".") or os.path.islink(str(p)) or not p.is_dir():
+                    continue
+                juegos.append(nombre)
+            if not juegos:
+                if _acceso(raiz, os.W_OK | os.X_OK):
+                    estado, motivo = VAULT_AVAILABLE, "sin carpetas de juego; raiz escribible segun permisos (os.access); no se ha probado una escritura real"
+                else:
+                    estado, motivo = VAULT_READ_ONLY, "sin carpetas de juego; la raiz no es escribible"
+            else:
+                estado, motivo = VAULT_AVAILABLE, "todos los perfiles escribibles segun permisos (os.access); no se ha probado una escritura real"
+                peores = []
+                for nombre in juegos:
+                    e, m = _estado_carpeta_de_juego(raiz / nombre, nombre_perfil)
+                    carpetas[nombre] = "%s (%s)" % (e, m)
+                    if _VAULT_ORDEN[e] > _VAULT_ORDEN[estado]:
+                        estado, peores = e, []
+                    if e == estado and e != VAULT_AVAILABLE:
+                        peores.append("%s: %s" % (nombre, m))
+                if peores:
+                    motivo = "; ".join(peores)
+    return estado, motivo, carpetas, configurada
+
+
+#: D-4(a): tiempo maximo del sondeo de la boveda. `os.access`/`stat`/`listdir` sobre un NFS caido
+#: pueden bloquearse (D-state) hasta el timeout del montaje; el diagnostico NO puede colgar el
+#: health ni una peticion del panel. Pasado el limite se informa UNAVAILABLE con el motivo.
+VAULT_PROBE_TIMEOUT_S = 5.0
+_vault_sondeo_vivo: Optional[threading.Thread] = None
+_vault_sondeo_lock = threading.Lock()
+
+
+def _sondear_con_limite(raiz_txt: str, require_mount: Optional[str], timeout: float) -> tuple:
+    """Ejecuta `_sondear_boveda` en un hilo daemon con tiempo maximo `timeout`.
+
+    Un hilo atascado en una syscall no se puede cancelar: se queda hasta que el montaje responda.
+    Para que las peticiones repetidas no acumulen hilos, solo se admite UN sondeo en vuelo: mientras
+    el anterior siga atascado se responde de inmediato «sin respuesta» sin lanzar otro.
+    """
+    global _vault_sondeo_vivo
+    if not raiz_txt:  # sin ruta no hay nada que tocar: no se lanza hilo ni se espera a otro
+        return _sondear_boveda(raiz_txt, require_mount)
+    with _vault_sondeo_lock:
+        previo = _vault_sondeo_vivo
+        if previo is not None and previo.is_alive():
+            return (VAULT_UNAVAILABLE, "sin respuesta: un sondeo anterior de la boveda sigue "
+                    "bloqueado (montaje sin responder); no se lanza otro", {}, True)
+        caja: list = []
+
+        def _trabajo():
+            try:
+                caja.append(("ok", _sondear_boveda(raiz_txt, require_mount)))
+            except BaseException as exc:  # noqa: BLE001 - se re-informa abajo
+                caja.append(("error", exc))
+
+        hilo = threading.Thread(target=_trabajo, name="s9k-vault-probe", daemon=True)
+        _vault_sondeo_vivo = hilo
+        hilo.start()
+    hilo.join(timeout)
+    if hilo.is_alive():
+        return (VAULT_UNAVAILABLE, "sin respuesta en %g s: el sondeo de la boveda no termino "
+                "(montaje de red caido o bloqueado)" % timeout, {}, True)
+    tipo, valor = caja[0]
+    if tipo == "error":
+        raise valor
+    return valor
 
 
 def check_vault(vault_root: Optional[str] = None,
-                require_mount: Optional[str] = None) -> ComponentResult:
+                require_mount: Optional[str] = None,
+                timeout: Optional[float] = None) -> ComponentResult:
     """VAULT AVAILABLE / READ_ONLY / UNAVAILABLE (criterio 7). SOLO LECTURA.
 
     - AVAILABLE: configurada, existe y cada perfil (o su carpeta si aun no hay perfil) es
@@ -666,9 +758,6 @@ def check_vault(vault_root: Optional[str] = None,
     `vault_mount.inspeccionar`, la misma frontera que usa el catalogo) y no repara nada:
     S9-Knowledge NUNCA cambia permisos de la boveda; prepararlos es del administrador.
     """
-    from app import sources_catalog, vault_mount  # noqa: PLC0415
-
-    nombre_perfil = sources_catalog.NOMBRE_PERFIL
     raiz_txt = (vault_root or "").strip()
     if os.environ.get(VAULT_MEDICION_ENV) == VAULT_MEDICION_SANDBOX:
         # Declarado por la unidad del healthcheck: desde su sandbox el permiso efectivo NO es
@@ -680,43 +769,8 @@ def check_vault(vault_root: Optional[str] = None,
                        {"vault": VAULT_UNMEASURABLE, "motivo": motivo, "configurada": bool(raiz_txt),
                         "opcional": True, "carpetas": {}})
     with _Timer() as t:
-        if not raiz_txt:
-            estado, motivo, carpetas, configurada = (
-                VAULT_UNAVAILABLE, "no configurada (%s sin declarar): dependencia opcional"
-                % sources_catalog.ENV_RAIZ_BOVEDAS, {}, False)
-        else:
-            configurada = True
-            carpetas: Dict[str, str] = {}
-            crudo = str(require_mount if require_mount is not None else "1").strip().lower()
-            exigir = crudo not in {"0", "false", "no", ""}
-            raiz = Path(raiz_txt)
-            montaje = vault_mount.inspeccionar(raiz, exigir_montaje=exigir)
-            if not montaje.utilizable:
-                estado, motivo = VAULT_UNAVAILABLE, "%s: %s" % (montaje.estado.value, montaje.detalle)
-            else:
-                juegos = []
-                for nombre in montaje.entradas or []:
-                    p = raiz / nombre
-                    if nombre.startswith(".") or os.path.islink(str(p)) or not p.is_dir():
-                        continue
-                    juegos.append(nombre)
-                if not juegos:
-                    if _acceso(raiz, os.W_OK | os.X_OK):
-                        estado, motivo = VAULT_AVAILABLE, "sin carpetas de juego; raiz escribible"
-                    else:
-                        estado, motivo = VAULT_READ_ONLY, "sin carpetas de juego; la raiz no es escribible"
-                else:
-                    estado, motivo = VAULT_AVAILABLE, "todos los perfiles escribibles"
-                    peores = []
-                    for nombre in juegos:
-                        e, m = _estado_carpeta_de_juego(raiz / nombre, nombre_perfil)
-                        carpetas[nombre] = "%s (%s)" % (e, m)
-                        if _VAULT_ORDEN[e] > _VAULT_ORDEN[estado]:
-                            estado, peores = e, []
-                        if e == estado and e != VAULT_AVAILABLE:
-                            peores.append("%s: %s" % (nombre, m))
-                    if peores:
-                        motivo = "; ".join(peores)
+        estado, motivo, carpetas, configurada = _sondear_con_limite(
+            raiz_txt, require_mount, VAULT_PROBE_TIMEOUT_S if timeout is None else timeout)
     if estado == VAULT_AVAILABLE or not configurada:
         status = HealthStatus.HEALTHY
     else:
