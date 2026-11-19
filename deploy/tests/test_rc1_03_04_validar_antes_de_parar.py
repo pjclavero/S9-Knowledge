@@ -336,3 +336,27 @@ def test_RC1_M5_sin_el_die_del_almacen_2c_deja_pasar_el_upgrade_sin_almacen(tmp_
     env, raiz = plantilla_productiva_en(tmp_path, URL, almacen=False)
     rc, out = _paso2c(env, raiz, modo="upgrade", deploy_texto=texto.replace(bloque, mut_bloque))
     assert rc == 0, "el mutante deberia dejar pasar el upgrade sin almacen"
+
+
+def test_RC103_X1_deploy_descarta_S9K_VALIDACION_PREVIA_del_entorno_del_operador():
+    """`S9K_VALIDACION_PREVIA` es de uso interno del paso 2c. Si el operador la exporta, el paso 6
+    se saltaria la comprobacion del MODO del secreto: `deploy.sh` la descarta antes de cargar nada.
+
+    Se ejecuta la CABECERA REAL de `deploy.sh` (hasta justo antes de cargar `lib.sh`) con la
+    variable exportada, y se mira su valor despues; ademas el `unset` tiene que ir antes de
+    cualquier `source`.
+    """
+    texto = DEPLOY_SH.read_text(encoding="utf-8")
+    corte = texto.index('source "${HERE}/lib.sh"')
+    cabecera = texto[:corte]
+    assert "unset S9K_VALIDACION_PREVIA" in cabecera, (
+        "RC1-03: deploy.sh NO DESCARTA S9K_VALIDACION_PREVIA antes de cargar lib.sh")
+    assert "\nsource " not in cabecera.split("unset S9K_VALIDACION_PREVIA")[0], (
+        "RC1-03: hay un `source` ANTES del unset de S9K_VALIDACION_PREVIA")
+    env = {**os.environ, "S9K_VALIDACION_PREVIA": "1"}
+    r = subprocess.run(
+        ["bash", "-c", cabecera + '\necho "VALOR=[${S9K_VALIDACION_PREVIA:-}]"\n'],
+        capture_output=True, text=True, env=env, timeout=60)
+    assert r.returncode == 0, r.stderr
+    assert "VALOR=[]" in r.stdout, (
+        "RC1-03: S9K_VALIDACION_PREVIA SOBREVIVE a la cabecera de deploy.sh: %s" % r.stdout)

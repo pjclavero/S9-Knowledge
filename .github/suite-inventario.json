@@ -350,7 +350,7 @@
     "deploy/tests/test_preflight_https.py": 19,
     "deploy/tests/test_preflight_python_minimo.py": 2,
     "deploy/tests/test_preflight_setup_admin.py": 28,
-    "deploy/tests/test_rc1_03_04_validar_antes_de_parar.py": 18,
+    "deploy/tests/test_rc1_03_04_validar_antes_de_parar.py": 19,
     "deploy/tests/test_rc1_05_block_antes_de_parar.py": 7,
     "deploy/tests/test_rc1_06_parada_en_bucle.py": 15,
     "deploy/tests/test_release_checksum.py": 33,
@@ -543,7 +543,7 @@
     "viewer/tests/test_graph_ux_v2.py",
     "viewer/tests/test_panel_apply_desde_la_ui.py"
   ],
-  "total": 10546,
+  "total": 10547,
   "modulos": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 526,
     "contracts/review-ingest/v1/tests/test_contracts_v1.py": 38,
@@ -749,7 +749,7 @@
     "deploy/tests/test_preflight_https.py": 33,
     "deploy/tests/test_preflight_python_minimo.py": 7,
     "deploy/tests/test_preflight_setup_admin.py": 31,
-    "deploy/tests/test_rc1_03_04_validar_antes_de_parar.py": 28,
+    "deploy/tests/test_rc1_03_04_validar_antes_de_parar.py": 29,
     "deploy/tests/test_rc1_05_block_antes_de_parar.py": 7,
     "deploy/tests/test_rc1_06_parada_en_bucle.py": 19,
     "deploy/tests/test_release_checksum.py": 33,
