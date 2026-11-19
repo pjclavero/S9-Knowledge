@@ -84,6 +84,23 @@ MUTACIONES = [
         prueba=f"{SUITE}::test_el_codigo_nuevo_esta_en_el_catalogo_y_es_permanente",
         esperado="in frozenset({",
     ),
+    # --- Ronda 2 (P3): el errno decide permanente o transitorio ---
+    Mutacion(
+        nombre="todo OSError de la credencial pasa a permanente (EIO deja de reintentarse)",
+        fichero=HANDLER,
+        viejo="""        if isinstance(causa, OSError) and causa.errno not in _ERRNO_DE_CONFIGURACION:""",
+        nuevo="""        if False:""",
+        prueba=f"{SUITE}::test_errno_transitorio_sigue_siendo_reintentable",
+        esperado="AssertionError: GRAPH_CREDENTIAL_UNUSABLE",
+    ),
+    Mutacion(
+        nombre="EACCES deja de ser de configuracion (permiso mal puesto = reintentable)",
+        fichero=HANDLER,
+        viejo="""    errno.ENOENT, errno.ENOTDIR, errno.EACCES, errno.EPERM, errno.EISDIR,""",
+        nuevo="""    errno.ENOENT, errno.ENOTDIR, errno.EPERM, errno.EISDIR,""",
+        prueba=f"{SUITE}::test_errno_de_configuracion_es_credencial_permanente",
+        esperado="AssertionError: GRAPH_OBSERVATION_UNAVAILABLE",
+    ),
     # --- Ronda 2 (P1-1): el codigo no puede quedar RANCIO ---
     Mutacion(
         nombre="mark_complete deja de limpiar error_code (job complete con incidencia)",

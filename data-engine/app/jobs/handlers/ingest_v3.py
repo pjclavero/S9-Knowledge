@@ -80,6 +80,7 @@ fichero vacio"`— se captura y se traduce; no se deja propagar.
 """
 from __future__ import annotations
 
+import errno
 import logging
 import re
 from pathlib import Path
@@ -283,6 +284,34 @@ def _clasificar(exc: BaseException) -> str:
     return "GRAPH_OBSERVATION_UNAVAILABLE"
 
 
+#: Errores de E/S que SI son de configuracion del fichero de credencial: no se
+#: arreglan solos entre dos intentos. Cualquier otro `errno` (EIO, ESTALE,
+#: ETIMEDOUT, EAGAIN...) es transitorio y sigue siendo lo que era antes de
+#: RC1-G02: `GRAPH_OBSERVATION_UNAVAILABLE`, reintentable.
+_ERRNO_DE_CONFIGURACION = frozenset({
+    errno.ENOENT, errno.ENOTDIR, errno.EACCES, errno.EPERM, errno.EISDIR,
+    errno.ELOOP,
+})
+
+
+def _leer_secreto_salvo_transitorio(ruta: str) -> None:
+    """`read_secret`, pero un `OSError` TRANSITORIO sale como reintentable.
+
+    El lector envuelve el fallo del `stat` en `DriverConfigError` (con el
+    `OSError` como causa) y deja escapar tal cual el de la lectura; en los dos
+    casos se mira el `errno`, no el texto.
+    """
+    try:
+        read_secret(ruta)
+    except (DriverConfigError, OSError) as exc:
+        causa = exc if isinstance(exc, OSError) else exc.__cause__
+        if isinstance(causa, OSError) and causa.errno not in _ERRNO_DE_CONFIGURACION:
+            log.warning("lectura de la credencial del grafo fallida (transitorio, "
+                        "errno=%s); se reintentara", causa.errno)
+            raise IngestV3Error("GRAPH_OBSERVATION_UNAVAILABLE") from exc
+        raise
+
+
 def _exigir_credencial_utilizable(config: Any) -> None:
     """Comprueba el fichero del secreto ANTES de abrir el driver, con su causa.
 
@@ -295,12 +324,15 @@ def _exigir_credencial_utilizable(config: Any) -> None:
     El texto de `DriverConfigError` es el del lector (ruta y motivo, nunca el
     secreto), asi que si el lector cambia de criterio el mensaje sigue siendo
     veraz sin que este modulo reimplemente sus reglas.
+
+    Un `OSError` transitorio (ver `_ERRNO_DE_CONFIGURACION`) NO es un defecto
+    del fichero: sale como `GRAPH_OBSERVATION_UNAVAILABLE`, reintentable.
     """
     ruta = config.password_file
     if ruta == STDIN_SENTINEL:  # stdin no se puede leer dos veces
         return
     try:
-        read_secret(ruta)
+        _leer_secreto_salvo_transitorio(ruta)
     except DriverConfigError as exc:
         log.error("credencial del grafo inutilizable: %s", exc)
         raise IngestV3Error("GRAPH_CREDENTIAL_UNUSABLE", str(exc)) from exc

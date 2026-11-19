@@ -11,6 +11,7 @@ ningun driver; el control positivo sustituye la fabrica por un doble.
 """
 from __future__ import annotations
 
+import errno
 import os
 
 import pytest
@@ -158,6 +159,54 @@ def test_la_politica_acepta_root_del_grupo_de_servicio_0640():
         0o100640, 1000, gid, 10, euid=1000, service_gid=gid)
     assert service_state.secret_read_violations(
         0o100640, 0, gid + 1, 10, euid=1000, service_gid=gid)
+
+
+# --- P3: el errno decide si es configuracion (permanente) o transitorio ---
+
+_PERMANENTES = ("ENOENT", "ENOTDIR", "EACCES", "EPERM", "EISDIR", "ELOOP")
+_TRANSITORIOS = ("EIO", "ESTALE", "ETIMEDOUT", "EAGAIN")
+
+
+def _lector_que_falla(monkeypatch, nombre: str, *, en_el_stat: bool) -> None:
+    """Sustituye el lector por uno que falla con ese errno, por la LECTURA
+    (`OSError` crudo) o por el `stat` (envuelto en `DriverConfigError`, como
+    hace `read_secret`)."""
+    numero = getattr(errno, nombre)
+
+    def _falla(ruta):
+        error = OSError(numero, os.strerror(numero), ruta)
+        if en_el_stat:
+            raise DriverConfigError(
+                f"no se pudo leer el fichero de contrasena {ruta!r}: {error.strerror}"
+            ) from error
+        raise error
+
+    monkeypatch.setattr(ingest_v3, "read_secret", _falla)
+
+
+@pytest.mark.parametrize("en_el_stat", [False, True], ids=["lectura", "stat"])
+@pytest.mark.parametrize("nombre", _PERMANENTES)
+def test_errno_de_configuracion_es_credencial_permanente(conexion, monkeypatch,
+                                                         nombre, en_el_stat):
+    _lector_que_falla(monkeypatch, nombre, en_el_stat=en_el_stat)
+    exc = _fallo()
+    assert exc.code == "GRAPH_CREDENTIAL_UNUSABLE", str(exc)
+    assert exc.retryable is False
+    assert str(conexion) in str(exc)
+    assert os.strerror(getattr(errno, nombre)) in str(exc)
+
+
+@pytest.mark.parametrize("en_el_stat", [False, True], ids=["lectura", "stat"])
+@pytest.mark.parametrize("nombre", [n for n in _TRANSITORIOS if hasattr(errno, n)])
+def test_errno_transitorio_sigue_siendo_reintentable(conexion, monkeypatch,
+                                                     nombre, en_el_stat):
+    """Un EIO/ESTALE/ETIMEDOUT/EAGAIN no es un fichero mal puesto: reintentar
+    SI puede arreglarlo, como antes de RC1-G02."""
+    _lector_que_falla(monkeypatch, nombre, en_el_stat=en_el_stat)
+    exc = _fallo()
+    assert exc.code == "GRAPH_OBSERVATION_UNAVAILABLE", str(exc)
+    assert exc.retryable is True
+    assert exc.error_code == "GRAPH_OBSERVATION_UNAVAILABLE"
 
 
 def test_conexion_no_declarada_sigue_siendo_la_de_siempre(monkeypatch):
