@@ -213,7 +213,8 @@ def _orden_global_ok(texto: str) -> bool:
 
 def test_RC103_O1_el_orden_global_de_deploy_sh():
     """Esperado: 2b < 2c < 3 < gate de decision < 3b < parada < migracion (5b)."""
-    assert _orden_global_ok(DEPLOY_SH.read_text(encoding="utf-8"))
+    assert _orden_global_ok(DEPLOY_SH.read_text(encoding="utf-8")), (
+        "RC1-03/04: ORDEN GLOBAL ROTO (2c debe ir antes de 3b)")
 
 
 # ===========================================================================

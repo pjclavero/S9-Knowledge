@@ -75,7 +75,7 @@ def test_RC105_B1_block_de_fresh_sobre_instalacion_con_usuarios_no_para_nada(tmp
     rc, out, parado = _paso3_4_con_testigo(tmp_path, "fresh", na, tmp_path / "s/jobs/jobs.db")
     assert rc != 0 and "bloquea en fresh" in out, out
     assert "visor y worker siguen en marcha" in out, out
-    assert not parado, "RC1-05: el BLOCK se aplico DESPUES de parar los servicios"
+    assert not parado, "RC1-05: LA PARADA OCURRIO ANTES DEL BLOCK: %s" % out
 
 
 def test_RC105_B2_auth_corrupta_no_para_nada(tmp_path):

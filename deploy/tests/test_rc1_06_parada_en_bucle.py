@@ -165,8 +165,8 @@ def test_RC106_B1_unidad_en_bucle_se_para_aunque_no_este_is_active(tmp_path):
     """Esperado: `stop` SE EMITE sobre la unidad en `activating (auto-restart)` (antes no: solo si
     is-active) y, al cancelar el stop el reinicio, RC=0 tras 3 lecturas quietas."""
     r, ll = _ejecutar(tmp_path, {VISOR: dict(seq=BUCLE, stop_works=True)})
-    assert f"stop {VISOR}" in ll, ll
-    assert "RC=0" in r.stdout, r.stderr
+    assert f"stop {VISOR}" in ll, "RC1-06: NO SE EMITIO STOP sobre la unidad en bucle: %r" % (ll,)
+    assert "RC=0" in r.stdout, "RC1-06: la unidad en bucle no se dio por parada: %s" % r.stderr
 
 
 def test_RC106_B2_el_hueco_entre_reinicios_no_basta(tmp_path):
