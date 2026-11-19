@@ -107,7 +107,8 @@ respuesta a «¿se puede seguir?» (el paso 4 la aplica en
 | `auth.db` sin usuarios pero **sellada** (`install_state`) | BLOCK | BLOCK: no es fábrica y `/setup/admin` no se reabre |
 | `auth.db` con usuarios y ≥1 admin | PROCEED | **BLOCK**: fresh nunca sobrescribe |
 | `auth.db` corrupta / legacy y nueva divergentes | BLOCK | BLOCK |
-| `jobs.db` ausente o **vacía** | no bloquea (H-43) | no bloquea |
+| `jobs.db` ausente o **cola vacía** (base válida, tabla `jobs` sin filas) | no bloquea (H-43) | no bloquea |
+| `jobs.db` **fichero de 0 bytes** | BLOCK (`CORRUPT_STATE`: no es una base usable, posible creación vacía indebida) | BLOCK |
 
 ### Los estados de la instalación, y cómo se mide cada uno
 
@@ -355,7 +356,8 @@ declara la excepción explícita** (`S9K_STATE_VALIDATION`, arriba).
 | Contrato | Dónde | Qué |
 |---|---|---|
 | 1–2 estado real y precondiciones | **2b** (ANTES de parar nada: `viewer.env`/`worker.env` con rutas de estado válidas y, ronda 2, las del DISCO: `<state>/backups` con contenido o `S9K_BACKUP_ROOT`/`S9K_BACKUP_DIR` dentro del state root → STOP con receta (C-1); state root NO dedicado —`/`, un directorio del sistema, sticky o escribible por otros, entradas de primer nivel ajenas a las del servicio— → STOP (C-5)) y 5b | state root real (no symlink), rw, con espacio; la migración repite C-5 antes de su primer `chown` |
-| 3–5 parar y comprobar | **3b**, `parar_y_verificar_servicios` | para timer de salud, healthcheck, worker y visor y **verifica** (estado + sin PID) antes de tocar nada |
+| precondiciones de configuración y de decisión | **2c** y **3** (ANTES de parar nada; RC1-03/04/05) | **2c**: secretos, `worker.env` y contrato HTTPS (`S9K_PUBLIC_BASE_URL` ausente o `http://`, `S9K_NEO4J_PASSWORD` en `worker.env`, secreto vacío…) con las **mismas** funciones `validate_*` del paso 6, y el almacén de revisión (`review_store.py --solo-lectura`: un upgrade sin `review.sqlite3` y sin `--autorizar-creacion-review-db` PARA aquí); **3**: un `decision=BLOCK` de `detect_state` PARA aquí. Todos con visor y worker en marcha y el estado intacto. El paso 4 y el 6 se conservan como segunda barrera. Lo único que se difiere al 6 es el **modo** del fichero de secreto (lo normaliza 5b a `root:s9knowledge 0640`) y lo que depende de la unidad nueva (7) |
+| 3–5 parar y comprobar | **3b**, `parar_y_verificar_servicios` | hace `stop` SIEMPRE sobre cada unidad que exista (también la que está en bucle de reinicios `activating (auto-restart)`, que `is-active` no ve: el `stop` cancela el reinicio) y **verifica** por `systemctl show` que quede `inactive`/`failed`, sin PID y sin reinicio programado, en 3 lecturas seguidas (RC1-06); si no, STOP sin tocar el estado |
 | 6 inspeccionar | **5b**, `migrar_estado.py` | STOP ante symlink, tipo raro, ilegible, `-journal` pendiente o **fichero abierto por un proceso** |
 | 7 mover estado legacy fuera de la release | 5b | **pre-escaneo COMPLETO primero** (C-2: symlinks, tipos raros, ilegibles, conflictos con el destino y espacio de TODO lo legacy; un symlink legacy PARA sin haber movido nada); el mismo estado legacy en DOS sitios (release y árbol legacy) con contenido distinto → STOP `ESTADO_LEGACY_DUPLICADO`, idéntico por hash → se acepta y se anota (C-3); después, copia a temporal `0600`, `fsync`, **hash SHA-256**, publica sin pisar y **solo entonces** renombra el original a `<nombre>.migrado-<release>` (no se borra) |
 | 8–9 propietario y modos | 5b | `lchown` y `chmod` de todo el árbol (sidecars, lock, bak, `.csrf_secret`, jobs, review, health, propuestas) |
@@ -364,7 +366,7 @@ declara la excepción explícita** (`S9K_STATE_VALIDATION`, arriba).
 | 12–13 arrancar y salud | 13, 14a, 16 | además, los **procesos vivos** (`/proc/<PID>`) corren como `s9knowledge`, sin capabilities y con `NoNewPrivs`; si no, rollback. **C-6**: el entorno EFECTIVO de visor, worker y healthcheck (`systemctl show -p Environment,EnvironmentFiles,DropInPaths` y `/proc/<pid>/environ`) no lleva `S9K_STATE_VALIDATION`/`S9K_STATE_ENFORCE`: si aparece (drop-in, EnvironmentFile extra), se PARAN visor y worker y `die`; el healthcheck lo reporta UNHEALTHY (`state_validation`) |
 | 14 funcionalidad mínima | 16, 16c | `verify-deployment.sh`, GATE A |
 
-Una precondición pura que falla (2b) no deja nada parado. Cualquier fallo posterior → `die` con el diagnóstico concreto, **la release no se activa,
+Una precondición pura que falla (2b, 2c o el BLOCK del paso 3) no deja nada parado. Cualquier fallo posterior → `die` con el diagnóstico concreto, **la release no se activa,
 no se declara éxito y el estado original se conserva** (los servicios quedan
 parados: no se relanzan a ciegas). Casos que paran: fichero ilegible, directorio
 inaccesible, sistema de ficheros de solo lectura, owner/modo inesperados,
@@ -974,7 +976,7 @@ rojo, y **por su causa**:
 
 | # | Se rompe | Resultado exigido |
 |---|---|---|
-| N1 | Instalar sin HTTPS (ningún terminador, `S9K_PUBLIC_BASE_URL` ausente o `http://`) | **Instalación incompleta**: `deploy.sh` muere en el paso 16b con `URL_PUBLICA_NO_DECLARADA` / `ESQUEMA_NO_HTTPS`, y no imprime «DEPLOY completado». |
+| N1 | Instalar sin HTTPS (ningún terminador, `S9K_PUBLIC_BASE_URL` ausente o `http://`) | **Instalación incompleta**: `deploy.sh` muere con `URL_PUBLICA_NO_DECLARADA` / `ESQUEMA_NO_HTTPS` en el paso 2c (antes de parar nada; el 6 es la segunda barrera) y, si la configuración es válida pero no hay terminador, en el 16b; no imprime «DEPLOY completado». |
 | N2 | Certificado no declarado (autofirmado contra el almacén del sistema) | fallo **explícito** `CERTIFICADO_NO_VERIFICABLE`, no un aviso. |
 | N3 | Nombre incorrecto (certificado de otro `CN`/SAN) | fallo **explícito** `NOMBRE_NO_COINCIDE`. |
 | N4 | Terminador TLS levantado sin backend | `ENDPOINT_NO_RESPONDE` o `ENDPOINT_RESPUESTA_INESPERADA` (502): que la configuración esté escrita no cuenta. |
@@ -986,10 +988,10 @@ rojo, y **por su causa**:
 | N10 | Base de autenticación **no durable** (ruta en tmpfs, volumen sin montar, contenedor que recrea su almacén) y reinicio | `ESTADO_NO_PERSISTE`, con los dos desenlaces distinguidos: la pantalla de alta **reabierta** (`200`), o el sello puesto y el **login ya inservible**. |
 | N11 | El setup se sirve con cookie **sin `Secure`** (alguien «arregló» el bucle degradando la cookie) | `COOKIE_SETUP_SIN_SECURE`: la degradación que D3 descartó **no** se acepta como instalación correcta, ni siquiera sobre HTTPS. |
 | N12 | Login que redirige pero **no emite sesión** | `SESION_NO_EMITIDA`: en el navegador eso se ve como un login que vuelve al login. |
-| N13 | (B2) `deploy.sh --mode fresh` sobre un host con usuarios en `auth.db` | **BLOCK** en el paso 4 (`auth: NEW_STATE bloquea en fresh`), `auth.db` intacta. |
+| N13 | (B2) `deploy.sh --mode fresh` sobre un host con usuarios en `auth.db` | **BLOCK** en el paso 3, antes de parar nada (`auth: NEW_STATE bloquea en fresh`; el paso 4 lo repite), `auth.db` intacta. |
 | N14 | (B2) `auth.db` truncada/corrupta en `fresh` y en `upgrade` | **BLOCK** con `CORRUPT_STATE`; nunca «instalación nueva». |
 | N15 | (B2) `viewer.env` sin `S9K_V3_REVIEW_DATABASE_PATH` o `…_PROPOSALS_DIR` | **BLOCK** en el paso 6 nombrando la variable. |
-| N16 | (B2) `upgrade` con `jobs.db` ausente o vacía | **sigue** (H-43): una cola vacía no bloquea. |
+| N16 | (B2) `upgrade` con `jobs.db` ausente o con la cola vacía (base válida sin filas) | **sigue** (H-43): una cola vacía no bloquea. Un fichero de **0 bytes** NO es una cola vacía: bloquea como `CORRUPT_STATE` (paso 3, antes de parar). |
 | N17 | (B2) `deploy.sh` en `fresh` termina | imprime `ESTADO_OBSERVADO=FIRST_ADMIN_PENDING` y `ESTADO_DEL_PRODUCTO=FIRST_ADMIN_PENDING`, **no** `INSTALLATION_COMPLETE`; éste solo tras GATE B `--modo persistencia` después de reiniciar. |
 
 ### Qué se registra

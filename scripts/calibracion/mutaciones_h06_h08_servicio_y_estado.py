@@ -99,11 +99,14 @@ T_VSTATE = "deploy/tests/test_h06_h08_vault_state.py"
 T_B2_D8 = "deploy/tests/test_b2_d8_restos_de_migracion.py"
 T_B2_D2 = "deploy/tests/test_b2_d2_declaracion_sandbox.py"
 T_B2_SEC = "deploy/tests/test_b2_secretos_politica_unica.py"
+T_RC106 = "deploy/tests/test_rc1_06_parada_en_bucle.py"
+T_RC105 = "deploy/tests/test_rc1_05_block_antes_de_parar.py"
+T_RC10304 = "deploy/tests/test_rc1_03_04_validar_antes_de_parar.py"
 DRIVER_NEO4J = "data-engine/app/knowledge_v3/driver_neo4j.py"
 T_D1 = "viewer/tests/test_salud_d1_carrera_state_runtime.py"
 T_D4 = "viewer/tests/test_salud_d4_boveda_limite.py"
 TESTIGOS = [T_DEPLOY, T_INV, T_C1, T_DE, T_VIEWER, T_CLI, T_R2, T_VAULT, T_RESP, T_CRIT, T_VSTATE, T_B2_D8, T_B2_D2, T_B2_SEC,
-            T_D1, T_D4]
+            T_D1, T_D4, T_RC106, T_RC105, T_RC10304]
 
 U_VISOR = "viewer/systemd/s9-knowledge-viewer.service"
 U_WORKER = "data-engine/systemd/s9-knowledge-worker.service"
@@ -464,9 +467,10 @@ def _m41_prefijo_mas_aceptado(t):
 
 def _m42_r2_la_parada_no_para_el_worker(t):
     return mutar_unico(
-        t, '    for unit in "${HEALTH_UNIT_NAME}" "${WORKER_UNIT_NAME_LIB}" "${VIEWER_UNIT_NAME}"; do\n'
-           '        if systemctl is-active',
-        '    for unit in "${HEALTH_UNIT_NAME}" "${VIEWER_UNIT_NAME}"; do\n        if systemctl is-active')
+        t, '    for unit in "${HEALTH_TIMER_NAME}" "${HEALTH_UNIT_NAME}" "${WORKER_UNIT_NAME_LIB}" "${VIEWER_UNIT_NAME}"; do\n'
+           '        # Una unidad que no existe',
+        '    for unit in "${HEALTH_TIMER_NAME}" "${HEALTH_UNIT_NAME}" "${VIEWER_UNIT_NAME}"; do\n'
+           '        # Una unidad que no existe')
 
 
 def _m43_r3_chmod_sin_chown(t):
@@ -732,6 +736,32 @@ def _mb2_s4_lector_con_su_propia_cifra(t):
 
 def _mb2_s5_acepta_vacio(t):
     return mutar_en_funcion(t, "secret_read_violations", "    if size == 0:\n", "    if False:\n")
+
+
+# --- RC1 (B3): validar y parar antes de tocar -----------------------------------
+
+def _rc1_m1_stop_solo_si_is_active(t):
+    return mutar_unico(
+        t, '        log "    parando ${unit}"\n        systemctl stop "${unit}"',
+        '        systemctl is-active --quiet "${unit}" 2>/dev/null || continue\n'
+        '        log "    parando ${unit}"\n        systemctl stop "${unit}"')
+
+
+def _rc1_m2_sin_gate_de_decision_antes_de_parar(t):
+    return mutar_unico(
+        t, 'exigir_decision_de_estado "${STATE_JSON}" " \u2014 nada se ha parado ni tocado: visor y worker siguen en marcha"\n',
+        "")
+
+
+def _rc1_m3_2c_despues_de_3b(t):
+    ini, fin, ancla = "# Paso 2c ", "# --- fin del paso 2c ---\n", "# --- fin del paso 3b ---\n"
+    if t.count(ini) != 1 or t.count(fin) != 1 or t.count(ancla) != 1:
+        return None
+    a = t.index(ini)
+    b = t.index(fin) + len(fin)
+    bloque = t[a:b]
+    t2 = t[:a] + t[b:]
+    return t2.replace(ancla, ancla + bloque)
 
 
 MUTACIONES = [
@@ -1014,6 +1044,16 @@ MUTACIONES = [
     ("MB2-S5 — (SECRETO) la politica acepta un secreto vacio",
      SERVICE_STATE, _mb2_s5_acepta_vacio, T_B2_SEC,
      {"test_politica_rechaza_vacio_y_no_regular": "no detecta vacio"}),
+    # ---- RC1 (B3): parar siempre / validar antes de parar ------------------------
+    ("RC1-M1 — (RC1-06) el stop vuelve a depender de is-active",
+     LIB_SH, _rc1_m1_stop_solo_si_is_active, T_RC106,
+     {"test_RC106_B1_unidad_en_bucle_se_para_aunque_no_este_is_active": "RC1-06: NO SE EMITIO STOP"}),
+    ("RC1-M2 — (RC1-05) el BLOCK de detect_state no se aplica antes de parar",
+     DEPLOY_SH, _rc1_m2_sin_gate_de_decision_antes_de_parar, T_RC105,
+     {"test_RC105_B1_block_de_fresh_sobre_instalacion_con_usuarios_no_para_nada": "RC1-05: LA PARADA OCURRIO ANTES DEL BLOCK"}),
+    ("RC1-M3 — (RC1-03/04) el bloque 2c se ejecuta despues de parar (3b)",
+     DEPLOY_SH, _rc1_m3_2c_despues_de_3b, T_RC10304,
+     {"test_RC103_O1_el_orden_global_de_deploy_sh": "RC1-03/04: ORDEN GLOBAL ROTO"}),
     # ---- deudas de salud (carril b1-salud) ----------------------------------------
     ("M65 — (D-1) ENOENT al inspeccionar una entrada ya listada vuelve a ser hallazgo (falso UNHEALTHY)",
      SERVICE_STATE, _m65_d1_enoent_del_stat_es_hallazgo, T_D1,
