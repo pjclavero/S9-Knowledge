@@ -22,6 +22,11 @@
 # shellcheck shell=bash
 set -Eeuo pipefail
 
+# S9K_VALIDACION_PREVIA es de USO INTERNO (la fija el paso 2c sólo para la llamada a
+# `validar_configuracion_antes_de_parar`). Si el operador la tuviera exportada, el paso 6 se
+# saltaría la comprobación del MODO del secreto: se descarta aquí, antes de cargar nada.
+unset S9K_VALIDACION_PREVIA
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=deploy/scripts/lib.sh
 source "${HERE}/lib.sh"
