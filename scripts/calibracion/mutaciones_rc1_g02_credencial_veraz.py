@@ -72,7 +72,7 @@ MUTACIONES = [
         viejo="""                                     error_code=getattr(exc, "error_code", None)):""",
         nuevo="""                                     error_code=None):""",
         prueba=f"{SUITE}::test_el_job_guarda_error_code_coherente_con_el_mensaje",
-        esperado="'error_code': None",
+        esperado="RC1-G02: EL WORKER NO RELLENA ERROR_CODE",
     ),
     Mutacion(
         nombre="declarar el codigo de credencial como reintentable",
@@ -82,7 +82,7 @@ MUTACIONES = [
 """,
         nuevo="",
         prueba=f"{SUITE}::test_el_codigo_nuevo_esta_en_el_catalogo_y_es_permanente",
-        esperado="in frozenset({",
+        esperado="RC1-G02: LA CREDENCIAL SE DECLARA REINTENTABLE",
     ),
     # --- Ronda 2 (P3): el errno decide permanente o transitorio ---
     Mutacion(
@@ -108,7 +108,7 @@ MUTACIONES = [
         viejo="""                error_message = NULL, error_code = NULL, next_retry_at = NULL""",
         nuevo="""                error_message = NULL, next_retry_at = NULL""",
         prueba=f"{SUITE_ERROR}::test_reintentable_y_luego_exito_no_deja_error_code",
-        esperado="('complete', 'GRAPH_OBSERVATION_UNAVAILABLE', None)",
+        esperado="RC1-G02: ERROR_CODE RANCIO TRAS EXITO",
     ),
     Mutacion(
         nombre="mark_failed sin codigo conserva el codigo del fallo anterior",
@@ -119,7 +119,7 @@ MUTACIONES = [
             fields["error_code"] = error_code
 """,
         prueba=f"{SUITE_ERROR}::test_un_fallo_nuevo_sin_codigo_no_hereda_el_anterior",
-        esperado="('pending', 'GRAPH_OBSERVATION_UNAVAILABLE', 'otro fallo')",
+        esperado="RC1-G02: EL FALLO SIN CODIGO HEREDA EL ANTERIOR",
     ),
     Mutacion(
         nombre="el reencolado (update_job con error_message) no limpia el codigo",
@@ -129,7 +129,7 @@ MUTACIONES = [
 """,
         nuevo="",
         prueba=f"{SUITE_ERROR}::test_reencolado_de_la_cli_limpia_los_dos",
-        esperado="('pending', 'GRAPH_OBSERVATION_UNAVAILABLE', None)",
+        esperado="RC1-G02: EL REENCOLADO NO LIMPIA ERROR_CODE",
     ),
 ]
 

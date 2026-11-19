@@ -257,15 +257,21 @@ def test_el_job_guarda_error_code_coherente_con_el_mensaje(conexion, monkeypatch
     worker.run("worker-test", once=True, limit=1, db_path=db)
 
     job = job_store.get_job(job_id, db_path=db)
-    assert job["status"] == "failed", job
-    assert job["attempts"] == 1, job  # permanente: sin reintento
-    assert job["error_code"] == "GRAPH_CREDENTIAL_UNUSABLE", job
-    assert job["error_message"].startswith("GRAPH_CREDENTIAL_UNUSABLE:"), job
-    assert str(conexion) in job["error_message"]
-    assert motivo in job["error_message"]
-    assert SECRETO not in str(job)
+    # Primero la que caza al mutante del worker; la causa por delante, en texto
+    # fijo (el `repr` del job que imprime pytest no es estable).
+    assert job["error_code"] == "GRAPH_CREDENTIAL_UNUSABLE", \
+        f"RC1-G02: EL WORKER NO RELLENA ERROR_CODE: {job['error_code']!r}"
+    assert SECRETO not in str(job), "RC1-G02: EL SECRETO SALE EN EL JOB"
+    assert job["status"] == "failed", f"RC1-G02: EL JOB NO TERMINA EN FAILED: {job['status']!r}"
+    assert job["attempts"] == 1, \
+        f"RC1-G02: LA CREDENCIAL SE REINTENTA: attempts={job['attempts']!r}"
+    assert job["error_message"].startswith("GRAPH_CREDENTIAL_UNUSABLE:"), \
+        f"RC1-G02: MENSAJE CON OTRO CODIGO: {job['error_message']!r}"
+    assert str(conexion) in job["error_message"], "RC1-G02: EL MENSAJE NO NOMBRA LA RUTA"
+    assert motivo in job["error_message"], "RC1-G02: EL MENSAJE NO DA EL MOTIVO DEL LECTOR"
 
 
 def test_el_codigo_nuevo_esta_en_el_catalogo_y_es_permanente():
     assert "GRAPH_CREDENTIAL_UNUSABLE" in ingest_v3.CODIGOS
-    assert "GRAPH_CREDENTIAL_UNUSABLE" in ingest_v3.PERMANENTES
+    assert "GRAPH_CREDENTIAL_UNUSABLE" in ingest_v3.PERMANENTES, \
+        "RC1-G02: LA CREDENCIAL SE DECLARA REINTENTABLE"
