@@ -687,6 +687,8 @@ evitarlo.
    CA propia se aceptan **declarándolos**; el **preflight en sí** (el guion
    `deploy/scripts/preflight_https.py`) no expone ninguna bandera para
    desactivar esa verificación — eso es lo que «nunca se desactiva».
+   Una CA propia debe llevar la extensión `keyUsage` (con `keyCertSign`): con
+   Python 3.13 una CA sin ella se rechaza y la vía falla cerrada.
 4. El **nombre** de la URL pública coincide con el certificado (SNI + hostname
    check).
 5. El endpoint **responde**: `GET /api/status` sobre esa conexión TLS devuelve
