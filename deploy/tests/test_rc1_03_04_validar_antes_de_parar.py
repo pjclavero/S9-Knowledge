@@ -347,11 +347,14 @@ def test_RC103_X1_deploy_descarta_S9K_VALIDACION_PREVIA_del_entorno_del_operador
     cualquier `source`.
     """
     texto = DEPLOY_SH.read_text(encoding="utf-8")
-    corte = texto.index('source "${HERE}/lib.sh"')
-    cabecera = texto[:corte]
-    assert "unset S9K_VALIDACION_PREVIA" in cabecera, (
+    antes_de_cargar = texto[:texto.index('source "${HERE}/lib.sh"')]
+    marca = "unset S9K_VALIDACION_PREVIA"
+    assert marca in antes_de_cargar, (
         "RC1-03: deploy.sh NO DESCARTA S9K_VALIDACION_PREVIA antes de cargar lib.sh")
-    assert "\nsource " not in cabecera.split("unset S9K_VALIDACION_PREVIA")[0], (
+    # Se ejecuta SOLO hasta el unset (inclusive): lo que sigue (`HERE=...BASH_SOURCE`) no existe
+    # dentro de `bash -c` y, con `set -u`, aborta en algunas versiones de bash.
+    cabecera = antes_de_cargar[:antes_de_cargar.index(marca) + len(marca)]
+    assert "\nsource " not in cabecera, (
         "RC1-03: hay un `source` ANTES del unset de S9K_VALIDACION_PREVIA")
     env = {**os.environ, "S9K_VALIDACION_PREVIA": "1"}
     r = subprocess.run(
