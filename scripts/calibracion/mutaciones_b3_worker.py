@@ -203,7 +203,8 @@ def _m4_se_traga_la_excepcion(t):
         t, "process_one",
         "        if not job_store.mark_failed(job_id, error_message=str(exc), retry=reintentar,\n"
         "                                     db_path=db_path, retry_delay_seconds=espera,\n"
-        "                                     locked_by=worker_id):\n",
+        "                                     locked_by=worker_id,\n"
+        "                                     error_code=getattr(exc, \"error_code\", None)):\n",
         "        if False:\n")
 
 
@@ -313,8 +314,10 @@ def _mn_llamador_mark_failed_sin_dueno(t):
     return mutar_en_funcion(
         t, "process_one",
         "                                     db_path=db_path, retry_delay_seconds=espera,\n"
-        "                                     locked_by=worker_id):\n",
-        "                                     db_path=db_path, retry_delay_seconds=espera):\n")
+        "                                     locked_by=worker_id,\n"
+        "                                     error_code=getattr(exc, \"error_code\", None)):\n",
+        "                                     db_path=db_path, retry_delay_seconds=espera,\n"
+        "                                     error_code=getattr(exc, \"error_code\", None)):\n")
 
 
 def _ms_llamador_mark_skipped_sin_dueno(t):
