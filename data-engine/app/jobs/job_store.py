@@ -433,6 +433,13 @@ def update_job(job_id: str, db_path: str = DEFAULT_DB_PATH, **fields) -> bool:
     if "source_kind" in fields:
         _validate_source_kind(fields["source_kind"])
 
+    # Invariante del error (RC1-G02 r2): quien escribe o limpia
+    # `error_message` sin decir nada de `error_code` limpia tambien el codigo,
+    # para que no quede uno rancio de un fallo anterior (p. ej. el reencolado
+    # de la CLI, que pasa `error_message=None`).
+    if "error_message" in fields and "error_code" not in fields:
+        fields["error_code"] = None
+
     fields["updated_at"] = _now_iso()
 
     set_clause = ", ".join(f"{k} = ?" for k in fields)
@@ -463,6 +470,9 @@ def set_status(
 
     if error_message is not None:
         fields["error_message"] = error_message
+        # El mensaje nuevo no trae codigo: el del fallo anterior ya no lo
+        # describe (invariante del error, ver `mark_failed`).
+        fields["error_code"] = None
 
     if status in {"processing", "transcribing", "extracting", "running"}:
         fields["started_at"] = now
@@ -603,7 +613,7 @@ def mark_complete(job_id: str, result: dict = None, db_path: str = DEFAULT_DB_PA
             UPDATE jobs
             SET status = 'complete', result_json = ?, finished_at = ?,
                 updated_at = ?, locked_by = NULL, locked_at = NULL,
-                error_message = NULL, next_retry_at = NULL
+                error_message = NULL, error_code = NULL, next_retry_at = NULL
             WHERE job_id = ?""" + guardia,
             (result_json, now, now, job_id) + extra,
         )
@@ -624,8 +634,16 @@ def mark_failed(
     Marca un fallo, incrementa `attempts` y libera el lock.
 
     `error_code` (opcional) rellena la columna homonima con el codigo estable
-    del fallo, coherente con el que encabeza `error_message`. Sin el, la
-    columna no se toca (comportamiento anterior).
+    del fallo, coherente con el que encabeza `error_message`.
+
+    INVARIANTE DEL ERROR (RC1-G02 r2): `error_message` y `error_code` se
+    escriben y se limpian JUNTOS, en todas las transiciones de este modulo.
+    Sin codigo, la columna queda a NULL: dejar el de un fallo anterior junto
+    a un mensaje nuevo seria un codigo que no describe el mensaje. Al
+    reclamarse para reintentar (`claim_next_job`) ambos se CONSERVAN, como ya
+    hacia `error_message`: el ultimo fallo sigue visible para diagnostico
+    hasta que el job termina (`mark_complete` limpia los dos) o vuelve a
+    fallar (este metodo reescribe los dos).
 
     Si `retry=True` y attempts (tras incrementar) < max_attempts, el job
     vuelve a 'pending' para que un worker lo reintente más tarde. Si no,
@@ -660,8 +678,7 @@ def mark_failed(
             "locked_by": None,
             "locked_at": None,
         }
-        if error_code:
-            fields["error_code"] = error_code
+        fields["error_code"] = error_code or None
         if not will_retry:
             fields["finished_at"] = now
             fields["next_retry_at"] = None
@@ -704,7 +721,8 @@ def mark_skipped(job_id: str, message: str = "", db_path: str = DEFAULT_DB_PATH,
         cur = conn.execute(
             """
             UPDATE jobs
-            SET status = 'skipped', error_message = ?, finished_at = ?,
+            SET status = 'skipped', error_message = ?, error_code = NULL,
+                finished_at = ?,
                 updated_at = ?, locked_by = NULL, locked_at = NULL
             WHERE job_id = ?""" + guardia,
             (message or None, now, now, job_id) + extra,
@@ -776,7 +794,8 @@ def release_stale_jobs(timeout_seconds: int, db_path: str = DEFAULT_DB_PATH,
                     UPDATE jobs
                     SET status = 'pending', locked_by = NULL, locked_at = NULL,
                         updated_at = ?, attempts = ?, next_retry_at = ?,
-                        error_message = 'liberado: worker sin actividad (stale)'
+                        error_message = 'liberado: worker sin actividad (stale)',
+                        error_code = NULL
                     WHERE job_id = ? AND status = 'running'
                     """,
                     (now, attempts, reintento, job_id),
@@ -788,7 +807,8 @@ def release_stale_jobs(timeout_seconds: int, db_path: str = DEFAULT_DB_PATH,
                     SET status = 'failed', locked_by = NULL, locked_at = NULL,
                         updated_at = ?, finished_at = ?, attempts = ?,
                         next_retry_at = NULL,
-                        error_message = 'fallido: worker sin actividad (stale) y sin reintentos'
+                        error_message = 'fallido: worker sin actividad (stale) y sin reintentos',
+                        error_code = NULL
                     WHERE job_id = ? AND status = 'running'
                     """,
                     (now, now, attempts, job_id),

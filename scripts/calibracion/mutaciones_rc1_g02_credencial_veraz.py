@@ -24,6 +24,9 @@ REPO = Path(__file__).resolve().parents[2]
 HANDLER = "data-engine/app/jobs/handlers/ingest_v3.py"
 WORKER = "data-engine/app/jobs/worker.py"
 SUITE = "data-engine/app/tests/test_ingest_v3_credencial_veraz.py"
+JOB_STORE = "data-engine/app/jobs/job_store.py"
+#: Ronda 2 (P1-1): `error_code` y `error_message` se escriben y limpian juntos.
+SUITE_ERROR = "data-engine/app/tests/test_job_store_error_code_coherente.py"
 
 
 class Mutacion:
@@ -80,6 +83,36 @@ MUTACIONES = [
         nuevo="",
         prueba=f"{SUITE}::test_el_codigo_nuevo_esta_en_el_catalogo_y_es_permanente",
         esperado="in frozenset({",
+    ),
+    # --- Ronda 2 (P1-1): el codigo no puede quedar RANCIO ---
+    Mutacion(
+        nombre="mark_complete deja de limpiar error_code (job complete con incidencia)",
+        fichero=JOB_STORE,
+        viejo="""                error_message = NULL, error_code = NULL, next_retry_at = NULL""",
+        nuevo="""                error_message = NULL, next_retry_at = NULL""",
+        prueba=f"{SUITE_ERROR}::test_reintentable_y_luego_exito_no_deja_error_code",
+        esperado="('complete', 'GRAPH_OBSERVATION_UNAVAILABLE', None)",
+    ),
+    Mutacion(
+        nombre="mark_failed sin codigo conserva el codigo del fallo anterior",
+        fichero=JOB_STORE,
+        viejo="""        fields["error_code"] = error_code or None
+""",
+        nuevo="""        if error_code:
+            fields["error_code"] = error_code
+""",
+        prueba=f"{SUITE_ERROR}::test_un_fallo_nuevo_sin_codigo_no_hereda_el_anterior",
+        esperado="('pending', 'GRAPH_OBSERVATION_UNAVAILABLE', 'otro fallo')",
+    ),
+    Mutacion(
+        nombre="el reencolado (update_job con error_message) no limpia el codigo",
+        fichero=JOB_STORE,
+        viejo="""    if "error_message" in fields and "error_code" not in fields:
+        fields["error_code"] = None
+""",
+        nuevo="",
+        prueba=f"{SUITE_ERROR}::test_reencolado_de_la_cli_limpia_los_dos",
+        esperado="('pending', 'GRAPH_OBSERVATION_UNAVAILABLE', None)",
     ),
 ]
 
