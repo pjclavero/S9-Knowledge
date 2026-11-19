@@ -698,8 +698,10 @@ evitarlo.
    CA propia se aceptan **declarándolos**; el **preflight en sí** (el guion
    `deploy/scripts/preflight_https.py`) no expone ninguna bandera para
    desactivar esa verificación — eso es lo que «nunca se desactiva».
-   Una CA propia debe llevar la extensión `keyUsage` (con `keyCertSign`): con
-   Python 3.13 una CA sin ella se rechaza y la vía falla cerrada.
+   Una CA propia tiene que ser válida bajo la verificación X.509 estricta que
+   Python 3.13 activa en el contexto por defecto (`ssl.create_default_context`,
+   el que usa `preflight_https.py`); si no lo es, la vía falla cerrada. El
+   caso medido en la RC fue una CA sin la extensión `keyUsage`.
 4. El **nombre** de la URL pública coincide con el certificado (SNI + hostname
    check).
 5. El endpoint **responde**: `GET /api/status` sobre esa conexión TLS devuelve
@@ -1255,7 +1257,7 @@ escritura.
 |---|---|---|
 | Conectividad al servidor | `S9K_NEO4J_URI` (`bolt://…`), sin valor por defecto | `GRAPH_OBSERVATION_UNCONFIGURED` |
 | Usuario **de sólo lectura** (ver arriba) | `S9K_NEO4J_USER` | `GRAPH_OBSERVATION_UNCONFIGURED` |
-| Credencial: **el camino de un fichero** que cumple la política SECRET (propio usuario `0600` o `root:s9knowledge` `0640`), nunca la contraseña en una variable ni en `argv` | `S9K_NEO4J_PASSWORD_FILE` | `GRAPH_OBSERVATION_UNCONFIGURED` |
+| Credencial: **el camino de un fichero** que cumple la política SECRET (propio usuario `0600` o `root:s9knowledge` `0640`), nunca la contraseña en una variable ni en `argv` | `S9K_NEO4J_PASSWORD_FILE` | sin declarar: `GRAPH_OBSERVATION_UNCONFIGURED`; declarado y el fichero no sirve: `GRAPH_CREDENTIAL_UNUSABLE` |
 | Base/contexto correcto, si el despliegue no usa la de por defecto | `S9K_NEO4J_DATABASE` | consulta contra la base equivocada: catálogo vacío y plan sin proyección |
 | Workspace del perfil de la fuente coherente con el del grafo | perfil de ingesta | catálogo vacío; ninguna ancla observada |
 | CA/TLS, si la URI es `bolt+s`/`neo4j+s` | truststore del sistema en la imagen del worker | `GRAPH_OBSERVATION_UNAVAILABLE` |
@@ -1280,7 +1282,9 @@ estos códigos. Se distinguen por si tiene sentido reintentar:
   enlace simbólico, o que incumple la política SECRET (bits de otros, escritura
   de grupo, grupo ajeno). El mensaje del job nombra la ruta del fichero y el
   motivo, nunca su contenido ni su longitud, y `error_code` lleva el mismo
-  código.
+  código. Un error de E/S transitorio al leerlo (`EIO`, `ESTALE`,
+  `ETIMEDOUT`, `EAGAIN`…) no es esto: sale como
+  `GRAPH_OBSERVATION_UNAVAILABLE`.
 * `GRAPH_OBSERVATION_UNAVAILABLE` — **reintentable**. El grafo no responde
   ahora y puede responder luego.
 
@@ -1353,7 +1357,7 @@ una segunda versión en Jinja de ninguna de las dos unidades).
 | `User=`/`Group=` | `s9knowledge` (la autoridad `service_state.py`) | no corre como root ni como `www-data`; un test cruza esta unidad con la autoridad (gate M12) y `deploy.sh` pide la identidad a la autoridad, no a esta unidad |
 | `UMask=` | `0077` | lo que escribe (propuestas, `jobs.db` si la crea él) nace `0600` |
 | `EnvironmentFile=` | `/etc/s9-knowledge/worker.env` | su configuración; obligatoria |
-| (sin `ExecStartPre`) | el secreto se lee directamente de `/etc/s9-knowledge/secrets` | política SECRET: `root:s9knowledge` 0640, `/etc/s9-knowledge` 0710 (el grupo atraviesa); si falta o incumple, la ingesta falla **cerrado** y visible (`GRAPH_OBSERVATION_UNCONFIGURED`) en vez de una unidad muerta |
+| (sin `ExecStartPre`) | el secreto se lee directamente de `/etc/s9-knowledge/secrets` | política SECRET: `root:s9knowledge` 0640, `/etc/s9-knowledge` 0710 (el grupo atraviesa); si falta o incumple, la ingesta falla **cerrado** y visible (`GRAPH_CREDENTIAL_UNUSABLE`, con la ruta y el motivo) en vez de una unidad muerta |
 | `ExecStart=` | `…/data-engine/.venv/bin/python …/worker.py --loop --sleep-seconds 5 --release-stale-seconds 600 --retry-backoff-seconds 30` | daemon (sin `--limit`); huérfanos liberados gastando un intento; reintentos con retroceso |
 | `Restart=` | `always` | vuelve si muere |
 | `TimeoutStopSec=` | `120` | al parar, termina el trabajo en curso; si no le da tiempo, el huérfano lo libera el siguiente arranque |

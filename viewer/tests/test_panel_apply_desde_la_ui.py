@@ -937,8 +937,8 @@ def grafo(grafo_real, monkeypatch, tmp_path):
     # un fichero privado. Escribirlo aquí no es un apaño de la prueba: es lo
     # que hace que el worker de estos casos se conecte por el mismo sitio y con
     # las mismas reglas que en el despliegue, permisos `0600` incluidos. Si se
-    # relajaran, el handler fallaría con `GRAPH_OBSERVATION_UNCONFIGURED` y
-    # este módulo se enteraría.
+    # relajaran, el handler fallaría con `GRAPH_CREDENTIAL_UNUSABLE` y este
+    # módulo se enteraría.
     fichero = tmp_path / "neo4j-password"
     fichero.write_text(grafo_real["password"], encoding="utf-8")
     fichero.chmod(0o600)
