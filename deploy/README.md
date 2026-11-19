@@ -107,7 +107,8 @@ respuesta a «¿se puede seguir?» (el paso 4 la aplica en
 | `auth.db` sin usuarios pero **sellada** (`install_state`) | BLOCK | BLOCK: no es fábrica y `/setup/admin` no se reabre |
 | `auth.db` con usuarios y ≥1 admin | PROCEED | **BLOCK**: fresh nunca sobrescribe |
 | `auth.db` corrupta / legacy y nueva divergentes | BLOCK | BLOCK |
-| `jobs.db` ausente o **vacía** | no bloquea (H-43) | no bloquea |
+| `jobs.db` ausente o **cola vacía** (base válida, tabla `jobs` sin filas) | no bloquea (H-43) | no bloquea |
+| `jobs.db` **fichero de 0 bytes** | BLOCK (`CORRUPT_STATE`: no es una base usable, posible creación vacía indebida) | BLOCK |
 
 ### Los estados de la instalación, y cómo se mide cada uno
 
@@ -976,7 +977,7 @@ rojo, y **por su causa**:
 | N13 | (B2) `deploy.sh --mode fresh` sobre un host con usuarios en `auth.db` | **BLOCK** en el paso 3, antes de parar nada (`auth: NEW_STATE bloquea en fresh`; el paso 4 lo repite), `auth.db` intacta. |
 | N14 | (B2) `auth.db` truncada/corrupta en `fresh` y en `upgrade` | **BLOCK** con `CORRUPT_STATE`; nunca «instalación nueva». |
 | N15 | (B2) `viewer.env` sin `S9K_V3_REVIEW_DATABASE_PATH` o `…_PROPOSALS_DIR` | **BLOCK** en el paso 6 nombrando la variable. |
-| N16 | (B2) `upgrade` con `jobs.db` ausente o vacía | **sigue** (H-43): una cola vacía no bloquea. |
+| N16 | (B2) `upgrade` con `jobs.db` ausente o con la cola vacía (base válida sin filas) | **sigue** (H-43): una cola vacía no bloquea. Un fichero de **0 bytes** NO es una cola vacía: bloquea como `CORRUPT_STATE` (paso 3, antes de parar). |
 | N17 | (B2) `deploy.sh` en `fresh` termina | imprime `ESTADO_OBSERVADO=FIRST_ADMIN_PENDING` y `ESTADO_DEL_PRODUCTO=FIRST_ADMIN_PENDING`, **no** `INSTALLATION_COMPLETE`; éste solo tras GATE B `--modo persistencia` después de reiniciar. |
 
 ### Qué se registra
