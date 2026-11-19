@@ -455,7 +455,10 @@ def test_R2_la_parada_para_visor_worker_y_healthcheck_y_lo_verifica(tmp_path):
               '  case "$1" in\n'
               '    is-active) [ "$2" = "--quiet" ] && shift; [ -e "%(est)s/$2" ] ;;\n'
               '    stop) rm -f "%(est)s/$2" ;;\n'
-              '    show) echo 0 ;;\n'
+              '    show) u="${!#}"; for p in "${@:2}"; do case "$p" in -p|--value) ;; '
+              'LoadState) echo "LoadState=loaded" ;; '
+              'ActiveState) if [ -e "%(est)s/$u" ]; then echo ActiveState=active; else echo ActiveState=inactive; fi ;; '
+              'MainPID) echo MainPID=0 ;; SubState) echo SubState=dead ;; esac; done ;;\n'
               '  esac\n'
               '}\n'
               'if parar_y_verificar_servicios; then echo RC=0; else echo RC=1; fi\n') % {"log": log, "est": estado}

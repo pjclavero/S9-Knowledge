@@ -812,40 +812,71 @@ asegurar_identidad_de_servicio() {
 }
 
 # ---------------------------------------------------------------------------
+# _unidad_quieta <unidad>
+#   RC1-06. rc 0 si la unidad esta REALMENTE quieta en esta lectura: LoadState
+#   not-found (no existe), o ActiveState inactive|failed con MainPID 0. Una
+#   unidad en `activating`/`auto-restart`/`deactivating`/`reloading`/`active`
+#   NO esta quieta, aunque `is-active` diga «no» en el hueco entre dos
+#   reinicios de un bucle `Restart=always`. Lee de `systemctl show` (estado
+#   real de systemd), no de `is-active`.
+# ---------------------------------------------------------------------------
+_unidad_quieta() {
+    local unit="${1:?unidad}" salida load active main
+    salida="$(systemctl show -p LoadState -p ActiveState -p MainPID "${unit}" 2>/dev/null)" || return 1
+    load="$(printf '%s\n' "${salida}" | sed -n 's/^LoadState=//p')"
+    active="$(printf '%s\n' "${salida}" | sed -n 's/^ActiveState=//p')"
+    main="$(printf '%s\n' "${salida}" | sed -n 's/^MainPID=//p')"
+    [ "${load}" = "not-found" ] && return 0
+    case "${active}" in inactive|failed) ;; *) return 1 ;; esac
+    [ -z "${main}" ] || [ "${main}" = "0" ]
+}
+
+# ---------------------------------------------------------------------------
 # parar_y_verificar_servicios
 #   H-06 §8 pasos 3-5. Para el timer de salud, el healthcheck, el worker y el
-#   visor y COMPRUEBA que estan parados (estado + sin PID principal): ningun
-#   fichero de estado se toca con un proceso vivo. Idempotente: unidades
-#   ausentes o ya paradas no fallan. Un servicio que no para -> rc!=0 (el
-#   llamador hace STOP). S9K_REANUDAR_TIMER=1 si el timer estaba activo.
+#   visor y COMPRUEBA que estan parados: ningun fichero de estado se toca con
+#   un proceso vivo. Idempotente: unidades ausentes o ya paradas no fallan.
+#   RC1-06: se hace `stop` SIEMPRE sobre cada unidad que EXISTA (un stop sobre
+#   una unidad parada es inocuo y, sobre una en `activating (auto-restart)`,
+#   CANCELA el reinicio programado: antes solo se paraba si `is-active`, y un
+#   servicio en bucle de reinicios quedaba vivo para systemd). La verificacion
+#   exige `inactive|failed` con MainPID 0 en S9K_PARADA_LECTURAS lecturas
+#   SEGUIDAS (defecto 3, cada S9K_PARADA_PAUSA s, defecto 1): una sola lectura
+#   afortunada en el hueco de un bucle no vale. Sin conseguirlo en
+#   S9K_PARADA_INTENTOS lecturas (defecto 10) -> rc!=0 (el llamador hace STOP).
+#   S9K_REANUDAR_TIMER=1 si el timer estaba activo.
 # ---------------------------------------------------------------------------
 S9K_REANUDAR_TIMER=0
 parar_y_verificar_servicios() {
-    local unit i main
+    local unit i seguidas lecturas="${S9K_PARADA_LECTURAS:-3}" pausa="${S9K_PARADA_PAUSA:-1}" intentos="${S9K_PARADA_INTENTOS:-10}"
     if systemctl is-active --quiet "${HEALTH_TIMER_NAME}" 2>/dev/null; then
         S9K_REANUDAR_TIMER=1
-        systemctl stop "${HEALTH_TIMER_NAME}" || { err "no se pudo parar ${HEALTH_TIMER_NAME}"; return 1; }
     fi
-    for unit in "${HEALTH_UNIT_NAME}" "${WORKER_UNIT_NAME_LIB}" "${VIEWER_UNIT_NAME}"; do
-        if systemctl is-active --quiet "${unit}" 2>/dev/null; then
-            log "    parando ${unit}"
-            systemctl stop "${unit}" || { err "systemctl stop ${unit} falló"; return 1; }
+    for unit in "${HEALTH_TIMER_NAME}" "${HEALTH_UNIT_NAME}" "${WORKER_UNIT_NAME_LIB}" "${VIEWER_UNIT_NAME}"; do
+        # Una unidad que no existe no se para (stop daria rc 5) ni falla.
+        if systemctl show -p LoadState --value "${unit}" 2>/dev/null | grep -qx 'not-found'; then
+            continue
         fi
+        log "    parando ${unit}"
+        systemctl stop "${unit}" || { err "systemctl stop ${unit} falló"; return 1; }
     done
-    for unit in "${HEALTH_UNIT_NAME}" "${WORKER_UNIT_NAME_LIB}" "${VIEWER_UNIT_NAME}"; do
-        for i in 1 2 3 4 5; do
-            main="$(systemctl show -p MainPID --value "${unit}" 2>/dev/null || echo 0)"
-            if ! systemctl is-active --quiet "${unit}" 2>/dev/null && { [ -z "${main}" ] || [ "${main}" = "0" ]; }; then
-                break
+    for unit in "${HEALTH_TIMER_NAME}" "${HEALTH_UNIT_NAME}" "${WORKER_UNIT_NAME_LIB}" "${VIEWER_UNIT_NAME}"; do
+        seguidas=0
+        for i in $(seq 1 "${intentos}"); do
+            if _unidad_quieta "${unit}"; then
+                seguidas=$((seguidas + 1))
+                [ "${seguidas}" -ge "${lecturas}" ] && break
+            else
+                seguidas=0
             fi
-            if [ "${i}" -eq 5 ]; then
-                err "${unit} sigue activo tras pararlo (PID ${main}): STOP, no se toca el estado"
+            if [ "${i}" -eq "${intentos}" ]; then
+                err "${unit} sigue activo, en reinicio o con PID tras pararlo (ActiveState/SubState/MainPID: $(systemctl show -p ActiveState -p SubState -p MainPID "${unit}" 2>/dev/null | tr '\n' ' ')): STOP, no se toca el estado"
                 return 1
             fi
-            sleep 1
+            sleep "${pausa}"
         done
     done
-    log "    visor, worker y healthcheck parados y verificados"
+    log "    visor, worker y healthcheck parados y verificados (${lecturas} lecturas seguidas: inactive/failed, sin PID)"
     return 0
 }
 
