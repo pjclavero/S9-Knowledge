@@ -54,7 +54,6 @@ import argparse
 import ast
 import importlib.util
 import os
-import stat
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -137,6 +136,11 @@ def _cargar(nombre: str, ruta: Path):
     sys.modules[nombre] = modulo
     spec.loader.exec_module(modulo)
     return modulo
+
+
+def _service_state(raiz: Path = REPO_ROOT):
+    return _cargar("_s9k_service_state",
+                   raiz / "data-engine" / "app" / "knowledge_v3" / "service_state.py")
 
 
 def _review_paths(raiz: Path = REPO_ROOT):
@@ -596,12 +600,17 @@ def credencial_por_fichero(ctx: Contexto) -> Resultado:
     if _bajo(ruta, REPO_ROOT):
         return Resultado("neo4j.credencial", ROJO,
                          "la credencial vive DENTRO del arbol del repositorio")
-    modo = stat.S_IMODE(ruta.stat().st_mode)
-    if modo != 0o600:
+    # POLITICA SECRET de la AUTORIDAD (la misma que aplica el lector del motor y la que deja el
+    # despliegue): propio usuario 0600, o root:<grupo de servicio> 0640. Solo metadatos.
+    try:
+        incumple = _service_state().inspect_secret_for_reading(ruta)
+    except Exception as exc:  # noqa: BLE001 - sin autoridad no se da nada por bueno
+        return Resultado("neo4j.credencial", PENDIENTE,
+                         f"no se pudo cargar la politica SECRET de la autoridad: {type(exc).__name__}")
+    if incumple:
         return Resultado("neo4j.credencial", ROJO,
-                         f"modo {modo:04o}: se exige 0600")
-    if ruta.stat().st_size == 0:
-        return Resultado("neo4j.credencial", ROJO, "el fichero de credencial esta vacio")
+                         "la credencial no cumple la politica SECRET: "
+                         + "; ".join(v.detail for v in incumple))
     if ctx.env.get("S9K_NEO4J_USER", "") == "neo4j":
         return Resultado("neo4j.credencial", ROJO,
                          "S9K_NEO4J_USER=neo4j: el ensayo exige un usuario propio con "
@@ -609,7 +618,7 @@ def credencial_por_fichero(ctx: Contexto) -> Resultado:
     if not ctx.env.get("S9K_NEO4J_USER"):
         return Resultado("neo4j.credencial", ROJO, "S9K_NEO4J_USER sin declarar")
     return Resultado("neo4j.credencial", VERDE,
-                     "usuario propio y credencial en fichero 0600 fuera del repositorio "
+                     "usuario propio y credencial en fichero que cumple la politica SECRET, fuera del repositorio "
                      "(valor NO leido)")
 
 

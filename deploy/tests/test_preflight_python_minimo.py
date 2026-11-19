@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-"""preflight.sh: el minimo de Python es la TUPLA 3.11.5 que exige el lock del motor.
+"""preflight.sh: el minimo de Python es la TUPLA 3.12.0 que exige el lock del motor.
 
-`data-engine/requirements.lock` fija soupsieve 4.0, cuyo `requires_python` es >= 3.11.5. El
-preflight comparaba solo major.minor (3.11+): un host con 3.11.2 pasaba el preflight y fallaba
-despues en `pip install`. Se ejecuta el bloque REAL del guion (extraido de su texto, con sus
+`data-engine/requirements.lock` fija numpy 2.5.1 (`requires_python` >= 3.12) y soupsieve 4.0
+(>= 3.11.5). El preflight comparaba solo major.minor (3.11+) y despues declaro 3.11.5: un host
+con 3.11.x pasaba el preflight y fallaba despues en `pip install`. El gate D6 lo detecto al
+comparar la tupla completa contra el mayor Requires-Python de los locks. Se ejecuta el bloque REAL del guion (extraido de su texto, con sus
 `ok`/`bloq`) contra un `python3` simulado que solo cambia `sys.version_info`.
 """
 from __future__ import annotations
@@ -57,10 +58,10 @@ def _ejecuta(tmp_path: Path, version: str):
 
 
 @pytest.mark.parametrize("version,pasa", [
-    ("3.11.2", False), ("3.11.4", False), ("3.10.14", False),
-    ("3.11.5", True), ("3.12.0", True), ("3.13.5", True),
+    ("3.11.2", False), ("3.11.5", False), ("3.10.14", False),
+    ("3.12.0", True), ("3.12.7", True), ("3.13.5", True),
 ])
-def test_el_preflight_exige_python_3_11_5_por_tupla(tmp_path, version, pasa):
+def test_el_preflight_exige_python_3_12_0_por_tupla(tmp_path, version, pasa):
     r = _ejecuta(tmp_path, version)
     assert r.returncode == 0, r.stderr
     if pasa:
@@ -69,15 +70,18 @@ def test_el_preflight_exige_python_3_11_5_por_tupla(tmp_path, version, pasa):
         assert "BLOCKS=1" in r.stdout, "PYTHON %s PASA EL PREFLIGHT: %s" % (version, r.stdout)
         linea = [l for l in r.stdout.splitlines() if l.startswith("STOP Python")][0]
         # dice la version encontrada, la exigida y POR QUE (el lock del motor)
-        assert version in linea and "3.11.5" in linea and "requirements.lock" in linea, linea
+        assert version in linea and "3.12.0" in linea and "requirements.lock" in linea, linea
 
 
 def test_el_minimo_del_preflight_cubre_el_requires_python_del_lock():
-    """El minimo declarado en el preflight no puede ser menor que el que exige soupsieve del lock
-    (si el lock sube soupsieve a una version con otro minimo, este test obliga a revisarlo)."""
+    """El minimo declarado en el preflight no puede ser menor que el que exigen numpy y soupsieve
+    del lock (la comparacion completa contra TODOS los paquetes la hace el gate D6 en CI)."""
     m = re.search(r'^PY_MINIMO="(\d+)\.(\d+)\.(\d+)"', PREFLIGHT.read_text(encoding="utf-8"), re.M)
     assert m, "el preflight no declara PY_MINIMO"
     minimo = tuple(int(x) for x in m.groups())
     sv = re.search(r"^soupsieve==(\d+)", LOCK.read_text(encoding="utf-8"), re.M)
     if sv and int(sv.group(1)) >= 3:
         assert minimo >= (3, 11, 5), minimo
+    np = re.search(r"^numpy==(\d+)\.(\d+)", LOCK.read_text(encoding="utf-8"), re.M)
+    if np and (int(np.group(1)), int(np.group(2))) >= (2, 5):
+        assert minimo >= (3, 12, 0), minimo

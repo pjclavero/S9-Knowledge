@@ -45,7 +45,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import importlib.util
+import errno
 import os
+import re
 import stat
 import sys
 from dataclasses import dataclass, field
@@ -196,6 +198,140 @@ def _backups_legacy(state_root: str, res: Resultado) -> None:
 
 
 # --------------------------------------------------------------------------
+# restos `.migrando-*` de una migracion interrumpida (D-8)
+# --------------------------------------------------------------------------
+# El nombre del temporal (``.migrando-<pid>-<destino>``) lo fija la AUTORIDAD
+# (``service_state.MIGRATION_TEMP_*``): la copia lo crea y este paso lo reconoce con lo mismo.
+
+
+def _es_prefijo_de(parcial: str, completo: str) -> bool:
+    """``parcial`` (ya tomado con ``lstat``) es un prefijo byte a byte de ``completo``."""
+    try:
+        if os.path.getsize(parcial) > os.path.getsize(completo):
+            return False
+        with open(parcial, "rb") as a, open(completo, "rb") as b:
+            while True:
+                x = a.read(1 << 20)
+                if not x:
+                    return True
+                if b.read(len(x)) != x:
+                    return False
+    except OSError:
+        return False
+
+
+def _pid_vivo_migrando(pid: int) -> bool:
+    """True si ``pid`` es un proceso VIVO que parece ser esta herramienta."""
+    try:
+        os.kill(pid, 0)
+    except OSError as exc:
+        if exc.errno == errno.ESRCH:
+            return False
+        # EPERM: existe y no es nuestro; se mira su comando igualmente.
+    try:
+        with open("/proc/%d/cmdline" % pid, "rb") as fh:
+            return b"migrar_estado" in fh.read()
+    except OSError:
+        return False
+
+
+def _tratar_restos_de_migracion(state_root: str, rutas: dict, fuentes: list, uid: int,
+                                skip: Sequence[str], res: Resultado) -> None:
+    """D-8 · un SIGKILL entre crear el temporal y publicarlo deja ``.migrando-<pid>-<x>``.
+
+    Se retira SOLO si es DEMOSTRABLEMENTE un resto propio e incompleto o redundante:
+      * regular, nombre de la plantilla, dueno root o el servicio;
+      * su PID ya no es una migracion en curso;
+      * y no es el unico ejemplar de un dato: esta vacio, o es PREFIJO (o copia
+        completa) del destino que ya existe o del origen legacy que sigue en su sitio
+        (el original no se retira hasta que la copia esta publicada y verificada).
+    Si no se puede demostrar: STOP[RESTO_DE_MIGRACION] con la receta. Nada se pierde.
+    """
+    saltar = {os.path.join(state_root, s) for s in skip}
+    restos = []
+    pila = [state_root]
+    while pila:
+        actual = pila.pop()
+        try:
+            with os.scandir(actual) as it:
+                entradas = list(it)
+        except OSError:
+            continue   # lo dira la inspeccion del paso 6, con su propia causa
+        for e in entradas:
+            if e.path in saltar:
+                continue
+            try:
+                st = e.stat(follow_symlinks=False)
+            except OSError:
+                continue
+            if stat.S_ISDIR(st.st_mode):
+                pila.append(e.path)
+            elif _ss().MIGRATION_TEMP_RE.match(e.name):
+                restos.append((e.path, e.name, st))
+    if not restos:
+        return
+    # origenes legacy aun presentes, por destino de la copia
+    origenes: dict = {}
+    for base, _retirar in fuentes:
+        for rel, clave, tipo in LEGACY_EN_RELEASE:
+            origen = os.path.join(base, rel)
+            destino = rutas.get(clave)
+            if destino is None or not os.path.lexists(origen) or os.path.islink(origen):
+                continue
+            if tipo == "file":
+                origenes.setdefault(os.path.normpath(str(destino)), []).append(origen)
+            else:
+                for carpeta, _d, ficheros in os.walk(origen, followlinks=False):
+                    for f in ficheros:
+                        q = os.path.join(carpeta, f)
+                        dest = os.path.join(str(destino), os.path.relpath(q, origen))
+                        origenes.setdefault(os.path.normpath(dest), []).append(q)
+    for ruta, nombre, st in sorted(restos):
+        m = _ss().MIGRATION_TEMP_RE.match(nombre)
+        pid, objetivo = int(m.group(1)), m.group(2)
+        receta = ("Receta: si %s es un resto de una migracion interrumpida (el original sigue "
+                  "en la release o el destino %s ya existe), retirelo a mano con "
+                  "`rm -- %s` y repita el despliegue; si no esta seguro, muevalo fuera del "
+                  "state root y conserve el original" % (ruta, objetivo, ruta))
+        if not stat.S_ISREG(st.st_mode):
+            raise Parada("RESTO_DE_MIGRACION", "%s lleva el nombre de un temporal de migracion "
+                         "pero no es un fichero regular; no se toca. %s" % (ruta, receta))
+        if st.st_uid not in (0, uid):
+            raise Parada("RESTO_DE_MIGRACION", "%s lleva el nombre de un temporal de migracion "
+                         "pero su dueno (uid %d) no es root ni el servicio: no es demostrable "
+                         "que sea un resto propio; no se toca. %s" % (ruta, st.st_uid, receta))
+        if _pid_vivo_migrando(pid) and pid != os.getpid():
+            raise Parada("RESTO_DE_MIGRACION", "el proceso %d (migrar_estado) sigue vivo y es "
+                         "dueno de %s: hay otra migracion en curso; no se toca" % (pid, ruta))
+        destino = os.path.join(os.path.dirname(ruta), objetivo)
+        prueba = None
+        if st.st_size == 0:
+            prueba = "esta vacio"
+        elif os.path.isfile(destino) and not os.path.islink(destino):
+            if os.path.samestat(os.lstat(ruta), os.lstat(destino)):
+                prueba = "es el mismo inodo que el destino ya publicado"
+            elif _es_prefijo_de(ruta, destino):
+                prueba = "es un prefijo (copia redundante) del destino ya publicado"
+        if prueba is None:
+            for origen in origenes.get(os.path.normpath(destino), []):
+                if _es_prefijo_de(ruta, origen):
+                    prueba = "es un prefijo (copia parcial) del original %s, que sigue intacto" % origen
+                    break
+        if prueba is None:
+            raise Parada("RESTO_DE_MIGRACION", "%s parece el temporal de una migracion "
+                         "interrumpida (pid %d) pero NO se puede demostrar que sea una copia "
+                         "redundante (no es vacio ni prefijo del destino o del original "
+                         "conocidos): podria ser el unico ejemplar de un dato; no se toca. %s"
+                         % (ruta, pid, receta))
+        try:
+            os.unlink(ruta)
+        except OSError as exc:
+            raise Parada("SIN_PERMISOS", "no se pudo retirar el resto %s (%s)" % (ruta, _errno(exc)))
+        res.decir("RESTO", "temporal de una migracion interrumpida %s retirado: %s" % (ruta, prueba))
+
+
+
+# --------------------------------------------------------------------------
 # paso 6: inspeccion
 # --------------------------------------------------------------------------
 def _precondiciones(raiz: str, crear: bool, uid: int, gid: int, res: Resultado) -> None:
@@ -288,7 +424,7 @@ def _copiar_verificado(origen: str, destino: str, uid: int, gid: int,
                      "%s y %s existen y DIFIEREN; se conservan los dos y no se elige en "
                      "silencio (decision del operador)" % (origen, destino))
     carpeta = os.path.dirname(destino)
-    tmp = os.path.join(carpeta, ".migrando-%d-%s" % (os.getpid(), os.path.basename(destino)))
+    tmp = os.path.join(carpeta, _ss().MIGRATION_TEMP_TEMPLATE % (os.getpid(), os.path.basename(destino)))
     try:
         fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, _ss().FILE_MODE)
     except OSError as exc:
@@ -613,6 +749,10 @@ def aplicar(state_root: str, env: dict, *, releases: Sequence[str] = (),
         _precondiciones(state_root, crear_state_root, uid, gid, res)
         res.decir("PASO 2", "precondiciones: state root real, escribible, sistema de ficheros rw")
         _backups_legacy(state_root, res)
+        fuentes = [(r, True) for r in releases]
+        if legacy_root:
+            fuentes.append((legacy_root, False))
+        _tratar_restos_de_migracion(state_root, rutas, fuentes, uid, ss.ADMIN_SUBTREES, res)
         _inspeccionar(state_root, ss.ADMIN_SUBTREES, res, ignorar_pids)
         _mover_legacy(rutas, releases, legacy_root, uid, gid, release_id, res)
         tipos = {clave: tipo for (tipo, clave) in ss.STATE_PATH_VARS.values()}

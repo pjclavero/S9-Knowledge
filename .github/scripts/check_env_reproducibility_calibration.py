@@ -34,6 +34,10 @@ CHECKER = AQUI / "check_env_reproducibility.py"
 # (la usan los gates de contratos). Se usa como sujeto de las mutaciones de
 # version para que el escenario base pueda ser verde de verdad.
 SUJETO = "jsonschema"
+# Distribucion sintetica (dist-info en `<raiz>/.fakesite`) que impone el
+# `Requires-Python` que los locks "exigen" al gate de interprete (D-6).
+FALSA = "s9kfakereq"
+FALSA_REQUIERE = ">=3.11.5"
 
 CI_BASE = """\
 name: CI sintetico
@@ -124,12 +128,22 @@ def construye(raiz: Path) -> None:
         "# copia canonica de restitucion\n" + bloque_job(CI_BASE, "test-graph-js"),
     )
     escribe(raiz / "viewer" / "requirements.txt", f"{SUJETO}>=4.0,<5.0\n")
-    escribe(raiz / "data-engine" / "requirements.lock", f"{SUJETO}==4.26.0\n")
-    escribe(raiz / "data-engine" / "requirements.in", f"{SUJETO}\n")
+    escribe(
+        raiz / "data-engine" / "requirements.lock",
+        f"{SUJETO}==4.26.0\n{FALSA}==1.0\n",
+    )
+    escribe(raiz / "data-engine" / "requirements.in", f"{SUJETO}\n{FALSA}\n")
+    # Distribucion falsa con `Requires-Python: >=3.11.5` (D-6): el unico modo
+    # de fijar lo que "exigen los locks" sin depender de paquetes reales.
+    escribe(
+        raiz / ".fakesite" / f"{FALSA}-1.0.dist-info" / "METADATA",
+        f"Metadata-Version: 2.1\nName: {FALSA}\nVersion: 1.0\n"
+        f"Requires-Python: {FALSA_REQUIERE}\n",
+    )
     escribe(raiz / "docs" / "guia.md", f"Se usa `{SUJETO}==4.26.0`.\n")
     escribe(
         raiz / "deploy" / "scripts" / "preflight.sh",
-        'if [ "${py_minor}" -ge 13 ]; then ok; fi\n',
+        'PY_MINIMO="3.13.0"\n',
     )
     escribe(raiz / "viewer" / "app" / "modulo.py", f"import {SUJETO}\n")
     escribe(raiz / "data-engine" / "app" / "motor.py", f"import {SUJETO}\n")
@@ -144,6 +158,9 @@ def corre(raiz: Path, *args: str, path_extra: str = "", py_extra: str = "") -> t
         entorno["PATH"] = path_extra + os.pathsep + entorno.get("PATH", "")
     if py_extra:
         entorno["PYTHONPATH"] = py_extra + os.pathsep + entorno.get("PYTHONPATH", "")
+    fake = raiz / ".fakesite"
+    if fake.is_dir():
+        entorno["PYTHONPATH"] = str(fake) + os.pathsep + entorno.get("PYTHONPATH", "")
     r = subprocess.run(
         [sys.executable, str(CHECKER), *args],
         capture_output=True, text=True, env=entorno, timeout=300,
@@ -726,8 +743,39 @@ def main() -> int:
         # D6: se acepta desplegar sobre un interprete que CI nunca ejercita.
         escribe(
             raiz / "deploy" / "scripts" / "preflight.sh",
-            'if [ "${py_minor}" -ge 11 ]; then ok; fi\n',
+            'PY_MINIMO="3.11.5"\n',
         )
+
+    def _preflight(raiz: Path, texto: str) -> None:
+        escribe(raiz / "deploy" / "scripts" / "preflight.sh", texto)
+
+    def m_minimo_micro_inferior(raiz: Path) -> None:
+        # D-6: mismo major.minor que lo exigido (3.11) pero micro inferior.
+        _preflight(raiz, 'PY_MINIMO="3.11.4"\n')
+
+    def m_minimo_formato_readonly(raiz: Path) -> None:
+        # D-6 control positivo: formato distinto pero RECONOCIBLE y suficiente.
+        _preflight(raiz, 'readonly PY_MINIMO="3.11.5"\n')
+
+    def m_minimo_formato_readonly_bajo(raiz: Path) -> None:
+        # D-6: formato distinto Y micro inferior: debe seguir viendose.
+        _preflight(raiz, 'readonly PY_MINIMO="3.11.4"\n')
+
+    def m_minimo_formato_irreconocible(raiz: Path) -> None:
+        # D-6: antes caia al regex antiguo y volvia en silencio.
+        _preflight(raiz, 'PY_MINIMO=$(cat /etc/py_minimo)\n')
+
+    def m_minimo_antiguo(raiz: Path) -> None:
+        # D-6: la forma antigua ya no vale como declaracion.
+        _preflight(raiz, 'if [ "${py_minor}" -ge 13 ]; then ok; fi\n')
+
+    def m_locks_sin_requires(raiz: Path) -> None:
+        # D-6: si no hay forma de derivar lo que exigen los locks, rojo.
+        shutil.rmtree(raiz / ".fakesite")
+        # y ninguna dependencia declarada esta instalada: no hay metadato que leer
+        escribe(raiz / "data-engine" / "requirements.lock", "s9kausente==1.0\n")
+        escribe(raiz / "data-engine" / "requirements.in", "s9kausente\n")
+        escribe(raiz / "viewer" / "requirements.txt", "s9kausente>=1.0,<2.0\n")
 
     def m_fragmento_derivado(raiz: Path) -> None:
         # El fragmento pierde un paso que ci.yml SI tiene. Quien restituya
@@ -945,6 +993,38 @@ def main() -> int:
         m_preflight_por_debajo,
         espera_rojo=False,
         senal="nunca se ha probado",
+    )
+    c.caso(
+        "D-6: PY_MINIMO con micro inferior a lo que exige el lock (3.11.4 < 3.11.5)",
+        m_minimo_micro_inferior,
+        senal="exige Python >= 3.11.5",
+    )
+    c.caso(
+        "D-6: formato `readonly PY_MINIMO=` con micro inferior sigue rojo",
+        m_minimo_formato_readonly_bajo,
+        senal="exige Python >= 3.11.5",
+    )
+    c.caso(
+        "D-6: formato PY_MINIMO no reconocido -> ROJO, no silencio",
+        m_minimo_formato_irreconocible,
+        senal="formato reconocible",
+    )
+    c.caso(
+        "D-6: solo la forma antigua `py_minor -ge` -> ROJO",
+        m_minimo_antiguo,
+        senal="formato reconocible",
+    )
+    c.caso(
+        "D-6: locks sin Requires-Python derivable -> ROJO",
+        m_locks_sin_requires,
+        senal="no se puede derivar",
+    )
+    c.caso(
+        "D-6 (control positivo): `readonly PY_MINIMO=\"3.11.5\"` es suficiente",
+        m_minimo_formato_readonly,
+        espera="aviso",
+        senal="nunca se ha probado",
+        ausente="::error::",
     )
     c.caso("lock sin fijar (`==`)", m_lock_sin_fijar, senal="no esta FIJADO")
     c.caso(
