@@ -20,8 +20,7 @@
 
   check-env-reproducibility:
     name: Reproducibilidad de entorno (declarado == instalado)
-    # MIGRACION-CI-S9K: runner self-hosted commons-ci-s9k-01 (docs/ci/MIGRACION_COMMONS_CI.md).
-    runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
