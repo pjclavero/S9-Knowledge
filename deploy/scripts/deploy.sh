@@ -10,7 +10,8 @@
 # 0 daemon-reload, 0 reinicios.
 #
 # Orden de activación (obligatorio, corrección RC1):
-#   1 lock - 2 verificar release - 3 detectar layout (y aplicar su BLOCK) - 4 migrar/validar estado -
+#   1 lock - 2 verificar release (2b/2c: precondiciones y configuración, ANTES de parar) -
+#   3 detectar layout (y aplicar su BLOCK) - 4 migrar/validar estado -
 #   5 validar continuidad - 6 validar viewer.env y worker.env - 7 validar unidades -
 #   8 respaldar unidad instalada - 9 instalar unidad nueva - 10 systemd-analyze -
 #   11 daemon-reload solo si cambió - 12 current atómico - 13 reiniciar afectados -
@@ -258,6 +259,37 @@ if [ -f "${S9K_WORKER_ENV:-${S9K_CONFIG_ROOT}/worker.env}" ]; then
         || die "rutas de estado de worker.env fuera del contrato (nada se ha parado ni tocado)"
 fi
 # --- fin del paso 2b ---
+
+# Paso 2c (RC1-03 + RC1-04): TODO lo que se puede decidir sin tocar el sistema se
+# decide ANTES de parar visor y worker. Antes estas comprobaciones vivían sólo en
+# el paso 6, después de 3b (parada) y 5b (migración del estado): un viewer.env sin
+# URL pública, un secreto vacío o un upgrade sin almacén de revisión dejaban el
+# servicio PARADO por un error que ya se conocía al empezar. El paso 6 se conserva
+# idéntico como segunda barrera.
+#   RC1-03: configuración (secretos, worker.env, contrato HTTPS) con las MISMAS
+#           funciones validate_* del paso 6 (`validar_configuracion_antes_de_parar`).
+#           Sólo se difiere el MODO del fichero de secreto, que el paso 5b
+#           normaliza (preparar_secretos_del_servicio) y el paso 6 vuelve a exigir.
+#   RC1-04: el almacén de revisión (review_store.py --solo-lectura = la misma
+#           autoridad que decide en el paso 6). Es una decisión del operador
+#           (--autorizar-creacion-review-db) y se conoce al principio. El paso 5b
+#           no crea, mueve ni borra review.sqlite3 ni las candidatas legacy, así
+#           que la decisión no cambia entre aquí y el paso 6.
+#   Queda en el paso 6/7 lo que depende de lo que 5b deja hecho (secretos 0640
+#   root:grupo, review.sqlite3 con su dueño) o de la unidad nueva (paso 7).
+log "--- 2c. configuración y almacén de revisión (antes de parar nada)"
+validar_configuracion_antes_de_parar "${VIEWER_ENV}" "${S9K_WORKER_ENV:-${S9K_CONFIG_ROOT}/worker.env}" "${ENVIRONMENT}" \
+    || die "configuración inválida (causa arriba): NADA se ha parado ni tocado, visor y worker siguen en marcha. Corrija ${VIEWER_ENV} / worker.env (ver deploy/README.md) y repita"
+_rev2c_autorizar=()
+[ "${AUTORIZAR_CREACION_REVIEW_DB}" -eq 1 ] && _rev2c_autorizar=(--autorizar-creacion-review-db)
+_rev2c_actual="$(readlink -f "${S9K_ROOT}/current" 2>/dev/null || true)"
+python3 "${HERE}/review_store.py" preparar --modo "${MODE}" --solo-lectura \
+    --db "$(_env_value "${VIEWER_ENV}" S9K_V3_REVIEW_DATABASE_PATH)" \
+    --candidata "${_rev2c_actual}/viewer/output/reviews-v3/review.sqlite3" \
+    --candidata "${LEGACY_ROOT}/viewer/output/reviews-v3/review.sqlite3" \
+    "${_rev2c_autorizar[@]}" \
+    || die "almacén de revisión (review.sqlite3) no preparable: STOP antes de parar nada (causa arriba); visor y worker siguen en marcha y el estado está intacto"
+# --- fin del paso 2c ---
 
 # Paso 3: detectar layout/estado
 log "--- 3. detectar layout/estado"
