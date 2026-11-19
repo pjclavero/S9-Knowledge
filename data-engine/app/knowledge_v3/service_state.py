@@ -579,6 +579,14 @@ def inspect_state(state_root, *, uid: Optional[int] = None, gid: Optional[int] =
         try:
             with os.scandir(actual) as it:
                 entradas = list(it)
+        except FileNotFoundError as exc:
+            # D-1: un subdirectorio ya listado que desaparece antes de abrirlo (carrera
+            # con un proceso que lo borra) no es hallazgo. La RAIZ si lo es: existia
+            # (lstat) y su desaparicion no es efimera.
+            if actual == str(raiz):
+                out.append(Violation(UNREADABLE, actual, "directorio ilegible o "
+                                     "inaccesible: %s" % exc.strerror))
+            continue
         except OSError as exc:
             out.append(Violation(UNREADABLE, actual, "directorio ilegible o "
                                  "inaccesible: %s" % exc.strerror))
@@ -599,6 +607,13 @@ def inspect_state(state_root, *, uid: Optional[int] = None, gid: Optional[int] =
                 return out
             try:
                 est = e.stat(follow_symlinks=False)
+            except FileNotFoundError:
+                # D-1 (TOCTOU): entrada ya listada que da ENOENT al inspeccionarla =
+                # desaparecida durante la inspeccion (p. ej. -wal/-shm de SQLite al
+                # cerrar la ultima conexion). No es hallazgo. Cualquier otro error
+                # (EACCES, EIO...) sigue siéndolo; un symlink colgante NO llega aqui
+                # (lstat no sigue enlaces) y se informa como SYMLINK.
+                continue
             except OSError as exc:
                 out.append(Violation(UNREADABLE, e.path, "no se puede inspeccionar: %s" % exc.strerror))
                 continue
