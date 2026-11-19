@@ -215,7 +215,10 @@ def test_conexion_no_declarada_sigue_siendo_la_de_siempre(monkeypatch):
         monkeypatch.delenv(variable, raising=False)
     exc = _fallo()
     assert exc.code == "GRAPH_OBSERVATION_UNCONFIGURED", str(exc)
-    assert "no tiene declarada la conexion" in str(exc)
+    # La frase se compara con la del CATALOGO (autoridad), no con un texto copiado aqui.
+    codigo = "GRAPH_OBSERVATION_UNCONFIGURED"
+    assert str(exc) == f"{codigo}: {ingest_v3.CODIGOS[codigo]}", (
+        "RC1-G02: LA CONEXION NO DECLARADA YA NO DICE SU FRASE: %s" % exc)
     assert exc.retryable is False
     assert exc.detail is None
 
