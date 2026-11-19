@@ -24,6 +24,7 @@ import pytest
 
 RAIZ = Path(__file__).resolve().parents[2]
 LIB_SH = RAIZ / "deploy" / "scripts" / "lib.sh"
+SERVICE_STATE_PY = RAIZ / "data-engine" / "app" / "knowledge_v3" / "service_state.py"
 
 VISOR = "s9-knowledge-viewer.service"
 WORKER = "s9-knowledge-worker.service"
@@ -105,6 +106,9 @@ def _ejecutar(base, unidades, lib=LIB_SH, env_extra=None, cola="", sin_rc=False)
         "if parar_y_verificar_servicios; then echo RC=0; else echo RC=1; fi"
     script = 'set -Eeuo pipefail\nD="%s"\nsource "%s"\n%s\n%s\n%s\n' % (d, lib, STUB, llamada, cola)
     env = {k: v for k, v in os.environ.items() if not k.startswith("S9K_")}
+    # Una COPIA mutada de lib.sh en tmp_path resuelve la autoridad relativa a si misma
+    # (`_LIB_DIR/../../data-engine/...`), que ahi no existe: se apunta a la REAL del repo.
+    env["S9K_SERVICE_STATE_PY"] = str(SERVICE_STATE_PY)
     env.update(env_extra or {})
     r = subprocess.run(["bash", "-c", script], capture_output=True, text=True, env=env, timeout=60)
     llamadas = (d / "calls.log").read_text().splitlines()
