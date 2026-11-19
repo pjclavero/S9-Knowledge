@@ -73,9 +73,10 @@ def test_RC105_B1_block_de_fresh_sobre_instalacion_con_usuarios_no_para_nada(tmp
     """Esperado: rc != 0 «bloquea en fresh» y la parada NO se ejecuta (marca ausente)."""
     na = _auth_de_producto(tmp_path / "s/auth/auth.db", usuarios=1)
     rc, out, parado = _paso3_4_con_testigo(tmp_path, "fresh", na, tmp_path / "s/jobs/jobs.db")
-    assert rc != 0 and "bloquea en fresh" in out, out
-    assert "visor y worker siguen en marcha" in out, out
+    # La parada va PRIMERO: es la propiedad de RC1-05 y la causa que busca el calibrador.
     assert not parado, "RC1-05: LA PARADA OCURRIO ANTES DEL BLOCK: %s" % out
+    assert rc != 0 and "bloquea en fresh" in out, "RC1-05: NO BLOQUEA EN FRESH: %s" % out
+    assert "visor y worker siguen en marcha" in out, "RC1-05: EL STOP NO DICE QUE NADA SE HA PARADO: %s" % out
 
 
 def test_RC105_B2_auth_corrupta_no_para_nada(tmp_path):
