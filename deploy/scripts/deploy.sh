@@ -10,7 +10,7 @@
 # 0 daemon-reload, 0 reinicios.
 #
 # Orden de activación (obligatorio, corrección RC1):
-#   1 lock - 2 verificar release - 3 detectar layout - 4 migrar/validar estado -
+#   1 lock - 2 verificar release - 3 detectar layout (y aplicar su BLOCK) - 4 migrar/validar estado -
 #   5 validar continuidad - 6 validar viewer.env y worker.env - 7 validar unidades -
 #   8 respaldar unidad instalada - 9 instalar unidad nueva - 10 systemd-analyze -
 #   11 daemon-reload solo si cambió - 12 current atómico - 13 reiniciar afectados -
@@ -268,6 +268,12 @@ GLOBAL_STATE="$(_campo_json "${STATE_JSON}" global_state)"
 DECISION="$(_campo_json "${STATE_JSON}" decision)"
 PRIMER_ADMIN_PENDIENTE="$(_campo_json "${STATE_JSON}" primer_admin_pendiente)"
 log "    auth=$(_campo_json "${STATE_JSON}" per_kind auth state) jobs=$(_campo_json "${STATE_JSON}" per_kind jobs state) modo=${MODE} decision=${DECISION} (global informativo=${GLOBAL_STATE})"
+
+# RC1-05: el veredicto de detect_state se APLICA aquí, antes de parar nada: un
+# BLOCK de pura detección (fresh sobre una instalación con usuarios, base
+# corrupta, legacy y nueva divergentes...) no necesita visor ni worker parados
+# para conocerse. El paso 4 lo vuelve a aplicar (misma función, segunda barrera).
+exigir_decision_de_estado "${STATE_JSON}" " — nada se ha parado ni tocado: visor y worker siguen en marcha"
 
 # Paso 3b (H-06 + H-08, §8 pasos 3-5 y §10): identidad de servicio y PARADA
 # REAL de visor y worker, verificada, ANTES de tocar un solo fichero de estado.

@@ -364,7 +364,7 @@ declara la excepción explícita** (`S9K_STATE_VALIDATION`, arriba).
 | 12–13 arrancar y salud | 13, 14a, 16 | además, los **procesos vivos** (`/proc/<PID>`) corren como `s9knowledge`, sin capabilities y con `NoNewPrivs`; si no, rollback. **C-6**: el entorno EFECTIVO de visor, worker y healthcheck (`systemctl show -p Environment,EnvironmentFiles,DropInPaths` y `/proc/<pid>/environ`) no lleva `S9K_STATE_VALIDATION`/`S9K_STATE_ENFORCE`: si aparece (drop-in, EnvironmentFile extra), se PARAN visor y worker y `die`; el healthcheck lo reporta UNHEALTHY (`state_validation`) |
 | 14 funcionalidad mínima | 16, 16c | `verify-deployment.sh`, GATE A |
 
-Una precondición pura que falla (2b) no deja nada parado. Cualquier fallo posterior → `die` con el diagnóstico concreto, **la release no se activa,
+Una precondición pura que falla (2b o el BLOCK del paso 3, RC1-05) no deja nada parado. Cualquier fallo posterior → `die` con el diagnóstico concreto, **la release no se activa,
 no se declara éxito y el estado original se conserva** (los servicios quedan
 parados: no se relanzan a ciegas). Casos que paran: fichero ilegible, directorio
 inaccesible, sistema de ficheros de solo lectura, owner/modo inesperados,
@@ -972,7 +972,7 @@ rojo, y **por su causa**:
 | N10 | Base de autenticación **no durable** (ruta en tmpfs, volumen sin montar, contenedor que recrea su almacén) y reinicio | `ESTADO_NO_PERSISTE`, con los dos desenlaces distinguidos: la pantalla de alta **reabierta** (`200`), o el sello puesto y el **login ya inservible**. |
 | N11 | El setup se sirve con cookie **sin `Secure`** (alguien «arregló» el bucle degradando la cookie) | `COOKIE_SETUP_SIN_SECURE`: la degradación que D3 descartó **no** se acepta como instalación correcta, ni siquiera sobre HTTPS. |
 | N12 | Login que redirige pero **no emite sesión** | `SESION_NO_EMITIDA`: en el navegador eso se ve como un login que vuelve al login. |
-| N13 | (B2) `deploy.sh --mode fresh` sobre un host con usuarios en `auth.db` | **BLOCK** en el paso 4 (`auth: NEW_STATE bloquea en fresh`), `auth.db` intacta. |
+| N13 | (B2) `deploy.sh --mode fresh` sobre un host con usuarios en `auth.db` | **BLOCK** en el paso 3, antes de parar nada (`auth: NEW_STATE bloquea en fresh`; el paso 4 lo repite), `auth.db` intacta. |
 | N14 | (B2) `auth.db` truncada/corrupta en `fresh` y en `upgrade` | **BLOCK** con `CORRUPT_STATE`; nunca «instalación nueva». |
 | N15 | (B2) `viewer.env` sin `S9K_V3_REVIEW_DATABASE_PATH` o `…_PROPOSALS_DIR` | **BLOCK** en el paso 6 nombrando la variable. |
 | N16 | (B2) `upgrade` con `jobs.db` ausente o vacía | **sigue** (H-43): una cola vacía no bloquea. |

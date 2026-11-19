@@ -672,6 +672,23 @@ else:
 }
 
 # ---------------------------------------------------------------------------
+# exigir_decision_de_estado <json de detect_state.py> [<sufijo del mensaje>]
+#   RC1-05. UNA autoridad para «¿se puede seguir?»: el campo `decision`. La
+#   aplican DOS veces deploy.sh (paso 3, ANTES de parar nada, y paso 4, segunda
+#   barrera): un BLOCK de pura detección no necesita parar el servicio para
+#   conocerse. `die` si la decision no es PROCEED (fail-closed: una salida vacia
+#   o ilegible de detect_state tampoco es PROCEED).
+# ---------------------------------------------------------------------------
+exigir_decision_de_estado() {
+    local json="${1}" sufijo="${2:-}" _decision _motivos
+    _decision="$(_campo_json "${json}" decision)"
+    if [ "${_decision}" != "PROCEED" ]; then
+        _motivos="$(_campo_json "${json}" reasons)"
+        die "detect_state decide ${_decision}: ${_motivos:-sin motivo} (nunca crear auth.db vacía ni elegir DB en silencio)${sufijo}"
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # paso4_migrar_o_validar_estado <json de detect_state.py>
 #
 #   B2 (USABLE-V1) · H-01/H-43. Paso 4 de deploy.sh. UNA SOLA AUTORIDAD para
@@ -690,12 +707,8 @@ else:
 #   NEW_AUTH_DB, NEW_JOBS_DB.
 # ---------------------------------------------------------------------------
 paso4_migrar_o_validar_estado() {
-    local json="${1}" _decision _motivos _auth _jobs
-    _decision="$(_campo_json "${json}" decision)"
-    if [ "${_decision}" != "PROCEED" ]; then
-        _motivos="$(_campo_json "${json}" reasons)"
-        die "detect_state decide ${_decision}: ${_motivos:-sin motivo} (nunca crear auth.db vacía ni elegir DB en silencio)"
-    fi
+    local json="${1}" _auth _jobs
+    exigir_decision_de_estado "${json}"
     _auth="$(_campo_json "${json}" per_kind auth state)"
     _jobs="$(_campo_json "${json}" per_kind jobs state)"
 
