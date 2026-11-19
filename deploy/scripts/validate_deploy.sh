@@ -439,7 +439,7 @@ validate_viewer_unit() {
     fi
     # H-06 + H-08: identidad de servicio (autoridad), no root ni www-data.
     local e
-    while IFS= read -r e; do [ -n "${e}" ] && errs+=("${e}"); done < <(_identidad_de_unidad_errores "${unit_file}")
+    while IFS= read -r e; do [ -n "${e}" ] && errs+=("${e}"); done < <(_identidad_de_unidad_errores "${unit_file}" viewer)
     if [ "${#errs[@]}" -gt 0 ]; then
         for e in "${errs[@]}"; do printf 'BLOCK(unit): %s\n' "${e}" >&2; done
         return 1
@@ -448,14 +448,15 @@ validate_viewer_unit() {
 }
 
 # ---------------------------------------------------------------------------
-# _identidad_de_unidad_errores <unit_file> [enforce]
+# _identidad_de_unidad_errores <unit_file> [viewer|worker|health]
 #   H-06 + H-08 (§11, N7-N9, M12). Imprime UNA linea por incumplimiento de la
 #   identidad que fija la AUTORIDAD: User=/Group= (ni root, ni www-data, ni
 #   otro nombre), UMask= y, con `enforce`, S9K_STATE_ENFORCE=1 (la comprobacion
-#   de arranque fail-closed). Sin salida = la unidad cumple.
+#   de arranque fail-closed). Con el rol (D-2) tambien la declaracion del sandbox del
+#   healthcheck: prohibida en visor/worker; en `health` solo con sandbox. Sin salida = cumple.
 # ---------------------------------------------------------------------------
 _identidad_de_unidad_errores() {
-    local unit="${1}" salida
+    local unit="${1}" rol="${2:-}" salida
     # C-7 (ronda 2): UNA implementacion con la semantica de systemd (ULTIMO valor de cada
     # clave, espacios alrededor de `=`, continuaciones), en la autoridad: User/Group/UMask
     # de la autoridad, claves de identidad sin duplicar, NoNewPrivileges=yes|true,
@@ -464,7 +465,9 @@ _identidad_de_unidad_errores() {
     # Leer la PRIMERA linea `User=` (como hacia `_unit_value`) dejaba pasar `User=root`
     # duplicado debajo: systemd usa la ultima.
     local rc=0
-    if salida="$(python3 "${_VD_SS}" unit-check "${unit}")"; then rc=0; else rc=$?; fi
+    local -a rol_arg=()
+    [ -z "${rol}" ] || rol_arg=(--rol "${rol}")
+    if salida="$(python3 "${_VD_SS}" unit-check "${unit}" ${rol_arg[@]+"${rol_arg[@]}"})"; then rc=0; else rc=$?; fi
     [ -z "${salida}" ] || printf '%s\n' "${salida}"
     # rc 0 = cumple, 3 = hallazgos (ya impresos); cualquier otro = la autoridad no pudo
     # inspeccionar: eso NO es un "cumple" (sin fail-open).
@@ -494,7 +497,7 @@ validate_healthcheck_unit() {
     [ -f "${unit_file}" ] || { printf 'BLOCK(health-unit): unit no existe: %s\n' "${unit_file}" >&2; return 1; }
     # Capabilities, NoNewPrivileges, AmbientCapabilities y PermissionsStartOnly: los mira la
     # MISMA funcion que a visor y worker (C-7, semantica de ultimo valor).
-    while IFS= read -r e; do [ -n "${e}" ] && errs+=("${e}"); done < <(_identidad_de_unidad_errores "${unit_file}")
+    while IFS= read -r e; do [ -n "${e}" ] && errs+=("${e}"); done < <(_identidad_de_unidad_errores "${unit_file}" health)
     if [ "${#errs[@]}" -gt 0 ]; then
         for e in "${errs[@]}"; do printf 'BLOCK(health-unit): %s\n' "${e}" >&2; done
         return 1
@@ -558,7 +561,7 @@ validate_worker_unit() {
     # H-06 + H-08: la identidad no es «cualquiera que no sea root»: es la de la
     # AUTORIDAD (s9knowledge). www-data u otro nombre -> BLOCK.
     local _e
-    while IFS= read -r _e; do [ -n "${_e}" ] && errs+=("${_e}"); done < <(_identidad_de_unidad_errores "${unit_file}")
+    while IFS= read -r _e; do [ -n "${_e}" ] && errs+=("${_e}"); done < <(_identidad_de_unidad_errores "${unit_file}" worker)
     restart="$(_unit_value "${unit_file}" Restart)"
     [ "${restart}" = "always" ] || errs+=("Restart distinto de always: '${restart}'")
     grep -qE '^EnvironmentFile=/etc/s9-knowledge/worker\.env$' "${unit_file}" \

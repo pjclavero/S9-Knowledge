@@ -509,41 +509,117 @@ def check_undeclared() -> list[str]:
 # --------------------------------------------------------------------------
 # 3 bis. interprete desplegado vs interprete probado  (D6)
 # --------------------------------------------------------------------------
-def check_interprete() -> list[str]:
-    """Nada debe desplegarse sobre un interprete que CI nunca ejercita.
+_PY_MINIMO_RE = re.compile(
+    r"""^[ \t]*(?:(?:readonly|export|local|declare(?:[ \t]+-\S+)?)[ \t]+)*"""
+    r"""PY_MINIMO=["']?(\d+)\.(\d+)(?:\.(\d+))?["']?""",
+    re.M,
+)
 
-    D6 (carril I): `preflight.sh` acepta Python 3.11+ y todo el CI corre solo
-    3.13. Se SEÑALA (no bloquea) porque el minimo del preflight es una
-    decision del carril de despliegue, no de este: cerrarlo es o bien subir el
-    minimo, o bien anadir una matriz de versiones en CI.
+
+def _cota_inferior(requires_python: str) -> tuple[int, int, int] | None:
+    """Cota inferior (major, minor, micro) de un `Requires-Python` (PEP 440).
+
+    Solo interesan los especificadores que ponen suelo (`>=`, `>`, `==`, `~=`).
     """
-    avisos = []
-    preflight = REPO / "deploy" / "scripts" / "preflight.sh"
-    if not (preflight.exists() and CI.exists()):
-        return avisos
-    texto = preflight.read_text(encoding="utf-8")
-    # Forma actual: `PY_MINIMO="3.11.5"` (tupla completa); forma antigua: `py_minor ... -ge N`.
-    m = re.search(r'^PY_MINIMO="?(\d+)\.(\d+)', texto, re.M)
-    if m:
-        minimo = (int(m.group(1)), int(m.group(2)))
-    else:
-        m = re.search(r"py_minor[^\n]*-ge\s+\"?(\d+)", texto)
+    suelo = None
+    for trozo in requires_python.split(","):
+        m = re.match(r"^\s*(>=|>|==|~=)\s*(\d+)(?:\.(\d+))?(?:\.(\d+))?", trozo)
         if not m:
-            return avisos
-        minimo = (3, int(m.group(1)))
-    probadas = {
-        tuple(int(x) for x in v.split("."))
-        for v in re.findall(r"python-version:\s*'?(\d+\.\d+)'?", CI.read_text(encoding="utf-8"))
+            continue
+        cota = (int(m.group(2)), int(m.group(3) or 0), int(m.group(4) or 0))
+        if suelo is None or cota > suelo:
+            suelo = cota
+    return suelo
+
+
+def python_exigido_por_locks() -> tuple[tuple[int, int, int] | None, str]:
+    """Mayor `Requires-Python` (cota inferior) de las dependencias declaradas.
+
+    Se lee del metadato INSTALADO, que es lo que de verdad se ejecuta; el lock
+    no lo trae. Devuelve (cota, distribucion que la impone).
+    """
+    import importlib.metadata as md
+
+    mejor, quien = None, ""
+    for _etiqueta, _raiz, req in ARBOLES:
+        for nombre, _spec, _crudo in lee_requisitos(req):
+            try:
+                rp = md.metadata(nombre).get("Requires-Python")
+            except md.PackageNotFoundError:
+                continue
+            cota = _cota_inferior(rp) if rp else None
+            if cota and (mejor is None or cota > mejor):
+                mejor, quien = cota, nombre
+    return mejor, quien
+
+
+def check_interprete() -> tuple[list[str], list[str]]:
+    """El interprete minimo declarado ha de cubrir lo que exigen los locks.
+
+    D-6: antes se comparaba solo major.minor y, si la linea `PY_MINIMO` cambiaba
+    de formato, el gate caia a un regex antiguo y volvia en silencio. Ahora:
+    - se compara la tupla COMPLETA (major, minor, micro) contra el mayor
+      `Requires-Python` de los locks (ROJO si el minimo declarado queda por
+      debajo);
+    - si no se encuentra el minimo declarado, o no se puede derivar lo que
+      exigen los locks, es ROJO: un gate ciego no es un gate.
+    Devuelve (errores, avisos). El aviso historico (CI solo ejercita 3.13) se
+    mantiene como aviso: es una decision del carril de despliegue.
+    """
+    errores, avisos = [], []
+    preflight = REPO / "deploy" / "scripts" / "preflight.sh"
+    if not preflight.exists():
+        return [
+            "deploy/scripts/preflight.sh no existe: no hay interprete minimo "
+            "declarado que comparar con los locks (el gate no puede quedarse "
+            "ciego)"
+        ], avisos
+    texto = preflight.read_text(encoding="utf-8")
+    declarados = {
+        (int(m.group(1)), int(m.group(2)), int(m.group(3) or 0))
+        for m in _PY_MINIMO_RE.finditer(texto)
     }
-    if probadas and minimo < min(probadas):
-        avisos.append(
-            f"deploy/scripts/preflight.sh acepta Python {minimo[0]}.{minimo[1]}+ "
-            f"y CI solo ejercita {sorted('.'.join(map(str, p)) for p in probadas)}: "
-            f"se puede desplegar sobre un interprete que nunca se ha probado. "
-            f"Se cierra subiendo el minimo del preflight o anadiendo esas "
-            f"versiones a la matriz de CI."
+    if len(declarados) != 1:
+        motivo = (
+            "no declara `PY_MINIMO=\"X.Y.Z\"` en un formato reconocible"
+            if not declarados
+            else f"declara {len(declarados)} valores distintos de PY_MINIMO"
         )
-    return avisos
+        return [
+            f"deploy/scripts/preflight.sh {motivo}: el gate de interprete no "
+            f"puede comparar con lo que exigen los locks y NO pasa en silencio"
+        ], avisos
+    minimo = next(iter(declarados))
+    exigido, quien = python_exigido_por_locks()
+    if exigido is None:
+        errores.append(
+            "no se puede derivar el `Requires-Python` de ninguna dependencia de "
+            "los locks (metadato instalado ausente): sin eso no hay contra que "
+            "comparar PY_MINIMO"
+        )
+    elif minimo < exigido:
+        errores.append(
+            f"deploy/scripts/preflight.sh declara PY_MINIMO="
+            f"{'.'.join(map(str, minimo))} y `{quien}` (lock) exige Python >= "
+            f"{'.'.join(map(str, exigido))}: el preflight aceptaria un "
+            f"interprete sobre el que el lock no se puede instalar"
+        )
+    if CI.exists():
+        probadas = {
+            tuple(int(x) for x in v.split("."))
+            for v in re.findall(
+                r"python-version:\s*'?(\d+\.\d+)'?", CI.read_text(encoding="utf-8")
+            )
+        }
+        if probadas and minimo[:2] < min(probadas):
+            avisos.append(
+                f"deploy/scripts/preflight.sh acepta Python {minimo[0]}.{minimo[1]}+ "
+                f"y CI solo ejercita {sorted('.'.join(map(str, p)) for p in probadas)}: "
+                f"se puede desplegar sobre un interprete que nunca se ha probado. "
+                f"Se cierra subiendo el minimo del preflight o anadiendo esas "
+                f"versiones a la matriz de CI."
+            )
+    return errores, avisos
 
 
 # --------------------------------------------------------------------------
@@ -1276,7 +1352,9 @@ def main() -> int:
         print("=== 3. dependencias usadas y no declaradas ===")
         errores += check_undeclared()
         print("=== 3 bis/ter. interprete desplegado y deriva de documentacion ===")
-        avisos += check_interprete()
+        e, a = check_interprete()
+        errores += e
+        avisos += a
         avisos += check_docs_versiones()
         print("=== 3 quater. fragmentos de CI fieles a ci.yml ===")
         errores += check_fragmentos()

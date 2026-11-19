@@ -11,8 +11,10 @@ Reglas que este modulo impone, no sugiere:
 * **La contrasena no viaja por `argv`.** Se lee de un fichero cuyo camino se
   declara (`--neo4j-password-file` o `S9K_NEO4J_PASSWORD_FILE`), o de la entrada
   estandar. No hay ninguna opcion que acepte el secreto en la linea de comandos.
-* **El fichero de contrasena tiene que ser privado.** Si el grupo u otros pueden
-  leerlo, se rechaza: un secreto legible por la maquina entera no es un secreto.
+* **El fichero de contrasena cumple la politica SECRET de la autoridad**
+  (`service_state.inspect_secret_for_reading`): del propio usuario con 0600, o
+  `root:<grupo de servicio>` con 0640 (lo que deja el despliegue). Cualquier bit de
+  otros, escritura de grupo, grupo ajeno con bits de grupo, symlink o vacio se rechaza.
 * **El secreto no se imprime nunca.** La configuracion que este modulo pasea
   guarda el CAMINO del fichero, no su contenido, y su `repr` es el de un
   dataclass sin campo de secreto.
@@ -98,8 +100,8 @@ def resolve_config(
 def read_secret(password_file: str) -> str:
     """Lee el secreto de un fichero privado (o de stdin con `-`).
 
-    Comprueba los permisos ANTES de leer: si el fichero es legible por el grupo
-    o por otros, no se lee. El mensaje de error jamas incluye el contenido.
+    Comprueba la politica SECRET ANTES de leer (ver `inspect_secret_for_reading`):
+    si no la cumple, no se lee. El mensaje de error jamas incluye el contenido.
     """
     if password_file == STDIN_SENTINEL:
         secreto = sys.stdin.readline().rstrip("\n")
@@ -108,16 +110,23 @@ def read_secret(password_file: str) -> str:
         return secreto
 
     ruta = Path(password_file)
+    # POLITICA UNICA de lectura de secretos: la de la AUTORIDAD (service_state), la misma que
+    # deja el despliegue (root:<grupo de servicio> 0640) o el propio usuario con 0600.
     try:
-        modo = ruta.stat().st_mode
+        from . import service_state  # noqa: PLC0415
+    except ImportError:  # modulo cargado fuera del paquete
+        from knowledge_v3 import service_state  # type: ignore  # noqa: PLC0415
+    try:
+        ruta.stat()
     except OSError as exc:
         raise DriverConfigError(
             f"no se pudo leer el fichero de contrasena {password_file!r}: {exc.strerror}"
         ) from exc
-    if modo & (stat.S_IRWXG | stat.S_IRWXO):
+    incumplimientos = service_state.inspect_secret_for_reading(ruta)
+    if incumplimientos:
         raise DriverConfigError(
-            f"el fichero de contrasena {password_file!r} es accesible por grupo u "
-            "otros: hazlo 0600 antes de usarlo"
+            f"el fichero de contrasena {password_file!r} no cumple la politica SECRET: "
+            + "; ".join(v.detail for v in incumplimientos)
         )
     secreto = ruta.read_text(encoding="utf-8").rstrip("\n")
     if not secreto:

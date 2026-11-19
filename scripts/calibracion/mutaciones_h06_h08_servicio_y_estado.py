@@ -95,9 +95,15 @@ T_VAULT = "viewer/tests/test_h06_h08_vault_no_escribible.py"
 T_RESP = "viewer/tests/test_h06_h08_vault_respaldo.py"
 T_CRIT = "viewer/tests/test_h06_h08_vault_criterios.py"
 T_VSTATE = "deploy/tests/test_h06_h08_vault_state.py"
+# Equipo de deudas P2/P3 (B2): D-8 (restos `.migrando-*`) y D-2 (declaracion del sandbox).
+T_B2_D8 = "deploy/tests/test_b2_d8_restos_de_migracion.py"
+T_B2_D2 = "deploy/tests/test_b2_d2_declaracion_sandbox.py"
+T_B2_SEC = "deploy/tests/test_b2_secretos_politica_unica.py"
+DRIVER_NEO4J = "data-engine/app/knowledge_v3/driver_neo4j.py"
 T_D1 = "viewer/tests/test_salud_d1_carrera_state_runtime.py"
 T_D4 = "viewer/tests/test_salud_d4_boveda_limite.py"
-TESTIGOS = [T_DEPLOY, T_INV, T_C1, T_DE, T_VIEWER, T_CLI, T_R2, T_VAULT, T_RESP, T_CRIT, T_VSTATE, T_D1, T_D4]
+TESTIGOS = [T_DEPLOY, T_INV, T_C1, T_DE, T_VIEWER, T_CLI, T_R2, T_VAULT, T_RESP, T_CRIT, T_VSTATE, T_B2_D8, T_B2_D2, T_B2_SEC,
+            T_D1, T_D4]
 
 U_VISOR = "viewer/systemd/s9-knowledge-viewer.service"
 U_WORKER = "data-engine/systemd/s9-knowledge-worker.service"
@@ -632,6 +638,102 @@ def _m51_lost_found_cualquiera(t):
 
 
 #: (nombre, fichero mutado, mutador, testigo, {prueba: fragmento de la causa})
+
+# --- B2 (deudas P2/P3): D-8 y D-2 -----------------------------------------------
+def _mb2_1_resto_sin_demostrar(t):
+    return mutar_en_funcion(t, "_tratar_restos_de_migracion",
+                            '        if prueba is None:\n            raise Parada("RESTO_DE_MIGRACION", "%s parece',
+                            '        if False:\n            raise Parada("RESTO_DE_MIGRACION", "%s parece')
+
+
+def _mb2_2_sin_tratar_restos(t):
+    return mutar_en_funcion(t, "aplicar",
+                            "        _tratar_restos_de_migracion(state_root, rutas, fuentes, uid, ss.ADMIN_SUBTREES, res)\n",
+                            "        pass\n")
+
+
+def _mb2_3_ignora_otra_migracion_viva(t):
+    return mutar_en_funcion(t, "_tratar_restos_de_migracion",
+                            "        if _pid_vivo_migrando(pid) and pid != os.getpid():\n",
+                            "        if False:\n")
+
+
+def _mb2_4_ignora_el_dueno(t):
+    return mutar_en_funcion(t, "_tratar_restos_de_migracion",
+                            "        if st.st_uid not in (0, uid):\n", "        if False:\n")
+
+
+def _mb2_5_prefijo_siempre_cierto(t):
+    return mutar_en_funcion(t, "_es_prefijo_de",
+                            "                if b.read(len(x)) != x:\n                    return False\n",
+                            "                if False:\n                    return False\n")
+
+
+def _mb2_6_arranque_sin_pista_del_resto(t):
+    return mutar_en_funcion(t, "format_violations",
+                            "        if pista:\n", "        if False:\n")
+
+
+def _mb2_7_validate_env_ignora_la_declaracion(t):
+    return mutar_en_funcion(t, "inspect_vault_declaration_env",
+                            '    if (env.get(var) or "").strip():\n', "    if False:\n")
+
+
+def _mb2_8_unidad_de_visor_pasa_como_healthcheck(t):
+    return mutar_en_funcion(t, "inspect_unit_vault_declaration",
+                            '    if rol in ("viewer", "worker"):\n', "    if False:\n")
+
+
+def _mb2_9_sandbox_siempre_vacio(t):
+    return mutar_en_funcion(t, "sandbox_de_ficheros", "    return vistas\n", "    return []\n")
+
+
+def _mb2_10_envfile_compartido_permitido(t):
+    return mutar_unico(
+        t, "            if grep -vE '^[[:space:]]*#' \"${f}\" | grep -qE \"^[[:space:]]*(export[[:space:]]+)?${decl_var}=\"; then\n",
+        "            if false; then\n")
+
+
+def _mb2_11_sin_exigir_sandbox_efectivo(t):
+    return mutar_unico(t, '        if [ "${es_salud}" -eq 1 ] && [ "${declarada}" -eq 1 ]; then\n',
+                       "        if false; then\n")
+
+
+def _mb2_12_todo_es_healthcheck(t):
+    return mutar_unico(t, '        es_salud=0; [ "${unit}" = "${HEALTH_UNIT_NAME}" ] && es_salud=1\n',
+                       "        es_salud=1\n")
+
+
+def _mb2_13_validate_deploy_sin_rol(t):
+    return mutar_unico(t, '    [ -z "${rol}" ] || rol_arg=(--rol "${rol}")\n', "    :\n")
+
+
+def _mb2_s1_rechaza_0640(t):
+    return mutar_en_funcion(t, "secret_read_violations", "    if m & 0o007:\n", "    if m & 0o077:\n")
+
+
+def _mb2_s2_acepta_escritura_de_grupo(t):
+    return mutar_en_funcion(t, "secret_read_violations", "    if m & 0o020:\n", "    if False:\n")
+
+
+def _mb2_s3_acepta_grupo_ajeno(t):
+    return mutar_en_funcion(t, "secret_read_violations",
+                            "        if uid != 0 or service_gid is None or gid != service_gid:\n",
+                            "        if False:\n")
+
+
+def _mb2_s4_lector_con_su_propia_cifra(t):
+    return mutar_en_funcion(
+        t, "read_secret",
+        "    incumplimientos = service_state.inspect_secret_for_reading(ruta)\n",
+        "    incumplimientos = ([service_state.Violation('MODE', 'x', 'grupo')]"
+        " if ruta.stat().st_mode & (stat.S_IRWXG | stat.S_IRWXO) else [])\n")
+
+
+def _mb2_s5_acepta_vacio(t):
+    return mutar_en_funcion(t, "secret_read_violations", "    if size == 0:\n", "    if False:\n")
+
+
 MUTACIONES = [
     ("M1 — el visor vuelve a correr como root (User=root)",
      U_VISOR, _m1_visor_root, T_DEPLOY,
@@ -848,6 +950,70 @@ MUTACIONES = [
     ("M64 — (B-1) STATE_VALIDATION vuelve a presentarse como «STATE OK» (inspeccion)",
      HEALTH_CHECKS, _m64_state_validation_como_inspeccion, T_CRIT,
      {"test_B1_STATE_VALIDATION_no_se_presenta_como_inspeccion_completa": "STATE OK: estado inspeccionado"}),
+    # ---- B2 (deudas P2/P3): D-8 restos `.migrando-*` y D-2 declaracion del sandbox --------
+    ("MB2-1 — (D-8) un resto no demostrable se retira igualmente (podria ser el unico ejemplar)",
+     MIGRAR, _mb2_1_resto_sin_demostrar, T_B2_D8,
+     {"test_D8_resto_con_contenido_que_no_se_demuestra_redundante_PARA_y_no_se_toca": "NO PARO"}),
+    ("MB2-2 — (D-8) la migracion no mira los restos de una ejecucion interrumpida",
+     MIGRAR, _mb2_2_sin_tratar_restos, T_B2_D8,
+     {"test_D8_SIGKILL_real_deja_un_resto_y_la_siguiente_ejecucion_lo_retira_y_lo_dice": "SIN LINEA RESTO",
+      "test_D8_resto_con_contenido_que_no_se_demuestra_redundante_PARA_y_no_se_toca": "NO PARO"}),
+    ("MB2-3 — (D-8) otra migracion VIVA dueña del temporal se ignora",
+     MIGRAR, _mb2_3_ignora_otra_migracion_viva, T_B2_D8,
+     {"test_D8_otra_migracion_viva_dueña_del_resto_PARA": "NO PARO"}),
+    ("MB2-4 — (D-8) un temporal de dueño ajeno se retira",
+     MIGRAR, _mb2_4_ignora_el_dueno, T_B2_D8,
+     {"test_D8_resto_de_dueno_ajeno_PARA": "NO PARO"}),
+    ("MB2-5 — (D-8) «es prefijo» siempre cierto: se retira contenido que NO es copia",
+     MIGRAR, _mb2_5_prefijo_siempre_cierto, T_B2_D8,
+     {"test_D8_resto_con_contenido_que_no_se_demuestra_redundante_PARA_y_no_se_toca": "NO PARO",
+      "test_D8_el_stop_no_revela_contenido_del_resto": "NO PARO"}),
+    ("MB2-6 — (D-8) el arranque deja de nombrar el resto de migracion en su diagnostico",
+     SERVICE_STATE, _mb2_6_arranque_sin_pista_del_resto, T_B2_D8,
+     {"test_D8_el_diagnostico_de_arranque_nombra_el_resto": "resto de una migracion interrumpida"}),
+    ("MB2-7 — (D-2) validate-env deja pasar la declaracion del sandbox en viewer.env/worker.env",
+     SERVICE_STATE, _mb2_7_validate_env_ignora_la_declaracion, T_B2_D2,
+     {"test_D2_validate_env_rechaza_la_declaracion_y_nombra_variable_y_donde_se_permite[viewer]": "NO RECHAZA la declaracion",
+      "test_D2_validate_env_rechaza_la_declaracion_y_nombra_variable_y_donde_se_permite[worker]": "NO RECHAZA la declaracion"}),
+    ("MB2-8 — (D-2) la unidad del visor/worker se trata como la del healthcheck",
+     SERVICE_STATE, _mb2_8_unidad_de_visor_pasa_como_healthcheck, T_B2_D2,
+     {"test_D2_una_unidad_de_visor_o_worker_con_la_declaracion_se_rechaza[viewer-unidad0]": "NO dice que solo es legitima",
+      "test_D2_una_unidad_de_visor_o_worker_con_la_declaracion_se_rechaza[worker-unidad1]": "NO dice que solo es legitima"}),
+    ("MB2-9 — (D-2) el sandbox de ficheros nunca se detecta",
+     SERVICE_STATE, _mb2_9_sandbox_siempre_vacio, T_B2_D2,
+     {"test_D2_las_unidades_canonicas_cumplen": "NO tiene sandbox",
+      "test_D2_efectivo_la_unidad_del_healthcheck_con_declaracion_y_sandbox_pasa": "RC=1"}),
+    ("MB2-10 — (D-2) un EnvironmentFile compartido puede llevar la declaracion",
+     LIB_SH, _mb2_10_envfile_compartido_permitido, T_B2_D2,
+     {"test_D2_efectivo_EnvironmentFile_compartido_con_la_declaracion_PARA_tambien_en_el_healthcheck": "RC=0"}),
+    ("MB2-11 — (D-2) la declaracion del healthcheck ya no exige sandbox efectivo",
+     LIB_SH, _mb2_11_sin_exigir_sandbox_efectivo, T_B2_D2,
+     {"test_D2_efectivo_healthcheck_con_declaracion_y_sin_sandbox_efectivo_PARA": "RC=0"}),
+    ("MB2-12 — (D-2) toda unidad se trata como la del healthcheck (Environment efectivo)",
+     LIB_SH, _mb2_12_todo_es_healthcheck, T_B2_D2,
+     {"test_D2_efectivo_Environment_de_visor_o_worker_con_la_declaracion_PARA[s9-knowledge-viewer.service]": "RC=0",
+      "test_D2_efectivo_Environment_de_visor_o_worker_con_la_declaracion_PARA[s9-knowledge-worker.service]": "RC=0"}),
+    ("MB2-13 — (D-2) validate_deploy.sh no pasa el rol a la autoridad",
+     "deploy/scripts/validate_deploy.sh", _mb2_13_validate_deploy_sin_rol, T_B2_D2,
+     {"test_D2_validate_deploy_sh_pasa_el_rol_a_la_autoridad": "(0,"}),
+    # ---- secretos: UNA politica de lectura (autoridad) ------------------------------------
+    ("MB2-S1 — (SECRETO) se vuelve a rechazar el 0640 root:s9knowledge que deja el despliegue",
+     SERVICE_STATE, _mb2_s1_rechaza_0640, T_B2_SEC,
+     {"test_politica_acepta[416-0-4242]": "OTROS", "test_COSTURA_el_modo_y_el_dueno_que_deja_preparar_secretos_los_acepta_el_lector": "OTROS",
+      "test_read_secret_acepta_root_grupo_de_servicio_0640": "OTROS"}),
+    ("MB2-S2 — (SECRETO) la politica acepta que el grupo ESCRIBA el secreto",
+     SERVICE_STATE, _mb2_s2_acepta_escritura_de_grupo, T_B2_SEC,
+     {"test_politica_rechaza[432-0-4242-ESCRIBIR]": "no detecta ESCRIBIR"}),
+    ("MB2-S3 — (SECRETO) la politica acepta un grupo ajeno con bits de grupo",
+     SERVICE_STATE, _mb2_s3_acepta_grupo_ajeno, T_B2_SEC,
+     {"test_politica_rechaza[416-0-4343-root:s9knowledge]": "no detecta root:s9knowledge"}),
+    ("MB2-S4 — (SECRETO) el lector recupera su propia cifra (rechaza todo bit de grupo)",
+     DRIVER_NEO4J, _mb2_s4_lector_con_su_propia_cifra, T_B2_SEC,
+     {"test_read_secret_acepta_root_grupo_de_servicio_0640": "grupo",
+      "test_COSTURA_el_lector_no_conserva_su_propia_cifra_de_modos": "S_IRWXG"}),
+    ("MB2-S5 — (SECRETO) la politica acepta un secreto vacio",
+     SERVICE_STATE, _mb2_s5_acepta_vacio, T_B2_SEC,
+     {"test_politica_rechaza_vacio_y_no_regular": "no detecta vacio"}),
     # ---- deudas de salud (carril b1-salud) ----------------------------------------
     ("M65 — (D-1) ENOENT al inspeccionar una entrada ya listada vuelve a ser hallazgo (falso UNHEALTHY)",
      SERVICE_STATE, _m65_d1_enoent_del_stat_es_hallazgo, T_D1,
@@ -869,9 +1035,21 @@ MUTACIONES = [
 ]
 
 
+def _seleccion() -> tuple:
+    """`--solo PREFIJO`: solo las mutaciones cuyo nombre empieza asi (y los testigos que usan)."""
+    args = sys.argv[1:]
+    if "--solo" not in args:
+        return MUTACIONES, TESTIGOS
+    prefijo = args[args.index("--solo") + 1]
+    muts = [m for m in MUTACIONES if m[0].startswith(prefijo)]
+    testigos = [t for t in TESTIGOS if any(m[3] == t for m in muts)]
+    return muts, testigos
+
+
 def main() -> int:
     if "--solo-aplicar" in sys.argv[1:]:
         return _solo_aplicar()
+    mutaciones, testigos = _seleccion()
     inicio = time.monotonic()
     if not _arbol_limpio_tracked():
         print("ABORTA: el árbol tracked no está limpio. Commitea antes de calibrar "
@@ -880,7 +1058,7 @@ def main() -> int:
 
     # Base: cada testigo en su propio proceso. Se admiten skips (setfacl, root...) pero
     # tiene que haberse EJECUTADO algo y sin errores ni rojos.
-    for testigo in TESTIGOS:
+    for testigo in testigos:
         rc, salida = _correr(testigo)
         cifras = _recuento(salida)
         if rc != 0 or not _ejecutado_de_verdad(cifras, permite_skip=True):
@@ -892,7 +1070,7 @@ def main() -> int:
     print()
 
     veredictos = []
-    for nombre, fichero, mutador, testigo, esperadas in MUTACIONES:
+    for nombre, fichero, mutador, testigo, esperadas in mutaciones:
         f = RAIZ / fichero
         original = f.read_text(encoding="utf-8")
         mutado = mutador(original)
@@ -936,8 +1114,8 @@ def main() -> int:
     for nombre, v in veredictos:
         print("  %-14s %s" % (v, nombre))
     total = sum(1 for _, v in veredictos if v == "CALIBRADA")
-    print("  TOTAL: %d/%d  (%.0f s)" % (total, len(MUTACIONES), time.monotonic() - inicio))
-    return 0 if total == len(MUTACIONES) else 1
+    print("  TOTAL: %d/%d  (%.0f s)" % (total, len(mutaciones), time.monotonic() - inicio))
+    return 0 if total == len(mutaciones) else 1
 
 
 def _solo_aplicar() -> int:
