@@ -1489,6 +1489,21 @@ jobs:
           S9K_ALLOW_REAL_INGEST: ""
         run: python3 scripts/calibracion/mutaciones_h06_h08_servicio_y_estado.py
 
+      # RC1-G02 (primera RC-E2E) — un fallo de credencial del grafo dice su causa
+      # REAL (`GRAPH_CREDENTIAL_UNUSABLE` con la ruta y el motivo, nunca el
+      # secreto), es permanente, el worker rellena `error_code`, y ese codigo
+      # nunca queda RANCIO: `error_code` y `error_message` se escriben y se
+      # limpian juntos en todas las transiciones de `job_store`. Cada rojo con
+      # su CAUSA (texto del fallo comprobado); restauracion por `git checkout`.
+      # EN SERIE con el resto de calibradores.
+      #
+      # TECHO: no ejerce el usuario de servicio real ni Neo4j (RC-E2E PENDING).
+      - name: "El fallo de credencial del grafo dice su causa real y su codigo no queda rancio: se pone ROJO ante cada defecto (RC1-G02)"
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          S9K_ALLOW_REAL_INGEST: ""
+        run: python3 scripts/calibracion/mutaciones_rc1_g02_credencial_veraz.py
+
       # MICROCARRIL DE SANEAMIENTO DE INSTRUMENTOS — los cuatro
       # `scripts/calibrar_panel_*.py`. Son los arneses de los cuatro paneles
       # del chasis (B operations, C review, F sources, G entities): cada uno
