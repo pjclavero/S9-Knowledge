@@ -7,9 +7,9 @@ correcciones hechas tras la RC-1 y cubrir las regresiones de
 [`93-rc-e2e-1-resultados.md`](93-rc-e2e-1-resultados.md) §8.
 
 > **Veredicto: NO VERIFIED.** La revisión adversarial independiente de la ronda dio **NO APTO** (§8). Varias
-> regresiones del documento 93 no se cumplen o no se ejecutaron, y hay cuatro hallazgos del producto: tres
-> se corrigieron en `main` **después** de la prueba (§7) y **no están verificados por efecto**; el cuarto
-> (RC2-02) sigue abierto. Esta ronda no promociona ningún hito a VERIFIED de RC. Hace falta
+> regresiones del documento 93 no se cumplen o no se ejecutaron, y hay cinco hallazgos del producto: tres
+> se corrigieron en `main` **después** de la prueba (§7) y **no están verificados por efecto**; RC2-02 y
+> RC2-05 siguen abiertos (RC2-05, sin clasificar). Esta ronda no promociona ningún hito a VERIFIED de RC. Hace falta
 > una tercera ronda (§10).
 >
 > «VERIFIED en laboratorio» no es «VERIFIED en producción», y aquí **ni siquiera hay VERIFIED en
@@ -103,7 +103,7 @@ no traen una tabla explícita.
 | E9 Credenciales inutilizables (RC1-G02) | E9 (parte) | **PASS por efecto** | Secreto ausente, vacío, 0644 y 0660 → job `failed` con `error_code=GRAPH_CREDENTIAL_UNUSABLE`, mensaje con la ruta y el motivo, sin el secreto, sin la frase «no tiene declarada» y con un solo intento. Fallo reintentable (grafo parado) → `pending` con `GRAPH_OBSERVATION_UNAVAILABLE`; al volver el grafo, **el mismo job** termina `complete` con `error_code` y `error_message` vacíos |
 | E10 Bóveda externa | E10 | **PARCIAL** | 8/0 más escenario H del repositorio (≈59 PASS, con el sandbox real del healthcheck). NO EJECUTADO: la parte web (409/éxito, `/admin/health`) |
 | E11 Backup y restauración | E11 | **PARCIAL** | Estado: 21/0 con copia en frío, **sin herramienta del producto** (no existe). Grafo (7 PASS / 3 FAIL): 19 nodos antes; volcado offline, marcador posterior y carga offline hechos. **NO EJECUTADO: la verificación tras la carga** (mismos nodos, marcador ausente, el worker sigue leyendo): la guarda impidió volver a arrancar Neo4j y después se decidió no arrancarlo más (RC2-E3). **El grafo restaurado quedó sin verificar** |
-| E12 Parada, arranque y RC1-06 | E5 | **PASS por efecto** (auto) | 18/0. RC1-06 con systemd real y control discriminante: con `864041d` el bucle de reinicios se detiene (0 arranques en 30 s); con la función de `b4e396d` no (3 arranques, `NRestarts` 1→4). Es una **medida corta y única**: 30 s sobre la función real de parada, no un despliegue completo con migración. Hubo seis corridas; sólo la última es válida (6/0). En dos anteriores el control con la función de `b4e396d` **no** reprodujo el defecto: sólo lo reproduce si la llamada cae en el hueco de `auto-restart` |
+| E12 Parada, arranque y RC1-06 | E5 | **PASS por efecto** (auto) | 18/0. RC1-06 con systemd real y control discriminante: con `864041d` el bucle de reinicios se detiene (0 arranques en 30 s); con la función de `b4e396d` no (3 arranques, `NRestarts` 1→4). Es una **medida corta y única**: 30 s sobre la función real de parada, no un despliegue completo con migración. Hubo seis corridas; sólo la última es válida (6/0). En la primera, el aserto sobre el sujeto dio FAIL por un defecto de medida del ejecutor (R-07). En otras dos el control con la función de `b4e396d` **no** reprodujo el defecto: sólo lo reproduce si la llamada cae en el hueco de `auto-restart` |
 | E13 Recuperación ante fallos | E12 | **PARCIAL** | 70/0: STOP en 2b y 2c y BLOCK en el paso 3 con los servicios vivos y el mismo PID (en N14, sólo el worker), sin llegar al 3b, estado intacto y convergencia al restaurar. **NO EJECUTADO:** N8, N10 y N11 (manuales). N12 no producible sin degradar el producto |
 | E14 Idempotencia y reinicio | E13 + E14 | **PASS por efecto** (auto) | Dos upgrades idénticos 28/0. Reinicio real de la máquina, autorizado: **al primer intento y sin intervención**, 14/0 (identificador de arranque nuevo, visor, worker y nginx arriba solos, identidad y privilegios, estado, HTTPS verificado, GATE B de persistencia, setup 404) más sesión HTTP real 5/0 al segundo intento (el primero dio 4/1 por un fallo de la sonda). Ansible y navegador fuera de la variante |
 
@@ -119,7 +119,7 @@ de cierre, salvo en las filas 1, 2, 3, 9 y 10, donde este documento es más estr
 | # | Regresión | Veredicto | Evidencia o motivo |
 |---|---|---|---|
 | 1 | Worker y CLIs leen el secreto 0640 | **Demostrada (worker) · NO cumplida (CLI)** | Jobs `complete` por el worker real. `writer-schema verify` lee el secreto y autentica, pero sale con rc 2 porque el rol de sólo lectura documentado no puede listar restricciones (RC2-02). La regresión pedía rc 0 |
-| 2 | Ingesta más allá de la observación del grafo | **Parcial** | La cadena panel → `complete` → revisión → sellado → APPLY → resultado → procedencia se recorrió **una vez**, por HTTP y no por navegador, y dejó 3 entidades y 2 hechos; **0 relaciones** (`PLAN_SEALED_SIN_PROYECCION`). No consta que la presión sea la causa: es el comportamiento del producto en una primera ingesta (RC2-05). El ejecutor declaró ese sellado no aceptable y la repetición falló. Decisiones enviadas con una sonda defectuosa (§4, §8) |
+| 2 | Ingesta más allá de la observación del grafo | **Parcial** | La cadena panel → `complete` → revisión → sellado → APPLY → resultado → procedencia se recorrió **una vez**, por HTTP y no por navegador, y dejó 3 entidades y 2 hechos; **0 relaciones** (`PLAN_SEALED_SIN_PROYECCION`). No consta que la presión sea la causa: la lectura del código lo atribuye al comportamiento del producto en una primera ingesta (RC2-05, causa no medida). El ejecutor declaró ese sellado no aceptable y la repetición falló. Decisiones enviadas con una sonda defectuosa (§4, §8) |
 | 3 | Parada de un servicio en bucle de reinicios | **Demostrada una vez** (medida corta) | 6/0 con control discriminante en la única corrida válida de seis; ventana de 30 s tras la función de parada, **sin migración** (la regresión pedía que `NRestarts` no subiera durante la migración) |
 | 4 | STOP de configuración antes de parar | **Demostrada** | URL pública ausente o `http://`, secreto en variable y secreto vacío → STOP en 2c; mismos PID, meta idéntica |
 | 5 | STOP sin almacén antes de parar | **Demostrada** | Legacy viva con el mismo PID, 0 ficheros `*.migrado-*` |
@@ -148,7 +148,7 @@ N11.
 
 ## 6. Hallazgos
 
-Clasificación provisional del informe. No hay P0 ni P1 del producto en esta ronda. Una revisión independiente de este documento considera defendible **P2** para RC2-02 (incumple una regresión explícita) y para RC2-04 (misma clase que RC1-G03, que el documento 93 clasificó P2); aquí no se reclasifican.
+Clasificación provisional del informe. No hay P0 ni P1 entre los hallazgos clasificados; RC2-05 está sin clasificar. Una revisión independiente de este documento considera defendible **P2** para RC2-02 (incumple una regresión explícita) y para RC2-04 (misma clase que RC1-G03, que el documento 93 clasificó P2); aquí no se reclasifican.
 
 | Id | Sev. | Nuevo o reaparición | Qué es | Estado de la corrección |
 |---|---|---|---|---|
@@ -211,9 +211,9 @@ Clasificación provisional del informe. No hay P0 ni P1 del producto en esta ron
 
 ### 6.5 RC2-05 (sin clasificar): la primera ingesta no proyecta relaciones
 
-- **Observado en E8:** el sellado devolvió `PLAN_SEALED_SIN_PROYECCION` y el resultado mostró «Relaciones añadidas (0)», con 3 entidades y 2 hechos.
-- **Causa por lectura (no medida en esta ronda):** las anclas de estado de los extremos salen del snapshot de la corrida; una entidad que no estaba en el grafo al ingerir —toda la primera ingesta de una instalación, o un alta aprobada en la misma revisión— no tiene ancla, y la proyección se omite con `PROJECTION_NO_ANCHOR`. Es un límite que `docs/92` ya declaraba.
-- **Lo que no se sostiene:** `docs/92` afirmaba que una segunda ingesta de la misma fuente proyecta la relación. No hay testigo que lo ejerza y la revisión de #294 concluye por lectura que por el camino web no ocurre. Esa afirmación se retiró en #294.
+- **Observado en E8:** el sellado devolvió `PLAN_SEALED_SIN_PROYECCION` y el resultado mostró «Relaciones añadidas (0)», con 3 entidades y 2 hechos. El registro del visor anotó `PROJECTION_NO_ANCHOR` para las 2 operaciones del sellado. Un dato de la misma evidencia queda **sin explicar**: la pantalla del sellado decía «enlaces a entidades existentes: 9».
+- **Causa por lectura (no medida en esta ronda):** las anclas de estado de los extremos salen del snapshot de la corrida; una entidad que no estaba en el grafo al ingerir —toda la primera ingesta de una instalación, o un alta aprobada en la misma revisión— no tiene ancla, y la proyección se omite con `PROJECTION_NO_ANCHOR`. Es un límite que `docs/92` ya declaraba para las altas; #294 lo extiende, por lectura, a toda primera ingesta.
+- **Lo que no se sostiene:** `docs/92` afirmaba que una segunda ingesta de la misma fuente «sí puede» proyectar la relación. No hay testigo que lo ejerza y la revisión de #294 concluye por lectura que por el camino web no ocurre. #294 sustituyó esa afirmación por una nota de corrección.
 - **No es un artefacto de entorno:** el informe de cierre lo anotó junto al episodio de presión; la evidencia del sellado no muestra síntoma de presión.
 - **Decisión pendiente del operador:** anclar las altas del mismo plan, o declararlo como límite con un aviso propio y un camino documentado y probado para proyectar después.
 
@@ -270,9 +270,9 @@ Clasificación provisional del informe. No hay P0 ni P1 del producto en esta ron
 - **N8, N10 y N11** (manuales). **N12** no es producible sin degradar el producto.
 - **Aislamiento negativo de E8** (8.M9 del contrato).
 - **E11, verificación del grafo tras la carga.**
-- **Repetición del sellado y del APPLY de E8** con una sonda correcta: exige reiniciar el almacén de revisión
-  y el grafo, y no se hizo por la decisión de no volver a arrancar Neo4j. Repetirlo no haría aparecer
-  relaciones mientras RC2-05 siga abierto.
+- **Repetición del sellado y del APPLY de E8** con una sonda correcta: se intentó una vez sin éxito (segunda corrida de E8, §4) y no se repitió; exige reiniciar el almacén de revisión
+  y el grafo, y no se hizo por la decisión de no volver a arrancar Neo4j. Previsiblemente, por lectura del
+  código, repetirlo no haría aparecer relaciones mientras RC2-05 siga abierto.
 - **Tope de 5 s del sondeo de bóveda** con un montaje colgado (regresión 10).
 - **Python anterior a 3.12 real** (regresión 11): sólo simulado.
 - **Copia de producción como legacy:** no autorizada.
@@ -316,7 +316,7 @@ Observaciones de entorno (**no son defectos del producto**):
   sostenidas en verde de la guarda) fue seguido, a los tres minutos, de paginación en el hipervisor y, a las
   06:50, de **2 soft lockups en otra máquina del mismo hipervisor**. Neo4j se paró a mano antes de que
   llegara a responder. Con este son **4 de 5 episodios de presión que empiezan a los pocos minutos de un
-  arranque de Neo4j** en el laboratorio; el único sin Neo4j fue RC2-E1. El quinto episodio (hacia las 05:25 UTC, tras la carga del grafo) sólo consta en los hallazgos del ejecutor y en el rechazo de la guarda al arranque posterior. Visto desde el otro lado: el registro del ejecutor anota **6 arranques, y 2 de ellos no fueron seguidos de ningún episodio**. Es una **correlación, no una
+  arranque de Neo4j** en el laboratorio; el único sin Neo4j fue RC2-E1. El episodio de las 05:25 UTC (tras el arranque posterior al volcado del grafo) sólo consta en los hallazgos del ejecutor y en el rechazo de la guarda al arranque posterior a la carga. Visto desde el otro lado: el registro del ejecutor anota **6 arranques**; los dos primeros, separados tres minutos, comparten un episodio, y **el de las 05:11 no fue seguido de ninguno**. Es una **correlación, no una
   causalidad demostrada**. El mecanismo propuesto en el informe (la JVM toca de golpe la memoria del
   contenedor y el hipervisor tiene que respaldarla) es plausible y **no está demostrado**.
 - **Consecuencia:** **no se vuelve a arrancar Neo4j en el laboratorio sin una decisión del operador.**
@@ -332,6 +332,6 @@ Observaciones de entorno (**no son defectos del producto**):
 El laboratorio quedó con el sujeto `864041d` instalado y funcionando tras el reinicio: visor, worker y nginx
 activos, `INSTALLATION_COMPLETE`, estado conforme y el proveedor de grafo sin configurar. Neo4j: contenedor
 **parado y eliminado**, datos de laboratorio borrados; queda la imagen, que venía preinstalada. Ninguna otra
-máquina se tocó: la guarda de presión sólo **leyó** el estado del hipervisor y de otra máquina.
+máquina se tocó: según el ejecutor, la guarda de presión sólo **leyó** el estado del hipervisor y de otra máquina; no se conservó su registro.
 
 **Producción: no se ha tocado ni actualizado.** Este documento no afirma nada más sobre producción.
