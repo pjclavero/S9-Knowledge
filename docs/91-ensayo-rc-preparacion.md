@@ -44,13 +44,22 @@ propuestas, que se borra — **la única forma de saber si el escritor podrá
 escribir es escribir**.
 
 ```
-python3 deploy/scripts/preflight_ensayo_rc.py --workspace <ws>
+<release>/viewer/.venv/bin/python deploy/scripts/preflight_ensayo_rc.py --workspace <ws>
 
 0 = todas VERDE      -> el ensayo puede empezar
 1 = alguna PENDIENTE -> NO empezar: hay algo que NO SE PUDO MIRAR
 2 = alguna ROJA      -> NO empezar: requisito incumplido
 3 = instrumental inválido (el canario no dio rojo)
 ```
+
+**Con qué intérprete se ejecuta.** Con el del venv del visor de la release
+(`<release>/viewer/.venv/bin/python`, p. ej. `/opt/s9-knowledge/current/viewer/.venv/bin/python`),
+no con el `python3` del sistema: los puntos que cargan módulos del producto
+(`fuentes.pobladas`, `aislamiento.workspace`) necesitan sus dependencias. Un
+**PENDIENTE** con `ModuleNotFoundError` («no se pudo cargar el catálogo») **no
+es un fallo del producto: es un punto que no se midió** por usar el intérprete
+equivocado. Vuelve a ejecutarlo con el del venv antes de dar el ensayo por
+listo; mientras quede PENDIENTE el resultado es 1 y el ensayo no empieza.
 
 | Punto | Cómo se observa | Calibrado |
 | --- | --- | --- |

@@ -242,6 +242,11 @@ CATALOGO: dict[str, str] = {
         "Este despliegue no tiene declarada la conexion al grafo, asi que la "
         "ingesta no puede comprobar contra el que existe lo que va a proponer. "
         "No se ha ingerido nada. Avisa a quien administra el servicio.",
+    "GRAPH_CREDENTIAL_UNUSABLE":
+        "La conexion al grafo esta declarada, pero el fichero con su "
+        "credencial no se puede usar, asi que la ingesta no puede comprobar "
+        "contra el grafo lo que va a proponer. No se ha ingerido nada. Avisa "
+        "a quien administra el servicio.",
     "GRAPH_OBSERVATION_UNAVAILABLE":
         "No se ha podido consultar el grafo, asi que la ingesta no puede "
         "comprobar contra el que existe lo que va a proponer. No se ha "
