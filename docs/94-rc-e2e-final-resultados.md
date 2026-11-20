@@ -7,8 +7,9 @@ correcciones hechas tras la RC-1 y cubrir las regresiones de
 [`93-rc-e2e-1-resultados.md`](93-rc-e2e-1-resultados.md) §8.
 
 > **Veredicto: NO VERIFIED.** La revisión adversarial independiente de la ronda dio **NO APTO** (§8). Varias
-> regresiones del documento 93 no se cumplen o no se ejecutaron, y hay cuatro hallazgos del producto abiertos
-> cuyas correcciones **no están mergeadas**. Esta ronda no promociona ningún hito a VERIFIED de RC. Hace falta
+> regresiones del documento 93 no se cumplen o no se ejecutaron, y hay cuatro hallazgos del producto: tres
+> se corrigieron en `main` **después** de la prueba (§7) y **no están verificados por efecto**; el cuarto
+> (RC2-02) sigue abierto. Esta ronda no promociona ningún hito a VERIFIED de RC. Hace falta
 > una tercera ronda (§10).
 >
 > «VERIFIED en laboratorio» no es «VERIFIED en producción», y aquí **ni siquiera hay VERIFIED en
@@ -150,10 +151,10 @@ Clasificación provisional del informe. No hay P0 ni P1 del producto en esta ron
 
 | Id | Sev. | Nuevo o reaparición | Qué es | Estado de la corrección |
 |---|---|---|---|---|
-| RC2-01 | P3 | reaparición de RC1-01 | `preflight.sh --environment production` bloquea (rc 2) una máquina limpia | **abierto**; en #293 (draft, sin mergear) |
+| RC2-01 | P3 | reaparición de RC1-01 | `preflight.sh --environment production` bloquea (rc 2) una máquina limpia | corregido en `main` (#293 → `84518ac`), **sin verificar por efecto**: lo tiene que repetir la tercera ronda |
 | RC2-02 | P3 (documentación o rol) | nuevo | `writer-schema verify` por el camino canónico no puede dar rc 0 con el rol de sólo lectura documentado | **abierto**; decisión pendiente; sin PR |
-| RC2-03 | P3 | reaparición de RC1-G04 | `preflight_ensayo_rc` no carga el catálogo ni con el intérprete del entorno virtual de la release | **abierto**; en #293 (draft, sin mergear) |
-| RC2-04 | P3 (rojo por la causa equivocada) | nuevo | `fuentes.pobladas` mide el catálogo plano e ignora la raíz de bóvedas: rojo falso en un despliegue con bóveda | **abierto**; en #293 (draft, sin mergear) |
+| RC2-03 | P3 | reaparición de RC1-G04 | `preflight_ensayo_rc` no carga el catálogo ni con el intérprete del entorno virtual de la release | corregido en `main` (#293 → `84518ac`), **sin verificar por efecto**: lo tiene que repetir la tercera ronda |
+| RC2-04 | P3 (rojo por la causa equivocada) | nuevo | `fuentes.pobladas` mide el catálogo plano e ignora la raíz de bóvedas: rojo falso en un despliegue con bóveda | corregido en `main` (#293 → `84518ac`), **sin verificar por efecto**: lo tiene que repetir la tercera ronda |
 | RC2-E1, RC2-E2, RC2-E3 | entorno | — | Presión del hipervisor (§11); no son defectos del producto | — |
 
 ### 6.1 RC2-01 (P3): `preflight.sh` bloquea la primera instalación
@@ -220,13 +221,13 @@ Clasificación provisional del informe. No hay P0 ni P1 del producto en esta ron
 | #291 | `864041d` | RC1-G02 y documentación de RC1-02 y RC1-G04 — **sujeto de esta ronda** |
 | #292 | `007790e` | Documentación de la RC-1 (`docs/93`); posterior al sujeto, sin código |
 
-**Correcciones de esta ronda: en curso y NO mergeadas.** Nada de lo siguiente está en `main` ni verificado:
+**Correcciones de esta ronda: mergeadas después de la prueba y NO verificadas por efecto.** Están en `main` con tests, calibradores y revisión independiente por lectura (APTO CON OBSERVACIONES en ambos PR), pero ninguna se ha ejercido en una RC:
 
 | Hallazgo | Dónde | Estado |
 |---|---|---|
-| RC2-01, RC2-03, RC2-04 | #293 | **draft**, sin mergear |
+| RC2-01, RC2-03, RC2-04 | #293 → `84518ac` | mergeado; sin verificar por efecto |
 | RC2-02 | — | sin PR; decisión pendiente (§6.2) |
-| Estabilidad del mutante M1 del calibrador B3 y hallazgos de E8 | una rama aparte | **sin PR todavía** |
+| Estabilidad de los testigos del worker (mutantes M1 y MF del calibrador B3) y textos del escenario 8 | #294 → `0ec6fe1` | mergeado; sin verificar por efecto. Los textos dicen la causa y nada más; **no cambia el comportamiento**: en la primera ingesta las relaciones siguen sin proyectarse |
 
 ## 8. Revisión independiente y veredicto
 
