@@ -601,8 +601,10 @@ repositorio es publico y el runner propio es el cuello de botella: un solo runne
   tests, asserts, excepciones y proteccion de rama. Sin `pull_request_target`, `workflow_run` ni
   `continue-on-error`.
 - Calibradores: `calibra_gate_integrity.py` y `calibra_suite_inventory.py` ya localizan el job por id +
-  `name:` con `yaml.compose` (§9.2) y no dependen del runner; no se tocaron y se demostro que siguen
-  poniendose rojos con `ubuntu-latest`.
+  `name:` con `yaml.compose` (§9.2) y no dependen del runner; no se tocaron. **Matiz (corregido el
+  2026-11-20):** antes del merge, en el laboratorio, **no** se ejecutaron los casos SUP-2 a SUP-5 de
+  `calibra_suite_inventory`, así que no se demostró entonces que sigan poniéndose rojos con
+  `ubuntu-latest`; los ejecutó **después del merge** la propia CI de GitHub, y salieron en verde.
 
 **Diferencias de entorno.** Node viene preinstalado en la imagen: los 3 tests de
 `viewer/tests/test_graph_ux_v2.py` con `skipif(shutil.which("node") is None)` vuelven a ejecutarse en
