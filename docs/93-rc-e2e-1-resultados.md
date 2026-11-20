@@ -101,10 +101,10 @@ Clasificación provisional del informe (la severidad la confirma el organizador 
 | RC1-04 | P2 | Primer upgrade desde legacy: STOP «sin almacén» con el servicio parado y el estado ya migrado | corregido en #290 |
 | RC1-05 | P2 (+P3 doc) | BLOCK de `detect_state` aplicado después de parar; un `jobs.db` de 0 bytes se clasifica CORRUPT | corregido en #290 (decisión antes de parar); la precisión de la documentación sobre «vacía» sigue como P3 |
 | RC1-G03 (= H-L02) | P2 | `preflight_ensayo_rc` exige 0600 donde el despliegue deja 0640 | corregido en #288 |
-| RC1-G02 | P2 | El mensaje al operador dice «no tiene declarada la conexión» cuando falla la credencial; `error_code` del job vacío | **PR #291, pendiente de merge** <!-- ACTUALIZAR AL MERGEAR #291 --> |
+| RC1-G02 | P2 | El mensaje al operador dice «no tiene declarada la conexión» cuando falla la credencial; `error_code` del job vacío | **#291 MERGEADO → `864041d`** |
 | RC1-01 | P3 | `preflight.sh` bloquea una máquina limpia (falta el directorio de estado que el despliegue crea) | abierto |
-| RC1-02 | P3 doc | Con Python 3.13 una CA propia sin `keyUsage` se rechaza; la guía no lo decía | documentado en #291 <!-- ACTUALIZAR AL MERGEAR #291 --> |
-| RC1-G04 | P3 | `preflight_ensayo_rc` con el intérprete del sistema no puede cargar el catálogo | documentado en #291 <!-- ACTUALIZAR AL MERGEAR #291 --> |
+| RC1-02 | P3 doc | Con Python 3.13 una CA propia sin `keyUsage` se rechaza; la guía no lo decía | documentado en #291 (`864041d`) |
+| RC1-G04 | P3 | `preflight_ensayo_rc` con el intérprete del sistema no puede cargar el catálogo | documentado en #291 (`864041d`) |
 | H-L03, H-L05–H-L17 | P2/P3 | Hallazgos **de lectura** no ejecutados en esta ronda | abiertos, sin medir |
 | RC1-E1, RC1-G05, RC1-G06 | entorno | No son defectos del producto (ver §9) | — |
 
@@ -171,7 +171,7 @@ Es la misma familia: el despliegue calculaba o validaba después de parar el ser
   tiene declarada la conexión al grafo», pero la conexión **sí** estaba declarada; fallaba el modo del secreto,
   cuya causa real sólo aparecía en el journal del worker. Además la columna `error_code` del job quedaba
   vacía aunque el mensaje empezaba por el código. Es la clase «rojo por la causa equivocada»: el operador
-  revisaría una configuración que está bien. **PR #291, pendiente de merge** <!-- ACTUALIZAR AL MERGEAR #291 -->.
+  revisaría una configuración que está bien. **#291 MERGEADO → `864041d`**.
 
 ### 5.5 P3 abiertos
 
@@ -179,10 +179,10 @@ Es la misma familia: el despliegue calculaba o validaba después de parar el ser
   estado no existe», aunque `deploy.sh --mode fresh` lo crea y termina en verde. Un preflight rojo en el
   camino soportado enseña a ignorarlo.
 - **RC1-02:** documentación (CA propia y keyUsage con Python 3.13). El producto falla cerrado y nombra la causa
-  (correcto). Documentado en #291 <!-- ACTUALIZAR AL MERGEAR #291 -->.
+  (correcto). Documentado en #291 (`864041d`).
 - **RC1-G04:** el instrumento depende del entorno virtual de la release y la documentación no lo decía, así
   que dos comprobaciones quedaban sin medir; además `arbol.declarado` sale PENDIENTE porque la plantilla de
-  producción no declara el commit del ensayo. Documentado en #291 <!-- ACTUALIZAR AL MERGEAR #291 -->.
+  producción no declara el commit del ensayo. Documentado en #291 (`864041d`).
 - **Hallazgos de lectura (H-L03, H-L05 a H-L17):** no se ejecutaron en esta ronda; siguen siendo hallazgos de
   lectura, no confirmados por efecto.
 
@@ -194,20 +194,32 @@ Es la misma familia: el despliegue calculaba o validaba después de parar el ser
 | RC1-06, RC1-03, RC1-04, RC1-05 | #290 | `31935e6` |
 | Deudas de salud D-1 y D-4 (no salieron de la RC) | #287 | `bb7f3c9` |
 | CI en `ubuntu-latest` (infraestructura, no hallazgo) | #289 | `e2063bc` |
-| RC1-G02, y la documentación de RC1-02 y RC1-G04 | #291 | **pendiente de merge** <!-- ACTUALIZAR AL MERGEAR #291 --> |
+| RC1-G02, y la documentación de RC1-02 y RC1-G04 | #291 | `864041d` |
 
 Cadena de `main` tras el sujeto: `b4e396d` (sujeto) → #289 `e2063bc` → #287 `bb7f3c9` → #288 `7982f6d` →
-#290 `31935e6` → #291 <!-- ACTUALIZAR AL MERGEAR #291 -->.
+#290 `31935e6` → #291 `864041d`.
 
 Qué se hizo en cada uno, resumido (el detalle está en cada PR):
 
-- **#288:** política única de lectura de secretos (el worker y las CLIs del motor leen el fichero
-  `root:s9knowledge 0640` que deja el despliegue); `preflight_ensayo_rc` alineado con 0640; D-2 (la
-  declaración «no medible» se rechaza en `viewer.env` y en el entorno efectivo del visor), D-6 (gate de
-  versión de Python) y D-8 (restos `.migrando-*`). El preflight comprueba que
-  Python sea al menos 3.12.
-- **#290:** corrección de la verificación de parada del paso 3b (RC1-06), validación de configuración y de almacén de revisión en un bloque 2c **antes** de parar, y la decisión de
-  `detect_state` aplicada antes de parar.
+- **#288:** política única de lectura de secretos (`service_state.inspect_secret_for_reading`: fichero propio
+  `0600` o `root:s9knowledge` `0640`; la usan el worker y las CLIs del motor); `preflight_ensayo_rc` alineado
+  con 0640; D-2 (la declaración «no medible» sólo es legítima en la unidad del healthcheck con sandbox y se
+  rechaza en `viewer.env`, `worker.env`, las unidades de visor y worker y el entorno efectivo), D-6 (el gate de
+  intérprete, `check_env_reproducibility.py`, compara la tupla completa contra el `Requires-Python` de los
+  locks y falla si no encuentra el mínimo) y D-8 (un resto `.migrando-*` de una migración interrumpida se
+  retira sólo si se demuestra que es propio y redundante; si no, STOP `RESTO_DE_MIGRACION`). El preflight fija
+  `PY_MINIMO="3.12.0"`.
+- **#290:** `lib.sh::parar_y_verificar_servicios` (paso 3b) hace `stop` siempre sobre cada unidad existente
+  (cancela el reinicio programado de una unidad en `activating (auto-restart)`) y sólo da la parada por buena
+  tras 3 lecturas seguidas inactive/failed sin PID; el paso 2c de `deploy.sh` valida configuración y almacén
+  de revisión **antes** de parar; y `exigir_decision_de_estado` aplica el BLOCK de `detect_state` también antes
+  de parar. Las filas N1, N13 y N16 de `deploy/README.md` ya describen esto.
+- **#291:** nuevo código permanente `GRAPH_CREDENTIAL_UNUSABLE` («conexión declarada pero fichero de
+  credencial inutilizable»): el mensaje del job nombra la ruta y el motivo (nunca el contenido) y `error_code`
+  lleva el mismo código; un error de E/S transitorio al leerlo sale como `GRAPH_OBSERVATION_UNAVAILABLE`
+  (reintentable). Documenta RC1-02 en `deploy/README.md` (CA propia bajo la verificación X.509 estricta de
+  Python 3.13) y RC1-G04 en `docs/91` (usar el intérprete del entorno virtual de la release). **No** documenta
+  la parte `arbol.declarado` de RC1-G04, que sigue abierta.
 - **#287:** D-1 (carrera de `state_runtime` con sidecars de SQLite `-wal`/`-shm`) y D-4 (el sondeo de la
   bóveda tiene tiempo máximo).
 - **#289:** la CI corre en los runners de GitHub (`ubuntu-latest`); el runner propio queda apagado y
@@ -261,7 +273,7 @@ RC falla y la corrección pasa a la versión siguiente.
    y `jobs.db` de 0 bytes: el despliegue bloquea con servicios `active` y estado intacto.
 7. **Mensaje y `error_code` veraces ante una credencial inutilizable.** Con el fichero del secreto ilegible o
    con modo inválido, el `error_message` del job nombra el fichero de credencial y no dice que «no está
-   declarada la conexión»; `error_code` no está vacío. (Depende de #291.)
+   declarada la conexión»; `error_code` no está vacío. (Corregido en #291; por verificar por efecto.)
 8. **Job que termina bien sin `error_code`.** Un job `complete` termina sin `error_code`
    (y no arrastra el de un intento anterior).
 9. **`preflight_ensayo_rc` verde con 0640.** Tras el despliegue, `neo4j.credencial` no sale ROJO por el modo
@@ -302,7 +314,9 @@ Observaciones de entorno (**no son defectos del producto**):
 - Memoria con Neo4j vivo: mínimo observado de memoria disponible 3359 MB; el contenedor llegó a unos 832 MiB
   de su límite de 1,5 GiB. Sin aborto.
 
-## 10. Estado final de la máquina de laboratorio y de producción
+## 10. Estado del laboratorio y de producción
 
-El laboratorio quedó en el estado «instalación completa del sujeto» con visor, worker y nginx activos y sin
-contenedores. Producción: **sin tocar**.
+Tras la RC-1, el laboratorio quedó en el estado «instalación completa del sujeto» con visor, worker y nginx
+activos y sin contenedores. **Para la RC final** se ha restaurado a una base limpia preparada (sin producto),
+con Neo4j 5.26 **Enterprise** con licencia de evaluación aceptada por el operador; el sujeto de la RC final
+es `864041d`. Producción: **sin tocar**.

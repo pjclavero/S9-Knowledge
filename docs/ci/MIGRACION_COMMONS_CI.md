@@ -1,4 +1,4 @@
-# Migración de la CI de S9-Knowledge a COMMONS-CI (VM115)
+# Migración de la CI de S9-Knowledge a COMMONS-CI (runner propio)
 
 > Carril **MIGRACION-CI-S9K**. Rama `ci/migracion-commons-ci` desde `origin/main` `284758c`, con
 > `origin/main` `4eb442a` (fix de pip-audit, #276) integrado por `git merge`.
@@ -9,7 +9,7 @@
 
 ## 1. Objetivo y límites
 
-Recuperar CI operativa ejecutando los jobs en un runner self-hosted de VM115 **sin debilitar ningún gate
+Recuperar CI operativa ejecutando los jobs en un runner self-hosted del runner propio **sin debilitar ningún gate
 ni cambiar la semántica de ningún check**. Lo único que cambia en los workflows es:
 
 - `runs-on: [self-hosted, linux, x64, commons, ci, s9-knowledge]` en cada job migrado;
@@ -48,7 +48,7 @@ if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (
 
 **Frontera frente a forks que queda:** (1) aprobación obligatoria de **todos** los contribuidores externos
 (`all_external_contributors`, verificado por GET el 2026-10-22) y (2) guard de eventos en el hook de inicio
-de VM115 (root, fuera del alcance del PR). Flujo para PR externos: §18.4 de commons-ci.md (los forks no
+del runner propio (root, fuera del alcance del PR). Flujo para PR externos: §18.4 de commons-ci.md (los forks no
 reciben CI self-hosted; el mantenedor lleva el cambio a una rama interna).
 
 ## 3. Runner `commons-ci-s9k-01`
@@ -109,7 +109,7 @@ Duraciones del último run verde de `main` (`284758c`, run CI 39651557176, `ubun
 pip-audit: run 38258343199 (último verde; el de `284758c` falla por CVE nuevas que corrige otro carril).
 Todos los contextos son requeridos (strict=true, app_id 15368) y hoy todos usan `ubuntu-latest`.
 
-| # orden | job id | `name` (= contexto requerido) | Duración GitHub | Dependencias | Riesgo en VM115 | timeout propuesto |
+| # orden | job id | `name` (= contexto requerido) | Duración GitHub | Dependencias | Riesgo en el runner propio | timeout propuesto |
 |---|---|---|---|---|---|---|
 | 1 | `check-unicode` | No dangerous Unicode (Trojan Source) | 0,1 min | setup-python 3.13 | bajo (depende de §5.1) | 30 |
 | 1 | `check-imports` | No hardcoded absolute paths in sys.path | 0,1 min | solo `grep` | nulo | 30 |
@@ -129,14 +129,14 @@ Todos los contextos son requeridos (strict=true, app_id 15368) y hoy todos usan 
 | 8 | `test-combined` | Combined Test Suite (no collection errors) | 10,4 min | Python, lock + viewer, `fetch-depth: 0`, bootstrap de certificación | medio | 30 |
 | 9 | `calibracion-de-gates` | Calibracion de gates (cada violacion tiene que ponerse ROJA) | **150,1 min** | Python, lock + viewer, Node 20, `fetch-depth: 0`; muta y restaura el árbol | alto: duración en 2 vCPU | **360** |
 
-Suma en serie (un solo runner): ≈ 201 min en GitHub; en VM115 (2 vCPU) previsiblemente más. Se mide
+Suma en serie (un solo runner): ≈ 201 min en GitHub; en el runner propio (2 vCPU) previsiblemente más. Se mide
 por fases; las calibraciones van las últimas y **sin optimizar**.
 
 Orden de migración (un commit por grupo, verificando cada uno antes del siguiente): 1 canario →
 2 estáticos/auditoría → 3 Python simple → 4 Node → 5 Neo4j efímero → 6 Playwright (con muestreo de
 RAM/CPU; OOM demostrado = STOP, no se sube RAM) → 7 pip-audit → 8 combinada/integridad → 9 calibraciones.
 
-## 5. Preparación de VM115 (2026-10-22)
+## 5. Preparación del runner propio (2026-10-22)
 
 ### 5.1 Python 3.13.16 para `setup-python` (build OFICIAL precargada)
 
@@ -189,24 +189,24 @@ Node: ver §5.4.
 
 **Corrección (2026-10-26, revisión independiente de #277, P1).** La primera versión de esta sección
 partía de que `ubuntu-latest` era `ubuntu-24.04` con `shellcheck 0.9.0-1`, y por eso se instaló 0.9.0
-en VM115. **Esa premisa ya es falsa:** hoy `ubuntu-latest` es `ubuntu-26.04` y trae
+en el runner propio. **Esa premisa ya es falsa:** hoy `ubuntu-latest` es `ubuntu-26.04` y trae
 `shellcheck 0.11.0-2` (log de `main` `b137aa9`, run 40204968844: «shellcheck is already the newest
 version (0.11.0-2)»). Con 0.9.0 el gate podía dar verde donde GitHub da rojo: el mutante del revisor
 (`$(… > fichero)` sin uso, `[ -a … ]`) da rc=0 con 0.9.0 y rc=1 con 0.11.0.
 
-Arreglo en VM115 (sin tocar el paso condicional `command -v shellcheck || sudo apt-get …` de `ci.yml`):
+Arreglo en el runner propio (sin tocar el paso condicional `command -v shellcheck || sudo apt-get …` de `ci.yml`):
 
 | | Antes | Después |
 |---|---|---|
 | `/usr/local/bin/shellcheck` | 0.9.0, sha256 `59d20b9f…43ce` (paquete Debian bookworm 0.9.0-1, cadena firmada de Debian) | **0.11.0**, sha256 `4da528dd…a55b` |
 | Origen | — | release oficial `koalaman/shellcheck` v0.11.0, `shellcheck-v0.11.0.linux.x86_64.tar.gz`, sha256 `b7af85e4…e6f6` = digest publicado por la release en la API de GitHub (verificado con `sha256sum -c`) |
-| Copia previa | `/opt/github-actions/config/backup/VM115-20261026-102313-shellcheck0.9.0-59d20b9f02f5-mig-ci/shellcheck-0.9.0` | |
+| Copia previa | `/opt/github-actions/config/backup/RUNNER-20261026-102313-shellcheck0.9.0-59d20b9f02f5-mig-ci/shellcheck-0.9.0` | |
 
-Cierre demostrado en VM115: `shellcheck --version` como runner02 = 0.11.0; mutante del revisor por
+Cierre demostrado en el runner propio: `shellcheck --version` como runner02 = 0.11.0; mutante del revisor por
 stdin como runner02 → **rc=1** (SC2327, SC2328, SC2331; con 0.9.0 daba rc=0); los 8
 `deploy/scripts/*.sh` con la misma orden que `ci.yml` (`shellcheck -x -e SC1091`) → **rc=0**.
 
-**Deriva futura:** si `ubuntu-latest` cambia de versión de shellcheck, la de VM115 hay que alinearla
+**Deriva futura:** si `ubuntu-latest` cambia de versión de shellcheck, la del runner propio hay que alinearla
 a mano (deuda D-SC de §11).
 
 ### 5.3 Dependencias de sistema de Playwright 1.64.0
@@ -237,9 +237,9 @@ ambos runners:
 
 - `deployment-validation`: `sudo apt-get update -qq; sudo apt-get install -y shellcheck` →
   `command -v shellcheck >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y shellcheck; }`
-  (en VM115 encuentra el preinstalado de §5.2, hoy 0.11.0; en GitHub instala como hoy).
+  (en el runner propio encuentra el preinstalado de §5.2, hoy 0.11.0; en GitHub instala como hoy).
 - `test-login-browser`: `python -m playwright install --with-deps chromium` → `python -m playwright install chromium`
-  (deps ya en VM115, §5.3). El ancla `playwright install` de `check_ci_config.py`/`check_env_reproducibility.py`
+  (deps ya en el runner propio, §5.3). El ancla `playwright install` de `check_ci_config.py`/`check_env_reproducibility.py`
   se conserva.
 
 Resultado PRE-PUSH de estos dos cambios: §7.
@@ -317,7 +317,7 @@ Los arneses largos (§7.1) no se repitieron tras el merge: `4eb442a` solo toca `
 ## 8. Anti-fork: guard del hook ejecutado como `runner02`
 
 14 payloads fabricados (sin atacante real, sin ejecutar código externo: el modo `guard` solo parsea JSON),
-en `/var/tmp/mig-ci-guard/` de VM115 (root 0644), evaluados con
+en `/var/tmp/mig-ci-guard/` del runner propio (root 0644), evaluados con
 `sudo -u runner02 env -i … python3 -I /opt/github-actions/tools/hooks/commons_ci_hook.py guard EVENTO PAYLOAD pjclavero/S9-Knowledge`
 (repo esperado por argv porque el runner aún no está registrado). Resultado: **14/14 con la decisión
 esperada, FALLOS=0, rc=0**.
@@ -349,7 +349,7 @@ Tras el registro se repite **sin** el repo en argv (el hook lo lee del `.runner`
 
 El paso «Cobertura Neo4j REAL» de `Data Engine Tests` levanta un Neo4j por módulo de test
 (`docker run --publish 127.0.0.1:…`, heap 256 MB): **8 contenedores a la vez, ~440 MiB cada uno**
-(`docker stats`). En el runner de GitHub (16 GB) cabe; en VM115 (4 GB fija, sin swap) no:
+(`docker stats`). En el runner de GitHub (16 GB) cabe; en el runner propio (4 GB fija, sin swap) no:
 
 | Evidencia | Valor |
 |---|---|
@@ -392,13 +392,13 @@ acumulados y `_tool/Python` en 1,3 G; `playwright`, instalado por el job de Play
 Censo de rutas (otro job) encontrara el paquete sin navegador y diera 9 errores en `tests/browser`
 (job 120089980647). En GitHub cada job empieza con un intérprete limpio: **no era equivalente**.
 
-Arreglo (autorizado por el operador): hook `COMMONS-CI-20261021-VM115/3` y `runner-admin`.
+Arreglo (autorizado por el operador): hook `COMMONS-CI-20261021-RUNNER/3` y `runner-admin`.
 
 | Pieza | Antes | Después |
 |---|---|---|
 | `commons_ci_hook.py` | `08141d22…` (v2) | `eef170ee…` (v3) |
 | `runner-admin` | `017a4ba1…` | `f18ce9e3…` |
-| Copia previa | `/opt/github-actions/config/backup/VM115-20261023-002532-hook08141d22071f-admin017a4ba191b9-mig-ci/` (hooks, runner-admin, golden, `SHA256SUMS`) | |
+| Copia previa | `/opt/github-actions/config/backup/RUNNER-20261023-002532-hook08141d22071f-admin017a4ba191b9-mig-ci/` (hooks, runner-admin, golden, `SHA256SUMS`) | |
 
 - **Golden del toolcache** (`/opt/github-actions/config/golden/<runner>/`, root:root, 0755/0644,
   nada escribible por runnerNN): `golden.json` lleva el manifiesto completo de `_work/_tool`
@@ -448,7 +448,7 @@ jobs, inventario completo en el carril (`v3_15_inventario_invalidos.txt`). Solo 
 ### 9.6 Repetición desde cero con el hook v3
 
 Ajuste posterior de `runner-admin doctor` (`f18ce9e3…` → **`f1a0b1be…`**, copia previa
-`VM115-20261025-001813-adminf18ce9e3d880-mig-ci-doctorfix`): el aviso «posible job SIN hooks»
+`RUNNER-20261025-001813-adminf18ce9e3d880-mig-ci-doctorfix`): el aviso «posible job SIN hooks»
 comparaba el **mtime** del último `Worker_*.log`, que se actualiza hasta el final del job; un job de
 más de 2 min lo disparaba en falso. Ahora usa la hora de inicio del nombre del fichero. `doctor` rc=0.
 
@@ -474,7 +474,7 @@ no tiene ninguna línea de contenedor): 16 min, RAM máx. 1031 MiB, 0 contenedor
 
 | Job | GitHub (`284758c`) | commons-ci | Causa |
 |---|---|---|---|
-| Combined | 9578 passed / 358 skipped | 9576 / 360 | 3 tests de `viewer/tests/test_graph_ux_v2.py` con `skipif(shutil.which("node") is None)`: `ubuntu-latest` trae Node preinstalado y VM115 no. Esos 3 tests los ejecuta `test-graph-js` con Node instalado y sin skips permitidos. A la inversa, `deploy/tests/test_release_identity.py:157` (`skipif` sin `/usr/bin/python3.13`) corre en VM115 y se omite en Ubuntu 24.04 |
+| Combined | 9578 passed / 358 skipped | 9576 / 360 | 3 tests de `viewer/tests/test_graph_ux_v2.py` con `skipif(shutil.which("node") is None)`: `ubuntu-latest` trae Node preinstalado y el runner propio no. Esos 3 tests los ejecuta `test-graph-js` con Node instalado y sin skips permitidos. A la inversa, `deploy/tests/test_release_identity.py:157` (`skipif` sin `/usr/bin/python3.13`) corre en el runner propio y se omite en Ubuntu 24.04 |
 | Viewer Tests | 2654 / 186 | 2651 / 189 | los mismos 3 tests de Node |
 
 **pip-audit rojo por CVE nuevas, ajenas a la migración** (publicadas después de `#276`; el mismo
@@ -495,9 +495,9 @@ runner de GitHub: no lo causa la migración.
 | `commons_ci_hook.py` | `eef170ee…` (v3) | **`2dfea455…` (v4)** |
 | `runner-admin` | `f1a0b1be…` | **`cc278629…`** (`doctor` informa del candado y de la allowlist) |
 | `workflow-allowlist.json` (nuevo, en el directorio de hooks, root 0644) | — | `e8e73420…` |
-| Copia previa | `/opt/github-actions/config/backup/VM115-20261025-142618-hookeef170ee4602-adminf1a0b1beeb79-mig-ci-v4/` (+`SHA256SUMS`) | |
+| Copia previa | `/opt/github-actions/config/backup/RUNNER-20261025-142618-hookeef170ee4602-adminf1a0b1beeb79-mig-ci-v4/` (+`SHA256SUMS`) | |
 
-- **A. Candado global de la VM** (runner-01 y runner-02): un solo job a la vez en toda VM115.
+- **A. Candado global de la VM** (runner-01 y runner-02): un solo job a la vez en todal runner propio.
   Fichero creado con `O_EXCL` en un directorio común `root:commons-ci 3770` (setgid + sticky: cada
   runner solo puede borrar su candado). Lo toma el pre-job, esperando si lo tiene el otro runner
   (nunca lo rompe), y lo suelta el post-job CLEAN; con post-job DIRTY el candado se conserva para
@@ -544,20 +544,20 @@ registrar el runner.
   completa y `SHA256SUMS` previos (inventario por run: id, workflow, SHA, fecha y motivo).
   Reescaneo de los runs restantes: 0 IP privadas, 0 tokens o claves y **0 líneas del hook** con
   rutas; quedan las que imprime el propio runner (deuda D-LOG).
-- **Calibración de gates en VM115**: verde dos veces en `6820013` (3h23m y 3h23m) y dos en `6ad528a`
+- **Calibración de gates en el runner propio**: verde dos veces en `6820013` (3h23m y 3h23m) y dos en `6ad528a`
   (3h27m y 3h22m), con `timeout-minutes: 360`; pre y post CLEAN.
 - **`6ad528a` (main con #278 integrado)**: 32 jobs en commons-ci-s9k-01, todos con pre y post CLEAN,
   0 OOM, RAM usada máx. 1740 MiB, disponible mín. 2114 MiB, como mucho 1 contenedor, sin swap.
   `pip-audit` en verde. **Authz integration**: intento 1 del run de push en rojo en
   `test_tras_la_restauracion_el_identificador_fisico_de_neo4j_CAMBIO` (tras restaurar, Neo4j
   reutilizó el mismo `elementId` y el test exige que cambie); el organizador lo relanzó y el intento 2
-  salió verde. El run de PR del mismo SHA, y las ejecuciones anteriores en VM115, en verde
+  salió verde. El run de PR del mismo SHA, y las ejecuciones anteriores en el runner propio, en verde
   (deuda D-AUTHZ).
 - **Viewer Tests**: `timeout-minutes: 30` (2× lo medido, ~9 min, redondeado como el resto).
 
 ## 10. Pendiente / techo
 
-- Calibración de gates en VM115: hecha (§9.8).
+- Calibración de gates en el runner propio: hecha (§9.8).
 - `pip-audit`: resuelto en `main` por #278.
 - `Data Engine Tests`: PENDING_RESOURCE_FIT.
 - PR desde un fork **real**: no probado (necesitaría otra cuenta de GitHub), igual que en commons-ci.md §18.2.
@@ -569,9 +569,9 @@ registrar el runner.
 | D-LAT | Latencia: con un solo runner y un job a la vez en toda la VM, un SHA completo (32 jobs self-hosted × push y PR, con dos calibraciones de ~3,4 h) tarda **~17 h** | Recursos fijados por el operador (2 vCPU / 4 GB / 1 job). Reducirla exige más runners o menos ejecuciones duplicadas (push + PR) |
 | D-COLA | Un job en cola más de **24 h** lo cancela GitHub; con dos SHA seguidos en cola, el último puede acercarse a ese límite | Publicar el siguiente SHA solo cuando el anterior haya terminado, o cancelar a sabiendas los runs de SHA superados |
 | D-LOG | Los logs públicos siguen mostrando lo que imprime el runner: `Machine name`, rutas del workdir/toolcache (`setup-python`, `Working directory`, `git safe.directory`, avisos de pytest) y el HOME del usuario del runner. Sin secretos | Solo desaparece reubicando workdir, toolcache y HOME a rutas neutras (re-registro del runner) |
-| D-SC | La versión de shellcheck de VM115 está fijada a mano (0.11.0) y puede divergir cuando cambie `ubuntu-latest` | Alinear a mano cuando cambie la imagen de GitHub, o fijar la versión en el workflow (cambio de producto) |
-| D-NODE | 3 tests de `test_graph_ux_v2.py` se omiten en VM115 (sin Node) en Combined y Viewer; GitHub los ejecutaba porque su imagen trae Node. Los cubre `test-graph-js` con Node y sin skips | Instalar Node en la VM cambiaría el entorno; se deja como diferencia conocida (§9.6) |
-| D-AUTHZ | `test_tras_la_restauracion_el_identificador_fisico_de_neo4j_CAMBIO` depende de que Neo4j no reutilice el `elementId` tras borrar y recrear: falló una vez en VM115 | Es del test, no del runner; corregirlo es cambio de producto (fuera de este PR) |
+| D-SC | La versión de shellcheck del runner propio está fijada a mano (0.11.0) y puede divergir cuando cambie `ubuntu-latest` | Alinear a mano cuando cambie la imagen de GitHub, o fijar la versión en el workflow (cambio de producto) |
+| D-NODE | 3 tests de `test_graph_ux_v2.py` se omiten el runner propio (sin Node) en Combined y Viewer; GitHub los ejecutaba porque su imagen trae Node. Los cubre `test-graph-js` con Node y sin skips | Instalar Node en la VM cambiaría el entorno; se deja como diferencia conocida (§9.6) |
+| D-AUTHZ | `test_tras_la_restauracion_el_identificador_fisico_de_neo4j_CAMBIO` depende de que Neo4j no reutilice el `elementId` tras borrar y recrear: falló una vez en el runner propio | Es del test, no del runner; corregirlo es cambio de producto (fuera de este PR) |
 | D-B3 | La calibración B3 (`mutaciones_b3_worker.py`, M1) falló una vez por tiempos en un runner de GitHub (§9.6) | Igual: del arnés, no de la migración |
 | D-DE | `Data Engine Tests` sigue en GitHub (OOM medido) | PENDING_RESOURCE_FIT; solo cambia con más RAM o con otra arquitectura de los tests |
 | D-PY | El intérprete del toolcache es la build oficial de Ubuntu sobre Debian 13, con la libssl3 del sistema (OpenSSL 3.5 frente a 3.0 en Ubuntu 24.04) y un enlace `/opt/hostedtoolcache/…` para su RUNPATH | Funciona y está calibrado; es una diferencia de entorno conocida |
