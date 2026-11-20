@@ -70,6 +70,7 @@ deploy/scripts/deploy.sh --environment production --release-ref <tag|sha> \
     --mode fresh --confirm-production
 ```
 
+- **`preflight.sh` en una máquina limpia** (RC2-01): sin state root ni release instalada, la ausencia del state root es un aviso («se creará en el despliegue»), no un bloqueo; si existe una instalación previa y falta el state root, sigue bloqueando, y con el state root presente se comprueba todo igual que antes.
 - **Origen del código**: sin `current`, `deploy.sh` clona de `S9K_REPO_URL`
   (`/etc/s9-knowledge/deploy.env`, opcional) o de `${S9K_ROOT}/.repo-cache`,
   que deja el rol `data_engine`.

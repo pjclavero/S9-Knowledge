@@ -218,7 +218,27 @@ if [ -d "${S9K_STATE_ROOT}" ]; then
     fi
 else
     if [ "${ENVIRONMENT}" = "production" ]; then
-        bloq "directorio de estado no existe: ${S9K_STATE_ROOT}"
+        # RC2-01: en una máquina LIMPIA el state root lo crea `deploy.sh --mode
+        # fresh` (paso 3b/5b), así que su ausencia no es un bloqueo. Sí lo es
+        # si ya hay una instalación (release instalada o `current`): ahí el
+        # estado no puede faltar, es una pérdida. Con el state root presente
+        # esta rama no se ejecuta y todas las comprobaciones siguen iguales.
+        instalacion_previa=0
+        if [ -e "${S9K_STATE_ROOT}" ] || [ -L "${S9K_STATE_ROOT}" ]; then
+            # Existe pero NO es un directorio (fichero, enlace roto…): eso no
+            # es una máquina limpia, es un estado mal puesto. Sigue bloqueando.
+            instalacion_previa=1
+        elif [ -e "${S9K_ROOT}/current" ] || [ -L "${S9K_ROOT}/current" ]; then
+            instalacion_previa=1
+        elif [ -d "${S9K_ROOT}/releases" ] && \
+             [ -n "$(find "${S9K_ROOT}/releases" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]; then
+            instalacion_previa=1
+        fi
+        if [ "${instalacion_previa}" -eq 1 ]; then
+            bloq "directorio de estado no existe: ${S9K_STATE_ROOT} (hay una instalación previa o un objeto que no es directorio: el estado no puede faltar)"
+        else
+            avso "directorio de estado no existe aún: ${S9K_STATE_ROOT} (instalación nueva: se creará en el despliegue)"
+        fi
     else
         avso "directorio de estado no existe: ${S9K_STATE_ROOT} (lab: se puede crear)"
     fi
