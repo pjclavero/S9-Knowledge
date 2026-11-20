@@ -478,6 +478,47 @@ def test_las_carencias_desconocidas_se_nombran_en_vez_de_desaparecer(
         f"vistas producidas: {vistas!r}")
 
 
+def test_la_entrada_de_escritura_de_una_ingesta_normal_no_se_presenta_como_inexplicable():
+    """RC-E2E final (escenario 8): una ingesta `complete` con decisiones en
+    REVIEW acababa con «una carencia que esta pantalla todavía no sabe explicar
+    (ESCRITURA_NO_COMPLETADA). Avisa a quien administra el servicio».
+
+    Es el desenlace NORMAL: la ingesta del panel es una simulación, el plan del
+    motor no está aprobado (`PLAN_NO_APROBADO`) y la admisión del escritor
+    rechaza siempre un plan no aprobado. Y en la corrida sana la misma entrada
+    sale `SIN_ESCRITURA`, que tampoco tenía traducción.
+
+    Dos direcciones: con `PLAN_NO_APROBADO` al lado se explica; SOLA, sigue
+    siendo la genérica (no se sabe qué pasó y no se esconde).
+    """
+    from app import panel_errors
+    from app.routers import chassis_operations
+
+    generica = panel_errors.carencia("CARENCIA_QUE_NADIE_TRADUJO")
+    vistas = {
+        v["code"]: v["message"]
+        for v in chassis_operations._carencias_del_resultado(
+            ["PLAN_NO_APROBADO", "PLAN_REVISION_SIN_OPERACIONES",
+             "ESCRITURA_NO_COMPLETADA"])
+    }
+    frase = vistas["ESCRITURA_NO_COMPLETADA"]
+    assert "no sabe" not in frase and "administra el servicio" not in frase, (
+        "ESCRITURA INEXPLICABLE: con PLAN_NO_APROBADO en la misma corrida, "
+        "ESCRITURA_NO_COMPLETADA se sigue presentando como carencia sin "
+        f"explicar: {frase!r}")
+    assert "simulacion" in frase and "aplicarlo" in frase, frase
+
+    sola = chassis_operations._carencias_del_resultado(["ESCRITURA_NO_COMPLETADA"])
+    assert sola[0]["message"] == generica.replace(
+        "CARENCIA_QUE_NADIE_TRADUJO", "ESCRITURA_NO_COMPLETADA"), (
+        "sin PLAN_NO_APROBADO la causa no es segura y debe seguir siendo la "
+        f"genérica: {sola!r}")
+
+    sana = panel_errors.carencia("SIN_ESCRITURA")
+    assert "no sabe" not in sana and "simulacion" in sana, (
+        f"ESCRITURA INEXPLICABLE: la corrida sana dice {sana!r}")
+
+
 # ===========================================================================
 # 2. `PLAN_SUPERSEDED` NO FABRICA CAUSALIDAD
 # ===========================================================================
