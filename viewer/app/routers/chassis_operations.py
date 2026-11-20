@@ -568,12 +568,19 @@ def _carencias_del_resultado(bruto: Any) -> list[dict]:
         return []
     vistas: list[dict] = []
     vistos: set[str] = set()
+    # Los codigos de la corrida, ya con forma de codigo estable: una carencia
+    # puede quedar explicada por otra de la MISMA corrida
+    # (`panel_errors.CARENCIAS_EXPLICADAS_POR`).
+    corrida = frozenset(
+        str(c or "") for c in bruto if _CODIGO_ESTABLE.match(str(c or ""))
+    )
     for codigo in bruto:
         texto = str(codigo or "")
         if not _CODIGO_ESTABLE.match(texto) or texto in vistos:
             continue
         vistos.add(texto)
-        vistas.append({"code": texto, "message": panel_errors.carencia(texto)})
+        vistas.append({"code": texto,
+                       "message": panel_errors.carencia(texto, corrida - {texto})})
     return vistas
 
 

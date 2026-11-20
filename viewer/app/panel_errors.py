@@ -294,15 +294,54 @@ CARENCIAS = {
     "PLAN_REVISION_SIN_OPERACIONES":
         "Hay decisiones pendientes de revisar, pero el plan de revision no "
         "lleva ninguna operacion asociada.",
+    # LA ENTRADA DE ESCRITURA (`exit_codes.describe_outcome`). El motor la
+    # anexa en TODA corrida, y la ingesta del panel es siempre una simulacion
+    # (`apply=False` en el handler): en una corrida sana sale `SIN_ESCRITURA`.
+    # Sin esta entrada, la ingesta mas limpia acababa con «una carencia que
+    # esta pantalla no sabe explicar. Avisa a quien administra el servicio».
+    "SIN_ESCRITURA":
+        "Esta ingesta es una simulacion: no ha escrito nada en el "
+        "conocimiento.",
+}
+
+#: CARENCIAS QUE OTRA YA EXPLICA. `(codigo, la que lo explica) -> frase`.
+#:
+#: `ESCRITURA_NO_COMPLETADA` es la rama de «cualquier otro desenlace» de
+#: `describe_outcome`: sola, no se sabe que paso, y la pantalla lo sigue
+#: diciendo asi. Pero con `PLAN_NO_APROBADO` al lado su causa es segura: la
+#: simulacion del escritor pasa el plan por su admision, y la admision rechaza
+#: SIEMPRE un plan con `local_approval.approved != true`
+#: (`writer/admission.py`, «3. Aprobado») -> `REJECTED` -> esta rama. Es la
+#: consecuencia de la carencia de al lado, no una nueva; tratarla de
+#: inexplicable mandaba a avisar al administrador por el desenlace normal de
+#: toda ingesta que deja decisiones en REVIEW (RC-E2E final, escenario 8).
+#:
+#: LA FRASE DICE LA CAUSA Y NADA MAS. No dice «es lo esperado» ni «lo que
+#: apruebes se anade despues»: el motor desaprueba un plan por tres causas
+#: (hay REVIEW, no hay operaciones, o un validador en FAIL) y esta clave no
+#: sabe cual. Con un validador en FAIL no hay nada en revision que aprobar, y
+#: prometerlo seria inventar; ademas contradiria a la frase de
+#: `PLAN_NO_APROBADO`, que se pinta justo encima.
+CARENCIAS_EXPLICADAS_POR = {
+    ("ESCRITURA_NO_COMPLETADA", "PLAN_NO_APROBADO"):
+        "Como el motor no aprobo ese conjunto de cambios, la simulacion de la "
+        "escritura lo ha rechazado: no se ha escrito nada en el conocimiento.",
 }
 
 
-def carencia(code: str) -> str:
+def carencia(code: str, acompanantes: frozenset = frozenset()) -> str:
     """La frase de una carencia. Un codigo desconocido SE NOMBRA, no se calla.
 
     Devolver "" o saltarse la fila convertiria una carencia declarada por el
     motor en una ausencia invisible, que es el defecto que este apartado cierra.
+
+    ``acompanantes``: los demas codigos de la MISMA corrida. Solo se usan para
+    las entradas de `CARENCIAS_EXPLICADAS_POR`; sin el acompanante que la
+    explica, la carencia sigue siendo la generica.
     """
+    for (codigo, explicadora), frase in CARENCIAS_EXPLICADAS_POR.items():
+        if code == codigo and explicadora in acompanantes:
+            return frase
     conocida = CARENCIAS.get(code)
     if conocida:
         return conocida

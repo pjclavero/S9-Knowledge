@@ -157,9 +157,12 @@ verdad mide.
 
 - **No proyecta relaciones sobre la entidad recién creada.** Las altas no están
   en el snapshot de la corrida, así que no tienen ancla, y `_proyeccion` sigue
-  omitiendo con `PROJECTION_NO_ANCHOR`. La afirmación entra; su arista, no. La
-  segunda ingesta de la misma fuente sí puede proyectarla, porque entonces la
-  entidad ya está observada.
+  omitiendo con `PROJECTION_NO_ANCHOR`. La afirmación entra; su arista, no.
+  **Corrección (RC-E2E final):** este documento afirmaba que la segunda
+  ingesta de la misma fuente sí podía proyectarla. No hay testigo que lo
+  ejerza, y una revisión por lectura concluye que por el camino web no ocurre:
+  la propuesta ya resuelta no vuelve al paquete de revisión y la ingesta del
+  panel sólo simula. Queda como límite abierto, pendiente de decisión.
 - **No unifica el CLI con la autoridad del visor.** Son dos superficies y se
   declara como deuda en la cabecera de `ingest_cli.py`: el motor no puede leer
   el almacén del visor sin invertir la dirección de dependencia, y eso es un

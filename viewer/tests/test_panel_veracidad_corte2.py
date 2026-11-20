@@ -60,6 +60,9 @@ permanente del código.
   NO PIDEN LA PANTALLA — miran el catálogo, el AST del almacén o la firma de
   la ruta, porque lo que afirman es del DATO, no del pintado:
     · test_las_carencias_desconocidas_se_nombran_en_vez_de_desaparecer
+    · test_la_entrada_de_escritura_de_una_ingesta_normal_no_se_presenta_como_inexplicable
+      (RC-E2E final: mira el catálogo de carencias y `_carencias_del_resultado`;
+      que la plantilla lo pinte NO lo afirma este testigo.)
     · test_la_pantalla_no_afirma_que_una_decision_cambio
     · test_el_camino_del_apply_fallido_se_distingue_y_se_dice
     · test_el_rechazo_del_writer_llega_al_operador_con_su_motivo
@@ -476,6 +479,57 @@ def test_las_carencias_desconocidas_se_nombran_en_vez_de_desaparecer(
     assert [v["code"] for v in vistas] == ["CARENCIA_QUE_NADIE_TRADUJO"], (
         "una carencia sin traducción debe NOMBRARSE, no descartarse; "
         f"vistas producidas: {vistas!r}")
+
+
+def test_la_entrada_de_escritura_de_una_ingesta_normal_no_se_presenta_como_inexplicable():
+    """RC-E2E final (escenario 8): una ingesta `complete` con decisiones en
+    REVIEW acababa con «una carencia que esta pantalla todavía no sabe explicar
+    (ESCRITURA_NO_COMPLETADA). Avisa a quien administra el servicio».
+
+    Es el desenlace NORMAL: la ingesta del panel es una simulación, el plan del
+    motor no está aprobado (`PLAN_NO_APROBADO`) y la admisión del escritor
+    rechaza siempre un plan no aprobado. Y en la corrida sana la misma entrada
+    sale `SIN_ESCRITURA`, que tampoco tenía traducción.
+
+    Dos direcciones: con `PLAN_NO_APROBADO` al lado se explica; SOLA, sigue
+    siendo la genérica (no se sabe qué pasó y no se esconde).
+    """
+    from app import panel_errors
+    from app.routers import chassis_operations
+
+    generica = panel_errors.carencia("CARENCIA_QUE_NADIE_TRADUJO")
+    vistas = {
+        v["code"]: v["message"]
+        for v in chassis_operations._carencias_del_resultado(
+            ["PLAN_NO_APROBADO", "PLAN_REVISION_SIN_OPERACIONES",
+             "ESCRITURA_NO_COMPLETADA"])
+    }
+    frase = vistas["ESCRITURA_NO_COMPLETADA"]
+    assert "no sabe" not in frase and "administra el servicio" not in frase, (
+        "ESCRITURA INEXPLICABLE: con PLAN_NO_APROBADO en la misma corrida, "
+        "ESCRITURA_NO_COMPLETADA se sigue presentando como carencia sin "
+        f"explicar: {frase!r}")
+    assert "simulacion" in frase and "no se ha escrito nada" in frase, (
+        "ESCRITURA INEXPLICABLE: la frase no dice que fue la simulacion la que "
+        f"lo rechazo ni que no se ha escrito nada: {frase!r}")
+    # Dice la causa y NADA MAS: el motor desaprueba por tres causas y esta
+    # frase no sabe cual, asi que ni valora ni promete (y no contradice a la
+    # de PLAN_NO_APROBADO, que se pinta encima).
+    de_mas = [p for p in ("lo esperado", "se anade despues", "apruebes")
+              if p in frase or p in panel_errors.carencia("SIN_ESCRITURA")]
+    assert de_mas == [], (
+        "ESCRITURA AFIRMA DE MAS: la frase valora o promete lo que el sistema "
+        f"no sabe: {de_mas!r}")
+
+    sola = chassis_operations._carencias_del_resultado(["ESCRITURA_NO_COMPLETADA"])
+    assert sola[0]["message"] == generica.replace(
+        "CARENCIA_QUE_NADIE_TRADUJO", "ESCRITURA_NO_COMPLETADA"), (
+        "sin PLAN_NO_APROBADO la causa no es segura y debe seguir siendo la "
+        f"genérica: {sola!r}")
+
+    sana = panel_errors.carencia("SIN_ESCRITURA")
+    assert "no sabe" not in sana and "simulacion" in sana, (
+        f"ESCRITURA INEXPLICABLE: la corrida sana dice {sana!r}")
 
 
 # ===========================================================================

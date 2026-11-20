@@ -198,6 +198,9 @@ def despliegue(tmp_path, monkeypatch, almacen_fresh) -> dict:
     fuentes = tmp_path / "fuentes"
     shutil.copytree(EJEMPLOS, fuentes)
     shutil.copy(fuentes / "nota-cofradia-de-ambar.md", fuentes / "nota-cofradia-segunda.md")
+    # Tercera fuente: la del trabajo que llega con el servicio YA en marcha
+    # (paso 4b del recorrido). Asi cada job del recorrido tiene la suya.
+    shutil.copy(fuentes / "nota-cofradia-de-ambar.md", fuentes / "nota-cofradia-tercera.md")
     monkeypatch.setenv("S9K_INGEST_SOURCES_DIR", str(fuentes))
     os.environ[FLAG_B] = "true"
     os.environ[FLAG_C] = "true"
@@ -304,7 +307,34 @@ def test_un_trabajo_creado_desde_la_web_se_procesa_sin_intervencion_manual(
         assert hecho and estado1["status"] == "complete", (
             "el servicio no proceso el job pedido desde la web: %s\n%s"
             % (estado1, servicio.texto()))
-        assert servicio.vivo(), "el servicio termino tras procesar:\n" + servicio.texto()
+
+        # 4b. EL SERVICIO SIGUE EN ESPERA: un segundo trabajo pedido por la web
+        #     DESPUES de que el primero termine lo procesa EL MISMO proceso.
+        #
+        #     Antes aqui habia solo `assert servicio.vivo()` justo tras ver el
+        #     job `complete`: un proceso que procesa UN job y sale (M1, `if once
+        #     or limit`) pasaba si el sondeo veia el `complete` antes de que el
+        #     interprete terminase de salir (commit -> return -> print ->
+        #     finalizacion: decenas o cientos de ms frente a un sondeo de
+        #     0,3 s). Era una carrera, y el calibrador salia 24/25 a veces.
+        #
+        #     Ahora no depende de quien gane: el job 1b se crea cuando el job 1
+        #     ya esta cerrado, de modo que un proceso que sale tras su primer
+        #     job NO PUEDE procesarlo (ya no reclama nada mas) y acaba muerto,
+        #     tarde o temprano; un daemon lo reclama en su siguiente sondeo y
+        #     sigue vivo. La espera termina en cuanto ocurre una de las dos
+        #     cosas, y cada una tiene un unico veredicto.
+        job1b, _ = _pedir_ingesta(operador, despliegue, 2)
+        _esperar(lambda: (not servicio.vivo())
+                 or _job(despliegue, job1b)["status"] in ("complete", "failed"), 120)
+        assert servicio.vivo(), (
+            "el servicio termino tras procesar su primer job (rc=%s) y el segundo, "
+            "pedido despues desde la web, quedo %s:\n%s"
+            % (servicio.proc.poll(), _job(despliegue, job1b)["status"], servicio.texto()))
+        estado1b = _job(despliegue, job1b)
+        assert estado1b["status"] == "complete", (
+            "el servicio sigue vivo pero no proceso el job pedido con el ya en marcha: %s\n%s"
+            % (estado1b, servicio.texto()))
 
         # 5. persistencia: jobs.db y el paquete de propuestas en el almacen declarado
         resultado = json.loads(estado1["result_json"])

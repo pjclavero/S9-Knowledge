@@ -19,7 +19,21 @@
   {% if workspaces %}
     Ninguna entidad de tu ámbito actual declara fuente en este workspace.
   {% else %}
-    No hay ningún workspace visible para tu ámbito actual.
+    {#
+      Este panel lee el GRAFO (docs/82: F y G son los paneles con contrato
+      Neo4j), no los ficheros que se pueden ingerir: eso es Operaciones. Sin
+      nada aplicado no hay workspace que listar, y el texto anterior («No hay
+      ningún workspace visible para tu ámbito actual») lo atribuía al ÁMBITO,
+      mientras Operaciones ofrecía la fuente (RC-E2E final, escenario 8). No se
+      afirma que el grafo esté vacío: para un lector acotado eso sería decir
+      algo de lo que no puede ver. Tampoco se remite a Operaciones (es de
+      administración: un lector no puede abrirla) ni se promete que la fuente
+      «aparecerá al aplicar»: para quien no ve el workspace por su ámbito, eso
+      sería falso.
+    #}
+    No hay conocimiento aplicado en ningún workspace que puedas ver.
+    Este panel muestra las fuentes de lo que ya se ha añadido al conocimiento,
+    no los ficheros que están pendientes de ingerir.
   {% endif %}
 {% endblock %}
 

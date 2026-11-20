@@ -1217,6 +1217,30 @@ def test_sin_material_se_pinta_el_estado_vacio_no_una_excepcion(
     assert 'data-state="error"' not in r.text
 
 
+def test_sin_workspaces_el_vacio_no_se_atribuye_al_ambito(real_app, auth_on, panel_on, con_base):
+    """RC-E2E final (escenario 8): con el grafo aún sin nada aplicado el panel
+    decía «No hay ningún workspace visible para tu ámbito actual» a un admin,
+    mientras Operaciones le ofrecía la fuente. Este panel lee el GRAFO; el vacío
+    antes del primer APPLY es legítimo, pero no es cosa del ámbito.
+    """
+    con_base([])
+    html = cliente_lector(real_app, auth_on).get(SLOT.prefix).text
+    assert 'data-state="empty"' in html
+    assert "para tu ámbito actual" not in html, (
+        "VACIO ATRIBUIDO AL AMBITO: el panel F culpa al ámbito de un grafo sin "
+        "nada aplicado")
+    # Frases del propio vacío («Operaciones» a secas ya sale en la barra).
+    assert "conocimiento aplicado en ningún workspace" in html, html[-1500:]
+    assert "no los ficheros que están pendientes de ingerir" in html, html[-1500:]
+    # Quien lo lee aquí es un LECTOR: ni se le remite a un panel de
+    # administración que no puede abrir, ni se le promete que la fuente
+    # aparecerá (si no la ve por su ámbito, no aparecerá).
+    vacio = html[html.index('data-state="empty"'):]
+    assert "panel de Operaciones" not in vacio and "aparecen aquí cuando" not in vacio, (
+        "VACIO QUE PROMETE DE MAS: el panel F remite a un lector a Operaciones "
+        "o le promete que la fuente aparecerá")
+
+
 def test_con_material_se_pinta_el_estado_listo(real_app, auth_on, panel_on, con_base):
     """Contrapeso del vacío: una pantalla que sale siempre vacía también pasaría
     el test de arriba."""
