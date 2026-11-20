@@ -218,9 +218,18 @@ SEAL_CODES = {
 #: la proyeccion. Confundirlos diria que no se escribio nada cuando si se
 #: escribio la afirmacion.
 PROJECTION_CODES = {
+    # LA CAUSA HABITUAL NO ES UN PAQUETE VIEJO. Las anclas salen del snapshot
+    # de la corrida (`review_export.run_entity_anchors`), y una entidad que no
+    # estaba en el grafo al ingerir --la primera ingesta de una instalacion, o
+    # un alta aprobada en esta misma revision-- no tiene ancla. Es el limite
+    # declarado de docs/92 («Lo que este corte NO hace»); el texto anterior
+    # solo nombraba el caso raro y mandaba a buscar un paquete antiguo.
     "PROJECTION_NO_ANCHOR": (
-        "la corrida no dejo ancla de estado para los extremos de este hecho "
-        "(paquete anterior a este corte)"
+        "la corrida no dejo ancla de estado para los extremos de este hecho: "
+        "no estaban en el grafo cuando se ingirio la fuente (primera ingesta, "
+        "o entidad nueva aprobada en esta revision) o el paquete es anterior a "
+        "este corte. La afirmacion entra; la arista se podra proyectar con una "
+        "nueva ingesta de la misma fuente despues de aplicar"
     ),
     "PROJECTION_ANCHOR_NOT_OBSERVED": (
         "el estado de los extremos viene de un catalogo declarado en fichero, "

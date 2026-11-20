@@ -212,6 +212,21 @@ def test_un_motivo_de_omision_no_declarado_no_se_puede_emitir():
     assert exc.value.code == "PROJECTION_CODE_NOT_DECLARED"
 
 
+def test_el_texto_de_sin_ancla_nombra_la_causa_habitual_no_solo_el_paquete_viejo():
+    """RC-E2E final (escenario 8): `sellado sin proyeccion ... PROJECTION_NO_ANCHOR`
+    en la PRIMERA ingesta de una instalacion (grafo vacio, extremos que son
+    altas aprobadas en la misma revision), con un texto que solo decia
+    «(paquete anterior a este corte)». Es el limite declarado de docs/92: las
+    anclas salen del snapshot de la corrida. El texto tiene que nombrar esa
+    causa y decir que hacer.
+    """
+    texto = review_plan.PROJECTION_CODES["PROJECTION_NO_ANCHOR"]
+    assert "no estaban en el grafo" in texto, (
+        "SIN ANCLA MAL EXPLICADO: el texto de PROJECTION_NO_ANCHOR no nombra "
+        f"la causa habitual (extremos ausentes del grafo al ingerir): {texto!r}")
+    assert "nueva ingesta" in texto, texto
+
+
 # ===========================================================================
 # 3. LA IDENTIDAD DEL PLAN NO SE MUEVE (lo que el encargo mandaba vigilar)
 # ===========================================================================
