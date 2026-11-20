@@ -230,9 +230,13 @@ else
             instalacion_previa=1
         elif [ -e "${S9K_ROOT}/current" ] || [ -L "${S9K_ROOT}/current" ]; then
             instalacion_previa=1
-        elif [ -d "${S9K_ROOT}/releases" ] && \
-             [ -n "$(find "${S9K_ROOT}/releases" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]; then
-            instalacion_previa=1
+        elif [ -d "${S9K_ROOT}/releases" ]; then
+            # Falla CERRADO: si `releases/` no se puede listar no se puede
+            # afirmar que esté vacío, y se trata como instalación previa.
+            if ! primera_release="$(find "${S9K_ROOT}/releases" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" \
+               || [ -n "${primera_release}" ]; then
+                instalacion_previa=1
+            fi
         fi
         if [ "${instalacion_previa}" -eq 1 ]; then
             bloq "directorio de estado no existe: ${S9K_STATE_ROOT} (hay una instalación previa o un objeto que no es directorio: el estado no puede faltar)"

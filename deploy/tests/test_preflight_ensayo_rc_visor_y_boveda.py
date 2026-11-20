@@ -211,3 +211,67 @@ def test_rc2_04_la_resolucion_es_la_del_catalogo_no_una_copia():
         "RC2-04: fuentes_pobladas YA NO PREGUNTA AL CATALOGO DEL PRODUCTO")
     assert not ({"iterdir", "is_dir", "glob", "rglob", "walk", "listdir"} & llamadas), (
         "RC2-04: fuentes_pobladas RECORRE EL DISCO POR SU CUENTA (SEGUNDA RESOLUCION)")
+
+
+# --- RC2-03: que `app` sea el del visor de ESTA release, y no un homonimo -----------------------
+# En un interprete NUEVO (subproceso): aqui `app` aun no esta en `sys.modules`, asi que lo que
+# decide es el `sys.path`, que es justo lo que el control tiene que vigilar.
+
+_SONDA_VISOR = """
+import importlib.util, sys
+from pathlib import Path
+guion, antes, raiz = sys.argv[1:4]
+if antes:
+    sys.path.insert(0, antes)
+spec = importlib.util.spec_from_file_location("_pf_sonda", guion)
+pf = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = pf
+spec.loader.exec_module(pf)
+try:
+    pf._preparar_visor(Path(raiz))
+except pf.VisorNoCargable as exc:
+    print("NOCARGABLE", exc)
+else:
+    print("CARGADO", sys.modules["app.config"].__file__)
+"""
+
+
+def _paquete_app(base: Path) -> None:
+    (base / "app").mkdir(parents=True)
+    (base / "app" / "__init__.py").write_text("", encoding="utf-8")
+    (base / "app" / "config.py").write_text("", encoding="utf-8")
+
+
+def _sonda_visor(tmp_path: Path, raiz: Path, antes: str = "") -> str:
+    r = subprocess.run([sys.executable, "-c", _SONDA_VISOR, str(GUION), antes, str(raiz)],
+                       capture_output=True, text=True, cwd=str(tmp_path),
+                       env=_env_de_subproceso({}), timeout=120)
+    assert r.returncode == 0, "RC2-03: LA SONDA DEL VISOR NO SE EJECUTA: %s" % r.stderr
+    return r.stdout
+
+
+def test_rc2_03_el_visor_de_la_release_se_carga_cuando_no_hay_homonimo(tmp_path):
+    """Control positivo: sin homonimo, la release de pega SI carga (la sonda mide)."""
+    raiz = tmp_path / "release"
+    _paquete_app(raiz / "viewer")
+    out = _sonda_visor(tmp_path, raiz)
+    assert out.startswith("CARGADO"), "RC2-03: LA SONDA NO CARGA NI EL VISOR BUENO: %s" % out
+
+
+def test_rc2_03_un_app_homonimo_dentro_del_arbol_del_visor_no_pasa_por_el_visor(tmp_path):
+    """Un `app` instalado BAJO `viewer/` (p. ej. en su venv) y por delante en `sys.path`."""
+    raiz = tmp_path / "release"
+    _paquete_app(raiz / "viewer")
+    homonimo = raiz / "viewer" / ".venv" / "site-packages"
+    _paquete_app(homonimo)
+    out = _sonda_visor(tmp_path, raiz, antes=str(homonimo))
+    assert out.startswith("NOCARGABLE") and "OTRO paquete" in out, (
+        "RC2-03: UN PAQUETE HOMONIMO PASA POR EL VISOR: %s" % out)
+
+
+def test_rc2_03_una_release_sin_visor_lo_dice(tmp_path):
+    raiz = tmp_path / "release"
+    raiz.mkdir()
+    out = _sonda_visor(tmp_path, raiz)
+    assert out.startswith("NOCARGABLE") and "no hay visor en esta release" in out, (
+        "RC2-03: SIN VISOR NO LO DICE: %s" % out)

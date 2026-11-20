@@ -42,7 +42,7 @@ CONTROL_NULO = Mutacion(
     PREFLIGHT_SH,
     "# RC2-01: en una máquina LIMPIA",
     "# RC2-01 (comentario tocado por el calibrador): en una máquina LIMPIA",
-    (T_SH,), None)
+    (T_SH, T_PY), None)   # las DOS suites: un rojo de base en cualquiera invalida el instrumento
 
 _CARGA = ("RC2-03: EL PREFLIGHT NO CARGA EL CATALOGO", "RC2-03: SIN DEPENDENCIAS NO NOMBRA EL INTERPRETE",
           "RC2-03: SIN DEPENDENCIAS NO SALE PENDIENTE")
@@ -80,6 +80,20 @@ MUTACIONES = [
              'if [ -e "${S9K_STATE_ROOT}" ] || [ -L "${S9K_STATE_ROOT}" ]; then',
              "if false; then",
              (T_SH,), ("RC2-01: UN STATE ROOT QUE NO ES DIRECTORIO NO BLOQUEA",)),
+    Mutacion("RC2-01 · `current` solo (sin releases) deja de contar como instalacion previa",
+             PREFLIGHT_SH,
+             'elif [ -e "${S9K_ROOT}/current" ] || [ -L "${S9K_ROOT}/current" ]; then',
+             "elif false; then",
+             (T_SH,), ("RC2-01: CURRENT SIN STATE ROOT NO BLOQUEA",)),
+    Mutacion("RC2-01 · un `releases/` que no se puede listar vuelve a fallar ABIERTO",
+             PREFLIGHT_SH, "-print -quit 2>/dev/null)\" \\", "-print -quit 2>/dev/null || true)\" \\",
+             (T_SH,), ("RC2-01: RELEASES ILEGIBLE PASA POR MAQUINA LIMPIA",)),
+    Mutacion("RC2-03 · el control del homonimo vuelve a aceptar cualquier `app` bajo viewer/",
+             PREFLIGHT_PY, "    if origen != esperado:", "    if visor not in origen.parents:",
+             (T_PY,), ("RC2-03: UN PAQUETE HOMONIMO PASA POR EL VISOR",)),
+    Mutacion("RC2-03 · una release sin visor deja de decirlo",
+             PREFLIGHT_PY, '    if not (visor / "app" / "__init__.py").is_file():', "    if False:",
+             (T_PY,), ("RC2-03: SIN VISOR NO LO DICE",)),
 ]
 
 
@@ -103,8 +117,9 @@ def _correr(suites: tuple) -> tuple:
 
 def _con_mutacion(m: Mutacion) -> tuple:
     original = _leer(m.fichero)
-    if m.viejo not in original:
-        return 2, "ANCLA PERDIDA: el texto a mutar ya no esta en %s" % m.fichero
+    if original.count(m.viejo) != 1:
+        return 2, "ANCLA PERDIDA O AMBIGUA: el texto a mutar aparece %d veces en %s (debe ser 1)" % (
+            original.count(m.viejo), m.fichero)
     (REPO / m.fichero).write_text(original.replace(m.viejo, m.nuevo, 1), encoding="utf-8")
     try:
         return _correr(m.suites)

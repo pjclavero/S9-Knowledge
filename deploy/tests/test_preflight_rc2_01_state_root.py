@@ -34,8 +34,12 @@ def _ejecuta(tmp_path: Path, *, entorno: str = "production", estado: str = "ause
     state = tmp_path / "var-lib"
     s9k.mkdir()
     if instalacion == "current":
-        (s9k / "releases" / "r1").mkdir(parents=True)
+        # SOLO `current`, sin `releases/`: asi el caso lo decide la rama de
+        # `current` y no la de `releases` (que lo taparia).
         (s9k / "current").symlink_to(s9k / "releases" / "r1")
+    elif instalacion == "releases-ilegible":
+        (s9k / "releases" / "r1").mkdir(parents=True)
+        (s9k / "releases").chmod(0o000)
     elif instalacion == "releases":
         (s9k / "releases" / "r1").mkdir(parents=True)
     elif instalacion == "releases-vacio":
@@ -56,8 +60,12 @@ def _ejecuta(tmp_path: Path, *, entorno: str = "production", estado: str = "ause
         f"ENVIRONMENT='{entorno}'\n"
         f"S9K_ROOT='{s9k}'; S9K_STATE_ROOT='{state}'; S9K_CONFIG_ROOT='{tmp_path / 'etc'}'\n"
         + _bloque_estado() + "\necho \"BLOCKS=${blocks} WARNS=${warns}\"\n")
-    r = subprocess.run(["bash", "-c", guion], capture_output=True, text=True,
-                       env={**os.environ}, timeout=60)
+    try:
+        r = subprocess.run(["bash", "-c", guion], capture_output=True, text=True,
+                           env={**os.environ}, timeout=60)
+    finally:
+        if instalacion == "releases-ilegible":
+            (s9k / "releases").chmod(0o755)   # para que pytest pueda limpiar
     assert r.returncode == 0, "RC2-01: EL BLOQUE DEL GUION NO SE EJECUTA: %s" % r.stderr
     return r.stdout
 
@@ -86,6 +94,17 @@ def test_instalacion_previa_sin_state_root_bloquea(tmp_path, instalacion):
     out = _ejecuta(tmp_path, instalacion=instalacion)
     assert "BLOCKS=1" in out and "STOP directorio de estado no existe" in out, \
         "RC2-01: INSTALACION PREVIA SIN STATE ROOT NO BLOQUEA: %s" % out
+
+
+def test_solo_current_sin_releases_bloquea(tmp_path):
+    out = _ejecuta(tmp_path, instalacion="current")
+    assert "BLOCKS=1" in out, "RC2-01: CURRENT SIN STATE ROOT NO BLOQUEA: %s" % out
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root lee cualquier directorio: el caso no existe")
+def test_releases_que_no_se_puede_listar_bloquea(tmp_path):
+    out = _ejecuta(tmp_path, instalacion="releases-ilegible")
+    assert "BLOCKS=1" in out, "RC2-01: RELEASES ILEGIBLE PASA POR MAQUINA LIMPIA: %s" % out
 
 
 @pytest.mark.parametrize("estado", ["fichero", "enlace-roto"])

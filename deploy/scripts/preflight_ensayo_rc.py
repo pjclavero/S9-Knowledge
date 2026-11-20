@@ -195,7 +195,10 @@ def _preparar_visor(raiz: Path = REPO_ROOT) -> None:
             f"release (falta `{faltante}`): repetir con el interprete del venv "
             "del visor (<release>/viewer/.venv/bin/python)") from exc
     origen = Path(getattr(modulo, "__file__", "") or "").resolve()
-    if visor not in origen.parents:
+    # Estricto: el fichero EXACTO del visor. «Bajo `viewer/`» no basta: un `app`
+    # instalado en `viewer/.venv/.../site-packages` tambien cuelga de ahi.
+    esperado = (visor / "app" / "config.py").resolve()
+    if origen != esperado:
         raise VisorNoCargable(
             f"`app` resuelve a OTRO paquete ({origen.parent}) y no al visor de "
             f"esta release ({visor / 'app'})")
