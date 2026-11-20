@@ -499,7 +499,7 @@ def test_f_reaplicar_el_mismo_plan_no_duplica_nodos_ni_aristas():
 #: `plan_hash` del plan de dos entidades YA EXISTENTES, medido sobre `main`
 #: ANTES de esta correccion (RC2-05). Si cambia, la correccion movio un plan que
 #: hoy funciona.
-HASH_PLAN_SIN_ALTAS = "PENDIENTE_DE_MEDIR"
+HASH_PLAN_SIN_ALTAS = "33f6bd8a116b7e100810e08681cb66079bee19a8655d309c9acf8b21ee05aced"
 
 
 def _plan_sin_altas():
