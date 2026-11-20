@@ -261,7 +261,8 @@ def test_rc2_02_verify_con_la_cuenta_lectora_da_rc_0_y_ensure_no_puede_crear(
         f"ensure con la cuenta lectora debia denegarse por privilegio: rc={rc} "
         f"{error.getvalue()}"
     )
-    assert "SCHEMA_PRIVILEGE_MISSING" in error.getvalue()
+    codigo = "SCHEMA_PRIVILEGE_MISSING"
+    assert codigo in error.getvalue()
 
 
 @neo4j_real

@@ -120,12 +120,13 @@ def test_forbidden_es_codigo_de_autorizacion_no_incompleto(
     show_constraint, show_index, privilegio
 ):
     drv = _Driver(show_constraint=show_constraint, show_index=show_index)
-    rc, out, err = _correr(drv, usuario="cuenta_x")
+    cuenta = "cuenta_x"
+    rc, out, err = _correr(drv, usuario=cuenta)
     assert rc == schema_cli.RC_SIN_PRIVILEGIO, f"Forbidden no dio el rc de autorizacion: {rc}"
     assert rc not in (schema_cli.RC_INCOMPLETO, schema_cli.RC_ERROR, schema_cli.RC_OK)
     assert f"error_code={schema.SCHEMA_PRIVILEGE_MISSING}" in err
     assert privilegio in err, "el mensaje no nombra el privilegio que falta"
-    assert "cuenta_x" in err, "el mensaje no nombra la cuenta"
+    assert cuenta in err, "el mensaje no nombra la cuenta"
     assert "FALTA" not in out, "no debe pintar un censo de faltantes que no se pudo medir"
     assert drv.cerrado, "el driver no se cerro"
 
