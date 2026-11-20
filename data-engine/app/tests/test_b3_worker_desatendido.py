@@ -301,7 +301,16 @@ def test_worker_matado_a_mitad_se_libera_y_se_reprocesa(tmp_path, db):
              "--retry-backoff-seconds", "0")
     a = _Worker(tmp_path, db, *flags, nombre="a")
     try:
-        assert _esperar(lambda: _job(db, job_id)["status"] == "running", 15), a.texto()
+        # Se mata a `a` con el HANDLER YA DENTRO de su espera, no solo con el
+        # job `running`. `running` lo escribe `claim_next_job` ANTES de llamar
+        # al handler, y es el handler quien cuenta su invocacion (fsync) antes
+        # de dormir. Matar en ese hueco dejaba el contador a 0: la invocacion
+        # de `b` era entonces la PRIMERA y dormia 120 s, y la prueba fallaba
+        # con «el huerfano no se libero» aun habiendose liberado y reclamado
+        # (visto en CI: status running, attempts 1, error_message «liberado»,
+        # locked_by el worker nuevo). Esperar al contador cierra el hueco.
+        assert _esperar(lambda: _job(db, job_id)["status"] == "running"
+                        and a.invocaciones("dormir_una_vez") >= 1, 15), a.texto()
         a.proc.kill()                      # SIGKILL a mitad del job
         a.proc.wait(timeout=10)
     finally:
