@@ -540,18 +540,30 @@ def _causa(exc: BaseException) -> str:
 
 
 def fuentes_pobladas(ctx: Contexto) -> Resultado:
-    crudo = ctx.env.get("S9K_INGEST_SOURCES_DIR")
-    if not crudo:
-        return Resultado("fuentes.pobladas", ROJO,
-                         "S9K_INGEST_SOURCES_DIR sin declarar: el catalogo caeria "
-                         "en los ejemplos del repositorio")
+    """Mide lo MISMO que vera el producto: `listar_fuentes(env)` del catalogo.
+
+    RC2-04. Antes solo se pasaba `S9K_INGEST_SOURCES_DIR`, de modo que con
+    `S9K_VAULT_ROOT` declarado el preflight miraba el catalogo PLANO y daba un
+    rojo falso. La resolucion (boveda o plano, y que cuenta como «declarado»)
+    es del catalogo del visor y NO se duplica: se le pasa el entorno entero.
+    """
     try:
         catalogo = _sources_catalog()
     except Exception as exc:  # noqa: BLE001
         return Resultado("fuentes.pobladas", PENDIENTE,
-                         f"no se pudo cargar el catalogo: {type(exc).__name__}")
+                         f"no se pudo cargar el catalogo: {_causa(exc)}")
+    env = dict(ctx.env)
     try:
-        fuentes = catalogo.listar_fuentes({"S9K_INGEST_SOURCES_DIR": crudo})
+        declarada = catalogo.ubicacion_declarada(env)
+    except Exception as exc:  # noqa: BLE001
+        return Resultado("fuentes.pobladas", PENDIENTE,
+                         f"no se pudo consultar la declaracion: {type(exc).__name__}")
+    if not declarada:
+        return Resultado("fuentes.pobladas", ROJO,
+                         "ni S9K_VAULT_ROOT ni S9K_INGEST_SOURCES_DIR declarados: "
+                         "el catalogo caeria en los ejemplos del repositorio")
+    try:
+        fuentes = catalogo.listar_fuentes(env)
     except Exception as exc:  # noqa: BLE001
         return Resultado("fuentes.pobladas", ROJO,
                          f"el catalogo no se pudo consultar: {type(exc).__name__}")
