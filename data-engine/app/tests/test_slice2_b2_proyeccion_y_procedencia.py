@@ -218,15 +218,20 @@ def test_el_texto_de_sin_ancla_nombra_la_causa_habitual_no_solo_el_paquete_viejo
     altas aprobadas en la misma revision), con un texto que solo decia
     «(paquete anterior a este corte)». Es el limite declarado de docs/92: las
     anclas salen del snapshot de la corrida. El texto tiene que nombrar esa
-    causa y decir que hacer.
+    causa y decir lo que pasa (la arista no se proyecta), sin prometer remedio.
     """
     texto = review_plan.PROJECTION_CODES["PROJECTION_NO_ANCHOR"]
     assert "no estaban en el grafo" in texto, (
         "SIN ANCLA MAL EXPLICADO: el texto de PROJECTION_NO_ANCHOR no nombra "
         f"la causa habitual (extremos ausentes del grafo al ingerir): {texto!r}")
-    assert "nueva ingesta" in texto, (
+    # Y NO promete un remedio que el producto no cumple por la web (revision
+    # adversarial de este cambio): dice lo que pasa, no que se arreglara solo.
+    assert "arista no se proyecta" in texto, (
         "SIN ANCLA MAL EXPLICADO: el texto de PROJECTION_NO_ANCHOR no dice que "
-        f"hacer (una nueva ingesta): {texto!r}")
+        f"la arista no se proyecta: {texto!r}")
+    assert texto.count("nueva ingesta") == 0, (
+        "SIN ANCLA PROMETE DE MAS: el texto promete que una nueva ingesta "
+        f"proyectara la arista, y eso no esta demostrado: {texto!r}")
 
 
 # ===========================================================================

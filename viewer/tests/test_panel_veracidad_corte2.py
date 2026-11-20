@@ -509,9 +509,17 @@ def test_la_entrada_de_escritura_de_una_ingesta_normal_no_se_presenta_como_inexp
         "ESCRITURA INEXPLICABLE: con PLAN_NO_APROBADO en la misma corrida, "
         "ESCRITURA_NO_COMPLETADA se sigue presentando como carencia sin "
         f"explicar: {frase!r}")
-    assert "simulacion" in frase and "aplicarlo" in frase, (
-        "ESCRITURA INEXPLICABLE: la frase no dice que la ingesta es una "
-        f"simulacion ni que falta aplicarlo: {frase!r}")
+    assert "simulacion" in frase and "no se ha escrito nada" in frase, (
+        "ESCRITURA INEXPLICABLE: la frase no dice que fue la simulacion la que "
+        f"lo rechazo ni que no se ha escrito nada: {frase!r}")
+    # Dice la causa y NADA MAS: el motor desaprueba por tres causas y esta
+    # frase no sabe cual, asi que ni valora ni promete (y no contradice a la
+    # de PLAN_NO_APROBADO, que se pinta encima).
+    de_mas = [p for p in ("lo esperado", "se anade despues", "apruebes")
+              if p in frase or p in panel_errors.carencia("SIN_ESCRITURA")]
+    assert de_mas == [], (
+        "ESCRITURA AFIRMA DE MAS: la frase valora o promete lo que el sistema "
+        f"no sabe: {de_mas!r}")
 
     sola = chassis_operations._carencias_del_resultado(["ESCRITURA_NO_COMPLETADA"])
     assert sola[0]["message"] == generica.replace(

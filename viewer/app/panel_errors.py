@@ -301,8 +301,7 @@ CARENCIAS = {
     # esta pantalla no sabe explicar. Avisa a quien administra el servicio».
     "SIN_ESCRITURA":
         "Esta ingesta es una simulacion: no ha escrito nada en el "
-        "conocimiento. Lo que apruebes en la revision se anade despues, al "
-        "prepararlo y aplicarlo.",
+        "conocimiento.",
 }
 
 #: CARENCIAS QUE OTRA YA EXPLICA. `(codigo, la que lo explica) -> frase`.
@@ -316,12 +315,17 @@ CARENCIAS = {
 #: consecuencia de la carencia de al lado, no una nueva; tratarla de
 #: inexplicable mandaba a avisar al administrador por el desenlace normal de
 #: toda ingesta que deja decisiones en REVIEW (RC-E2E final, escenario 8).
+#:
+#: LA FRASE DICE LA CAUSA Y NADA MAS. No dice «es lo esperado» ni «lo que
+#: apruebes se anade despues»: el motor desaprueba un plan por tres causas
+#: (hay REVIEW, no hay operaciones, o un validador en FAIL) y esta clave no
+#: sabe cual. Con un validador en FAIL no hay nada en revision que aprobar, y
+#: prometerlo seria inventar; ademas contradiria a la frase de
+#: `PLAN_NO_APROBADO`, que se pinta justo encima.
 CARENCIAS_EXPLICADAS_POR = {
     ("ESCRITURA_NO_COMPLETADA", "PLAN_NO_APROBADO"):
         "Como el motor no aprobo ese conjunto de cambios, la simulacion de la "
-        "escritura lo ha rechazado: no se ha escrito nada en el conocimiento, "
-        "que es lo esperado. Lo que apruebes en la revision se anade despues, "
-        "al prepararlo y aplicarlo.",
+        "escritura lo ha rechazado: no se ha escrito nada en el conocimiento.",
 }
 
 

@@ -1231,7 +1231,14 @@ def test_sin_workspaces_el_vacio_no_se_atribuye_al_ambito(real_app, auth_on, pan
         "nada aplicado")
     # Frases del propio vacío («Operaciones» a secas ya sale en la barra).
     assert "conocimiento aplicado en ningún workspace" in html, html[-1500:]
-    assert "aparecen aquí cuando lo aprobado de su ingesta se aplica" in html, html[-1500:]
+    assert "no los ficheros que están pendientes de ingerir" in html, html[-1500:]
+    # Quien lo lee aquí es un LECTOR: ni se le remite a un panel de
+    # administración que no puede abrir, ni se le promete que la fuente
+    # aparecerá (si no la ve por su ámbito, no aparecerá).
+    vacio = html[html.index('data-state="empty"'):]
+    assert "panel de Operaciones" not in vacio and "aparecen aquí cuando" not in vacio, (
+        "VACIO QUE PROMETE DE MAS: el panel F remite a un lector a Operaciones "
+        "o le promete que la fuente aparecerá")
 
 
 def test_con_material_se_pinta_el_estado_listo(real_app, auth_on, panel_on, con_base):

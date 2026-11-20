@@ -224,12 +224,15 @@ PROJECTION_CODES = {
     # un alta aprobada en esta misma revision-- no tiene ancla. Es el limite
     # declarado de docs/92 («Lo que este corte NO hace»); el texto anterior
     # solo nombraba el caso raro y mandaba a buscar un paquete antiguo.
+    # NO se promete remedio: que una segunda ingesta de la misma fuente
+    # proyecte la arista no esta demostrado por el camino web (la propuesta ya
+    # resuelta no vuelve al paquete y el panel solo simula), asi que el texto
+    # dice lo que pasa y nada mas.
     "PROJECTION_NO_ANCHOR": (
         "la corrida no dejo ancla de estado para los extremos de este hecho: "
         "no estaban en el grafo cuando se ingirio la fuente (primera ingesta, "
         "o entidad nueva aprobada en esta revision) o el paquete es anterior a "
-        "este corte. La afirmacion entra; la arista se podra proyectar con una "
-        "nueva ingesta de la misma fuente despues de aplicar"
+        "este corte. La afirmacion entra; su arista no se proyecta"
     ),
     "PROJECTION_ANCHOR_NOT_OBSERVED": (
         "el estado de los extremos viene de un catalogo declarado en fichero, "
