@@ -1231,6 +1231,8 @@ CREATE ROLE s9k_observador;
 GRANT ACCESS ON DATABASE neo4j TO s9k_observador;
 GRANT MATCH {*} ON GRAPH neo4j NODES * TO s9k_observador;
 GRANT MATCH {*} ON GRAPH neo4j RELATIONSHIPS * TO s9k_observador;
+GRANT SHOW CONSTRAINT ON DATABASE neo4j TO s9k_observador;
+GRANT SHOW INDEX ON DATABASE neo4j TO s9k_observador;
 CREATE USER s9k_worker_lector SET PASSWORD '<secreto>' SET PASSWORD CHANGE NOT REQUIRED;
 GRANT ROLE s9k_observador TO s9k_worker_lector;
 ```
@@ -1239,6 +1241,22 @@ No se concede `WRITE`, ni `CREATE`, ni `SET`, ni `DELETE`, ni `MERGE`. Las
 cuatro formas se comprueban por separado: conceder `MATCH` y olvidar que
 `MERGE` es otra capacidad sería justamente el hueco por el que se cuela una
 escritura.
+
+**`SHOW CONSTRAINT` y `SHOW INDEX` son lectura de esquema, no escritura** (RC2-02).
+Sin ellos `s9k-cli.sh writer-schema verify` —que lista restricciones e
+índices y que, por el envoltorio de las CLIs, usa la cuenta del worker— sale
+con `Neo.ClientError.Security.Forbidden`. Con ellos la cuenta lectora sigue sin
+poder crear nada: `CREATE CONSTRAINT`/`CREATE INDEX` (`ensure`) siguen
+denegados y `ensure` se hace con la cuenta del writer o una administradora.
+Salidas de `writer-schema`: `verify` rc 0 esquema completo, rc 3 faltan
+restricciones o índices, **rc 5 con `error_code=SCHEMA_PRIVILEGE_MISSING`** si a
+la cuenta le falta un privilegio de esquema (el mensaje dice cuál y para qué
+cuenta, sin secretos), rc 2 cualquier otro error. Un rol creado antes de este
+cambio hay que completarlo: ejecute las dos sentencias `GRANT SHOW …`. El texto
+de este bloque y el rol que espera el código (`READER_ROLE_PRIVILEGES` en
+`data-engine/app/knowledge_v3/writer/schema.py`) los compara un test. En
+Community no hay roles finos: la cuenta no puede restringirse y `verify`
+funciona sin estos permisos.
 
 > ⚠️ **CONDICIÓN DE EDICIÓN — verificada, no supuesta.** Medido contra
 > `neo4j:5.26-community`: `CREATE USER` funciona, pero `CREATE ROLE`,

@@ -31,7 +31,9 @@ USO
     python -m knowledge_v3.writer.schema_cli ensure ... [--json]
 
 `verify` es de SOLO LECTURA y no crea nada: sale 0 si esta todo, 3 si falta
-algo. `ensure` instala y despues verifica; si tras instalar sigue faltando
+algo, 5 (`SCHEMA_PRIVILEGE_MISSING`) si la cuenta no tiene el privilegio
+`SHOW CONSTRAINT`/`SHOW INDEX` (el rol lector documentado en `deploy/README.md`
+lo incluye) y 2 ante cualquier otro error. `ensure` instala y despues verifica; si tras instalar sigue faltando
 algo, sale 3 y no miente.
 """
 from __future__ import annotations
@@ -59,6 +61,10 @@ from . import schema
 RC_OK = 0
 RC_ERROR = 2
 RC_INCOMPLETO = 3
+#: RC2-02. La cuenta se autentico y el servidor le nego un privilegio de
+#: esquema. No es «incompleto» (no se pudo mirar) ni «error» generico. 4 lo
+#: usa `reject_root_cli` (root), por eso aqui 5.
+RC_SIN_PRIVILEGIO = 5
 
 
 def _censo(driver: Any) -> dict:
@@ -94,6 +100,17 @@ def _imprimir(censo: dict, cabecera: str, salida) -> None:
     print(f"  completo: {'si' if censo['completo'] else 'NO'}", file=salida)
 
 
+def _cuenta(args: Any, env: Optional[dict]) -> str:
+    """Nombre de la cuenta (no es un secreto) para el mensaje de autorizacion."""
+    import os
+
+    return (
+        args.neo4j_user
+        or (env if env is not None else os.environ).get(ENV_USER)
+        or "(la configurada)"
+    )
+
+
 def run(argv: Optional[list[str]] = None, *, driver_factory=None, env=None,
         stdout=None, stderr=None) -> int:
     stdout = stdout or sys.stdout
@@ -120,6 +137,7 @@ def run(argv: Optional[list[str]] = None, *, driver_factory=None, env=None,
         print(f"no se pudo conectar: {exc}", file=stderr)
         return RC_ERROR
 
+    cuenta = _cuenta(args, env)
     try:
         antes = _censo(driver)
         if args.accion == "verify":
@@ -145,6 +163,25 @@ def run(argv: Optional[list[str]] = None, *, driver_factory=None, env=None,
         if args.json:
             print(json.dumps(resultado, ensure_ascii=False, sort_keys=True), file=stdout)
         return RC_OK if resultado["completo"] else RC_INCOMPLETO
+    except schema.SchemaPrivilegeError as exc:
+        # Veraz: dice QUE privilegio falta y para QUE cuenta; no vuelca el
+        # texto del servidor ni nada de la conexion.
+        print(
+            f"error_code={exc.code}: falta el privilegio {exc.privilege} "
+            f"para la cuenta {cuenta}; pidale a quien administra Neo4j que lo "
+            "conceda (deploy/README.md, rol de solo lectura)",
+            file=stderr,
+        )
+        if args.json:
+            print(
+                json.dumps(
+                    {"error_code": exc.code, "privilegio": exc.privilege,
+                     "cuenta": cuenta, "completo": None},
+                    ensure_ascii=False, sort_keys=True,
+                ),
+                file=stdout,
+            )
+        return RC_SIN_PRIVILEGIO
     except Exception as exc:
         print(f"fallo al leer/aplicar el esquema: {exc}", file=stderr)
         return RC_ERROR

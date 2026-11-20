@@ -189,23 +189,83 @@ REQUIRED_INDEX_NAMES: tuple[str, ...] = (
 )
 
 
+#: Codigo estable del fallo de AUTORIZACION de esquema (RC2-02). Distinto de
+#: «esquema incompleto» (faltan restricciones) y de «credencial inutilizable»
+#: (el fichero del secreto no sirve): aqui el servidor autentico a la cuenta y
+#: le nego una operacion de esquema.
+SCHEMA_PRIVILEGE_MISSING = "SCHEMA_PRIVILEGE_MISSING"
+
+#: Codigo de error de Neo4j cuando la cuenta autenticada no tiene el privilegio.
+NEO4J_FORBIDDEN_CODE = "Neo.ClientError.Security.Forbidden"
+
+#: Privilegios de esquema que cada operacion exige (Neo4j 5, `GRANT ... ON
+#: DATABASE`). `SHOW` es lectura de esquema; `CREATE` es administracion.
+PRIVILEGE_SHOW_CONSTRAINT = "SHOW CONSTRAINT"
+PRIVILEGE_SHOW_INDEX = "SHOW INDEX"
+PRIVILEGE_CREATE_SCHEMA = "CREATE CONSTRAINT / CREATE INDEX"
+
+
+class SchemaPrivilegeError(RuntimeError):
+    """La cuenta no tiene un privilegio de esquema. Sin secretos en el texto."""
+
+    code = SCHEMA_PRIVILEGE_MISSING
+
+    def __init__(self, privilege: str):
+        super().__init__(f"falta el privilegio {privilege} para la cuenta de conexion")
+        self.privilege = privilege
+
+
+def is_forbidden(exc: BaseException) -> bool:
+    """`True` si `exc` es la denegacion de autorizacion de Neo4j (no de credencial)."""
+    if getattr(exc, "code", None) == NEO4J_FORBIDDEN_CODE:
+        return True
+    return type(exc).__name__ == "Forbidden"
+
+
+# --- EL ROL DE SOLO LECTURA: UNA SOLA AUTORIDAD (RC2-02) --------------------
+#: Privilegios del rol de lectura, en Cypher de administracion de Neo4j 5
+#: Enterprise. `deploy/README.md` reproduce ESTE bloque y un test lo compara:
+#: si divergen, rojo. Leer el esquema (`SHOW CONSTRAINT`/`SHOW INDEX`) es de
+#: sólo lectura; NO se concede ninguna escritura (ni WRITE, CREATE, SET,
+#: DELETE, MERGE, ni CREATE/DROP CONSTRAINT/INDEX).
+READER_ROLE_NAME = "s9k_observador"
+READER_ROLE_PRIVILEGES: tuple[str, ...] = (
+    "GRANT ACCESS ON DATABASE {db} TO {role}",
+    "GRANT MATCH {*} ON GRAPH {db} NODES * TO {role}",
+    "GRANT MATCH {*} ON GRAPH {db} RELATIONSHIPS * TO {role}",
+    "GRANT SHOW CONSTRAINT ON DATABASE {db} TO {role}",
+    "GRANT SHOW INDEX ON DATABASE {db} TO {role}",
+)
+
+
+def reader_role_grants(role: str = READER_ROLE_NAME, db: str = "neo4j") -> list[str]:
+    """Las sentencias GRANT del rol lector, con rol y base ya sustituidos."""
+    return [
+        g.replace("{db}", db).replace("{role}", role) for g in READER_ROLE_PRIVILEGES
+    ]
+
+
+def _show(driver: Any, cypher: str, privilege: str) -> set[str]:
+    try:
+        with driver.session() as session:
+            return {
+                row["name"] for row in session.run(cypher) if row.get("name")
+            }
+    except Exception as exc:
+        if is_forbidden(exc):
+            raise SchemaPrivilegeError(privilege) from exc
+        raise
+
+
 def observed_constraint_names(driver: Any) -> set[str]:
     """Los nombres que el SERVIDOR dice tener. Observado, no presupuesto."""
-    with driver.session() as session:
-        return {
-            row["name"]
-            for row in session.run("SHOW CONSTRAINTS YIELD name RETURN name")
-            if row.get("name")
-        }
+    return _show(
+        driver, "SHOW CONSTRAINTS YIELD name RETURN name", PRIVILEGE_SHOW_CONSTRAINT
+    )
 
 
 def observed_index_names(driver: Any) -> set[str]:
-    with driver.session() as session:
-        return {
-            row["name"]
-            for row in session.run("SHOW INDEXES YIELD name RETURN name")
-            if row.get("name")
-        }
+    return _show(driver, "SHOW INDEXES YIELD name RETURN name", PRIVILEGE_SHOW_INDEX)
 
 
 def missing_required_constraints(driver: Any) -> list[str]:
@@ -219,18 +279,33 @@ def missing_required_constraints(driver: Any) -> list[str]:
 
 
 def bootstrap_writer_schema(driver: Any) -> None:
-    """Crea de forma idempotente las restricciones e indices requeridos."""
-    with driver.session() as session:
-        session.run(APPLIED_OPERATION_CONSTRAINT_CYPHER).consume()
-        session.run(ENTITY_PARTIDA_INDEX_CYPHER).consume()
-        session.run(ASSERTION_PARTIDA_INDEX_CYPHER).consume()
-        for _, _, _, ddl in DURABLE_IDENTITY_CONSTRAINTS:
-            session.run(ddl).consume()
-        for _, _, _, ddl in PROVENANCE_IDENTITY_CONSTRAINTS:
-            session.run(ddl).consume()
+    """Crea de forma idempotente las restricciones e indices requeridos.
+
+    Una cuenta sin privilegio de creacion (p. ej. el rol lector) NO crea nada:
+    la denegacion sale como `SchemaPrivilegeError`, no como fallo generico.
+    """
+    try:
+        with driver.session() as session:
+            session.run(APPLIED_OPERATION_CONSTRAINT_CYPHER).consume()
+            session.run(ENTITY_PARTIDA_INDEX_CYPHER).consume()
+            session.run(ASSERTION_PARTIDA_INDEX_CYPHER).consume()
+            for _, _, _, ddl in DURABLE_IDENTITY_CONSTRAINTS:
+                session.run(ddl).consume()
+            for _, _, _, ddl in PROVENANCE_IDENTITY_CONSTRAINTS:
+                session.run(ddl).consume()
+    except Exception as exc:
+        if is_forbidden(exc):
+            raise SchemaPrivilegeError(PRIVILEGE_CREATE_SCHEMA) from exc
+        raise
 
 
 __all__ = [
+    "SCHEMA_PRIVILEGE_MISSING",
+    "SchemaPrivilegeError",
+    "is_forbidden",
+    "READER_ROLE_NAME",
+    "READER_ROLE_PRIVILEGES",
+    "reader_role_grants",
     "APPLIED_OPERATION_CONSTRAINT",
     "DURABLE_IDENTITY_CONSTRAINTS",
     "PROVENANCE_IDENTITY_CONSTRAINTS",

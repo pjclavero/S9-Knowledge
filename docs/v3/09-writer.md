@@ -283,6 +283,14 @@ python -m knowledge_v3.writer.schema_cli ensure \
     --neo4j-password-file /etc/s9k/neo4j.pass
 ```
 
+Salidas de `verify`/`ensure`: **0** esquema completo, **3** faltan restricciones
+o índices, **5** (`error_code=SCHEMA_PRIVILEGE_MISSING`) la cuenta no tiene el
+privilegio de esquema que la operación exige (`SHOW CONSTRAINT`, `SHOW INDEX`
+para listar; `CREATE CONSTRAINT`/`CREATE INDEX` para `ensure`), **2** cualquier
+otro error. `verify` sólo necesita lectura de esquema: el rol de sólo lectura de
+`deploy/README.md` la incluye y **no** concede escritura; `ensure` se hace con
+la cuenta del writer o una administradora (RC2-02).
+
 `ensure` imprime el censo **antes** y **después**, y cuántas creó en esta
 ejecución. No dice «hecho»: dice **qué hay**, leído del servidor con
 `SHOW CONSTRAINTS`. La diferencia es exactamente el defecto que cierra.

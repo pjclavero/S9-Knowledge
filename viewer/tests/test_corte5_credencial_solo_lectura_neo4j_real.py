@@ -138,11 +138,15 @@ def grafo_rbac():
         # `WRITE`, ni `CREATE`, ni `SET`, ni `DELETE`, ni `MERGE`. Lo que no se
         # concede aquí es lo que las denegaciones de abajo comprueban.
         with admin.session(database="system") as sesion:
+            import sys as _sys
+            _raiz = str(REPO / "data-engine" / "app")
+            if _raiz not in _sys.path:
+                _sys.path.insert(0, _raiz)
+            from knowledge_v3.writer.schema import reader_role_grants
             for sentencia in (
                 f"CREATE ROLE {ROL}",
-                f"GRANT ACCESS ON DATABASE neo4j TO {ROL}",
-                f"GRANT MATCH {{*}} ON GRAPH neo4j NODES * TO {ROL}",
-                f"GRANT MATCH {{*}} ON GRAPH neo4j RELATIONSHIPS * TO {ROL}",
+                # RC2-02: UNA sola autoridad del rol (schema.READER_ROLE_PRIVILEGES).
+                *reader_role_grants(ROL, "neo4j"),
                 f"CREATE USER {USUARIO_LECTOR} SET PASSWORD '{CLAVE_LECTOR}' "
                 f"SET PASSWORD CHANGE NOT REQUIRED",
                 f"GRANT ROLE {ROL} TO {USUARIO_LECTOR}",
@@ -228,6 +232,36 @@ def test_la_cuenta_del_worker_SI_lee(grafo_rbac, sembrado):
     finally:
         lector.close()
     assert [f["id"] for f in filas] == ["entity:sela-marrec"], filas
+
+
+@neo4j_real
+def test_rc2_02_verify_con_la_cuenta_lectora_da_rc_0_y_ensure_no_puede_crear(
+    grafo_rbac, sembrado
+):
+    """RC2-02 contra Neo4j real: el rol documentado puede LISTAR esquema, no crearlo."""
+    import io
+    import sys
+
+    raiz = str(REPO / "data-engine" / "app")
+    if raiz not in sys.path:
+        sys.path.insert(0, raiz)
+    from knowledge_v3.writer import schema_cli
+
+    salida, error = io.StringIO(), io.StringIO()
+    rc = schema_cli.run(["verify"], driver_factory=lambda: _driver_lector(grafo_rbac),
+                        stdout=salida, stderr=error)
+    assert rc == schema_cli.RC_OK, (
+        f"verify con el rol lector documentado no dio rc 0: rc={rc} {error.getvalue()}"
+    )
+    # Negativo explicito: la misma cuenta NO puede instalar esquema.
+    salida, error = io.StringIO(), io.StringIO()
+    rc = schema_cli.run(["ensure"], driver_factory=lambda: _driver_lector(grafo_rbac),
+                        stdout=salida, stderr=error)
+    assert rc == schema_cli.RC_SIN_PRIVILEGIO, (
+        f"ensure con la cuenta lectora debia denegarse por privilegio: rc={rc} "
+        f"{error.getvalue()}"
+    )
+    assert "SCHEMA_PRIVILEGE_MISSING" in error.getvalue()
 
 
 @neo4j_real
