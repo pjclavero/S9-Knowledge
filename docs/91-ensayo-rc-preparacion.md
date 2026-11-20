@@ -57,6 +57,8 @@ escribir es escribir**.
 3 = instrumental inválido (el canario no dio rojo)
 ```
 
+El guion localiza el visor de **su** release relativo a su propio fichero (no depende del directorio de trabajo ni de `PYTHONPATH`); si el intérprete no tiene las dependencias del visor, las comprobaciones que lo necesitan salen PENDIENTE nombrando el intérprete usado.
+
 **Con qué intérprete se ejecuta.** Con el del venv del visor de la release
 (`<release>/viewer/.venv/bin/python`, p. ej. `/opt/s9-knowledge/current/viewer/.venv/bin/python`),
 no con el `python3` del sistema: los puntos que cargan módulos del producto
