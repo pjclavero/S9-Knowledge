@@ -2,6 +2,11 @@
 
 **Slice 2 · Carril C.** Base: `origin/main` = `324cb207`.
 
+> **Actualización 2026-11-20.** La primera ronda diagnóstica de este ensayo ya se ejecutó (sujeto
+> `b4e396d`); sus resultados, hallazgos y las regresiones que debe cubrir la RC-E2E final están en
+> [`93-rc-e2e-1-resultados.md`](93-rc-e2e-1-resultados.md). El texto de abajo se conserva como la
+> preparación original.
+
 Esto **prepara** el ensayo del recorrido real completo. **No lo ejecuta**: no
 despliega, no crea ninguna RC, no enciende ninguna máquina y no toca
 producción. Lo que se entrega es **configuración declarada** y

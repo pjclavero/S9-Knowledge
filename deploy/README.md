@@ -990,7 +990,7 @@ rojo, y **por su causa**:
 | N12 | Login que redirige pero **no emite sesión** | `SESION_NO_EMITIDA`: en el navegador eso se ve como un login que vuelve al login. |
 | N13 | (B2) `deploy.sh --mode fresh` sobre un host con usuarios en `auth.db` | **BLOCK** en el paso 3, antes de parar nada (`auth: NEW_STATE bloquea en fresh`; el paso 4 lo repite), `auth.db` intacta. |
 | N14 | (B2) `auth.db` truncada/corrupta en `fresh` y en `upgrade` | **BLOCK** con `CORRUPT_STATE`; nunca «instalación nueva». |
-| N15 | (B2) `viewer.env` sin `S9K_V3_REVIEW_DATABASE_PATH` o `…_PROPOSALS_DIR` | **BLOCK** en el paso 6 nombrando la variable. |
+| N15 | (B2) `viewer.env` sin `S9K_V3_REVIEW_DATABASE_PATH` o `…_PROPOSALS_DIR` | **BLOCK** en el paso 2b, antes de parar nada (visor y worker siguen en marcha), nombrando la variable; el paso 6 es la segunda barrera. |
 | N16 | (B2) `upgrade` con `jobs.db` ausente o con la cola vacía (base válida sin filas) | **sigue** (H-43): una cola vacía no bloquea. Un fichero de **0 bytes** NO es una cola vacía: bloquea como `CORRUPT_STATE` (paso 3, antes de parar). |
 | N17 | (B2) `deploy.sh` en `fresh` termina | imprime `ESTADO_OBSERVADO=FIRST_ADMIN_PENDING` y `ESTADO_DEL_PRODUCTO=FIRST_ADMIN_PENDING`, **no** `INSTALLATION_COMPLETE`; éste solo tras GATE B `--modo persistencia` después de reiniciar. |
 
