@@ -153,16 +153,63 @@ levantara. No lo hizo: el bloqueo se levantó y el caso siguió verde, porque su
 recorrido no aprueba ningún alta. Su gatillo está reescrito como lo que de
 verdad mide.
 
+## RC2-05: las relaciones entre entidades nuevas se proyectan en el mismo apply
+
+**Defecto (RC-E2E final, §6.5 de `docs/94`).** Con el grafo vacío, la revisión
+aprobó altas y un hecho entre ellas; el plan salió con `PLAN_SEALED_SIN_PROYECCION`
+y el apply dejó entidades y hechos pero **0 relaciones**. Las anclas de estado salen
+del snapshot de la corrida y una entidad que no estaba en el grafo al ingerir no
+tiene ancla, así que `_proyeccion` omitía la arista con `PROJECTION_NO_ANCHOR`.
+
+**Contrato tras la corrección** (`review_plan.seal_review_plan`):
+
+- **Qué se proyecta.** Una arista `PROJECT_RELATION` por cada propuesta
+  aprobada cuyo hecho no es negativo y cuyos dos extremos están resueltos: cada
+  extremo, o bien existe en el grafo con ancla *observada* (como antes), o bien
+  es una entidad nueva cuyo `CREATE_ENTITY` **entra en este mismo plan**.
+- **Cuándo.** Dentro del mismo apply y de la misma transacción: el plan lleva las
+  altas por delante de la arista que las usa (se impone el orden; no depende del
+  nombre del claim).
+- **Con qué identidad.** La del alta aprobada (`entity_id`), nunca un nombre
+  parecido. Sólo ancla un alta que una persona aprobó, que la corrida declara y
+  que alguna afirmación incluida menciona (las tres condiciones de
+  `_altas_aprobadas`). Dos entidades con el mismo nombre no se confunden.
+- **Ancla.** Un extremo creado por el plan no tiene versión previa: la arista
+  va con `expected_state=WOULD_CREATE` y, si el **sujeto** es nuevo, sin
+  `expected_version`/`expected_hash`. El executor reconfirma sobre el plan
+  *firmado* que el plan trae ese `CREATE_ENTITY` y que el nodo es visible en
+  la transacción y en el ámbito del plan. Un sujeto que ya existe conserva su
+  control optimista (versión y hash copiados de su ancla observada).
+- **Cada fallo, dicho con su código.** Falta ancla: `PROJECTION_NO_ANCHOR`. Un
+  extremo nuevo cuya alta no entra (no aprobada, o `ALTA_*` del plan):
+  `PROJECTION_ALTA_NOT_IN_PLAN`. Hecho negado: `PROJECTION_NEGATED_FACT`. En
+  todos la afirmación entra; sólo falta la arista, y el sellado lo acusa como
+  `PLAN_SEALED_SIN_PROYECCION`.
+- **Fallo durante el apply.** Todo ocurre en una transacción: si falla tras
+  crear los nodos y antes de la arista, se revierte todo (`EXEC_DRIVER_FAILURE`,
+  resultado `ABORTED`); no hay éxito parcial. Reintentar converge: las marcas de
+  idempotencia por operación hacen no-op lo ya aplicado y no duplican nodos ni
+  aristas.
+- **Sin cambios para lo que ya funcionaba.** Un plan sin altas aprobadas (o con
+  altas que no anclan ninguna arista) conserva operaciones, orden y `plan_hash`.
+  `plan_id` no depende de las operaciones.
+
+**Alternativas descartadas.** (1) Resolver las referencias en APPLY, tras crear
+los nodos: obliga a que el plan firmado no declare la arista y el executor la
+deduzca, es decir, ejecutar algo que nadie firmó. (2) Proyección diferida en una
+segunda fase del apply: reintroduce el «plan a medias que otro apply termina».
+(3) La elegida: anclar la arista en el `CREATE_ENTITY` del mismo plan, que el
+executor y el motor (`engine/planner.py`, equipo 11A) ya soportaban; sólo faltaba
+que el camino de revisión web, que sella desde propuestas aprobadas, lo usara.
+
+**Medido sin grafo / no medido.** Plan y ejecución contra un doble transaccional
+del writer: `data-engine/app/tests/test_rc2_05_relaciones_primera_ingesta.py`;
+calibrador `scripts/calibracion/mutaciones_rc2_05_relaciones_primera_ingesta.py`.
+Contra Neo4j real hay un caso gateado por `S9K_WRITER_NEO4J_REAL` (NO EJECUTADO en
+laboratorio; lo ejecutan la CI y la RC-3).
+
 ## Lo que este corte NO hace, dicho en voz alta
 
-- **No proyecta relaciones sobre la entidad recién creada.** Las altas no están
-  en el snapshot de la corrida, así que no tienen ancla, y `_proyeccion` sigue
-  omitiendo con `PROJECTION_NO_ANCHOR`. La afirmación entra; su arista, no.
-  **Corrección (RC-E2E final):** este documento afirmaba que la segunda
-  ingesta de la misma fuente sí podía proyectarla. No hay testigo que lo
-  ejerza, y una revisión por lectura concluye que por el camino web no ocurre:
-  la propuesta ya resuelta no vuelve al paquete de revisión y la ingesta del
-  panel sólo simula. Queda como límite abierto, pendiente de decisión.
 - **No unifica el CLI con la autoridad del visor.** Son dos superficies y se
   declara como deuda en la cabecera de `ingest_cli.py`: el motor no puede leer
   el almacén del visor sin invertir la dirección de dependencia, y eso es un

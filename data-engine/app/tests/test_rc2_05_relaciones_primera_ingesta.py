@@ -33,7 +33,7 @@ import pytest
 pytest.importorskip("jsonschema")
 
 from knowledge_v3 import review_plan  # noqa: E402
-from knowledge_v3.writer import InMemoryAppliedKeys, codes  # noqa: E402
+from knowledge_v3.writer import InMemoryAppliedKeys, WriterError, codes  # noqa: E402
 from knowledge_v3.writer.executor import ExecutionContext, execute_plan  # noqa: E402
 from knowledge_v3.writer.view import SignedView  # noqa: E402
 from knowledge_v3.writer.writer import OUTCOME_ABORTED, OUTCOME_APPLIED  # noqa: E402
@@ -471,7 +471,13 @@ def test_f_reaplicar_el_mismo_plan_no_duplica_nodos_ni_aristas():
     vista = SignedView.of(plan)
     contexto = ExecutionContext(operator_id="pjc", written_at="2026-07-27T12:00:00Z",
                                 applied_keys=llaves)
-    salida = execute_plan(driver, vista, contexto)
+    try:
+        salida = execute_plan(driver, vista, contexto)
+    except WriterError as exc:
+        pytest.fail(
+            "RC2-05 REINTENTO: el segundo apply no fue un no-op y aborto por "
+            f"{exc.code}: intento volver a crear lo que ya estaba"
+        )
 
     assert salida.applied == [] and len(salida.noop_keys) == len(plan["mutation_operations"]), (
         "RC2-05 REINTENTO: el segundo apply volvio a ejecutar operaciones: "
@@ -593,10 +599,10 @@ def test_h_un_plan_de_otro_workspace_no_se_aplica():
 # El texto declarado dice lo que el codigo hace
 # ===========================================================================
 def test_el_texto_de_sin_ancla_ya_no_promete_lo_que_el_plan_resuelve():
-    texto = review_plan.PROJECTION_CODES["PROJECTION_NO_ANCHOR"]
-    assert "entidad nueva aprobada en esta revision" not in texto, (
+    catalogado = review_plan.PROJECTION_CODES["PROJECTION_NO_ANCHOR"]
+    assert "entidad nueva aprobada en esta revision" not in catalogado, (
         "RC2-05 TEXTO RANCIO: PROJECTION_NO_ANCHOR sigue atribuyendo la omision a "
-        f"un alta aprobada en esta revision, y eso ya se proyecta: {texto!r}"
+        f"un alta aprobada en esta revision, y eso ya se proyecta: {catalogado!r}"
     )
     nuevo = review_plan.PROJECTION_CODES["PROJECTION_ALTA_NOT_IN_PLAN"]
     assert "no entra en este plan" in nuevo and "arista no se proyecta" in nuevo
