@@ -157,7 +157,52 @@ def _review_decisions(raiz: Path = REPO_ROOT):
     )
 
 
+class VisorNoCargable(Exception):
+    """El visor de ESTA release no se puede importar con este interprete.
+
+    Su mensaje nombra la causa y el interprete que se esta usando, para que el
+    operador sepa con cual repetir. Nunca se traduce en VERDE: la comprobacion
+    que lo recibe sale PENDIENTE.
+    """
+
+
+def _preparar_visor(raiz: Path = REPO_ROOT) -> None:
+    """Deja importable el paquete `app` DEL VISOR DE ESTA RELEASE.
+
+    RC2-03. `viewer/app/sources_catalog.py` hace `from app import config`, y
+    `app` solo existe si `<release>/viewer` esta en `sys.path`. Ejecutado como
+    `python <release>/deploy/scripts/preflight_ensayo_rc.py` el `sys.path[0]`
+    es `deploy/scripts`, asi que `app` no resolvia —ni siquiera con el
+    interprete del venv del visor— y las comprobaciones salian PENDIENTE.
+
+    El visor se localiza RELATIVO A ESTE FICHERO (`REPO_ROOT`), nunca por el
+    directorio de trabajo ni por `PYTHONPATH`. Se pone el ULTIMO en el
+    `sys.path` si no esta, y se comprueba que el `app` que acaba importado es
+    el de esta release y no otro paquete homonimo.
+    """
+    visor = (raiz / "viewer").resolve()
+    if not (visor / "app" / "__init__.py").is_file():
+        raise VisorNoCargable(
+            f"no hay visor en esta release ({visor / 'app'} no existe)")
+    if str(visor) not in sys.path:
+        sys.path.append(str(visor))
+    try:
+        modulo = importlib.import_module("app.config")
+    except ImportError as exc:
+        faltante = getattr(exc, "name", None) or type(exc).__name__
+        raise VisorNoCargable(
+            f"el interprete {sys.executable} no puede importar el visor de esta "
+            f"release (falta `{faltante}`): repetir con el interprete del venv "
+            "del visor (<release>/viewer/.venv/bin/python)") from exc
+    origen = Path(getattr(modulo, "__file__", "") or "").resolve()
+    if visor not in origen.parents:
+        raise VisorNoCargable(
+            f"`app` resuelve a OTRO paquete ({origen.parent}) y no al visor de "
+            f"esta release ({visor / 'app'})")
+
+
 def _sources_catalog(raiz: Path = REPO_ROOT):
+    _preparar_visor(raiz)
     return _cargar(
         "_s9k_sources_catalog", raiz / "viewer" / "app" / "sources_catalog.py"
     )
@@ -488,6 +533,11 @@ def reinicio_no_reprocesa(ctx: Contexto) -> Resultado:
 # ---------------------------------------------------------------------------
 # 3. Fuentes — el paso 1 deja de ser usable SIN NINGUN ERROR
 # ---------------------------------------------------------------------------
+
+def _causa(exc: BaseException) -> str:
+    """Causa legible: el mensaje propio si es del instrumento, si no el tipo."""
+    return str(exc) if isinstance(exc, VisorNoCargable) else type(exc).__name__
+
 
 def fuentes_pobladas(ctx: Contexto) -> Resultado:
     crudo = ctx.env.get("S9K_INGEST_SOURCES_DIR")
@@ -828,6 +878,7 @@ def arbol_declarado(ctx: Contexto) -> Resultado:
 
 
 def _autoridad_workspace(raiz: Path = REPO_ROOT):
+    _preparar_visor(raiz)
     return _cargar(
         "_s9k_autoridad_workspace",
         raiz / "viewer" / "app" / "authz" / "autoridad_workspace.py",
@@ -878,7 +929,7 @@ def aislamiento_workspace(ctx: Contexto) -> Resultado:
         return Resultado("aislamiento.workspace", PENDIENTE,
                          "las tres declaraciones de entorno coinciden, pero no se "
                          "pudo cargar el resolvedor del producto para mirar la "
-                         f"CUARTA (la del perfil de boveda): {type(exc).__name__}")
+                         f"CUARTA (la del perfil de boveda): {_causa(exc)}")
     try:
         declaradas = autoridad.declaraciones_de_perfil(dict(ctx.env), catalogo)
     except Exception as exc:  # noqa: BLE001
