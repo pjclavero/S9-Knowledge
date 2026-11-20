@@ -479,13 +479,18 @@ def test_f_reaplicar_el_mismo_plan_no_duplica_nodos_ni_aristas():
             f"{exc.code}: intento volver a crear lo que ya estaba"
         )
 
+    assert len(driver.writes) == escrituras, (
+        "RC2-05 REINTENTO DUPLICA: el segundo apply escribio de nuevo "
+        f"({len(driver.writes) - escrituras} escrituras mas)"
+    )
+    assert _entidades_creadas(driver) == {ILARIA, CASA}
+    assert driver.aristas == [("LEADS", ILARIA, CASA)], (
+        f"RC2-05 REINTENTO DUPLICA: las aristas tras dos apply son {driver.aristas}"
+    )
     assert salida.applied == [] and len(salida.noop_keys) == len(plan["mutation_operations"]), (
         "RC2-05 REINTENTO: el segundo apply volvio a ejecutar operaciones: "
         f"{len(salida.applied)} aplicadas, {len(salida.noop_keys)} no-op"
     )
-    assert len(driver.writes) == escrituras, "RC2-05 REINTENTO: el segundo apply escribio"
-    assert _entidades_creadas(driver) == {ILARIA, CASA}
-    assert driver.aristas == [("LEADS", ILARIA, CASA)]
 
 
 # ===========================================================================

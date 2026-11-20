@@ -38,6 +38,8 @@ class Mutacion:
     suites: tuple
     #: Prefijos aceptables: el fallo tiene que contener AL MENOS UNO. `None` = control nulo.
     prefijos: tuple | None
+    #: Reemplazos ADICIONALES (viejo, nuevo) en el mismo fichero, cada uno con ancla unica.
+    extra: tuple = ()
 
 
 CONTROL_NULO = Mutacion(
@@ -71,6 +73,13 @@ MUTACIONES = [
     Mutacion("el reintento ya no reconoce lo aplicado y lo vuelve a ejecutar",
              EXECUTOR, "                if not created:", "                if False and not created:",
              (TEST,), ("RC2-05 REINTENTO:",)),
+    Mutacion("el reintento DUPLICA: ni reconoce lo aplicado ni comprueba que el nodo ya existe",
+             EXECUTOR, "                if not created:", "                if False and not created:",
+             (TEST,), ("RC2-05 REINTENTO DUPLICA:",),
+             extra=(
+                 ("        _assert_absent(tx, op, ws, entity_id, is_assertion=False)", "        pass"),
+                 ("        _assert_absent(tx, op, ws, assertion_id, is_assertion=True)", "        pass"),
+             )),
     Mutacion("el fallo parcial se reporta como exito",
              WRITER, _ABORTO_VIEJO, _ABORTO_NUEVO,
              (TEST,), ("RC2-05 EXITO FALSO:",)),
@@ -104,10 +113,13 @@ def _correr(suites: tuple) -> tuple:
 
 def _con_mutacion(m: Mutacion) -> tuple:
     original = _leer(m.fichero)
-    if original.count(m.viejo) != 1:
-        return 2, "ANCLA PERDIDA O AMBIGUA: el texto a mutar aparece %d veces en %s (debe ser 1)" % (
-            original.count(m.viejo), m.fichero)
-    (REPO / m.fichero).write_text(original.replace(m.viejo, m.nuevo, 1), encoding="utf-8")
+    mutado = original
+    for viejo, nuevo in ((m.viejo, m.nuevo), *m.extra):
+        if mutado.count(viejo) != 1:
+            return 2, "ANCLA PERDIDA O AMBIGUA: el texto a mutar aparece %d veces en %s (debe ser 1)" % (
+                mutado.count(viejo), m.fichero)
+        mutado = mutado.replace(viejo, nuevo, 1)
+    (REPO / m.fichero).write_text(mutado, encoding="utf-8")
     try:
         return _correr(m.suites)
     finally:
