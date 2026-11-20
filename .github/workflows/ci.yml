@@ -1504,6 +1504,20 @@ jobs:
           S9K_ALLOW_REAL_INGEST: ""
         run: python3 scripts/calibracion/mutaciones_rc1_g02_credencial_veraz.py
 
+      # RC2-01, RC2-03 y RC2-04 (RC-E2E final) — los preflights dicen la verdad
+      # de la maquina: una maquina limpia (sin state root) es un aviso y no un
+      # bloqueo, una instalacion previa o un state root que no es directorio
+      # siguen bloqueando, el preflight del ensayo localiza el visor de SU
+      # release y `fuentes.pobladas` mide la boveda que vera el producto. Cada
+      # rojo con su CAUSA; restauracion por `git checkout`. EN SERIE.
+      #
+      # TECHO: no ejecuta `deploy.sh` ni una instalacion real (RC-E2E).
+      - name: "Los preflights no bloquean una maquina limpia ni miden otra boveda: se pone ROJO ante cada defecto (RC2-01, RC2-03, RC2-04)"
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          S9K_ALLOW_REAL_INGEST: ""
+        run: python3 scripts/calibracion/mutaciones_preflights_rc2.py
+
       # MICROCARRIL DE SANEAMIENTO DE INSTRUMENTOS — los cuatro
       # `scripts/calibrar_panel_*.py`. Son los arneses de los cuatro paneles
       # del chasis (B operations, C review, F sources, G entities): cada uno
