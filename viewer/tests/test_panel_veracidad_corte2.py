@@ -60,6 +60,9 @@ permanente del código.
   NO PIDEN LA PANTALLA — miran el catálogo, el AST del almacén o la firma de
   la ruta, porque lo que afirman es del DATO, no del pintado:
     · test_las_carencias_desconocidas_se_nombran_en_vez_de_desaparecer
+    · test_la_entrada_de_escritura_de_una_ingesta_normal_no_se_presenta_como_inexplicable
+      (RC-E2E final: mira el catálogo de carencias y `_carencias_del_resultado`;
+      que la plantilla lo pinte NO lo afirma este testigo.)
     · test_la_pantalla_no_afirma_que_una_decision_cambio
     · test_el_camino_del_apply_fallido_se_distingue_y_se_dice
     · test_el_rechazo_del_writer_llega_al_operador_con_su_motivo
@@ -506,7 +509,9 @@ def test_la_entrada_de_escritura_de_una_ingesta_normal_no_se_presenta_como_inexp
         "ESCRITURA INEXPLICABLE: con PLAN_NO_APROBADO en la misma corrida, "
         "ESCRITURA_NO_COMPLETADA se sigue presentando como carencia sin "
         f"explicar: {frase!r}")
-    assert "simulacion" in frase and "aplicarlo" in frase, frase
+    assert "simulacion" in frase and "aplicarlo" in frase, (
+        "ESCRITURA INEXPLICABLE: la frase no dice que la ingesta es una "
+        f"simulacion ni que falta aplicarlo: {frase!r}")
 
     sola = chassis_operations._carencias_del_resultado(["ESCRITURA_NO_COMPLETADA"])
     assert sola[0]["message"] == generica.replace(

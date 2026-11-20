@@ -198,7 +198,14 @@ INVENTARIO_BASE_AMPLIO = 345
 #: INTEGRACION TANDA 6: 303 (6A) / 301 (6C) -> 306 = 298 base + 5 (6A) + 3 (6C).
 #: Tambien aqui los dos carriles son disjuntos y la cifra la vuelve a medir el
 #: detector AMPLIO sobre el arbol integrado.
-INVENTARIO_ACTUAL_AMPLIO = 306
+#:
+#: RC-E2E FINAL (escenario 8): 306 -> 308, +2. Las dos son de
+#: `test_el_texto_de_sin_ancla_nombra_la_causa_habitual_no_solo_el_paquete_viejo`
+#: y NO miran el mensaje de una excepcion: miran el texto DECLARADO del
+#: catalogo `review_plan.PROJECTION_CODES["PROJECTION_NO_ANCHOR"]`, que es lo
+#: que el operador lee. El detector AMPLIO las cuenta por el nombre de la
+#: variable (`texto`); el ESTRICTO, que es la medida, no se mueve (134).
+INVENTARIO_ACTUAL_AMPLIO = 308
 
 #: Guardas `match=` NUEVAS que introduce el carril: las dos de
 #: `test_carril5_exception_codes.py` que protegen al propio instrumento.

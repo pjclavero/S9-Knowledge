@@ -224,7 +224,9 @@ def test_el_texto_de_sin_ancla_nombra_la_causa_habitual_no_solo_el_paquete_viejo
     assert "no estaban en el grafo" in texto, (
         "SIN ANCLA MAL EXPLICADO: el texto de PROJECTION_NO_ANCHOR no nombra "
         f"la causa habitual (extremos ausentes del grafo al ingerir): {texto!r}")
-    assert "nueva ingesta" in texto, texto
+    assert "nueva ingesta" in texto, (
+        "SIN ANCLA MAL EXPLICADO: el texto de PROJECTION_NO_ANCHOR no dice que "
+        f"hacer (una nueva ingesta): {texto!r}")
 
 
 # ===========================================================================
