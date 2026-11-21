@@ -47,12 +47,19 @@ def _cola(tmp_path, monkeypatch, *, mensaje=MENSAJE, codigo=CODIGO):
 
 def _respuestas(cliente, job_id) -> dict[str, str]:
     """Todo lo que un usuario recibe de la cola, camino por camino."""
-    return {
-        "html_lista": cliente.get("/jobs").text,
-        "html_detalle": cliente.get(f"/jobs/{job_id}").text,
-        "api_lista": cliente.get("/api/jobs", params={"workspace": "leyenda"}).text,
-        "api_detalle": cliente.get(f"/api/jobs/{job_id}").text,
+    respuestas = {
+        "html_lista": cliente.get("/jobs"),
+        "html_detalle": cliente.get(f"/jobs/{job_id}"),
+        "api_lista": cliente.get("/api/jobs", params={"workspace": "leyenda"}),
+        "api_detalle": cliente.get(f"/api/jobs/{job_id}"),
     }
+    # Un 500 no contiene la ruta y haría pasar en falso toda la batería.
+    for camino, r in respuestas.items():
+        assert r.status_code == 200, (
+            f"D6: el camino {camino} no responde 200 ({r.status_code}): la "
+            "comprobación de ausencia de la ruta no mediría nada"
+        )
+    return {camino: r.text for camino, r in respuestas.items()}
 
 
 def _contiene_ruta(texto: str) -> list[str]:
@@ -85,7 +92,9 @@ def test_un_no_admin_recibe_codigo_explicacion_y_a_quien_avisar(
 
     _, _, job_id = _cola(tmp_path, monkeypatch)
     cliente = cliente_lector(app, role=rol, username=f"u_{rol}")
-    detalle = cliente.get(f"/jobs/{job_id}").text
+    pagina = cliente.get(f"/jobs/{job_id}")
+    assert pagina.status_code == 200, f"D6: el detalle da {pagina.status_code} al rol {rol}"
+    detalle = pagina.text
     assert CODIGO in detalle, f"D6: el rol {rol} no recibe el código estable"
     assert "Avisa a quien administra el servicio" in detalle, (
         f"D6: el rol {rol} no sabe a quién acudir"
@@ -201,8 +210,11 @@ def test_el_panel_del_chasis_da_el_codigo_real_y_nunca_la_ruta(
     for rol in ("reviewer", "admin"):
         cliente = cliente_lector(app, role=rol, username=f"u_{rol}")
         pagina = cliente.get("/panel/operations", params={"solicitado": job_id})
-        if pagina.status_code != 200:
-            pytest.skip(f"el panel del chasis no responde 200 para {rol}: {pagina.status_code}")
+        if rol != "admin" and pagina.status_code in (302, 303, 401, 403):
+            continue  # la losa puede estar vedada a ese rol: entonces no hay nada que filtrar
+        assert pagina.status_code == 200, (
+            f"D6: el panel del chasis no responde 200 al rol {rol} ({pagina.status_code})"
+        )
         assert not _contiene_ruta(pagina.text), (
             f"D6: el panel del chasis pinta la ruta al rol {rol}"
         )

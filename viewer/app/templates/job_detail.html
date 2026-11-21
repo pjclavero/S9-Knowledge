@@ -44,15 +44,22 @@
     {% endif %}
   </div>
 
+  {# Payload y resultado son detalle operativo (rutas del servidor): `redact_job`
+     los retira para quien no es admin. Sin esta guarda, `tojson` de un valor
+     indefinido daba 500 al revisor en el detalle de CUALQUIER job (D6). #}
+  {% if job.payload is defined %}
   <div class="card">
     <h2>Payload</h2>
     <pre>{{ job.payload | tojson(indent=2) if job.payload is not none else '—' }}</pre>
   </div>
+  {% endif %}
 
+  {% if job.result is defined %}
   <div class="card">
     <h2>Result</h2>
     <pre>{{ job.result | tojson(indent=2) if job.result is not none else '—' }}</pre>
   </div>
+  {% endif %}
   {% endif %}
 </main>
 {% endblock %}
