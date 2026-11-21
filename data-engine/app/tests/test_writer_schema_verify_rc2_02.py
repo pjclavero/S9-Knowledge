@@ -426,6 +426,8 @@ LISTA_BLANCA = {
         "GRANT SHOW INDEX ON DATABASE {db} TO {role}",
         "GRANT CREATE CONSTRAINT ON DATABASE {db} TO {role}",
         "GRANT CREATE INDEX ON DATABASE {db} TO {role}",
+        "GRANT CREATE NEW NODE LABEL ON DATABASE {db} TO {role}",
+        "GRANT CREATE NEW PROPERTY NAME ON DATABASE {db} TO {role}",
     },
     schema.WRITER_ROLE_NAME: {
         "GRANT ACCESS ON DATABASE {db} TO {role}",

@@ -1267,7 +1267,7 @@ Enterprise real crea los roles de esa misma autoridad.
 | Identidad | Rol | Quién la usa | Puede | No puede |
 |---|---|---|---|---|
 | lectora | `s9k_observador` | el worker (`worker.env`) y `writer-schema verify` | leer grafo y esquema | escribir datos, crear o borrar esquema |
-| de esquema | `s9k_esquema` | el operador, sólo para `writer-schema ensure` | listar y crear restricciones e índices | escribir datos, borrar esquema |
+| de esquema | `s9k_esquema` | el operador, sólo para `writer-schema ensure` | listar y crear restricciones e índices (y las etiquetas y propiedades que nombran) | escribir datos, borrar esquema |
 | de escritura | `s9k_escritor` | el visor: el APPLY del panel (`viewer.env`) | leer y escribir datos, crear nombres nuevos, listar restricciones | crear o borrar esquema |
 
 La identidad de esquema (una vez, con una cuenta administradora):
@@ -1279,12 +1279,19 @@ GRANT SHOW CONSTRAINT ON DATABASE neo4j TO s9k_esquema;
 GRANT SHOW INDEX ON DATABASE neo4j TO s9k_esquema;
 GRANT CREATE CONSTRAINT ON DATABASE neo4j TO s9k_esquema;
 GRANT CREATE INDEX ON DATABASE neo4j TO s9k_esquema;
+GRANT CREATE NEW NODE LABEL ON DATABASE neo4j TO s9k_esquema;
+GRANT CREATE NEW PROPERTY NAME ON DATABASE neo4j TO s9k_esquema;
 CREATE USER s9k_esquema_operador SET PASSWORD '<secreto>' SET PASSWORD CHANGE NOT REQUIRED;
 GRANT ROLE s9k_esquema TO s9k_esquema_operador;
 ```
 
 No se usa `GRANT INDEX` ni `GRANT CONSTRAINT` (sin `MANAGEMENT` también
-conceden **borrar**): se nombran las capacidades una a una.
+conceden **borrar**): se nombran las capacidades una a una. Las dos últimas
+concesiones son necesarias en una base recién creada: una restricción nombra
+una etiqueta y unas propiedades que todavía no existen, y sin poder crear esos
+nombres el servidor deniega `CREATE CONSTRAINT` aunque la cuenta tenga ese
+privilegio (medido contra Neo4j Enterprise real; tipos de relación no hacen
+falta, el esquema no los nombra).
 
 **`ensure` por el envoltorio canónico.** `s9k-cli.sh` superpone `worker.env`
 a toda herramienta del motor, así que sin más `writer-schema` usa la cuenta

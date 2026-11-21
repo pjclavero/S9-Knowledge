@@ -441,9 +441,12 @@ def test_rc2_02_la_identidad_de_esquema_instala_por_el_camino_del_envoltorio(
                 "ensure", None,
                 ["--neo4j-user", cuenta.usuario, "--neo4j-password-file", "-"], env=env,
             )
-            assert rc == schema_cli.RC_OK, (
-                f"ensure con la identidad de esquema en una base recien creada: rc={rc} {err}"
-            )
+            if rc != schema_cli.RC_OK:
+                crudo = _denegacion_cruda(cuenta, schema.APPLIED_OPERATION_CONSTRAINT_CYPHER)
+                pytest.fail(
+                    f"ensure con la identidad de esquema en una base recien creada: "
+                    f"rc={rc} {err} (servidor, diagnostico del test: {crudo})"
+                )
             assert censo.get("completo") is True, f"el censo tras ensure no es completo: {censo}"
             faltan_c = set(schema.REQUIRED_CONSTRAINT_NAMES) - _constraints(base.admin)
             faltan_i = set(schema.REQUIRED_INDEX_NAMES) - _indexes(base.admin)
@@ -467,13 +470,64 @@ def test_rc2_02_la_identidad_de_esquema_instala_por_el_camino_del_envoltorio(
                 )
 
 
+def _denegacion_cruda(cuenta, cypher) -> str:
+    """DIAGNOSTICO del test (no del producto): que dice el servidor ante `cypher`."""
+    drv = cuenta.driver()
+    try:
+        with drv.session() as sesion:
+            sesion.run(cypher).consume()
+        return "(el servidor NO denego)"
+    except Exception as exc:  # noqa: BLE001
+        return f"{getattr(exc, 'code', type(exc).__name__)}: {getattr(exc, 'message', exc)}"
+    finally:
+        drv.close()
+
+
+@neo4j_real
+@pytest.mark.parametrize("quitar,base_nombre", [
+    ("GRANT CREATE NEW NODE LABEL", "rc202sinlabel"),
+    ("GRANT CREATE NEW PROPERTY NAME", "rc202sinprop"),
+], ids=["sin-create-new-label", "sin-create-new-property-name"])
+def test_rc2_02_gemelo_la_identidad_de_esquema_sin_crear_nombres_no_instala(
+    grafo_rbac, quitar, base_nombre
+):
+    """Cada una de las dos concesiones de nombres es NECESARIA: sin ella, en una
+    base recien creada, `ensure` sale rc 5 en `CREATE CONSTRAINT` y no queda
+    ninguna restriccion. Una base por caso: un token creado por un caso no
+    puede tapar al siguiente."""
+    schema, schema_cli, _ = _rc202()
+    with _BaseFresca(grafo_rbac, base_nombre) as base:
+        with _Cuenta(grafo_rbac, schema.SCHEMA_ROLE_NAME, "esquema_gemelo",
+                     db=base.nombre, quitar=(quitar,)) as cuenta:
+            rc, datos, _, err = _cli("ensure", cuenta.driver, ["--neo4j-user", cuenta.usuario])
+            crudo = _denegacion_cruda(cuenta, schema.APPLIED_OPERATION_CONSTRAINT_CYPHER)
+        assert rc == schema_cli.RC_SIN_PRIVILEGIO, (
+            f"sin {quitar} la identidad de esquema instalo igualmente: la concesion "
+            f"no es necesaria y sobra en la lista blanca (rc={rc}; servidor: {crudo})"
+        )
+        assert datos.get("operacion_denegada") == schema.OP_CREATE_CONSTRAINT, (
+            f"sin {quitar}: denegacion atribuida a otra operacion: {datos} (servidor: {crudo})"
+        )
+        assert _constraints(base.admin) == set(), (
+            f"sin {quitar} quedo esquema instalado: {_constraints(base.admin)}"
+        )
+
+
 def _modulo_writer_real():
     """Utillaje del test real del writer (planes, sondas), sin copiarlo."""
     import importlib.util
 
+    import sys
+
+    nombre = "_rc202_utillaje_writer_real"
+    if nombre in sys.modules:
+        return sys.modules[nombre]
     ruta = REPO / "data-engine" / "app" / "tests" / "test_knowledge_v3_writer_neo4j_real.py"
-    spec = importlib.util.spec_from_file_location("_rc202_utillaje_writer_real", ruta)
+    spec = importlib.util.spec_from_file_location(nombre, ruta)
     modulo = importlib.util.module_from_spec(spec)
+    # MEDIDO en la CI: `@dataclass` busca su modulo en `sys.modules`; sin
+    # registrarlo antes, el import revienta con AttributeError.
+    sys.modules[nombre] = modulo
     spec.loader.exec_module(modulo)
     return modulo
 

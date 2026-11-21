@@ -148,9 +148,9 @@ def _consejo(accion: str, exc: "schema.SchemaPrivilegeError", cuenta: str) -> st
         return (
             base + " ensure tambien necesita LEER el esquema para comprobar lo "
             "que deja instalado. Ejecutelo con la identidad de esquema (rol "
-            f"{schema.SCHEMA_ROLE_NAME} de deploy/README.md), que reune "
-            f"{schema.PRIVILEGE_SHOW_CONSTRAINT}, {schema.PRIVILEGE_SHOW_INDEX}, "
-            f"{schema.PRIVILEGE_CREATE_CONSTRAINT} y {schema.PRIVILEGE_CREATE_INDEX}: "
+            f"{schema.SCHEMA_ROLE_NAME} de deploy/README.md), que reune la "
+            f"lectura ({schema.PRIVILEGE_SHOW_CONSTRAINT}, {schema.PRIVILEGE_SHOW_INDEX}) "
+            "y la creacion de esquema: "
             f"{COMANDO_ENSURE}." + _NOTA_ACCESS
         )
     return (

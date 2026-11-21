@@ -261,7 +261,11 @@ def is_forbidden(exc: BaseException) -> bool:
 #: * esquema (operador, `writer-schema ensure`): lista y crea restricciones e
 #:   indices. Ninguna escritura de datos. Sin `DROP`: `GRANT INDEX` / `GRANT
 #:   CONSTRAINT` sin `MANAGEMENT` incluirian borrar, por eso se nombran las
-#:   capacidades una a una.
+#:   capacidades una a una. MEDIDO contra Neo4j 5.26 Enterprise: en una base
+#:   recien creada `CREATE CONSTRAINT` se DENIEGA si la cuenta no puede crear
+#:   la etiqueta y el nombre de propiedad que la restriccion menciona y que aun
+#:   no existen; de ahi `CREATE NEW NODE LABEL` y `CREATE NEW PROPERTY NAME`
+#:   (no tipos de relacion: el esquema no los nombra).
 #: * escritor (APPLY del panel y `writer`): lee y escribe datos, crea nombres
 #:   nuevos (etiquetas, tipos, propiedades: `WRITE` no los incluye) y lista
 #:   restricciones (el writer pregunta `SHOW CONSTRAINTS` antes de escribir y,
@@ -283,6 +287,8 @@ SCHEMA_ROLE_PRIVILEGES: tuple[str, ...] = (
     "GRANT SHOW INDEX ON DATABASE {db} TO {role}",
     "GRANT CREATE CONSTRAINT ON DATABASE {db} TO {role}",
     "GRANT CREATE INDEX ON DATABASE {db} TO {role}",
+    "GRANT CREATE NEW NODE LABEL ON DATABASE {db} TO {role}",
+    "GRANT CREATE NEW PROPERTY NAME ON DATABASE {db} TO {role}",
 )
 WRITER_ROLE_PRIVILEGES: tuple[str, ...] = (
     "GRANT ACCESS ON DATABASE {db} TO {role}",
