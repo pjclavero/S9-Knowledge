@@ -54,10 +54,12 @@ CAPACIDADES = {
     "resultado": "S9K_PANEL_RESULTADO_ENABLED=true (resultado y procedencia)",
     "boveda": "S9K_VAULT_ROOT declarado, con perfil y partidas",
     "boveda_solo_lectura": "la bóveda declarada NO es escribible por el servicio",
+    "boveda_inexistente": "S9K_VAULT_ROOT declarado pero la carpeta del juego no existe",
     "ingesta": "S9K_INGEST_SOURCES_DIR poblado y worker activo",
     "apply": "S9K_ALLOW_REAL_INGEST=1 y S9K_WRITER_WORKSPACE = workspace del ensayo",
     "aislamiento": "S9K_WRITER_WORKSPACE apunta a OTRO workspace (negativo 8.M9)",
     "job_credencial": "existe un job fallido por credencial inutilizable (S9K_RC_NAV_JOB_CREDENCIAL)",
+    "setup_abierto": "instalación SIN primer administrador (FIRST_ADMIN_PENDING)",
     "partidas": "hay dos partidas y los lectores acotados tienen concedida una cada uno",
 }
 
@@ -109,6 +111,10 @@ class Config:
     job_sellado: str
     partida_a: str
     partida_b: str
+    flujo_desde: str
+    flujo_hasta: str
+    perfil_boveda: str
+    fase_persistencia: str
 
     @property
     def host(self) -> str:
@@ -227,6 +233,10 @@ def cargar_config(env: Optional[dict] = None) -> Config:
         job_sellado=v("JOB_SELLADO"),
         partida_a=v("PARTIDA_A"),
         partida_b=v("PARTIDA_B"),
+        flujo_desde=v("FLUJO_DESDE", "ingesta"),
+        flujo_hasta=v("FLUJO_HASTA", "busqueda"),
+        perfil_boveda=v("PERFIL_BOVEDA"),
+        fase_persistencia=v("FASE_PERSISTENCIA"),
     )
 
 
