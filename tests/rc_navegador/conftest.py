@@ -143,7 +143,9 @@ def pytest_runtest_makereport(item: pytest.Item, call):
         fila["motivo"] = motivo
     elif informe.failed:
         fila["estado"] = "FAIL"
-        fila["motivo"] = f"fallo en la fase «{informe.when}»: " + str(informe.longrepr).strip().splitlines()[-1][:400]
+        crash = getattr(informe.longrepr, "reprcrash", None)
+        mensaje = crash.message if crash is not None else str(informe.longrepr).strip().splitlines()[-1]
+        fila["motivo"] = f"fallo en la fase «{informe.when}»: " + " ".join(mensaje.split())[:600]
     elif informe.when == "call" and fila["estado"] is None:
         fila["estado"] = "PASS"
     directorio = getattr(item, "_rc_nav_evidencia", None)

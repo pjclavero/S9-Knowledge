@@ -165,13 +165,18 @@ def test_ciclo_de_vida_de_un_usuario_desde_la_administracion(pagina_como, contex
             _enviar(admin)
 
     # --- auditoría ----------------------------------------------------------
-    ir(admin, cfg, f"/admin/audit?user_param={usuario}")
-    evidencia.paso(admin, "auditoría de la cuenta")
+    # Las acciones de administración se anotan a nombre de QUIEN las hace.
+    ir(admin, cfg, f"/admin/audit?user_param={cfg.cuenta('admin')['username']}")
+    evidencia.paso(admin, "auditoría del administrador")
     eventos = admin.eval_on_selector_all(
         "table.data-table tbody tr",
         "els => els.map(tr => Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim()))",
     )
-    tipos = sorted({e[2] for e in eventos if len(e) >= 4})
-    evidencia.dato("eventos auditados", tipos)
-    assert len(tipos) >= 3, f"CICLO: la auditoría sólo recoge {tipos} para todo el ciclo de vida de la cuenta"
-    assert clave not in admin.content(), "CICLO: la auditoría muestra la contraseña de la cuenta"
+    tipos = {e[2] for e in eventos if len(e) >= 4}
+    evidencia.dato("eventos auditados del administrador", sorted(tipos))
+    faltan = {"USER_CREATED", "ROLE_CHANGED", "SESSIONS_REVOKED", "USER_DISABLED"} - tipos
+    assert not faltan, f"CICLO: la auditoría no recoge {sorted(faltan)} del ciclo de vida de la cuenta"
+    cuerpo = admin.content()
+    assert clave not in cuerpo, "CICLO: la auditoría muestra la contraseña de la cuenta"
+    # Dato, sin contrato escrito: ¿dice la pantalla SOBRE QUIÉN fue cada acción?
+    evidencia.dato("la auditoría por pantalla nombra la cuenta afectada", usuario in cuerpo)
