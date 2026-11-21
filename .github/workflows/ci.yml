@@ -1519,14 +1519,19 @@ jobs:
         run: python3 scripts/calibracion/mutaciones_preflights_rc2.py
 
       # RC2-02 (RC-E2E final) — `writer-schema verify` con la cuenta de sólo
-      # lectura: el rol documentado incluye SHOW CONSTRAINT/SHOW INDEX (lectura
-      # de esquema, sin escritura), la doc y el codigo no divergen, un Forbidden
-      # es un fallo de AUTORIZACION (rc 5, SCHEMA_PRIVILEGE_MISSING) y no
-      # «incompleto», y la cuenta lectora no puede `ensure`. Cada rojo con su
-      # CAUSA; restauracion por `git checkout`. EN SERIE.
+      # lectura y las tres identidades de Neo4j (lectora, de esquema, de
+      # escritura): lista blanca exacta por rol, README == codigo en TODAS sus
+      # sentencias, un Forbidden es un fallo de AUTORIZACION (rc 5,
+      # SCHEMA_PRIVILEGE_MISSING) y no «incompleto», atribucion por operacion,
+      # sin fuga del texto del servidor, y `ensure` nunca aconseja dar DDL a la
+      # cuenta que fallo. Cada rojo con su CAUSA; control nulo primero;
+      # restauracion por `git checkout`. EN SERIE.
       #
-      # TECHO: no ejerce Neo4j real (el caso gateado S9K_WRITER_NEO4J_REAL
-      # queda pendiente de autorizacion).
+      # TECHO: este calibrador muta y mide contra un doble de driver. Lo que
+      # solo el servidor demuestra lo ejecuta contra Neo4j Enterprise real el
+      # paso «Cobertura Neo4j REAL del recorrido del visor» del job Viewer
+      # Tests (`viewer/tests/test_corte5_credencial_solo_lectura_neo4j_real.py`,
+      # casos `test_rc2_02_*`); este paso no lo repite.
       - name: "writer-schema verify con la cuenta lectora: privilegio de esquema, rol sin escritura y autorizacion distinta de incompleto: se pone ROJO ante cada defecto (RC2-02)"
         env:
           PYTHONDONTWRITEBYTECODE: '1'

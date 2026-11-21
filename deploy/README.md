@@ -1245,18 +1245,99 @@ escritura.
 **`SHOW CONSTRAINT` y `SHOW INDEX` son lectura de esquema, no escritura** (RC2-02).
 Sin ellos `s9k-cli.sh writer-schema verify` —que lista restricciones e
 índices y que, por el envoltorio de las CLIs, usa la cuenta del worker— sale
-con `Neo.ClientError.Security.Forbidden`. Con ellos la cuenta lectora sigue sin
-poder crear nada: `CREATE CONSTRAINT`/`CREATE INDEX` (`ensure`) siguen
-denegados y `ensure` se hace con la cuenta del writer o una administradora.
-Salidas de `writer-schema`: `verify` rc 0 esquema completo, rc 3 faltan
-restricciones o índices, **rc 5 con `error_code=SCHEMA_PRIVILEGE_MISSING`** si a
-la cuenta le falta un privilegio de esquema (el mensaje dice cuál y para qué
-cuenta, sin secretos), rc 2 cualquier otro error. Un rol creado antes de este
-cambio hay que completarlo: ejecute las dos sentencias `GRANT SHOW …`. El texto
-de este bloque y el rol que espera el código (`READER_ROLE_PRIVILEGES` en
-`data-engine/app/knowledge_v3/writer/schema.py`) los compara un test. En
-Community no hay roles finos: la cuenta no puede restringirse y `verify`
-funciona sin estos permisos.
+con `Neo.ClientError.Security.Forbidden`. Con ellos la cuenta lectora **no
+puede crear lo que falte** en el esquema: si falta una restricción, `ensure`
+con esta cuenta sale rc 5 y la restricción sigue sin existir (lo comprueba la
+prueba contra Neo4j Enterprise real). Si el esquema ya está completo, `ensure`
+con esta cuenta sale rc 0 sin crear nada: todo el DDL es `IF NOT EXISTS` y el
+servidor no deniega lo que no tiene que hacer. `ensure` se hace con la
+identidad de esquema (abajo), no con esta cuenta. Un rol creado antes de este
+cambio hay que completarlo con las dos concesiones de `SHOW` del bloque de
+arriba.
+
+### Las tres identidades de Neo4j y sus privilegios exactos (RC2-02)
+
+Hay **tres** cuentas, cada una con un rol propio y nada más. Los bloques
+`cypher` de este apartado son una **lista blanca exacta**: un test compara
+TODAS sus sentencias de privilegio, sin distinguir mayúsculas, con la autoridad
+del código (`ROLE_PRIVILEGES` en
+`data-engine/app/knowledge_v3/writer/schema.py`), y la prueba contra Neo4j
+Enterprise real crea los roles de esa misma autoridad.
+
+| Identidad | Rol | Quién la usa | Puede | No puede |
+|---|---|---|---|---|
+| lectora | `s9k_observador` | el worker (`worker.env`) y `writer-schema verify` | leer grafo y esquema | escribir datos, crear o borrar esquema |
+| de esquema | `s9k_esquema` | el operador, sólo para `writer-schema ensure` | listar y crear restricciones e índices | escribir datos, borrar esquema |
+| de escritura | `s9k_escritor` | el visor: el APPLY del panel (`viewer.env`) | leer y escribir datos, crear nombres nuevos, listar restricciones | crear o borrar esquema |
+
+La identidad de esquema (una vez, con una cuenta administradora):
+
+```cypher
+CREATE ROLE s9k_esquema;
+GRANT ACCESS ON DATABASE neo4j TO s9k_esquema;
+GRANT SHOW CONSTRAINT ON DATABASE neo4j TO s9k_esquema;
+GRANT SHOW INDEX ON DATABASE neo4j TO s9k_esquema;
+GRANT CREATE CONSTRAINT ON DATABASE neo4j TO s9k_esquema;
+GRANT CREATE INDEX ON DATABASE neo4j TO s9k_esquema;
+CREATE USER s9k_esquema_operador SET PASSWORD '<secreto>' SET PASSWORD CHANGE NOT REQUIRED;
+GRANT ROLE s9k_esquema TO s9k_esquema_operador;
+```
+
+No se usa `GRANT INDEX` ni `GRANT CONSTRAINT` (sin `MANAGEMENT` también
+conceden **borrar**): se nombran las capacidades una a una.
+
+**`ensure` por el envoltorio canónico.** `s9k-cli.sh` superpone `worker.env`
+a toda herramienta del motor, así que sin más `writer-schema` usa la cuenta
+lectora. Un argumento explícito gana al entorno (`driver_neo4j.resolve_config`:
+«argumento explícito primero, entorno después»), y el secreto entra por la
+entrada estándar desde un fichero de root, de modo que ni viaja en `argv` ni
+lo puede leer el usuario de servicio:
+
+```bash
+sudo install -m 0600 -o root -g root /dev/null /etc/s9-knowledge/secrets/neo4j_esquema_password
+# (deposite ahí el secreto con un editor; nunca con echo en la línea de comandos)
+sudo sh -c 'deploy/scripts/s9k-cli.sh writer-schema ensure --neo4j-user s9k_esquema_operador --neo4j-password-file - < /etc/s9-knowledge/secrets/neo4j_esquema_password'
+sudo deploy/scripts/s9k-cli.sh writer-schema verify
+```
+
+La redirección la abre root antes de cambiar al usuario de servicio; la CLI
+lee una línea de la entrada estándar (`--neo4j-password-file -`). El segundo
+comando, ya con la cuenta lectora, confirma lo que quedó instalado.
+
+La identidad de escritura:
+
+```cypher
+CREATE ROLE s9k_escritor;
+GRANT ACCESS ON DATABASE neo4j TO s9k_escritor;
+GRANT MATCH {*} ON GRAPH neo4j NODES * TO s9k_escritor;
+GRANT MATCH {*} ON GRAPH neo4j RELATIONSHIPS * TO s9k_escritor;
+GRANT WRITE ON GRAPH neo4j TO s9k_escritor;
+GRANT NAME MANAGEMENT ON DATABASE neo4j TO s9k_escritor;
+GRANT SHOW CONSTRAINT ON DATABASE neo4j TO s9k_escritor;
+CREATE USER s9k_writer SET PASSWORD '<secreto>' SET PASSWORD CHANGE NOT REQUIRED;
+GRANT ROLE s9k_escritor TO s9k_writer;
+```
+
+Por qué cada uno: `WRITE` cubre crear, borrar y modificar nodos y relaciones,
+pero **no** crear etiquetas, tipos de relación ni nombres de propiedad nuevos,
+que en una base recién creada no existen: eso es `NAME MANAGEMENT`. Y el
+writer pregunta `SHOW CONSTRAINTS` antes de cada APPLY; **sin `SHOW
+CONSTRAINT` no escribe**: aborta con `EXEC_SCHEMA_CONSTRAINTS_MISSING`, y el
+detalle del rechazo lleva `error_code=SCHEMA_PRIVILEGE_MISSING` y la operación
+denegada. Las dos cosas las mide la prueba contra Neo4j Enterprise real sobre
+una base recién creada. `deploy/config/viewer.env.example` trae todavía
+`S9K_NEO4J_USER=neo4j` (la administradora): con ella el APPLY funciona, pero
+con más privilegio del necesario; la cuenta de este bloque es la que basta.
+
+**Salidas de `writer-schema`:** rc 0 esquema completo, rc 3 faltan
+restricciones o índices, **rc 5 con `error_code=SCHEMA_PRIVILEGE_MISSING`** si
+el servidor denegó una operación de esquema, rc 2 cualquier otro error. El
+mensaje dice qué operación denegó el servidor, a qué cuenta, y qué privilegio
+falta **habitualmente** (Neo4j usa el mismo código para otras denegaciones,
+p. ej. la falta de `ACCESS`). En `verify` aconseja pedir la lectura de esquema
+para el rol lector; en `ensure` remite a la identidad de esquema y a este
+comando, nunca a ampliar la cuenta que falló. En Community no hay roles finos:
+ninguna de las tres cuentas puede restringirse.
 
 > ⚠️ **CONDICIÓN DE EDICIÓN — verificada, no supuesta.** Medido contra
 > `neo4j:5.26-community`: `CREATE USER` funciona, pero `CREATE ROLE`,

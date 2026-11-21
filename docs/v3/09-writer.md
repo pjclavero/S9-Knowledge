@@ -269,27 +269,32 @@ documento lo declara en `unrecoverable` en vez de fingir que puede.
 > prohíbe. Y sobre esa propiedad *presupuesta* descansaba el argumento de que
 > `FORGET_APPLIED` no es una fuga.
 
+En un despliegue el mando se ejecuta por el envoltorio canónico, que cambia al
+usuario de servicio (como root la CLI sale rc 4) y carga `worker.env`, o sea,
+la cuenta **lectora**:
+
 ```bash
-cd data-engine/app
+# Solo mirar (no crea nada), con la cuenta lectora del worker.
+sudo deploy/scripts/s9k-cli.sh writer-schema verify
 
-# Solo mirar (no crea nada). rc=0 si está todo, rc=3 si falta algo.
-python -m knowledge_v3.writer.schema_cli verify \
-    --neo4j-uri "$S9K_NEO4J_URI" --neo4j-user neo4j \
-    --neo4j-password-file /etc/s9k/neo4j.pass
-
-# Instalar. Idempotente: la segunda vez crea 0 y sale 0.
-python -m knowledge_v3.writer.schema_cli ensure \
-    --neo4j-uri "$S9K_NEO4J_URI" --neo4j-user neo4j \
-    --neo4j-password-file /etc/s9k/neo4j.pass
+# Instalar, con la IDENTIDAD DE ESQUEMA. El argumento explicito gana al
+# entorno; el secreto entra por stdin desde un fichero de root (nunca en argv).
+sudo sh -c 'deploy/scripts/s9k-cli.sh writer-schema ensure --neo4j-user s9k_esquema_operador --neo4j-password-file - < /etc/s9-knowledge/secrets/neo4j_esquema_password'
 ```
 
+Las tres identidades (lectora, de esquema, de escritura), sus privilegios
+exactos y por qué cada uno están en `deploy/README.md`, apartado «Las tres
+identidades de Neo4j y sus privilegios exactos (RC2-02)».
+
 Salidas de `verify`/`ensure`: **0** esquema completo, **3** faltan restricciones
-o índices, **5** (`error_code=SCHEMA_PRIVILEGE_MISSING`) la cuenta no tiene el
-privilegio de esquema que la operación exige (`SHOW CONSTRAINT`, `SHOW INDEX`
-para listar; `CREATE CONSTRAINT`/`CREATE INDEX` para `ensure`), **2** cualquier
-otro error. `verify` sólo necesita lectura de esquema: el rol de sólo lectura de
-`deploy/README.md` la incluye y **no** concede escritura; `ensure` se hace con
-la cuenta del writer o una administradora (RC2-02).
+o índices, **5** (`error_code=SCHEMA_PRIVILEGE_MISSING`) el servidor denegó una
+operación de esquema a la cuenta (el mensaje nombra la operación y el
+privilegio que habitualmente falta: `SHOW CONSTRAINT`/`SHOW INDEX` para listar,
+`CREATE CONSTRAINT`/`CREATE INDEX` para crear), **2** cualquier otro error. La
+cuenta lectora no puede crear lo que falte: con una restricción ausente,
+`ensure` con ella sale rc 5 y la restricción sigue ausente. Con el esquema ya
+completo sale rc 0 sin crear nada (`IF NOT EXISTS`). `ensure` se hace con la
+identidad de esquema (RC2-02).
 
 `ensure` imprime el censo **antes** y **después**, y cuántas creó en esta
 ejecución. No dice «hecho»: dice **qué hay**, leído del servidor con

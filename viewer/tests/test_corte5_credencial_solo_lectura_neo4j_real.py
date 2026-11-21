@@ -234,35 +234,352 @@ def test_la_cuenta_del_worker_SI_lee(grafo_rbac, sembrado):
     assert [f["id"] for f in filas] == ["entity:sela-marrec"], filas
 
 
-@neo4j_real
-def test_rc2_02_verify_con_la_cuenta_lectora_da_rc_0_y_ensure_no_puede_crear(
-    grafo_rbac, sembrado
-):
-    """RC2-02 contra Neo4j real: el rol documentado puede LISTAR esquema, no crearlo."""
-    import io
+# --- RC2-02: las tres identidades, medidas contra el servidor -----------------
+#
+# Todo lo de este bloque se demuestra por EFECTO, leido con la administradora:
+# no basta con un rc. La primera ronda afirmo «ensure con la lectora se deniega»
+# sobre un esquema completo y el servidor dijo rc 0 (MEDIDO en la CI, run
+# 44825358259): `CREATE ... IF NOT EXISTS` sobre lo que ya existe no se
+# deniega. Lo que SI se puede demostrar es que la lectora no crea lo que FALTA.
+
+def _rc202():
     import sys
 
     raiz = str(REPO / "data-engine" / "app")
     if raiz not in sys.path:
         sys.path.insert(0, raiz)
-    from knowledge_v3.writer import schema_cli
+    from knowledge_v3 import driver_neo4j
+    from knowledge_v3.writer import schema, schema_cli
 
+    return schema, schema_cli, driver_neo4j
+
+
+def _cli(accion, driver_factory=None, argv=(), env=None):
+    import io
+    import json
+
+    _, schema_cli, _ = _rc202()
     salida, error = io.StringIO(), io.StringIO()
-    rc = schema_cli.run(["verify"], driver_factory=lambda: _driver_lector(grafo_rbac),
-                        stdout=salida, stderr=error)
-    assert rc == schema_cli.RC_OK, (
-        f"verify con el rol lector documentado no dio rc 0: rc={rc} {error.getvalue()}"
+    rc = schema_cli.run([accion, "--json", *argv], driver_factory=driver_factory,
+                        env=env, stdout=salida, stderr=error)
+    objetos = [json.loads(l) for l in salida.getvalue().splitlines() if l.startswith("{")]
+    return rc, (objetos[-1] if objetos else {}), salida.getvalue(), error.getvalue()
+
+
+def _constraints(driver) -> set:
+    with driver.session() as sesion:
+        return {r["name"] for r in sesion.run("SHOW CONSTRAINTS YIELD name RETURN name")}
+
+
+def _indexes(driver) -> set:
+    with driver.session() as sesion:
+        return {r["name"] for r in sesion.run("SHOW INDEXES YIELD name RETURN name")}
+
+
+def _sistema(grafo_rbac, *sentencias):
+    with grafo_rbac["admin"].session(database="system") as sesion:
+        for s in sentencias:
+            sesion.run(s).consume()
+
+
+class _Cuenta:
+    """Un rol de la AUTORIDAD (`schema.role_grants`), opcionalmente sin una
+    concesion, y un usuario que solo lo tiene. Se retira al salir."""
+
+    def __init__(self, grafo_rbac, canonico, nombre, db="neo4j", quitar=()):
+        schema, _, _ = _rc202()
+        self.grafo = grafo_rbac
+        self.rol = f"rc202_{nombre}"
+        self.usuario = f"rc202_{nombre}_u"
+        self.clave = "Rc202-" + uuid.uuid4().hex[:14]
+        self.db = db
+        concesiones = [
+            g for g in schema.role_grants(canonico, self.rol, db)
+            if not any(q in g for q in quitar)
+        ]
+        assert len(concesiones) == len(schema.role_grants(canonico, self.rol, db)) - len(quitar), (
+            f"la concesion a quitar {quitar} no estaba en el rol {canonico}"
+        )
+        self.concesiones = concesiones
+
+    def __enter__(self):
+        _sistema(
+            self.grafo,
+            f"CREATE ROLE {self.rol}",
+            *self.concesiones,
+            f"CREATE USER {self.usuario} SET PASSWORD '{self.clave}' "
+            "SET PASSWORD CHANGE NOT REQUIRED",
+            f"GRANT ROLE {self.rol} TO {self.usuario}",
+        )
+        return self
+
+    def __exit__(self, *exc):
+        _sistema(self.grafo, f"DROP USER {self.usuario} IF EXISTS",
+                 f"DROP ROLE {self.rol} IF EXISTS")
+        return False
+
+    def driver(self):
+        import neo4j
+
+        _, _, driver_neo4j = _rc202()
+        crudo = neo4j.GraphDatabase.driver(
+            self.grafo["uri"], auth=(self.usuario, self.clave))
+        return driver_neo4j._DriverEnBase(crudo, self.db)
+
+
+class _BaseFresca:
+    """Una base RECIEN CREADA (Enterprise): sin etiquetas, tipos ni propiedades.
+    Es lo que hace visible si un rol necesita crear nombres nuevos."""
+
+    def __init__(self, grafo_rbac, nombre):
+        self.grafo = grafo_rbac
+        self.nombre = nombre
+
+    def __enter__(self):
+        _sistema(self.grafo, f"CREATE DATABASE {self.nombre} IF NOT EXISTS WAIT")
+        _, _, driver_neo4j = _rc202()
+        self.admin = driver_neo4j._DriverEnBase(self.grafo["admin"], self.nombre)
+        return self
+
+    def __exit__(self, *exc):
+        _sistema(self.grafo, f"DROP DATABASE {self.nombre} IF EXISTS WAIT")
+        return False
+
+
+@neo4j_real
+def test_rc2_02_la_lectora_ve_lo_que_falta_y_no_puede_crearlo(grafo_rbac):
+    """B1. Con la administradora se retira una restriccion requerida; la
+    lectora la ve FALTAR (rc 3) y no la puede crear (rc 5); la administradora
+    comprueba que SIGUE ausente. Se repone tambien si algo falla."""
+    schema, schema_cli, _ = _rc202()
+    admin = grafo_rbac["admin"]
+    objetivo = schema.REQUIRED_CONSTRAINT_NAMES[0]
+    assert objetivo in _constraints(admin), (
+        f"SUELO: la restriccion {objetivo} no estaba antes de retirarla; el caso no mediria nada"
     )
-    # Negativo explicito: la misma cuenta NO puede instalar esquema.
-    salida, error = io.StringIO(), io.StringIO()
-    rc = schema_cli.run(["ensure"], driver_factory=lambda: _driver_lector(grafo_rbac),
-                        stdout=salida, stderr=error)
+    try:
+        with admin.session() as sesion:
+            sesion.run(f"DROP CONSTRAINT {objetivo} IF EXISTS").consume()
+        assert objetivo not in _constraints(admin), "la administradora no pudo retirar la restriccion"
+
+        rc, censo, _, err = _cli("verify", lambda: _driver_lector(grafo_rbac))
+        assert rc == schema_cli.RC_INCOMPLETO, (
+            f"verify con la lectora y una restriccion ausente debia dar rc 3: rc={rc} {err}"
+        )
+        assert censo.get("constraints_faltantes") == [objetivo], (
+            f"verify no ve exactamente la ausente: {censo}"
+        )
+
+        rc, datos, _, err = _cli("ensure", lambda: _driver_lector(grafo_rbac))
+        assert rc == schema_cli.RC_SIN_PRIVILEGIO, (
+            f"ensure con la lectora y una restriccion ausente debia dar rc 5: rc={rc} {err}"
+        )
+        assert datos.get("error_code") == schema.SCHEMA_PRIVILEGE_MISSING, (
+            f"ensure de la lectora sin el codigo estable de denegacion: {datos}"
+        )
+        assert datos.get("operacion_denegada") == schema.OP_CREATE_CONSTRAINT, (
+            f"la denegacion no se atribuye a CREATE CONSTRAINT: {datos}"
+        )
+        assert objetivo not in _constraints(admin), (
+            "EFECTO: tras el ensure de la lectora la restriccion EXISTE: la lectora creo esquema"
+        )
+    finally:
+        schema.bootstrap_writer_schema(admin)
+    assert objetivo in _constraints(admin), "no se pudo reponer la restriccion retirada"
+
+    # Lo OBSERVADO en la primera ronda, ahora fijado: con el esquema completo
+    # la lectora sale rc 0 sin crear nada (no hay nada que denegar).
+    rc, censo, _, err = _cli("ensure", lambda: _driver_lector(grafo_rbac))
+    assert rc == schema_cli.RC_OK, f"ensure de la lectora con esquema completo: rc={rc} {err}"
+
+
+@neo4j_real
+def test_rc2_02_gemelo_del_defecto_original_sin_show_constraint_verify_da_rc_5(grafo_rbac):
+    """El defecto ORIGINAL reproducido: un rol lector SIN `SHOW CONSTRAINT`.
+    `verify` sale rc 5 nombrando esa operacion y ese privilegio, no rc 2."""
+    schema, schema_cli, _ = _rc202()
+    with _Cuenta(grafo_rbac, schema.READER_ROLE_NAME, "lector_sin_show",
+                 quitar=("GRANT SHOW CONSTRAINT",)) as cuenta:
+        rc, datos, _, err = _cli("verify", cuenta.driver, ["--neo4j-user", cuenta.usuario])
     assert rc == schema_cli.RC_SIN_PRIVILEGIO, (
-        f"ensure con la cuenta lectora debia denegarse por privilegio: rc={rc} "
-        f"{error.getvalue()}"
+        f"un rol sin SHOW CONSTRAINT debia dar rc 5 (denegacion), no {rc}: {err}"
     )
-    codigo = "SCHEMA_PRIVILEGE_MISSING"
-    assert codigo in error.getvalue()
+    assert datos.get("operacion_denegada") == schema.OP_SHOW_CONSTRAINTS, (
+        f"la denegacion del gemelo no se atribuye a SHOW CONSTRAINTS: {datos}"
+    )
+    assert datos.get("privilegio_habitual") == schema.PRIVILEGE_SHOW_CONSTRAINT, (
+        f"el gemelo no nombra SHOW CONSTRAINT como privilegio habitual: {datos}"
+    )
+    assert cuenta.usuario in err, "el mensaje no nombra la cuenta"
+
+
+@neo4j_real
+def test_rc2_02_la_identidad_de_esquema_instala_por_el_camino_del_envoltorio(
+    grafo_rbac, tmp_path, monkeypatch
+):
+    """B5. En una base recien creada, `ensure` con la identidad de esquema
+    pasada POR ARGUMENTO, mientras el entorno (lo que `s9k-cli.sh` exporta de
+    worker.env) declara la cuenta lectora, y el secreto por stdin. La
+    administradora observa el esquema completo. Y esa identidad no escribe datos."""
+    import io
+
+    schema, schema_cli, driver_neo4j = _rc202()
+    fichero_lector = tmp_path / "clave-lector"
+    fichero_lector.write_text(CLAVE_LECTOR, encoding="utf-8")
+    fichero_lector.chmod(0o600)
+    with _BaseFresca(grafo_rbac, "rc202esquema") as base:
+        assert _constraints(base.admin) == set(), "SUELO: la base fresca ya traia restricciones"
+        with _Cuenta(grafo_rbac, schema.SCHEMA_ROLE_NAME, "esquema", db=base.nombre) as cuenta:
+            env = {
+                driver_neo4j.ENV_URI: grafo_rbac["uri"],
+                driver_neo4j.ENV_USER: USUARIO_LECTOR,
+                driver_neo4j.ENV_PASSWORD_FILE: str(fichero_lector),
+                driver_neo4j.ENV_DATABASE: base.nombre,
+            }
+            monkeypatch.setattr("sys.stdin", io.StringIO(cuenta.clave + "\n"))
+            rc, censo, _, err = _cli(
+                "ensure", None,
+                ["--neo4j-user", cuenta.usuario, "--neo4j-password-file", "-"], env=env,
+            )
+            assert rc == schema_cli.RC_OK, (
+                f"ensure con la identidad de esquema en una base recien creada: rc={rc} {err}"
+            )
+            assert censo.get("completo") is True, f"el censo tras ensure no es completo: {censo}"
+            faltan_c = set(schema.REQUIRED_CONSTRAINT_NAMES) - _constraints(base.admin)
+            faltan_i = set(schema.REQUIRED_INDEX_NAMES) - _indexes(base.admin)
+            assert not faltan_c and not faltan_i, (
+                f"EFECTO: la administradora no ve el esquema instalado: {faltan_c} {faltan_i}"
+            )
+
+            drv = cuenta.driver()
+            try:
+                with pytest.raises(Exception) as fallo:
+                    with drv.session() as sesion:
+                        sesion.run("CREATE (:Intruso {x: 1})").consume()
+            finally:
+                drv.close()
+            assert getattr(fallo.value, "code", "") == "Neo.ClientError.Security.Forbidden", (
+                f"la identidad de esquema escribio datos o fallo por otra causa: {fallo.value!r}"
+            )
+            with base.admin.session() as sesion:
+                assert sesion.run("MATCH (n) RETURN count(n) AS n").single()["n"] == 0, (
+                    "la identidad de esquema dejo un nodo"
+                )
+
+
+def _modulo_writer_real():
+    """Utillaje del test real del writer (planes, sondas), sin copiarlo."""
+    import importlib.util
+
+    ruta = REPO / "data-engine" / "app" / "tests" / "test_knowledge_v3_writer_neo4j_real.py"
+    spec = importlib.util.spec_from_file_location("_rc202_utillaje_writer_real", ruta)
+    modulo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
+def _plan_con_todas_las_operaciones(W):
+    return W.make_plan([
+        W.create_entity("op:0001", "entity:nueva", "Nueva"),
+        W.create_assertion("op:0002", "assertion:nueva", "entity:origen", "entity:destino"),
+        W.link_existing("op:0003", "entity:origen", "entity:destino"),
+        W.update_entity("op:0004", "entity:origen"),
+        W.supersede_assertion("op:0005", "assertion:vieja", successor="assertion:nueva"),
+    ])
+
+
+def _sembrar(W, probe):
+    probe.clean()
+    probe.seed_entity("entity:origen", version=1, state_hash=W.HASH_A["value"])
+    probe.seed_entity("entity:destino", version=1, state_hash=W.HASH_C["value"])
+    probe.seed_assertion("assertion:vieja", version=1, state_hash=W.HASH_B["value"])
+
+
+@neo4j_real
+def test_rc2_02_el_writer_aplica_con_el_rol_de_escritura_y_no_con_menos(grafo_rbac):
+    """B5, la cuenta del APPLY. En una base recien creada con el esquema puesto:
+
+    * sin `NAME MANAGEMENT` el writer NO aplica y el grafo no cambia (las
+      etiquetas, tipos y propiedades nuevas no existen todavia);
+    * sin `SHOW CONSTRAINT` el writer NO escribe y el rechazo lo dice
+      (`SCHEMA_PRIVILEGE_MISSING`, operacion denegada), sin texto del servidor;
+    * con el rol EXACTO de la autoridad aplica todas las operaciones;
+    * y esa cuenta no puede crear esquema.
+    """
+    schema, _, _ = _rc202()
+    W = _modulo_writer_real()
+    from knowledge_v3.writer.writer import OUTCOME_APPLIED  # noqa: PLC0415
+
+    with _BaseFresca(grafo_rbac, "rc202escritor") as base:
+        schema.bootstrap_writer_schema(base.admin)
+        probe = W.GraphProbe(driver=base.admin)
+        _sembrar(W, probe)
+        suelo = probe.knowledge_counts()
+
+        with _Cuenta(grafo_rbac, schema.WRITER_ROLE_NAME, "escritor_sin_nombres",
+                     db=base.nombre, quitar=("GRANT NAME MANAGEMENT",)) as cuenta:
+            drv = cuenta.driver()
+            try:
+                plan = _plan_con_todas_las_operaciones(W)
+                res = W.writer(drv).write(plan, W.apply_request(plan))
+            finally:
+                drv.close()
+        assert res.outcome != OUTCOME_APPLIED, (
+            "SIN NAME MANAGEMENT el writer aplico en una base recien creada: el "
+            f"privilegio no es necesario y sobra en la lista blanca ({res.codes})"
+        )
+        mensajes = [r.message for r in res.rejections]
+        assert W.codes.EXEC_DRIVER_FAILURE in res.codes and any(
+            schema.NEO4J_FORBIDDEN_CODE in m for m in mensajes
+        ), (
+            "sin NAME MANAGEMENT el writer no aplico, pero NO por una denegacion "
+            f"del servidor: {res.codes} {mensajes}"
+        )
+        assert probe.knowledge_counts() == suelo, "sin NAME MANAGEMENT el grafo cambio"
+
+        with _Cuenta(grafo_rbac, schema.WRITER_ROLE_NAME, "escritor_sin_show",
+                     db=base.nombre, quitar=("GRANT SHOW CONSTRAINT",)) as cuenta:
+            drv = cuenta.driver()
+            try:
+                plan = _plan_con_todas_las_operaciones(W)
+                res = W.writer(drv).write(plan, W.apply_request(plan))
+            finally:
+                drv.close()
+        assert res.outcome != OUTCOME_APPLIED, "sin SHOW CONSTRAINT el writer escribio"
+        rechazo = next((r for r in res.rejections
+                        if r.code == W.codes.EXEC_SCHEMA_CONSTRAINTS_MISSING), None)
+        assert rechazo is not None, f"sin SHOW CONSTRAINT: rechazo inesperado {res.codes}"
+        assert rechazo.detail == {
+            "error_code": schema.SCHEMA_PRIVILEGE_MISSING,
+            "operacion_denegada": schema.OP_SHOW_CONSTRAINTS,
+            "privilegio_habitual": schema.PRIVILEGE_SHOW_CONSTRAINT,
+        }, f"el rechazo del writer sin SHOW CONSTRAINT no dice la causa: {rechazo.detail}"
+        assert probe.knowledge_counts() == suelo, "sin SHOW CONSTRAINT el grafo cambio"
+
+        with _Cuenta(grafo_rbac, schema.WRITER_ROLE_NAME, "escritor", db=base.nombre) as cuenta:
+            drv = cuenta.driver()
+            try:
+                plan = _plan_con_todas_las_operaciones(W)
+                res = W.writer(drv).write(plan, W.apply_request(plan))
+                with pytest.raises(Exception) as fallo:
+                    with drv.session() as sesion:
+                        sesion.run(
+                            "CREATE INDEX rc202_intruso IF NOT EXISTS "
+                            "FOR (n:V3Entity) ON (n.intruso)"
+                        ).consume()
+            finally:
+                drv.close()
+        assert res.outcome == OUTCOME_APPLIED, (
+            f"con el rol de escritura de la autoridad el writer NO aplico: {res.codes} "
+            f"{[r.message for r in res.rejections]}"
+        )
+        assert probe.knowledge_counts() == {"nodes": 5, "relationships": 1}, (
+            f"EFECTO: el APPLY no dejo lo esperado: {probe.knowledge_counts()}"
+        )
+        assert getattr(fallo.value, "code", "") == "Neo.ClientError.Security.Forbidden", (
+            f"la cuenta de escritura creo esquema o fallo por otra causa: {fallo.value!r}"
+        )
+        assert "rc202_intruso" not in _indexes(base.admin), "la cuenta de escritura creo un indice"
 
 
 @neo4j_real

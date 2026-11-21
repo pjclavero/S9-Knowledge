@@ -31,10 +31,12 @@ USO
     python -m knowledge_v3.writer.schema_cli ensure ... [--json]
 
 `verify` es de SOLO LECTURA y no crea nada: sale 0 si esta todo, 3 si falta
-algo, 5 (`SCHEMA_PRIVILEGE_MISSING`) si la cuenta no tiene el privilegio
-`SHOW CONSTRAINT`/`SHOW INDEX` (el rol lector documentado en `deploy/README.md`
-lo incluye) y 2 ante cualquier otro error. `ensure` instala y despues verifica; si tras instalar sigue faltando
-algo, sale 3 y no miente.
+algo, 5 (`SCHEMA_PRIVILEGE_MISSING`) si el servidor denego una operacion de
+esquema (el rol lector documentado en `deploy/README.md` incluye `SHOW
+CONSTRAINT`/`SHOW INDEX`) y 2 ante cualquier otro error. `ensure` instala y
+despues verifica; si tras instalar sigue faltando algo, sale 3 y no miente. La
+cuenta lectora no puede crear lo que falte (rc 5): `ensure` se ejecuta con la
+identidad de esquema (`deploy/README.md`, «Las tres identidades de Neo4j»).
 """
 from __future__ import annotations
 
@@ -111,6 +113,56 @@ def _cuenta(args: Any, env: Optional[dict]) -> str:
     )
 
 
+#: Comando canonico de `ensure` con la identidad de esquema (deploy/README.md).
+#: El secreto entra por la ENTRADA ESTANDAR desde un fichero de root: ni en
+#: argv ni legible por el usuario de servicio.
+COMANDO_ENSURE = (
+    "deploy/scripts/s9k-cli.sh writer-schema ensure --neo4j-user "
+    "<identidad de esquema> --neo4j-password-file - < <fichero del secreto>"
+)
+_NOTA_ACCESS = (
+    " Neo4j usa el mismo codigo para otras denegaciones: si el rol ya tiene ese "
+    "privilegio, revise que la cuenta tenga ACCESS a la base."
+)
+
+
+def _consejo(accion: str, exc: "schema.SchemaPrivilegeError", cuenta: str) -> str:
+    """El texto para el operador. Depende de la ACCION y de la OPERACION denegada.
+
+    RC2-02: a la cuenta lectora nunca se le aconseja ganar DDL. Para `verify`
+    lo que falta es lectura de esquema y SI procede pedirla; para `ensure` lo
+    que procede es usar la identidad de esquema, no ampliar esta cuenta.
+    """
+    base = (
+        f"el servidor denego {exc.operation} a la cuenta {cuenta}; el privilegio "
+        f"que habitualmente falta es {exc.privilege}."
+    )
+    lectura = exc.operation in schema.OPERACIONES_DE_LECTURA
+    if accion == "verify":
+        return (
+            base + " Es lectura de esquema, sin escritura: el rol de solo lectura "
+            f"de deploy/README.md ({schema.READER_ROLE_NAME}) lo incluye; pidale a "
+            "quien administra Neo4j que lo conceda a ese rol." + _NOTA_ACCESS
+        )
+    if lectura:
+        return (
+            base + " ensure tambien necesita LEER el esquema para comprobar lo "
+            "que deja instalado. Ejecutelo con la identidad de esquema (rol "
+            f"{schema.SCHEMA_ROLE_NAME} de deploy/README.md), que reune "
+            f"{schema.PRIVILEGE_SHOW_CONSTRAINT}, {schema.PRIVILEGE_SHOW_INDEX}, "
+            f"{schema.PRIVILEGE_CREATE_CONSTRAINT} y {schema.PRIVILEGE_CREATE_INDEX}: "
+            f"{COMANDO_ENSURE}." + _NOTA_ACCESS
+        )
+    return (
+        base + " Esta cuenta no puede crear lo que falta en el esquema, y no debe: "
+        "ensure se ejecuta con la identidad de esquema (rol "
+        f"{schema.SCHEMA_ROLE_NAME} de deploy/README.md), no con la cuenta del "
+        f"worker ni con la del writer: {COMANDO_ENSURE}. Lo que se hubiera creado "
+        "antes de la denegacion sigue creado: compruebe que hay con "
+        "`writer-schema verify`."
+    )
+
+
 def run(argv: Optional[list[str]] = None, *, driver_factory=None, env=None,
         stdout=None, stderr=None) -> int:
     stdout = stdout or sys.stdout
@@ -164,18 +216,18 @@ def run(argv: Optional[list[str]] = None, *, driver_factory=None, env=None,
             print(json.dumps(resultado, ensure_ascii=False, sort_keys=True), file=stdout)
         return RC_OK if resultado["completo"] else RC_INCOMPLETO
     except schema.SchemaPrivilegeError as exc:
-        # Veraz: dice QUE privilegio falta y para QUE cuenta; no vuelca el
-        # texto del servidor ni nada de la conexion.
+        # Veraz: dice QUE operacion denego el servidor y a QUE cuenta (dato
+        # observado) y cual es el privilegio que HABITUALMENTE falta (inferido);
+        # no vuelca el texto del servidor ni nada de la conexion.
         print(
-            f"error_code={exc.code}: falta el privilegio {exc.privilege} "
-            f"para la cuenta {cuenta}; pidale a quien administra Neo4j que lo "
-            "conceda (deploy/README.md, rol de solo lectura)",
+            f"error_code={exc.code}: {_consejo(args.accion, exc, cuenta)}",
             file=stderr,
         )
         if args.json:
             print(
                 json.dumps(
-                    {"error_code": exc.code, "privilegio": exc.privilege,
+                    {"error_code": exc.code, "operacion_denegada": exc.operation,
+                     "privilegio_habitual": exc.privilege, "accion": args.accion,
                      "cuenta": cuenta, "completo": None},
                     ensure_ascii=False, sort_keys=True,
                 ),
