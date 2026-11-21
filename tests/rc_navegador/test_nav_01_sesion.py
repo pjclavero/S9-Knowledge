@@ -150,13 +150,6 @@ def test_salir_cierra_la_sesion_en_el_servidor(contexto, cfg, evidencia, navegad
     assert ruta_de(pagina) == "/login", f"SALIR: se acabó en {ruta_de(pagina)}, no en el formulario de entrada"
     assert _cookie(ctx, COOKIE_SESION) is None, "SALIR: el navegador conserva la cookie de sesión"
 
-    # Botón «atrás» del navegador: no devuelve la pantalla protegida.
-    pagina.go_back(wait_until="domcontentloaded")
-    evidencia.paso(pagina, "botón atrás tras salir")
-    assert pagina.locator("header.topbar .role-badge").count() == 0, (
-        f"SALIR: el botón «atrás» devuelve una pantalla con sesión tras salir ({ruta_de(pagina)})"
-    )
-
     respuesta = ir(pagina, cfg, "/account")
     assert ruta_de(pagina) == "/login", "SALIR: tras salir se sigue viendo /account"
     evidencia.paso(pagina, "account tras salir", estado=respuesta.status)
@@ -170,6 +163,33 @@ def test_salir_cierra_la_sesion_en_el_servidor(contexto, cfg, evidencia, navegad
     evidencia.paso(pagina_copia, "cookie antigua reutilizada", estado=respuesta.status)
     assert ruta_de(pagina_copia) == "/login", (
         "SALIR: la cookie de una sesión cerrada sigue dando acceso a /account"
+    )
+
+
+@pytest.mark.cubre("7.M1", "REG-15")
+def test_el_boton_atras_tras_salir_no_devuelve_la_pantalla_protegida(contexto, cfg, evidencia):
+    """7.M1: «tras el logout no se ve contenido protegido», tampoco con el
+    botón «atrás» del navegador (que puede servir la pantalla desde su caché
+    si el producto no la marca como no almacenable)."""
+    ctx = contexto("sesion")
+    pagina = ctx.new_page()
+    iniciar_sesion(pagina, cfg, cfg.cuenta("sesion"))
+    protegida = ir(pagina, cfg, "/account")
+    evidencia.paso(pagina, "pantalla protegida antes de salir", estado=protegida.status)
+    evidencia.dato("cabeceras de caché de la pantalla protegida", {
+        c: protegida.headers.get(c) for c in ("cache-control", "pragma", "expires")
+    })
+    with pagina.expect_navigation():
+        pagina.click("main form[action='/logout'] button")
+    assert ruta_de(pagina) == "/login", f"ATRÁS: preparación: salir llevó a {ruta_de(pagina)}"
+    pagina.go_back(wait_until="domcontentloaded")
+    evidencia.paso(pagina, "botón atrás tras salir")
+    cuerpo = texto_visible(pagina)
+    evidencia.dato("tras el botón atrás", {"ruta": ruta_de(pagina), "texto": cuerpo[:300]})
+    usuario = cfg.cuenta("sesion")["username"]
+    assert pagina.locator("header.topbar .role-badge").count() == 0 and usuario not in cuerpo, (
+        f"ATRÁS: tras salir, el botón «atrás» vuelve a mostrar la pantalla protegida ({ruta_de(pagina)}): "
+        f"{cuerpo[:160]!r}"
     )
 
 
