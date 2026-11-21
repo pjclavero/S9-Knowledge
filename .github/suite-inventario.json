@@ -337,7 +337,7 @@
     "data-engine/app/tests/test_transcript_normalizer.py": 5,
     "data-engine/app/tests/test_use_existing.py": 16,
     "data-engine/app/tests/test_workspace_aliases.py": 6,
-    "data-engine/app/tests/test_writer_schema_verify_rc2_02.py": 12,
+    "data-engine/app/tests/test_writer_schema_verify_rc2_02.py": 26,
     "deploy/tests/test_b2_d2_declaracion_sandbox.py": 21,
     "deploy/tests/test_b2_d8_restos_de_migracion.py": 12,
     "deploy/tests/test_b2_fresh_install.py": 51,
@@ -558,7 +558,7 @@
     "viewer/tests/test_graph_ux_v2.py",
     "viewer/tests/test_panel_apply_desde_la_ui.py"
   ],
-  "total": 10647,
+  "total": 10672,
   "modulos": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 526,
     "contracts/review-ingest/v1/tests/test_contracts_v1.py": 38,
@@ -744,7 +744,7 @@
     "data-engine/app/tests/test_transcript_normalizer.py": 5,
     "data-engine/app/tests/test_use_existing.py": 16,
     "data-engine/app/tests/test_workspace_aliases.py": 6,
-    "data-engine/app/tests/test_writer_schema_verify_rc2_02.py": 13,
+    "data-engine/app/tests/test_writer_schema_verify_rc2_02.py": 38,
     "deploy/tests/test_b2_d2_declaracion_sandbox.py": 25,
     "deploy/tests/test_b2_d8_restos_de_migracion.py": 12,
     "deploy/tests/test_b2_fresh_install.py": 80,
