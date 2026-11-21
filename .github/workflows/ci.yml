@@ -1518,6 +1518,22 @@ jobs:
           S9K_ALLOW_REAL_INGEST: ""
         run: python3 scripts/calibracion/mutaciones_preflights_rc2.py
 
+      # RC2-05 (RC-E2E final) — la primera ingesta proyecta las relaciones que
+      # la revision aprobo: dos altas aprobadas y el hecho entre ellas llegan al
+      # grafo CON su arista en el mismo apply, sin cruzar ambito ni duplicar al
+      # reintentar, y un fallo a mitad no se anuncia como exito. Cada rojo con
+      # su CAUSA; restauracion por `git checkout`. EN SERIE.
+      #
+      # TECHO: este calibrador mide el plan sellado y su ejecucion contra un
+      # doble transaccional del writer. El efecto en un grafo real lo miden los
+      # casos del mismo modulo que lee S9K_WRITER_NEO4J_REAL, que el paso
+      # «Cobertura Neo4j REAL» descubre y ejecuta solo.
+      - name: "La primera ingesta proyecta las relaciones aprobadas sin cruzar ambito ni duplicar: se pone ROJO ante cada defecto (RC2-05)"
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          S9K_ALLOW_REAL_INGEST: ""
+        run: python3 scripts/calibracion/mutaciones_rc2_05_relaciones_primera_ingesta.py
+
       # MICROCARRIL DE SANEAMIENTO DE INSTRUMENTOS — los cuatro
       # `scripts/calibrar_panel_*.py`. Son los arneses de los cuatro paneles
       # del chasis (B operations, C review, F sources, G entities): cada uno

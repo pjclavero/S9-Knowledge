@@ -787,6 +787,81 @@ def test_el_plan_con_alta_sigue_validando_contra_el_contrato_congelado(
     GraphMutationPlan.from_dict(documento)
 
 
+def test_rc2_05_aprobar_propuesta_y_altas_sella_el_plan_CON_la_relacion(
+    operador, corrida, almacenes
+):
+    """RC2-05, por el FLUJO DEL PRODUCTO: revisión -> altas -> preparar plan.
+
+    El recorrido es el del panel (decisión humana, aprobación de cada alta,
+    `POST /panel/operations/planes`), que pasa por `ReviewApplyService.sellar`
+    y de ahí a `seal_review_plan` con las altas aprobadas. Antes de RC2-05 el
+    plan traía `CREATE_ENTITY` + `CREATE_ASSERTION` y NINGUNA arista, y el
+    acuse era `PLAN_SEALED_SIN_PROYECCION`.
+
+    Se elige una propuesta de la corrida cuyos extremos sean, cada uno, un alta
+    declarada o una entidad con ancla observada (y al menos uno, alta): es la
+    primera ingesta (a) o la mezcla (b) del defecto. Lo que se hace con el APPLY
+    (la arista en el grafo) lo mide el caso con Neo4j real, no este.
+
+    ROJA ASÍ: `RC2-05 SIN PROYECCION: ...`.
+    """
+    job_id = corrida["job_id"]
+    declaradas = corrida["declaradas"]
+    elegida = None
+    for propuesta in corrida["propuestas"]:
+        if job_id not in (propuesta.get("package_runs") or ()):
+            continue
+        resolucion = propuesta.get("resolution") or {}
+        cuerpo = propuesta.get("proposal") or {}
+        extremos = (resolucion.get("subject"), resolucion.get("object"))
+        if cuerpo.get("negated") or cuerpo.get("predicate") in (None, "", "UNKNOWN"):
+            continue
+        if cuerpo.get("direction") in (None, "", "UNKNOWN"):
+            continue
+        bloque = (propuesta.get("plan_context_by_run") or {}).get(job_id) or {}
+        anclas = bloque.get("entity_anchors") or {}
+
+        def _resuelto(e):
+            if e in declaradas:
+                return True
+            a = anclas.get(e)
+            return bool(a and a.get("observed") and not a.get("pending_creation"))
+
+        if all(e and _resuelto(e) for e in extremos) and any(e in declaradas for e in extremos):
+            elegida = (propuesta, [e for e in extremos if e in declaradas])
+            break
+    assert elegida is not None, (
+        "RC2-05 SIN CORPUS: ninguna propuesta del corpus tiene todos sus extremos "
+        "resueltos (alta declarada o ancla observada) con al menos un alta; el "
+        "testigo no puede medir el flujo"
+    )
+    propuesta, altas = elegida
+    _decidir(propuesta, "APPROVE")
+    for entity_id in altas:
+        tipo = (declaradas[entity_id] or {}).get("entity_type") or ""
+        assert _aviso_de(_aprobar(operador, job_id, entity_id, tipo)) == "ALTA_APPROVED"
+    aviso = _aviso_de(_sellar(operador, job_id))
+    operaciones = _operaciones_del_plan(almacenes["base"])
+    proyecciones = [o for o in operaciones if o["operation_type"] == "PROJECT_RELATION"]
+    assert proyecciones, (
+        "RC2-05 SIN PROYECCION: el plan sellado por el flujo del panel no trae la "
+        f"relacion aprobada (acuse={aviso!r})"
+    )
+    assert aviso == "PLAN_SEALED", (
+        f"RC2-05 SIN PROYECCION: el acuse sigue anunciando relaciones perdidas: {aviso!r}"
+    )
+    resolucion = propuesta["resolution"]
+    assert (
+        proyecciones[0]["payload"]["subject_entity_id"],
+        proyecciones[0]["payload"]["object_entity_id"],
+    ) == (resolucion["subject"], resolucion["object"])
+    tipos = [o["operation_type"] for o in operaciones]
+    ultima_alta = max(i for i, t in enumerate(tipos) if t == "CREATE_ENTITY")
+    assert tipos.index("PROJECT_RELATION") > ultima_alta, (
+        f"RC2-05 ORDEN: la arista va por delante de su alta: {tipos}"
+    )
+
+
 def test_tras_aprobar_la_pantalla_dice_quien_y_cuando_y_no_vuelve_a_ofrecerlo(
     operador, corrida
 ):

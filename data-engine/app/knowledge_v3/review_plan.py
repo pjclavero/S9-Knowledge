@@ -62,15 +62,18 @@ snapshot se construia en `run_source`, se usaba y se tiraba. Ahora se conserva
 Con eso, la regla pasa a ser una PROPIEDAD OBSERVADA por propuesta, no una
 renuncia global:
 
-  * se emite `PROJECT_RELATION` cuando el sobre trae ancla para los DOS
-    extremos y ninguno esta `pending_creation`, es decir, cuando los dos
-    existen de verdad en el grafo que el operador reviso. La version y el hash
-    se COPIAN de esa ancla: no se rellenan con un valor plausible.
+  * se emite `PROJECT_RELATION` cuando cada extremo tiene ancla OBSERVADA en el
+    sobre (y ninguno esta `pending_creation`), o cuando el extremo es una
+    ENTIDAD NUEVA cuyo alta APROBADA entra en este mismo plan (RC2-05). La
+    version y el hash de un extremo que ya existe se COPIAN de su ancla: no se
+    rellenan con un valor plausible. Un extremo que crea este plan no tiene
+    estado previo: su ancla es el `CREATE_ENTITY` del plan (`expected_state`
+    `WOULD_CREATE`, sin version ni hash), que el executor reconfirma sobre el
+    plan firmado y que va por delante dentro de la misma transaccion.
   * NO se emite --y se dice, con codigo enumerable de `PROJECTION_CODES`--
-    cuando falta ancla, cuando un extremo esta `pending_creation` o cuando el
-    hecho es NEGATIVO. Un extremo `pending_creation` exige un `CREATE_ENTITY`,
-    y eso solo lo autoriza un alta aprobada (`pipeline/entity_decisions.py`):
-    aprobar una propuesta de revision NO es aprobar el alta de una entidad, y
+    cuando falta ancla, cuando un extremo nuevo no tiene su alta en el plan
+    (nadie la aprobo, o el plan la deja fuera) o cuando el hecho es NEGATIVO.
+    Aprobar una propuesta de revision NO es aprobar el alta de una entidad, y
     esa frontera la cruza una persona, no este modulo.
 
 La omision de una proyeccion NO es un silencio: viaja en `projections_omitted`
@@ -221,18 +224,29 @@ PROJECTION_CODES = {
     # LA CAUSA HABITUAL NO ES UN PAQUETE VIEJO. Las anclas salen del snapshot
     # de la corrida (`review_export.run_entity_anchors`), y una entidad que no
     # estaba en el grafo al ingerir --la primera ingesta de una instalacion, o
-    # un alta aprobada en esta misma revision-- no tiene ancla. Es el limite
-    # declarado de docs/92 («Lo que este corte NO hace»); el texto anterior
-    # solo nombraba el caso raro y mandaba a buscar un paquete antiguo.
-    # NO se promete remedio: que una segunda ingesta de la misma fuente
-    # proyecte la arista no esta demostrado por el camino web (la propuesta ya
-    # resuelta no vuelve al paquete y el panel solo simula), asi que el texto
-    # dice lo que pasa y nada mas.
+    # un alta aprobada en esta misma revision-- no tiene ancla.
+    #
+    # RC2-05: un extremo cuyo alta APROBADA entra en ESTE plan ya no cae aqui:
+    # su ancla es el `CREATE_ENTITY` del propio plan (ver `_proyeccion`). Lo que
+    # sigue llegando a este codigo es un extremo ausente del grafo cuyo alta ni
+    # siquiera esta declarada por la corrida, o un paquete anterior a este
+    # corte. NO se promete remedio: el texto dice lo que pasa y nada mas.
     "PROJECTION_NO_ANCHOR": (
-        "la corrida no dejo ancla de estado para los extremos de este hecho: "
-        "no estaban en el grafo cuando se ingirio la fuente (primera ingesta, "
-        "o entidad nueva aprobada en esta revision) o el paquete es anterior a "
-        "este corte. La afirmacion entra; su arista no se proyecta"
+        "la corrida no dejo ancla de estado para algun extremo de este hecho: "
+        "no estaba en el grafo cuando se ingirio la fuente y su alta no forma "
+        "parte de este plan, o el paquete es anterior a este corte. La "
+        "afirmacion entra; su arista no se proyecta"
+    ),
+    # RC2-05. El extremo es una entidad NUEVA que la corrida declara como alta
+    # pendiente, y el alta no entra en el plan (nadie la aprobo, la aprobo
+    # alguien de otro ambito, o el plan la deja fuera por su propio motivo de
+    # `ALTA_CODES`). Sin la entidad no hay a que colgar la arista: se dice
+    # aparte para que quien lee no confunda "falta una aprobacion" con "falta
+    # un ancla".
+    "PROJECTION_ALTA_NOT_IN_PLAN": (
+        "alguno de los extremos es una entidad nueva cuyo alta no entra en este "
+        "plan (no esta aprobada o el plan la deja fuera): la afirmacion entra; "
+        "su arista no se proyecta sin esa entidad"
     ),
     "PROJECTION_ANCHOR_NOT_OBSERVED": (
         "el estado de los extremos viene de un catalogo declarado en fichero, "
@@ -663,43 +677,74 @@ def _proyeccion(
     afirmacion: Any,
     decision: Mapping[str, Any],
     documento: Mapping[str, Any],
+    altas_del_plan: frozenset[str] = frozenset(),
 ) -> tuple[Optional[dict[str, Any]], Optional[str]]:
     """La arista de un hecho aprobado, o el CODIGO por el que no la hay.
 
-    Mismas dos reglas que `engine/planner.py`, no unas propias:
+    Mismas reglas que `engine/planner.py`, no unas propias:
 
     * un hecho NEGADO no proyecta --el grafo no aprende una relacion que el
       texto niega--;
-    * una entidad `pending_creation` no se proyecta sin el `CREATE_ENTITY`
-      que la ancla, y ese alta es una decision humana distinta de aprobar la
-      propuesta. Sin ella, emitir la arista solo conseguiria que el executor
-      abortase con `EXEC_TARGET_MISSING` -- es decir, cambiar un efecto que
-      falta por un apply entero que revienta.
+    * un extremo que NO esta en el grafo solo se proyecta si su alta APROBADA
+      entra en este mismo plan (`altas_del_plan`, los `CREATE_ENTITY` ya
+      decididos por `_altas_aprobadas`). Entonces el ancla no es una version
+      del grafo --no existe--: es ese `CREATE_ENTITY`, que el executor
+      reconfirma sobre el plan firmado y que va por delante en la misma
+      transaccion. La identidad del extremo es la del alta (el `entity_id` que
+      la persona aprobo), nunca un nombre parecido.
+    * un extremo nuevo cuyo alta NO entra en el plan no se proyecta: emitir la
+      arista solo conseguiria que el executor abortase con
+      `EXEC_TARGET_MISSING`, es decir, cambiar un efecto que falta por un
+      apply entero que revienta.
 
-    La version y el hash se COPIAN del ancla del snapshot. Es la misma
-    procedencia que `snapshot_id`, que este mismo sobre ya publicaba.
+    La version y el hash de un extremo que YA existe se COPIAN del ancla del
+    snapshot. Es la misma procedencia que `snapshot_id`, que este mismo sobre
+    ya publicaba.
     """
     if documento.get("negated"):
         return None, "PROJECTION_NEGATED_FACT"
     sujeto = documento["subject_entity_id"]
     objeto = documento["object_entity_id"]
-    ancla_sujeto = _ancla(contexto, sujeto)
-    ancla_objeto = _ancla(contexto, objeto)
-    if ancla_sujeto is None or ancla_objeto is None:
+    sujeto_nuevo = sujeto in altas_del_plan
+    objeto_nuevo = objeto in altas_del_plan
+    ancla_sujeto = None if sujeto_nuevo else _ancla(contexto, sujeto)
+    ancla_objeto = None if objeto_nuevo else _ancla(contexto, objeto)
+    existentes = [
+        (e, a)
+        for e, a, nuevo in (
+            (sujeto, ancla_sujeto, sujeto_nuevo),
+            (objeto, ancla_objeto, objeto_nuevo),
+        )
+        if not nuevo
+    ]
+    if any(a is None for _e, a in existentes):
+        declaradas = contexto.get(ALTAS_KEY)
+        declaradas = declaradas if isinstance(declaradas, Mapping) else {}
+        if any(a is None and e in declaradas for e, a in existentes):
+            return None, "PROJECTION_ALTA_NOT_IN_PLAN"
         return None, "PROJECTION_NO_ANCHOR"
-    if ancla_sujeto.get("pending_creation") or ancla_objeto.get("pending_creation"):
+    if any(a.get("pending_creation") for _e, a in existentes):
         return None, "PROJECTION_ENTITY_NOT_IN_GRAPH"
     # OBSERVADA, no declarada. Un catalogo en fichero da `version` por defecto
     # y un `state_hash` DERIVADO del propio id (`bridge.entities_from_catalog`),
     # que es plausible y falso: copiarlo a `expected_hash` seria presumir el
     # estado del grafo, y contra un nodo real da `EXEC_HASH_MISMATCH` --es
     # decir, cambiaria "falta una arista" por "el apply entero aborta".
-    if not (ancla_sujeto.get("observed") and ancla_objeto.get("observed")):
+    if not all(a.get("observed") for _e, a in existentes):
         return None, "PROJECTION_ANCHOR_NOT_OBSERVED"
-    version = ancla_sujeto.get("version")
-    state_hash = ancla_sujeto.get("state_hash")
-    if version is None or not isinstance(state_hash, Mapping) or not state_hash.get("value"):
-        return None, "PROJECTION_NO_ANCHOR"
+    if sujeto_nuevo:
+        # El sujeto lo crea este plan: no hay estado previo que esperar.
+        version, state_hash = None, None
+    else:
+        version = ancla_sujeto.get("version")
+        state_hash = ancla_sujeto.get("state_hash")
+        if (
+            version is None
+            or not isinstance(state_hash, Mapping)
+            or not state_hash.get("value")
+        ):
+            return None, "PROJECTION_NO_ANCHOR"
+        state_hash = dict(state_hash)
     return (
         {
             "operation_id": f"op:{decision['claim_id']}:project",
@@ -716,9 +761,11 @@ def _proyeccion(
             },
             "evidence_fragment_ids": documento["evidence_fragment_ids"],
             "idempotency_key": "",  # la deriva `seal_plan`
-            "expected_state": "WOULD_UPDATE",
+            "expected_state": (
+                "WOULD_CREATE" if (sujeto_nuevo or objeto_nuevo) else "WOULD_UPDATE"
+            ),
             "expected_version": version,
-            "expected_hash": dict(state_hash),
+            "expected_hash": state_hash,
         },
         None,
     )
@@ -911,6 +958,7 @@ def seal_review_plan(
     omitidas: list[OmittedProjection] = []
     decisiones: list[dict[str, Any]] = []
     usadas: list[str] = []
+    pendientes: list[tuple[str, Any, Mapping[str, Any], dict[str, Any]]] = []
 
     for propuesta in sorted(approved, key=lambda p: str(p.get("proposal_id") or "")):
         identificador = str(propuesta.get("proposal_id") or "")
@@ -980,14 +1028,9 @@ def seal_review_plan(
             "expected_version": None,
             "expected_hash": None,
         })
-        # LA PROYECCION, si el sobre trae con que anclarla. Reutiliza el tipo
-        # de operacion que el writer YA sabe ejecutar: aqui no hay proyector
-        # nuevo ni segundo grafo, solo una operacion mas en el mismo plan.
-        proyeccion, motivo = _proyeccion(contexto, afirmacion, decision, documento)
-        if proyeccion is not None:
-            operaciones.append(proyeccion)
-        else:
-            omitidas.append(OmittedProjection(identificador, motivo or ""))
+        # LA PROYECCION SE DECIDE MAS ABAJO, cuando ya se sabe que altas
+        # entran en el plan: un extremo nuevo se ancla en SU alta (RC2-05).
+        pendientes.append((identificador, afirmacion, decision, documento))
         incluidas.append(identificador)
         usadas.append(decision_ids.get(identificador, ""))
 
@@ -1005,9 +1048,40 @@ def seal_review_plan(
     )
     operaciones.extend(altas_ops)
 
+    # LA PROYECCION, si hay con que anclarla. Reutiliza el tipo de operacion
+    # que el writer YA sabe ejecutar: aqui no hay proyector nuevo ni segundo
+    # grafo, solo una operacion mas en el mismo plan. Un extremo que no esta en
+    # el grafo se ancla en el `CREATE_ENTITY` de ESTE plan (RC2-05): solo los
+    # de `altas_incluidas`, es decir, los aprobados por una persona, declarados
+    # por esta corrida y referenciados por una afirmacion que entra.
+    en_plan = frozenset(altas_incluidas)
+    ancladas_en_plan = False
+    for identificador, afirmacion, decision, documento in pendientes:
+        proyeccion, motivo = _proyeccion(
+            contexto, afirmacion, decision, documento, en_plan
+        )
+        if proyeccion is not None:
+            operaciones.append(proyeccion)
+            ancladas_en_plan = ancladas_en_plan or (
+                proyeccion["expected_state"] == "WOULD_CREATE"
+            )
+        else:
+            omitidas.append(OmittedProjection(identificador, motivo or ""))
+
     # Orden total antes de sellar. Sin el, el orden en que el almacen devuelva
     # las propuestas cambiaria el `plan_hash` de un plan identico.
     operaciones.sort(key=lambda op: op["operation_id"])
+    if ancladas_en_plan:
+        # El executor aplica en el orden del plan, en UNA transaccion: el alta
+        # tiene que ir por delante de la arista que la usa. Con ids de claim
+        # normales ("claim:...") el orden por `operation_id` ya lo cumple, pero
+        # eso es una coincidencia de nombres y no una garantia, asi que se
+        # impone. SOLO cuando hay una arista anclada en el plan: los planes que
+        # no la tienen conservan su orden --y su `plan_hash`-- tal cual.
+        operaciones = (
+            [o for o in operaciones if o["operation_type"] == "CREATE_ENTITY"]
+            + [o for o in operaciones if o["operation_type"] != "CREATE_ENTITY"]
+        )
     decisiones.sort(key=lambda d: d["decision_id"])
 
     cuerpo = {

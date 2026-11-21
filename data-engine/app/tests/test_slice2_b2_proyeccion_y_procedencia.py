@@ -221,7 +221,7 @@ def test_el_texto_de_sin_ancla_nombra_la_causa_habitual_no_solo_el_paquete_viejo
     causa y decir lo que pasa (la arista no se proyecta), sin prometer remedio.
     """
     texto = review_plan.PROJECTION_CODES["PROJECTION_NO_ANCHOR"]
-    assert "no estaban en el grafo" in texto, (
+    assert "no estaba en el grafo" in texto, (
         "SIN ANCLA MAL EXPLICADO: el texto de PROJECTION_NO_ANCHOR no nombra "
         f"la causa habitual (extremos ausentes del grafo al ingerir): {texto!r}")
     # Y NO promete un remedio que el producto no cumple por la web (revision
