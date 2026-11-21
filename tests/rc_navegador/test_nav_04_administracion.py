@@ -46,8 +46,8 @@ def test_alta_de_usuario_con_datos_que_no_valen(pagina_como, cfg, evidencia, red
     admin.fill("#password", corta)
     _enviar(admin)
     evidencia.paso(admin, "contraseña demasiado corta")
-    assert admin.locator("[role=alert]").count() == 1, "ALTA_INVÁLIDA: una contraseña corta no produjo aviso"
-    assert "12" in admin.locator("[role=alert]").inner_text(), "ALTA_INVÁLIDA: el aviso no dice el mínimo exigido"
+    assert admin.locator("main [role=alert]").count() == 1, "ALTA_INVÁLIDA: una contraseña corta no produjo aviso"
+    assert "12" in admin.locator("main [role=alert]").inner_text(), "ALTA_INVÁLIDA: el aviso no dice el mínimo exigido"
 
     # Usuario que ya existe.
     existente = cfg.cuenta("lector")["username"]
@@ -59,7 +59,7 @@ def test_alta_de_usuario_con_datos_que_no_valen(pagina_como, cfg, evidencia, red
     admin.fill("#password", larga)
     _enviar(admin)
     evidencia.paso(admin, "usuario duplicado")
-    assert admin.locator("[role=alert]").count() == 1, "ALTA_INVÁLIDA: un usuario duplicado no produjo aviso"
+    assert admin.locator("main [role=alert]").count() == 1, "ALTA_INVÁLIDA: un usuario duplicado no produjo aviso"
 
     ir(admin, cfg, "/admin/users")
     assert _fila(admin, nombre).count() == 0, "ALTA_INVÁLIDA: la cuenta con contraseña corta se creó"
@@ -89,8 +89,8 @@ def test_ciclo_de_vida_de_un_usuario_desde_la_administracion(pagina_como, contex
     evidencia.paso(admin, "formulario de alta")
     _enviar(admin)
     evidencia.paso(admin, "tras el alta")
-    assert admin.locator("[role=alert]").count() == 0, (
-        f"CICLO: el alta produjo un aviso: {texto_visible(admin, '[role=alert]')}"
+    assert admin.locator("main [role=alert]").count() == 0, (
+        f"CICLO: el alta produjo un aviso: {texto_visible(admin, 'main [role=alert]')}"
     )
     ir(admin, cfg, "/admin/users")
     fila = _fila(admin, usuario)

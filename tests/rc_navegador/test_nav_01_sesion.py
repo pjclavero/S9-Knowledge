@@ -138,7 +138,11 @@ def test_salir_cierra_la_sesion_en_el_servidor(contexto, cfg, evidencia, navegad
     iniciar_sesion(pagina, cfg, cfg.cuenta("sesion"))
     cookie_vieja = _cookie(ctx, COOKIE_SESION)
     assert cookie_vieja is not None, "SALIR: preparación: no se pudo entrar"
+    protegida = ir(pagina, cfg, "/")
     evidencia.paso(pagina, "dentro")
+    evidencia.dato("cabeceras de caché de la pantalla protegida", {
+        c: protegida.headers.get(c) for c in ("cache-control", "pragma", "expires")
+    })
 
     with pagina.expect_navigation():
         pagina.click("header.topbar form[action='/logout'] button")
@@ -316,6 +320,7 @@ def test_bloqueo_por_intentos_y_desbloqueo_desde_la_administracion(
     )
     with admin.expect_navigation():
         fila.locator("form[action$='/unlock'] button").click()
+    ir(admin, cfg, "/admin/users")
     fila = admin.locator("table.data-table tbody tr", has=admin.locator(f"td:text-is('{cuenta['username']}')"))
     evidencia.paso(admin, "tras desbloquear")
     assert fila.locator("td").nth(5).inner_text().strip() == "No", (
@@ -375,7 +380,7 @@ def test_cambio_de_contrasena_obligatorio_al_primer_acceso(contexto, cfg, eviden
     with pagina.expect_navigation():
         pagina.click("form[action='/account/change-password'] button[type=submit]")
     evidencia.paso(pagina, "contraseña actual equivocada")
-    assert pagina.locator("[role=alert]").count() == 1, "CAMBIO: una contraseña actual equivocada no produjo aviso"
+    assert pagina.locator("main [role=alert]").count() == 1, "CAMBIO: una contraseña actual equivocada no produjo aviso"
     assert ruta_de(pagina) == "/account/change-password", "CAMBIO: se salió de la pantalla con la actual equivocada"
 
     # Confirmación distinta: tampoco.
@@ -385,7 +390,7 @@ def test_cambio_de_contrasena_obligatorio_al_primer_acceso(contexto, cfg, eviden
     with pagina.expect_navigation():
         pagina.click("form[action='/account/change-password'] button[type=submit]")
     evidencia.paso(pagina, "confirmación distinta")
-    assert pagina.locator("[role=alert]").count() == 1, "CAMBIO: una confirmación distinta no produjo aviso"
+    assert pagina.locator("main [role=alert]").count() == 1, "CAMBIO: una confirmación distinta no produjo aviso"
 
     # Cambio correcto.
     pagina.fill("#current_password", cuenta["password"])
