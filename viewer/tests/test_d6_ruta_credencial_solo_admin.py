@@ -206,10 +206,14 @@ def test_el_panel_del_chasis_da_el_codigo_real_y_nunca_la_ruta(
 ):
     from app.main import app
 
+    from app.chassis import FEATURE_SLOTS, slot_flag_env
+
+    hueco = next(sl for sl in FEATURE_SLOTS if sl.key == "B")
+    monkeypatch.setenv(slot_flag_env(hueco), "true")
     _, _, job_id = _cola(tmp_path, monkeypatch)
     for rol in ("reviewer", "admin"):
         cliente = cliente_lector(app, role=rol, username=f"u_{rol}")
-        pagina = cliente.get("/panel/operations", params={"solicitado": job_id})
+        pagina = cliente.get(hueco.prefix, params={"solicitado": job_id})
         if rol != "admin" and pagina.status_code in (302, 303, 401, 403):
             continue  # la losa puede estar vedada a ese rol: entonces no hay nada que filtrar
         assert pagina.status_code == 200, (
