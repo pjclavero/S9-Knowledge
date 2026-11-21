@@ -12,7 +12,7 @@ pytest. Un control nulo (tocar un comentario) tiene que seguir VERDE: si no, el 
 no sirve. Salida 0 = todas las mutaciones cazadas con su prefijo.
 
 TECHO: la suite mide el plan sellado y su ejecucion contra un doble transaccional del writer,
-no contra Neo4j (el caso real esta gateado por `S9K_WRITER_NEO4J_REAL`).
+no contra Neo4j (el caso real lo ejecuta el paso de CI de cobertura Neo4j real).
 """
 from __future__ import annotations
 

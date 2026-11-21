@@ -644,29 +644,72 @@ def graph(_driver_rc205):
     probe.clean()
 
 
+def _censo_real(graph) -> dict:
+    return graph.run(CENSO, {})[0]
+
+
+def _aristas_reales(graph) -> list:
+    return graph.run(
+        "MATCH (a:V3Entity)-[r]->(b:V3Entity) RETURN type(r) AS tipo, "
+        "a.entity_id AS desde, b.entity_id AS hasta ORDER BY tipo, desde, hasta",
+        {},
+    )
+
+
 @pytest.mark.skipif(not LIVE, reason="Neo4j real efimero: activar con S9K_WRITER_NEO4J_REAL=1")
 def test_neo4j_real_primera_ingesta_proyecta_la_relacion_y_reaplicar_no_duplica(graph):
     """Plan del producto -> apply -> arista presente -> segundo apply sin cambios.
 
-    NO EJECUTADO en laboratorio (sin Neo4j): lo ejecuta la CI / la RC-3.
+    Lo ejecuta el paso «Cobertura Neo4j REAL» de la CI (el modulo lee
+    `S9K_WRITER_NEO4J_REAL`, asi que el descubridor lo recoge solo).
     """
     import test_knowledge_v3_e2e_neo4j_real as E  # noqa: PLC0415
 
     plan = _plan_con_arista(_plan_dos_altas())
+    antes = _censo_real(graph)
+    assert antes["entidades"] == 0 and antes["aserciones"] == 0 and antes["aristas"] == 0, antes
+
     primero = E.writer_for(plan, graph.driver, InMemoryAppliedKeys()).write(
         plan, E.request_for(plan)
     )
     assert primero.outcome == "APPLIED", (primero.outcome, primero.codes)
-    censo = graph.run(CENSO, {})[0]
-    assert censo["entidades"] == 2 and censo["aserciones"] == 1, censo
-    assert censo["aristas"] == 1, (
-        f"RC2-05 SIN PROYECCION: el primer apply no materializo la relacion: {censo}"
+    despues = _censo_real(graph)
+    assert despues["entidades"] == 2 and despues["aserciones"] == 1, despues
+    assert despues["aristas"] == 1, (
+        f"RC2-05 SIN PROYECCION: el primer apply no materializo la relacion: {despues}"
     )
+    aristas = _aristas_reales(graph)
+    assert [(f["tipo"], f["desde"], f["hasta"]) for f in aristas] == [("LEADS", ILARIA, CASA)]
 
+    # REINTENTO con un almacen de claves NUEVO: lo unico que recuerda lo aplicado
+    # son las marcas del propio grafo. No se duplica ni un nodo ni una arista.
     segundo = E.writer_for(plan, graph.driver, InMemoryAppliedKeys()).write(
         plan, E.request_for(plan)
     )
     assert segundo.applied_operations == 0, (
-        f"RC2-05 REINTENTO: el segundo apply escribio {segundo.applied_operations}"
+        f"RC2-05 REINTENTO DUPLICA: el segundo apply escribio {segundo.applied_operations} "
+        f"({segundo.outcome} {segundo.codes})"
     )
-    assert graph.run(CENSO, {})[0] == censo
+    assert _censo_real(graph) == despues, "RC2-05 REINTENTO DUPLICA: el censo cambio"
+    assert _aristas_reales(graph) == aristas
+
+
+@pytest.mark.skipif(not LIVE, reason="Neo4j real efimero: activar con S9K_WRITER_NEO4J_REAL=1")
+def test_neo4j_real_alta_sin_aprobar_no_deja_arista(graph):
+    """Rechazo parcial: la relacion no se proyecta y el grafo no la tiene."""
+    import test_knowledge_v3_e2e_neo4j_real as E  # noqa: PLC0415
+
+    contexto = _contexto(altas=_altas(ILARIA, CASA), anclas={})
+    build = _sellar([_propuesta(1, contexto, ILARIA, CASA)], [ILARIA])  # CASA sin aprobar
+    plan = build.plan_doc
+    assert _ops(build, "PROJECT_RELATION") == [], "RC2-05 SIN APROBACION: hay arista en el plan"
+
+    resultado = E.writer_for(plan, graph.driver, InMemoryAppliedKeys()).write(
+        plan, E.request_for(plan)
+    )
+    assert resultado.outcome == "APPLIED", (resultado.outcome, resultado.codes)
+    censo = _censo_real(graph)
+    assert censo["entidades"] == 1 and censo["aserciones"] == 1, censo
+    assert censo["aristas"] == 0, (
+        f"RC2-05 SIN APROBACION: el grafo tiene una arista que nadie aprobo: {censo}"
+    )

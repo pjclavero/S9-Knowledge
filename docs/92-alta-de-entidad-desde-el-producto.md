@@ -205,8 +205,9 @@ que el camino de revisión web, que sella desde propuestas aprobadas, lo usara.
 **Medido sin grafo / no medido.** Plan y ejecución contra un doble transaccional
 del writer: `data-engine/app/tests/test_rc2_05_relaciones_primera_ingesta.py`;
 calibrador `scripts/calibracion/mutaciones_rc2_05_relaciones_primera_ingesta.py`.
-Contra Neo4j real hay un caso gateado por `S9K_WRITER_NEO4J_REAL` (NO EJECUTADO en
-laboratorio; lo ejecutan la CI y la RC-3).
+Contra Neo4j real hay casos en el mismo módulo, gateados por
+`S9K_WRITER_NEO4J_REAL`: el paso de CI «Cobertura Neo4j REAL» los descubre y los
+ejecuta (exige `skipped==0`); en el laboratorio no se ejecutan (sin Neo4j).
 
 ## Lo que este corte NO hace, dicho en voz alta
 
