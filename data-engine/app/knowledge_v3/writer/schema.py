@@ -189,23 +189,159 @@ REQUIRED_INDEX_NAMES: tuple[str, ...] = (
 )
 
 
+#: Codigo estable del fallo de AUTORIZACION de esquema (RC2-02). Distinto de
+#: «esquema incompleto» (faltan restricciones) y de «credencial inutilizable»
+#: (el fichero del secreto no sirve): aqui el servidor autentico a la cuenta y
+#: le nego una operacion de esquema.
+SCHEMA_PRIVILEGE_MISSING = "SCHEMA_PRIVILEGE_MISSING"
+
+#: Codigo de error de Neo4j cuando la cuenta autenticada no tiene un privilegio.
+#: OJO: Neo4j usa este MISMO codigo para otras denegaciones (p. ej. falta de
+#: `ACCESS` a la base). Por eso el mensaje dice QUE OPERACION denego el servidor
+#: y cual es el privilegio que HABITUALMENTE falta, no que falte ese con certeza.
+NEO4J_FORBIDDEN_CODE = "Neo.ClientError.Security.Forbidden"
+
+#: Operaciones de esquema (lo que se envia al servidor) y el privilegio de
+#: Neo4j 5 que habitualmente las habilita (`GRANT <privilegio> ON DATABASE`).
+OP_SHOW_CONSTRAINTS = "SHOW CONSTRAINTS"
+OP_SHOW_INDEXES = "SHOW INDEXES"
+OP_CREATE_CONSTRAINT = "CREATE CONSTRAINT"
+OP_CREATE_INDEX = "CREATE INDEX"
+PRIVILEGE_SHOW_CONSTRAINT = "SHOW CONSTRAINT"
+PRIVILEGE_SHOW_INDEX = "SHOW INDEX"
+PRIVILEGE_CREATE_CONSTRAINT = "CREATE CONSTRAINT"
+PRIVILEGE_CREATE_INDEX = "CREATE INDEX"
+#: Operacion -> privilegio habitual. Una sola tabla: el mensaje y los tests la leen.
+PRIVILEGIO_HABITUAL: dict[str, str] = {
+    OP_SHOW_CONSTRAINTS: PRIVILEGE_SHOW_CONSTRAINT,
+    OP_SHOW_INDEXES: PRIVILEGE_SHOW_INDEX,
+    OP_CREATE_CONSTRAINT: PRIVILEGE_CREATE_CONSTRAINT,
+    OP_CREATE_INDEX: PRIVILEGE_CREATE_INDEX,
+}
+#: Operaciones de LECTURA de esquema (las unicas que pide `verify`).
+OPERACIONES_DE_LECTURA: tuple[str, ...] = (OP_SHOW_CONSTRAINTS, OP_SHOW_INDEXES)
+
+
+class SchemaPrivilegeError(RuntimeError):
+    """El servidor denego una operacion de esquema. Sin secretos ni texto del servidor.
+
+    `operation` es lo que se envio y el servidor denego (dato observado);
+    `privilege` es el privilegio que HABITUALMENTE la habilita (inferido, no
+    observado: el mismo codigo de Neo4j cubre otras denegaciones).
+    """
+
+    code = SCHEMA_PRIVILEGE_MISSING
+
+    def __init__(self, operation: str):
+        self.operation = operation
+        self.privilege = PRIVILEGIO_HABITUAL[operation]
+        super().__init__(
+            f"el servidor denego {operation} a la cuenta de conexion; el "
+            f"privilegio que habitualmente falta es {self.privilege}"
+        )
+
+
+def is_forbidden(exc: BaseException) -> bool:
+    """`True` si `exc` trae el codigo de denegacion de Neo4j. Solo el CODIGO.
+
+    No se mira el nombre de la clase ni el texto: una excepcion cualquiera que
+    se llame `Forbidden` no es una denegacion del servidor.
+    """
+    return getattr(exc, "code", None) == NEO4J_FORBIDDEN_CODE
+
+
+# --- LAS TRES IDENTIDADES DE NEO4J: UNA SOLA AUTORIDAD (RC2-02) -------------
+#: Privilegios EXACTOS de cada rol, en Cypher de administracion de Neo4j 5
+#: Enterprise (`{db}` y `{role}` se sustituyen). Es una LISTA BLANCA: lo que no
+#: esta aqui no se concede. `deploy/README.md` reproduce estos bloques y un
+#: test exige igualdad exacta; la prueba contra Neo4j real crea los roles DE
+#: AQUI (`viewer/tests/test_corte5_credencial_solo_lectura_neo4j_real.py`).
+#:
+#: * lector (worker): lee grafo y esquema. Ninguna escritura ni DDL.
+#: * esquema (operador, `writer-schema ensure`): lista y crea restricciones e
+#:   indices. Ninguna escritura de datos. Sin `DROP`: `GRANT INDEX` / `GRANT
+#:   CONSTRAINT` sin `MANAGEMENT` incluirian borrar, por eso se nombran las
+#:   capacidades una a una. MEDIDO contra Neo4j 5.26 Enterprise: en una base
+#:   recien creada `CREATE CONSTRAINT` se DENIEGA si la cuenta no puede crear
+#:   la etiqueta y el nombre de propiedad que la restriccion menciona y que aun
+#:   no existen; de ahi `CREATE NEW NODE LABEL` y `CREATE NEW PROPERTY NAME`
+#:   (no tipos de relacion: el esquema no los nombra).
+#: * escritor (APPLY del panel y `writer`): lee y escribe datos, crea nombres
+#:   nuevos (etiquetas, tipos, propiedades: `WRITE` no los incluye) y lista
+#:   restricciones (el writer pregunta `SHOW CONSTRAINTS` antes de escribir y,
+#:   si no puede, no escribe). Ningun DDL.
+READER_ROLE_NAME = "s9k_observador"
+SCHEMA_ROLE_NAME = "s9k_esquema"
+WRITER_ROLE_NAME = "s9k_escritor"
+
+READER_ROLE_PRIVILEGES: tuple[str, ...] = (
+    "GRANT ACCESS ON DATABASE {db} TO {role}",
+    "GRANT MATCH {*} ON GRAPH {db} NODES * TO {role}",
+    "GRANT MATCH {*} ON GRAPH {db} RELATIONSHIPS * TO {role}",
+    "GRANT SHOW CONSTRAINT ON DATABASE {db} TO {role}",
+    "GRANT SHOW INDEX ON DATABASE {db} TO {role}",
+)
+SCHEMA_ROLE_PRIVILEGES: tuple[str, ...] = (
+    "GRANT ACCESS ON DATABASE {db} TO {role}",
+    "GRANT SHOW CONSTRAINT ON DATABASE {db} TO {role}",
+    "GRANT SHOW INDEX ON DATABASE {db} TO {role}",
+    "GRANT CREATE CONSTRAINT ON DATABASE {db} TO {role}",
+    "GRANT CREATE INDEX ON DATABASE {db} TO {role}",
+    "GRANT CREATE NEW NODE LABEL ON DATABASE {db} TO {role}",
+    "GRANT CREATE NEW PROPERTY NAME ON DATABASE {db} TO {role}",
+)
+WRITER_ROLE_PRIVILEGES: tuple[str, ...] = (
+    "GRANT ACCESS ON DATABASE {db} TO {role}",
+    "GRANT MATCH {*} ON GRAPH {db} NODES * TO {role}",
+    "GRANT MATCH {*} ON GRAPH {db} RELATIONSHIPS * TO {role}",
+    "GRANT WRITE ON GRAPH {db} TO {role}",
+    "GRANT NAME MANAGEMENT ON DATABASE {db} TO {role}",
+    "GRANT SHOW CONSTRAINT ON DATABASE {db} TO {role}",
+)
+
+#: Rol -> privilegios. La autoridad que leen README, tests y fixture.
+ROLE_PRIVILEGES: dict[str, tuple[str, ...]] = {
+    READER_ROLE_NAME: READER_ROLE_PRIVILEGES,
+    SCHEMA_ROLE_NAME: SCHEMA_ROLE_PRIVILEGES,
+    WRITER_ROLE_NAME: WRITER_ROLE_PRIVILEGES,
+}
+
+
+def role_grants(canonical: str, role: str | None = None, db: str = "neo4j") -> list[str]:
+    """Las sentencias GRANT del rol `canonical`, emitidas para `role` y `db`."""
+    destino = role or canonical
+    return [
+        g.replace("{db}", db).replace("{role}", destino)
+        for g in ROLE_PRIVILEGES[canonical]
+    ]
+
+
+def reader_role_grants(role: str = READER_ROLE_NAME, db: str = "neo4j") -> list[str]:
+    """Las sentencias GRANT del rol lector, con rol y base ya sustituidos."""
+    return role_grants(READER_ROLE_NAME, role, db)
+
+
+def _show(driver: Any, cypher: str, operation: str) -> set[str]:
+    try:
+        with driver.session() as session:
+            return {
+                row["name"] for row in session.run(cypher) if row.get("name")
+            }
+    except Exception as exc:
+        if is_forbidden(exc):
+            raise SchemaPrivilegeError(operation) from exc
+        raise
+
+
 def observed_constraint_names(driver: Any) -> set[str]:
     """Los nombres que el SERVIDOR dice tener. Observado, no presupuesto."""
-    with driver.session() as session:
-        return {
-            row["name"]
-            for row in session.run("SHOW CONSTRAINTS YIELD name RETURN name")
-            if row.get("name")
-        }
+    return _show(
+        driver, "SHOW CONSTRAINTS YIELD name RETURN name", OP_SHOW_CONSTRAINTS
+    )
 
 
 def observed_index_names(driver: Any) -> set[str]:
-    with driver.session() as session:
-        return {
-            row["name"]
-            for row in session.run("SHOW INDEXES YIELD name RETURN name")
-            if row.get("name")
-        }
+    return _show(driver, "SHOW INDEXES YIELD name RETURN name", OP_SHOW_INDEXES)
 
 
 def missing_required_constraints(driver: Any) -> list[str]:
@@ -219,18 +355,53 @@ def missing_required_constraints(driver: Any) -> list[str]:
 
 
 def bootstrap_writer_schema(driver: Any) -> None:
-    """Crea de forma idempotente las restricciones e indices requeridos."""
+    """Crea de forma idempotente las restricciones e indices requeridos.
+
+    Todo el DDL es `IF NOT EXISTS`. MEDIDO contra Neo4j 5.26 Enterprise: sobre
+    un objeto que YA existe el servidor no deniega a una cuenta sin `CREATE`
+    (no hay nada que crear). Lo que una cuenta sin privilegio NO puede es
+    crear lo que FALTA: esa denegacion sale como `SchemaPrivilegeError`
+    nombrando la operacion denegada (`CREATE CONSTRAINT` o `CREATE INDEX`),
+    no como fallo generico. Lo ya creado antes de la denegacion queda creado:
+    quien llama no debe afirmar «no se creo nada», sino volver a mirar.
+    """
+    pasos: list[tuple[str, str]] = [
+        (OP_CREATE_CONSTRAINT, APPLIED_OPERATION_CONSTRAINT_CYPHER),
+        (OP_CREATE_INDEX, ENTITY_PARTIDA_INDEX_CYPHER),
+        (OP_CREATE_INDEX, ASSERTION_PARTIDA_INDEX_CYPHER),
+    ]
+    pasos += [(OP_CREATE_CONSTRAINT, ddl) for _, _, _, ddl in DURABLE_IDENTITY_CONSTRAINTS]
+    pasos += [(OP_CREATE_CONSTRAINT, ddl) for _, _, _, ddl in PROVENANCE_IDENTITY_CONSTRAINTS]
     with driver.session() as session:
-        session.run(APPLIED_OPERATION_CONSTRAINT_CYPHER).consume()
-        session.run(ENTITY_PARTIDA_INDEX_CYPHER).consume()
-        session.run(ASSERTION_PARTIDA_INDEX_CYPHER).consume()
-        for _, _, _, ddl in DURABLE_IDENTITY_CONSTRAINTS:
-            session.run(ddl).consume()
-        for _, _, _, ddl in PROVENANCE_IDENTITY_CONSTRAINTS:
-            session.run(ddl).consume()
+        for operacion, ddl in pasos:
+            try:
+                session.run(ddl).consume()
+            except Exception as exc:
+                if is_forbidden(exc):
+                    raise SchemaPrivilegeError(operacion) from exc
+                raise
 
 
 __all__ = [
+    "SCHEMA_PRIVILEGE_MISSING",
+    "SchemaPrivilegeError",
+    "is_forbidden",
+    "NEO4J_FORBIDDEN_CODE",
+    "OP_SHOW_CONSTRAINTS",
+    "OP_SHOW_INDEXES",
+    "OP_CREATE_CONSTRAINT",
+    "OP_CREATE_INDEX",
+    "PRIVILEGIO_HABITUAL",
+    "OPERACIONES_DE_LECTURA",
+    "READER_ROLE_NAME",
+    "SCHEMA_ROLE_NAME",
+    "WRITER_ROLE_NAME",
+    "READER_ROLE_PRIVILEGES",
+    "SCHEMA_ROLE_PRIVILEGES",
+    "WRITER_ROLE_PRIVILEGES",
+    "ROLE_PRIVILEGES",
+    "role_grants",
+    "reader_role_grants",
     "APPLIED_OPERATION_CONSTRAINT",
     "DURABLE_IDENTITY_CONSTRAINTS",
     "PROVENANCE_IDENTITY_CONSTRAINTS",

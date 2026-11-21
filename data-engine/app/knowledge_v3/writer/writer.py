@@ -427,6 +427,25 @@ class GraphWriter:
         """
         try:
             faltan = schema.missing_required_constraints(driver)
+        except schema.SchemaPrivilegeError as exc:
+            # RC2-02. El servidor DENEGO la lectura del esquema a la cuenta del
+            # writer: no es «faltan restricciones» (no se pudo mirar) ni un
+            # fallo del grafo. Se dice la operacion denegada y el privilegio
+            # que habitualmente falta; el texto del servidor no se arrastra.
+            return Rejection(
+                code=codes.EXEC_SCHEMA_CONSTRAINTS_MISSING,
+                message=(
+                    f"el servidor denego {exc.operation} a la cuenta del writer: "
+                    "sin poder observar el esquema no se escribe; el privilegio "
+                    f"que habitualmente falta es {exc.privilege} (rol "
+                    f"{schema.WRITER_ROLE_NAME} de deploy/README.md)"
+                ),
+                detail={
+                    "error_code": exc.code,
+                    "operacion_denegada": exc.operation,
+                    "privilegio_habitual": exc.privilege,
+                },
+            )
         except Exception as exc:
             return Rejection(
                 code=codes.EXEC_SCHEMA_CONSTRAINTS_MISSING,

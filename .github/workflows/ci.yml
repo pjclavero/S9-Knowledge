@@ -1518,6 +1518,26 @@ jobs:
           S9K_ALLOW_REAL_INGEST: ""
         run: python3 scripts/calibracion/mutaciones_preflights_rc2.py
 
+      # RC2-02 (RC-E2E final) — `writer-schema verify` con la cuenta de sólo
+      # lectura y las tres identidades de Neo4j (lectora, de esquema, de
+      # escritura): lista blanca exacta por rol, README == codigo en TODAS sus
+      # sentencias, un Forbidden es un fallo de AUTORIZACION (rc 5,
+      # SCHEMA_PRIVILEGE_MISSING) y no «incompleto», atribucion por operacion,
+      # sin fuga del texto del servidor, y `ensure` nunca aconseja dar DDL a la
+      # cuenta que fallo. Cada rojo con su CAUSA; control nulo primero;
+      # restauracion por `git checkout`. EN SERIE.
+      #
+      # TECHO: este calibrador muta y mide contra un doble de driver. Lo que
+      # solo el servidor demuestra lo ejecuta contra Neo4j Enterprise real el
+      # paso «Cobertura Neo4j REAL del recorrido del visor» del job Viewer
+      # Tests (`viewer/tests/test_corte5_credencial_solo_lectura_neo4j_real.py`,
+      # casos `test_rc2_02_*`); este paso no lo repite.
+      - name: "writer-schema verify con la cuenta lectora: privilegio de esquema, rol sin escritura y autorizacion distinta de incompleto: se pone ROJO ante cada defecto (RC2-02)"
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          S9K_ALLOW_REAL_INGEST: ""
+        run: python3 scripts/calibracion/mutaciones_rc2_02_writer_schema_verify.py
+
       # MICROCARRIL DE SANEAMIENTO DE INSTRUMENTOS — los cuatro
       # `scripts/calibrar_panel_*.py`. Son los arneses de los cuatro paneles
       # del chasis (B operations, C review, F sources, G entities): cada uno
