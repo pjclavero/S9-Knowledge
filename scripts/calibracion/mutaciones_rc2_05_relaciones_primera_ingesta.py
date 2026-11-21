@@ -50,8 +50,8 @@ CONTROL_NULO = Mutacion(
     (TEST,), None)
 
 _ABORTO_VIEJO = (
-    '                message=f"la transaccion se revirtio: {exc}",\n'
-    "            )\n"
+    "            outcome = execute_plan(driver, view, exec_ctx)\n"
+    "        except WriterError as exc:\n"
     "            return self._finish(OUTCOME_ABORTED,"
 )
 _ABORTO_NUEVO = _ABORTO_VIEJO.replace("OUTCOME_ABORTED", "OUTCOME_APPLIED")
