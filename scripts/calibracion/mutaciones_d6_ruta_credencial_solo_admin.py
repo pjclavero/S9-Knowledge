@@ -99,8 +99,8 @@ MUTACIONES = [
         fichero=CHASIS,
         viejo='        codigo = str(job.get("error_code") or "").strip()\n',
         nuevo='        codigo = ""\n',
-        pruebas=[T + "test_el_panel_del_chasis_da_el_codigo_real_y_nunca_la_ruta"],
-        esperado="el panel del chasis no da el codigo estable al rol reviewer",
+        pruebas=[T + "test_el_desenlace_del_panel_para_un_no_admin_da_el_codigo_real"],
+        esperado="el desenlace del panel no da el codigo estable al no-admin",
     ),
 ]
 

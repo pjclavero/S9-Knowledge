@@ -227,6 +227,25 @@ def test_el_panel_del_chasis_da_el_codigo_real_y_nunca_la_ruta(
         )
 
 
+def test_el_desenlace_del_panel_para_un_no_admin_da_el_codigo_real(tmp_path, monkeypatch):
+    """`redact_job` retira `error_message` al no-admin: el desenlace tiene que
+    apoyarse en el `error_code` publico, o diria INGEST_FAILED en vez del codigo
+    real. Se mide la funcion REAL del panel con el recorte REAL de la cola."""
+    from types import SimpleNamespace
+
+    from app.routers.chassis_operations import _resultado_del_trabajo
+
+    store, db, job_id = _cola(tmp_path, monkeypatch)
+    crudo = jobs_client.serialize_job(store.get_job(job_id, db_path=db))
+    recortado = jobs_client.redact_job(crudo, SimpleNamespace(sees_operational_detail=False))
+    assert "error_message" not in recortado, "el recorte no retiro el texto tecnico"
+    desenlace = _resultado_del_trabajo(recortado)
+    assert desenlace["code"] == CODIGO, (
+        f"el desenlace del panel no da el codigo estable al no-admin: {desenlace['code']}"
+    )
+    assert not _contiene_ruta(str(desenlace)), "el desenlace del panel contiene la ruta"
+
+
 # --------------------------------------------------------------------------
 # El detalle se conserva en registros protegidos
 # --------------------------------------------------------------------------
