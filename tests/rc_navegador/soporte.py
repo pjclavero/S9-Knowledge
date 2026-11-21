@@ -60,6 +60,9 @@ CAPACIDADES = {
     "aislamiento": "S9K_WRITER_WORKSPACE apunta a OTRO workspace (negativo 8.M9)",
     "job_credencial": "existe un job fallido por credencial inutilizable (S9K_RC_NAV_JOB_CREDENCIAL)",
     "setup_abierto": "instalación SIN primer administrador (FIRST_ADMIN_PENDING)",
+    "setup_roto": "instalación sin administrador servida de modo que la cookie no vuelve (N5 por HTTP plano, N8 por proxy)",
+    "montaje_colgado": "la bóveda declarada está en un montaje que no responde",
+    "elementos_esperados": "S9K_RC_NAV_ELEMENTOS apunta a la lista de textos que deben verse por pantalla",
     "partidas": "hay dos partidas y los lectores acotados tienen concedida una cada uno",
 }
 
@@ -115,6 +118,8 @@ class Config:
     flujo_hasta: str
     perfil_boveda: str
     fase_persistencia: str
+    url_setup_roto: str
+    elementos: str
 
     @property
     def host(self) -> str:
@@ -237,6 +242,8 @@ def cargar_config(env: Optional[dict] = None) -> Config:
         flujo_hasta=v("FLUJO_HASTA", "busqueda"),
         perfil_boveda=v("PERFIL_BOVEDA"),
         fase_persistencia=v("FASE_PERSISTENCIA"),
+        url_setup_roto=v("URL_SETUP_ROTO").rstrip("/"),
+        elementos=v("ELEMENTOS"),
     )
 
 

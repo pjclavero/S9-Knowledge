@@ -143,3 +143,62 @@ def test_el_primer_administrador_se_crea_en_el_navegador(contexto, cfg, evidenci
     # La configuración inicial queda cerrada (N9).
     respuesta = ir(pagina, cfg, "/setup/admin")
     assert respuesta.status == 404, f"ALTA: tras el alta /setup/admin respondió {respuesta.status}, se esperaba 404"
+
+
+# ---------------------------------------------------------------------------
+# 12.M5 / 12.08.6 — el alta por pantalla cuando la cookie no vuelve
+# ---------------------------------------------------------------------------
+
+@pytest.mark.cubre("12.M5", "12.08.6", "REG-15")
+@pytest.mark.requiere("setup_roto")
+def test_el_alta_por_pantalla_se_rechaza_una_y_otra_vez_si_la_cookie_no_vuelve(contexto, cfg, evidencia):
+    """N5 (HTTP plano con ``Secure``) y N8 (proxy que descarta la cookie): el
+    alta devuelve 403 siempre, la pantalla nunca llega al formulario de
+    entrada y no se crea ningún administrador. La dirección por la que se
+    sirve ese montaje temporal va en ``S9K_RC_NAV_URL_SETUP_ROTO``."""
+    assert cfg.url_setup_roto, "ALTA_ROTA: declara S9K_RC_NAV_URL_SETUP_ROTO (dirección del montaje temporal)"
+    cuenta = cfg.cuenta("admin")
+    ctx = contexto("alta-rota")
+    pagina = ctx.new_page()
+    estados = []
+    for intento in (1, 2, 3):
+        pagina.goto(cfg.url_setup_roto + "/setup/admin", wait_until="domcontentloaded")
+        pagina.fill("#username", cuenta["username"])
+        pagina.fill("#password", cuenta["password"])
+        with pagina.expect_navigation() as nav:
+            pagina.click("form button[type=submit]")
+        estados.append(nav.value.status if nav.value else None)
+        evidencia.paso(pagina, f"alta intento {intento}", estado=estados[-1])
+        assert ruta_de(pagina) != "/login", f"ALTA_ROTA: el intento {intento} llegó al formulario de entrada"
+    evidencia.dato("estados", estados)
+    assert estados == [403, 403, 403], f"ALTA_ROTA: se esperaba 403 repetido y se obtuvo {estados}"
+    respuesta = pagina.goto(cfg.url_setup_roto + "/setup/admin", wait_until="domcontentloaded")
+    assert respuesta.status == 200, (
+        f"ALTA_ROTA: tras los rechazos la configuración inicial responde {respuesta.status}: se creó un administrador"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 2.M3 / 14.M2a — los mismos elementos que antes (upgrade, reinicio)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.cubre("2.M3", "14.M2a", "REG-15")
+@pytest.mark.requiere("elementos_esperados")
+def test_las_pantallas_muestran_los_elementos_esperados(pagina_como, cfg, evidencia):
+    """``S9K_RC_NAV_ELEMENTOS`` es un JSON ``{"/ruta": ["texto", ...]}`` con lo
+    que se sembró antes del upgrade o del reinicio y debe seguir viéndose."""
+    assert cfg.elementos, "ELEMENTOS: declara S9K_RC_NAV_ELEMENTOS"
+    with open(cfg.elementos, encoding="utf-8") as f:
+        esperados = json.load(f)
+    pagina = pagina_como("admin")
+    faltan = []
+    for ruta, textos in esperados.items():
+        respuesta = ir(pagina, cfg, ruta)
+        evidencia.paso(pagina, f"elementos en {ruta}", estado=respuesta.status)
+        if respuesta.status >= 500:
+            faltan.append(f"{ruta}: respondió {respuesta.status}")
+            continue
+        cuerpo = texto_visible(pagina)
+        faltan += [f"{ruta}: falta «{t}»" for t in textos if t not in cuerpo]
+    evidencia.dato("faltan", faltan)
+    assert not faltan, "ELEMENTOS: " + "; ".join(faltan)

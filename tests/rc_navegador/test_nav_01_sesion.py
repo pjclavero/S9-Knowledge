@@ -146,6 +146,13 @@ def test_salir_cierra_la_sesion_en_el_servidor(contexto, cfg, evidencia, navegad
     assert ruta_de(pagina) == "/login", f"SALIR: se acabó en {ruta_de(pagina)}, no en el formulario de entrada"
     assert _cookie(ctx, COOKIE_SESION) is None, "SALIR: el navegador conserva la cookie de sesión"
 
+    # Botón «atrás» del navegador: no devuelve la pantalla protegida.
+    pagina.go_back(wait_until="domcontentloaded")
+    evidencia.paso(pagina, "botón atrás tras salir")
+    assert pagina.locator("header.topbar .role-badge").count() == 0, (
+        f"SALIR: el botón «atrás» devuelve una pantalla con sesión tras salir ({ruta_de(pagina)})"
+    )
+
     respuesta = ir(pagina, cfg, "/account")
     assert ruta_de(pagina) == "/login", "SALIR: tras salir se sigue viendo /account"
     evidencia.paso(pagina, "account tras salir", estado=respuesta.status)

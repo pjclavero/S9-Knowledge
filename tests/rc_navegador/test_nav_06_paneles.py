@@ -430,3 +430,59 @@ def test_un_lector_no_ve_mas_entidades_que_el_administrador(pagina_como, cfg, ev
     assert del_lector <= del_admin, (
         f"SUBCONJUNTO: el lector ve entidades que el administrador no: {sorted(del_lector - del_admin)[:5]}"
     )
+
+
+# ---------------------------------------------------------------------------
+# 6.M2 — ningún enlace muerto
+# ---------------------------------------------------------------------------
+
+@pytest.mark.sin_grafo
+@pytest.mark.cubre("6.M2", "REG-15")
+@pytest.mark.parametrize("cuenta", ["lector", "revisor", "admin"])
+def test_ningun_enlace_de_las_pantallas_esta_muerto(pagina_como, cfg, evidencia, cuenta):
+    """Se sigue cada enlace interno de cada pantalla que el rol puede abrir
+    (menú incluido). Con ``panel_b`` declarado entra también la consola."""
+    pagina = pagina_como(cuenta)
+    partida = ["/", "/jobs", "/entities", "/status", "/account"]
+    if cuenta != "lector":
+        partida += ["/sources", "/reviews", "/v3/review"]
+    if cuenta == "admin":
+        partida += ["/admin/users", "/admin/partidas", "/admin/audit", "/admin/health"]
+        if "panel_b" in cfg.capacidades:
+            partida += ["/panel/operations"]
+    enlaces: dict[str, str] = {}
+    for ruta in partida:
+        ir(pagina, cfg, ruta)
+        for href in pagina.eval_on_selector_all(
+            "a[href]",
+            "els => els.map(a => new URL(a.getAttribute('href'), location.href))"
+            ".filter(u => u.origin === location.origin).map(u => u.pathname + u.search)",
+        ):
+            enlaces.setdefault(href, ruta)
+    muertos = []
+    for href, origen in sorted(enlaces.items()):
+        respuesta = ir(pagina, cfg, href)
+        if respuesta.status != 200 or ruta_de(pagina) == "/login":
+            muertos.append(f"{href} (enlazado desde {origen}) -> {respuesta.status}")
+            evidencia.paso(pagina, f"enlace muerto {href}", estado=respuesta.status)
+    evidencia.dato("enlaces seguidos", sorted(enlaces))
+    assert enlaces, f"ENLACES[{cuenta}]: no se encontró ningún enlace que seguir"
+    assert not muertos, f"ENLACES[{cuenta}]: " + "; ".join(muertos)
+
+
+@pytest.mark.sin_grafo
+@pytest.mark.requiere("montaje_colgado")
+@pytest.mark.cubre("6.47", "REG-10", "REG-15")
+def test_el_estado_operacional_no_se_cuelga_con_el_montaje_colgado(pagina_como, cfg, evidencia):
+    import time as _time
+
+    admin = pagina_como("admin")
+    inicio = _time.monotonic()
+    respuesta = admin.goto(cfg.url("/admin/health"), wait_until="domcontentloaded", timeout=30_000)
+    segundos = _time.monotonic() - inicio
+    evidencia.paso(admin, "estado operacional con el montaje colgado", estado=respuesta.status)
+    fila = texto_visible(admin, "main table")
+    evidencia.dato("carga", {"segundos": round(segundos, 1), "tabla": fila[:600]})
+    assert respuesta.status == 200, f"MONTAJE_COLGADO: /admin/health respondió {respuesta.status}"
+    assert segundos <= 15, f"MONTAJE_COLGADO: la pantalla tardó {segundos:.1f} s en pintar"
+    assert "sin respuesta" in fila, f"MONTAJE_COLGADO: la pantalla no dice que la bóveda no responde: {fila[:300]!r}"
