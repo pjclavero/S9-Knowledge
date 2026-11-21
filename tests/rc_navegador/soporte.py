@@ -334,6 +334,8 @@ _PATRONES_BYTES = (
     (re.compile(rb'("name":"csrf_token","value":")[^"]*'), rb"\1" + MARCA.encode()),
     (re.compile(rb'("csrf_token",")[^"]*'), rb"\1" + MARCA.encode()),
     (re.compile(rb"(csrf_token=)[^&\"'\\\s<]+"), rb"\1" + MARCA.encode()),
+    # cookies como objetos JSON (HAR de la traza, parámetros de addCookies)
+    (re.compile(rb'("name":"_?s9k_[a-z_]+","value":")[^"]*'), rb"\1" + MARCA.encode()),
     (re.compile(rb"((?:_?s9k_[a-z_]+)=)[^;\"'\\\s,]+"), rb"\1" + MARCA.encode()),
 )
 
@@ -385,6 +387,31 @@ class Redactor:
         ) as zout:
             for info in zin.infolist():
                 zout.writestr(info.filename, self.binario(zin.read(info.filename)))
+
+    def repasar(self, raiz: Path) -> None:
+        """Vuelve a redactar TODO lo guardado con los secretos conocidos al final.
+
+        Un valor de cookie puede conocerse después de haber escrito una traza
+        (lo ve otro contexto de la misma prueba, o una prueba posterior). Este
+        repaso final es el que garantiza que ningún secreto conocido sobrevive.
+        """
+        for ruta in sorted(raiz.rglob("*")):
+            if not ruta.is_file():
+                continue
+            if ruta.suffix == ".zip":
+                temporal = ruta.with_suffix(".zip.repaso")
+                try:
+                    self.zip(ruta, temporal)
+                    temporal.replace(ruta)
+                except zipfile.BadZipFile:
+                    temporal.unlink(missing_ok=True)
+            elif ruta.suffix in (".html", ".json", ".md", ".txt"):
+                original = ruta.read_bytes()
+                limpio = original
+                for secreto in sorted(self._secretos, key=len, reverse=True):
+                    limpio = limpio.replace(secreto.encode("utf-8"), MARCA.encode())
+                if limpio != original:
+                    ruta.write_bytes(limpio)
 
     def fugas(self, raiz: Path) -> list[str]:
         """Rutas (y miembros de zip) donde aparece algún secreto conocido."""

@@ -163,6 +163,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     recuento: dict[str, int] = {}
     for fila in filas:
         recuento[fila["estado"] or "SIN_ESTADO"] = recuento.get(fila["estado"] or "SIN_ESTADO", 0) + 1
+    redactor.repasar(cfg.salida)
     fugas = redactor.fugas(cfg.salida)
     # El motivo de un fallo puede citar texto de la página: se redacta también.
     for fila in filas:

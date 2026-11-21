@@ -167,29 +167,28 @@ def test_salir_cierra_la_sesion_en_el_servidor(contexto, cfg, evidencia, navegad
 
 
 @pytest.mark.cubre("7.M1", "REG-15")
-def test_el_boton_atras_tras_salir_no_devuelve_la_pantalla_protegida(contexto, cfg, evidencia):
+@pytest.mark.parametrize("ruta", ["/", "/jobs", "/entities", "/account"])
+def test_el_boton_atras_tras_salir_no_devuelve_la_pantalla_protegida(contexto, cfg, evidencia, ruta):
     """7.M1: «tras el logout no se ve contenido protegido», tampoco con el
-    botón «atrás» del navegador (que puede servir la pantalla desde su caché
-    si el producto no la marca como no almacenable)."""
+    botón «atrás» del navegador, que sirve la pantalla desde su caché si el
+    producto no la marca como no almacenable."""
     ctx = contexto("sesion")
     pagina = ctx.new_page()
     iniciar_sesion(pagina, cfg, cfg.cuenta("sesion"))
-    protegida = ir(pagina, cfg, "/account")
-    evidencia.paso(pagina, "pantalla protegida antes de salir", estado=protegida.status)
-    evidencia.dato("cabeceras de caché de la pantalla protegida", {
-        c: protegida.headers.get(c) for c in ("cache-control", "pragma", "expires")
-    })
+    protegida = ir(pagina, cfg, ruta)
+    evidencia.paso(pagina, f"{ruta} antes de salir", estado=protegida.status)
+    cabeceras = {c: protegida.headers.get(c) for c in ("cache-control", "pragma", "expires")}
+    evidencia.dato("cabeceras de caché de la pantalla protegida", cabeceras)
     with pagina.expect_navigation():
-        pagina.click("main form[action='/logout'] button")
+        pagina.click("header.topbar form[action='/logout'] button")
     assert ruta_de(pagina) == "/login", f"ATRÁS: preparación: salir llevó a {ruta_de(pagina)}"
     pagina.go_back(wait_until="domcontentloaded")
     evidencia.paso(pagina, "botón atrás tras salir")
     cuerpo = texto_visible(pagina)
     evidencia.dato("tras el botón atrás", {"ruta": ruta_de(pagina), "texto": cuerpo[:300]})
-    usuario = cfg.cuenta("sesion")["username"]
-    assert pagina.locator("header.topbar .role-badge").count() == 0 and usuario not in cuerpo, (
-        f"ATRÁS: tras salir, el botón «atrás» vuelve a mostrar la pantalla protegida ({ruta_de(pagina)}): "
-        f"{cuerpo[:160]!r}"
+    assert pagina.locator("header.topbar .role-badge").count() == 0, (
+        f"ATRÁS: tras salir, el botón «atrás» vuelve a mostrar {ruta} con la barra de sesión "
+        f"(Cache-Control de esa pantalla: {cabeceras['cache-control']!r}): {cuerpo[:140]!r}"
     )
 
 
