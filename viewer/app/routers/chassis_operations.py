@@ -631,8 +631,13 @@ def _resultado_del_trabajo(job: Optional[dict]) -> Optional[dict]:
             "carencias": _carencias_del_resultado(resultado.get("carencias")),
         }
     if estado in ESTADOS_FALLIDOS:
+        # El `error_code` va primero: es público y es el único que le llega a
+        # un no-admin (D6: `redact_job` retira `error_message`). Para un admin
+        # el prefijo de `error_message` sigue siendo el respaldo.
         crudo = job.get("error_message") or ""
-        codigo = str(crudo).split(":", 1)[0].strip()
+        codigo = str(job.get("error_code") or "").strip()
+        if codigo not in panel_errors.CATALOGO:
+            codigo = str(crudo).split(":", 1)[0].strip()
         if codigo not in panel_errors.CATALOGO:
             # Ni el código se reconoce ni se enseña el texto: fallo cerrado.
             codigo = "INGEST_FAILED"

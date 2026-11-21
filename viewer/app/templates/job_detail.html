@@ -28,9 +28,17 @@
       <div class="field-label">Iniciado / Terminado</div>
       <div class="field-value">{{ job.started_at or '—' }} / {{ job.finished_at or '—' }}</div>
     </div>
-    {% if job.error_message %}
+    {% if job.error_public %}
     <div class="field">
       <div class="field-label">Error</div>
+      <div class="field-value"><code>{{ job.error_public.code }}</code> {{ job.error_public.message }}</div>
+    </div>
+    {% endif %}
+    {# D6: el detalle técnico (ruta y motivo) sólo llega aquí si el ámbito es de
+       administración: `redact_job` lo retira para el resto de roles. #}
+    {% if job.error_message %}
+    <div class="field">
+      <div class="field-label">Detalle técnico (sólo administración)</div>
       <div class="field-value">{{ job.error_message }}</div>
     </div>
     {% endif %}

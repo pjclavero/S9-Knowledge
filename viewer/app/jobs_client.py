@@ -19,10 +19,12 @@ desde el visor. Esas acciones quedan para la CLI (data-engine/app/cli/jobs.py).
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
 
+from app import panel_errors
 from app.config import get_settings
 
 
@@ -129,14 +131,63 @@ _PUBLIC_JOB_FIELDS = (
 _SCOPE_LIMIT = 100_000  # ventana amplia: filtrar ANTES de paginar/contar
 
 
+#: Forma de un código de error estable. Lo que no case NO se muestra a un
+#: no-admin: por defecto, redactado (D6). Así un código futuro mal formado, o
+#: uno que arrastre una ruta, no se cuela por la lista blanca.
+_FORMA_CODIGO = re.compile(r"^[A-Z][A-Z0-9_]{2,63}$")
+
+#: Código y frase cuando el job falló y no hay un código estable utilizable.
+CODIGO_GENERICO = "JOB_FAILED"
+_FRASE_GENERICA = (
+    "El trabajo ha fallado. El detalle técnico no se muestra en esta pantalla y "
+    "queda registrado en el servidor. Avisa a quien administra el servicio e "
+    "indícale este código."
+)
+
+
+def _error_publico(job: dict) -> dict[str, str] | None:
+    """Código estable + explicación comprensible, SIN detalle técnico.
+
+    Se deriva del `error_code` del job o, si no hay, del prefijo de
+    `error_message` (`CODIGO: frase ...`). La frase sale SIEMPRE del catálogo
+    cerrado del panel (`panel_errors.CATALOGO`), nunca del texto del job: ahí
+    puede ir la ruta del fichero de credencial y el motivo.
+    """
+    crudo = job.get("error_message")
+    codigo = job.get("error_code")
+    if not (crudo or codigo):
+        return None
+    if not (isinstance(codigo, str) and _FORMA_CODIGO.match(codigo)):
+        prefijo = str(crudo or "").split(":", 1)[0].strip()
+        codigo = prefijo if _FORMA_CODIGO.match(prefijo) else CODIGO_GENERICO
+    frase = panel_errors.CATALOGO.get(codigo)
+    if frase is None:
+        # Código con forma válida pero sin frase propia: se publica el código
+        # (es estable y buscable) con la explicación genérica.
+        frase = _FRASE_GENERICA
+    return {"code": codigo, "message": frase}
+
+
 def redact_job(job: dict, scope) -> dict[str, Any]:
-    """Recorta el detalle operativo del job si el ámbito no es de admin."""
+    """Recorta el detalle operativo del job si el ámbito no es de admin.
+
+    D6: el detalle técnico (`error_message`: ruta del fichero de credencial y
+    motivo) sólo lo ve quien `sees_operational_detail` (admin). Todos los roles
+    reciben `error_public` (código + explicación + a quién avisar). La decisión
+    es de ROL, nunca del nombre de usuario.
+    """
+    publico = _error_publico(job)
     if scope is None or scope.sees_operational_detail:
-        return job
+        if publico is None:
+            return job
+        return {**job, "error_public": publico}
     out = {k: job[k] for k in _PUBLIC_JOB_FIELDS if k in job}
     # Se conserva la SEÑAL de error (útil para el revisor) sin el texto, que
     # puede contener rutas, comandos o credenciales del servidor.
     out["has_error"] = bool(job.get("error_message") or job.get("error_code"))
+    if publico is not None:
+        out["error_code"] = publico["code"]
+        out["error_public"] = publico
     return out
 
 
