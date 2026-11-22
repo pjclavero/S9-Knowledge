@@ -49,6 +49,10 @@ from playwright.sync_api import Browser, BrowserContext, Page, sync_playwright  
 
 VENTANA = {"width": 1280, "height": 900}
 
+#: La traza de Playwright se guarda redactada. Quien prefiera no guardar
+#: ninguna (el ejecutor de la RC lo pide así) la apaga con esta variable.
+_CON_TRAZA = os.environ.get(soporte.PREFIJO + "SIN_TRAZA", "").strip() not in ("1", "true")
+
 _CLAVE_CONFIG = pytest.StashKey[Config]()
 _CLAVE_RESULTADOS = pytest.StashKey[dict]()
 _CLAVE_REDACTOR = pytest.StashKey[Redactor]()
@@ -57,6 +61,13 @@ _CLAVE_REDACTOR = pytest.StashKey[Redactor]()
 # ---------------------------------------------------------------------------
 # Arranque: configuración o nada
 # ---------------------------------------------------------------------------
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--paso", action="store", default="",
+        help="ejecuta sólo las pruebas que cubren ese paso del contrato (marcador cubre)",
+    )
+
 
 def pytest_configure(config: pytest.Config) -> None:
     try:
@@ -83,6 +94,11 @@ def _marcas(item: pytest.Item, nombre: str) -> list[str]:
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     cfg = config.stash[_CLAVE_CONFIG]
     errores = []
+    paso = config.getoption("--paso")
+    if paso:
+        elegidas = [i for i in items if paso in _marcas(i, "cubre")]
+        config.hook.pytest_deselected(items=[i for i in items if i not in elegidas])
+        items[:] = elegidas
     for item in items:
         sin = item.get_closest_marker("sin_grafo") is not None
         con = item.get_closest_marker("necesita_grafo") is not None
@@ -300,7 +316,8 @@ def contexto(navegador: Browser, cfg: Config, redactor: Redactor,
         ctx = (navegador_alternativo or navegador).new_context(viewport=VENTANA, storage_state=estado)
         ctx.set_default_timeout(20_000)
         ctx.on("response", lambda r: redactor.registrar_set_cookie(r.headers.get("set-cookie")))
-        ctx.tracing.start(screenshots=True, snapshots=True, sources=False)
+        if _CON_TRAZA:
+            ctx.tracing.start(screenshots=True, snapshots=True, sources=False)
         abiertos.append((nombre, ctx))
         return ctx
 
@@ -310,6 +327,8 @@ def contexto(navegador: Browser, cfg: Config, redactor: Redactor,
         for nombre, ctx in abiertos:
             try:
                 redactor.registrar_cookies(ctx.cookies())
+                if not _CON_TRAZA:
+                    continue
                 with tempfile.TemporaryDirectory(dir=str(cfg.salida)) as tmp:
                     cruda = Path(tmp) / "traza.zip"
                     ctx.tracing.stop(path=str(cruda))

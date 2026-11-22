@@ -98,6 +98,22 @@ Una sola instancia de Chromium y un solo proceso. La caducidad por inactividad
 va en tres tandas cortas separadas en el tiempo (`test_nav_02_inactividad.py`
 explica cuándo lanzar cada una).
 
+## Enganche con el ejecutor de la RC-E2E
+
+```
+<python del venv> tests/rc_navegador/rc_paso.py --paso <id del contrato>
+```
+
+Ejecuta las pruebas cuyo `cubre(...)` nombra ese paso y sale con **0** (PASS),
+**75** (BLOCKED: no cubierto, PENDING, falta configuración o no es su fase) u
+otro valor (FAIL). Lee `RC_NAV_BASE_URL`, `RC_NAV_CA_FILE`, `RC_NAV_EVIDENCIA`,
+`RC_NAV_WORKSPACE` y `RC_NAV_WORKSPACE_AJENO`; lo propio de la batería (cuentas,
+capacidades, dónde está Chromium) lo toma de `tests/rc_navegador/.entorno-local`,
+que no se versiona. Deja `<id>.resultado.json`, `<id>.png`, `<id>.txt` y las
+capturas por prueba; en este modo no guarda trazas de Playwright. El detalle
+está en la cabecera de `rc_paso.py`. También vale `pytest tests/rc_navegador
+--paso <id>` a mano.
+
 ## Evidencia
 
 Por prueba, en `S9K_RC_NAV_SALIDA/<módulo>/<prueba>/`: captura de pantalla y
