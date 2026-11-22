@@ -97,7 +97,7 @@ def _aviso(pagina) -> dict:
 # 8.M1 / 8.M2 — la fuente está y se solicita su ingesta desde el panel
 # ---------------------------------------------------------------------------
 
-@pytest.mark.cubre("8.M1", "8.M2", "REG-2", "REG-15")
+@pytest.mark.cubre("8.M2", "REG-2", "REG-15")
 def test_flujo_1_solicitar_la_ingesta_desde_el_panel(pagina_como, cfg, evidencia):
     _ventana(cfg, "ingesta")
     pagina = pagina_como("admin")
@@ -264,7 +264,7 @@ def test_flujo_3_revisar_aprobar_rechazar_y_deshacer(pagina_como, cfg, evidencia
 # Altas de entidad: la segunda decisión
 # ---------------------------------------------------------------------------
 
-@pytest.mark.cubre("8.M5", "8.M6", "REG-2", "REG-15")
+@pytest.mark.cubre("extra.altas", "REG-2", "REG-15")
 def test_flujo_4_dar_el_visto_bueno_a_las_entidades_nuevas(pagina_como, cfg, evidencia):
     _ventana(cfg, "altas")
     estado = _exigir(cfg, "revisado", "altas")
@@ -425,7 +425,7 @@ def test_flujo_7_resultado_de_la_ejecucion(pagina_como, cfg, evidencia):
     _guardar(cfg, estado)
 
 
-@pytest.mark.cubre("REG-22", "8.M7", "REG-2")
+@pytest.mark.cubre("8.M7", "REG-22", "REG-2")
 @pytest.mark.requiere("apply", "resultado")
 def test_flujo_7b_el_resultado_trae_relaciones(cfg, evidencia):
     """RC2-05: la primera ingesta dejaba «Relaciones añadidas (0)»."""

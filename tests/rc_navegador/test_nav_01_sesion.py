@@ -44,7 +44,7 @@ def _cookie(ctx, nombre: str):
 # Sin sesión
 # ---------------------------------------------------------------------------
 
-@pytest.mark.cubre("7.M1", "6.03", "REG-15")
+@pytest.mark.cubre("6.03", "extra.sesion", "REG-15")
 @pytest.mark.parametrize("ruta", ["/", "/entities", "/jobs", "/account", "/admin/users", "/v3/review"])
 def test_sin_cookie_las_pantallas_llevan_al_login(pagina_anonima, cfg, evidencia, ruta):
     respuesta = ir(pagina_anonima, cfg, ruta)
@@ -72,7 +72,7 @@ def test_sin_cookie_la_api_responde_401_sin_redirigir(pagina_anonima, cfg, evide
     assert "json" in r["tipo"], f"API_SIN_SESION: {ruta} respondió {r['tipo']}, no JSON"
 
 
-@pytest.mark.cubre("1.M1", "6.02", "N9", "REG-15")
+@pytest.mark.cubre("6.02", "N9", "REG-15")
 def test_la_configuracion_inicial_esta_cerrada(pagina_anonima, cfg, evidencia):
     respuesta = ir(pagina_anonima, cfg, "/setup/admin")
     evidencia.paso(pagina_anonima, "setup admin cerrado", estado=respuesta.status)
@@ -192,7 +192,7 @@ def test_el_boton_atras_tras_salir_no_devuelve_la_pantalla_protegida(contexto, c
     )
 
 
-@pytest.mark.cubre("7.M1", "REG-15")
+@pytest.mark.cubre("extra.sesion", "REG-15")
 def test_tras_entrar_se_vuelve_a_la_pantalla_pedida(contexto, cfg, evidencia):
     ctx = contexto("sesion")
     pagina = ctx.new_page()
@@ -207,7 +207,7 @@ def test_tras_entrar_se_vuelve_a_la_pantalla_pedida(contexto, cfg, evidencia):
     assert ruta_de(pagina) == "/jobs", f"VOLVER: tras entrar se acabó en {ruta_de(pagina)}, no en /jobs"
 
 
-@pytest.mark.cubre("7.M1", "REG-15")
+@pytest.mark.cubre("extra.sesion", "REG-15")
 def test_una_entrada_nueva_revoca_la_sesion_anterior(contexto, cfg, evidencia):
     primero = contexto("primer-navegador")
     p1 = primero.new_page()
@@ -263,7 +263,7 @@ def test_credenciales_que_no_valen(contexto, cfg, evidencia, redactor, caso):
     assert ruta_de(pagina) == "/login", f"NO_VALE[{caso}]: tras el rechazo se ve /account"
 
 
-@pytest.mark.cubre("7.M2", "REG-15")
+@pytest.mark.cubre("extra.sesion", "REG-15")
 def test_escribir_y_pulsar_intro_en_los_campos_no_envia(contexto, cfg, evidencia):
     """Contrato de envío explícito del formulario: sólo el botón envía."""
     ctx = contexto("intro")
@@ -278,7 +278,7 @@ def test_escribir_y_pulsar_intro_en_los_campos_no_envia(contexto, cfg, evidencia
     assert ruta_de(pagina) == "/login", "ENVÍO_IMPLÍCITO: la página navegó"
 
 
-@pytest.mark.cubre("7.M2", "REG-15")
+@pytest.mark.cubre("extra.sesion", "REG-15")
 def test_formulario_sin_testigo_csrf_se_rechaza(pagina_anonima, cfg, evidencia):
     ir(pagina_anonima, cfg, "/login")
     cuenta = cfg.cuenta("sesion")
@@ -357,7 +357,7 @@ def test_bloqueo_por_intentos_y_desbloqueo_desde_la_administracion(
 # Cambio de contraseña obligatorio
 # ---------------------------------------------------------------------------
 
-@pytest.mark.cubre("7.M1", "REG-15")
+@pytest.mark.cubre("extra.sesion", "REG-15")
 def test_cambio_de_contrasena_obligatorio_al_primer_acceso(contexto, cfg, evidencia, redactor):
     """La cuenta ``cambio`` se crea con la obligación de cambiar la contraseña.
 

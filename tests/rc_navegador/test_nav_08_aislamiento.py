@@ -30,7 +30,6 @@ from soporte import fetch_en_pagina, ir, texto_visible
 pytestmark = [
     pytest.mark.necesita_grafo,
     pytest.mark.requiere("panel_b", "aislamiento"),
-    pytest.mark.cubre("8.M9a", "8.M9b", "REG-15"),
 ]
 
 
@@ -47,6 +46,7 @@ def _job_sellado(cfg) -> str:
     return estado["job_id"]
 
 
+@pytest.mark.cubre("8.M9a", "REG-15")
 def test_con_otro_workspace_de_escritura_no_se_ofrece_aplicar(pagina_como, cfg, evidencia):
     job = _job_sellado(cfg)
     pagina = pagina_como("admin")
@@ -75,6 +75,7 @@ def test_con_otro_workspace_de_escritura_no_se_ofrece_aplicar(pagina_como, cfg, 
     )
 
 
+@pytest.mark.cubre("8.M9b", "REG-15")
 def test_con_otro_workspace_de_escritura_el_envio_directo_se_rechaza(pagina_como, cfg, evidencia):
     job = _job_sellado(cfg)
     pagina = pagina_como("admin")

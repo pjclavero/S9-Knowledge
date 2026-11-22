@@ -41,7 +41,7 @@ def _aviso_de_proveedor(pagina) -> str:
 
 
 @pytest.mark.sin_grafo
-@pytest.mark.cubre("8.M3b", "6.M2", "REG-15")
+@pytest.mark.cubre("extra.sin_grafo", "REG-15")
 @pytest.mark.parametrize("cuenta", ["lector", "revisor", "admin"])
 def test_sin_grafo_cada_pantalla_avisa_de_que_no_hay_base_de_conocimiento(pagina_como, cfg, evidencia, cuenta):
     """Sólo tiene sentido —y sólo se ejecuta— si la instalación NO declara el
@@ -59,7 +59,7 @@ def test_sin_grafo_cada_pantalla_avisa_de_que_no_hay_base_de_conocimiento(pagina
 
 
 @pytest.mark.sin_grafo
-@pytest.mark.cubre("8.M3b", "REG-15")
+@pytest.mark.cubre("extra.sin_grafo", "REG-15")
 def test_sin_grafo_el_estado_no_presenta_ceros_como_medidas(pagina_como, cfg, evidencia):
     """Sin base de conocimiento, «Nodos 0 / Relaciones 0» y «OK» no son datos
     medidos. La pantalla de estado tiene que distinguirlo."""
@@ -82,7 +82,7 @@ def test_sin_grafo_el_estado_no_presenta_ceros_como_medidas(pagina_como, cfg, ev
 
 
 @pytest.mark.sin_grafo
-@pytest.mark.cubre("6.M2", "REG-15")
+@pytest.mark.cubre("extra.consola", "REG-15")
 @pytest.mark.parametrize("cuenta", ["lector", "revisor", "admin"])
 def test_las_pantallas_no_dejan_errores_en_la_consola_del_navegador(pagina_como, cfg, evidencia, cuenta):
     pagina = pagina_como(cuenta)
@@ -109,7 +109,7 @@ def test_las_pantallas_no_dejan_errores_en_la_consola_del_navegador(pagina_como,
 
 
 @pytest.mark.sin_grafo
-@pytest.mark.cubre("6.M2", "REG-15")
+@pytest.mark.cubre("extra.jobs", "REG-15")
 def test_un_trabajo_que_no_existe_no_se_presenta_como_encontrado(pagina_como, cfg, evidencia):
     pagina = pagina_como("lector")
     respuesta = ir(pagina, cfg, "/jobs/00000000-0000-0000-0000-00000000rc3n")
@@ -127,7 +127,7 @@ def test_un_trabajo_que_no_existe_no_se_presenta_como_encontrado(pagina_como, cf
 
 @pytest.mark.sin_grafo
 @pytest.mark.requiere("panel_b")
-@pytest.mark.cubre("6.M2", "8.M3b", "REG-15")
+@pytest.mark.cubre("6.M2", "REG-15")
 def test_panel_de_operaciones_muestra_cola_fuentes_y_salud(pagina_como, cfg, evidencia):
     admin = pagina_como("admin")
     respuesta = ir(admin, cfg, "/panel/operations")
@@ -176,7 +176,7 @@ def test_panel_de_operaciones_muestra_cola_fuentes_y_salud(pagina_como, cfg, evi
 
 @pytest.mark.sin_grafo
 @pytest.mark.requiere("panel_b")
-@pytest.mark.cubre("6.M1", "6.M2", "REG-15")
+@pytest.mark.cubre("extra.salud", "REG-15")
 def test_la_consola_muestra_la_ultima_salud_guardada(pagina_como, cfg, evidencia):
     admin = pagina_como("admin")
     ir(admin, cfg, "/admin/health")
@@ -196,7 +196,7 @@ def test_la_consola_muestra_la_ultima_salud_guardada(pagina_como, cfg, evidencia
 
 @pytest.mark.sin_grafo
 @pytest.mark.requiere("panel_b", "ingesta")
-@pytest.mark.cubre("8.M1", "REG-15")
+@pytest.mark.cubre("extra.fuentes", "REG-15")
 def test_la_consola_dice_con_que_alcance_entraria_cada_fuente(pagina_como, cfg, evidencia):
     admin = pagina_como("admin")
     ir(admin, cfg, "/panel/operations")
@@ -222,7 +222,7 @@ RUTA_DE_SERVIDOR = re.compile(r"/(etc|var|srv|opt|home|root|run)/[\w./-]+")
 
 @pytest.mark.sin_grafo
 @pytest.mark.requiere("panel_b", "job_credencial")
-@pytest.mark.cubre("E9.RC1-G02", "REG-7", "REG-15")
+@pytest.mark.cubre("extra.credencial", "REG-7", "REG-15")
 def test_credencial_inutilizable_en_la_consola_del_administrador(pagina_como, cfg, evidencia):
     assert cfg.job_credencial, "CREDENCIAL: declara S9K_RC_NAV_JOB_CREDENCIAL (trabajo fallido por credencial inutilizable)"
     admin = pagina_como("admin")
@@ -249,7 +249,7 @@ def test_credencial_inutilizable_en_la_consola_del_administrador(pagina_como, cf
 
 @pytest.mark.sin_grafo
 @pytest.mark.requiere("job_credencial")
-@pytest.mark.cubre("E9.RC1-G02", "REG-7", "E7.roles", "REG-15")
+@pytest.mark.cubre("extra.credencial", "REG-7", "REG-15")
 @pytest.mark.parametrize("cuenta", ["lector", "revisor", "admin"])
 def test_credencial_inutilizable_en_el_detalle_del_trabajo_por_rol(pagina_como, cfg, evidencia, cuenta):
     """El detalle operativo (texto del error, rutas, payload) es del
@@ -286,7 +286,7 @@ def test_credencial_inutilizable_en_el_detalle_del_trabajo_por_rol(pagina_como, 
 
 @pytest.mark.sin_grafo
 @pytest.mark.requiere("panel_c")
-@pytest.mark.cubre("8.M4", "REG-15")
+@pytest.mark.cubre("extra.revision", "REG-15")
 @pytest.mark.parametrize("cuenta", ["revisor", "admin"])
 def test_panel_de_revision_es_de_solo_lectura_y_cuenta_lo_que_ve(pagina_como, cfg, evidencia, cuenta):
     pagina = pagina_como(cuenta)
@@ -322,7 +322,7 @@ def test_panel_de_revision_es_de_solo_lectura_y_cuenta_lo_que_ve(pagina_como, cf
 
 @pytest.mark.sin_grafo
 @pytest.mark.requiere("panel_f")
-@pytest.mark.cubre("8.M3b", "REG-15")
+@pytest.mark.cubre("extra.sin_grafo", "REG-15")
 def test_panel_de_fuentes_sin_grafo_no_presenta_un_inventario_vacio_como_real(pagina_como, cfg, evidencia):
     if "grafo" in cfg.capacidades:
         pytest.skip("BLOCKED[config]: la instalación declara el grafo; aquí se mide el caso sin él")
@@ -338,7 +338,7 @@ def test_panel_de_fuentes_sin_grafo_no_presenta_un_inventario_vacio_como_real(pa
 
 @pytest.mark.necesita_grafo
 @pytest.mark.requiere("panel_f")
-@pytest.mark.cubre("8.M1", "8.M7", "REG-15")
+@pytest.mark.cubre("8.M1", "REG-15")
 def test_panel_de_fuentes_lista_las_fuentes_del_conocimiento_aplicado(pagina_como, cfg, evidencia):
     pagina = pagina_como("revisor")
     respuesta = ir(pagina, cfg, "/panel/sources")
@@ -368,7 +368,7 @@ def test_panel_de_fuentes_lista_las_fuentes_del_conocimiento_aplicado(pagina_com
 
 @pytest.mark.sin_grafo
 @pytest.mark.requiere("panel_g")
-@pytest.mark.cubre("8.M3b", "REG-15")
+@pytest.mark.cubre("extra.sin_grafo", "REG-15")
 def test_panel_de_entidades_sin_grafo_no_presenta_un_listado_vacio_como_real(pagina_como, cfg, evidencia):
     if "grafo" in cfg.capacidades:
         pytest.skip("BLOCKED[config]: la instalación declara el grafo; aquí se mide el caso sin él")
@@ -384,7 +384,7 @@ def test_panel_de_entidades_sin_grafo_no_presenta_un_listado_vacio_como_real(pag
 
 @pytest.mark.necesita_grafo
 @pytest.mark.requiere("panel_g")
-@pytest.mark.cubre("9.13", "8.M8", "REG-15")
+@pytest.mark.cubre("9.13", "REG-15")
 @pytest.mark.parametrize("cuenta", ["lector", "revisor", "admin"])
 def test_panel_de_entidades_lista_y_abre_fichas(pagina_como, cfg, evidencia, cuenta):
     pagina = pagina_como(cuenta)
@@ -414,7 +414,7 @@ def test_panel_de_entidades_lista_y_abre_fichas(pagina_como, cfg, evidencia, cue
 
 @pytest.mark.necesita_grafo
 @pytest.mark.requiere("panel_g")
-@pytest.mark.cubre("E7.ambito", "E8.aislamiento", "REG-15")
+@pytest.mark.cubre("extra.ambito", "REG-15")
 def test_un_lector_no_ve_mas_entidades_que_el_administrador(pagina_como, cfg, evidencia):
     """Coherencia mínima de la autorización sobre el conocimiento real: lo que
     ve el lector es un subconjunto de lo que ve el administrador."""
@@ -437,7 +437,7 @@ def test_un_lector_no_ve_mas_entidades_que_el_administrador(pagina_como, cfg, ev
 # ---------------------------------------------------------------------------
 
 @pytest.mark.sin_grafo
-@pytest.mark.cubre("6.M2", "REG-15")
+@pytest.mark.cubre("extra.enlaces", "REG-15")
 @pytest.mark.parametrize("cuenta", ["lector", "revisor", "admin"])
 def test_ningun_enlace_de_las_pantallas_esta_muerto(pagina_como, cfg, evidencia, cuenta):
     """Se sigue cada enlace interno de cada pantalla que el rol puede abrir
@@ -486,3 +486,28 @@ def test_el_estado_operacional_no_se_cuelga_con_el_montaje_colgado(pagina_como, 
     assert respuesta.status == 200, f"MONTAJE_COLGADO: /admin/health respondió {respuesta.status}"
     assert segundos <= 15, f"MONTAJE_COLGADO: la pantalla tardó {segundos:.1f} s en pintar"
     assert "sin respuesta" in fila, f"MONTAJE_COLGADO: la pantalla no dice que la bóveda no responde: {fila[:300]!r}"
+
+
+@pytest.mark.sin_grafo
+@pytest.mark.requiere("panel_b")
+@pytest.mark.cubre("6.M2", "REG-15")
+def test_jobs_y_consola_cargan_y_ninguno_de_sus_enlaces_esta_muerto(pagina_como, cfg, evidencia):
+    admin = pagina_como("admin")
+    enlaces: dict[str, str] = {}
+    for ruta in ("/jobs", "/panel/operations"):
+        respuesta = ir(admin, cfg, ruta)
+        evidencia.paso(admin, ruta, estado=respuesta.status)
+        assert respuesta.status == 200, f"6.M2: {ruta} respondió {respuesta.status}"
+        for href in admin.eval_on_selector_all(
+            "a[href]",
+            "els => els.map(a => new URL(a.getAttribute('href'), location.href))"
+            ".filter(u => u.origin === location.origin).map(u => u.pathname + u.search)",
+        ):
+            enlaces.setdefault(href, ruta)
+    muertos = []
+    for href, origen in sorted(enlaces.items()):
+        respuesta = ir(admin, cfg, href)
+        if respuesta.status != 200 or ruta_de(admin) == "/login":
+            muertos.append(f"{href} (desde {origen}) -> {respuesta.status}")
+    evidencia.dato("enlaces seguidos", sorted(enlaces))
+    assert not muertos, "6.M2: enlaces muertos: " + "; ".join(muertos)

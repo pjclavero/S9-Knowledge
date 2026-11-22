@@ -28,7 +28,9 @@ El control es lo que separa «caducó por inactividad» de «caducó porque pas�
 ese tiempo» o «se cayó por otra causa». Las cookies guardadas se cargan en un
 contexto nuevo del navegador: equivale a un navegador que se dejó abierto.
 
-Cada tanda se pide con ``S9K_RC_NAV_FASE_INACTIVIDAD``. En una tanda normal
+Los pasos del contrato (7.30–7.34) los cubre la TERCERA tanda, que es la que
+juzga; las dos primeras son su preparación. Cada tanda se pide con
+``S9K_RC_NAV_FASE_INACTIVIDAD``. En una tanda normal
 (sin fase) estas pruebas quedan BLOCKED con su motivo: no se dan por verdes.
 """
 from __future__ import annotations
@@ -42,7 +44,7 @@ import pytest
 
 from soporte import fetch_en_pagina, iniciar_sesion, ir, ruta_de
 
-pytestmark = [pytest.mark.sin_grafo, pytest.mark.cubre("7.30", "7.31", "7.32", "7.34", "7.M4", "REG-15")]
+pytestmark = [pytest.mark.sin_grafo]
 
 COOKIE_SESION = "s9k_session"
 
@@ -81,6 +83,7 @@ def _registrar_cookies(redactor, estado: dict) -> None:
     redactor.registrar_cookies(estado.get("cookies", []))
 
 
+@pytest.mark.cubre("extra.fase_inactividad")
 def test_inactividad_1_sembrar(contexto, cfg, evidencia, redactor):
     _exigir_fase(cfg, "sembrar")
     datos = {"idle_minutos": cfg.idle_minutos}
@@ -101,6 +104,7 @@ def test_inactividad_1_sembrar(contexto, cfg, evidencia, redactor):
                                "idle_minutos": cfg.idle_minutos})
 
 
+@pytest.mark.cubre("extra.fase_inactividad")
 def test_inactividad_2_tocar_el_control(contexto, cfg, evidencia, redactor):
     _exigir_fase(cfg, "tocar")
     datos = _leer(cfg)
@@ -125,6 +129,7 @@ def test_inactividad_2_tocar_el_control(contexto, cfg, evidencia, redactor):
     _guardar(cfg, datos)
 
 
+@pytest.mark.cubre("7.30", "7.31", "7.32", "7.34", "REG-15")
 def test_inactividad_3_la_sesion_quieta_caduca_y_la_activa_no(contexto, cfg, evidencia, redactor):
     _exigir_fase(cfg, "comprobar")
     datos = _leer(cfg)

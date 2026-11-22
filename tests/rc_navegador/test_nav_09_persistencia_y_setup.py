@@ -43,7 +43,7 @@ def _fase(cfg, fase: str) -> None:
         )
 
 
-@pytest.mark.cubre("7.M3", "14.M2a", "REG-15")
+@pytest.mark.cubre("extra.fase_persistencia")
 def test_persistencia_1_dejar_una_sesion_abierta(contexto, cfg, evidencia, redactor):
     _fase(cfg, "sembrar")
     ctx = contexto("sesion")

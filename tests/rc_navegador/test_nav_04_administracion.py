@@ -34,7 +34,7 @@ def _enviar(pagina) -> None:
         pagina.click("main form button[type=submit].btn-primary")
 
 
-@pytest.mark.cubre("E7.admin", "REG-15")
+@pytest.mark.cubre("extra.admin", "REG-15")
 def test_alta_de_usuario_con_datos_que_no_valen(pagina_como, cfg, evidencia, redactor):
     admin = pagina_como("admin")
     ir(admin, cfg, "/admin/users/new")
@@ -66,7 +66,7 @@ def test_alta_de_usuario_con_datos_que_no_valen(pagina_como, cfg, evidencia, red
     assert _fila(admin, existente).count() == 1, "ALTA_INVÁLIDA: el duplicado creó una segunda fila"
 
 
-@pytest.mark.cubre("E7.admin", "7.M1", "REG-15")
+@pytest.mark.cubre("extra.admin", "REG-15")
 def test_ciclo_de_vida_de_un_usuario_desde_la_administracion(pagina_como, contexto, cfg, evidencia, redactor):
     admin = pagina_como("admin")
     usuario = "rc3nav_web_" + secrets.token_hex(3)

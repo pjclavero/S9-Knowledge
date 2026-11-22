@@ -44,7 +44,7 @@ def _tabla_de_salud(pagina) -> list[dict]:
 # /admin/health
 # ---------------------------------------------------------------------------
 
-@pytest.mark.cubre("6.M1", "10.M3", "REG-15")
+@pytest.mark.cubre("6.M1", "REG-15")
 def test_estado_operacional_visto_por_el_administrador(pagina_como, cfg, evidencia):
     admin = pagina_como("admin")
     respuesta = ir(admin, cfg, "/admin/health")
@@ -91,7 +91,7 @@ def test_estado_operacional_visto_por_el_administrador(pagina_como, cfg, evidenc
         )
 
 
-@pytest.mark.cubre("6.M1", "REG-15")
+@pytest.mark.cubre("extra.salud", "REG-15")
 def test_guardar_la_instantanea_de_salud(pagina_como, cfg, evidencia):
     admin = pagina_como("admin")
     ir(admin, cfg, "/admin/health")
@@ -104,7 +104,7 @@ def test_guardar_la_instantanea_de_salud(pagina_como, cfg, evidencia):
     )
 
 
-@pytest.mark.cubre("6.M1", "E7.roles", "REG-15")
+@pytest.mark.cubre("extra.roles", "REG-15")
 @pytest.mark.parametrize("cuenta", ["lector", "revisor"])
 def test_el_estado_operacional_no_se_sirve_a_quien_no_administra(pagina_como, cfg, evidencia, cuenta):
     pagina = pagina_como(cuenta)
@@ -117,6 +117,19 @@ def test_el_estado_operacional_no_se_sirve_a_quien_no_administra(pagina_como, cf
     evidencia.dato("api", {"estado": r["estado"]})
     assert r["estado"] == 403, f"SALUD[{cuenta}]: /api/admin/health respondió {r['estado']}"
     assert "components" not in r["texto"], f"SALUD[{cuenta}]: la API entregó componentes"
+
+
+@pytest.mark.cubre("10.M3", "REG-15")
+@pytest.mark.requiere("boveda", "boveda_solo_lectura")
+def test_el_estado_operacional_dice_boveda_de_solo_lectura(pagina_como, cfg, evidencia):
+    admin = pagina_como("admin")
+    respuesta = ir(admin, cfg, "/admin/health")
+    evidencia.paso(admin, "estado operacional con la bóveda no escribible", estado=respuesta.status)
+    boveda = [f for f in _tabla_de_salud(admin) if f["componente"] == "vault"]
+    evidencia.dato("bóveda", boveda)
+    assert boveda and "READ_ONLY" in boveda[0]["mensaje"], (
+        f"SALUD: con la bóveda no escribible la pantalla dice {boveda}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -194,7 +207,7 @@ def test_renombrar_el_workspace_con_la_boveda_escribible(pagina_como, cfg, evide
     )
 
 
-@pytest.mark.cubre("10.M2", "10.M3", "REG-15")
+@pytest.mark.cubre("10.M2", "REG-15")
 @pytest.mark.requiere("boveda", "boveda_solo_lectura")
 def test_renombrar_con_la_boveda_no_escribible_da_409_y_no_toca_el_perfil(pagina_como, cfg, evidencia):
     admin = pagina_como("admin")
@@ -246,7 +259,7 @@ def test_boveda_inexistente_no_ofrece_editar_y_el_envio_directo_da_404(pagina_co
     assert "no hay nada que editar" in r["texto"], "BÓVEDA_AUSENTE: el 404 no explica que no hay bóveda"
 
 
-@pytest.mark.cubre("E10.web", "REG-15")
+@pytest.mark.cubre("extra.boveda", "REG-15")
 def test_la_pantalla_de_partidas_dice_lo_que_sabe_de_la_boveda(pagina_como, cfg, evidencia):
     """Sin bóveda consultable no se ofrece conceder acceso a un identificador
     tecleado a mano; y no se enlaza la consola si está apagada."""

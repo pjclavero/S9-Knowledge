@@ -64,7 +64,7 @@ def _esperado(cfg, rol: str, minimo: str, capacidad) -> int:
     return 200
 
 
-@pytest.mark.cubre("E7.roles", "6.M1", "6.M2", "REG-15")
+@pytest.mark.cubre("extra.roles", "REG-15")
 @pytest.mark.parametrize("cuenta", ["lector", "revisor", "admin"])
 def test_el_menu_ofrece_exactamente_lo_que_el_rol_puede_abrir(pagina_como, cfg, evidencia, cuenta):
     rol = ROL_DE[cuenta]
@@ -92,7 +92,7 @@ def test_el_menu_ofrece_exactamente_lo_que_el_rol_puede_abrir(pagina_como, cfg, 
     assert not rotos, f"MENÚ[{cuenta}]: enlaces del menú que no abren: {rotos}"
 
 
-@pytest.mark.cubre("E7.roles", "6.M1", "6.M2", "REG-15")
+@pytest.mark.cubre("extra.roles", "REG-15")
 @pytest.mark.parametrize("cuenta", ["lector", "revisor", "admin"])
 def test_cada_pantalla_responde_segun_el_rol(pagina_como, cfg, evidencia, cuenta):
     rol = ROL_DE[cuenta]
@@ -111,7 +111,7 @@ def test_cada_pantalla_responde_segun_el_rol(pagina_como, cfg, evidencia, cuenta
     assert not discrepancias, f"ACCESO[{cuenta}]: " + "; ".join(discrepancias)
 
 
-@pytest.mark.cubre("E7.roles", "REG-15")
+@pytest.mark.cubre("extra.roles", "REG-15")
 @pytest.mark.parametrize("cuenta", ["lector", "revisor"])
 def test_un_rechazo_por_rol_se_explica_en_una_pantalla_del_producto(pagina_como, cfg, evidencia, cuenta):
     """Quien abre a mano una dirección que no le corresponde tiene que ver una
@@ -134,7 +134,7 @@ def test_un_rechazo_por_rol_se_explica_en_una_pantalla_del_producto(pagina_como,
     )
 
 
-@pytest.mark.cubre("E7.roles", "REG-15")
+@pytest.mark.cubre("extra.roles", "REG-15")
 def test_una_direccion_inexistente_se_explica_en_una_pantalla_del_producto(pagina_como, cfg, evidencia):
     pagina = pagina_como("lector")
     respuesta = ir(pagina, cfg, "/no-existe-rc3nav")
@@ -163,7 +163,7 @@ def _formularios_post(pagina) -> list[str]:
     )
 
 
-@pytest.mark.cubre("E7.roles", "REG-15")
+@pytest.mark.cubre("extra.roles", "REG-15")
 @pytest.mark.parametrize("cuenta", ["lector", "revisor"])
 def test_las_pantallas_no_ofrecen_botones_de_escritura_que_el_rol_no_tiene(pagina_como, cfg, evidencia, cuenta):
     rol = ROL_DE[cuenta]
@@ -190,7 +190,7 @@ def _testigo(pagina) -> str:
     return pagina.locator("header.topbar form[action='/logout'] input[name=csrf_token]").get_attribute("value") or ""
 
 
-@pytest.mark.cubre("E7.roles", "REG-15")
+@pytest.mark.cubre("extra.roles", "REG-15")
 @pytest.mark.parametrize("cuenta", ["lector", "revisor"])
 def test_un_envio_fabricado_no_salta_el_rol(pagina_como, cfg, evidencia, cuenta):
     """Con su sesión y su testigo CSRF reales, quien no es administrador
@@ -228,7 +228,7 @@ def test_un_envio_fabricado_no_salta_el_rol(pagina_como, cfg, evidencia, cuenta)
     assert pagina.locator("table.data-table").count() == 0, f"FABRICADO[{cuenta}]: tras los envíos ve la administración"
 
 
-@pytest.mark.cubre("E7.roles", "REG-15")
+@pytest.mark.cubre("extra.roles", "REG-15")
 def test_el_usuario_fabricado_no_existe(pagina_como, cfg, evidencia):
     """Efecto de la prueba anterior visto por el administrador: nadie creó
     las cuentas que los envíos fabricados pedían."""
@@ -277,7 +277,7 @@ def _partidas_ofrecidas(pagina) -> list[str]:
     )
 
 
-@pytest.mark.cubre("E7.ambito", "E8.aislamiento", "REG-15")
+@pytest.mark.cubre("extra.ambito", "REG-15")
 @pytest.mark.requiere("boveda", "partidas")
 def test_un_lector_acotado_a_una_partida_no_ve_ni_puede_elegir_la_otra(pagina_como, cfg, evidencia):
     assert cfg.partida_a and cfg.partida_b and cfg.partida_a != cfg.partida_b, (
