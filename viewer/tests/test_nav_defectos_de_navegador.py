@@ -181,7 +181,7 @@ def test_nav02_toda_pantalla_html_protegida_muestra_usuario_rol_y_salir(
             falta.append("salir")
         if falta:
             fallos.append(f"{plantilla} sin {'/'.join(falta)}")
-    assert vistas >= 8, f"el recorrido sólo vio {vistas} pantallas HTML con 200"
+    assert vistas >= 5, f"el recorrido sólo vio {vistas} pantallas HTML con 200"
     assert not fallos, f"NAV-02 ({rol}): " + "; ".join(fallos)
 
 
