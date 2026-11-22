@@ -17,7 +17,7 @@
   #}
   {% if auth_user is defined and auth_user %}
     {% set barra_user = auth_user %}
-  {% elif request is defined and request.state.user is defined and request.state.user %}
+  {% elif request is defined and request and request.state.user is defined and request.state.user %}
     {% set barra_user = request.state.user %}
   {% else %}
     {% set barra_user = none %}
