@@ -90,6 +90,15 @@ def test_estado_operacional_visto_por_el_administrador(pagina_como, cfg, evidenc
             "SALUD: una bóveda no configurada (dependencia opcional) degrada la salud"
         )
 
+    # 6.M1 pide «el estado REAL». El visor que está sirviendo esta misma
+    # pantalla no puede figurar como caído: si lo hace, el estado global que
+    # se publica tampoco es el real.
+    visor = componentes["viewer"]
+    assert visor["estado"] != "UNHEALTHY", (
+        f"SALUD: la pantalla que el visor acaba de servir dice que el visor no responde "
+        f"({visor['estado']}: {visor['mensaje']}); estado global publicado: {global_}"
+    )
+
 
 @pytest.mark.cubre("extra.salud", "REG-15")
 def test_guardar_la_instantanea_de_salud(pagina_como, cfg, evidencia):
