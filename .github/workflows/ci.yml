@@ -1518,6 +1518,17 @@ jobs:
           S9K_ALLOW_REAL_INGEST: ""
         run: python3 scripts/calibracion/mutaciones_preflights_rc2.py
 
+      # D6 (RC-E2E final) — la ruta del fichero de credencial del grafo sólo la
+      # ven administradores (rol, no nombre de usuario): el resto recibe código
+      # estable + explicación + a quién avisar, por HTML y por JSON; un código
+      # nuevo con ruta se redacta por defecto y el admin conserva el detalle.
+      # Cada rojo con su CAUSA; restauracion por `git checkout`. EN SERIE.
+      - name: "La ruta de la credencial del grafo sólo la ve administración: se pone ROJO ante cada defecto (D6)"
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          S9K_ALLOW_REAL_INGEST: ""
+        run: python3 scripts/calibracion/mutaciones_d6_ruta_credencial_solo_admin.py
+
       # MICROCARRIL DE SANEAMIENTO DE INSTRUMENTOS — los cuatro
       # `scripts/calibrar_panel_*.py`. Son los arneses de los cuatro paneles
       # del chasis (B operations, C review, F sources, G entities): cada uno

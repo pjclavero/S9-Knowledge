@@ -19,10 +19,12 @@ desde el visor. Esas acciones quedan para la CLI (data-engine/app/cli/jobs.py).
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
 
+from app import panel_errors
 from app.config import get_settings
 
 
@@ -129,25 +131,125 @@ _PUBLIC_JOB_FIELDS = (
 _SCOPE_LIMIT = 100_000  # ventana amplia: filtrar ANTES de paginar/contar
 
 
+#: Forma de un código de error estable (`fullmatch`). Lo que no case NO se
+#: muestra a un no-admin: por defecto, redactado (D6). Así un código futuro mal
+#: formado, o uno que arrastre una ruta, no se cuela por la lista blanca.
+_FORMA_CODIGO = re.compile(r"[A-Z][A-Z0-9_]{2,63}")
+
+#: Códigos públicos propios de este módulo, uno por situación que el sistema
+#: SÍ sabe. La frase depende del ESTADO del job: la pantalla no afirma lo que el
+#: sistema no sabe (un job `pending` no «ha fallado»).
+CODIGO_GENERICO = "JOB_FAILED"
+CODIGO_REINTENTO = "JOB_RETRYING"
+CODIGO_OMITIDO = "JOB_SKIPPED"
+CODIGO_CANCELADO = "JOB_CANCELLED"
+
+_FRASES = {
+    CODIGO_GENERICO: (
+        "El trabajo ha fallado. El detalle técnico no se muestra en esta pantalla y "
+        "queda registrado en el servidor. Avisa a quien administra el servicio e "
+        "indícale este código."
+    ),
+    CODIGO_REINTENTO: (
+        "El trabajo no ha terminado y se volverá a intentar. Si no avanza, avisa "
+        "a quien administra el servicio. El detalle queda registrado en el servidor."
+    ),
+    CODIGO_OMITIDO: (
+        "El trabajo se ha omitido: no se ha ejecutado y no es un fallo. Si "
+        "esperabas que se ejecutara, avisa a quien administra el servicio."
+    ),
+    CODIGO_CANCELADO: "El trabajo se ha cancelado y no se ha completado.",
+}
+#: Frase para un código estable sin entrada propia en el catálogo.
+_FRASE_CODIGO_SIN_CATALOGO = _FRASES[CODIGO_GENERICO]
+
+_ESTADOS_FALLO = frozenset({"failed"})
+_ESTADOS_EN_REINTENTO = frozenset({
+    "pending", "ready", "running", "processing", "transcribing", "extracting",
+    "needs_metadata",
+})
+
+
+def _codigo_estable(job: dict) -> str | None:
+    """El código estable del fallo, o `None` si no hay uno que se pueda publicar.
+
+    * `error_code` (columna): sólo con la FORMA de un código (`fullmatch`).
+    * prefijo de `error_message` (texto libre): sólo si es un código CONOCIDO
+      del catálogo. Un prefijo con forma de código pero desconocido podría ser
+      cualquier cosa que un handler futuro escriba antes de los dos puntos.
+    """
+    codigo = job.get("error_code")
+    if isinstance(codigo, str) and _FORMA_CODIGO.fullmatch(codigo):
+        return codigo
+    prefijo = str(job.get("error_message") or "").split(":", 1)[0].strip()
+    if prefijo in panel_errors.CATALOGO:
+        return prefijo
+    return None
+
+
+def _error_publico(job: dict) -> dict[str, str] | None:
+    """Código estable + explicación comprensible, SIN detalle técnico.
+
+    La frase sale SIEMPRE de `panel_errors.CATALOGO` o de `_FRASES`, nunca del
+    texto del job: ahí puede ir la ruta del fichero de credencial y el motivo.
+    Y depende del ESTADO: sólo un job `failed` «ha fallado»; uno que vuelve a
+    la cola está en reintento, uno `skipped` no es un fallo.
+    """
+    if not (job.get("error_message") or job.get("error_code")):
+        return None
+    estado = str(job.get("status") or "")
+    if estado in _ESTADOS_FALLO:
+        codigo = _codigo_estable(job) or CODIGO_GENERICO
+        return {"code": codigo,
+                "message": panel_errors.CATALOGO.get(codigo, _FRASE_CODIGO_SIN_CATALOGO)}
+    if estado == "skipped":
+        return {"code": CODIGO_OMITIDO, "message": _FRASES[CODIGO_OMITIDO]}
+    if estado == "cancelled":
+        return {"code": CODIGO_CANCELADO, "message": _FRASES[CODIGO_CANCELADO]}
+    if estado in _ESTADOS_EN_REINTENTO:
+        return {"code": CODIGO_REINTENTO, "message": _FRASES[CODIGO_REINTENTO]}
+    # complete / completed / ignored / estado desconocido: no hay fallo que contar.
+    return None
+
+
 def redact_job(job: dict, scope) -> dict[str, Any]:
-    """Recorta el detalle operativo del job si el ámbito no es de admin."""
-    if scope is None or scope.sees_operational_detail:
-        return job
+    """Recorta el detalle operativo del job si el ámbito no es de admin.
+
+    D6: el detalle técnico (`error_message`: ruta del fichero de credencial y
+    motivo) sólo lo ve quien `sees_operational_detail` (admin). Todos los roles
+    reciben `error_public` (código + explicación + a quién avisar). La decisión
+    es de ROL, nunca del nombre de usuario. POR DEFECTO REDACTADO: `scope=None`
+    (nadie dijo quién pregunta) se trata como no-admin; quien necesite todo debe
+    pasar `UNRESTRICTED` de forma explícita.
+    """
+    publico = _error_publico(job)
+    if scope is not None and scope.sees_operational_detail:
+        if publico is None:
+            return job
+        return {**job, "error_public": publico}
     out = {k: job[k] for k in _PUBLIC_JOB_FIELDS if k in job}
     # Se conserva la SEÑAL de error (útil para el revisor) sin el texto, que
     # puede contener rutas, comandos o credenciales del servidor.
     out["has_error"] = bool(job.get("error_message") or job.get("error_code"))
+    # `error_code` público: sólo un código con forma de código; nunca la columna cruda.
+    out["error_code"] = _codigo_estable({"error_code": job.get("error_code")})
+    if publico is not None:
+        if str(job.get("status") or "") in _ESTADOS_FALLO:
+            out["error_code"] = publico["code"]
+        out["error_public"] = publico
     return out
 
 
 def scoped_jobs(scope, *, workspace: str | None = None, status: str | None = None,
                 job_type: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
     """Jobs visibles en el ámbito, serializados y recortados. Filtra antes de recortar."""
+    if scope is None:  # nadie dijo quién pregunta: no se entrega nada (D6)
+        return []
     raw = list_jobs(workspace=workspace, status=status, job_type=job_type, limit=_SCOPE_LIMIT)
     visible = []
     for job in raw:
         item = serialize_job(job)
-        if scope is not None and not scope.allows(item):
+        if not scope.allows(item):
             continue
         visible.append(redact_job(item, scope))
         if len(visible) >= limit:
@@ -157,18 +259,22 @@ def scoped_jobs(scope, *, workspace: str | None = None, status: str | None = Non
 
 def scoped_job(scope, job_id: str) -> dict[str, Any] | None:
     """Detalle de un job; None si no existe O no es visible (=> 404 indistinguible)."""
+    if scope is None:  # nadie dijo quién pregunta: no se entrega nada (D6)
+        return None
     job = get_job(job_id)
     if job is None:
         return None
     item = serialize_job(job)
-    if scope is not None and not scope.allows(item):
+    if not scope.allows(item):
         return None
     return redact_job(item, scope)
 
 
 def scoped_counts(scope, workspace: str | None = None) -> dict[str, int]:
     """Conteos por estado sobre lo VISIBLE: un job ajeno tampoco se cuenta."""
-    if scope is None or scope.ctx.admin_full:
+    if scope is None:  # nadie dijo quién pregunta: no se cuenta nada (D6)
+        return {}
+    if scope.ctx.admin_full:
         return get_counts_by_status(workspace=workspace)
     counts: dict[str, int] = {}
     for job in list_jobs(workspace=workspace, limit=_SCOPE_LIMIT):

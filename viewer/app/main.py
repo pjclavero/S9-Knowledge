@@ -756,7 +756,7 @@ def status_view(request: Request, provider: GraphProvider = Depends(get_filtered
     guard = _require_user_or_redirect(request)
     if guard is not None and not isinstance(guard, User):
         return guard
-    status_data = api_status.api_status(provider)
+    status_data = api_status.api_status(provider, get_visibility_scope(request))
     return templates.TemplateResponse(request, "status.html", {"status": status_data, "auth_user": guard})
 
 
@@ -811,6 +811,9 @@ def jobs_view(
         if status_info["ok"]
         else []
     )
+    # D6: la ruta de la base de trabajos es detalle operativo: sólo administración.
+    if not scope.sees_operational_detail:
+        status_info = {k: v for k, v in status_info.items() if k != "db_path"}
     return templates.TemplateResponse(
         request,
         "jobs.html",

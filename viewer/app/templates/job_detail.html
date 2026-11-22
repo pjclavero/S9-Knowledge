@@ -28,23 +28,38 @@
       <div class="field-label">Iniciado / Terminado</div>
       <div class="field-value">{{ job.started_at or '—' }} / {{ job.finished_at or '—' }}</div>
     </div>
-    {% if job.error_message %}
+    {% if job.error_public %}
     <div class="field">
       <div class="field-label">Error</div>
+      <div class="field-value"><code>{{ job.error_public.code }}</code> {{ job.error_public.message }}</div>
+    </div>
+    {% endif %}
+    {# D6: el detalle técnico (ruta y motivo) sólo llega aquí si el ámbito es de
+       administración: `redact_job` lo retira para el resto de roles. #}
+    {% if job.error_message %}
+    <div class="field">
+      <div class="field-label">Detalle técnico (sólo administración)</div>
       <div class="field-value">{{ job.error_message }}</div>
     </div>
     {% endif %}
   </div>
 
+  {# Payload y resultado son detalle operativo (rutas del servidor): `redact_job`
+     los retira para quien no es admin. Sin esta guarda, `tojson` de un valor
+     indefinido daba 500 al revisor en el detalle de CUALQUIER job (D6). #}
+  {% if job.payload is defined %}
   <div class="card">
     <h2>Payload</h2>
     <pre>{{ job.payload | tojson(indent=2) if job.payload is not none else '—' }}</pre>
   </div>
+  {% endif %}
 
+  {% if job.result is defined %}
   <div class="card">
     <h2>Result</h2>
     <pre>{{ job.result | tojson(indent=2) if job.result is not none else '—' }}</pre>
   </div>
+  {% endif %}
   {% endif %}
 </main>
 {% endblock %}

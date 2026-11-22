@@ -158,3 +158,31 @@ def require_api_role(role: str) -> Callable:
         return user
 
     return _check
+
+
+def require_api_admin() -> Callable:
+    """Dependencia de API de ADMINISTRACION: falla CERRADA con la auth apagada.
+
+    `require_api_role` deja pasar todo cuando `S9K_AUTH_ENABLED` está apagado,
+    que es razonable para la API de lectura pero no para un endpoint de
+    administración: un informe con rutas del state root no puede abrirse a un
+    anónimo porque la autenticación esté desactivada. La versión HTML ya
+    redirige a /login en ese caso (`require_admin`); la API responde 403.
+
+    - auth desactivada  → 403 (no hay identidad que pueda ser admin).
+    - auth activada, sin sesión → 401; rol insuficiente → 403; admin → pasa.
+    """
+    comprobar_rol = require_api_role("admin")
+
+    async def _check(
+        request: Request,
+        user: Optional[User] = Depends(get_current_api_user),
+    ) -> Optional[User]:
+        if not get_auth_settings().S9K_AUTH_ENABLED:
+            raise HTTPException(
+                status_code=403,
+                detail="Administración requiere autenticación activada",
+            )
+        return await comprobar_rol(request, user)
+
+    return _check
