@@ -24,8 +24,6 @@ import time
 from contextlib import closing
 
 import pytest
-from fastapi.routing import APIRoute
-from starlette.routing import Mount
 
 PW = "contrasena-de-laboratorio-1234567890-ABCdef"
 NOMBRES = {"viewer": "Lola Lectora", "reviewer": "Rafa Revisor", "admin": "Ada Admin"}
@@ -75,17 +73,21 @@ def _cliente(db, rol=None):
 
 
 def _rutas_get():
-    """(ruta con parámetros rellenados, plantilla) de TODAS las rutas GET montadas."""
+    """(ruta con parámetros rellenados, plantilla) de TODAS las rutas GET montadas.
+
+    Se recorre con `iter_mounted_routes`, el mismo censo aplanado que usa el
+    resto de la suite: en FastAPI reciente `app.routes` no trae las rutas de los
+    routers incluidos y un barrido de primer nivel vería sólo una parte.
+    """
+    from app.chassis import enumerable_methods, iter_mounted_routes
     from app.main import app
 
     vistas = []
-    for r in app.routes:
-        if isinstance(r, Mount):
-            continue
-        if isinstance(r, APIRoute) and "GET" in r.methods:
-            vistas.append((re.sub(r"\{[^}]+\}", "x", r.path), r.path))
-        elif not isinstance(r, APIRoute) and getattr(r, "methods", None) and "GET" in r.methods:
-            vistas.append((re.sub(r"\{[^}]+\}", "x", r.path), r.path))
+    for r in iter_mounted_routes(app):
+        metodos = enumerable_methods(r)
+        if metodos and "GET" in metodos:
+            ruta = str(r.path)
+            vistas.append((re.sub(r"\{[^}]+\}", "x", ruta), ruta))
     assert len(vistas) > 30, f"la introspección vio sólo {len(vistas)} rutas GET"
     return sorted(set(vistas))
 
