@@ -21,6 +21,10 @@
       <tr><td>Relaciones</td><td>{{ status.relationships }}</td></tr>
       {% if status.error %}
       <tr><td>Error</td><td>{{ status.error }}</td></tr>
+      {# D6: `status.error` es el detalle técnico sólo para el admin; el resto recibe el código #}
+      {% if status.error_public %}
+      <tr><td>Qué hacer</td><td>{{ status.error_public.message }}</td></tr>
+      {% endif %}
       {% endif %}
     </table>
   </div>

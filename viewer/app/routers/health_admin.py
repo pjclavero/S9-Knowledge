@@ -44,7 +44,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.auth.config import get_auth_settings
 from app.auth.csrf import get_csrf_token_for_session, validate_csrf
-from app.auth.dependencies import require_admin, require_api_role
+from app.auth.dependencies import require_admin, require_api_admin
 from app.auth.models import User
 from app.health import runner, storage
 
@@ -67,7 +67,7 @@ def _check_csrf(request: Request, token: str, session_id: int) -> bool:
 
 
 @router.get("/api/admin/health")
-async def api_admin_health(request: Request, _=Depends(require_api_role("admin"))):
+async def api_admin_health(request: Request, _=Depends(require_api_admin())):
     """Consulta de salud. NO persiste: para eso está el POST de instantánea."""
     report = runner.run_report()
     return JSONResponse(report.to_dict())
