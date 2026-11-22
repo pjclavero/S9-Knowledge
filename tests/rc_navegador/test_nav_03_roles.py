@@ -94,6 +94,34 @@ def test_el_menu_ofrece_exactamente_lo_que_el_rol_puede_abrir(pagina_como, cfg, 
 
 @pytest.mark.cubre("extra.roles", "REG-15")
 @pytest.mark.parametrize("cuenta", ["lector", "revisor", "admin"])
+def test_la_barra_de_sesion_y_el_menu_del_rol_estan_en_todas_las_pantallas(pagina_como, cfg, evidencia, cuenta):
+    """En cualquier pantalla que el rol puede abrir tienen que estar su menú
+    (el mismo que en el inicio), quién es, su rol y «Salir»."""
+    rol = ROL_DE[cuenta]
+    pagina = pagina_como(cuenta)
+    ir(pagina, cfg, "/")
+    menu_del_inicio = sorted(enlaces_de_navegacion(pagina))
+    sin_barra, otro_menu = [], []
+    for ruta, minimo, capacidad, _ in RUTAS:
+        if ruta == "/" or _esperado(cfg, rol, minimo, capacidad) != 200:
+            continue
+        ir(pagina, cfg, ruta)
+        if (pagina.locator("header.topbar .role-badge").count() == 0
+                or pagina.locator("header.topbar form[action='/logout']").count() == 0):
+            sin_barra.append(ruta)
+            evidencia.paso(pagina, f"sin barra de sesión {ruta}")
+        menu = sorted(enlaces_de_navegacion(pagina))
+        if menu != menu_del_inicio:
+            otro_menu.append(f"{ruta}: faltan {sorted(set(menu_del_inicio) - set(menu))}")
+    evidencia.dato("pantallas", {"sin_barra_de_sesion": sin_barra, "con_otro_menu": otro_menu})
+    assert not sin_barra and not otro_menu, (
+        f"BARRA[{cuenta}]: pantallas sin usuario, rol ni «Salir» en la barra: {sin_barra}; "
+        f"pantallas con un menú distinto del del inicio: {otro_menu}"
+    )
+
+
+@pytest.mark.cubre("extra.roles", "REG-15")
+@pytest.mark.parametrize("cuenta", ["lector", "revisor", "admin"])
 def test_cada_pantalla_responde_segun_el_rol(pagina_como, cfg, evidencia, cuenta):
     rol = ROL_DE[cuenta]
     pagina = pagina_como(cuenta)

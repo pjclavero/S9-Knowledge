@@ -167,29 +167,45 @@ def test_salir_cierra_la_sesion_en_el_servidor(contexto, cfg, evidencia, navegad
 
 
 @pytest.mark.cubre("7.M1", "REG-15")
-@pytest.mark.parametrize("ruta", ["/", "/jobs", "/entities", "/account"])
+@pytest.mark.parametrize("ruta", ["/entities", "/jobs", "/status", "/account"])
 def test_el_boton_atras_tras_salir_no_devuelve_la_pantalla_protegida(contexto, cfg, evidencia, ruta):
     """7.M1: «tras el logout no se ve contenido protegido», tampoco con el
     botón «atrás» del navegador, que sirve la pantalla desde su caché si el
-    producto no la marca como no almacenable."""
+    producto no la marca como no almacenable.
+
+    Recorrido: entrar → la pantalla → inicio → «Salir» → atrás, atrás. Lo
+    que se juzga es la SEGUNDA vuelta, que cae en la pantalla medida."""
     ctx = contexto("sesion")
     pagina = ctx.new_page()
     iniciar_sesion(pagina, cfg, cfg.cuenta("sesion"))
     protegida = ir(pagina, cfg, ruta)
     evidencia.paso(pagina, f"{ruta} antes de salir", estado=protegida.status)
+    antes = texto_visible(pagina, "main")
     cabeceras = {c: protegida.headers.get(c) for c in ("cache-control", "pragma", "expires")}
     evidencia.dato("cabeceras de caché de la pantalla protegida", cabeceras)
+    ir(pagina, cfg, "/")
     with pagina.expect_navigation():
         pagina.click("header.topbar form[action='/logout'] button")
     assert ruta_de(pagina) == "/login", f"ATRÁS: preparación: salir llevó a {ruta_de(pagina)}"
     pagina.go_back(wait_until="domcontentloaded")
-    evidencia.paso(pagina, "botón atrás tras salir")
+    evidencia.paso(pagina, "primer atrás (inicio)")
+    inicio_visible = pagina.locator("#login-form").count() == 0 and ruta_de(pagina) == "/"
+    pagina.go_back(wait_until="domcontentloaded")
+    evidencia.paso(pagina, "segundo atrás (la pantalla medida)")
     cuerpo = texto_visible(pagina)
-    evidencia.dato("tras el botón atrás", {"ruta": ruta_de(pagina), "texto": cuerpo[:300]})
-    assert pagina.locator("header.topbar .role-badge").count() == 0, (
-        f"ATRÁS: tras salir, el botón «atrás» vuelve a mostrar {ruta} con la barra de sesión "
+    visible = pagina.locator("#login-form").count() == 0 and ruta_de(pagina) == ruta
+    evidencia.dato("tras el botón atrás", {
+        "ruta": ruta_de(pagina), "pantalla_protegida_visible": visible,
+        "inicio_visible_en_el_primer_atras": inicio_visible, "texto": cuerpo[:300],
+    })
+    assert not visible, (
+        f"ATRÁS: tras salir, el botón «atrás» vuelve a mostrar {ruta} sin pedir entrar "
         f"(Cache-Control de esa pantalla: {cabeceras['cache-control']!r}): {cuerpo[:140]!r}"
     )
+    assert not inicio_visible, (
+        "ATRÁS: tras salir, el botón «atrás» vuelve a mostrar el inicio con la barra de sesión"
+    )
+    assert antes, "ATRÁS: preparación: la pantalla medida no tenía contenido"
 
 
 @pytest.mark.cubre("extra.sesion", "REG-15")
