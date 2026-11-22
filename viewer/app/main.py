@@ -7,10 +7,12 @@ from pathlib import Path
 from typing import Mapping, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.exception_handlers import http_exception_handler as default_http_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app import service_identity
 from app.api import entities as api_entities
@@ -134,6 +136,42 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             status_code=400,
         )
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
+def _quiere_html(request: Request) -> bool:
+    """Navegador (Accept: text/html) pidiendo una pantalla, no la API.
+
+    `/api/*` es siempre JSON aunque quien pregunta acepte HTML; un cliente que
+    no declara text/html (curl, httpx, fetch con */*) tambien conserva JSON.
+    """
+    if request.url.path.startswith("/api/"):
+        return False
+    return "text/html" in request.headers.get("accept", "")
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_page_handler(request: Request, exc: StarletteHTTPException):
+    """NAV-03 · un 403 por rol o un 404 pedidos por un navegador se sirven como
+    pantalla y no como `{"detail": ...}` crudo. Cualquier otro caso, o un
+    cliente que no pide HTML, sigue exactamente en el manejador por defecto.
+
+    La pagina NO reproduce `exc.detail` ni la ruta pedida: el texto lo decide
+    este manejador por codigo, asi que no puede filtrar nada interno.
+    """
+    if exc.status_code in (403, 404) and _quiere_html(request):
+        headers = getattr(exc, "headers", None)
+        try:
+            if exc.status_code == 403:
+                cuerpo = templates.get_template("auth/403.html").render(
+                    {"request": request, "detail": ""})
+            else:
+                cuerpo = templates.get_template("error.html").render(
+                    {"request": request, "code": 404,
+                     "message": "La dirección que has pedido no existe."})
+        except Exception:
+            return await default_http_exception_handler(request, exc)
+        return HTMLResponse(content=cuerpo, status_code=exc.status_code, headers=headers)
+    return await default_http_exception_handler(request, exc)
+
 
 # APIs protegidas: viewer+ cuando auth está activa; públicas cuando está off
 # (la dependencia es no-op si S9K_AUTH_ENABLED=false).

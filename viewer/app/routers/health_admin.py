@@ -53,6 +53,14 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 router = APIRouter()
 
+# NAV-06 · los tres manejadores son `def` a propósito, NO `async def`. El
+# informe sondea al propio visor por HTTP (`checks.check_viewer`, 5 s de plazo).
+# Un manejador `async` ejecuta `runner.run_report()` DENTRO del bucle de
+# eventos: con un solo worker (como el servicio) el visor no puede atender el
+# sondeo mientras espera su resultado, y publicaba «viewer: UNHEALTHY ·
+# ReadTimeout» estando vivo. Como `def`, Starlette lo ejecuta en un hilo y el
+# bucle queda libre para responder al sondeo; el chequeo sigue siendo real.
+
 
 def _get_csrf(request: Request, session_id: int) -> str:
     cfg = get_auth_settings()
@@ -67,14 +75,14 @@ def _check_csrf(request: Request, token: str, session_id: int) -> bool:
 
 
 @router.get("/api/admin/health")
-async def api_admin_health(request: Request, _=Depends(require_api_role("admin"))):
+def api_admin_health(request: Request, _=Depends(require_api_role("admin"))):
     """Consulta de salud. NO persiste: para eso está el POST de instantánea."""
     report = runner.run_report()
     return JSONResponse(report.to_dict())
 
 
 @router.get("/admin/health", response_class=HTMLResponse)
-async def admin_health_panel(request: Request, admin: User = Depends(require_admin)):
+def admin_health_panel(request: Request, admin: User = Depends(require_admin)):
     """Consulta de salud en HTML. NO persiste."""
     if isinstance(admin, RedirectResponse):
         return admin
@@ -92,7 +100,7 @@ async def admin_health_panel(request: Request, admin: User = Depends(require_adm
 
 
 @router.post("/admin/health/snapshot")
-async def admin_health_snapshot(
+def admin_health_snapshot(
     request: Request,
     csrf_token: str = Form(...),
     admin: User = Depends(require_admin),

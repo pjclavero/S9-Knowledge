@@ -8,6 +8,20 @@
   {% block head %}{% endblock %}
 </head>
 <body>
+  {#
+    NAV-02 · UN solo punto. La barra se pinta con el usuario que la peticion ya
+    trae (`request.state.user`, puesto por el middleware de autenticacion), no
+    con un argumento que cada ruta tuviera que acordarse de pasar: las rutas
+    que no pasaban `auth_user` (/jobs, /account, /reviews, /admin/*) perdian
+    usuario, rol, «Salir» y el menu del rol. Si una ruta lo pasa, manda el suyo.
+  #}
+  {% if auth_user is defined and auth_user %}
+    {% set barra_user = auth_user %}
+  {% elif request is defined and request.state.user is defined and request.state.user %}
+    {% set barra_user = request.state.user %}
+  {% else %}
+    {% set barra_user = none %}
+  {% endif %}
   <header class="topbar">
     <div class="brand">S9 Knowledge · Visor mínimo</div>
     {#
@@ -18,11 +32,11 @@
       rol lo hace `chassis_nav` con los métodos del propio User.
     #}
     <nav>
-      {% for item in chassis_nav(auth_user if auth_user is defined else None) %}
+      {% for item in chassis_nav(barra_user) %}
       <a href="{{ item.url | e }}" data-nav="{{ item.route_name | e }}">{{ item.label }}</a>
       {% endfor %}
     </nav>
-    {% if auth_user is defined and auth_user %}
+    {% if barra_user %}
     <div class="topbar-user">
       {% if request.state.user_partidas %}
       <form method="post" action="/partida/select" class="partida-selector" style="display:inline;">
@@ -50,8 +64,8 @@
         <noscript><button type="submit">Cambiar</button></noscript>
       </form>
       {% endif %}
-      <span>{{ auth_user.display_name | e }}</span>
-      <span class="role-badge role-{{ auth_user.role | e }}">{{ auth_user.role | e }}</span>
+      <span>{{ barra_user.display_name | e }}</span>
+      <span class="role-badge role-{{ barra_user.role | e }}">{{ barra_user.role | e }}</span>
       <a href="/account">Cuenta</a>
       <form method="post" action="/logout" style="display:inline;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token | default(request.state.csrf_token, true) | default('') | e }}">

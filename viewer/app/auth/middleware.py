@@ -44,6 +44,11 @@ def _must_change_allows(path: str) -> bool:
             or path.startswith(_MUST_CHANGE_ALLOWED_PREFIXES))
 
 
+def _es_estatico_publico(path: str) -> bool:
+    """Único contenido que puede cachearse: los estáticos públicos."""
+    return path.startswith("/static/") or path == "/favicon.ico"
+
+
 def _get_real_ip(request: Request) -> Optional[str]:
     cfg = get_auth_settings()
     if cfg.S9K_AUTH_TRUST_PROXY_HEADERS:
@@ -154,11 +159,19 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         response = await call_next(request)
 
-        # Contenido de autenticación: nunca cacheable (ni por el navegador ni
-        # por un proxy). `no-cache` no basta para credenciales: `no-store`.
+        # NAV-01 · UN solo punto. Nada de lo que sirve el visor es cacheable por
+        # el navegador ni por un proxy, salvo los estáticos públicos: si una
+        # pantalla protegida (HTML o JSON) quedara en la caché, tras «Salir» el
+        # botón «atrás» la repintaría. Se aplica aquí, a TODA respuesta, para que
+        # una ruta nueva lo herede sin acordarse; la excepción es explícita y
+        # mínima (`_es_estatico_publico`). `no-cache` no basta: `no-store`.
+        # Una ruta que ya fijó su propio Cache-Control lo conserva, salvo en las
+        # de autenticación y en los 401/403, que siempre son `no-store`.
         path = request.url.path
         if (path in ("/login", "/logout", "/account")
                 or path.startswith("/account/")
                 or response.status_code in (401, 403)):
             response.headers["Cache-Control"] = "no-store"
+        elif not _es_estatico_publico(path):
+            response.headers.setdefault("Cache-Control", "no-store")
         return response
