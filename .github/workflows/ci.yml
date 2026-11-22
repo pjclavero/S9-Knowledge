@@ -1518,6 +1518,21 @@ jobs:
           S9K_ALLOW_REAL_INGEST: ""
         run: python3 scripts/calibracion/mutaciones_preflights_rc2.py
 
+      # NAV-01, NAV-02, NAV-03 y NAV-06 (bateria de navegador de la RC-E2E) —
+      # ninguna pantalla protegida se cachea (tras «Salir», «atras» no repinta),
+      # la barra de sesion sale de la peticion y no de cada ruta, un 403/404 de
+      # navegador es una pagina (y la API sigue en JSON) y el informe de salud
+      # servido por el visor no se bloquea a si mismo con un solo worker. Cada
+      # rojo con su CAUSA; restauracion por `git checkout`. EN SERIE.
+      #
+      # TECHO: la bateria de Playwright contra una instalacion viva es de la
+      # siguiente RC-E2E; aqui se mide por HTTP contra la aplicacion real.
+      - name: "Los defectos de navegador NAV-01/02/03/06 se ponen ROJOS ante cada regresion"
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          S9K_ALLOW_REAL_INGEST: ""
+        run: python3 scripts/calibracion/mutaciones_nav_defectos_de_navegador.py
+
       # MICROCARRIL DE SANEAMIENTO DE INSTRUMENTOS — los cuatro
       # `scripts/calibrar_panel_*.py`. Son los arneses de los cuatro paneles
       # del chasis (B operations, C review, F sources, G entities): cada uno
